@@ -2,7 +2,8 @@
 [Performance test. Multiple objects manipulation at 60 fps.](https://youtu.be/mQVOlCJZZ4w)
 
 # Features
-- Cross-platform C++ text-based UI.
+- Cross-platform, C++.
+- Text-based UI.
 - Zero external dependencies.
 - UTF-8 encoding.
 - ANSI-aware terminals compatibility.
