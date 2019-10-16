@@ -4,7 +4,7 @@
 
 # Features
 - Cross-platform, C++
-- Text-based UI
+- Text-based multiuser UI
 - UTF-8 encoding
 - ANSI-aware terminals compatibility
 - Italics, Bold, Underlined, Inverted, Highlighted and Shaded text
