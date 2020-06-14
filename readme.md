@@ -3,7 +3,7 @@
   - Seattle   region, US: `telnet   seattle.netxs.online`
   - Frankfurt region, EU: `telnet frankfurt.netxs.online`
 - Video
-  - [Performance test, Multiple objects, 60 fps](https://youtu.be/mQVOlCJZZ4w)
+  - [Performance test, multiple objects, 60 fps](https://youtu.be/mQVOlCJZZ4w)
   - [Navigation test](https://youtu.be/5h1fJ-es8kQ)
 
 # Features
