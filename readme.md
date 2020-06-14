@@ -1,5 +1,5 @@
 # Demo
-- Online interactive demo via Telnet protocol
+- Online Telnet Live Demo in Your Terminal
   - Seattle   region, US: `telnet   seattle.netxs.online`
   - Frankfurt region, EU: `telnet frankfurt.netxs.online`
 - Video: [Performance test, Multiple objects, 60 fps](https://youtu.be/mQVOlCJZZ4w)
