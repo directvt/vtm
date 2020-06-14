@@ -25,4 +25,4 @@
   - Auto-sync Unicode Character Database at compile time
 
 ## Other related repositories
-[TermXS API Documentation](https://github.com/netxs-group/TermXS-Docs)
+[TermXS Framework API Documentation](https://github.com/netxs-group/TermXS-Docs)
