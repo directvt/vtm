@@ -27,7 +27,7 @@
   - Auto-sync Unicode Character Database at compile time
 - Accessibility
   - On-premises usage
-  - Remote shell access
+  - Cloud remote shell access
 
 ## Other related repositories
 [TermXS Framework API Documentation](https://github.com/netxs-group/TermXS-Docs)
