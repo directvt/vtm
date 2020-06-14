@@ -7,7 +7,9 @@
   - [Navigation test](https://youtu.be/5h1fJ-es8kQ)
 
 # Features
-- Animated non-blocking text-based UI
+- Animated text-based UI
+  - Non-blocking architecture
+  - Kinetic user interface
   - Multi-cursor
   - Mouse chording
   - Adjustable frame rate rendering
