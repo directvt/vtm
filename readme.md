@@ -16,7 +16,7 @@
   - Unicode clustering
   - Italic, Bold, Underline, Invert, Highlight, Shade, etc
   - TrueColor with alpha/transparensy
-  - Bidirectional text (Arabic, Hebrew)
+  - Bidirectional text
   - UTF-8 only
 - Performance and versatility  
   - Cross-platform code, C++
