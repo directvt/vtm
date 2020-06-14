@@ -9,7 +9,6 @@
 # Features
 - Animated text-based UI
   - Kinetic user interface
-  - Non-blocking architecture
   - Adjustable frame rate rendering
   - Mouse chording
   - Multi-user shared access
@@ -22,6 +21,7 @@
   - UTF-8 only
 - Performance and versatility  
   - Cross-platform code, C++
+  - Non-blocking architecture
   - One third-party dependency - _TermXS Framework_
   - Modern terminal emulators compatibility
   - Auto-sync Unicode Character Database at compile time
