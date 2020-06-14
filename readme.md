@@ -25,6 +25,9 @@
   - One third-party dependency - _TermXS Framework_
   - Modern terminal emulators compatibility
   - Auto-sync Unicode Character Database at compile time
+- Accessibility
+  - On-premises usage
+  - Remote shell access
 
 ## Other related repositories
 [TermXS Framework API Documentation](https://github.com/netxs-group/TermXS-Docs)
