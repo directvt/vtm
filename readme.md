@@ -8,8 +8,8 @@
 
 # Features
 - Animated text-based UI
-  - Non-blocking architecture
   - Kinetic user interface
+  - Non-blocking architecture
   - Multi-cursor
   - Mouse chording
   - Adjustable frame rate rendering
