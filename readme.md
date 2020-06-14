@@ -15,7 +15,7 @@
 - Fine text processing
   - Unicode clustering
   - Italic, Bold, Underline, Invert, Highlight, Shade, etc
-  - TrueColor with alpha/transparensy
+  - TrueColor with transparensy
   - Bidirectional text
   - UTF-8 only
 - Performance and versatility  
