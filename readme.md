@@ -10,14 +10,14 @@
 - Animated text-based UI
   - Kinetic user interface
   - Non-blocking architecture
-  - Multi-cursor
-  - Mouse chording
   - Adjustable frame rate rendering
-  - Shared access
+  - Mouse chording
+  - Multi-user shared access
 - Fine text processing
   - Unicode clustering
   - Italic, Bold, Underline, Invert, Highlight, Shade, etc
   - TrueColor with transparency
+  - Multi-cursor
   - Bidirectional text
   - UTF-8 only
 - Performance and versatility  
