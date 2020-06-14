@@ -25,7 +25,7 @@
   - One third-party dependency - _TermXS Framework_
   - Modern terminal emulators compatibility
   - Auto-sync Unicode Character Database at compile time
-- Accessibility
+- Suitability
   - On-premises usage
   - Cloud remote shell access
 
