@@ -26,7 +26,7 @@
   - Modern terminal emulators compatibility
   - Auto-sync Unicode Character Database at compile time
 - Suitability
-  - On-premises usage
+  - Local usage
   - Cloud remote shell access
 
 ## Other related repositories
