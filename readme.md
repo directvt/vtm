@@ -1,15 +1,15 @@
 # Demo
 - Online Telnet Live Demo in Your Terminal
   - Seattle, US
-      <pre>telnet seattle.netxs.online</pre>
+      `telnet seattle.netxs.online`
   - Richmond, US
-      <pre>telnet richmond.netxs.online</pre>
+      `telnet richmond.netxs.online`
   - Frankfurt, EU
-      <pre>telnet frankfurt.netxs.online</pre>
+      `telnet frankfurt.netxs.online`
   - Tokyo, JP
-      <pre>telnet tokyo.netxs.online</pre>
+      `telnet tokyo.netxs.online`
   - Sydney, AU
-      <pre>telnet sydney.netxs.online</pre>
+      `telnet sydney.netxs.online`
 - Video
   - [Performance test, multiple objects, 60 fps](https://youtu.be/mQVOlCJZZ4w)
   - [Navigation test](https://youtu.be/5h1fJ-es8kQ)
