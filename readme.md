@@ -1,17 +1,17 @@
 ![image](https://dice.netxs.online/cloud/vtm/vtm_demo.png)
 
 # Demo
-- Online Telnet Live Demo in Your Terminal (no authentication required, direct stream)
+- Online SSH Live Demo in Your Terminal (no authentication required, direct stream)
   - Seattle, US  
-    `telnet seattle.netxs.online`
+    `ssh vtm@seattle.netxs.online`
   - Richmond, US  
-    `telnet richmond.netxs.online`
+    `ssh vtm@richmond.netxs.online`
   - Frankfurt, EU  
-    `telnet frankfurt.netxs.online`
+    `ssh vtm@frankfurt.netxs.online`
   - Tokyo, JP  
-    `telnet tokyo.netxs.online`
+    `ssh vtm@tokyo.netxs.online`
   - Sydney, AU  
-    `telnet sydney.netxs.online`
+    `ssh vtm@sydney.netxs.online`
 - Video
   - [Performance test, multiple objects, 60 fps](https://youtu.be/mQVOlCJZZ4w)
   - [Navigation test](https://youtu.be/5h1fJ-es8kQ)
