@@ -1,7 +1,7 @@
 ![image](https://dice.netxs.online/cloud/vtm/vtm_demo.png)
 
 # Demo
-- Online Telnet Live Demo in Your Terminal
+- Online Telnet Live Demo in Your Terminal (no authentication required, direct stream)
   - Seattle, US  
     `telnet seattle.netxs.online`
   - Richmond, US  
