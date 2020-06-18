@@ -1,7 +1,8 @@
 ![image](https://dice.netxs.online/cloud/vtm/vtm_demo.png)
 
 # Demo
-- Online SSH Live Demo in Your Terminal (no authentication required, SSH fingerprints validated by DNSSEC)
+- Online SSH Live Demo in Your Terminal  
+note: no authentication required; SSH fingerprints validated by DNSSEC
   - Seattle, US  
     `ssh vtm@seattle.netxs.online`
   - Richmond, US  
