@@ -16,6 +16,13 @@ note: no authentication required; SSH fingerprints validated by DNSSEC
 - Video
   - [Performance test, multiple objects, 60 fps](https://youtu.be/mQVOlCJZZ4w)
   - [Navigation test](https://youtu.be/5h1fJ-es8kQ)
+- See also  
+  - app for testing synchronous update modes  
+  `ssh bsu_test@seattle.netxs.online`  
+  `ssh bsu_test@richmond.netxs.online`  
+  `ssh bsu_test@frankfurt.netxs.online`  
+  `ssh bsu_test@tokyo.netxs.online`  
+  `ssh bsu_test@sydney.netxs.online`
 
 # Features
 - Animated text-based UI
