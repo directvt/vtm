@@ -1,7 +1,8 @@
 ![image](https://dice.netxs.online/cloud/vtm/vtm_demo.png)
 
 # Demo
-- Online SSH Live Demo in Your Terminal (no authentication required, SSH fingerprints validated by DNSSEC)
+- Online SSH Live Demo in Your Terminal  
+note: no authentication required; SSH fingerprints validated by DNSSEC
   - Seattle, US  
     `ssh vtm@seattle.netxs.online`
   - Richmond, US  
@@ -15,6 +16,13 @@
 - Video
   - [Performance test, multiple objects, 60 fps](https://youtu.be/mQVOlCJZZ4w)
   - [Navigation test](https://youtu.be/5h1fJ-es8kQ)
+- See also  
+  - App for testing synchronous update modes  
+  `ssh bsu_test@seattle.netxs.online`  
+  `ssh bsu_test@richmond.netxs.online`  
+  `ssh bsu_test@frankfurt.netxs.online`  
+  `ssh bsu_test@tokyo.netxs.online`  
+  `ssh bsu_test@sydney.netxs.online`
 
 # Features
 - Animated text-based UI
