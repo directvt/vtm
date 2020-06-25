@@ -8,7 +8,7 @@
   - [Performance test, multiple objects, 60 fps](https://youtu.be/mQVOlCJZZ4w)
   - [Navigation test](https://youtu.be/5h1fJ-es8kQ)
 - See also  
-  - App for testing synchronous update modes  
+  App for testing synchronous update modes  
   `ssh bsu_test@netxs.online`
 
 # Features
