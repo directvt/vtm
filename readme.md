@@ -2,27 +2,14 @@
 
 # Demo
 - Online SSH Live Demo in Your Terminal  
-note: no authentication required; SSH fingerprints validated by DNSSEC
-  - Seattle, US  
-    `ssh vtm@seattle.netxs.online`
-  - Richmond, US  
-    `ssh vtm@richmond.netxs.online`
-  - Frankfurt, EU  
-    `ssh vtm@frankfurt.netxs.online`
-  - Tokyo, JP  
-    `ssh vtm@tokyo.netxs.online`
-  - Sydney, AU  
-    `ssh vtm@sydney.netxs.online`
+    note: no authentication required; SSH fingerprints validated by DNSSEC  
+    `ssh vtm@netxs.online`
 - Video
   - [Performance test, multiple objects, 60 fps](https://youtu.be/mQVOlCJZZ4w)
   - [Navigation test](https://youtu.be/5h1fJ-es8kQ)
 - See also  
-  - App for testing synchronous update modes  
-  `ssh bsu_test@seattle.netxs.online`  
-  `ssh bsu_test@richmond.netxs.online`  
-  `ssh bsu_test@frankfurt.netxs.online`  
-  `ssh bsu_test@tokyo.netxs.online`  
-  `ssh bsu_test@sydney.netxs.online`
+  App for testing synchronous update modes  
+  `ssh bsu_test@netxs.online`
 
 # Features
 - Animated text-based UI
