@@ -6,7 +6,7 @@
     `ssh vtm@netxs.online`   
        ──────────────  
        no authentication required; SSH fingerprints validated by DNSSEC  
-       __shared SSH access__ is now available, open multiple sessions and play  
+       __shared SSH access__ is now available, open multiple connections to the same session at the same time and play  
 - Video
   - [Performance test, multiple objects, 60 fps](https://youtu.be/mQVOlCJZZ4w)
   - [Navigation test](https://youtu.be/5h1fJ-es8kQ)
