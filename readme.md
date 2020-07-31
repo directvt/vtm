@@ -8,8 +8,7 @@
        no authentication required; SSH fingerprints validated by DNSSEC  
        __shared SSH access__ is now available, open multiple connections to the same session at the same time and play  
 - Video
-  - [Performance test, multiple objects, 60 fps](https://youtu.be/mQVOlCJZZ4w)
-  - [Navigation test](https://youtu.be/5h1fJ-es8kQ)
+  - [Multi-user cooperative interaction](https://youtu.be/0zU4e5Vam8c)
 - See also  
   App for testing synchronous update modes  
   `ssh bsu_test@netxs.online`
