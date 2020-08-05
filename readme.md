@@ -9,6 +9,7 @@
        __shared SSH access__ is now available, open multiple connections to the same session at the same time and play  
 - Video
   - [Multi-user cooperative interaction](https://youtu.be/0zU4e5Vam8c)
+  - [Recursive connection](https://youtu.be/Fm5X75sO62c)
 - See also  
   App for testing synchronous update modes  
   `ssh bsu_test@netxs.online`
