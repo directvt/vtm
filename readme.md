@@ -1,4 +1,4 @@
-![image](https://dice.netxs.online/cloud/vtm/vtm_demo.png)
+![image](https://dice.netxs.online/cloud/vtm/vtm_demo_new.png)
 
 # Demo
 - Online SSH Live Demo in Your Terminal  
