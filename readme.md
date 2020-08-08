@@ -1,6 +1,7 @@
 ![image](https://dice.netxs.online/cloud/vtm/vtm_demo_new.png)
 
 # Cross-platform Text-based Desktop Environment
+_aka Monotty Desktop Environment_
 
 This project is an implementation of a desktop metaphor that allows user programs to run on top of a computer's operating system that use a common Text-based User Interface (TUI), sometimes described as a graphical shell.
 
