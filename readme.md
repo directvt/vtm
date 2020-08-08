@@ -1,4 +1,4 @@
-![image](https://dice.netxs.online/cloud/vtm/vtm_demo_new.png)
+![image](https://dice.netxs.online/cloud/vtm/mde_banner.png)
 
 # Cross-platform Text-based Desktop Environment
 _aka Monotty Desktop Environment_
