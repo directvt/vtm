@@ -1,18 +1,13 @@
 ![image](https://dice.netxs.online/cloud/vtm/vtm_demo_new.png)
 
 # Demo
-- Online SSH Live Demo in Your Terminal  
-  
+- Live multi-user SSH Demo  
+    
     `ssh vtm@netxs.online`   
-       ──────────────  
-       no authentication required; SSH fingerprints validated by DNSSEC  
-       __shared SSH access__ is now available, open multiple connections to the same session at the same time and play  
 - Video
+  - [Desktop environment](https://youtu.be/fLumnSctakY)
   - [Multi-user cooperative interaction](https://youtu.be/0zU4e5Vam8c)
   - [Recursive connection](https://youtu.be/Fm5X75sO62c)
-- See also  
-  App for testing synchronous update modes  
-  `ssh bsu_test@netxs.online`
 
 # Features
 - Animated text-based UI
@@ -32,7 +27,6 @@
   - Non-blocking architecture
   - One third-party dependency - _TermXS Framework_
   - Modern terminal emulators compatibility
-  - Auto-sync Unicode Character Database at compile time
 - Suitability
   - Local usage
   - Cloud remote shell access
