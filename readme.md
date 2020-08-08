@@ -1,20 +1,25 @@
 ![image](https://dice.netxs.online/cloud/vtm/vtm_demo_new.png)
 
-# Demo
-- Online SSH Live Demo in Your Terminal  
-  
+# Cross-platform Text-based Desktop Environment
+
+This project is an implementation of a desktop metaphor that allows user programs to run on top of a computer's operating system that use a common Text-based User Interface (TUI), sometimes described as a graphical shell.
+
+Both traditional command line applications and applications specially created for this shell can function in this environment.
+
+The desktop environment provides drag and drop functionality and other features that make the desktop metaphor more complete. The desktop environment aims to be an intuitive way for the user to interact with the computer using concepts which are similar to those used when interacting with the physical world, such as buttons and windows.
+
+The main advantage that distinguishes this project from traditional graphical desktop environments is its ultra-lightweight implementation with a high level of smoothness and responsiveness of the user interface.
+
+## Demo
+- Live multi-user SSH Demo  
+    
     `ssh vtm@netxs.online`   
-       ──────────────  
-       no authentication required; SSH fingerprints validated by DNSSEC  
-       __shared SSH access__ is now available, open multiple connections to the same session at the same time and play  
 - Video
+  - [Desktop environment](https://youtu.be/fLumnSctakY)
   - [Multi-user cooperative interaction](https://youtu.be/0zU4e5Vam8c)
   - [Recursive connection](https://youtu.be/Fm5X75sO62c)
-- See also  
-  App for testing synchronous update modes  
-  `ssh bsu_test@netxs.online`
 
-# Features
+## Features
 - Animated text-based UI
   - Kinetic user interface
   - Adjustable frame rate rendering
@@ -32,7 +37,6 @@
   - Non-blocking architecture
   - One third-party dependency - _TermXS Framework_
   - Modern terminal emulators compatibility
-  - Auto-sync Unicode Character Database at compile time
 - Suitability
   - Local usage
   - Cloud remote shell access
