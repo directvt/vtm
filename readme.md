@@ -1,7 +1,7 @@
 ![image](https://dice.netxs.online/cloud/vtm/mde_banner.png)
 
 # Cross-platform Text-based Desktop Environment
-_aka Monotty Desktop Environment_
+_aka Monotty Desktop Environment_ `desktopio`
 
 This project is an implementation of a desktop metaphor that allows user programs to run on top of a computer's operating system that use a common Text-based User Interface (TUI), sometimes described as a graphical shell.
 
@@ -12,7 +12,7 @@ The desktop environment provides drag and drop functionality and other features 
 The main advantage that distinguishes this project from traditional graphical desktop environments is its ultra-lightweight implementation with a high level of smoothness and responsiveness of the user interface.
 
 ## Demo
-- Live multi-user SSH Demo  
+- Live SSH Demo  
     
     `ssh vtm@netxs.online`   
 - Video
