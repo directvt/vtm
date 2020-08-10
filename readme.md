@@ -36,7 +36,7 @@ The main advantage that distinguishes this project from traditional graphical de
 - Performance and versatility  
   - Cross-platform code, C++
   - Non-blocking architecture
-  - One third-party dependency - _Desktopio Framework_
+  - One third-party dependency - _Desktopio TUI Engine_
   - Modern terminal emulators compatibility
 - Suitability
   - Local usage
