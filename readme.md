@@ -42,5 +42,5 @@ The main advantage that distinguishes this project from traditional graphical de
   - Local usage
   - Cloud remote shell access
 
-## Other related repositories
+## Related repositories
 [Desktopio API Documentation](https://github.com/netxs-group/Desktopio-Docs)
