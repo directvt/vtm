@@ -36,11 +36,11 @@ The main advantage that distinguishes this project from traditional graphical de
 - Performance and versatility  
   - Cross-platform code, C++
   - Non-blocking architecture
-  - One third-party dependency - _TermXS Framework_
+  - One third-party dependency - _Desktopio Framework_
   - Modern terminal emulators compatibility
 - Suitability
   - Local usage
   - Cloud remote shell access
 
-## Other related repositories
-[TermXS Framework API Documentation](https://github.com/netxs-group/TermXS-Docs)
+## Related repositories
+[Desktopio API Documentation](https://github.com/netxs-group/Desktopio-Docs)
