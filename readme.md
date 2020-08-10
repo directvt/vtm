@@ -11,6 +11,24 @@ The desktop environment provides drag and drop functionality and other features 
 
 The main advantage that distinguishes this project from traditional graphical desktop environments is its ultra-lightweight implementation with a high level of smoothness and responsiveness of the user interface.
 
+## Controls
+Ensure your terminal supports mouse event reporting.  
+Mouse
+ - `left`
+    - _click_ - navigate to window
+    - _drag_  - move; resize
+ - `right`
+    - _click_ - on string/label: move to cursor; inside: change background; outside: popup menu
+    - _drag_  - outside: create window; inside: kinetic scroll
+ - `middle`
+    - _click_ - delete window
+    - _drag_  - create window
+ - `left + right`
+    - _drag_  - panoramic navigation                            
+
+Keyboard
+ - `Esc` - quit/disconnect
+
 ## Demo
 - Live SSH Demo  
     
