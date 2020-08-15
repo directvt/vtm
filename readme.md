@@ -1,33 +1,7 @@
 ![image](https://dice.netxs.online/cloud/vtm/mde_banner.png)
 
 # Text-based Desktop Environment
-_aka Monotty Desktop Environment_ `desktopio`
-
-This project is an implementation of a desktop metaphor that allows user programs to run on top of a computer's operating system that use a common Text-based User Interface (TUI), sometimes described as a graphical shell.
-
-Both traditional command line applications and applications specially created for this shell can function in this environment.
-
-The desktop environment provides drag and drop functionality and other features that make the desktop metaphor more complete. The desktop environment aims to be an intuitive way for the user to interact with the computer using concepts which are similar to those used when interacting with the physical world, such as buttons and windows.
-
-The main advantage that distinguishes this project from traditional graphical desktop environments is its ultra-lightweight implementation with a high level of smoothness and responsiveness of the user interface.
-
-## Controls
-Ensure your terminal supports mouse event reporting.  
-Mouse
- - `left`
-    - _click_ - navigate to window
-    - _drag_  - move; resize
- - `right`
-    - _click_ - on string/label: move to cursor; inside: change background; outside: popup menu
-    - _drag_  - outside: create window; inside: kinetic scroll
- - `middle`
-    - _click_ - delete window
-    - _drag_  - create window
- - `left + right`
-    - _drag_  - panoramic navigation                            
-
-Keyboard
- - `Esc` - quit/disconnect
+_aka Monotty Desktop Environment_ [#desktopio](https://twitter.com/desktopio)
 
 ## Demo
 - Live SSH Demo  
