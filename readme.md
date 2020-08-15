@@ -1,7 +1,7 @@
 ![image](https://dice.netxs.online/cloud/vtm/mde_banner.png)
 
 # Text-based Desktop Environment
-_aka Monotty Desktop Environment_ `#desktopio`
+_aka Monotty Desktop Environment_ [#desktopio](https://twitter.com/desktopio)
 
 ## Demo
 - Live SSH Demo  
