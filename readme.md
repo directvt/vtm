@@ -8,7 +8,7 @@ _aka Monotty Desktop_ [#desktopio](https://twitter.com/desktopio)
     
     `ssh vtm@netxs.online`  
       
-    The demo works in terminal emulators that support direct RGB SGR sequences (24-bit True Color) and SGR 1006 style mouse reporting.
+    The demo works in terminal emulators that support direct RGB SGR sequences (24-bit True Color) and SGR 1006 style mouse reporting. https://github.com/vifm/vifm/issues/452
 - Video
   - [Desktop environment](https://youtu.be/fLumnSctakY)
   - [Multi-user cooperative interaction](https://youtu.be/0zU4e5Vam8c)
