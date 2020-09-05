@@ -8,7 +8,7 @@ _aka Monotty Desktop_ [#desktopio](https://twitter.com/desktopio)
     
     `ssh vtm@netxs.online`  
       
-    The demo works in terminal emulators that support direct RGB SGR sequences (24-bit True Color) and SGR 1006 style mouse reporting. https://gist.github.com/XVilka/8346728
+    The demo works in terminal emulators that support direct RGB SGR sequences (24-bit True Color, https://gist.github.com/XVilka/8346728) and the following mouse modes: DECSET 1003 (any-event mode) and DECSET 1006 (SGR format reporting), https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h2-Mouse-Tracking .
 - Video
   - [Desktop environment](https://youtu.be/fLumnSctakY)
   - [Multi-user cooperative interaction](https://youtu.be/0zU4e5Vam8c)
