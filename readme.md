@@ -6,7 +6,9 @@ _aka Monotty Desktop_ [#desktopio](https://twitter.com/desktopio)
 ## Demo
 - Live SSH Demo  
     
-    `ssh vtm@netxs.online`   
+    `ssh vtm@netxs.online`  
+      
+    [List of tested terminals](https://github.com/netxs-group/VTM/issues/37)
 - Video
   - [Desktop environment](https://youtu.be/fLumnSctakY)
   - [Multi-user cooperative interaction](https://youtu.be/0zU4e5Vam8c)
