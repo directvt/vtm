@@ -13,7 +13,7 @@ _aka Monotty Desktop_ [#desktopio](https://twitter.com/desktopio)
   - [Desktop environment](https://youtu.be/fLumnSctakY)
   - [Multi-user cooperative interaction](https://youtu.be/0zU4e5Vam8c)
   - [Recursive connection](https://youtu.be/Fm5X75sO62c)
-  - [Emoji, CJK and Transparency](https://youtu.be/Sfk1TVa9oWo)
+  - [Emoji, CJK and transparency](https://youtu.be/Sfk1TVa9oWo)
 
 ## Features
 - Animated text-based UI
