@@ -1,20 +1,19 @@
 ![image](https://dice.netxs.online/cloud/vtm/mde_banner.png)
+[![HitCount](http://hits.dwyl.com/netxs-group/VTM.svg)](http://hits.dwyl.com/netxs-group/VTM)
+[![Gitter](https://badges.gitter.im/netxs-group/VTM.svg)](https://gitter.im/netxs-group/VTM?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
 
-# Text-based Desktop Environment
-_aka Monotty Desktop_ [#desktopio](https://twitter.com/desktopio)
+# A Text-based Desktop Environment
+_aka Monotty Desktop_
 
 ## Demo
 - Live SSH Demo  
     
     `ssh vtm@netxs.online`  
       
-    [List of tested terminals](https://github.com/netxs-group/VTM/issues/37)
 - Video
   - [Desktop environment](https://youtu.be/fLumnSctakY)
   - [Multi-user cooperative interaction](https://youtu.be/0zU4e5Vam8c)
   - [Recursive connection](https://youtu.be/Fm5X75sO62c)
-  - [Emoji, CJK and transparency](https://youtu.be/Sfk1TVa9oWo)
-  - [Text primitives of arbitrary size](https://youtu.be/yuQ0PmHN9Fo)
 
 ## Features
 - Animated text-based UI
