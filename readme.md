@@ -1,5 +1,5 @@
 ![image](https://dice.netxs.online/cloud/vtm/mde_banner.png)
-[![HitCount](https://views.whatilearened.today/views/github/netxs-group/VTM.svg)](http://hits.dwyl.com/netxs-group/VTM)
+[![HitCount](https://views.whatilearened.today/views/github/netxs-group/VTM.svg)](https://github.com/netxs-group/VTM)
 [![Gitter](https://badges.gitter.im/netxs-group/VTM.svg)](https://gitter.im/netxs-group/VTM?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
 
 # A Text-based Desktop Environment
