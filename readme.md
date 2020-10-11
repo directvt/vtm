@@ -3,7 +3,7 @@
 [![Gitter](https://badges.gitter.im/netxs-group/VTM.svg)](https://gitter.im/netxs-group/VTM?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
 
 # A Text-based Desktop Environment
-_aka Monotty Desktop_
+_aka Monotty Desktop_ [#desktopio](https://twitter.com/desktopio)
 
 ## Demo
 - Live SSH Demo  
