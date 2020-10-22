@@ -1,9 +1,15 @@
-![image](https://dice.netxs.online/cloud/vtm/mde_banner.png)
+![image](https://dice.netxs.online/cloud/vtm/mde_banner_v1.03.png)
 [![HitCount](https://views.whatilearened.today/views/github/netxs-group/VTM.svg)](https://github.com/netxs-group/VTM)
 [![Gitter](https://badges.gitter.im/netxs-group/VTM.svg)](https://gitter.im/netxs-group/VTM?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
 
 # A Text-based Desktop Environment
 _aka Monotty Desktop_ [#desktopio](https://twitter.com/desktopio)
+
+Monotty Desktop is a cross-platform, full-featured desktop environment.  
+A user interface where by all output is presented in the form of text.  
+  
+The first biggest advantage of this desktop environment concept that it can be used directly over SSH connections, no additional protocol needed.  
+The second is the flexible multi-user interface that serves several users engaged in collaborative applications and enables users to view a collaborating user’s workspace.
 
 ## Demo
 - Live SSH Demo  
