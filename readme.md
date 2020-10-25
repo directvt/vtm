@@ -5,12 +5,6 @@
 # A Text-based Desktop Environment
 _aka Monotty Desktop_ [#desktopio](https://twitter.com/desktopio)
 
-Monotty Desktop is a cross-platform, full-featured desktop environment.  
-A user interface where by all output is presented in the form of text.  
-  
-The first biggest advantage of this desktop environment concept that it can be used directly over SSH connections, no additional protocol needed.  
-The second is the flexible multi-user interface that serves several users engaged in collaborative applications and enables users to view a collaborating user’s workspace.
-
 ## Demo
 - Live SSH Demo  
     
