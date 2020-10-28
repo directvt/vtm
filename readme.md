@@ -12,7 +12,7 @@ _aka Monotty Desktop_ [#desktopio](https://twitter.com/desktopio)
       
 - Video
   - [Desktop environment](https://youtu.be/fLumnSctakY)
-  - [Multi-user collaborative interaction](https://youtu.be/0zU4e5Vam8c)
+  - [Collaborative interaction](https://youtu.be/0zU4e5Vam8c)
   - [Recursive connection](https://youtu.be/Fm5X75sO62c)
 
 ## Features
