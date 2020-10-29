@@ -35,7 +35,8 @@ _aka Monotty Desktop_ [#desktopio](https://twitter.com/desktopio)
   - Modern terminal emulators compatibility
 - Suitability
   - Local usage
-  - Cloud remote shell access
+  - Remote access
+  - Сollaborative workspace
 
 ## Related repositories
 [Desktopio API Documentation](https://github.com/netxs-group/Desktopio-Docs)
