@@ -31,7 +31,7 @@ _aka Monotty Desktop_ [#desktopio](https://twitter.com/desktopio)
   - Cross-platform code, C++
   - Non-blocking architecture
   - One third-party dependency - _Desktopio TUI Engine_
-  - Modern terminal emulators compatibility
+  - Minimum terminal requirements
 - Suitability
   - Local usage
   - Remote access
