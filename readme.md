@@ -16,23 +16,22 @@ _aka Monotty Desktop_ [#desktopio](https://twitter.com/desktopio)
   - [Recursive connection](https://youtu.be/Fm5X75sO62c)
 
 ## Features
-- Animated text-based UI
-  - Kinetic user interface
-  - Adjustable frame rate rendering
+- User interface
+  - True color rendition
+  - Kinetic animation
+  - Variable frame rate
   - Mouse chording
-  - Multi-user shared access
-- Fine text processing
+  - Multi-user aware
+- Text processing
   - Unicode clustering
-  - Italic, Bold, Underline, Invert, Highlight, Shade, etc
-  - TrueColor with transparency
-  - Multi-cursor
+  - Multi-cursor workflow
   - Bidirectional text
-  - UTF-8 only
-- Performance and versatility  
+  - UTF-8 Everywhere
+- Performance and versatility
   - Cross-platform code, C++
   - Non-blocking architecture
   - One third-party dependency - _Desktopio TUI Engine_
-  - Modern terminal emulators compatibility
+  - Minimum terminal requirements
 - Suitability
   - Local usage
   - Remote access
