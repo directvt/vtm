@@ -3,7 +3,6 @@
 [![Gitter](https://badges.gitter.im/netxs-group/VTM.svg)](https://gitter.im/netxs-group/VTM?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
 
 # A Text-based Desktop Environment
-_aka Monotty Desktop_ [#desktopio](https://twitter.com/desktopio)
 
 ## Demo
 - Live SSH Demo  
@@ -17,11 +16,10 @@ _aka Monotty Desktop_ [#desktopio](https://twitter.com/desktopio)
 
 ## Features
 - User interface
-  - True color rendition
+  - True color
   - Kinetic animation
-  - Variable frame rate
-  - Mouse chording
   - Multi-user aware
+  - Mouse chording  
 - Text processing
   - Unicode clustering
   - Multi-cursor workflow
@@ -30,7 +28,7 @@ _aka Monotty Desktop_ [#desktopio](https://twitter.com/desktopio)
 - Performance and versatility
   - Cross-platform code, C++
   - Non-blocking architecture
-  - One third-party dependency - _Desktopio TUI Engine_
+  - One third-party dependency
   - Minimum terminal requirements
 - Suitability
   - Local usage
