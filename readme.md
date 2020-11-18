@@ -47,4 +47,4 @@
 | macOS 10.15 |  [![](https://dice.netxs.online/cloud/monotty/stat/NA_macos-10.15.svg)](https://github.com/netxs-group/VTM/releases) |
   
 ## Related repositories
-[Desktopio](https://github.com/netxs-group/Desktopio-Docs)
+[Desktopio Framework Documentation](https://github.com/netxs-group/Desktopio-Docs)
