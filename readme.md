@@ -35,7 +35,17 @@
   - Remote access
   - Сollaborative workspace
 
-## Platforms
+## Releases
+| Environment | Latest Release & Rollout Progress |
+| --------------------|---------------------|
+| Windows Server 2019 | [![](https://dice.netxs.online/cloud/monotty/stat/monotty_100_windows-2019.svg)](https://github.com/netxs-group/VTM/releases)
+| Windows 10 | [![](https://dice.netxs.online/cloud/monotty/stat/monotty_100_windows-10.svg)](https://github.com/netxs-group/VTM/releases)
+| Ubuntu 20.04 | [![](https://dice.netxs.online/cloud/monotty/stat/monotty_100_ubuntu-20.svg)](https://github.com/netxs-group/VTM/releases)
+| Ubuntu 18.04 | [![](https://dice.netxs.online/cloud/monotty/stat/monotty_100_ubuntu-18.svg)](https://github.com/netxs-group/VTM/releases)
+| Ubuntu 16.04 | [![](https://dice.netxs.online/cloud/monotty/stat/monotty_100_ubuntu-16.svg)](https://github.com/netxs-group/VTM/releases) |
+| macOS 11.0 |  [![](https://dice.netxs.online/cloud/monotty/stat/monotty_NA_macos-11.0.svg)](https://github.com/netxs-group/VTM/releases) |
+| macOS 10.15 |  [![](https://dice.netxs.online/cloud/monotty/stat/monotty_NA_macos-10.15.svg)](https://github.com/netxs-group/VTM/releases) |
+
   - Windows Server 2019
   - Windows 10
   - Ubuntu 20.04
