@@ -44,6 +44,7 @@
 | Windows 10          | [![](https://dice.netxs.online/cloud/monotty/status/windows-10)](https://github.com/netxs-group/VTM/releases)
 | Ubuntu 20.04        | [![](https://dice.netxs.online/cloud/monotty/status/ubuntu-20)](https://github.com/netxs-group/VTM/releases)
 | Ubuntu 18.04        | [![](https://dice.netxs.online/cloud/monotty/status/ubuntu-18)](https://github.com/netxs-group/VTM/releases)
+| test                | [![](https://dice.netxs.online/cloud/monotty/status/test)](https://github.com/netxs-group/VTM/releases)
 | Ubuntu 16.04        | [![](https://dice.netxs.online/cloud/monotty/status/ubuntu-16)](https://github.com/netxs-group/VTM/releases) |
   
 ## Related repositories
