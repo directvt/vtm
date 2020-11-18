@@ -38,7 +38,7 @@
 ## Releases
 | Environment | Latest Release & Rollout Progress |
 | --------------------|---------------------|
-| macOS 11.0 |  [![](https://dice.netxs.online/cloud/monotty/status/macos-11.0)](https://github.com/netxs-group/VTM/releases) |
+| macOS 11.0 |  [![](https://dice.netxs.online/cloud/monotty/status/macos-11.0.html)](https://github.com/netxs-group/VTM/releases) |
 | macOS 10.15 |  [![](https://dice.netxs.online/cloud/monotty/status/macos-10.15)](https://github.com/netxs-group/VTM/releases) |
 | Windows Server 2019 | [![](https://dice.netxs.online/cloud/monotty/status/windows-2019)](https://github.com/netxs-group/VTM/releases)
 | Windows 10 | [![](https://dice.netxs.online/cloud/monotty/status/windows-10)](https://github.com/netxs-group/VTM/releases)
