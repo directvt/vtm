@@ -1,8 +1,8 @@
+# Monotty Desktop
+
 ![image](https://dice.netxs.online/cloud/vtm/mde_banner_v1.03.png)
 [![HitCount](https://views.whatilearened.today/views/github/netxs-group/VTM.svg)](https://github.com/netxs-group/VTM)
 [![Gitter](https://badges.gitter.im/netxs-group/VTM.svg)](https://gitter.im/netxs-group/VTM?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
-
-# A Text-based Desktop Environment
 
 ## Demo
 - Live SSH Demo  
@@ -36,4 +36,4 @@
   - Сollaborative workspace
 
 ## Related repositories
-[Desktopio API Documentation](https://github.com/netxs-group/Desktopio-Docs)
+[Desktopio](https://github.com/netxs-group/Desktopio-Docs)
