@@ -35,5 +35,11 @@
   - Remote access
   - Сollaborative workspace
 
+## Platforms
+  - Windows Server 2019
+  - Windows 10
+  - Ubuntu 20.04
+  - Ubuntu 18.04
+  
 ## Related repositories
 [Desktopio](https://github.com/netxs-group/Desktopio-Docs)
