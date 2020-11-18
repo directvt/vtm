@@ -45,11 +45,6 @@
 | Ubuntu 16.04 | [![](https://dice.netxs.online/cloud/monotty/stat/100_ubuntu-16.svg)](https://github.com/netxs-group/VTM/releases) |
 | macOS 11.0 |  [![](https://dice.netxs.online/cloud/monotty/stat/NA_macos-11.0.svg)](https://github.com/netxs-group/VTM/releases) |
 | macOS 10.15 |  [![](https://dice.netxs.online/cloud/monotty/stat/NA_macos-10.15.svg)](https://github.com/netxs-group/VTM/releases) |
-
-  - Windows Server 2019
-  - Windows 10
-  - Ubuntu 20.04
-  - Ubuntu 18.04
   
 ## Related repositories
 [Desktopio](https://github.com/netxs-group/Desktopio-Docs)
