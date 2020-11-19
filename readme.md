@@ -38,13 +38,13 @@
 ## Releases
 | Environment         | Latest Release & Rollout Progress |
 | --------------------|-----------------------------------|
-| macOS 11.0          | [![](https://dice.netxs.online/cloud/vtm/status/macos110)](https://github.com/netxs-group/VTM/releases)
-| macOS 10.15         | [![](https://dice.netxs.online/cloud/vtm/status/macos1015)](https://github.com/netxs-group/VTM/releases)
-| Windows Server 2019 | [![](https://dice.netxs.online/cloud/vtm/status/windows2019)](https://github.com/netxs-group/VTM/releases)
-| Windows 10          | [![](https://dice.netxs.online/cloud/vtm/status/windows10)](https://github.com/netxs-group/VTM/releases)
-| Ubuntu 20.04        | [![](https://dice.netxs.online/cloud/vtm/status/ubuntu20)](https://github.com/netxs-group/VTM/releases)
-| Ubuntu 18.04        | [![](https://dice.netxs.online/cloud/vtm/status/ubuntu18)](https://github.com/netxs-group/VTM/releases)
-| Ubuntu 16.04        | [![](https://dice.netxs.online/cloud/vtm/status/ubuntu16)](https://github.com/netxs-group/VTM/releases) |
+| macOS 11.0          | [![](https://dice.netxs.online/cloud/vtm/status/macos-11.0)](https://github.com/netxs-group/VTM/releases)
+| macOS 10.15         | [![](https://dice.netxs.online/cloud/vtm/status/macos-10.15)](https://github.com/netxs-group/VTM/releases)
+| Windows Server 2019 | [![](https://dice.netxs.online/cloud/vtm/status/windows-2019)](https://github.com/netxs-group/VTM/releases)
+| Windows 10          | [![](https://dice.netxs.online/cloud/vtm/status/windows-10)](https://github.com/netxs-group/VTM/releases)
+| Ubuntu 20.04        | [![](https://dice.netxs.online/cloud/vtm/status/ubuntu-20)](https://github.com/netxs-group/VTM/releases)
+| Ubuntu 18.04        | [![](https://dice.netxs.online/cloud/vtm/status/ubuntu-18)](https://github.com/netxs-group/VTM/releases)
+| Ubuntu 16.04        | [![](https://dice.netxs.online/cloud/vtm/status/ubuntu-16)](https://github.com/netxs-group/VTM/releases) |
 
 ## Related repositories
 [Desktopio Framework Documentation](https://github.com/netxs-group/Desktopio-Docs)
