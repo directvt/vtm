@@ -1,4 +1,4 @@
-# Monotty Desktop
+# Monotty Desktop Environment
 
 ![image](https://dice.netxs.online/cloud/vtm/mde_banner_v1.05.png)
 [![HitCount](https://views.whatilearened.today/views/github/netxs-group/VTM.svg)](https://github.com/netxs-group/VTM)
