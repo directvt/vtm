@@ -5,6 +5,7 @@
 [![Gitter](https://badges.gitter.im/netxs-group/VTM.svg)](https://gitter.im/netxs-group/VTM?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
 
 ## Demo
+
 - Live SSH Demo  
     
      `ssh vtm@netxs.online`  
@@ -15,6 +16,7 @@
   - [Recursive connection](https://youtu.be/Fm5X75sO62c)
 
 ## Features
+
 - User interface
   - True color
   - Kinetic animation
@@ -36,6 +38,7 @@
   - Сollaborative workspace
 
 ## Releases
+
 | Environment         | Latest Release & Rollout Progress |
 | --------------------|-----------------------------------|
 | macOS 11.0          | [![](https://dice.netxs.online/cloud/vtm/status/macos-11.0)](https://github.com/netxs-group/VTM/releases) |
@@ -47,4 +50,5 @@
 | Ubuntu 16.04        | [![](https://dice.netxs.online/cloud/vtm/status/ubuntu-16)](https://github.com/netxs-group/VTM/releases) |
 
 ## Related repositories
+
 [Desktopio Framework Documentation](https://github.com/netxs-group/Desktopio-Docs)
