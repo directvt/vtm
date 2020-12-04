@@ -36,10 +36,6 @@
   - Local usage
   - Remote access
   - Сollaborative workspace
-- Platforms
-  - macOS
-  - GNU/Linux
-  - Windows
 
 ## Releases
 
