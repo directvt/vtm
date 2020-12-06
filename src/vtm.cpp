@@ -1,3 +1,6 @@
+// Copyright (c) NetXS Group.
+// Licensed under the MIT license.
+
 #include "os/system.h"
 
 #include <fstream> // std::ifstream
