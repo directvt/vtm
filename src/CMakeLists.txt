@@ -61,11 +61,11 @@ add_executable (vtm  "vtm.cpp")
 #target_include_directories(vtm  PRIVATE "include\\termxs")
 
 # TODO: Add tests and install targets if needed.
-=======
+
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/vtm.conf DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
 add_executable (vtmd "vtmd.cpp" "terminal.h")
 add_executable (vtm  "vtm.cpp")
 
-target_include_directories(vtmd PRIVATE "include\\netxs")
-target_include_directories(vtm  PRIVATE "include\\netxs")
+#target_include_directories(vtmd PRIVATE "include\\netxs")
+#target_include_directories(vtm  PRIVATE "include\\netxs")
