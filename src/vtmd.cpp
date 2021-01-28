@@ -5,11 +5,14 @@
 #define MONOTTY_VER "Monotty Desktop Preview v0.2.8"
 #define PROD
 
+// Terminal's default line wrapping mode
 #define WRAPPING true
-//#define WRAPPING true
+//#define WRAPPING faux
 
+// Enable to show debug overlay
 //#define DEBUG_OVERLAY
-//#define ANSITEST
+
+// Enable to show all terminal input (keyboard/mouse etc)
 //#define KEYLOG
 
 #include "netxs/os/system.h"
