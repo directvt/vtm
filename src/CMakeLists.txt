@@ -13,6 +13,3 @@ add_executable (vtmd "vtmd.cpp")
 add_executable (vtm  "vtm.cpp")
 
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/vtm.conf DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
-
-add_executable (vtmd "vtmd.cpp" "terminal.h")
-add_executable (vtm  "vtm.cpp")
