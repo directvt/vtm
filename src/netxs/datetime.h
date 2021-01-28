@@ -5,4 +5,3 @@
 #include "datetime/quartz.h"
 
 #endif // NETXS_DATETIME_H
-
