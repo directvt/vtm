@@ -1,7 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#include "os/system.h"
+#include "netxs/os/system.h"
 
 #include <fstream> // std::ifstream
 
@@ -42,7 +42,7 @@ int main(int argc, char* argv[])
             spot = "unknown region";
     }
     
-    auto user = os::get_uid();
+    auto user = os::user();
     auto path = utf::concat("monotty_", user); //todo unify, use vtm.conf
 
     auto link = os::ipc::open<os::client>(path, 10s, [&]() {
@@ -53,9 +53,10 @@ int main(int argc, char* argv[])
 
     if (!link) os::exit(-1, "main: open server link error");
 
-    link->send(spot + ";"
-             + host + ";"
-             + name + ";");
+    link->send(utf::concat(spot, ";",
+                           host, ";",
+                           name, ";",
+                           user, ";"));
 
     auto gate = os::tty::proxy(link);
     gate.ignite();
