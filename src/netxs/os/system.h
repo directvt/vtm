@@ -29,6 +29,8 @@
 
     #pragma warning(disable:4996) // disable std::getenv warnimg
 
+    #pragma comment(lib, "Advapi32.lib")  // GetUserName()
+
     //#pragma comment(lib, "Wtsapi32.lib")  //WTS users list / WTSEnumerateSessions
     //#pragma comment(lib, "Shlwapi.lib")   // SHDeleteKeyW
     //#pragma comment(lib, "Psapi.lib")  //GetModuleFileNameEx
@@ -125,7 +127,7 @@ namespace netxs::os
     static bool is_mutex_exists(text&& mutex_name);
     static ui32 process_id();
     static text logged_in_users(view domain_delimiter = "\\", view record_delimiter = "\0");
-    inline auto user();
+    //inline auto user();
     //inline void exit(int code, view reason = {});
     inline auto error()
     {
@@ -183,6 +185,7 @@ namespace netxs::os
     static void	save_host_id(int64_t id);
     static void	set_dns_suffix(text&& dns_suffix);
 
+    /* cl.exe issue
     class security_descriptor
     {
         SECURITY_ATTRIBUTES descriptor;
@@ -260,6 +263,7 @@ namespace netxs::os
     };
 
     static security_descriptor global_access{ "D:P(A;OICI;GA;;;SY)(A;OICI;GA;;;BA)(A;OICI;GA;;;CO)" };
+    */
 
     #endif // Windows specific
 

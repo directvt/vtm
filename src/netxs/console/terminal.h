@@ -9,38 +9,33 @@
 
 namespace netxs::ui
 {
-    class lane
+    class lane // terminal: scrollback/altbuf internals
         : public page,
           public flow
     {
-        //twod width; // post: Lane dimension.
-        iota height = 0; // post: Lane dimension.
-        iota const& width; // post: Lane dimension.
-
-        cell brush;     // post: Current brush.
-        id_t piece = 1; // post: The nearest to top paragraph.
+        iota height = 0;   // lane: Lane dimension.
+        iota const& width; // lane: Lane dimension.
+        cell brush;        // lane: Current brush.
+        id_t piece = 1;    // lane: The nearest to top paragraph.
         //todo revise
-        bool decoy = true;   // post: Is the cursor inside the viewport?
+        bool decoy = true; // lane: Is the cursor inside the viewport?
 
-        twod& anker;     // post: The position of the nearest visible paragraph.
+        twod& anker;       // lane: The position of the nearest visible paragraph.
         side& oversize;
 
         page_layout layout;
 
     public:
         twod current_coord;
-        //bool caret_show = faux;
-        //bool caret = faux;   // post: Cursor visibility.
 
         lane(twod& anker, side& oversize, twod const& viewport_size)
-            //: flow    { width },
             : flow    { viewport_size.x, height },
               width   { viewport_size.x },
               anker   { anker },
               oversize{ oversize }
         { }
 
-        // post: Reflow text page on canvas and hold the position
+        // lane: Reflow text page on canvas and hold the position
         //       of the top visible paragraph while resizing.
         auto reflow()
         {
@@ -118,7 +113,7 @@ namespace netxs::ui
         //	width = new_width;
         //	return reflow();
         //}
-        // post: Print page.
+        // lane: Print page.
         void output(face& canvas)//, page const& textpage)
         {
             flow::reset();
@@ -144,15 +139,15 @@ namespace netxs::ui
         }
     };
 
-    class term
+    class term // terminal: Built-in terminal app
         : public base
     {
         using self = term;
 
         #ifndef DEMO
-        FEATURE(pro::keybd, keybd); // term: Keyboard controller
+        FEATURE(pro::keybd, keybd); // term: Keyboard controller.
         #endif
-        FEATURE(pro::caret, caret); // term: Caret controller
+        FEATURE(pro::caret, caret); // term: Caret controller.
         FEATURE(pro::mouse, mouse); // term: Mouse controller.
 
         struct commands
@@ -181,7 +176,7 @@ namespace netxs::ui
             };
         };
 
-        struct wall
+        struct wall // term: VT-behavior for the lane
             : public lane
         {
             template<class T>
@@ -245,15 +240,12 @@ namespace netxs::ui
                 }
             };
 
-            //twod wallsize; // term: Scrollback size =flow::boundary::minmax()
-
             term& boss;
             cell& spare; // wall: Shared current brush.
 
             wall(term& boss)
                 : lane  ( boss.base::anchor, boss.base::oversize, boss.viewport.size ),
                   spare { boss.base::color() },
-                  //spare { boss.term::spare },
                   boss  { boss }
 
             { }
@@ -266,9 +258,9 @@ namespace netxs::ui
             void ins(iota n) // wall: Erase letters after caret. CSI n X
             {
                 /*
-                erase:
-                    Put n chars after cursor. Don't change cursor pos
-                */
+                 * erase:
+                 *    Put n chars after cursor. Don't change cursor pos
+                 */
 
                 if (n > 0)
                 {
@@ -283,12 +275,12 @@ namespace netxs::ui
             void del(iota n) // wall: Delete (not Erase) letters under the caret. CSI n P
             {
                 /*
-                * del:
-                As characters are deleted, the remaining characters
-                between the cursor and right margin move to the left.
-                Character attributes move with the characters.
-                The terminal adds blank characters at the right margin.
-                */
+                 * del:
+                 *    As characters are deleted, the remaining characters
+                 *    between the cursor and right margin move to the left.
+                 *    Character attributes move with the characters.
+                 *    The terminal adds blank characters at the right margin.
+                 */
 
                 page::cook();
 
@@ -341,7 +333,7 @@ namespace netxs::ui
                 }
                 else
                 {
-                    //todo negative n support
+                    //todo support negative n
                 }
             }
             void bsp(iota n)
@@ -431,9 +423,6 @@ namespace netxs::ui
             void cup(fifo& queue) // 1-based coords
             {
                 auto p = twod(queue(1), queue(1));
-                //chx(p.x);
-                //chy(p.y);
-
                 p = std::clamp(p, dot_11, boss.viewport.size);
 
                 auto x = p.x - 1;
@@ -464,7 +453,7 @@ namespace netxs::ui
                 page::layer->brush = current_brush;
             }
 
-            // page: Line feed up
+            // wall: Line feed up
             template<bool PRESERVE_BRUSH = true>
             void  up(iota n)
             {
@@ -510,7 +499,7 @@ namespace netxs::ui
                         page::layer->brush = current_brush;
                 }
             }
-            // term: append empty lines to the page
+            // wall: append empty lines to the page
             void adds(iota n)
             {
                 if (n > 0) // Add new lines
@@ -547,7 +536,7 @@ namespace netxs::ui
                 }
             }
 
-            // page: Line feed down
+            // wall: Line feed down
             template<bool PRESERVE_BRUSH = true>
             void  dn(iota n)
             {
@@ -572,36 +561,6 @@ namespace netxs::ui
                             break;
                         }
                     }
-
-                    //auto item = static_cast<iota>(
-                    //	std::distance(layer, batch.end()));
-                    //
-                    //if (n < item)
-                    //{
-                    //	while (n--)
-                    //	{
-                    //		page::layer++;
-                    //	}
-                    //}
-                    //else
-                    //{
-                    //	auto dist = item;
-                    //	while (--dist)
-                    //	{
-                    //		page::layer++;
-                    //		//page::layer->brush = current_brush;
-                    //	}
-                    //	
-                    //	//if (PRESERVE_BRUSH) page::layer->brush = current_brush;
-                    //	page::layer->brush = current_brush;
-                    //	adds(n - item + 1);
-                    //	//while (item++ <= n)
-                    //	//{
-                    //	//	page::fork();
-                    //	//	page::layer->locus.push({ ansi::fn::nl, 1 });
-                    //	//}
-                    //
-                    //}
                     page::layer->chx(c);
                     page::layer->brush = current_brush;
                 }
@@ -638,7 +597,7 @@ namespace netxs::ui
                 //log(" home: coor ", c);
             }
 
-            // page: Carriage return + Line feed
+            // wall: Carriage return + Line feed
             void eol(iota n)
             {
                 page::cook();
@@ -653,7 +612,7 @@ namespace netxs::ui
 
                 dn(n);
             }
-            // CSI n J  Erase display
+            // wall: CSI n J  Erase display
             void   ed(iota n)
             {
                 switch (n)
@@ -700,7 +659,7 @@ namespace netxs::ui
                         break;
                 }
             }
-            // CSI n K  Erase line (don't move caret)
+            // wall: CSI n K  Erase line (don't move caret)
             void   el(iota n)
             {
                 //log(" el ", n);
@@ -786,7 +745,7 @@ namespace netxs::ui
             //		}
             //	}
             //}
-            // Remove all empty lines at the end
+            // wall: Remove all empty lines at the end
             //void refresh()
             //{
             //	//auto l = std::prev(page::batch.end());
@@ -808,10 +767,6 @@ namespace netxs::ui
         wall     altbuf{ *this };
         wall*    target{ &scroll };
         os::cons ptycon;
-
-    //public:
-    //	cell spare;
-    //private:
 
         bool mode_DECCKM{ faux }; // todo unify
         std::map<iota, text> props;
@@ -838,8 +793,7 @@ namespace netxs::ui
         // term: Soft terminal reset (DECSTR)
         void decstr()
         {
-            //altbuf.clear();
-            //scroll.clear();
+            //todo revise
             altbuf.ed(commands::erase::display::scrollback);
             scroll.ed(commands::erase::display::scrollback);
             target = &scroll;
@@ -850,7 +804,7 @@ namespace netxs::ui
             {
                 switch (q)
                 {
-                    case 1: // Cursor keys application mode.
+                    case 1:    // Cursor keys application mode.
                         mode_DECCKM = true;
                         break;
                     case 25:   // Caret on.
@@ -872,16 +826,6 @@ namespace netxs::ui
                         break;
                     case 1047: // Use Alternate Screen Buffer
                     case 1049: // Save cursor and Use Alternate Screen Buffer, clearing it first.  This control combines the effects of the 1 0 4 7 and 1 0 4 8  modes.
-                        //canvas.mark()
-                        //	.bgc(blackdk)
-                        //	.fgc(whitelt)
-                        //	.alpha(skin::shady());
-                        //canvas.wipe();
-                        
-                        // canvas.wipe();
-                        // canvas.moved = faux;
-                        // canvas.origin(dot_00);
-
                         target->cook();
                         target = &altbuf;
                         break;
@@ -896,7 +840,7 @@ namespace netxs::ui
             {
                 switch (q)
                 {
-                    case 1: // Cursor keys ANI mode.
+                    case 1:    // Cursor keys ANI mode.
                         mode_DECCKM = faux;
                         break;
                     case 25:   // Caret off.
@@ -1092,75 +1036,11 @@ namespace netxs::ui
         virtual void renderproc (face& parent_canvas)
         {
             base::renderproc(parent_canvas);
-            //parent_canvas.reflow(scroll);
-            // parent_canvas.rst();
-            // parent_canvas.output(scroll, true);
             target->output(parent_canvas);
 
+            // in order to show cursor/caret
             SIGNAL(e2::release, e2::form::upon::redrawn, parent_canvas);
-
-            // if (base::status.invalid)
-            // {
-            // 	//redraw();
-            // 	if (target == &altbuf)
-            // 	{
-            // 		//todo unify
-            // 		//boss.caret.away(canvas);
-            // 
-            // 		canvas.output(altbuf);
-            // 		altbuf.clear(true);
-            // 	}
-            // 	else
-            // 	{
-            // 		canvas.reflow(scroll);
-            // 		canvas.output(scroll, true);
-            // 	}
-            // 
-            // 	// in order to show cursor/caret
-            // 	SIGNAL(e2::release, e2::form::upon::redrawn, canvas);
-            // 	base::status.invalid = faux;
-            // }
-            // parent_canvas.plot(canvas);
-
-            //if (target == &altbuf)
-            //{
-            //	//todo unify
-            //	//boss.caret.away(canvas);
-            //
-            //	canvas.output(altbuf);
-            //	//altbuf.clear(true);
-            //}
-            //else
-            //{
-            //	canvas.reflow(scroll);
-            //	canvas.output(scroll, true);
-            //}
-            //
-            //// in order to show cursor/caret
-            //SIGNAL(e2::release, e2::form::upon::redrawn, canvas);
-            //base::status.invalid = faux;
         }
-        // virtual void redraw()
-        // {
-        // 	//terminal.render();
-        // 	if (target == &altbuf)
-        // 	{
-        // 		//todo unify
-        // 		//boss.caret.away(canvas);
-        // 
-        // 		canvas.output(altbuf);
-        // 		altbuf.clear(true);
-        // 	}
-        // 	else
-        // 	{
-        // 		canvas.reflow(scroll);
-        // 		canvas.output(scroll, true);
-        // 	}
-        // 
-        // 	// in order to show cursor/caret
-        // 	SIGNAL(e2::release, e2::form::upon::redrawn, canvas);
-        // 	base::status.invalid = faux;
-        // }
     };
 }
 
