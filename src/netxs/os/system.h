@@ -2452,8 +2452,8 @@ namespace netxs::os
                         log("cons: assign controlling terminal error ", errno);
                 
                     struct winsize wsize{ 
-                        static_cast<unsigned short>(winsz.x),
-                        static_cast<unsigned short>(winsz.y) };
+                        static_cast<unsigned short>(winsz.y),
+                        static_cast<unsigned short>(winsz.x) };
 
                     if (::ioctl(fds, TIOCSWINSZ, &wsize) == -1) // Preset slave tty size
                         log("cons: ioctl set winsize error ", errno);
