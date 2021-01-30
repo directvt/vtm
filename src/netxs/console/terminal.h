@@ -13,7 +13,6 @@ namespace netxs::ui
         : public page,
           public flow
     {
-        iota height = 0;   // lane: Lane dimension.
         iota const& width; // lane: Lane dimension.
         cell brush;        // lane: Current brush.
         id_t piece = 1;    // lane: The nearest to top paragraph.
@@ -26,6 +25,7 @@ namespace netxs::ui
         page_layout layout;
 
     public:
+        iota height = 0;   // lane: Lane dimension.
         twod current_coord;
 
         lane(twod& anker, side& oversize, twod const& viewport_size)
@@ -336,7 +336,7 @@ namespace netxs::ui
                     //todo support negative n
                 }
             }
-            // wall: '\x7F'  Delete characters back.
+            // wall: '\x7F'  Delete characters backwards.
             void del(iota n)
             {
                 auto& layer = page::layer;
@@ -523,15 +523,19 @@ namespace netxs::ui
                     page::layer = std::prev(page::batch.end());
                     while (n++ < 0)
                     {
-                        page::layer->trim(mark);
-                        if (page::layer->size().x == 0)
+                        if (page::size() > 1)
                         {
-                            if (current_layer == std::prev(page::batch.end()))
-                            {
-                                --current_layer;
-                            }
-                            page::batch.pop_back();
-                            page::layer = std::prev(page::batch.end());
+                             page::layer->trim(mark);
+                             if (page::layer->size().x == 0)
+                             {
+                                 if (current_layer == std::prev(page::batch.end()))
+                                 {
+                                     --current_layer;
+                                 }
+                                 page::batch.pop_back();
+                                 page::layer = std::prev(page::batch.end());
+                             }
+                            else break;
                         }
                         else break;
                     }
@@ -652,13 +656,13 @@ namespace netxs::ui
                     case commands::erase::line::right: // Ps = 0  ⇒  Erase to Right (default).
                     {
                         //todo optimize
-                        auto mark = page::layer->brush;
-                        mark.txt(' ');
+                        auto brush = page::layer->brush;
+                        brush.txt(' ');
                         auto coor = page::layer->chx();
                         auto width = boss.viewport.size.x;
                         //auto sss = width - coor;
-                        lyric.crop({ coor,1 }, mark);
-                        lyric.crop({ coor + (width - coor % width),1 }, mark);
+                        lyric.crop({ coor,1 }, brush);
+                        lyric.crop({ coor + (width - coor % width),1 }, brush);
 
                         page::layer->trim(mark);
 
@@ -670,21 +674,21 @@ namespace netxs::ui
                     case commands::erase::line::left: // Ps = 1  ⇒  Erase to Left.
                     {
                         //todo implement
-                        auto mark = page::layer->brush;
-                        mark.txt(' ');
+                        auto brush = page::layer->brush;
+                        brush.txt(' ');
                         auto coor = page::layer->chx();
                         auto width = boss.viewport.size.x;
                         //auto sss = width - coor;
                         if (coor < width)
                         {
-                            lyric.each([&](cell& c) {if (coor > 0) { coor--; c.fuse(mark); } });
+                            lyric.each([&](cell& c) {if (coor > 0) { coor--; c.fuse(brush); } });
                         }
                         else
                         {
                             auto left_edge = coor - coor % width;
 
-                            lyric.crop({ left_edge,1 }, mark);
-                            lyric.crop({ left_edge + width,1 }, mark);
+                            lyric.crop({ left_edge,1 }, brush);
+                            lyric.crop({ left_edge + width,1 }, brush);
                         }
                         //page::task(ansi::rule{ ansi::fn::el, 1 });
                         break;
@@ -693,18 +697,18 @@ namespace netxs::ui
                     {
                         //todo optimize
                         auto coor = page::layer->chx();
-                        auto mark = page::layer->brush;
-                        mark.txt(' ');
+                        auto brush = page::layer->brush;
+                        brush.txt(' ');
                         auto width = boss.viewport.size.x;
                         //auto sss = width - coor;
 
                         auto left_edge = coor - coor % width;
 
-                        lyric.crop({ left_edge,1 }, mark);
-                        lyric.crop({ left_edge + width,1 }, mark);
+                        lyric.crop({ left_edge,1 }, brush);
+                        lyric.crop({ left_edge + width,1 }, brush);
 
-                        //lyric.crop({ 0,1 }, mark);
-                        //lyric.crop({ width,1 }, mark);
+                        //lyric.crop({ 0,1 }, brush);
+                        //lyric.crop({ width,1 }, brush);
 
                         //page::task(ansi::rule{ ansi::fn::el, 2 });
                         break;
@@ -883,19 +887,21 @@ namespace netxs::ui
                 //log ("old viewport.size.y: ", viewport.size.y);
                 if (viewport.size != new_size)
                 {
-                    //#if defined(_WIN32)
+                    //viewport.size = new_size;
                     //
-                    //	//todo ConPTY bug: 
-                    //	//     ConPTY does not emit anything to vanish right side on down sizing
-                    //	//     cropping all visible line in order to match to the viewport width
-                    //	if (viewport.size.x > new_size.x)
-                    //	{
-                    //		//target->crop_to_viewport(new_size);
-                    //	}
-                    //
-                    //#endif
+                    //auto old_size = target->height;
+                    //auto scrollback_size = target->reflow();
+                    //if (auto page_adds =  old_size - scrollback_size.y)
+                    //{
+                    //    log("page lines added: ", page_adds);
+                    //    scroll.adds(page_adds);
+                    //}
+
 
                     if (auto news = new_size.y - viewport.size.y)
+                    //auto page_adds =  scrollback_size.y - old_size;
+                    //log("page lines added: ", page_adds);
+                    //if (auto news = new_size.y - viewport.size.y - page_adds)
                     {
                         //todo calc visible lines TIA wrapping and lyric.size
 
@@ -907,6 +913,7 @@ namespace netxs::ui
                         if (new_size.y != altbuf.size())
                             throw;
 
+                        //log("lines added: ", news);
                         scroll.adds(news);
                     }
 
@@ -917,10 +924,11 @@ namespace netxs::ui
                         altbuf.ed(commands::erase::display::scrollback);
                     }
                     //log("altbuf size: ", altbuf.size());
-                    log("scroll size: ", scroll.size());
+                    //log("scroll size: ", scroll.size());
                 }
 
                 auto new_pty_size = new_size;
+                //log("new_pty_size: ", new_pty_size);
 
                 auto scrollback_size = target->reflow();
                 new_size = std::max(new_size, scrollback_size); // Use the max size
