@@ -208,16 +208,16 @@ namespace netxs::ui
                     base::csier.table[CSI_CPL] = base::csier.table[CSI_CUU]; // CSI n F
                     base::csier.table[CSI_CHX] = VT_PROC{ p->chx( q(1)); };  // CSI n G - hz absolute
                     base::csier.table[CSI_CHY] = VT_PROC{ p->chy( q(1)); };  // CSI n d - vt absolute 
-                    base::csier.table[CSI_CUP] = VT_PROC{ p->cup( q   ); };  // CSI n ; m H
-                    base::csier.table[CSI_HVP] = VT_PROC{ p->cup( q   ); };  // CSI n ; m f
+                    base::csier.table[CSI_CUP] = VT_PROC{ p->cup( q   ); };  // CSI y ; x H (1-based)
+                    base::csier.table[CSI_HVP] = VT_PROC{ p->cup( q   ); };  // CSI y ; x f (1-based)
 
-                    base::csier.table[CSI_DCH] = VT_PROC{ p->del( q(1)); };  // CSI n P - del n chars
-                    base::csier.table[CSI_ECH] = VT_PROC{ p->ins( q(1)); };  // CSI n X - erase n chars
+                    base::csier.table[CSI_DCH] = VT_PROC{ p->dch( q(1)); };  // CSI n P - del n chars
+                    base::csier.table[CSI_ECH] = VT_PROC{ p->ech( q(1)); };  // CSI n X - erase n chars
                     base::csier.table[CSI__ED] = VT_PROC{ p->ed ( q(0)); };  // CSI Ps J
                     base::csier.table[CSI__EL] = VT_PROC{ p->el ( q(0)); };  // CSI Ps K
 
                     base::intro[ctrl::BS ]     = VT_PROC{ p->cuf(-q.pop_all(ctrl::BS )); };
-                    base::intro[ctrl::DEL]     = VT_PROC{ p->bsp( q.pop_all(ctrl::DEL)); };
+                    base::intro[ctrl::DEL]     = VT_PROC{ p->del( q.pop_all(ctrl::DEL)); };
                     base::intro[ctrl::TAB]     = VT_PROC{ p->tab( q.pop_all(ctrl::TAB)); };
                     base::intro[ctrl::EOL]     = VT_PROC{ p->eol( q.pop_all(ctrl::EOL)); };
                     base::intro[ctrl::CR ]     = VT_PROC{
@@ -241,27 +241,26 @@ namespace netxs::ui
             };
 
             term& boss;
-            cell& spare; // wall: Shared current brush.
+            cell& mark; // wall: Shared current brush state (default brush).
 
             wall(term& boss)
-                : lane  ( boss.base::anchor, boss.base::oversize, boss.viewport.size ),
-                  spare { boss.base::color() },
-                  boss  { boss }
+                : lane( boss.base::anchor, boss.base::oversize, boss.viewport.size ),
+                  mark{ boss.base::color() },
+                  boss{ boss }
 
             { }
 
-            void nil() { page::layer->nil(spare); }
-            void sav() { page::layer->sav(spare); }
-            void rfg() { page::layer->rfg(spare); }
-            void rbg() { page::layer->rbg(spare); }
-
-            void ins(iota n) // wall: Erase letters after caret. CSI n X
+            // wall: SGR 0  Reset SGR attributes
+            void nil() { page::layer->nil(mark); }
+            // wall: SGR 10  Save SGR attributes
+            void sav() { page::layer->sav(mark); }
+            // wall: SGR 39  Reset fg color
+            void rfg() { page::layer->rfg(mark); }
+            // wall: SGR 49  Reset bg color
+            void rbg() { page::layer->rbg(mark); }
+            // wall: CSI n X  Erase/put n chars after cursor. Don't change cursor pos
+            void ech(iota n) // wall: Erase letters after caret. CSI n X
             {
-                /*
-                 * erase:
-                 *    Put n chars after cursor. Don't change cursor pos
-                 */
-
                 if (n > 0)
                 {
                     page::cook();
@@ -272,7 +271,8 @@ namespace netxs::ui
                 }
 
             }
-            void del(iota n) // wall: Delete (not Erase) letters under the caret. CSI n P
+            // wall: CSI n P  Delete (not Erase) letters under the caret.
+            void dch(iota n)
             {
                 /*
                  * del:
@@ -336,7 +336,8 @@ namespace netxs::ui
                     //todo support negative n
                 }
             }
-            void bsp(iota n)
+            // wall: '\x7F'  Delete characters back.
+            void del(iota n)
             {
                 auto& layer = page::layer;
                 if (layer->chx() >= n)
@@ -379,21 +380,23 @@ namespace netxs::ui
                     }
                 }
             }
+            // wall: CSI n G  Absolute horizontal caret position (1-based)
             void chx(iota n)
             {
-                if (n-- > 0) // 1-based coord
+                if (n-- > 0)
                 {
                     //page::chx(n);
                     page::layer->chx(n);
                     //log(" CHX: ", n);
                 }
             }
+            // wall: CSI n d  Absolute vertical caret position (1-based)
             void chy(iota n)
             {
-                if (n > 0) // 1-based coord
+                if (n > 0)
                 {
                     page::cook();
-                    page::layer->trim(spare);
+                    page::layer->trim(mark);
 
                     auto height = boss.viewport.size.y;
                     auto width  = boss.viewport.size.x;
@@ -404,7 +407,7 @@ namespace netxs::ui
                     n = std::min(n, height);
                     page::layer = std::prev(page::batch.end());
                     page::cook();
-                    page::layer->trim(spare);
+                    page::layer->trim(mark);
 
                     auto sz = page::layer->size().x;
                     auto dy = std::max(0, sz - 1) / width;
@@ -420,7 +423,8 @@ namespace netxs::ui
                     page::layer->brush = current_brush;
                 }
             }
-            void cup(fifo& queue) // 1-based coords
+            // wall: CSI y; x H/F  Caret position (1-based)
+            void cup(fifo& queue)
             {
                 auto p = twod(queue(1), queue(1));
                 p = std::clamp(p, dot_11, boss.viewport.size);
@@ -429,7 +433,7 @@ namespace netxs::ui
                 auto y = p.y - 1;
 
                 page::cook();
-                page::layer->trim(spare);
+                page::layer->trim(mark);
 
                 auto current_brush = page::layer->brush;
                 auto width  = boss.viewport.size.x;
@@ -437,7 +441,7 @@ namespace netxs::ui
 
                 page::layer = std::prev(page::batch.end());
                 page::cook();
-                page::layer->trim(spare);
+                page::layer->trim(mark);
 
                 auto sz = page::layer->size().x;
                 auto dy = std::max(0, sz - 1) / width;
@@ -452,15 +456,14 @@ namespace netxs::ui
 
                 page::layer->brush = current_brush;
             }
-
             // wall: Line feed up
             template<bool PRESERVE_BRUSH = true>
-            void  up(iota n)
+            void up(iota n)
             {
                 if (n > 0)
                 {
                     page::cook();
-                    page::layer->trim(spare);
+                    page::layer->trim(mark);
                     auto& width = boss.viewport.size.x;
                     auto current_brush = page::layer->brush;
                     
@@ -520,7 +523,7 @@ namespace netxs::ui
                     page::layer = std::prev(page::batch.end());
                     while (n++ < 0)
                     {
-                        page::layer->trim(spare);
+                        page::layer->trim(mark);
                         if (page::layer->size().x == 0)
                         {
                             if (current_layer == std::prev(page::batch.end()))
@@ -535,15 +538,13 @@ namespace netxs::ui
                     page::layer = current_layer;
                 }
             }
-
             // wall: Line feed down
-            template<bool PRESERVE_BRUSH = true>
-            void  dn(iota n)
+            void dn(iota n)
             {
                 if (n > 0)
                 {
                     page::cook();
-                    page::layer->trim(spare);
+                    page::layer->trim(mark);
 
                     auto c = page::layer->chx();
                     auto current_brush = page::layer->brush;
@@ -565,39 +566,17 @@ namespace netxs::ui
                     page::layer->brush = current_brush;
                 }
             }
-
+            // wall: '\r'  Go to home of visible line instead of home of para
             void home()
             {
-                //todo ctrl::CR(13) should go to home of visible line instead of home of para
                 page::cook();
-
                 auto& width = boss.viewport.size.x;
                 auto c = page::layer->chx();
                 //if (flow::wrapln)
-                //{
-                //	page::layer->chx(0);
-                //}
-                //else
-                {
-                    //log(" home: ", c, " width: ", width);
-                    // if (c && !(c % width))
-                    // //if (c && (!(c % width) || !((c-1) % width)))
-                    // {
-                    // 	--c;
-                    // 	log(" home decreased: ", c);
-                    // }
-                
-                    c = c - c % width;
-                    //log(" home new value: ", c);
-                    page::layer->chx(c);
-                }
-
-                //page::layer->chx(0);
-
-                //log(" home: coor ", c);
+                c = c - c % width;
+                page::layer->chx(c);
             }
-
-            // wall: Carriage return + Line feed
+            // wall: '\n' || '\r\n'  Carriage return + Line feed
             void eol(iota n)
             {
                 page::cook();
@@ -613,7 +592,7 @@ namespace netxs::ui
                 dn(n);
             }
             // wall: CSI n J  Erase display
-            void   ed(iota n)
+            void ed(iota n)
             {
                 switch (n)
                 {
@@ -660,7 +639,7 @@ namespace netxs::ui
                 }
             }
             // wall: CSI n K  Erase line (don't move caret)
-            void   el(iota n)
+            void el(iota n)
             {
                 //log(" el ", n);
                 page::cook();
@@ -681,7 +660,7 @@ namespace netxs::ui
                         lyric.crop({ coor,1 }, mark);
                         lyric.crop({ coor + (width - coor % width),1 }, mark);
 
-                        page::layer->trim(spare);
+                        page::layer->trim(mark);
 
 
                         // ConPTY doesn't move caret (is it ok?)
@@ -732,35 +711,6 @@ namespace netxs::ui
                     }
                 }
             }
-            //void crop_to_viewport(twod limits)
-            //{
-            //	auto tail = page::batch.rbegin();
-            //	auto size = std::min(limits.y, page::size());
-            //	while (size--)
-            //	{
-            //		auto& layer = *tail++;
-            //		if (layer.size().x > limits.x)
-            //		{
-            //			layer.lyric->crop(limits.x);
-            //		}
-            //	}
-            //}
-            // wall: Remove all empty lines at the end
-            //void refresh()
-            //{
-            //	//auto l = std::prev(page::batch.end());
-            //	//while (l != page::layer && l != page::batch.begin())
-            //	//{
-            //	//	page::layer->trim(page::spare);
-            //	//	if (!(l->length()))
-            //	//	{
-            //	//		--l;
-            //	//		//page::batch.pop_back();
-            //	//		//l = std::prev(page::batch.end());
-            //	//	}
-            //	//	else break;
-            //	//}
-            //}
         };
 
         wall     scroll{ *this };
