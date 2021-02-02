@@ -1481,6 +1481,7 @@ namespace netxs::console
         {
             return shadow().substr(start, width);
         }
+        auto&  mark() const { return brush; } // para: Return current brush reference.
         bool   bare() const { return locus.bare();    } // para: Does the paragraph have no locator?
         auto length() const { return lyric->size().x; } // para: Return printable length.
         auto   step() const { return lyric->size().x - caret; } // para: Return step back.
@@ -1960,9 +1961,9 @@ namespace netxs::console
                 using namespace netxs::console::ansi;
                 // base::intro[ctrl::BS ] = VT_PROC{ p->cuf(-q.pop_all(ctrl::BS )); };
                 // base::intro[ctrl::DEL] = VT_PROC{ p->bsp( q.pop_all(ctrl::DEL)); };
-                base::intro[ctrl::CR ] = VT_PROC{ q.pop_if(ctrl::EOL); p->task({ fn::nl,1 }); };
-                base::intro[ctrl::TAB] = VT_PROC{ p->task({ fn::tb,q.pop_all(ctrl::TAB) }); };
-                base::intro[ctrl::EOL] = VT_PROC{ p->task({ fn::nl,q.pop_all(ctrl::EOL) }); };
+                base::intro[ctrl::CR ]     = VT_PROC{ q.pop_if(ctrl::EOL); p->task({ fn::nl,1 }); };
+                base::intro[ctrl::TAB]     = VT_PROC{ p->task({ fn::tb,q.pop_all(ctrl::TAB) }); };
+                base::intro[ctrl::EOL]     = VT_PROC{ p->task({ fn::nl,q.pop_all(ctrl::EOL) }); };
                 base::csier.table[CSI__ED] = VT_PROC{ p->task({ fn::ed, q(0) }); }; // CSI Ps J
                 base::csier.table[CSI__EL] = VT_PROC{ p->task({ fn::el, q(0) }); }; // CSI Ps K
                 //base::csier.table[CSI__EL] = VT_PROC{ p->  el(q(0)); }; // CSI Ps K

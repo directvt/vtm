@@ -464,6 +464,24 @@ namespace netxs::console::ansi
         {
             #define F(t, q) p->task(rule{ fn::t, q })
 
+           /* Contract for client p
+            * Unicode
+            * - void post(utf::frag const& cluster); // Proceed grapheme cluster
+            * - void task(ansi::rule const& cmd);    // Proceed curses command
+            * - void cook();                         // Finalize paragraph
+            * SGR:
+            * - void nil();                          // Reset all SGR to default
+            * - void sav();                          // Set current SGR as default
+            * - void rfg();                          // Reset foreground color to default
+            * - void rbg();                          // Reset background color to default
+            * - void fgc(rgba const& c);             // Set foreground color
+            * - void bgc(rgba const& c);             // Set background color
+            * - void bld(bool b);                    // Set bold attribute
+            * - void itc(bool b);                    // Set italic attribute
+            * - void inv(bool b);                    // Set inverse attribute
+            * - void und(bool b);                    // Set underline attribute
+            */
+
             table_quest .resize(0x100); 
                 table_quest[DECSET] = nullptr; // decset
                 table_quest[DECRST] = nullptr; // decrst
@@ -600,8 +618,8 @@ namespace netxs::console::ansi
             //intro[ctrl::EOL] = exec <fn::nl, 1>;
 
             auto& esc = intro[ctrl::ESC].resize(0x100);
-                esc[CSI] = xcsi;
-                esc[OCS] = xosc;
+                esc[CSI  ] = xcsi;
+                esc[OCS  ] = xosc;
                 esc[KEY_A] = keym;
                 esc[KEY_N] = keym;
                 esc[G0SET] = g0__;
@@ -802,14 +820,14 @@ namespace netxs::console::ansi
     {
         using changer = std::array<void (*)(CELL &), ctrl::COUNT>;
 
-        static void set_r_to_l	(CELL& p) { p.rtl(true); }
-        static void set_l_to_r	(CELL& p) { p.rtl(faux); }
-        static void set_hyphen	(CELL& p) { p.hyphen(true); }
-        static void set_fnappl	(CELL& p) { p.fnappl(true); }
-        static void set_invtms	(CELL& p) { p.itimes(true); }
-        static void set_invsep	(CELL& p) { p.isepar(true); }
-        static void set_invpls	(CELL& p) { p.inplus(true); }
-        static void set_zwnbsp	(CELL& p) { p.zwnbsp(true); }
+        static void set_r_to_l (CELL& p) { p.rtl(true); }
+        static void set_l_to_r (CELL& p) { p.rtl(faux); }
+        static void set_hyphen (CELL& p) { p.hyphen(true); }
+        static void set_fnappl (CELL& p) { p.fnappl(true); }
+        static void set_invtms (CELL& p) { p.itimes(true); }
+        static void set_invsep (CELL& p) { p.isepar(true); }
+        static void set_invpls (CELL& p) { p.inplus(true); }
+        static void set_zwnbsp (CELL& p) { p.zwnbsp(true); }
 
     public:
         changer	setter = {};

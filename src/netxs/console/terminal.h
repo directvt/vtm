@@ -9,6 +9,352 @@
 
 namespace netxs::ui
 {
+    class rods // terminal: scrollback/altbuf internals v2 (New concept of the buffer)
+        : public flow
+    {
+        //template<class T>
+        //struct ring // rods: ring buffer
+        //{
+        //    using buff = std::vector<sptr<T>>;
+        //    buff heap; // ring: Inner container.
+        //    iota size; // ring: Limit of the ring buffer (-1: unlimited)
+        //    iota head;
+        //    iota tail;
+        //    ring(iota size = -1)
+        //        : size{ size }
+        //    { }
+        //};
+        //
+        //using heap = ring<para>;
+        //heap batch;
+    protected:
+        using parx = sptr<para>;
+        struct line
+        {
+            iota master; // rod: Top visible text line index.
+            iota const selfid; // rod: Text line index.
+            //bool r_to_l;
+            bias adjust;
+            iota length;
+            iota const height; // rod: Characters heigth.
+            bool wrapln;
+            parx stanza = std::make_shared<para>();
+
+            line(iota selfid,
+                 //bool r_to_l = faux,
+                 bias adjust = bias::left,
+                 iota length = 0,
+                 iota height = 1,
+                 bool wrapln = faux)
+                : master { selfid },
+                  selfid { selfid },
+                  //r_to_l { r_to_l },
+                  adjust { adjust },
+                  length { length },
+                  height { height },
+                  wrapln { wrapln }
+            { }
+            auto line_height(iota width)
+            {
+                auto len = length;
+                if (len && !(len % width)) len--;
+                return height * (len / width + 1);
+            }
+            void cook()
+            {
+                auto& item = *stanza;
+                item.cook();
+                auto size = item.size();
+                length = size.x;
+                //todo revise: height is always =1
+                //height = size.y;
+
+                //todo update wrapln and adjust
+                //adjust = item...;
+                //wrapln = item...;
+            }
+        };
+        //todo implement as a ring buffer of size MAX_SCROLLBACK
+        using heap = std::vector<line>;
+        iota        parid; // rods: Last used paragraph id.
+        heap        batch; // rods: Rods inner container.
+        iota const& width; // rods: Viewport width.
+        iota const& viewport_height; // rods: Viewport height.
+        iota        count; // rods: Scrollback height (& =batch.size()).
+        side&       upset; // rods: Viewport oversize.
+        //todo ?
+        //twod&       anker; // rods: The position of the nearest visible paragraph.
+        twod        coord; // rods: Actual caret position.
+        cell        brush; // rods: Last used brush.
+        parx        caret; // rods: Active insertion point.
+
+        iota        basis; // rods: O(0, 0) -> batch[index].
+        iota current_para; // rods: Active insertion point index (not id).
+    public:
+        rods(twod& anker, side& oversize, twod const& viewport_size)
+            : flow { viewport_size.x, count   },
+              parid{ 0                        },
+              batch{ line(parid)              },
+              width{ viewport_size.x          },
+              count{ 1                        },
+              //anker{ anker                    },
+              upset{ oversize                 },
+              caret{ batch.front().stanza     },
+              basis{ 0                        },
+              viewport_height{ viewport_size.y},
+              current_para{ 0 }
+        { }
+
+        void set_coord(twod new_coord)
+        {
+            // Checking the bottom boundary
+            //auto max_y = basis + viewport_height - 1;
+            //auto max_y = viewport_height - 1;
+            //new_coord.y = std::clamp(new_coord.y, min_y, max_y);
+            auto min_y = -basis;
+            new_coord.y = std::max(new_coord.y, min_y);
+
+            coord = new_coord;
+            new_coord.y += basis; // set coord inside batch
+
+            if (new_coord.y > count - 1)
+            {
+                auto add_count = new_coord.y - (count - 1);
+                auto brush = caret->brush;
+                while(add_count-- > 0 ) //todo same as in finalize()
+                {
+                    auto new_line = batch.emplace_back(++parid).stanza;
+                    new_line->brush = brush;
+                    count++;
+                    if (count - basis > viewport_height) basis = count - viewport_height;
+                }
+            }
+
+            auto& line = batch[new_coord.y];
+            auto line_id = line.master;
+            auto line_len = line.length;
+
+            auto index = line.selfid - batch.front().selfid; // current index
+            brush = caret->brush;
+            if (line.selfid == line.master) // no overlapped lines
+            {
+                caret = batch[index].stanza;
+                caret->chx(new_coord.x);
+                //todo implement the case when the coord is set to the outside viewport
+                //     after the right side: disable wrapping (on overlapped line too)
+                //     before the left side: disable wrapping + bias::right (on overlapped line too)
+                current_para = index;
+            }
+            else
+            {
+                //todo implement
+                auto delta = line.selfid - line.master; // master always less or eq selfid
+                index -= delta;
+                caret = batch[index].stanza;
+                caret->chx(delta * width + new_coord.x);
+                //todo implement checking hit by x
+
+                //todo implement the case when the coord is set to the outside viewport
+                //     after the right side: disable wrapping (on overlapped line too)
+                //     before the left side: disable wrapping + bias::right (on overlapped line too)
+                current_para = index;
+            }
+
+            caret->brush = brush;
+        }
+        void set_coord() { set_coord(coord); }
+
+        void finalize()
+        {
+            auto point = batch.begin() + current_para;
+
+            auto& item = *point;
+            auto old_size = item.length;
+            auto old_height = item.line_height(width);
+            item.cook();
+            auto new_size = item.length;
+            auto new_height = item.line_height(width);
+            //wrapln = 
+            auto id = item.selfid;
+            //log("current_para ",current_para, "new_height ", new_height, " old_height ", old_height);
+            if (new_height > old_height)
+            {
+                //auto delta = new_height - old_height;
+                auto dist_to_end = std::distance(point, batch.end());
+                if (new_height > dist_to_end)
+                {
+                    auto delta = new_height - dist_to_end;
+                    //todo add new lines
+                    auto brush = caret->brush;
+                    while(delta-- > 0 )
+                    {
+                        auto new_line = batch.emplace_back(++parid).stanza;
+                        new_line->brush = brush;
+                        count++;
+                        if (count - basis > viewport_height) basis = count - viewport_height;
+                    }
+                    // point is invalidated due to batch resize
+                    point = batch.begin() + current_para;
+                }
+                auto head = point + new_height;
+                auto tail = point + old_height;
+                while(head-- != tail)
+                {
+                    auto& item = *head;
+                    // Assign iff линия не накрыта кем-то выше
+                    if (item.selfid - id > 0) // In order to support id overflow
+                        item.master = id; 
+                    else break; // линия накрыта кем то выше
+                }
+            }
+            else if (new_height < old_height)
+            {
+                auto head = point + old_height;
+                auto tail = point + new_height;
+                while(head-- != tail)
+                {
+                    auto& item2 = *head;
+                    auto old_master = item2.master;
+                    if (old_master != id) break; // эта линия как и все вышележащие были накрыты кем то ранее, длинной строкой выше
+                    auto head2 = point;
+                    item2.master = item2.selfid;
+                    while(++head2 != head)
+                    {
+                        auto& over = *head2;
+                        auto h = over.height;
+                        auto d = head - head2;
+                        if (h > d)
+                        {
+                            item2.master = (*head2).selfid;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            auto len = caret->chx();
+            //if (len && !(len % width)) len--;
+
+            if (len && (len % width == 0))
+            {
+                len--;
+                coord.x = width;
+            }
+            else
+            {
+                coord.x = len % width;
+            }
+            coord.y = len / width + current_para - basis;
+            
+            //coord.x = len % width;
+            //coord.y = len / width + current_para - basis;
+            //log(" item: ", current_para, " coord:", coord);
+        }
+        auto& clear(bool preserve_brush = faux)
+        {
+            brush = preserve_brush ? caret->brush
+                                   : cell{};
+            batch.clear();    
+            parid = 0;
+            count = 0;
+            basis = 0;
+            upset.set(0);
+            caret = batch.emplace_back(parid).stanza;
+            //caret->wipe(brush);
+            caret->brush = brush;
+            current_para = count++;
+            if (count - basis > viewport_height) basis = count - viewport_height;
+            return *this;
+        }
+        // rods: Add new line.
+        void fork()
+        {
+            //caret->cook();
+            finalize();
+            brush = caret->brush;
+            caret = batch.emplace_back(++parid).stanza;
+            caret->brush = brush;
+            current_para = count++;
+            if (count - basis > viewport_height) basis = count - viewport_height;
+        }
+
+        auto reflow()
+        {
+            flow::reset();
+            //todo Determine page internal caret position
+            auto current_coord = dot_00;
+            // Output lines in backward order from bottom to top
+            auto tail = batch.rbegin();
+            auto head = batch.rend();
+            auto coor = twod{ 0, count };
+            //todo optimize: print only visible (TIA canvas offsets)
+            while(tail != head)
+            {
+                auto& rod = *(*tail++).stanza;
+                --coor.y;
+                flow::cursor = coor;
+                flow::print(rod);
+                brush = rod.mark(); // current mark of the last printed fragment
+            }
+
+            flow::minmax(current_coord);
+            auto& cover = flow::minmax();
+            upset.set(-std::min(0, cover.l),
+                       std::max(0, cover.r - width + 1),
+                      -std::min(0, cover.t),
+                       0);
+            auto height = cover.height() + 1;
+            if (auto delta = height - count)
+            {
+                while(delta-- > 0 ) fork();
+            }
+            //count = static_cast<iota>(batch.size());
+            //if (height != count) throw;
+
+            return twod{ width, height };
+        }
+        void output(face& canvas)
+        {
+            //todo do the same that the reflow does but using canvas
+
+            flow::reset();
+            flow::corner = canvas.corner();
+
+            // Output lines in backward order from bottom to top
+            auto tail = batch.rbegin();
+            auto head = batch.rend();
+            auto coor = twod{ 0, count };
+            //todo optimize: print only visible (TIA canvas offsets)
+            while(tail != head)
+            {
+                auto& rod = *(*tail++).stanza;
+                --coor.y;
+                flow::cursor = coor;
+                flow::print(rod, canvas);
+                brush = rod.mark(); // current mark of the last printed fragment
+            }
+        }
+        //auto size() const { return count; }
+        //void size(iota limit)
+        //{
+        //    //todo resize ring buffer
+        //}
+        auto height() const
+        {
+            return count;
+        }
+        void height(iota limits)
+        {
+            //todo resize ring buffer
+        }
+        auto cp()
+        {
+            auto pos = coord;
+            pos.y += basis;
+            return pos;
+        }
+    };
+
     class lane // terminal: scrollback/altbuf internals
         : public page,
           public flow
@@ -176,7 +522,378 @@ namespace netxs::ui
             };
         };
 
-        struct wall // term: VT-behavior for the lane
+        struct wall // term: VT-behavior for the rods
+            : public rods
+        {
+            template<class T>
+            struct parser : public ansi::parser<T>
+            {
+                using vt = ansi::parser<T>;
+                parser() : vt()
+                {
+                    using namespace netxs::console::ansi;
+                    vt::csier.table[CSI_CUU] = VT_PROC{ p->up ( q(1)); };  // CSI n A
+                    vt::csier.table[CSI_CUD] = VT_PROC{ p->dn ( q(1)); };  // CSI n B
+                    vt::csier.table[CSI_CUF] = VT_PROC{ p->cuf( q(1)); };  // CSI n C
+                    vt::csier.table[CSI_CUB] = VT_PROC{ p->cuf(-q(1)); };  // CSI n D
+
+                    vt::csier.table[CSI_CNL] = vt::csier.table[CSI_CUD]; // CSI n E
+                    vt::csier.table[CSI_CPL] = vt::csier.table[CSI_CUU]; // CSI n F
+                    vt::csier.table[CSI_CHX] = VT_PROC{ p->chx( q(1)); };  // CSI n G - hz absolute
+                    vt::csier.table[CSI_CHY] = VT_PROC{ p->chy( q(1)); };  // CSI n d - vt absolute 
+                    vt::csier.table[CSI_CUP] = VT_PROC{ p->cup( q   ); };  // CSI y ; x H (1-based)
+                    vt::csier.table[CSI_HVP] = VT_PROC{ p->cup( q   ); };  // CSI y ; x f (1-based)
+
+                    vt::csier.table[CSI_DCH] = VT_PROC{ p->dch( q(1)); };  // CSI n P - del n chars
+                    vt::csier.table[CSI_ECH] = VT_PROC{ p->ech( q(1)); };  // CSI n X - erase n chars
+                    vt::csier.table[CSI__ED] = VT_PROC{ p->ed ( q(0)); };  // CSI Ps J
+                    vt::csier.table[CSI__EL] = VT_PROC{ p->el ( q(0)); };  // CSI Ps K
+
+                    vt::intro[ctrl::BS ]     = VT_PROC{ p->cuf(-q.pop_all(ctrl::BS )); };
+                    vt::intro[ctrl::DEL]     = VT_PROC{ p->del( q.pop_all(ctrl::DEL)); };
+                    vt::intro[ctrl::TAB]     = VT_PROC{ p->tab( q.pop_all(ctrl::TAB)); };
+                    vt::intro[ctrl::EOL]     = VT_PROC{ p->eol( q.pop_all(ctrl::EOL)); };
+                    vt::intro[ctrl::CR ]     = VT_PROC{
+                            if (q.pop_if(ctrl::EOL)) p->eol(1);
+                            else                     p->home(); };
+
+                    vt::csier.table_quest[DECSET] = VT_PROC{ p->boss.decset(p, q); };
+                    vt::csier.table_quest[DECRST] = VT_PROC{ p->boss.decrst(p, q); };
+                    vt::csier.table_excl [DECSTR] = VT_PROC{ p->boss.decstr(); }; // CSI ! p = Soft terminal reset (DECSTR)
+
+                    vt::csier.table[CSI_SGR][SGR_RST] = VT_PROC{ p->nil(); }; // fx_sgr_rst       ;
+                    vt::csier.table[CSI_SGR][SGR_SAV] = VT_PROC{ p->sav(); }; // fx_sgr_sav       ;
+                    vt::csier.table[CSI_SGR][SGR_FG ] = VT_PROC{ p->rfg(); }; // fx_sgr_fg_def    ;
+                    vt::csier.table[CSI_SGR][SGR_BG ] = VT_PROC{ p->rbg(); }; // fx_sgr_bg_def    ;
+
+                    vt::oscer[OSC_0] = VT_PROC{ p->boss.prop(OSC_0, q); };
+                    vt::oscer[OSC_1] = VT_PROC{ p->boss.prop(OSC_1, q); };
+                    vt::oscer[OSC_2] = VT_PROC{ p->boss.prop(OSC_2, q); };
+                    vt::oscer[OSC_3] = VT_PROC{ p->boss.prop(OSC_3, q); };
+                }
+            };
+
+            term& boss;
+            cell& mark; // wall: Shared current brush state (default brush).
+
+            wall(term& boss)
+                : rods( boss.base::anchor, boss.base::oversize, boss.viewport.size ),
+                  mark{ boss.base::color() },
+                  boss{ boss }
+            { }
+
+            // Implement base-CSI contract (see ansi::csi_t)
+            void task(ansi::rule const& cmd)
+            {
+                if (!caret->empty())
+                {
+                    fork();
+                }
+                caret->locus.push(cmd);
+            }
+            void post(utf::frag const& cluster)
+            { 
+                caret->post(cluster); 
+            }
+            //void cook()                         { caret->cook(); }
+            void cook()                         { finalize(); }
+            void  nil()                         { caret->nil(mark); }
+            void  sav()                         { caret->sav(mark); }
+            void  rfg()                         { caret->rfg(mark); }
+            void  rbg()                         { caret->rbg(mark); }
+            void  fgc(rgba const& c)            { caret->fgc(c); }
+            void  bgc(rgba const& c)            { caret->bgc(c); }
+            void  bld(bool b)                   { caret->bld(b); }
+            void  itc(bool b)                   { caret->itc(b); }
+            void  inv(bool b)                   { caret->inv(b); }
+            void  und(bool b)                   { caret->und(b); }
+
+            // Implement text manipalation procs
+            //
+            void tab(iota n) { caret->ins(n); }
+            // wall: CSI n X  Erase/put n chars after cursor. Don't change cursor pos
+            void ech(iota n) // wall: Erase letters after caret. CSI n X
+            {
+                if (n > 0)
+                {
+                    finalize();
+                    auto pos = caret->chx();
+                    caret->ins(n);
+                    caret->chx(pos);
+                    finalize();
+                }
+            }
+            // wall: CSI n P  Delete (not Erase) letters under the caret.
+            void dch(iota n)
+            {
+                /* del:
+                 *    As characters are deleted, the remaining characters
+                 *    between the cursor and right margin move to the left.
+                 *    Character attributes move with the characters.
+                 *    The terminal adds blank characters at the right margin.
+                 */
+                cook();
+                auto& lyric = *rods::caret->lyric;
+                auto size = lyric.size().x;
+                auto caret = rods::caret->chx();
+                //todo unify for size.y > 1
+                //todo revise shifting to the left (right? RTL?)
+                if (n > 0)
+                {
+                    //if (size < caret + n)
+                    //{
+                    //	lyric.crop(caret + n);
+                    //}
+                    if (caret < size)
+                    {
+                        if (n >= size - caret)
+                        {
+                            auto dst = lyric.data() + caret;
+                            auto end = dst + (size - caret);
+                            auto b = rods::caret->brush;
+                            b.txt(whitespace);
+                            while (dst != end)
+                            {
+                                *dst++ = b;
+                            }
+                        }
+                        else
+                        {
+                            auto dst = lyric.data() + caret;
+                            auto end = dst + std::min(n, size - caret);
+                            auto src = dst + n;
+                            while (dst != end)
+                            {
+                                *dst++ = *src++;
+                            }
+                            auto b = rods::caret->brush;
+                            b.txt(whitespace);
+                            end = lyric.data() + size;
+                            while (dst != end)
+                            {
+                                *dst++ = b;
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    //todo support negative n
+                }
+            }
+            // wall: '\x7F'  Delete characters backwards.
+            void del(iota n)
+            {
+                // auto& layer = rods::caret;
+                // if (layer->chx() >= n)
+                // {
+                //     layer->chx(layer->chx() - n);
+                //     layer->del(n);
+                // }
+                // else
+                // {
+                //     auto  here = layer->chx();
+                //     auto there = n - here;
+                //     layer->chx(0);
+                //     if (here) layer->del(here);
+                //     {
+                //         if (layer != rods::batch.begin())
+                //         {
+                //             if (!layer->length())
+                //             {
+                //                 if (layer->locus.bare())
+                //                 {
+                //                     layer = std::prev(page::batch.erase(layer));
+                //                 }
+                //                 else
+                //                 {
+                //                     layer->locus.pop();
+                //                 }
+                //                 there--;
+                //             }
+                //             else
+                //             {
+                //                 auto prev = std::prev(layer);
+                //                 *(*prev).lyric += *(*layer).lyric;
+                //                 page::batch.erase(layer);
+                //                 layer = prev;
+                //                 layer->chx(layer->length());
+                //             }
+                //         }
+                //     }
+                // }
+            }
+            // wall: Move caret forward by n.
+            void cuf(iota n)
+            {
+                finalize();
+                coord.x += n;
+                set_coord();
+            }
+            // wall: CSI n G  Absolute horizontal caret position (1-based)
+            void chx(iota n)
+            {
+                finalize();
+                coord.x = n - 1;
+                set_coord();
+            }
+            // wall: CSI n d  Absolute vertical caret position (1-based)
+            void chy(iota n)
+            {
+                finalize();
+                coord.y = n - 1;
+                set_coord();
+            }
+            // wall: CSI y; x H/F  Caret position (1-based)
+            void cup(fifo& queue)
+            {
+                finalize();
+                auto p = twod(queue(1), queue(1));
+                coord = p - dot_11;
+                set_coord();
+            }
+            // wall: Line feed up
+            template<bool PRESERVE_BRUSH = true>
+            void up(iota n)
+            {
+                finalize();
+                coord.y -= n;
+                set_coord();
+            }
+            // wall: Line feed down
+            void dn(iota n)
+            {
+                finalize();
+                coord.y += n;
+                set_coord();
+            }
+            // wall: '\r'  Go to home of visible line instead of home of para
+            void home()
+            {
+                finalize();
+                coord.x = 0;
+                set_coord();
+            }
+            // wall: '\n' || '\r\n'  Carriage return + Line feed
+            void eol(iota n)
+            {
+                finalize();
+                coord.x = 0;
+                coord.y += n;
+                set_coord();
+            }
+            // wall: CSI n J  Erase display
+            void ed(iota n)
+            {
+                switch (n)
+                {
+                    case commands::erase::display::below: // Ps = 0  ⇒  Erase Below (default).
+                        //todo implement
+                        finalize();
+                        log("\\e[J is not implemented");
+                        break;
+                    case commands::erase::display::above: // Ps = 1  ⇒  Erase Above.
+                        //todo implement
+                        finalize();
+                        log("\\e[1J is not implemented");
+                        break;
+                    case commands::erase::display::viewport: // Ps = 2  ⇒  Erase All.
+                    {
+                        finalize();
+                        auto current_brush = caret->brush;
+
+                        log("\\e[2J is not implemented");
+
+                        caret->brush = current_brush;
+                    }
+                    break;
+                    case commands::erase::display::scrollback: // Ps = 3  ⇒  Erase Scrollback
+                    {
+                        rods::clear();
+                    }
+                    break;
+                    default:
+                        break;
+                }
+            }
+            // wall: CSI n K  Erase line (don't move caret)
+            void el(iota n)
+            {
+                /*
+                //log(" el ", n);
+                page::cook();
+
+                auto& lyric = *page::layer->lyric;
+
+                switch (n)
+                {
+                    default:
+                    case commands::erase::line::right: // Ps = 0  ⇒  Erase to Right (default).
+                    {
+                        //todo optimize
+                        auto brush = page::layer->brush;
+                        brush.txt(' ');
+                        auto coor = page::layer->chx();
+                        auto width = boss.viewport.size.x;
+                        //auto sss = width - coor;
+                        lyric.crop({ coor,1 }, brush);
+                        lyric.crop({ coor + (width - coor % width),1 }, brush);
+
+                        page::layer->trim(mark);
+
+
+                        // ConPTY doesn't move caret (is it ok?)
+                        //page::layer->chx(coor + (width - coor % width));
+                        break;
+                    }
+                    case commands::erase::line::left: // Ps = 1  ⇒  Erase to Left.
+                    {
+                        //todo implement
+                        auto brush = page::layer->brush;
+                        brush.txt(' ');
+                        auto coor = page::layer->chx();
+                        auto width = boss.viewport.size.x;
+                        //auto sss = width - coor;
+                        if (coor < width)
+                        {
+                            lyric.each([&](cell& c) {if (coor > 0) { coor--; c.fuse(brush); } });
+                        }
+                        else
+                        {
+                            auto left_edge = coor - coor % width;
+
+                            lyric.crop({ left_edge,1 }, brush);
+                            lyric.crop({ left_edge + width,1 }, brush);
+                        }
+                        //page::task(ansi::rule{ ansi::fn::el, 1 });
+                        break;
+                    }
+                    case commands::erase::line::all: // Ps = 2  ⇒  Erase All.
+                    {
+                        //todo optimize
+                        auto coor = page::layer->chx();
+                        auto brush = page::layer->brush;
+                        brush.txt(' ');
+                        auto width = boss.viewport.size.x;
+                        //auto sss = width - coor;
+
+                        auto left_edge = coor - coor % width;
+
+                        lyric.crop({ left_edge,1 }, brush);
+                        lyric.crop({ left_edge + width,1 }, brush);
+
+                        //lyric.crop({ 0,1 }, brush);
+                        //lyric.crop({ width,1 }, brush);
+
+                        //page::task(ansi::rule{ ansi::fn::el, 2 });
+                        break;
+                    }
+                }
+                */
+            }
+        };
+
+        struct wall_old // term: VT-behavior for the lane
             : public lane
         {
             template<class T>
@@ -243,7 +960,7 @@ namespace netxs::ui
             term& boss;
             cell& mark; // wall: Shared current brush state (default brush).
 
-            wall(term& boss)
+            wall_old(term& boss)
                 : lane( boss.base::anchor, boss.base::oversize, boss.viewport.size ),
                   mark{ boss.base::color() },
                   boss{ boss }
@@ -748,8 +1465,10 @@ namespace netxs::ui
         void decstr()
         {
             //todo revise
-            altbuf.ed(commands::erase::display::scrollback);
-            scroll.ed(commands::erase::display::scrollback);
+            //altbuf.ed(commands::erase::display::scrollback);
+            //scroll.ed(commands::erase::display::scrollback);
+            scroll.clear();
+            altbuf.clear();
             target = &scroll;
         }
         void decset(wall*& p, fifo& queue)
@@ -884,39 +1603,10 @@ namespace netxs::ui
 
             SUBMIT(e2::preview, e2::form::layout::size, new_size)
             {
+                //log("1. caret pos: ", target->cp());
                 //log ("old viewport.size.y: ", viewport.size.y);
                 if (viewport.size != new_size)
                 {
-                    //viewport.size = new_size;
-                    //
-                    //auto old_size = target->height;
-                    //auto scrollback_size = target->reflow();
-                    //if (auto page_adds =  old_size - scrollback_size.y)
-                    //{
-                    //    log("page lines added: ", page_adds);
-                    //    scroll.adds(page_adds);
-                    //}
-
-
-                    if (auto news = new_size.y - viewport.size.y)
-                    //auto page_adds =  scrollback_size.y - old_size;
-                    //log("page lines added: ", page_adds);
-                    //if (auto news = new_size.y - viewport.size.y - page_adds)
-                    {
-                        //todo calc visible lines TIA wrapping and lyric.size
-
-                        //target->adds(news);
-                        altbuf.page::maxlen(new_size.y);
-                        if (new_size.y > altbuf.size())
-                            altbuf.adds(new_size.y - altbuf.size());
-
-                        if (new_size.y != altbuf.size())
-                            throw;
-
-                        //log("lines added: ", news);
-                        scroll.adds(news);
-                    }
-
                     viewport.size = new_size;
                     if (target == &altbuf)
                     {
@@ -933,6 +1623,7 @@ namespace netxs::ui
                 auto scrollback_size = target->reflow();
                 new_size = std::max(new_size, scrollback_size); // Use the max size
 
+                //log("2. caret pos: ", target->cp());
                 ptycon.resize(new_pty_size); // set viewport size
             };
             SUBMIT(e2::release, e2::form::layout::move, new_coor)
@@ -971,6 +1662,15 @@ namespace netxs::ui
 
                     auto new_size = target->reflow();
                     auto caret_xy = target->cp();
+                    // Place caret to the begining of the new line
+                    //   in case it is at the end of line and it is wrapped
+                    if (caret_xy.x == viewport.size.x
+                        && target->wrapln)
+                    {
+                        //log("caret: ", caret_xy);
+                        caret_xy.x = 0;
+                        caret_xy.y++;
+                    }
                     caret.coor(caret_xy);
 
                     // Follow to the caret
