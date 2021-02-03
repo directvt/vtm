@@ -33,32 +33,26 @@ namespace netxs::ui
         {
             iota master; // rod: Top visible text line index.
             iota const selfid; // rod: Text line index.
-            //bool r_to_l;
             bias adjust;
             iota length;
-            iota const height; // rod: Characters heigth.
             bool wrapln;
             parx stanza = std::make_shared<para>();
 
             line(iota selfid,
-                 //bool r_to_l = faux,
                  bias adjust = bias::left,
                  iota length = 0,
-                 iota height = 1,
                  bool wrapln = faux)
                 : master { selfid },
                   selfid { selfid },
-                  //r_to_l { r_to_l },
                   adjust { adjust },
                   length { length },
-                  height { height },
                   wrapln { wrapln }
             { }
             auto line_height(iota width)
             {
                 auto len = length;
-                if (len && !(len % width)) len--;
-                return height * (len / width + 1);
+                if (len && (len % width == 0)) len--;
+                return len / width + 1;
             }
             void cook()
             {
@@ -202,7 +196,7 @@ namespace netxs::ui
                 {
                     auto& item = *head;
                     // Assign iff линия не накрыта кем-то выше
-                    if (item.selfid - id > 0) // In order to support id overflow
+                    if (item.selfid - id > 0) // In order to support id incrementing overflow
                         item.master = id; 
                     else break; // линия накрыта кем то выше
                 }
@@ -221,7 +215,7 @@ namespace netxs::ui
                     while(++head2 != head)
                     {
                         auto& over = *head2;
-                        auto h = over.height;
+                        auto h = over.line_height(width);
                         auto d = head - head2;
                         if (h > d)
                         {
@@ -819,41 +813,32 @@ namespace netxs::ui
             // wall: CSI n K  Erase line (don't move caret)
             void el(iota n)
             {
-                /*
-                //log(" el ", n);
-                page::cook();
-
-                auto& lyric = *page::layer->lyric;
+                finalize();
+                auto& lyric = *caret->lyric;
 
                 switch (n)
                 {
                     default:
                     case commands::erase::line::right: // Ps = 0  ⇒  Erase to Right (default).
                     {
+                        // ConPTY doesn't move caret (is it ok?)
                         //todo optimize
-                        auto brush = page::layer->brush;
+                        auto brush = caret->brush;
                         brush.txt(' ');
-                        auto coor = page::layer->chx();
+                        auto coor = caret->chx();
                         auto width = boss.viewport.size.x;
-                        //auto sss = width - coor;
                         lyric.crop({ coor,1 }, brush);
                         lyric.crop({ coor + (width - coor % width),1 }, brush);
-
-                        page::layer->trim(mark);
-
-
-                        // ConPTY doesn't move caret (is it ok?)
-                        //page::layer->chx(coor + (width - coor % width));
+                        caret->trim(mark);
+                        //caret->chx(coor + (width - coor % width));
                         break;
                     }
                     case commands::erase::line::left: // Ps = 1  ⇒  Erase to Left.
                     {
-                        //todo implement
-                        auto brush = page::layer->brush;
+                        auto brush = caret->brush;
                         brush.txt(' ');
-                        auto coor = page::layer->chx();
+                        auto coor = caret->chx();
                         auto width = boss.viewport.size.x;
-                        //auto sss = width - coor;
                         if (coor < width)
                         {
                             lyric.each([&](cell& c) {if (coor > 0) { coor--; c.fuse(brush); } });
@@ -861,35 +846,24 @@ namespace netxs::ui
                         else
                         {
                             auto left_edge = coor - coor % width;
-
                             lyric.crop({ left_edge,1 }, brush);
                             lyric.crop({ left_edge + width,1 }, brush);
                         }
-                        //page::task(ansi::rule{ ansi::fn::el, 1 });
                         break;
                     }
                     case commands::erase::line::all: // Ps = 2  ⇒  Erase All.
                     {
                         //todo optimize
-                        auto coor = page::layer->chx();
-                        auto brush = page::layer->brush;
+                        auto coor  = caret->chx();
+                        auto brush = caret->brush;
                         brush.txt(' ');
                         auto width = boss.viewport.size.x;
-                        //auto sss = width - coor;
-
                         auto left_edge = coor - coor % width;
-
                         lyric.crop({ left_edge,1 }, brush);
                         lyric.crop({ left_edge + width,1 }, brush);
-
-                        //lyric.crop({ 0,1 }, brush);
-                        //lyric.crop({ width,1 }, brush);
-
-                        //page::task(ansi::rule{ ansi::fn::el, 2 });
                         break;
                     }
                 }
-                */
             }
         };
 
