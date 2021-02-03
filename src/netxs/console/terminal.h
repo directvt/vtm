@@ -242,6 +242,7 @@ namespace netxs::ui
             
             //coord.x = len % width;
             //coord.y = len / width + current_para - basis;
+
             //log(" item: ", current_para, " coord:", coord);
         }
         auto& clear(bool preserve_brush = faux)
@@ -304,6 +305,8 @@ namespace netxs::ui
             }
             //count = static_cast<iota>(batch.size());
             //if (height != count) throw;
+
+            if (count - basis > viewport_height) basis = count - viewport_height;
 
             return twod{ width, height };
         }
@@ -1636,6 +1639,7 @@ namespace netxs::ui
 
                     auto new_size = target->reflow();
                     auto caret_xy = target->cp();
+
                     // Place caret to the begining of the new line
                     //   in case it is at the end of line and it is wrapped
                     if (caret_xy.x == viewport.size.x
@@ -1645,6 +1649,7 @@ namespace netxs::ui
                         caret_xy.x = 0;
                         caret_xy.y++;
                     }
+
                     caret.coor(caret_xy);
 
                     // Follow to the caret
