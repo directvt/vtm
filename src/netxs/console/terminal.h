@@ -86,9 +86,9 @@ namespace netxs::ui
         cell        brush; // rods: Last used brush.
         parx        caret; // rods: Active insertion point.
 
-        iota        basis; // rods: O(0, 0) -> batch[index].
         iota current_para; // rods: Active insertion point index (not id).
     public:
+        iota        basis; // rods: O(0, 0) -> batch[index].
         rods(twod& anker, side& oversize, twod const& viewport_size)
             : flow { viewport_size.x, count   },
               parid{ 0                        },
@@ -323,6 +323,7 @@ namespace netxs::ui
                 flow::cursor = coor;
                 flow::wrapln = line.wrapln;
                 flow::adjust = line.adjust;
+                flow::up(); // Append empty lines to flow::minmax
                 flow::print<faux>(rod);
                 brush = rod.mark(); // current mark of the last printed fragment
             }
@@ -1652,6 +1653,7 @@ namespace netxs::ui
             SUBMIT(e2::release, e2::form::layout::move, new_coor)
             {
                 viewport.coor = -new_coor;
+                //log("new viewport coor: ", viewport.coor);
             };
 
             ptycon.start(cmdline, winsz, [&](auto d) { input_hndl(d); });
@@ -1662,6 +1664,7 @@ namespace netxs::ui
             ptycon.close();
         }
 
+        //bool caret_is_visible=true;
         void input_hndl(view shadow)
         {
             while (ptycon)
@@ -1671,15 +1674,11 @@ namespace netxs::ui
                 {
                     SIGNAL(e2::general, e2::debug::output, shadow);
 
-                    auto old_caret_pos = target->cp();
+                    //auto old_caret_pos = target->cp();
+                    auto old_caret_pos = caret.coor();
                     auto caret_is_visible = viewport.hittest(old_caret_pos);
 
                     ansi::parse(shadow, target); // Append using default insertion point
-
-                    // Follow to the caret
-                    //todo revise
-                    //auto old_caret_pos = caret.coor();
-
 
                     //if (target == &altbuf)
                     //{
@@ -1694,36 +1693,21 @@ namespace netxs::ui
                     if (caret_xy.x == viewport.size.x
                         && target->wrapln)
                     {
-                        //log("caret: ", caret_xy);
                         caret_xy.x = 0;
                         caret_xy.y++;
                     }
 
                     caret.coor(caret_xy);
 
-
-                //auto caret_xy = caret.coor();
-                if (!viewport.hittest(caret_xy))
-                {
-                    //todo revise
-                    auto old_caret_pos = viewport.coor + viewport.size - dot_11;
-                    auto anchor_delta = caret_xy - old_caret_pos;
-                    auto new_coor = base::coor.get() - anchor_delta;
-                    SIGNAL(e2::release, base::move_event, new_coor);
-                }
-
-                    //// Follow to the caret
-                    //if (caret_is_visible && !viewport.hittest(caret_xy))
-                    //{
-                    //    auto anchor_delta = caret_xy - old_caret_pos;
-                    //    auto new_coor = base::coor.get() - anchor_delta;
-                    //    //log("correcting viewport pos: ", anchor_delta);
-                    //    //new_coor.y++;
-                    //    SIGNAL(e2::release, base::move_event, new_coor);
-                    //}
+                    if (caret_is_visible && !viewport.hittest(caret_xy))
+                    {
+                        //auto old_caret_pos = viewport.coor + viewport.size - dot_11;
+                        auto anchor_delta = caret_xy - old_caret_pos;
+                        auto new_coor = base::coor.get() - anchor_delta;
+                        SIGNAL(e2::release, base::move_event, new_coor);
+                    }
 
                     SIGNAL(e2::release, base::size_event, new_size);
-
 
                     base::deface();
                     break;
