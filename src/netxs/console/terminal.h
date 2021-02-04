@@ -182,7 +182,7 @@ namespace netxs::ui
             auto new_height = item.line_height(width);
             //wrapln = 
             auto id = item.selfid;
-            log("current_para ",current_para, "new_height ", new_height, " old_height ", old_height);
+            //log("current_para ",current_para, "new_height ", new_height, " old_height ", old_height);
             if (new_height > old_height)
             {
                 //auto delta = new_height - old_height;
@@ -1671,12 +1671,15 @@ namespace netxs::ui
                 {
                     SIGNAL(e2::general, e2::debug::output, shadow);
 
+                    auto old_caret_pos = target->cp();
+                    auto caret_is_visible = viewport.hittest(old_caret_pos);
+
                     ansi::parse(shadow, target); // Append using default insertion point
 
                     // Follow to the caret
                     //todo revise
-                    auto old_caret_pos = caret.coor();
-                    auto caret_is_visible = viewport.hittest(old_caret_pos);
+                    //auto old_caret_pos = caret.coor();
+
 
                     //if (target == &altbuf)
                     //{
@@ -1698,13 +1701,26 @@ namespace netxs::ui
 
                     caret.coor(caret_xy);
 
-                    // Follow to the caret
-                    if (caret_is_visible && !viewport.hittest(caret_xy))
-                    {
-                        auto anchor_delta = caret_xy - old_caret_pos;
-                        auto new_coor = base::coor.get() - anchor_delta;
-                        SIGNAL(e2::release, base::move_event, new_coor);
-                    }
+
+                //auto caret_xy = caret.coor();
+                if (!viewport.hittest(caret_xy))
+                {
+                    //todo revise
+                    auto old_caret_pos = viewport.coor + viewport.size - dot_11;
+                    auto anchor_delta = caret_xy - old_caret_pos;
+                    auto new_coor = base::coor.get() - anchor_delta;
+                    SIGNAL(e2::release, base::move_event, new_coor);
+                }
+
+                    //// Follow to the caret
+                    //if (caret_is_visible && !viewport.hittest(caret_xy))
+                    //{
+                    //    auto anchor_delta = caret_xy - old_caret_pos;
+                    //    auto new_coor = base::coor.get() - anchor_delta;
+                    //    //log("correcting viewport pos: ", anchor_delta);
+                    //    //new_coor.y++;
+                    //    SIGNAL(e2::release, base::move_event, new_coor);
+                    //}
 
                     SIGNAL(e2::release, base::size_event, new_size);
 
