@@ -41,7 +41,7 @@ namespace netxs::ui
             line(iota selfid,
                  bias adjust = bias::left,
                  iota length = 0,
-                 bool wrapln = faux)
+                 bool wrapln = WRAPPING)
                 : master { selfid },
                   selfid { selfid },
                   adjust { adjust },
@@ -50,9 +50,13 @@ namespace netxs::ui
             { }
             auto line_height(iota width)
             {
-                auto len = length;
-                if (len && (len % width == 0)) len--;
-                return len / width + 1;
+                if (wrapln)
+                {
+                    auto len = length;
+                    if (len && (len % width == 0)) len--;
+                    return len / width + 1;
+                }
+                else return 1;
             }
             void cook()
             {
@@ -115,10 +119,18 @@ namespace netxs::ui
             {
                 auto add_count = new_coord.y - (count - 1);
                 auto brush = caret->brush;
+
+                auto& item = batch[current_para];
+                auto wrp = item.wrapln;
+                auto jet = item.adjust;
                 while(add_count-- > 0 ) //todo same as in finalize()
                 {
-                    auto new_line = batch.emplace_back(++parid).stanza;
+                    auto& new_item = batch.emplace_back(++parid);
+                    auto new_line = new_item.stanza;
                     new_line->brush = brush;
+                    new_item.wrapln = wrp;
+                    new_item.adjust = jet;
+
                     count++;
                     if (count - basis > viewport_height) basis = count - viewport_height;
                 }
@@ -170,7 +182,7 @@ namespace netxs::ui
             auto new_height = item.line_height(width);
             //wrapln = 
             auto id = item.selfid;
-            //log("current_para ",current_para, "new_height ", new_height, " old_height ", old_height);
+            log("current_para ",current_para, "new_height ", new_height, " old_height ", old_height);
             if (new_height > old_height)
             {
                 //auto delta = new_height - old_height;
@@ -180,10 +192,17 @@ namespace netxs::ui
                     auto delta = new_height - dist_to_end;
                     //todo add new lines
                     auto brush = caret->brush;
+                    auto wrp = item.wrapln;
+                    auto jet = item.adjust;
+
                     while(delta-- > 0 )
                     {
-                        auto new_line = batch.emplace_back(++parid).stanza;
+                        auto& new_item = batch.emplace_back(++parid);
+                        auto new_line = new_item.stanza;
                         new_line->brush = brush;
+                        new_item.wrapln = wrp;
+                        new_item.adjust = jet;
+
                         count++;
                         if (count - basis > viewport_height) basis = count - viewport_height;
                     }
@@ -226,24 +245,30 @@ namespace netxs::ui
                 }
             }
 
-            auto len = caret->chx();
-            //if (len && !(len % width)) len--;
-
-            if (len && (len % width == 0))
+            if (item.wrapln)
             {
-                len--;
-                coord.x = width;
+                auto len = caret->chx();
+                //if (len && !(len % width)) len--;
+
+                if (len && (len % width == 0))
+                {
+                    len--;
+                    coord.x = width;
+                }
+                else
+                {
+                    coord.x = len % width;
+                }
+                coord.y = len / width + current_para - basis;
+                //coord.x = len % width;
+                //coord.y = len / width + current_para - basis;
+                //log(" item: ", current_para, " coord:", coord);
             }
             else
             {
-                coord.x = len % width;
+                coord.x = caret->chx();
+                coord.y = current_para - basis;
             }
-            coord.y = len / width + current_para - basis;
-            
-            //coord.x = len % width;
-            //coord.y = len / width + current_para - basis;
-
-            //log(" item: ", current_para, " coord:", coord);
         }
         auto& clear(bool preserve_brush = faux)
         {
@@ -267,8 +292,15 @@ namespace netxs::ui
             //caret->cook();
             finalize();
             brush = caret->brush;
-            caret = batch.emplace_back(++parid).stanza;
+            auto& item = batch[current_para];
+            auto wrp = item.wrapln;
+            auto jet = item.adjust;
+            auto& new_item = batch.emplace_back(++parid);
+            caret = new_item.stanza;
             caret->brush = brush;
+            new_item.wrapln = wrp;
+            new_item.adjust = jet;
+
             current_para = count++;
             if (count - basis > viewport_height) basis = count - viewport_height;
         }
@@ -285,10 +317,13 @@ namespace netxs::ui
             //todo optimize: print only visible (TIA canvas offsets)
             while(tail != head)
             {
-                auto& rod = *(*tail++).stanza;
+                auto& line = *tail++;
+                auto& rod = *line.stanza;
                 --coor.y;
                 flow::cursor = coor;
-                flow::print(rod);
+                flow::wrapln = line.wrapln;
+                flow::adjust = line.adjust;
+                flow::print<faux>(rod);
                 brush = rod.mark(); // current mark of the last printed fragment
             }
 
@@ -324,10 +359,13 @@ namespace netxs::ui
             //todo optimize: print only visible (TIA canvas offsets)
             while(tail != head)
             {
-                auto& rod = *(*tail++).stanza;
+                auto& line = *tail++;
+                auto& rod = *line.stanza;
                 --coor.y;
                 flow::cursor = coor;
-                flow::print(rod, canvas);
+                flow::wrapln = line.wrapln;
+                flow::adjust = line.adjust;
+                flow::print<faux>(rod, canvas);
                 brush = rod.mark(); // current mark of the last printed fragment
             }
         }
@@ -563,6 +601,11 @@ namespace netxs::ui
                     vt::csier.table[CSI_SGR][SGR_FG ] = VT_PROC{ p->rfg(); }; // fx_sgr_fg_def    ;
                     vt::csier.table[CSI_SGR][SGR_BG ] = VT_PROC{ p->rbg(); }; // fx_sgr_bg_def    ;
 
+                    vt::csier.table[CSI_CCC][CCC_JET] = VT_PROC{ p->jet(q(0)); }; // fx_ccc_jet  default=bias::left=0
+                    vt::csier.table[CSI_CCC][CCC_WRP] = VT_PROC{ p->wrp(q(1)); }; // fx_ccc_wrp  default=true
+                    vt::csier.table[CSI_CCC][CCC_RTL] = nullptr; // fx_ccc_rtl //todo implement
+                    vt::csier.table[CSI_CCC][CCC_RLF] = nullptr; // fx_ccc_rlf
+
                     vt::oscer[OSC_0] = VT_PROC{ p->boss.prop(OSC_0, q); };
                     vt::oscer[OSC_1] = VT_PROC{ p->boss.prop(OSC_1, q); };
                     vt::oscer[OSC_2] = VT_PROC{ p->boss.prop(OSC_2, q); };
@@ -604,6 +647,9 @@ namespace netxs::ui
             void  itc(bool b)                   { caret->itc(b); }
             void  inv(bool b)                   { caret->inv(b); }
             void  und(bool b)                   { caret->und(b); }
+
+            void  wrp(bool b)                   { batch[current_para].wrapln = b; }
+            void  jet(iota n)                   { batch[current_para].adjust = (bias)n; }
 
             // Implement text manipalation procs
             //

@@ -1303,10 +1303,11 @@ namespace netxs::console
             boundary |= cp; /* |= cursor*/;
             return cp;
         }
-        template<class T>
+        template<bool USE_LOCUS = true, class T>
         auto print(T const& block, core& canvas)
         {
-            auto cp = forward(block);
+            auto cp = USE_LOCUS ? forward(block)
+                                : deco::cp();
             compose(block,
                 [&](auto const& coord, auto start, auto width)
                 {
@@ -1314,10 +1315,11 @@ namespace netxs::console
                 });
             return cp;
         }
-        template<class T>
+        template<bool USE_LOCUS = true, class T>
         auto print(T const& block)
         {
-            auto cp = forward(block);
+            auto cp = USE_LOCUS ? forward(block)
+                                : deco::cp();
             compose(block);
             return cp;
         }

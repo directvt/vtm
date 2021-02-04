@@ -148,25 +148,25 @@ namespace netxs::console::ansi
 
     static const iota CCC_NOP = 0  ; // CSI             p  - no operation
     static const iota CCC_RST = 1  ; // CSI 1           p  - reset to zero all params (zz)
-    static const iota CCC_CPP = 2  ; // CSI 2 ; x [; y] p  — cursor percent position
-    static const iota CCC_CPX = 3  ; // CSI 3 ; x       p  — cursor H percent position
-    static const iota CCC_CPY = 4  ; // CSI 4 ; y       p  — cursor V percent position
-    static const iota CCC_TBS = 5  ; // CSI 5 ; n       p  — tab step length
-    static const iota CCC_JET = 6  ; // CSI 6 ; n       p  — text alignment (bias)
-    static const iota CCC_MGN = 7  ; // CSI 7 ; l;r;t;b p  — margin left, right, top, bottom
-    static const iota CCC_MGL = 8  ; // CSI 8 ; n       p  — margin left   ╮
-    static const iota CCC_MGR = 9  ; // CSI 9 ; n       p  — margin right  │ positive - native binding
-    static const iota CCC_MGT = 10 ; // CSI 10; n       p  — margin top    │ negative - oppisite binding
-    static const iota CCC_MGB = 11 ; // CSI 11; n       p  — margin bottom ╯
-    static const iota CCC_WRP = 12 ; // CSI 12; {0,1}   p  - text wrapping on/off
-    static const iota CCC_RTL = 13 ; // CSI 13; {0,1}   p  - text right-to-left on/off
-    static const iota CCC_RLF = 14 ; // CSI 14; {0,1}   p  - reverse line feed on/off
-    static const iota CCC_IDX = 15 ; // CSI 15; id      p  - Split the text run and associate the fragment with an id
-    static const iota CCC_CUP = 16 ; // CSI 16; x [; y] p  — cursor absolute position 0-based
-    static const iota CCC_CHX = 17 ; // CSI 17; x       p  — cursor H absolute position 0-based
-    static const iota CCC_CHY = 18 ; // CSI 18; y       p  — cursor V absolute position 0-based
-    static const iota CCC_REF = 19 ; // CSI 19; id      p  — create the reference to the existing paragraph
-    //static const iota CCC_WIN = 20 ; // CSI 20; x; y    p  — terminal window resize
+    static const iota CCC_CPP = 2  ; // CSI 2 : x [: y] p  — cursor percent position
+    static const iota CCC_CPX = 3  ; // CSI 3 : x       p  — cursor H percent position
+    static const iota CCC_CPY = 4  ; // CSI 4 : y       p  — cursor V percent position
+    static const iota CCC_TBS = 5  ; // CSI 5 : n       p  — tab step length
+    static const iota CCC_JET = 6  ; // CSI 6 : n       p  — text alignment (bias)
+    static const iota CCC_MGN = 7  ; // CSI 7 : l:r:t:b p  — margin left, right, top, bottom
+    static const iota CCC_MGL = 8  ; // CSI 8 : n       p  — margin left   ╮
+    static const iota CCC_MGR = 9  ; // CSI 9 : n       p  — margin right  │ positive - native binding
+    static const iota CCC_MGT = 10 ; // CSI 10: n       p  — margin top    │ negative - oppisite binding
+    static const iota CCC_MGB = 11 ; // CSI 11: n       p  — margin bottom ╯
+    static const iota CCC_WRP = 12 ; // CSI 12: {0,1}   p  - text wrapping on/off
+    static const iota CCC_RTL = 13 ; // CSI 13: {0,1}   p  - text right-to-left on/off
+    static const iota CCC_RLF = 14 ; // CSI 14: {0,1}   p  - reverse line feed on/off
+    static const iota CCC_IDX = 15 ; // CSI 15: id      p  - Split the text run and associate the fragment with an id
+    static const iota CCC_CUP = 16 ; // CSI 16: x [: y] p  — cursor absolute position 0-based
+    static const iota CCC_CHX = 17 ; // CSI 17: x       p  — cursor H absolute position 0-based
+    static const iota CCC_CHY = 18 ; // CSI 18: y       p  — cursor V absolute position 0-based
+    static const iota CCC_REF = 19 ; // CSI 19: id      p  — create the reference to the existing paragraph
+    //static const iota CCC_WIN = 20 ; // CSI 20: x: y    p  — terminal window resize
 
     struct esc 
         : public text // ansi: Escaped sequences accumulator.
