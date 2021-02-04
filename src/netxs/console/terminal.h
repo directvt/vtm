@@ -304,12 +304,23 @@ namespace netxs::ui
             current_para = count++;
             if (count - basis > viewport_height) basis = count - viewport_height;
         }
-
+        auto cp()
+        {
+            auto pos = coord;
+            pos.y += basis;
+            if (pos.x == width
+                && batch[current_para].wrapln)
+            {
+                pos.x = 0;
+                pos.y++;
+            }
+            return pos;
+        }
         auto reflow()
         {
             flow::reset();
             //todo Determine page internal caret position
-            auto current_coord = dot_00;
+            //auto current_coord = dot_00;
             // Output lines in backward order from bottom to top
             auto tail = batch.rbegin();
             auto head = batch.rend();
@@ -328,7 +339,7 @@ namespace netxs::ui
                 brush = rod.mark(); // current mark of the last printed fragment
             }
 
-            flow::minmax(current_coord);
+            flow::minmax(cp());
             auto& cover = flow::minmax();
             upset.set(-std::min(0, cover.l),
                        std::max(0, cover.r - width + 1),
@@ -382,12 +393,6 @@ namespace netxs::ui
         void height(iota limits)
         {
             //todo resize ring buffer
-        }
-        auto cp()
-        {
-            auto pos = coord;
-            pos.y += basis;
-            return pos;
         }
     };
 
@@ -815,7 +820,16 @@ namespace netxs::ui
             void home()
             {
                 finalize();
-                coord.x = 0;
+                //coord.x = 0;
+                if (batch[current_para].wrapln)
+                {
+                    coord.x = 0;
+                }
+                else
+                {
+                    coord.x -= coord.x % width;
+                }
+
                 set_coord();
             }
             // wall: '\n' || '\r\n'  Carriage return + Line feed
@@ -1690,12 +1704,12 @@ namespace netxs::ui
 
                     // Place caret to the begining of the new line
                     //   in case it is at the end of line and it is wrapped
-                    if (caret_xy.x == viewport.size.x
-                        && target->wrapln)
-                    {
-                        caret_xy.x = 0;
-                        caret_xy.y++;
-                    }
+                    // if (caret_xy.x == viewport.size.x
+                    //     && target->wrapln)
+                    // {
+                    //     caret_xy.x = 0;
+                    //     caret_xy.y++;
+                    // }
 
                     caret.coor(caret_xy);
 
