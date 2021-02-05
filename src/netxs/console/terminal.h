@@ -87,25 +87,20 @@ namespace netxs::ui
         iota const& viewport_height; // rods: Viewport height.
         iota        count; // rods: Scrollback height (& =batch.size()).
         side&       upset; // rods: Viewport oversize.
-        //todo ?
-        //twod&       anker; // rods: The position of the nearest visible paragraph.
         twod        coord; // rods: Actual caret position.
         cell        brush; // rods: Last used brush.
         parx        caret; // rods: Active insertion point.
-
         cell&       spare; // rods: Shared current brush state (default brush).
-
         iota current_para; // rods: Active insertion point index (not id).
-    public:
         iota        basis; // rods: Index of O(0, 0).
 
+    public:
         rods(twod& anker, side& oversize, twod const& viewport_size, cell& spare)
             : flow { viewport_size.x, count   },
               parid{ 0                        },
               batch{ line(parid)              },
               width{ viewport_size.x          },
               count{ 1                        },
-              //anker{ anker                    },
               upset{ oversize                 },
               caret{ batch.front().stanza     },
               basis{ 0                        },
@@ -278,6 +273,8 @@ namespace netxs::ui
                 coord.x = caret->chx();
                 coord.y = current_para - basis;
             }
+
+            //todo update flow::minmax and base::upset
         }
         auto& clear(bool preserve_brush = faux)
         {
@@ -298,7 +295,6 @@ namespace netxs::ui
         // rods: Add new line.
         void fork()
         {
-            //caret->cook();
             finalize();
             brush = caret->brush;
             auto& item = batch[current_para];
@@ -430,7 +426,7 @@ namespace netxs::ui
             }
         }
     };
-
+/*
     class lane // terminal: scrollback/altbuf internals
         : public page,
           public flow
@@ -560,7 +556,7 @@ namespace netxs::ui
             return current_coord;
         }
     };
-
+*/
     class term // terminal: Built-in terminal app
         : public base
     {
@@ -969,7 +965,7 @@ namespace netxs::ui
                         }
                         while(head++ != tail);
                         // Remove all lines below
-                        //batch.resize(cur_index); // no dflt ctor for line
+                        //batch.resize(cur_index); // no default ctor for line
                         auto erase_count = count - (cur_index + 1);
                         parid -= erase_count;
                         count = cur_index + 1;
@@ -981,6 +977,8 @@ namespace netxs::ui
                     }
                     case commands::erase::display::above: // n = 1  Erase viewport before caret.
                         log("\\e[1J is not implemented");
+
+
                         break;
                     case commands::erase::display::viewport: // n = 2  Erase viewport.
                         set_coord(dot_00);
@@ -1270,7 +1268,6 @@ namespace netxs::ui
                 {
                     SIGNAL(e2::general, e2::debug::output, shadow);
 
-                    //auto old_caret_pos = target->cp();
                     auto old_caret_pos = caret.coor();
                     auto caret_is_visible = viewport.hittest(old_caret_pos);
 
@@ -1281,23 +1278,15 @@ namespace netxs::ui
                     //	altbuf.hz_trim(viewport.size.x);
                     //}
 
+                    //todo remove rods::reflow(), take new_size only
+                    //     all calcs are made already in rods::finalize()
                     auto new_size = target->reflow();
                     auto caret_xy = target->cp();
-
-                    // Place caret to the begining of the new line
-                    //   in case it is at the end of line and it is wrapped
-                    // if (caret_xy.x == viewport.size.x
-                    //     && target->wrapln)
-                    // {
-                    //     caret_xy.x = 0;
-                    //     caret_xy.y++;
-                    // }
 
                     caret.coor(caret_xy);
 
                     if (caret_is_visible && !viewport.hittest(caret_xy))
                     {
-                        //auto old_caret_pos = viewport.coor + viewport.size - dot_11;
                         auto anchor_delta = caret_xy - old_caret_pos;
                         auto new_coor = base::coor.get() - anchor_delta;
                         SIGNAL(e2::release, base::move_event, new_coor);
