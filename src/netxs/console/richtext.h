@@ -1332,7 +1332,8 @@ namespace netxs::console
             boundary = cursor;
         }
         auto& minmax() const { return boundary; } // flow: Return the output range.
-        void  minmax(twod const& p) { boundary |= p; } // flow: Return the output range.
+        void  minmax(twod const& p) { boundary |= p; } // flow: Register twod.
+        void  minmax(rect const& r) { boundary |= r; } // flow: Register rect.
         //auto& areasize() { return size_ref; }
     };
 
@@ -1667,9 +1668,7 @@ namespace netxs::console
         void  itc(bool b)         { brush.itc(b);                 } // para: Italic.
         void  inv(bool b)         { brush.inv(b);                 } // para: Inversion.
         void  und(bool b)         { brush.und(b);                 } // para: Underline.
-        //void  chx(iota n)         { caret = n;                    } // para: Move caret to n.
         auto chx() const          { return caret;  }
-        //void chx(iota new_pos)    { caret = new_pos;  }
         void chx(iota new_pos)    
         {
             //if (new_pos > 1000)
@@ -1680,9 +1679,14 @@ namespace netxs::console
         auto  id() const          { return parid;  }
         void  id(id_t newid)      { parid = newid; }
 
-        //void  chx(iota n) { caret = 0; } // para: Move caret to 0.
-        ///void  cuf(iota n) { cook(); caret = std::max(caret+n, 0); } // para: Move caret by n.
-
+        void trim_to(iota max_width)
+        {
+            if (length() > max_width)
+            {
+                auto& lyric = *this->lyric;
+                lyric.crop(max_width);
+            }
+        }
         void trim(cell const& default_cell)
         {
             auto& lyric = *this->lyric;
@@ -1690,24 +1694,17 @@ namespace netxs::console
             auto& data = lyric.pick();
             auto  head = data.rbegin();
             auto  tail = data.rend();
-            
             while (head != tail)
             {
                 auto& c = *head;
-
-                //if (c.wdt()!=0 && c.txt().front() != ' ' && c != default_cell) break;
                 if (c != default_cell) break;
                 //if (!c.issame_visual(default_cell)) break;
                 ++head;
             }
 
-            //log(" trim fr ", lyric.size().x);
-            //if (default_cell.txt().front() != ' ') log(" def cell: ", default_cell.txt().front());
-
             auto size = static_cast<iota>(tail - head);
             if (size != lyric.size().x)
             {
-                //log(" trim to ", size);
                 lyric.crop({ size, 1 });
             }
         }
@@ -1716,7 +1713,6 @@ namespace netxs::console
         void  cuf(iota n) // para: Move caret by n.
         { 
             cook();
-            //log("caret=", caret, " step=", n);
             caret = std::max(caret+n, 0);
         }
         void  del(iota n) // para: Delete (not Erase) letters under the caret.

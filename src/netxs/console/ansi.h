@@ -45,6 +45,7 @@ namespace netxs::console::ansi
     static const char CSI_RCP = 'u'; // CSI        u  — Restore Cursor Position
     static const char CSI__EL = 'K'; // CSI n      K  — Erase 0: from cursor to end, 1: from begin to cursor, 2: all line
     static const char CSI__ED = 'J'; // CSI n      J  — Erase 0: from cursor to end of screen, 1: from begin to cursor, 2: all screen
+    static const char CSI__DL = 'M'; // CSI n      M  — Delete n lines
     static const char CSI_DCH = 'P'; // CSI n      P  — Delete n Character(s)
     static const char CSI_ECH = 'X'; // CSI n      X  — Erase n Character(s) ? difference with delete ?
     static const char CSI_ICH = '@'; // CSI n      @  — Insert/wedge n Character(s)
@@ -511,6 +512,7 @@ namespace netxs::console::ansi
                 table[CSI_DCH] = nullptr;
                 table[CSI_ECH] = nullptr;
                 table[CSI_ICH] = nullptr;
+                table[CSI__DL] = nullptr;
 
                 auto& csi_ccc = table[CSI_CCC].resize(0x100);
                     csi_ccc[CCC_CUP] = VT_PROC{ F(ay, q(0)); F(ax, q(0)); }; // fx_ccc_cup

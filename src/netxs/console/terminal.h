@@ -72,6 +72,12 @@ namespace netxs::ui
                 //adjust = item...;
                 //wrapln = item...;
             }
+            // Make the line no longer than maxlen
+            void trim_to(iota max_len)
+            {
+                stanza->trim_to(max_len);
+                length = max_len;
+            }
         };
         //todo implement as a ring buffer of size MAX_SCROLLBACK
         using heap = std::vector<line>;
@@ -91,7 +97,8 @@ namespace netxs::ui
 
         iota current_para; // rods: Active insertion point index (not id).
     public:
-        iota        basis; // rods: O(0, 0) -> batch[index].
+        iota        basis; // rods: Index of O(0, 0).
+
         rods(twod& anker, side& oversize, twod const& viewport_size, cell& spare)
             : flow { viewport_size.x, count   },
               parid{ 0                        },
@@ -167,7 +174,12 @@ namespace netxs::ui
             caret->brush = brush;
         }
         void set_coord() { set_coord(coord); }
-
+        auto get_line_index_by_id(iota id)
+        {
+                auto begin = batch.front().selfid;
+                auto index = id - begin;
+                return index;
+        }
         void finalize()
         {
             auto point = batch.begin() + current_para;
@@ -315,6 +327,8 @@ namespace netxs::ui
         }
         auto reflow()
         {
+            //todo recalc overlapping master id's over selfid's on resize
+
             flow::reset();
             //todo Determine page internal caret position
             //auto current_coord = dot_00;
@@ -347,8 +361,11 @@ namespace netxs::ui
             {
                 while(delta-- > 0 ) fork();
             }
-            //count = static_cast<iota>(batch.size());
-            //if (height != count) throw;
+
+            // Register viewport
+            auto viewport = rect{{ 0, basis }, { width, viewport_height }};
+            flow::minmax(viewport);
+            height = cover.height() + 1;
 
             if (count - basis > viewport_height) basis = count - viewport_height;
 
@@ -607,8 +624,9 @@ namespace netxs::ui
                     vt::csier.table[CSI_ECH] = VT_PROC{ p->ech( q(1)); };  // CSI n X - erase n chars
                     vt::csier.table[CSI_ICH] = VT_PROC{ p->ich( q(1)); };  // CSI n @ - insert n chars
 
-                    vt::csier.table[CSI__ED] = VT_PROC{ p->ed ( q(0)); };  // CSI Ps J
-                    vt::csier.table[CSI__EL] = VT_PROC{ p->el ( q(0)); };  // CSI Ps K
+                    vt::csier.table[CSI__ED] = VT_PROC{ p->ed ( q(0)); };  // CSI n J
+                    vt::csier.table[CSI__EL] = VT_PROC{ p->el ( q(0)); };  // CSI n K
+                    vt::csier.table[CSI__DL] = VT_PROC{ p->dl ( q(0)); };  // CSI n M - Delete n lines
 
                     vt::intro[ctrl::BS ]     = VT_PROC{ p->cuf(-q.pop_all(ctrl::BS )); };
                     vt::intro[ctrl::DEL]     = VT_PROC{ p->del( q.pop_all(ctrl::DEL)); };
@@ -681,6 +699,14 @@ namespace netxs::ui
             // Implement text manipalation procs
             //
             void tab(iota n) { caret->ins(n); }
+            // wall: CSI n M Delete n lines. Place caret to the begining of the current.
+            void dl(iota n)
+            {
+                //todo implement
+                log("DL - \\eM is not implemented");
+
+                coord.x = 0;
+            }
             // wall: CSI n @ Insert n blanks after cursor. Don't change cursor pos
             void ich(iota n)
             {
@@ -922,36 +948,52 @@ namespace netxs::ui
             // wall: CSI n J  Erase display
             void ed(iota n)
             {
+                finalize();
+                auto current_brush = caret->brush;
                 switch (n)
                 {
-                    case commands::erase::display::below: // Ps = 0  ⇒  Erase Below (default).
-                        //todo implement
-                        finalize();
-                        log("\\e[J is not implemented");
+                    case commands::erase::display::below: // n = 0  Erase viewport after caret (default).
+                    {
+                        auto cur_index = current_para;
+                        auto cur_line_it = batch.begin() + cur_index;
+                        auto master_id = cur_line_it->master;
+                        // Cut all lines above and current line
+                        auto mas_index = get_line_index_by_id(master_id);
+                        auto head = batch.begin() + mas_index;
+                        auto tail = cur_line_it;
+                        do
+                        {
+                            auto& line = *head;
+                            auto required_len = (cur_index - mas_index) * width + coord.x;
+                            line.trim_to(required_len);
+                        }
+                        while(head++ != tail);
+                        // Remove all lines below
+                        //batch.resize(cur_index); // no dflt ctor for line
+                        auto erase_count = count - (cur_index + 1);
+                        parid -= erase_count;
+                        count = cur_index + 1;
+                        while(erase_count--)
+                        {
+                            batch.pop_back();
+                        }
                         break;
-                    case commands::erase::display::above: // Ps = 1  ⇒  Erase Above.
-                        //todo implement
-                        finalize();
+                    }
+                    case commands::erase::display::above: // n = 1  Erase viewport before caret.
                         log("\\e[1J is not implemented");
                         break;
-                    case commands::erase::display::viewport: // Ps = 2  ⇒  Erase All.
-                    {
-                        finalize();
-                        auto current_brush = caret->brush;
-
-                        log("\\e[2J is not implemented");
-
-                        caret->brush = current_brush;
-                    }
+                    case commands::erase::display::viewport: // n = 2  Erase viewport.
+                        set_coord(dot_00);
+                        ed(commands::erase::display::below);
                     break;
-                    case commands::erase::display::scrollback: // Ps = 3  ⇒  Erase Scrollback
-                    {
-                        rods::clear();
-                    }
+                    case commands::erase::display::scrollback: // n = 3  Erase scrollback.
+                        rods::clear(true);
                     break;
                     default:
                         break;
                 }
+                caret->brush = current_brush;
+                //todo preserve other attributes: wrp, jet
             }
             // wall: CSI n K  Erase line (don't move caret)
             void el(iota n)
@@ -969,8 +1011,6 @@ namespace netxs::ui
                         auto brush = caret->brush;
                         brush.txt(' ');
                         auto coor = caret->chx();
-                        //lyric.crop({ coor,1 }, brush);
-                        //lyric.crop({ coor + (width - coor % width),1 }, brush);
                         //if (batch[current_para].wrapln)
                         {
                             auto start = coor;
@@ -981,9 +1021,6 @@ namespace netxs::ui
                             caret->trim(spare);
                             //finalize();
                         }
-
-                        //caret->trim(mark);
-                        //caret->chx(coor + (width - coor % width));
                         break;
                     }
                     case commands::erase::line::left: // Ps = 1  ⇒  Erase to Left.
@@ -1189,37 +1226,30 @@ namespace netxs::ui
 
             SUBMIT(e2::preview, e2::form::layout::size, new_size)
             {
-                //log("1. caret pos: ", target->cp());
-                //log ("old viewport.size.y: ", viewport.size.y);
+                //todo recalc overlapping master id's over selfid's on resize
+
                 if (viewport.size != new_size)
                 {
                     viewport.size = new_size;
                     if (target == &altbuf)
                     {
-                        //altbuf.ed(commands::erase::display::viewport);
                         altbuf.ed(commands::erase::display::scrollback);
                     }
                     else
                     {
                         target->remove_empties();
                     }
-                    //log("altbuf size: ", altbuf.size());
-                    //log("scroll size: ", scroll.size());
                 }
 
                 auto new_pty_size = new_size;
-                //log("new_pty_size: ", new_pty_size);
-
                 auto scrollback_size = target->reflow();
                 new_size = std::max(new_size, scrollback_size); // Use the max size
 
-                //log("2. caret pos: ", target->cp());
                 ptycon.resize(new_pty_size); // set viewport size
             };
             SUBMIT(e2::release, e2::form::layout::move, new_coor)
             {
                 viewport.coor = -new_coor;
-                //log("new viewport coor: ", viewport.coor);
             };
 
             ptycon.start(cmdline, winsz, [&](auto d) { input_hndl(d); });
