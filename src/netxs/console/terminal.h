@@ -105,17 +105,14 @@ namespace netxs::ui
 
         void set_coord(twod new_coord)
         {
-            // Checking the bottom boundary
-            //auto max_y = basis + viewport_height - 1;
-            //auto max_y = viewport_height - 1;
-            //new_coord.y = std::clamp(new_coord.y, min_y, max_y);
+            // Checking bottom boundary
             auto min_y = -basis;
             new_coord.y = std::max(new_coord.y, min_y);
 
             coord = new_coord;
             new_coord.y += basis; // set coord inside batch
 
-            if (new_coord.y > count - 1)
+            if (new_coord.y > count - 1) // Add new lines
             {
                 auto add_count = new_coord.y - (count - 1);
                 auto brush = caret->brush;
@@ -137,10 +134,9 @@ namespace netxs::ui
             }
 
             auto& line = batch[new_coord.y];
-            auto line_id = line.master;
             auto line_len = line.length;
 
-            auto index = line.selfid - batch.front().selfid; // current index
+            auto index = line.selfid - batch.front().selfid; // current index inside batch
             brush = caret->brush;
             if (line.selfid == line.master) // no overlapped lines
             {
@@ -149,11 +145,9 @@ namespace netxs::ui
                 //todo implement the case when the coord is set to the outside viewport
                 //     after the right side: disable wrapping (on overlapped line too)
                 //     before the left side: disable wrapping + bias::right (on overlapped line too)
-                current_para = index;
             }
             else
             {
-                //todo implement
                 auto delta = line.selfid - line.master; // master always less or eq selfid
                 index -= delta;
                 caret = batch[index].stanza;
@@ -163,9 +157,9 @@ namespace netxs::ui
                 //todo implement the case when the coord is set to the outside viewport
                 //     after the right side: disable wrapping (on overlapped line too)
                 //     before the left side: disable wrapping + bias::right (on overlapped line too)
-                current_para = index;
             }
 
+            current_para = index;
             caret->brush = brush;
         }
         void set_coord() { set_coord(coord); }
@@ -182,19 +176,17 @@ namespace netxs::ui
             auto new_height = item.line_height(width);
             //wrapln = 
             auto id = item.selfid;
-            //log("current_para ",current_para, "new_height ", new_height, " old_height ", old_height);
+            log("current_para ",current_para, "new_height ", new_height, " old_height ", old_height);
             if (new_height > old_height)
             {
-                //auto delta = new_height - old_height;
                 auto dist_to_end = std::distance(point, batch.end());
                 if (new_height > dist_to_end)
                 {
+                    // Add new lines
                     auto delta = new_height - dist_to_end;
-                    //todo add new lines
                     auto brush = caret->brush;
                     auto wrp = item.wrapln;
                     auto jet = item.adjust;
-
                     while(delta-- > 0 )
                     {
                         auto& new_item = batch.emplace_back(++parid);
@@ -202,10 +194,9 @@ namespace netxs::ui
                         new_line->brush = brush;
                         new_item.wrapln = wrp;
                         new_item.adjust = jet;
-
                         count++;
-                        if (count - basis > viewport_height) basis = count - viewport_height;
                     }
+                    if (count - basis > viewport_height) basis = count - viewport_height;
                     // point is invalidated due to batch resize
                     point = batch.begin() + current_para;
                 }
@@ -213,11 +204,11 @@ namespace netxs::ui
                 auto tail = point + old_height;
                 while(head-- != tail)
                 {
-                    auto& item = *head;
-                    // Assign iff линия не накрыта кем-то выше
-                    if (item.selfid - id > 0) // In order to support id incrementing overflow
-                        item.master = id; 
-                    else break; // линия накрыта кем то выше
+                    auto& below_item = *head;
+                    // Assign iff line isn't overlapped by somaething
+                    if (below_item.master - id > 0) // Comparing the difference with zero In order to support id incrementing overflow
+                        below_item.master = id; 
+                    else break; // overlapped by something higher
                 }
             }
             else if (new_height < old_height)
@@ -250,7 +241,8 @@ namespace netxs::ui
                 auto len = caret->chx();
                 //if (len && !(len % width)) len--;
 
-                if (len && (len % width == 0))
+                //if (len && (len % width == 0))
+                if (len && len == item.length && (len % width == 0))
                 {
                     len--;
                     coord.x = width;
@@ -850,6 +842,7 @@ namespace netxs::ui
 
                 coord.x = 0;
                 coord.y += n;
+                log(" coord after eol: ", coord);
                 set_coord();
             }
             // wall: CSI n J  Erase display
@@ -902,10 +895,20 @@ namespace netxs::ui
                         auto brush = caret->brush;
                         brush.txt(' ');
                         auto coor = caret->chx();
-                        auto width = boss.viewport.size.x;
-                        lyric.crop({ coor,1 }, brush);
-                        lyric.crop({ coor + (width - coor % width),1 }, brush);
-                        caret->trim(mark);
+                        //lyric.crop({ coor,1 }, brush);
+                        //lyric.crop({ coor + (width - coor % width),1 }, brush);
+                        //if (batch[current_para].wrapln)
+                        {
+                            auto start = coor;
+                            auto end   = (coor + width) / width * width;
+                            caret->ins(end - start);
+                            caret->cook();
+                            caret->chx(coor);
+                            caret->trim(mark);
+                            //finalize();
+                        }
+
+                        //caret->trim(mark);
                         //caret->chx(coor + (width - coor % width));
                         break;
                     }
