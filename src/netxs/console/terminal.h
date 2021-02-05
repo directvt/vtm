@@ -58,10 +58,11 @@ namespace netxs::ui
                 }
                 else return 1;
             }
-            void cook()
+            void cook(cell const& spare)
             {
                 auto& item = *stanza;
                 item.cook();
+                item.trim(spare);
                 auto size = item.size();
                 length = size.x;
                 //todo revise: height is always =1
@@ -86,10 +87,12 @@ namespace netxs::ui
         cell        brush; // rods: Last used brush.
         parx        caret; // rods: Active insertion point.
 
+        cell&       spare; // rods: Shared current brush state (default brush).
+
         iota current_para; // rods: Active insertion point index (not id).
     public:
         iota        basis; // rods: O(0, 0) -> batch[index].
-        rods(twod& anker, side& oversize, twod const& viewport_size)
+        rods(twod& anker, side& oversize, twod const& viewport_size, cell& spare)
             : flow { viewport_size.x, count   },
               parid{ 0                        },
               batch{ line(parid)              },
@@ -100,6 +103,7 @@ namespace netxs::ui
               caret{ batch.front().stanza     },
               basis{ 0                        },
               viewport_height{ viewport_size.y},
+              spare{ spare                    },
               current_para{ 0 }
         { }
 
@@ -171,7 +175,7 @@ namespace netxs::ui
             auto& item = *point;
             auto old_size = item.length;
             auto old_height = item.line_height(width);
-            item.cook();
+            item.cook(spare);
             auto new_size = item.length;
             auto new_height = item.line_height(width);
             //wrapln = 
@@ -386,6 +390,27 @@ namespace netxs::ui
         void height(iota limits)
         {
             //todo resize ring buffer
+        }
+        void remove_empties()
+        {
+            auto head = batch.begin();
+            auto tail = std::prev(batch.end()); // Exclude the first line
+            while(head != tail)
+            {
+                auto& line = *tail--;
+                if (line.length == 0)
+                {
+                    batch.pop_back();
+                    count--;
+                    parid--;
+                }
+                else break;
+            }
+            if (current_para >= count)
+            {
+                current_para = count - 1;
+                caret = batch[current_para].stanza;
+            }
         }
     };
 
@@ -615,11 +640,12 @@ namespace netxs::ui
             };
 
             term& boss;
-            cell& mark; // wall: Shared current brush state (default brush).
 
             wall(term& boss)
-                : rods( boss.base::anchor, boss.base::oversize, boss.viewport.size ),
-                  mark{ boss.base::color() },
+                : rods( boss.base::anchor,
+                        boss.base::oversize,
+                        boss.viewport.size,
+                        boss.base::color()),
                   boss{ boss }
             { }
 
@@ -638,10 +664,10 @@ namespace netxs::ui
             }
             //void cook()                         { caret->cook(); }
             void cook()                         { finalize(); }
-            void  nil()                         { caret->nil(mark); }
-            void  sav()                         { caret->sav(mark); }
-            void  rfg()                         { caret->rfg(mark); }
-            void  rbg()                         { caret->rbg(mark); }
+            void  nil()                         { caret->nil(spare); }
+            void  sav()                         { caret->sav(spare); }
+            void  rfg()                         { caret->rfg(spare); }
+            void  rbg()                         { caret->rbg(spare); }
             void  fgc(rgba const& c)            { caret->fgc(c); }
             void  bgc(rgba const& c)            { caret->bgc(c); }
             void  bld(bool b)                   { caret->bld(b); }
@@ -889,10 +915,8 @@ namespace netxs::ui
             {
                 finalize();
                 //todo Check the temp caret position (deffered wrap)
-
                 coord.x = 0;
                 coord.y += n;
-                log(" coord after eol: ", coord);
                 set_coord();
             }
             // wall: CSI n J  Erase display
@@ -954,7 +978,7 @@ namespace netxs::ui
                             caret->ins(end - start);
                             caret->cook();
                             caret->chx(coor);
-                            caret->trim(mark);
+                            caret->trim(spare);
                             //finalize();
                         }
 
@@ -1174,6 +1198,10 @@ namespace netxs::ui
                     {
                         //altbuf.ed(commands::erase::display::viewport);
                         altbuf.ed(commands::erase::display::scrollback);
+                    }
+                    else
+                    {
+                        target->remove_empties();
                     }
                     //log("altbuf size: ", altbuf.size());
                     //log("scroll size: ", scroll.size());
