@@ -47,6 +47,7 @@ namespace netxs::console::ansi
     static const char CSI__ED = 'J'; // CSI n      J  — Erase 0: from cursor to end of screen, 1: from begin to cursor, 2: all screen
     static const char CSI_DCH = 'P'; // CSI n      P  — Delete n Character(s)
     static const char CSI_ECH = 'X'; // CSI n      X  — Erase n Character(s) ? difference with delete ?
+    static const char CSI_ICH = '@'; // CSI n      @  — Insert/wedge n Character(s)
     static const char DECSET  = 'h'; // CSI ? n    h  — DECSET
     static const char DECRST  = 'l'; // CSI ? n    l  — DECRST
     static const char DECSTR  = 'p'; // CSI !      p  — Reset terminal to initial state
@@ -509,6 +510,7 @@ namespace netxs::console::ansi
                 table[CSI__EL] = nullptr;
                 table[CSI_DCH] = nullptr;
                 table[CSI_ECH] = nullptr;
+                table[CSI_ICH] = nullptr;
 
                 auto& csi_ccc = table[CSI_CCC].resize(0x100);
                     csi_ccc[CCC_CUP] = VT_PROC{ F(ay, q(0)); F(ax, q(0)); }; // fx_ccc_cup

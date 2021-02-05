@@ -176,7 +176,7 @@ namespace netxs::ui
             auto new_height = item.line_height(width);
             //wrapln = 
             auto id = item.selfid;
-            log("current_para ",current_para, "new_height ", new_height, " old_height ", old_height);
+            //log("current_para ",current_para, " new_height ", new_height, " old_height ", old_height);
             if (new_height > old_height)
             {
                 auto dist_to_end = std::distance(point, batch.end());
@@ -580,6 +580,8 @@ namespace netxs::ui
 
                     vt::csier.table[CSI_DCH] = VT_PROC{ p->dch( q(1)); };  // CSI n P - del n chars
                     vt::csier.table[CSI_ECH] = VT_PROC{ p->ech( q(1)); };  // CSI n X - erase n chars
+                    vt::csier.table[CSI_ICH] = VT_PROC{ p->ich( q(1)); };  // CSI n @ - insert n chars
+
                     vt::csier.table[CSI__ED] = VT_PROC{ p->ed ( q(0)); };  // CSI Ps J
                     vt::csier.table[CSI__EL] = VT_PROC{ p->el ( q(0)); };  // CSI Ps K
 
@@ -653,8 +655,60 @@ namespace netxs::ui
             // Implement text manipalation procs
             //
             void tab(iota n) { caret->ins(n); }
+            // wall: CSI n @ Insert n blanks after cursor. Don't change cursor pos
+            void ich(iota n)
+            {
+                /*
+                *   Inserts n blanks.
+                *   Don't change cursor pos.
+                *   Existing chars after cursor shifts to the right.
+                */
+                if (n > 0)
+                {
+                    finalize();
+                    auto size   = rods::caret->length();
+                    auto pos    = rods::caret->chx();
+                    auto brush  = rods::caret->brush;
+                    brush.txt(whitespace);
+                    //todo unify
+                    if (pos < size)
+                    {
+                        // Move existing chars to right (backward decrement)
+                        auto& lyric =*rods::caret->lyric;
+                        lyric.crop(size + n);
+                        auto dst = lyric.data() + size + n;
+                        auto end = lyric.data() + pos + n;
+                        auto src = lyric.data() + size;
+                        while (dst != end)
+                        {
+                            *--dst = *--src;
+                        }
+                        // Fill blanks
+                        dst = lyric.data() + pos;
+                        end = dst + n;
+                        while (dst != end)
+                        {
+                            *dst++ = brush;
+                        }
+                    }
+                    else
+                    {
+                        auto& lyric =*rods::caret->lyric;
+                        lyric.crop(pos + n);
+                        // Fill blanks
+                        auto dst = lyric.data() + size;
+                        auto end = lyric.data() + pos + n;
+                        while (dst != end)
+                        {
+                            *dst++ = brush;
+                        }
+                    }
+                    caret->chx(pos);
+                    finalize();
+                }
+            }
             // wall: CSI n X  Erase/put n chars after cursor. Don't change cursor pos
-            void ech(iota n) // wall: Erase letters after caret. CSI n X
+            void ech(iota n)
             {
                 if (n > 0)
                 {
@@ -674,46 +728,42 @@ namespace netxs::ui
                  *    Character attributes move with the characters.
                  *    The terminal adds blank characters at the right margin.
                  */
-                cook();
-                auto& lyric = *rods::caret->lyric;
-                auto size = lyric.size().x;
-                auto caret = rods::caret->chx();
+                finalize();
+                auto& lyric =*rods::caret->lyric;
+                auto size   = rods::caret->length();
+                auto caret  = rods::caret->chx();
+                auto brush  = rods::caret->brush;
+                brush.txt(whitespace);
+
                 //todo unify for size.y > 1
                 //todo revise shifting to the left (right? RTL?)
                 if (n > 0)
                 {
-                    //if (size < caret + n)
-                    //{
-                    //	lyric.crop(caret + n);
-                    //}
                     if (caret < size)
                     {
+                        //todo unify all (use para methods like para::ins() etc)
                         if (n >= size - caret)
                         {
                             auto dst = lyric.data() + caret;
-                            auto end = dst + (size - caret);
-                            auto b = rods::caret->brush;
-                            b.txt(whitespace);
+                            auto end = lyric.data() + size;
                             while (dst != end)
                             {
-                                *dst++ = b;
+                                *dst++ = brush;
                             }
                         }
                         else
                         {
                             auto dst = lyric.data() + caret;
-                            auto end = dst + std::min(n, size - caret);
+                            auto end = dst + std::min(n, size - (caret + n));
                             auto src = dst + n;
                             while (dst != end)
                             {
                                 *dst++ = *src++;
                             }
-                            auto b = rods::caret->brush;
-                            b.txt(whitespace);
                             end = lyric.data() + size;
                             while (dst != end)
                             {
-                                *dst++ = b;
+                                *dst++ = brush;
                             }
                         }
                     }
