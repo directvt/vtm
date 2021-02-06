@@ -41,12 +41,14 @@ namespace netxs::console::ansi
     static const char CSI_CUP = 'H'; // CSI n ; m  H  — Cursor Position
     static const char CSI_HVP = 'f'; // CSI n ; m  f  — Horizontal and Vertical Position
     static const char CSI_SGR = 'm'; // CSI n [;k] m  — Select Graphic Rendition
+    static const char DECSTBM = 'r'; // CSI t ; b  r  — Set scrolling region (t/b: top + bottom)
     static const char CSI_SCP = 's'; // CSI        s  — Save Cursor Position
     static const char CSI_RCP = 'u'; // CSI        u  — Restore Cursor Position
     static const char CSI__EL = 'K'; // CSI n      K  — Erase 0: from cursor to end, 1: from begin to cursor, 2: all line
     static const char CSI__ED = 'J'; // CSI n      J  — Erase 0: from cursor to end of screen, 1: from begin to cursor, 2: all screen
     static const char CSI__DL = 'M'; // CSI n      M  — Delete n lines
     static const char CSI_DCH = 'P'; // CSI n      P  — Delete n character(s)
+    static const char CSI__SD = 'T'; // CSI n      T  — Scroll down by n lines, scrolled out lines are lost
     static const char CSI_ECH = 'X'; // CSI n      X  — Erase n character(s) ? difference with delete ?
     static const char CSI_ICH = '@'; // CSI n      @  — Insert/wedge n character(s)
     static const char DECSET  = 'h'; // CSI ? n    h  — DECSET
@@ -513,6 +515,8 @@ namespace netxs::console::ansi
                 table[CSI_ECH] = nullptr;
                 table[CSI_ICH] = nullptr;
                 table[CSI__DL] = nullptr;
+                table[DECSTBM] = nullptr;
+                table[CSI__SD] = nullptr;
 
                 auto& csi_ccc = table[CSI_CCC].resize(0x100);
                     csi_ccc[CCC_CUP] = VT_PROC{ F(ay, q(0)); F(ax, q(0)); }; // fx_ccc_cup
@@ -627,6 +631,7 @@ namespace netxs::console::ansi
                 esc[KEY_A] = keym;
                 esc[KEY_N] = keym;
                 esc[G0SET] = g0__;
+                //esc['M'  ] = __ri;
         }
 
         // ansi: Static UTF-8/ANSI parser proc.

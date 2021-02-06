@@ -94,6 +94,9 @@ namespace netxs::ui
         iota current_para; // rods: Active insertion point index (not id).
         iota        basis; // rods: Index of O(0, 0).
 
+        iota scroll_top    = 0; // rods: Scrolling region top. 1-based, 0: use top of viewport
+        iota scroll_bottom = 0; // rods: Scrolling region bottom. 1-based, 0: use bottom of viewport
+
     public:
         rods(twod& anker, side& oversize, twod const& viewport_size, cell& spare)
             : flow { viewport_size.x, count   },
@@ -425,138 +428,25 @@ namespace netxs::ui
                 caret = batch[current_para].stanza;
             }
         }
-    };
-/*
-    class lane // terminal: scrollback/altbuf internals
-        : public page,
-          public flow
-    {
-        iota const& width; // lane: Lane dimension.
-        cell brush;        // lane: Current brush.
-        id_t piece = 1;    // lane: The nearest to top paragraph.
-        //todo revise
-        bool decoy = true; // lane: Is the cursor inside the viewport?
-
-        twod& anker;       // lane: The position of the nearest visible paragraph.
-        side& oversize;
-
-        page_layout layout;
-
-    public:
-        iota height = 0;   // lane: Lane dimension.
-        twod current_coord;
-
-        lane(twod& anker, side& oversize, twod const& viewport_size)
-            : flow    { viewport_size.x, height },
-              width   { viewport_size.x },
-              anker   { anker },
-              oversize{ oversize }
-        { }
-
-        // lane: Reflow text page on canvas and hold the position
-        //       of the top visible paragraph while resizing.
-        auto reflow()
+        // Cut all lines above and current line
+        void cut_above()
         {
-            if (page::size() > layout.capacity()) layout.reserve(page::size() * 2);
-
-            auto entry = layout.get_entry(anker); // Take the entry under central point
-            layout.clear();
-
-            // Active paragraph id
-            auto current_parid = page::layer->id();
-            //log(" page::layer->id(): ", page::layer->id());
-
-            flow::reset();
-            auto publish = [&](auto const& combo)
+            auto cur_line_it = batch.begin() + current_para;
+            auto master_id = cur_line_it->master;
+            auto mas_index = get_line_index_by_id(master_id);
+            auto head = batch.begin() + mas_index;
+            auto tail = cur_line_it;
+            do
             {
-                auto cp = flow::print(combo);
-                //log(" cp: ", cp);
-
-                auto id = combo.id();
-
-                // Determine page internal caret position
-                if (id == current_parid)
-                {
-                    if (flow::wrapln)
-                    {
-                        //todo take wrapping into account
-                        auto mx = width;
-                        current_coord = cp;
-                        //log(" cur_pos: ", current_coord);
-
-                        current_coord.x += combo.caret();
-
-                        if (auto dy = current_coord.x / mx)
-                        {
-                            current_coord.y += dy;
-                            current_coord.x = current_coord.x % mx;
-                        }
-                    }
-                    else
-                    {
-                        current_coord = cp;
-                        //log(" cp: ", cp);
-                        current_coord.x += combo.caret();
-                        //log(" current_coord: ", current_coord);
-                    }
-                }
-
-                // Forming page vertical layout
-                if (id == entry.id) entry.coor.y -= cp.y;
-                layout.push_back({ id,cp });
-            };
-            page::stream(publish);
-
-            // Apply only vertical anchoring for this type of control
-            anker.y -= entry.coor.y; // Move the central point accordingly to the anchored object
-
-            //auto cur_pos = flow::up();
-            //log(" cur_pos: ", cur_pos);
-            flow::minmax(current_coord);
-            //log(" cur_pos: ", current_coord);
-
-            //if (caret_show) flow::minmax(current_coord);
-
-            auto& cover = flow::minmax();
-            //log(" reflow oversize: ", cover);
-            oversize.set(-std::min(0, cover.l),
-                          std::max(0, cover.r - width + 1),
-                         -std::min(0, cover.t),
-                          0);
-            height = cover.height() + 1;
-            return twod{ width, height };
-        }
-        //auto set_width(iota new_width)
-        //{
-        //	width = new_width;
-        //	return reflow();
-        //}
-        // lane: Print page.
-        void output(face& canvas)//, page const& textpage)
-        {
-            flow::reset();
-            flow::corner = canvas.corner();
-
-            auto publish = [&](auto const& combo)
-            {
-                flow::print(combo, canvas);
-                brush = combo.mark(); // current mark of the last printed fragment
-            };
-
-            //todo output only subset of page
-            page::stream(publish);
-        }
-        void clear(bool preserve_brush = faux)
-        {
-            page::clear(preserve_brush);
-            flow::reset();
-        }
-        auto cp()
-        {
-            return current_coord;
+                auto required_len = (current_para - mas_index) * width + coord.x; // todo optimize
+                auto& line = *head;
+                line.trim_to(required_len);
+                mas_index++;
+            }
+            while(head++ != tail);
         }
     };
-*/
+
     class term // terminal: Built-in terminal app
         : public base
     {
@@ -622,8 +512,12 @@ namespace netxs::ui
 
                     vt::csier.table[CSI__ED] = VT_PROC{ p->ed ( q(0)); };  // CSI n J
                     vt::csier.table[CSI__EL] = VT_PROC{ p->el ( q(0)); };  // CSI n K
-                    vt::csier.table[CSI__DL] = VT_PROC{ p->dl ( q(0)); };  // CSI n M - Delete n lines
+                    vt::csier.table[CSI__DL] = VT_PROC{ p->dl ( q(1)); };  // CSI n M - Delete n lines
+                    vt::csier.table[CSI__SD] = VT_PROC{ p->sd ( q(1)); };  // CSI n T - Scroll down by n lines, scrolled out lines are lost
 
+                    vt::csier.table[DECSTBM] = VT_PROC{ p->scr( q   ); };  // CSI r; b r - Set scrolling region (t/b: top+bottom)
+
+                    vt::intro[ctrl::ESC]['M']= VT_PROC{ p->ri(); }; // ESC M  Reverse index
                     vt::intro[ctrl::BS ]     = VT_PROC{ p->cuf(-q.pop_all(ctrl::BS )); };
                     vt::intro[ctrl::DEL]     = VT_PROC{ p->del( q.pop_all(ctrl::DEL)); };
                     vt::intro[ctrl::TAB]     = VT_PROC{ p->tab( q.pop_all(ctrl::TAB)); };
@@ -695,15 +589,54 @@ namespace netxs::ui
             // Implement text manipalation procs
             //
             void tab(iota n) { caret->ins(n); }
+            // wall: CSI n T  Scroll down, scrolled lines are lost
+            void sd(iota n)
+            {
+                //todo implement
+                log("SD - Scroll down \\e[nT is not implemented");
+                auto top = scroll_top ? scroll_top - 1
+                                      : 0;
+                auto end = scroll_bottom ? scroll_bottom - 1
+                                         : viewport_height - 1;
+                auto count = end - top + 1;
+                n = std::clamp(n, 0, count);
+                if (n)
+                {
+                    // Move down by n all below the current
+                    // one by one from the bottom
+
+                    // Clear n first lines
+                    
+                    // Rebuild overlaps from bottom
+                }
+            }
+            // wall: ESC M  Reverse index
+            void ri()
+            {
+                /*
+                 * Reverse index
+                 * - move caret one line up if it is outside of scrolling region or below the top line of scrolling region.
+                 * - one line scroll down if caret is on the top line of scroll region.
+                 */
+                if (coord.y != scroll_top) coord.y--;
+                else                       sd(1);
+            }
+            // wall: CSI t;b r - Set scrolling region (t/b: top+bottom)
+            void scr(fifo& queue)
+            {
+                scroll_top    = queue(0);
+                scroll_bottom = queue(0);
+            }
             // wall: CSI n M Delete n lines. Place caret to the begining of the current.
             void dl(iota n)
             {
                 //todo implement
-                log("DL - \\eM is not implemented");
+                log("DL - \\e[M is not implemented");
+
 
                 coord.x = 0;
             }
-            // wall: CSI n @ Insert n blanks after cursor. Don't change cursor pos
+            // wall: CSI n @  Insert n blanks after cursor. Don't change cursor pos
             void ich(iota n)
             {
                 /*
@@ -950,22 +883,23 @@ namespace netxs::ui
                 {
                     case commands::erase::display::below: // n = 0  Erase viewport after caret (default).
                     {
-                        auto cur_line_it = batch.begin() + current_para;
-                        auto master_id = cur_line_it->master;
-                        // Cut all lines above and current line
-                        auto mas_index = get_line_index_by_id(master_id);
-                        auto head = batch.begin() + mas_index;
-                        auto tail = cur_line_it;
-                        do
-                        {
-                            auto required_len = (current_para - mas_index) * width + coord.x; // todo optimize
-                            auto& line = *head;
-                            line.trim_to(required_len);
-                            mas_index++;
-                        }
-                        while(head++ != tail);
+                        // auto cur_line_it = batch.begin() + current_para;
+                        // auto master_id = cur_line_it->master;
+                        // // Cut all lines above and current line
+                        // auto mas_index = get_line_index_by_id(master_id);
+                        // auto head = batch.begin() + mas_index;
+                        // auto tail = cur_line_it;
+                        // do
+                        // {
+                        //     auto required_len = (current_para - mas_index) * width + coord.x; // todo optimize
+                        //     auto& line = *head;
+                        //     line.trim_to(required_len);
+                        //     mas_index++;
+                        // }
+                        // while(head++ != tail);
+                        cut_above();
                         // Remove all lines below
-                        //batch.resize(current_para); // no default ctor for line
+                        //todo unify batch.resize(current_para); // no default ctor for line
                         auto erase_count = count - (current_para + 1);
                         parid -= erase_count;
                         count = current_para + 1;
@@ -978,7 +912,8 @@ namespace netxs::ui
                     case commands::erase::display::above: // n = 1  Erase viewport before caret.
                     {
                         // Insert spaces on all lines above including the current line,
-                        // begining from master of viewport top line
+                        //   begining from master of viewport top line
+                        //   ending the current line
                         auto master_id = batch[basis].master;
                         auto mas_index = get_line_index_by_id(master_id);
                         auto head = batch.begin() + mas_index;
