@@ -950,8 +950,7 @@ namespace netxs::ui
                 {
                     case commands::erase::display::below: // n = 0  Erase viewport after caret (default).
                     {
-                        auto cur_index = current_para;
-                        auto cur_line_it = batch.begin() + cur_index;
+                        auto cur_line_it = batch.begin() + current_para;
                         auto master_id = cur_line_it->master;
                         // Cut all lines above and current line
                         auto mas_index = get_line_index_by_id(master_id);
@@ -959,16 +958,17 @@ namespace netxs::ui
                         auto tail = cur_line_it;
                         do
                         {
+                            auto required_len = (current_para - mas_index) * width + coord.x; // todo optimize
                             auto& line = *head;
-                            auto required_len = (cur_index - mas_index) * width + coord.x;
                             line.trim_to(required_len);
+                            mas_index++;
                         }
                         while(head++ != tail);
                         // Remove all lines below
-                        //batch.resize(cur_index); // no default ctor for line
-                        auto erase_count = count - (cur_index + 1);
+                        //batch.resize(current_para); // no default ctor for line
+                        auto erase_count = count - (current_para + 1);
                         parid -= erase_count;
-                        count = cur_index + 1;
+                        count = current_para + 1;
                         while(erase_count--)
                         {
                             batch.pop_back();
@@ -976,10 +976,26 @@ namespace netxs::ui
                         break;
                     }
                     case commands::erase::display::above: // n = 1  Erase viewport before caret.
-                        log("\\e[1J is not implemented");
-
-
+                    {
+                        // Insert spaces on all lines above including the current line,
+                        // begining from master of viewport top line
+                        auto master_id = batch[basis].master;
+                        auto mas_index = get_line_index_by_id(master_id);
+                        auto head = batch.begin() + mas_index;
+                        auto tail = batch.begin() + current_para;
+                        auto count = coord.y * width + coord.x;
+                        //todo unify
+                        do
+                        {
+                            auto& lyric = *(*head).stanza;
+                            auto  start = (basis - mas_index) * width;
+                            lyric.ins(start, count, spare);
+                            lyric.trim(spare);
+                            mas_index++;
+                        }
+                        while(head++ != tail);
                         break;
+                    }
                     case commands::erase::display::viewport: // n = 2  Erase viewport.
                         set_coord(dot_00);
                         ed(commands::erase::display::below);

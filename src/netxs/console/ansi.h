@@ -46,9 +46,9 @@ namespace netxs::console::ansi
     static const char CSI__EL = 'K'; // CSI n      K  — Erase 0: from cursor to end, 1: from begin to cursor, 2: all line
     static const char CSI__ED = 'J'; // CSI n      J  — Erase 0: from cursor to end of screen, 1: from begin to cursor, 2: all screen
     static const char CSI__DL = 'M'; // CSI n      M  — Delete n lines
-    static const char CSI_DCH = 'P'; // CSI n      P  — Delete n Character(s)
-    static const char CSI_ECH = 'X'; // CSI n      X  — Erase n Character(s) ? difference with delete ?
-    static const char CSI_ICH = '@'; // CSI n      @  — Insert/wedge n Character(s)
+    static const char CSI_DCH = 'P'; // CSI n      P  — Delete n character(s)
+    static const char CSI_ECH = 'X'; // CSI n      X  — Erase n character(s) ? difference with delete ?
+    static const char CSI_ICH = '@'; // CSI n      @  — Insert/wedge n character(s)
     static const char DECSET  = 'h'; // CSI ? n    h  — DECSET
     static const char DECRST  = 'l'; // CSI ? n    l  — DECRST
     static const char DECSTR  = 'p'; // CSI !      p  — Reset terminal to initial state
