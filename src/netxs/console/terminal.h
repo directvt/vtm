@@ -984,14 +984,14 @@ namespace netxs::ui
                         auto head = batch.begin() + mas_index;
                         auto tail = batch.begin() + current_para;
                         auto count = coord.y * width + coord.x;
+                        auto start = (basis - mas_index) * width;
                         //todo unify
                         do
                         {
                             auto& lyric = *(*head).stanza;
-                            auto  start = (basis - mas_index) * width;
                             lyric.ins(start, count, spare);
                             lyric.trim(spare);
-                            mas_index++;
+                            start -= width;
                         }
                         while(head++ != tail);
                         break;

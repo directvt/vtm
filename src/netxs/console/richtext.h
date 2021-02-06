@@ -1790,6 +1790,26 @@ namespace netxs::console
             for (auto i = 0; i < n; ++i)
                 post(space);
         }
+        void ins(iota start, iota count, cell const& brush)
+        {
+            if (count > 0)
+            {
+                auto xmax = length();
+                auto head = std::clamp(start,         0, xmax);
+                auto tail = std::clamp(start + count, 0, xmax);
+                auto size = tail - head;
+                if (size)
+                {
+                    auto& lyric = *this->lyric;
+                    auto dst = lyric.data() + head;
+                    auto end = dst + size;
+                    while (dst != end)
+                    {
+                        *dst++ = brush;
+                    }
+                }
+            }
+        }
     };
 
     class rope // richtext: Cascade of the identical paragraphs.
