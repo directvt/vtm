@@ -282,6 +282,7 @@ class post_logs
         ansi::esc             yield;
         netxs::mt_queue<text> queue;
         bool                  alive = true;
+        bool show_codepoints = faux; //todo unify
 
         ~log_parser()
         {
@@ -325,37 +326,39 @@ class post_logs
                                              .eol().bgc(ansi::whitedk).fgc(blackdk)
                                              .add(utf::debase(shadow))
                                              .fgc().bgc().eol().eol();
-            yield.wrp(faux);
-            yield.add("STDOUT: codepoints").eol();
-            auto f = [&](unsigned cp, view utf8, iota wide)
+            if (show_codepoints)
             {
-                yield.fgc(ansi::blackdk);
-                if (wide)
+                yield.wrp(faux);
+                yield.add("STDOUT: codepoints").eol();
+                auto f = [&](unsigned cp, view utf8, iota wide)
                 {
-                    yield.bgc(ansi::whitedk).add(' ').add(utf8);
-                    if (wide == 1) yield.add(' ');
-                }
-                else yield.bgc(ansi::redlt).add(" - ");
+                    yield.fgc(ansi::blackdk);
+                    if (wide)
+                    {
+                        yield.bgc(ansi::whitedk).add(' ').add(utf8);
+                        if (wide == 1) yield.add(' ');
+                    }
+                    else yield.bgc(ansi::redlt).add(" - ");
 
-                yield.bgc().fgc(ansi::greendk)
-                    .add(utf::adjust(utf::to_hex<true>(cp, (cp <= 0xFF   ? 2 :
-                                                            cp <= 0xFFFF ? 4 : 5)), wc, ' '))
-                    .fgc().bgc();
-                if (++w == max_col) { w = 0; yield.eol(); }
-            };
-            auto s = [&](utf::prop const& traits, view const& utf8)
-            {
-                f(traits.control, "", 0);
-                return utf8;
-            };
-            auto y = [&](utf::frag const& cluster)
-            {
-                f(cluster.attr.cdpoint, cluster.text, cluster.attr.wcwidth);
-            };
-            utf::decode<faux>(s, y, shadow);
-
-            yield.wrp(WRAPPING).eol().eol();
-
+                    yield.bgc().fgc(ansi::greendk)
+                        .add(utf::adjust(utf::to_hex<true>(cp, (cp <= 0xFF   ? 2 :
+                                                                cp <= 0xFFFF ? 4 : 5)), wc, ' '))
+                        .fgc().bgc();
+                    if (++w == max_col) { w = 0; yield.eol(); }
+                };
+                auto s = [&](utf::prop const& traits, view const& utf8)
+                {
+                    f(traits.control, "", 0);
+                    return utf8;
+                };
+                auto y = [&](utf::frag const& cluster)
+                {
+                    f(cluster.attr.cdpoint, cluster.text, cluster.attr.wcwidth);
+                };
+                utf::decode<faux>(s, y, shadow);
+                yield.wrp(WRAPPING).eol();
+            }
+            yield.eol();
             return page{ yield };
         }
     };
@@ -1530,16 +1533,14 @@ int main(int argc, char* argv[])
                         if (vtm_count < max_vtm)
                         {
                             vtm_count++;
+                            auto block = scroll->attach<term>(winsz, "vtm");
+                            block->color(whitelt, blackdk);
+                            auto c = &vtm_count;
+                            block->SUBMIT_BYVAL(e2::release, e2::dtor, dummy)
                             {
-                                auto block = scroll->attach<term>(winsz, "vtm");
-                                block->color(whitelt, blackdk);
-                                auto c = &vtm_count;
-                                block->SUBMIT_BYVAL(e2::release, e2::dtor, dummy)
-                                {
-                                    log ("main: vtm destoyed");
-                                    (*c)--;
-                                };
-                            }
+                                log ("main: vtm destoyed");
+                                (*c)--;
+                            };
                         }
                         else
                         {

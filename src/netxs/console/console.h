@@ -4383,6 +4383,7 @@ again:
         lock  mutex; // diff: Mutex between renderer and committer threads.
         cond  synch; // diff: The synchronization mechanism between the renderer and the committer.
 
+        //todo deprecate bsu/esu
         //todo unify bsu/esu
         enum mode_type { none, escp, decs, last };
         enum mode_cmd { bsu, esu };
@@ -4715,14 +4716,14 @@ again:
                 if (size != empty)
                 {
                     delta = size;
-                    frame.locate(midst + twod{ 0,1 });
-
-                    auto& synch_sfx = bsuesu[smode];
-                    frame.add(synch_sfx[mode_cmd::esu]);
+                    //todo deprecate BSU/ESU
+                    //frame.locate(midst + twod{ 0,1 });
+                    //auto& synch_sfx = bsuesu[smode];
+                    //frame.add(synch_sfx[mode_cmd::esu]);
                     conio.output(frame);
                     frame.clear();
-                    frame.locate(midst);
-                    frame.add(synch_sfx[mode_cmd::bsu]);
+                    //frame.locate(midst);
+                    //frame.add(synch_sfx[mode_cmd::bsu]);
 
                     empty = static_cast<iota>(frame.size());
                 }
@@ -4769,7 +4770,7 @@ again:
               conio{ conio },
               cache{ cache }
         {
-            log("diff: ctor begin");
+            log("diff: ctor start");
 
             bsuesu.resize(4);
             bsuesu[mode_type::none].resize(2);
@@ -4799,8 +4800,7 @@ again:
 
         ~diff()
         {
-            //log("------------- diff dtor -----------------: ", this);
-
+            log("diff: dtor");
             if (paint.joinable())
             {
                 mutex.lock();
@@ -4809,7 +4809,7 @@ again:
                 synch.notify_all();
                 mutex.unlock();
                 paint.join();
-                log("rend: thread joined");
+                log("diff: render thread joined");
             }
         }
 

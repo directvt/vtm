@@ -108,6 +108,9 @@ namespace netxs::ui
         iota scroll_bottom = 0; // rods: Scrolling region bottom. 1-based, 0: use bottom of viewport
 
     public:
+        //todo unify
+        bool        caret_visible = faux;
+        
         rods(twod& anker, side& oversize, twod const& viewport_size, cell& spare)
             : flow { viewport_size.x, count   },
               parid{ 0                        },
@@ -361,7 +364,7 @@ namespace netxs::ui
                 brush = rod.mark(); // current mark of the last printed fragment
             }
 
-            flow::minmax(cp()); // Register current caret position
+            if (caret_visible) flow::minmax(cp()); // Register current caret position
             auto& cover = flow::minmax();
             upset.set(-std::min(0, cover.l),
                        std::max(0, cover.r - width + 1),
@@ -1142,6 +1145,7 @@ namespace netxs::ui
                         break;
                     case 25:   // Caret on.
                         caret.show();
+                        target->caret_visible = true; //todo unify
                         break;
                     case 1000: // Send Mouse X & Y on button press and release.
                     case 1001: // Use Hilite Mouse Tracking.
@@ -1178,6 +1182,7 @@ namespace netxs::ui
                         break;
                     case 25:   // Caret off.
                         caret.hide();
+                        target->caret_visible = faux; //todo unify
                         break;
                     case 1000: // Dont send Mouse X & Y on button press and release.
                     case 1001: // Dont use Hilite(c) Mouse Tracking.
