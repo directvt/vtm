@@ -8,7 +8,7 @@
 
 namespace netxs
 {
-	///<summary> iterator.h: Search an item in the container for which the predicate(item) is true. </summary>
+	// iterator.h: Search an item in the container for which the predicate(item) is true.
 	template <typename T, class P>
 	auto search(T&& iterable, P predicate)
 	{
@@ -26,7 +26,7 @@ namespace netxs
 		}
 		return it;
 	}
-	///<summary> iterator.h: Execute the func(item) for each item in the iterable container if the predicate(item) is true. </summary>
+	// iterator.h: Execute the func(item) for each item in the iterable container if the predicate(item) is true.
 	template <typename T, class P, class F>
 	void foreach(T&& iterable, P predicate, F func)
 	{
@@ -44,19 +44,19 @@ namespace netxs
 		}
 	}
 	
-	///<summary> iterator.h: Reversed iterable helper wrapper. </summary>
+	// iterator.h: Reversed iterable helper wrapper.
 	template <typename T>
 	struct reversion_wrapper { T& iterable; };
 	
-	///<summary> iterator.h: Reversed iterable helper begin(). </summary>
+	// iterator.h: Reversed iterable helper begin().
 	template <typename T>
 	auto begin (reversion_wrapper<T> w) { return std::rbegin(w.iterable); }
 	
-	///<summary> iterator.h: Reversed iterable helper end(). </summary>
+	// iterator.h: Reversed iterable helper end().
 	template <typename T>
 	auto end (reversion_wrapper<T> w) { return std::rend(w.iterable); }
 	
-	///<summary> iterator.h: Reverse iterable. </summary>
+	// iterator.h: Reverse iterable.
 	template <typename T>
 	reversion_wrapper<T> reverse (T&& iterable) { return { iterable }; }
 

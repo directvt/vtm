@@ -537,8 +537,8 @@ namespace netxs::ui
                     vt::csier.table[CSI_CUF] = VT_PROC{ p->cuf( q(1)); };  // CSI n C
                     vt::csier.table[CSI_CUB] = VT_PROC{ p->cuf(-q(1)); };  // CSI n D
 
-                    vt::csier.table[CSI_CNL] = vt::csier.table[CSI_CUD]; // CSI n E
-                    vt::csier.table[CSI_CPL] = vt::csier.table[CSI_CUU]; // CSI n F
+                    vt::csier.table[CSI_CNL] = vt::csier.table[CSI_CUD];   // CSI n E
+                    vt::csier.table[CSI_CPL] = vt::csier.table[CSI_CUU];   // CSI n F
                     vt::csier.table[CSI_CHX] = VT_PROC{ p->chx( q(1)); };  // CSI n G - hz absolute
                     vt::csier.table[CSI_CHY] = VT_PROC{ p->chy( q(1)); };  // CSI n d - vt absolute 
                     vt::csier.table[CSI_CUP] = VT_PROC{ p->cup( q   ); };  // CSI y ; x H (1-based)
@@ -583,6 +583,16 @@ namespace netxs::ui
                     vt::oscer[OSC_1] = VT_PROC{ p->boss.prop(OSC_1, q); };
                     vt::oscer[OSC_2] = VT_PROC{ p->boss.prop(OSC_2, q); };
                     vt::oscer[OSC_3] = VT_PROC{ p->boss.prop(OSC_3, q); };
+
+                    // Log all unimplemented CSI commands
+                    for (iota i = 0; i < 0x100; ++i)
+                    {
+                        auto& proc = vt::csier.table[i];
+                         if (!proc) 
+                         {
+                            proc = [i](auto& q, auto& p) { p->not_implemented_CSI(i, q); };
+                         }
+                    }
                 }
             };
 
@@ -625,8 +635,23 @@ namespace netxs::ui
             void  wrp(bool b)                   { batch[current_para].wrapln = b; }
             void  jet(iota n)                   { batch[current_para].adjust = (bias)n; }
 
-            // Implement text manipalation procs
+            // Implement text manipulation procs
             //
+            void not_implemented_CSI(iota i, fifo& q)
+            {
+                text params;
+                while(q)
+                {
+                    params += std::to_string(q(0));
+                    if (q)
+                    {
+                        auto is_sub_arg = q.issub(q.front());
+                        auto delim = is_sub_arg ? ':' : ';';
+                        params.push_back(delim);
+                    }
+                }
+                log("CSI ", params, " ", (unsigned char)i, " is not implemented.");
+            }
             void tab(iota n) { caret->ins(n); }
             // wall: CSI n T/S  Scroll down/up, scrolled out lines are lost
             void scl(iota n)
@@ -639,16 +664,16 @@ namespace netxs::ui
                 end = std::clamp(end, 0, viewport_height - 1);
                 top = std::clamp(top, 0, end);
 
+                auto scroll_top_index = basis + top;
+                auto scroll_end_index = basis + end;
+                auto master = batch[scroll_top_index].master;
                 auto count = end - top + 1;
                 n = std::clamp(n, 0, count);
                 if (n > 0)
                 {
                     // Move down by n all below the current
                     // one by one from the bottom
-                    auto scroll_top_index = basis + top;
-                    auto scroll_end_index = basis + end;
                     auto dst = batch.begin() + scroll_end_index;
-                    auto master = dst->master;
                     auto src = dst - n;
                     auto s = count-1;
                     while(s--)
@@ -656,7 +681,6 @@ namespace netxs::ui
                         //todo revise
                         (*dst--).set(std::move(*src--));
                     }
-
                     // Clear n first lines
                     auto head = batch.begin() + scroll_top_index;
                     auto tail = head + n;
@@ -664,16 +688,32 @@ namespace netxs::ui
                     {
                         (*head++).trim_to(0);
                     }
-                    
-                    // Rebuild overlaps from bottom to id
-                    rods::rebuild_upto_id(master);
                 }
                 else if (n < 0)
                 {
-                    //todo implement
-                    log("SU - Scroll up \\e[nS is not implemented");
-
+                    n = -n;
+                    // Move up by n=-n all below the current
+                    // one by one from the top
+                    auto dst = batch.begin() + scroll_top_index;
+                    auto src = dst + n;
+                    auto s = count-1;
+                    while(s--)
+                    {
+                        //todo revise
+                        (*dst++).set(std::move(*src++));
+                    }
+                    // Clear n last lines
+                    //todo revise (possible bug)
+                    auto head = batch.begin() + scroll_end_index;
+                    auto tail = head - n;
+                    while(head != tail)
+                    {
+                        (*head--).trim_to(0);
+                    }
                 }
+                // Rebuild overlaps from bottom to id
+                rods::rebuild_upto_id(master);
+                set_coord();
             }
             // wall: ESC M  Reverse index
             void ri()
@@ -683,9 +723,12 @@ namespace netxs::ui
                  * - move caret one line up if it is outside of scrolling region or below the top line of scrolling region.
                  * - one line scroll down if caret is on the top line of scroll region.
                  */
-                if (coord.y != scroll_top) coord.y--;
-                else                       scl(1);
-                set_coord();
+                if (coord.y != scroll_top) 
+                {
+                    coord.y--;
+                    set_coord();
+                }
+                else scl(1);
             }
             // wall: CSI t;b r - Set scrolling region (t/b: top+bottom)
             void scr(fifo& queue)
