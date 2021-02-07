@@ -98,9 +98,9 @@ namespace netxs::ui
         iota        count; // rods: Scrollback height (& =batch.size()).
         side&       upset; // rods: Viewport oversize.
         twod        coord; // rods: Actual caret position.
-        cell        brush; // rods: Last used brush.
         parx        caret; // rods: Active insertion point.
         cell&       spare; // rods: Shared current brush state (default brush).
+        cell        brush; // rods: Last used brush.
         iota current_para; // rods: Active insertion point index (not id).
         iota        basis; // rods: Index of O(0, 0).
 
@@ -110,7 +110,7 @@ namespace netxs::ui
     public:
         //todo unify
         bool        caret_visible = faux;
-        
+
         rods(twod& anker, side& oversize, twod const& viewport_size, cell& spare)
             : flow { viewport_size.x, count   },
               parid{ 0                        },
@@ -124,7 +124,12 @@ namespace netxs::ui
               spare{ spare                    },
               current_para{ 0 }
         { }
-
+        //todo revise
+        void color(cell const& c)
+        {
+            caret->brush = c;
+            brush = c;
+        }
         void set_coord(twod new_coord)
         {
             // Checking bottom boundary
@@ -926,7 +931,9 @@ namespace netxs::ui
             {
                 finalize();
                 auto p = twod(queue(1), queue(1));
-                coord = p - dot_11;
+                auto viewport = twod{ width, viewport_height };
+                coord = std::clamp(p, dot_11, viewport);//todo unify
+                coord-= dot_11;
                 set_coord();
             }
             // wall: Line feed up
@@ -1352,6 +1359,11 @@ namespace netxs::ui
 
             // in order to show cursor/caret
             SIGNAL(e2::release, e2::form::upon::redrawn, parent_canvas);
+        }
+        virtual void color(rgba const& fg_color, rgba const& bg_color)
+        {
+            base::color(fg_color, bg_color);
+            target->color(base::color());
         }
     };
 }

@@ -15,6 +15,9 @@
 // Enable to show all terminal input (keyboard/mouse etc)
 //#define KEYLOG
 
+// Show codepoint by the "logs"
+#define SHOW_CPOINTS true
+
 #include "netxs/os/system.h"
 #include "netxs/text/utf.h"
 #include "netxs/console/terminal.h"
@@ -282,7 +285,7 @@ class post_logs
         ansi::esc             yield;
         netxs::mt_queue<text> queue;
         bool                  alive = true;
-        bool show_codepoints = faux; //todo unify
+        bool show_codepoints = SHOW_CPOINTS; //todo unify
 
         ~log_parser()
         {
