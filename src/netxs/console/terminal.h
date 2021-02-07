@@ -585,13 +585,13 @@ namespace netxs::ui
                     vt::oscer[OSC_3] = VT_PROC{ p->boss.prop(OSC_3, q); };
 
                     // Log all unimplemented CSI commands
-                    for (iota i = 0; i < 0x100; ++i)
+                    for (auto i = 0; i < 0x100; ++i)
                     {
                         auto& proc = vt::csier.table[i];
-                         if (!proc) 
-                         {
-                            proc = [i](auto& q, auto& p) { p->not_implemented_CSI(i, q); };
-                         }
+                        if (!proc) 
+                        {
+                           proc = [i](auto& q, auto& p) { p->not_implemented_CSI(i, q); };
+                        }
                     }
                 }
             };
@@ -609,17 +609,10 @@ namespace netxs::ui
             // Implement base-CSI contract (see ansi::csi_t)
             void task(ansi::rule const& cmd)
             {
-                if (!caret->empty())
-                {
-                    fork();
-                }
+                if (!caret->empty()) fork();
                 caret->locus.push(cmd);
             }
-            void post(utf::frag const& cluster)
-            { 
-                caret->post(cluster); 
-            }
-            //void cook()                         { caret->cook(); }
+            void post(utf::frag const& cluster) { caret->post(cluster); }
             void cook()                         { finalize(); }
             void  nil()                         { caret->nil(spare); }
             void  sav()                         { caret->sav(spare); }
@@ -631,7 +624,6 @@ namespace netxs::ui
             void  itc(bool b)                   { caret->itc(b); }
             void  inv(bool b)                   { caret->inv(b); }
             void  und(bool b)                   { caret->und(b); }
-
             void  wrp(bool b)                   { batch[current_para].wrapln = b; }
             void  jet(iota n)                   { batch[current_para].adjust = (bias)n; }
 
@@ -992,20 +984,7 @@ namespace netxs::ui
                 {
                     case commands::erase::display::below: // n = 0  Erase viewport after caret (default).
                     {
-                        // auto cur_line_it = batch.begin() + current_para;
-                        // auto master_id = cur_line_it->master;
-                        // // Cut all lines above and current line
-                        // auto mas_index = get_line_index_by_id(master_id);
-                        // auto head = batch.begin() + mas_index;
-                        // auto tail = cur_line_it;
-                        // do
-                        // {
-                        //     auto required_len = (current_para - mas_index) * width + coord.x; // todo optimize
-                        //     auto& line = *head;
-                        //     line.trim_to(required_len);
-                        //     mas_index++;
-                        // }
-                        // while(head++ != tail);
+                        // Cut all lines above and current line
                         cut_above();
                         // Remove all lines below
                         //todo unify batch.resize(current_para); // no default ctor for line

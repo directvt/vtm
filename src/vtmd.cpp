@@ -1533,11 +1533,10 @@ int main(int argc, char* argv[])
                             {
                                 auto block = scroll->attach<term>(winsz, "vtm");
                                 block->color(whitelt, blackdk);
-                                
                                 auto c = &vtm_count;
-                                scroll->SUBMIT_BYVAL(e2::release, e2::form::upon::detached, q)
+                                block->SUBMIT_BYVAL(e2::release, e2::dtor, dummy)
                                 {
-                                    log ("vtm destoyed");
+                                    log ("main: vtm destoyed");
                                     (*c)--;
                                 };
                             }
@@ -1551,40 +1550,6 @@ int main(int argc, char* argv[])
                         }
 
                         scroll_bars(layers, scroll);
-
-
-
-                        //if (vtm_count < max_vtm)
-                        //{
-                        //    vtm_count++;
-                        //#ifdef DEMO
-                        //        frame->header(ansi::jet(bias::left) + "ssh vtm@netxs.online");
-                        //#else
-                        //        frame->header(ansi::jet(bias::left) + objs_desc[VTM]);
-                        //#endif
-                        //    //auto scroll = frame->attach<rail>();
-                        //    {
-                        //        auto block = frame->attach<term>(winsz, "vtm");
-                        //        //auto block = scroll->attach<term>(winsz, "vtm");
-                        //        block->color(whitelt, blackdk);
-                        //        // block->canvas.wipe();
-                        //        // block->colored = faux;
-                        //        auto c = &vtm_count;
-                        //        frame->SUBMIT_BYVAL(e2::release, e2::form::upon::detached, q)
-                        //        {
-                        //            log ("vtm destoyed");
-                        //            (*c)--;
-                        //        };
-                        //    }
-                        //}
-                        //else
-                        //{
-                        //    auto block = frame->attach<pane>();
-                        //    block->color(whitelt, blackdk);
-                        //    block->topic = ansi::fgc(yellowlt).mgl(4).mgr(4).wrp(faux) + "\n\nconnection rejected\n\n"
-                        //        + ansi::nil().wrp(true) + "Reached the limit of recursive connections, destroy existing recursive instances to create new ones.";
-                        //    //block->caret.show();
-                        //}
                         break;
                     }
                     case Far:
