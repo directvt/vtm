@@ -49,6 +49,7 @@ namespace netxs::console::ansi
     static const char CSI__DL = 'M'; // CSI n      M  — Delete n lines
     static const char CSI_DCH = 'P'; // CSI n      P  — Delete n character(s)
     static const char CSI__SD = 'T'; // CSI n      T  — Scroll down by n lines, scrolled out lines are lost
+    static const char CSI__SU = 'S'; // CSI n      S  — Scroll   up by n lines, scrolled out lines are lost
     static const char CSI_ECH = 'X'; // CSI n      X  — Erase n character(s) ? difference with delete ?
     static const char CSI_ICH = '@'; // CSI n      @  — Insert/wedge n character(s)
     static const char DECSET  = 'h'; // CSI ? n    h  — DECSET
@@ -517,6 +518,7 @@ namespace netxs::console::ansi
                 table[CSI__DL] = nullptr;
                 table[DECSTBM] = nullptr;
                 table[CSI__SD] = nullptr;
+                table[CSI__SU] = nullptr;
 
                 auto& csi_ccc = table[CSI_CCC].resize(0x100);
                     csi_ccc[CCC_CUP] = VT_PROC{ F(ay, q(0)); F(ax, q(0)); }; // fx_ccc_cup

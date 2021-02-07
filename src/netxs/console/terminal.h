@@ -32,7 +32,7 @@ namespace netxs::ui
         struct line
         {
             iota master; // rod: Top visible text line index.
-            iota const selfid; // rod: Text line index.
+            iota selfid; // rod: Text line index.
             bias adjust;
             iota length;
             bool wrapln;
@@ -48,6 +48,16 @@ namespace netxs::ui
                   length { length },
                   wrapln { wrapln }
             { }
+            void set(line&& l)
+            {
+                //master = l.selfid;
+                //selfid = l.selfid;
+                adjust = l.adjust;
+                length = l.length;
+                wrapln = l.wrapln;
+                stanza = std::move(l.stanza);
+                l.stanza = std::make_shared<para>();
+            }
             auto line_height(iota width)
             {
                 if (wrapln)
@@ -214,6 +224,8 @@ namespace netxs::ui
                     // point is invalidated due to batch resize
                     point = batch.begin() + current_para;
                 }
+
+                //todo use rebuild_upto_id
                 auto head = point + new_height;
                 auto tail = point + old_height;
                 while(head-- != tail)
@@ -428,7 +440,7 @@ namespace netxs::ui
                 caret = batch[current_para].stanza;
             }
         }
-        // Cut all lines above and current line
+        // rods: Cut all lines above and current line
         void cut_above()
         {
             auto cur_line_it = batch.begin() + current_para;
@@ -442,6 +454,32 @@ namespace netxs::ui
                 auto& line = *head;
                 line.trim_to(required_len);
                 mas_index++;
+            }
+            while(head++ != tail);
+        }
+        // rods:: Rebuild overlaps from bottom to id
+        void rebuild_upto_id(iota top_id)
+        {
+            //todo revise (bugs)
+            auto mas_index = get_line_index_by_id(top_id);
+            auto head = batch.rbegin();
+            auto tail = head + count - mas_index;
+            do
+            {
+                auto& line = *head;
+                auto id = line.selfid;
+                auto height = line.line_height(width);
+
+                auto head2 = head;
+                auto tail2 = head + height;
+                while(head != tail2)
+                {
+                    auto& below_item = *head2++;
+                    // Assign iff line isn't overlapped by somaething
+                    if (below_item.master - top_id > 0) // Comparing the difference with zero In order to support id incrementing overflow
+                        below_item.master = id; 
+                    else break; // overlapped by something higher
+                }
             }
             while(head++ != tail);
         }
@@ -513,7 +551,8 @@ namespace netxs::ui
                     vt::csier.table[CSI__ED] = VT_PROC{ p->ed ( q(0)); };  // CSI n J
                     vt::csier.table[CSI__EL] = VT_PROC{ p->el ( q(0)); };  // CSI n K
                     vt::csier.table[CSI__DL] = VT_PROC{ p->dl ( q(1)); };  // CSI n M - Delete n lines
-                    vt::csier.table[CSI__SD] = VT_PROC{ p->sd ( q(1)); };  // CSI n T - Scroll down by n lines, scrolled out lines are lost
+                    vt::csier.table[CSI__SD] = VT_PROC{ p->scl( q(1)); };  // CSI n T - Scroll down by n lines, scrolled out lines are lost
+                    vt::csier.table[CSI__SU] = VT_PROC{ p->scl(-q(1)); };  // CSI n S - Scroll   up by n lines, scrolled out lines are lost
 
                     vt::csier.table[DECSTBM] = VT_PROC{ p->scr( q   ); };  // CSI r; b r - Set scrolling region (t/b: top+bottom)
 
@@ -589,25 +628,51 @@ namespace netxs::ui
             // Implement text manipalation procs
             //
             void tab(iota n) { caret->ins(n); }
-            // wall: CSI n T  Scroll down, scrolled lines are lost
-            void sd(iota n)
+            // wall: CSI n T/S  Scroll down/up, scrolled out lines are lost
+            void scl(iota n)
             {
-                //todo implement
-                log("SD - Scroll down \\e[nT is not implemented");
-                auto top = scroll_top ? scroll_top - 1
-                                      : 0;
+                auto top = scroll_top    ? scroll_top - 1
+                                         : 0;
                 auto end = scroll_bottom ? scroll_bottom - 1
                                          : viewport_height - 1;
+
+                end = std::clamp(end, 0, viewport_height - 1);
+                top = std::clamp(top, 0, end);
+
                 auto count = end - top + 1;
                 n = std::clamp(n, 0, count);
-                if (n)
+                if (n > 0)
                 {
                     // Move down by n all below the current
                     // one by one from the bottom
+                    auto scroll_top_index = basis + top;
+                    auto scroll_end_index = basis + end;
+                    auto dst = batch.begin() + scroll_end_index;
+                    auto master = dst->master;
+                    auto src = dst - n;
+                    auto s = count-1;
+                    while(s--)
+                    {
+                        //todo revise
+                        (*dst--).set(std::move(*src--));
+                    }
 
                     // Clear n first lines
+                    auto head = batch.begin() + scroll_top_index;
+                    auto tail = head + n;
+                    while(head != tail)
+                    {
+                        (*head++).trim_to(0);
+                    }
                     
-                    // Rebuild overlaps from bottom
+                    // Rebuild overlaps from bottom to id
+                    rods::rebuild_upto_id(master);
+                }
+                else if (n < 0)
+                {
+                    //todo implement
+                    log("SU - Scroll up \\e[nS is not implemented");
+
                 }
             }
             // wall: ESC M  Reverse index
@@ -619,7 +684,8 @@ namespace netxs::ui
                  * - one line scroll down if caret is on the top line of scroll region.
                  */
                 if (coord.y != scroll_top) coord.y--;
-                else                       sd(1);
+                else                       scl(1);
+                set_coord();
             }
             // wall: CSI t;b r - Set scrolling region (t/b: top+bottom)
             void scr(fifo& queue)
