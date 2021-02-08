@@ -31,23 +31,38 @@ namespace netxs::ui
         using parx = sptr<para>;
         struct line
         {
-            iota master; // rod: Top visible text line index.
-            iota selfid; // rod: Text line index.
-            bias adjust;
-            iota length;
-            bool wrapln;
-            parx stanza = std::make_shared<para>();
+            iota  master; // rod: Top visible text line index.
+            iota  selfid; // rod: Text line index.
+            bias  adjust;
+            iota  length;
+            bool  wrapln;
+            parx  stanza;
+            cell& marker;
 
             line(iota selfid,
+                 cell const& brush = {},
                  bias adjust = bias::left,
-                 iota length = 0,
-                 bool wrapln = WRAPPING)
+                 bool wrapln = WRAPPING,
+                 iota length = 0)
                 : master { selfid },
                   selfid { selfid },
                   adjust { adjust },
                   length { length },
-                  wrapln { wrapln }
+                  wrapln { wrapln },
+                  stanza { std::make_shared<para>(brush) },
+                  marker { stanza->brush }
             { }
+            line(iota selfid,
+                 line const& proto)
+                : master { selfid },
+                  selfid { selfid },
+                  adjust { proto.adjust },
+                  wrapln { proto.wrapln },
+                  length { 0 },
+                  stanza { std::make_shared<para>(proto.marker) },
+                  marker { stanza->brush }
+            { }
+
             void set(line&& l)
             {
                 //master = l.selfid;
@@ -85,12 +100,18 @@ namespace netxs::ui
             // Make the line no longer than maxlen
             void trim_to(iota max_len)
             {
-                stanza->trim_to(max_len);
-                length = max_len;
+                auto& item = *stanza;
+                item.trim_to(max_len);
+                auto size = item.size();
+                length = size.x;
+                //todo revise: height is always =1
+                //height = size.y;
             }
         };
         //todo implement as a ring buffer of size MAX_SCROLLBACK
+        //using heap = std::list<line>;
         using heap = std::vector<line>;
+        using iter = heap::iterator;
         iota        parid; // rods: Last used paragraph id.
         heap        batch; // rods: Rods inner container.
         iota const& width; // rods: Viewport width.
@@ -102,6 +123,7 @@ namespace netxs::ui
         cell&       spare; // rods: Shared current brush state (default brush).
         cell        brush; // rods: Last used brush.
         iota current_para; // rods: Active insertion point index (not id).
+        //iter current_para_it; // rods: Active insertion point index (not id).
         iota        basis; // rods: Index of O(0, 0).
 
         iota scroll_top    = 0; // rods: Scrolling region top. 1-based, 0: use top of viewport
@@ -122,6 +144,7 @@ namespace netxs::ui
               basis{ 0                        },
               viewport_height{ viewport_size.y},
               spare{ spare                    },
+              //current_para_it{batch.begin()},
               current_para{ 0 }
         { }
         //todo revise
@@ -169,9 +192,6 @@ namespace netxs::ui
             {
                 caret = batch[index].stanza;
                 caret->chx(new_coord.x);
-                //todo implement the case when the coord is set to the outside viewport
-                //     after the right side: disable wrapping (on overlapped line too)
-                //     before the left side: disable wrapping + bias::right (on overlapped line too)
             }
             else
             {
@@ -180,11 +200,10 @@ namespace netxs::ui
                 caret = batch[index].stanza;
                 caret->chx(delta * width + new_coord.x);
                 //todo implement checking hit by x
-
-                //todo implement the case when the coord is set to the outside viewport
-                //     after the right side: disable wrapping (on overlapped line too)
-                //     before the left side: disable wrapping + bias::right (on overlapped line too)
             }
+            //todo implement the case when the coord is set to the outside viewport
+            //     after the right side: disable wrapping (on overlapped line too)
+            //     before the left side: disable wrapping + bias::right (on overlapped line too)
 
             current_para = index;
             caret->brush = brush;
@@ -196,105 +215,95 @@ namespace netxs::ui
                 auto index = id - begin;
                 return index;
         }
+        void align_basis()
+        {
+            auto new_basis = count - viewport_height;
+            if (new_basis > basis) basis = new_basis; // Move basis down if scrollback grows
+        }
+        template<class P>
+        void for_each(iota from, iota upto, P proc)
+        {
+            auto head = batch.begin() + from;
+            auto tail = batch.begin() + upto;
+            if (from < upto) while(proc(*head) && head++ != tail);
+            else             while(proc(*head) && head-- != tail);
+        }
+        void add_empty_lines(iota amount, line const& proto)
+        {
+            count += amount;
+            while(amount-- > 0 ) batch.emplace_back(++parid, proto);
+            align_basis();
+        }
         void finalize()
         {
             auto point = batch.begin() + current_para;
+            auto& cur_line = *point;
 
-            auto& item = *point;
-            auto old_size = item.length;
-            auto old_height = item.line_height(width);
-            item.cook(spare);
-            auto new_size = item.length;
-            auto new_height = item.line_height(width);
-            //wrapln = 
-            auto id = item.selfid;
-            //log("current_para ",current_para, " new_height ", new_height, " old_height ", old_height);
+            auto old_height = cur_line.line_height(width);
+            cur_line.cook(spare);
+            auto new_height = cur_line.line_height(width);
+
             if (new_height > old_height)
             {
-                auto dist_to_end = std::distance(point, batch.end());
-                if (new_height > dist_to_end)
+                auto overflow = current_para + new_height - count;
+                if (overflow > 0)
                 {
-                    // Add new lines
-                    auto delta = new_height - dist_to_end;
-                    auto brush = caret->brush;
-                    auto wrp = item.wrapln;
-                    auto jet = item.adjust;
-                    while(delta-- > 0 )
-                    {
-                        auto& new_item = batch.emplace_back(++parid);
-                        auto new_line = new_item.stanza;
-                        new_line->brush = brush;
-                        new_item.wrapln = wrp;
-                        new_item.adjust = jet;
-                        count++;
-                    }
-                    if (count - basis > viewport_height) basis = count - viewport_height;
-                    // point is invalidated due to batch resize
-                    point = batch.begin() + current_para;
+                    add_empty_lines(overflow, cur_line);
+                    point = batch.begin() + current_para; // point is invalidated due to batch (std::vector) resize
                 }
-
-                //todo use rebuild_upto_id
-                auto head = point + new_height;
-                auto tail = point + old_height;
-                while(head-- != tail)
+                // Update master id on overlapped below lines
+                auto from = current_para + new_height - 1;
+                auto upto = current_para + old_height;
+                for_each(from, upto, [&](line& l)
                 {
-                    auto& below_item = *head;
-                    // Assign iff line isn't overlapped by somaething
-                    if (below_item.master - id > 0) // Comparing the difference with zero In order to support id incrementing overflow
-                        below_item.master = id; 
-                    else break; // overlapped by something higher
-                }
+                    auto open = l.master - cur_line.selfid > 0;
+                    if  (open)  l.master = cur_line.selfid;
+                    return open;
+                });
             }
             else if (new_height < old_height)
             {
-                auto head = point + old_height;
-                auto tail = point + new_height;
-                while(head-- != tail)
+                // Update master id on opened below lines
+                auto from = current_para + old_height - 1;
+                auto upto = current_para + new_height;
+                for_each(from, upto, [&](line& l)
                 {
-                    auto& item2 = *head;
-                    auto old_master = item2.master;
-                    if (old_master != id) break; // эта линия как и все вышележащие были накрыты кем то ранее, длинной строкой выше
-                    auto head2 = point;
-                    item2.master = item2.selfid;
-                    while(++head2 != head)
+                    if (l.master != cur_line.selfid) return faux; // this line, like all those lying above, is covered with a long super line above, don't touch it
+                    // Looking for who else covers the current line below
+                    auto from2 = current_para + 1;
+                    auto upto2 = from--;
+                    for_each(from2, upto2, [&](line& l2)
                     {
-                        auto& over = *head2;
-                        auto h = over.line_height(width);
-                        auto d = head - head2;
+                        auto h = l2.line_height(width);
+                        auto d = upto2 - from2++;
                         if (h > d)
                         {
-                            item2.master = (*head2).selfid;
-                            break;
+                            l.master = l2.selfid;
+                            return faux;
                         }
-                    }
-                }
+                        return true;
+                    });
+                    return true;
+                });
             }
 
-            if (item.wrapln)
+            auto pos = twod{ caret->chx(), current_para - basis };
+            if (cur_line.wrapln)
             {
-                auto len = caret->chx();
-                //if (len && !(len % width)) len--;
-
-                //if (len && (len % width == 0))
-                if (len && len == item.length && (len % width == 0))
+                if (pos.x && pos.x == cur_line.length && (pos.x % width == 0))
                 {
-                    len--;
+                    pos.x--;
                     coord.x = width;
                 }
                 else
                 {
-                    coord.x = len % width;
+                    coord.x = pos.x % width;
                 }
-                coord.y = len / width + current_para - basis;
-
-                //coord.x = len % width;
-                //coord.y = len / width + current_para - basis;
-                //log(" item: ", current_para, " coord:", coord);
+                coord.y = pos.x / width + pos.y;
             }
             else
             {
-                coord.x = caret->chx();
-                coord.y = current_para - basis;
+                coord = pos;
             }
 
             //todo update flow::minmax and base::upset
@@ -308,29 +317,19 @@ namespace netxs::ui
             count = 0;
             basis = 0;
             upset.set(0);
-            caret = batch.emplace_back(parid).stanza;
-            //caret->wipe(brush);
-            caret->brush = brush;
+            caret = batch.emplace_back(parid, brush).stanza;
             current_para = count++;
-            if (count - basis > viewport_height) basis = count - viewport_height;
+            align_basis();
             return *this;
         }
         // rods: Add new line.
         void fork()
         {
             finalize();
-            brush = caret->brush;
             auto& item = batch[current_para];
-            auto wrp = item.wrapln;
-            auto jet = item.adjust;
-            auto& new_item = batch.emplace_back(++parid);
-            caret = new_item.stanza;
-            caret->brush = brush;
-            new_item.wrapln = wrp;
-            new_item.adjust = jet;
-
+            caret = batch.emplace_back(++parid, item).stanza;
             current_para = count++;
-            if (count - basis > viewport_height) basis = count - viewport_height;
+            align_basis();
         }
         auto cp()
         {
@@ -386,8 +385,7 @@ namespace netxs::ui
             flow::minmax(viewport);
             height = cover.height() + 1;
 
-            if (count - basis > viewport_height) basis = count - viewport_height;
-
+            align_basis();
             return twod{ width, height };
         }
         void output(face& canvas)
@@ -414,11 +412,6 @@ namespace netxs::ui
                 brush = rod.mark(); // current mark of the last printed fragment
             }
         }
-        //auto size() const { return count; }
-        //void size(iota limit)
-        //{
-        //    //todo resize ring buffer
-        //}
         auto height() const
         {
             return count;
@@ -465,31 +458,35 @@ namespace netxs::ui
             }
             while(head++ != tail);
         }
-        // rods:: Rebuild overlaps from bottom to id
+        // rods: Rebuild overlaps from bottom to line with selfid=top_id (inclusive)
         void rebuild_upto_id(iota top_id)
         {
-            //todo revise (bugs)
-            auto mas_index = get_line_index_by_id(top_id);
             auto head = batch.rbegin();
-            auto tail = head + count - mas_index;
+            auto tail = head + count - get_line_index_by_id(top_id);
             do
             {
-                auto& line = *head;
-                auto id = line.selfid;
-                auto height = line.line_height(width);
-
-                auto head2 = head;
-                auto tail2 = head + height;
-                while(head != tail2)
-                {
-                    auto& below_item = *head2++;
-                    // Assign iff line isn't overlapped by somaething
-                    if (below_item.master - top_id > 0) // Comparing the difference with zero In order to support id incrementing overflow
-                        below_item.master = id; 
-                    else break; // overlapped by something higher
+                auto& line =*head;
+                auto below = head - (line.line_height(width) - 1);
+                do  // Assign iff line isn't overlapped by somaething higher
+                {   // Comparing the difference with zero In order to support id incrementing overflow
+                    if (below->master - top_id > 0) below->master = line.selfid;
+                    else                            break; // overlapped by a higher line
                 }
+                while(head != below++);
             }
             while(head++ != tail);
+        }
+        // for bug testing
+        auto get_content()
+        {
+            text yield;
+            auto i = 0;
+            for(auto& l : batch)
+            {
+                yield += " =>" + std::to_string(i++) + "<= ";
+                yield += l.stanza->get_utf8();
+            }
+            return yield;
         }
     };
 
@@ -963,8 +960,8 @@ namespace netxs::ui
             // wall: '\r'  Go to home of visible line instead of home of para
             void home()
             {
+                //todo reimplement term::home() - don't change current_para
                 finalize();
-                //coord.x = 0;
                 if (batch[current_para].wrapln)
                 {
                     coord.x = 0;
@@ -973,7 +970,6 @@ namespace netxs::ui
                 {
                     coord.x -= coord.x % width;
                 }
-
                 set_coord();
             }
             // wall: '\n' || '\r\n'  Carriage return + Line feed
@@ -1134,11 +1130,8 @@ namespace netxs::ui
         // term: Soft terminal reset (DECSTR)
         void decstr()
         {
-            //todo revise
-            //altbuf.ed(commands::erase::display::scrollback);
-            //scroll.ed(commands::erase::display::scrollback);
-            scroll.clear();
-            altbuf.clear();
+            scroll.clear(true);
+            altbuf.clear(true);
             target = &scroll;
         }
         void decset(wall*& p, fifo& queue)
@@ -1309,7 +1302,6 @@ namespace netxs::ui
             ptycon.close();
         }
 
-        //bool caret_is_visible=true;
         void input_hndl(view shadow)
         {
             while (ptycon)
@@ -1317,6 +1309,9 @@ namespace netxs::ui
                 e2::try_sync guard;
                 if (guard)
                 {
+                    log(" 1. target content: ", target->get_content());
+
+
                     SIGNAL(e2::general, e2::debug::output, shadow);
 
                     auto old_caret_pos = caret.coor();
@@ -1346,6 +1341,8 @@ namespace netxs::ui
                     SIGNAL(e2::release, base::size_event, new_size);
 
                     base::deface();
+                    log(" 2. target content: ", target->get_content());
+
                     break;
                 }
                 else std::this_thread::yield();

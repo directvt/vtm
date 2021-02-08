@@ -590,7 +590,7 @@ int main(int argc, char* argv[])
             + ansi::fgc(clr) + "DOS" + ansi::nil() + " and older versions of the "
             + ansi::fgc(clr) + "Win32 console" + ansi::nil() + " of "
             + ansi::fgc(clr) + "Microsoft Windows" + ansi::nil() + "."
-            + "";
+            + "\n";
         
         text topic2;
         text topic;
@@ -951,7 +951,7 @@ int main(int argc, char* argv[])
                 + "例で、キャラクタとグラフィックのどちらも扱うことができる。日本では、ヤマハ"
                 + "のYIS(YGT - 100)もよく知られている。また、コンピュータグラフィックスの黎"
                 + "明期には、多くのメインフレームにオプションとして専用のグラフィック端末が用意"
-                + "されていた。";
+                + "されていた。\n";
             
             topic += intro;
             topic += data;
@@ -1017,7 +1017,7 @@ int main(int argc, char* argv[])
                         c0 += step;
                     }
                     cellatix_text +=
-                        utf::repeat(cellatix_text_01, 25) 
+                        utf::repeat(cellatix_text_01, 26) 
                         + (i == 99 ? ""s : ansi::eol());
                 }
                 else
@@ -1029,7 +1029,7 @@ int main(int argc, char* argv[])
                         c0 -= step;
                     }
                     cellatix_text +=
-                        utf::repeat(cellatix_text_00, 25) 
+                        utf::repeat(cellatix_text_00, 26) 
                         + (i == 99 ? ""s : ansi::eol());
                 }
             }
@@ -1634,9 +1634,17 @@ int main(int argc, char* argv[])
                         auto layers = frame->attach<cake>();
                         auto scroll = layers->attach<rail>();
                         {
+                        #ifdef DEMO
+                            auto block = scroll->attach<post>();
+                            block->color(whitelt, blackdk);
+                            block->topic = ansi::fgc(yellowlt).mgl(4).mgr(4).wrp(faux) + "\n\nLogs is not availabe in DEMO mode\n\n"
+                                + ansi::nil().wrp(true) + "Use the full version of VTM to run Logs.";
+                        #else
                             auto block = scroll->attach<post_logs>();
                             block->color(whitelt, blackdk);
+                        #endif
                         }
+
                         scroll_bars(layers, scroll);
                         break;
                     }

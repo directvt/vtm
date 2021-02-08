@@ -1810,6 +1810,16 @@ namespace netxs::console
                 }
             }
         }
+        // for bug testing
+        auto get_utf8()
+        {
+            text yield;
+            auto& lyric = *this->lyric;
+            lyric.each(
+                [&](cell& c) { yield += c.txt(); }
+            );
+            return yield;
+        }
     };
 
     class rope // richtext: Cascade of the identical paragraphs.
