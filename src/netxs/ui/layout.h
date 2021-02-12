@@ -365,6 +365,24 @@ namespace netxs::ui
         twod coor;
         twod size;
 
+        // rect: Intersect two rects. If NESTED==true when use dot_00 as a base corner.
+        template<bool NESTED = faux>
+        constexpr
+        rect clip (rect block) const
+        { 
+            auto clamp = [&](auto const& base, auto const& apex)
+            {
+                auto block_apex = block.coor + block.size;
+                block.coor = std::clamp(block.coor, base, apex);
+                block.size = std::clamp(block_apex, base, apex) - block.coor;
+            };
+
+            if constexpr (NESTED) clamp(dot_00, size);
+            else                  clamp(coor,   coor + size);
+
+            return block;
+        }
+        
         operator bool     ()              const { return size.x != 0 && size.y != 0;       }
         auto   area       ()              const { return size.x * size.y;                  }
         twod   map        (twod const& p) const { return p - coor;                         }
@@ -379,7 +397,6 @@ namespace netxs::ui
         bool hittest (twod const& p) const
         {
             bool test;
-
             if (size.x > 0)
             {
                 auto t = p.x - coor.x;
@@ -405,30 +422,11 @@ namespace netxs::ui
                 }
                 return test;
             }
-
             return faux;
-        }
-        // rect: Intersect two rects. If NESTED==true when use dot_00 as a base corner.
-        template<bool NESTED = faux>
-        constexpr
-        rect clip (rect block) const
-        { 
-            auto clamp = [&](auto const& base, auto const& apex)
-            {
-                auto block_apex = block.coor + block.size;
-                block.coor = std::clamp(block.coor, base, apex);
-                block.size = std::clamp(block_apex, base, apex) - block.coor;
-            };
-
-            if constexpr (NESTED) clamp(dot_00, size);
-            else                  clamp(coor,   coor + size);
-
-            return block;
         }
         rect rotate (twod const& dir) const
         {
             rect r;
-
             if ((dir.x ^ size.x) < 0)
             {
                 r.coor.x = coor.x + size.x;
@@ -450,13 +448,11 @@ namespace netxs::ui
                 r.coor.y = coor.y;
                 r.size.y = size.y;
             }
-
             return r;
         }
         rect normalize () const
         {
             rect r;
-            
             if (size.x < 0)
             {
                 r.coor.x =  coor.x + size.x;

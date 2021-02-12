@@ -1,6 +1,9 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
+#pragma clang diagnostic ignored "-Wunused-variable"
+#pragma clang diagnostic ignored "-Wunused-function"
+
 #include "netxs/os/system.h"
 
 #include <fstream> // std::ifstream

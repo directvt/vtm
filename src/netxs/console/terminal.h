@@ -379,13 +379,24 @@ namespace netxs::ui
             {
                 while(delta-- > 0 ) fork();
             }
+            
+            //auto h_test = cover.height() + 1;
+            //if (h_test != count)
+            //{
+            //    log("h_test != count (", h_test, ", ", count, ")");
+            //}
 
             // Register viewport
             auto viewport = rect{{ 0, basis }, { width, viewport_height }};
             flow::minmax(viewport);
             height = cover.height() + 1;
+            
 
             align_basis();
+            //todo merge with main loop here
+            rebuild_upto_id(batch.front().selfid);
+            //log("ok");
+
             return twod{ width, height };
         }
         void output(face& canvas)
@@ -461,8 +472,9 @@ namespace netxs::ui
         // rods: Rebuild overlaps from bottom to line with selfid=top_id (inclusive)
         void rebuild_upto_id(iota top_id)
         {
+            //log("top_id= ", top_id, " count= ", count, " batch.size=", batch.size());
             auto head = batch.rbegin();
-            auto tail = head + count - get_line_index_by_id(top_id);
+            auto tail = head + count - get_line_index_by_id(top_id) - 1;
             do
             {
                 auto& line =*head;
@@ -483,7 +495,7 @@ namespace netxs::ui
             auto i = 0;
             for(auto& l : batch)
             {
-                yield += " =>" + std::to_string(i++) + "<= ";
+                yield += "\n =>" + std::to_string(i++) + "<= ";
                 yield += l.stanza->get_utf8();
             }
             return yield;
@@ -562,13 +574,18 @@ namespace netxs::ui
                     vt::csier.table[DECSTBM] = VT_PROC{ p->scr( q   ); };  // CSI r; b r - Set scrolling region (t/b: top+bottom)
 
                     vt::intro[ctrl::ESC]['M']= VT_PROC{ p->ri(); }; // ESC M  Reverse index
+                    vt::intro[ctrl::ESC]['H']= VT_PROC{ p->na("ESC H  Place tabstop at the current caret posistion"); }; // ESC H  Place tabstop at the current caret posistion
+                    vt::intro[ctrl::ESC]['c']= VT_PROC{ p->boss.decstr(); }; // ESC c (same as CSI ! p) Full reset (RIS)
+
                     vt::intro[ctrl::BS ]     = VT_PROC{ p->cuf(-q.pop_all(ctrl::BS )); };
                     vt::intro[ctrl::DEL]     = VT_PROC{ p->del( q.pop_all(ctrl::DEL)); };
                     vt::intro[ctrl::TAB]     = VT_PROC{ p->tab( q.pop_all(ctrl::TAB)); };
-                    vt::intro[ctrl::EOL]     = VT_PROC{ p->eol( q.pop_all(ctrl::EOL)); };
-                    vt::intro[ctrl::CR ]     = VT_PROC{
-                            if (q.pop_if(ctrl::EOL)) p->eol(1);
-                            else                     p->home(); };
+                    //vt::intro[ctrl::EOL]     = VT_PROC{ p->eol( q.pop_all(ctrl::EOL)); };
+                    //vt::intro[ctrl::CR ]     = VT_PROC{
+                    //        if (q.pop_if(ctrl::EOL)) p->eol(1);
+                    //        else                     p->home(); };
+                    vt::intro[ctrl::CR ]     = VT_PROC{ p->home(); };
+                    vt::intro[ctrl::EOL]     = VT_PROC{ p->dn ( q.pop_all(ctrl::EOL)); };
 
                     vt::csier.table_quest[DECSET] = VT_PROC{ p->boss.decset(p, q); };
                     vt::csier.table_quest[DECRST] = VT_PROC{ p->boss.decrst(p, q); };
@@ -634,6 +651,11 @@ namespace netxs::ui
 
             // Implement text manipulation procs
             //
+            template<class T>
+            void na(T&& note)
+            {
+                log("not implemented: ", note);
+            }
             void not_implemented_CSI(iota i, fifo& q)
             {
                 text params;
@@ -802,8 +824,8 @@ namespace netxs::ui
                     finalize();
                     auto pos = caret->chx();
                     caret->ins(n);
-                    caret->chx(pos);
                     finalize();
+                    caret->chx(pos);
                 }
             }
             // wall: CSI n P  Delete (not Erase) letters under the caret.
@@ -823,12 +845,15 @@ namespace netxs::ui
                 brush.txt(whitespace);
 
                 //todo unify for size.y > 1
-                //todo revise shifting to the left (right? RTL?)
                 if (n > 0)
                 {
                     if (caret < size)
                     {
-                        //todo unify all (use para methods like para::ins() etc)
+                        auto max_n = width - caret % width;
+                        n = std::min(n, max_n);
+                        auto right_margin = max_n + caret;
+
+                        //todo unify all
                         if (n >= size - caret)
                         {
                             auto dst = lyric.data() + caret;
@@ -840,14 +865,16 @@ namespace netxs::ui
                         }
                         else
                         {
+                            if (size < right_margin) lyric.crop(right_margin);
+
                             auto dst = lyric.data() + caret;
-                            auto end = dst + std::min(n, size - (caret + n));
-                            auto src = dst + n;
+                            auto src = lyric.data() + caret + n;
+                            auto end = dst + (max_n - n);
                             while (dst != end)
                             {
                                 *dst++ = *src++;
                             }
-                            end = lyric.data() + size;
+                            end = lyric.data() + right_margin;
                             while (dst != end)
                             {
                                 *dst++ = brush;
@@ -906,8 +933,11 @@ namespace netxs::ui
             void cuf(iota n)
             {
                 finalize();
-                coord.x += n;
-                set_coord();
+                //coord.x += n;
+                //set_coord();
+
+                auto posx = caret->chx();
+                caret->chx(posx += n);
             }
             // wall: CSI n G  Absolute horizontal caret position (1-based)
             void chx(iota n)
@@ -927,7 +957,9 @@ namespace netxs::ui
             void cup(fifo& queue)
             {
                 finalize();
-                auto p = twod(queue(1), queue(1));
+                auto y = queue(1);
+                auto x = queue(1);
+                auto p = twod{ x, y };
                 auto viewport = twod{ width, viewport_height };
                 coord = std::clamp(p, dot_11, viewport);//todo unify
                 coord-= dot_11;
@@ -960,17 +992,19 @@ namespace netxs::ui
             // wall: '\r'  Go to home of visible line instead of home of para
             void home()
             {
-                //todo reimplement term::home() - don't change current_para
                 finalize();
+                auto posx = caret->chx();
                 if (batch[current_para].wrapln)
                 {
-                    coord.x = 0;
+                    if (posx && (posx % width == 0)) posx--;
+                    caret->chx(posx -= posx % width);
+
+                    //caret->chx(posx -= posx % width);
                 }
                 else
                 {
-                    coord.x -= coord.x % width;
+                    caret->chx(0);
                 }
-                set_coord();
             }
             // wall: '\n' || '\r\n'  Carriage return + Line feed
             void eol(iota n)
@@ -988,7 +1022,7 @@ namespace netxs::ui
                 auto current_brush = caret->brush;
                 switch (n)
                 {
-                    case commands::erase::display::below: // n = 0  Erase viewport after caret (default).
+                    case commands::erase::display::below: // n = 0(default)  Erase viewport after caret.
                     {
                         // Cut all lines above and current line
                         cut_above();
@@ -1143,29 +1177,36 @@ namespace netxs::ui
                     case 1:    // Cursor keys application mode.
                         mode_DECCKM = true;
                         break;
+                    case 7:    // Enable auto-wrap
+                        target->wrp(true);
+                        break;
                     case 25:   // Caret on.
                         caret.show();
                         target->caret_visible = true; //todo unify
                         break;
-                    case 1000: // Send Mouse X & Y on button press and release.
-                    case 1001: // Use Hilite Mouse Tracking.
-                    case 1002: // Use Cell Motion Mouse Tracking.
-                    case 1003: // Use All Motion Mouse Tracking.
-                    case 1005: // Enable UTF - 8 Mouse Mode.
+                    case 1000: // Send mouse X & Y on button press and release.
+                    case 1001: // Use Hilite mouse tracking.
+                    case 1002: // Use cell motion mouse tracking.
+                    case 1003: // Use all motion mouse tracking.
+                    case 1005: // Enable UTF - 8 mouse mode.
                         break;
-                    case 1006: // Enable SGR Mouse Mode.
+                    case 1006: // Enable SGR mouse mode.
                         break;
 
-                    case 1004: // Send FocusIn / FocusOut events.
+                    case 1004: // Enable sending FocusIn/FocusOut events.
                         break;
 
                     case 1048: // Save cursor
                         break;
-                    case 1047: // Use Alternate Screen Buffer
-                    case 1049: // Save cursor and Use Alternate Screen Buffer, clearing it first.  This control combines the effects of the 1 0 4 7 and 1 0 4 8  modes.
+                    case 1047: // Use alternate screen buffer
+                    case 1049: // Save cursor and Use alternate screen buffer, clearing it first.  This control combines the effects of the 1047 and 1048  modes.
                         target->cook();
                         target = &altbuf;
                         break;
+                    case 2004: // Set bracketed paste mode.
+                        log("decset: CSI ? 2004 h  is not implemented");
+                        break;
+
                     default:
                         break;
                 }
@@ -1177,32 +1218,39 @@ namespace netxs::ui
             {
                 switch (q)
                 {
-                    case 1:    // Cursor keys ANI mode.
+                    case 1:    // Cursor keys ANSI mode.
                         mode_DECCKM = faux;
+                        break;
+                    case 7:    // Disable auto-wrap
+                        target->wrp(faux);
                         break;
                     case 25:   // Caret off.
                         caret.hide();
                         target->caret_visible = faux; //todo unify
                         break;
-                    case 1000: // Dont send Mouse X & Y on button press and release.
-                    case 1001: // Dont use Hilite(c) Mouse Tracking.
-                    case 1002: // Dont use Cell Motion Mouse Tracking.
-                    case 1003: // Dont use All Motion Mouse Tracking.
-                    case 1005: // Disable UTF - 8 Mouse Mode.
+                    case 1000: // Don't send mouse X & Y on button press and release.
+                    case 1001: // Don't use Hilite(c) mouse tracking.
+                    case 1002: // Don't use cell motion mouse tracking.
+                    case 1003: // Don't use all motion mouse tracking.
+                    case 1005: // Disable UTF - 8 mouse mode.
                         break;
-                    case 1006: // Disable SGR Mouse Mode.
+                    case 1006: // Disable SGR mouse mode.
                         break;
 
-                    case 1004: // Dont Send FocusIn / FocusOut events.
+                    case 1004: // Don't send FocusIn / FocusOut events.
                         break;
 
                     case 1048: // Restore cursor
                         break;
-                    case 1047: // Use Normal Screen Buffer
-                    case 1049: // Use Normal Screen Buffer and restore cursor
+                    case 1047: // Use normal screen nuffer
+                    case 1049: // Use normal screen nuffer and restore cursor
                         target->cook();
                         target = &scroll;
                         break;
+                    case 2004: // Set bracketed paste mode.
+                        log("decset: CSI ? 2004 l  is not implemented");
+                        break;
+
                     default:
                         break;
                 }
@@ -1246,6 +1294,12 @@ namespace netxs::ui
                     utf::change(trans, "\033[B", "\033OB");
                     utf::change(trans, "\033[C", "\033OC");
                     utf::change(trans, "\033[D", "\033OD");
+
+                    utf::change(trans, "\033[1A", "\033OA");
+                    utf::change(trans, "\033[1B", "\033OB");
+                    utf::change(trans, "\033[1C", "\033OC");
+                    utf::change(trans, "\033[1D", "\033OD");
+
                     ptycon.write(trans);
                 }
                 else
@@ -1256,7 +1310,7 @@ namespace netxs::ui
                 #ifdef KEYLOG
                     std::stringstream d;
                     view v = gear.keystrokes;
-                    log("key strokes raw: ", v);
+                    log("key strokes raw: ", utf::debase(v));
                     while (v.size())
                     {
                         d << (int)v.front() << " ";
@@ -1309,7 +1363,7 @@ namespace netxs::ui
                 e2::try_sync guard;
                 if (guard)
                 {
-                    log(" 1. target content: ", target->get_content());
+                    //log(" 1. target content: ", target->get_content());
 
 
                     SIGNAL(e2::general, e2::debug::output, shadow);
@@ -1341,7 +1395,7 @@ namespace netxs::ui
                     SIGNAL(e2::release, base::size_event, new_size);
 
                     base::deface();
-                    log(" 2. target content: ", target->get_content());
+                    //log(" 2. target content: ", target->get_content());
 
                     break;
                 }

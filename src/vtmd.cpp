@@ -2,7 +2,7 @@
 // Licensed under the MIT license.
 
 //#define DEMO
-#define MONOTTY_VER "Monotty Desktop Preview v0.2.9"
+#define MONOTTY_VER "Monotty Desktopio Preview v0.2.9"
 #define PROD
 
 // Terminal's default line wrapping mode
@@ -17,6 +17,9 @@
 
 // Show codepoint by the "logs"
 #define SHOW_CPOINTS true
+
+#pragma clang diagnostic ignored "-Wunused-variable"
+#pragma clang diagnostic ignored "-Wunused-function"
 
 #include "netxs/os/system.h"
 #include "netxs/text/utf.h"
@@ -116,7 +119,7 @@ text appstore_head = ansi::nil().eol()
 //+ ansi::fgc(whitelt).bgc().jet(bias::left).wrp(true)
 + "A digital distribution platform, developed "
 "and maintained by NetXS Group, for terminal "
-"apps on its Monotty Desktop Environment. "
+"apps on its desktop environment. "
 "The store allows users to browse and download "
 "apps developed with Desktopio software "
 "development kit.\n"
@@ -202,7 +205,7 @@ text desktopio_body = ansi::nil().eol()
 + " Monotty Desktop "
 + "\n\n"
 + ansi::fgc().bgc().jet(bias::left).wrp(true)
-+ "Monotty Desktop is a cross-platform, full-featured desktop environment."
++ "Monotty Desktopio is a cross-platform, full-featured desktop environment."
 + " A user interface where by all output is presented in the form of text.\n"
 + "The first biggest advantage of this desktop environment concept that "
 + "it can be used directly over SSH connections, no additional protocol needed.\n"
@@ -450,7 +453,7 @@ int main(int argc, char* argv[])
         });
     
     {
-        auto banner = [&]() { log("Monotty Desktop Environment Server"); };
+        auto banner = [&]() { log("Monotty Desktopio Environment Server"); };
         bool daemon = faux;
         auto getopt = os::args{ argc, argv };
         while (getopt)
@@ -1284,8 +1287,13 @@ int main(int argc, char* argv[])
                             #endif
 
                             block->color(whitelt, blackdk);
-                        }
+                            #ifdef DEMO
+                                twod minsz = { 20,1 }; // mc crashes when window is too small
+                                winsz = std::max(winsz, minsz);
+                                block->limits(minsz);
+                            #endif
 
+                        }
                             //scroll->color(whitelt, 0xFF121212);
                             //auto block = scroll->attach<term>(winsz, "cmd");
                             //block->color(whitelt, 0xFF000000);
@@ -1623,6 +1631,11 @@ int main(int argc, char* argv[])
                             #endif
 
                             block->color(whitelt, blackdk);
+                            #ifdef DEMO
+                                twod minsz = { 20,1 }; // mc crashes when window is too small
+                                winsz = std::max(winsz, minsz);
+                                block->limits(minsz);
+                            #endif
                         }
                         scroll_bars_term(layers, scroll);
                         break;

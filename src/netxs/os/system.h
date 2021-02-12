@@ -2447,7 +2447,8 @@ namespace netxs::os
                     // terminal of the current process.
                     // Current process must be a session leader (::setsid()) and not have
                     // a controlling terminal already.
-                    // arg = 0: 1 - to stole fds from another process, it doesn't matter here
+                    // arg = 0: 1 - to stole fds from another process,
+                    // it doesn't matter here
                     if (::ioctl(fds, TIOCSCTTY, 0) == -1)
                         log("cons: assign controlling terminal error ", errno);
                 

@@ -1627,7 +1627,7 @@ namespace netxs::console
             if (!SIGNAL(TIER, EVENT, data))
             {
                 base::toboss([&](auto& boss) {
-                    boss.base::riseup<TIER, EVENT>(data);
+                    boss.base::template riseup<TIER, EVENT>(data);
                     });
             }
         }
@@ -2362,7 +2362,8 @@ namespace netxs::console
                     if (gear.captured(boss.bell::id))
                     {
                         auto& data = slots[gear.id];
-                        if (data.ctrl = gear.meta(hids::CTRL) || gear.meta(hids::RCTRL))
+                        data.ctrl = gear.meta(hids::CTRL) || gear.meta(hids::RCTRL);
+                        if (data.ctrl)
                             boss.SIGNAL(e2::preview, e2::form::layout::strike, data.slot);
                     }
                 };

@@ -1674,7 +1674,7 @@ namespace netxs::ui
         {
             if (on_pager && calc.follow())
             {
-                send();
+                send<events[AXIS]>();
             }
             return on_pager;
         }
@@ -1707,7 +1707,7 @@ namespace netxs::ui
                 {
                     auto dir = gear.whldt < 0 ? 1 : -1;
                     calc.pager(dir);
-                    send();
+                    send<events[AXIS]>();
                     gear.dismiss();
                 }
             };
@@ -1792,7 +1792,7 @@ namespace netxs::ui
                         if (auto delta = xy(gear.mouse::delta.get()))
                         {
                             calc.stepby(delta);
-                            send();
+                            send<events[AXIS]>();
                             gear.dismiss();
                         }
                     }

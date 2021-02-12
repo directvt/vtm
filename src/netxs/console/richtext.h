@@ -217,10 +217,9 @@ namespace netxs::console
             bool operator == (body const& b) const
             {
                 return token == b.token;
-
-                sizeof(*this);
-                sizeof(param.shared.var);
-                sizeof(param.unique.var);
+                // sizeof(*this);
+                // sizeof(param.shared.var);
+                // sizeof(param.unique.var);
             }
             bool operator != (body const& b) const
             {
@@ -298,8 +297,7 @@ namespace netxs::console
             bool operator == (clrs const& c) const
             {
                 return bg == c.bg && fg == c.fg;
-
-                sizeof(*this);
+                //sizeof(*this);
             }
             bool operator != (clrs const& c) const
             {
@@ -340,13 +338,12 @@ namespace netxs::console
         cell(char c)
             : gc{ c }
         { 
-            sizeof(glyf<void>);
-            sizeof(clrs);
-            sizeof(body);
-            sizeof(id_t);
-            sizeof(id_t);
-
-            sizeof(cell);
+            // sizeof(glyf<void>);
+            // sizeof(clrs);
+            // sizeof(body);
+            // sizeof(id_t);
+            // sizeof(id_t);
+            // sizeof(cell);
         }
 
         cell(view chr)
@@ -605,7 +602,7 @@ namespace netxs::console
                     }
                 }
             }
-            else return faux;
+            return faux;
         }
     };
 
