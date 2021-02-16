@@ -4,6 +4,7 @@
 #ifndef NETXS_RICHTEXT_HPP
 #define NETXS_RICHTEXT_HPP
 
+//todo deprecate
 #include <cstring>  // std::memcpy
 
 #include "ansi.hpp"
@@ -40,7 +41,7 @@ namespace netxs::console
                 unsigned char jumbo : 1;                  // grapheme cluster length overflow bit
             };
 
-            // there is no need to reset/clear/flush the map because 
+            // there is no need to reset/clear/flush the map because
             // count of different grapheme clusters is finite
             static constexpr size_t         limit = sizeof(uint64_t);
             static std::hash<view>          coder;
@@ -75,7 +76,7 @@ namespace netxs::console
             {
                 return token == c.token;
             }
-            
+
             // Check the grapheme clusters are the same.
             bool same(glyf const& c) const
             {
@@ -133,6 +134,7 @@ namespace netxs::console
                     token = 0;
                     state.count = count;
                     state.width = cwidth;
+                    //todo deprecate
                     std::memcpy(glyph + 1, utf8.data(), count);
                 }
             }
@@ -163,7 +165,7 @@ namespace netxs::console
             // e.g.: the degree of thickness or italiciety/oblique varies from 0 to 255, etc.,
             // and should not be represented as a flag
             //
-            // In Chinese, the underline/underscore is a punctuation mark for proper names 
+            // In Chinese, the underline/underscore is a punctuation mark for proper names
             // and should never be used for emphasis
             //
             // weigth := 0..255
@@ -206,7 +208,7 @@ namespace netxs::console
             }
             param;
 
-            constexpr body () 
+            constexpr body ()
                 : token(0)
             { }
 
@@ -337,7 +339,7 @@ namespace netxs::console
 
         cell(char c)
             : gc{ c }
-        { 
+        {
             // sizeof(glyf<void>);
             // sizeof(clrs);
             // sizeof(body);
@@ -347,7 +349,7 @@ namespace netxs::console
         }
 
         cell(view chr)
-        { 
+        {
             gc.set(chr);
         }
 
@@ -415,7 +417,7 @@ namespace netxs::console
         {
             //if (c.uv.fg.chan.a) uv.fg = c.uv.fg;
             ////uv.param.fg.mix(c.uv.param.fg);
-            
+
             if (uv.fg.chan.a == 0xFF) uv.fg.mix_one(c.uv.fg);
             else                      uv.fg.mix(c.uv.fg);
 
@@ -569,7 +571,7 @@ namespace netxs::console
         void isepar (bool b) { st.param.unique.var.isepar = b; } // cell: Set the presence of the INVISIBLE SEPARATOR (U+2063).
         void inplus (bool b) { st.param.unique.var.inplus = b; } // cell: Set the presence of the INVISIBLE PLUS (U+2064).
         void zwnbsp (bool b) { st.param.unique.var.zwnbsp = b; } // cell: Set the presence of the ZERO WIDTH NO-BREAK SPACE (U+FEFF).
-        
+
         uint8_t     bga () const { return uv.bg.chan.a;  } // cell: Return Background alpha/transparency.
         uint8_t     fga () const { return uv.fg.chan.a;  } // cell: Return Foreground alpha/transparency.
         rgba&       bgc ()       { return uv.bg;         } // cell: Return Background color.
@@ -711,10 +713,10 @@ namespace netxs::console
         void  crop(twod const& newsize) // core: Resize while saving the bitmap.
         {
             core block{ region.coor, newsize };
-            
+
             auto full = [](auto& dst, auto& src) { dst = src; };
             netxs::onbody(block, *this, full);
-            
+
             region.size = newsize;
             client.size = region.size;
             swap(block);
@@ -878,7 +880,7 @@ namespace netxs::console
                     if (width == 2) // Left part
                     {
                         if (state.wdt() == 2) badfx(state, yield);  // Left part alone
-                        
+
                         c.scan_attr(state, yield);
                         state.set_gc(c); // Save char from c for the next iteration
                     }
@@ -950,7 +952,7 @@ namespace netxs::console
             region.coor.y += new_sz.y - a_size.y;
             region.size = b_size;
             netxs::inbody<faux>(block,   src, region, dot_00, full);
-            
+
             swap(block);
             digest++;
         }
@@ -985,7 +987,7 @@ namespace netxs::console
         { }
 
         void commit(deco const& f)
-        { 
+        {
             cursor = f.cursor;
             adjust = f.adjust;
             wrapln = f.wrapln;
@@ -1019,12 +1021,12 @@ namespace netxs::console
         void wb	(iota b)        { margin.foot = b;        }
         void wn	(side const& s)
         {
-            margin.west = s.l; 
+            margin.west = s.l;
             margin.head = s.t;
-            margin.east = s.r; 
+            margin.east = s.r;
             margin.foot = s.b;
         }
-        void tb	(iota n) 
+        void tb	(iota n)
         {
             if (n)
             {
@@ -1054,7 +1056,7 @@ namespace netxs::console
 
             if (adjust == right) coor.x = margin.width()  - 1 - coor.x;
             if (rlfeed == true ) coor.y = margin.height() - 1 - coor.y;
-            
+
             coor += margin.coor();
             return coor;
         }
@@ -1108,7 +1110,7 @@ namespace netxs::console
         template<ansi::fn CMD>
         static void exec_dc(flow& f, iota a) { if (f.custom) f.custom(CMD, a); }
         //static void exec_dc(flow& f, iota a) { f.custom(CMD, a); }
-        
+
         // flow: Abstract handler
         //       ansi::fn::ed
         //       ansi::fn::el
@@ -1176,11 +1178,11 @@ namespace netxs::console
             {
                 auto& coord = printout.coor;
                 auto& width = printout.size.x;
-                auto& start = straight ? startpos 
+                auto& start = straight ? startpos
                                        : textline.size.x;
                 print(coord, start, width);
             }
-            
+
             highness = textline.size.y;
         }
         //auto middle() { return (pagearea.size.x >> 1) - (textline.size.x >> 1) - origin.x; }
@@ -1215,14 +1217,14 @@ namespace netxs::console
             output<faux, RtoL, ReLF>(print);
         }
 
-        template<class T> constexpr 
-        iota get_len(T p) 
+        template<class T> constexpr
+        iota get_len(T p)
         {
             if constexpr (std::is_same<T, twod>::value) return p.x;
             else                                        return static_cast<iota>(p);
         }
-        template<class T> constexpr 
-        rect get_vol(T p) 
+        template<class T> constexpr
+        rect get_vol(T p)
         {
             if constexpr (std::is_same<T, twod>::value) return { dot_00, p };
             else                                        return { dot_00, { static_cast<iota>(p),  1 } };
@@ -1324,7 +1326,7 @@ namespace netxs::console
         void rc () { deco::commit(selfcopy); } // flow: Restore state.
         void reset() // flow: Reset flow state.
         {
-            deco::zz(); 
+            deco::zz();
             flow::sc();
             boundary = cursor;
         }
@@ -1343,10 +1345,10 @@ namespace netxs::console
         iota        width;
 
     public:
-        constexpr 
+        constexpr
         shot(shot const&) = default;
 
-        constexpr 
+        constexpr
         shot(core const& basis, iota begin, iota piece)
             : basis{ basis },
               start{ std::max(begin, 0) },
@@ -1394,7 +1396,7 @@ namespace netxs::console
             if (joint)
             {
                 auto fuse = [&](auto& dst, auto& src) { dst.fusefull(src); };
-                
+
                 if constexpr (RtoL)
                 {
                     place.coor.x += place.size.x - joint.coor.x - joint.size.x;
@@ -1454,7 +1456,7 @@ namespace netxs::console
         {
             ansi::parse(utf8, this);
         }
-        
+
         para& operator = (view utf8) // para: Replace with a new text. Preserve current attributes.
         {
             wipe(brush);
@@ -1471,7 +1473,7 @@ namespace netxs::console
         //	brush = p.brush;
         //	return *this;
         //}
-        
+
         operator writ const& () const { return locus; }
 
         void decouple() { lyric = std::make_shared<core>(*lyric); } // para: Make canvas isolated copy.
@@ -1501,7 +1503,6 @@ namespace netxs::console
 
             width = 0;
             caret = 0;
-            
             //prime = spare = brush = c;
             prime = brush = c;
 
@@ -1621,7 +1622,7 @@ namespace netxs::console
 
                 lyric.crop(twod{ newsz, std::max(lyric.size().y,1) });
             }
-            
+
             auto it = lyric.data() + caret;
             merge([&](auto c) { *it++ = c; });
 
@@ -1649,7 +1650,7 @@ namespace netxs::console
             //proto.clear();
             //width = 0;
         }
-        
+
         auto& set(cell const& c)  { brush.set(c); return *this;   } // para: Set the brush using the cell (keeping link and paragraph id).
         void  nil()               { brush.set(spare);             } // para: Restore saved SGR attributes.
         void  sav()               { spare.set(brush);             } // para: Save current SGR attributes.
@@ -1665,16 +1666,10 @@ namespace netxs::console
         void  itc(bool b)         { brush.itc(b);                 } // para: Italic.
         void  inv(bool b)         { brush.inv(b);                 } // para: Inversion.
         void  und(bool b)         { brush.und(b);                 } // para: Underline.
-        auto chx() const          { return caret;  }
-        void chx(iota new_pos)    
-        {
-            //if (new_pos > 1000)
-            //	throw;
-            caret = new_pos;
-        }
-
-        auto  id() const          { return parid;  }
-        void  id(id_t newid)      { parid = newid; }
+        auto chx() const          { return caret;                 }
+        void chx(iota new_pos)    { caret = new_pos;              }
+        auto  id() const          { return parid;                 }
+        void  id(id_t newid)      { parid = newid;                }
 
         void trim_to(iota max_width)
         {
@@ -1708,7 +1703,7 @@ namespace netxs::console
 
         //todo deprecate cursor movement
         void  cuf(iota n) // para: Move caret by n.
-        { 
+        {
             cook();
             caret = std::max(caret+n, 0);
         }
@@ -1716,8 +1711,8 @@ namespace netxs::console
         {
             /*
             As characters are deleted, the remaining characters
-            between the cursor and right margin move to the left. 
-            Character attributes move with the characters. 
+            between the cursor and right margin move to the left.
+            Character attributes move with the characters.
             The terminal adds blank characters at the right margin.
             */
 
@@ -1783,7 +1778,7 @@ namespace netxs::console
                 utf::WHITESPACE_CHARACTER_UTF8_VIEW,
                 utf::prop(0x20, 1)
             };
-            
+
             for (auto i = 0; i < n; ++i)
                 post(space);
         }
@@ -1847,7 +1842,7 @@ namespace netxs::console
 
         operator writ const& () const { return *source; }
 
-        // rope: Return a substring rope the source content. 
+        // rope: Return a substring rope the source content.
         //       ! No checking of boundaries !
         rope substr(iota start, iota width) const
         {
@@ -1870,14 +1865,14 @@ namespace netxs::console
 
             return rope{ first, start, end, piece, { width, volume.y } };
         }
-        // rope: Print the source content using the specified print proc, 
+        // rope: Print the source content using the specified print proc,
         //       which returns the number of characters printed.
         template<bool RtoL>
         void output(core& canvas, twod locate) const
         {
             auto total = volume.x;
 
-            auto draw = [&](auto& item, auto start, auto width) 
+            auto draw = [&](auto& item, auto start, auto width)
             {
                 auto line = item.substr(start, width);
                 auto size = line.template output<RtoL>(canvas, locate);
@@ -1904,7 +1899,7 @@ namespace netxs::console
                 auto refer = finish;
                 auto& item = *refer;
                 auto piece = item.size().x - suffix;
-                
+
                 iota start, width, yield;
                 crop(piece, total, start, width);
                 yield = draw(item, start, width);
@@ -1931,7 +1926,7 @@ namespace netxs::console
                 }
             }
         }
-        constexpr 
+        constexpr
         auto  size  () const { return volume;        } // rope: Return volume of the source content.
         auto  length() const { return volume.x;      } // rope: Return the length of the source content.
         auto& mark  () const { return finish->brush; } // rope: Return the the last paragraph brush state.
@@ -2105,9 +2100,9 @@ namespace netxs::console
             layer->wipe(brush);
             return *this;
         }
-        
+
         // page: Disintegrate the page content into atomic contiguous pieces - ropes.
-        //       Call publish(rope{first, last, length}): 
+        //       Call publish(rope{first, last, length}):
         //       a range of [ first,last ] is the uniform consecutive paragraphs set.
         //       Length is the sum of the length of each paragraph.
         template<class F>
@@ -2160,7 +2155,7 @@ namespace netxs::console
             else
                 parts.emplace(id, layer);
         }
-        // page: Add locus command. In case of text presence to change 
+        // page: Add locus command. In case of text presence to change
         //       current target otherwise abort content building.
         void task(ansi::rule const& cmd)
         {
@@ -2170,12 +2165,12 @@ namespace netxs::console
             }
             layer->locus.push(cmd);
         }
-        
+
         //// page: Backspace char, move caret back.
         //void backspace_chr(iota n) { layer->cuf(-n); }
 
         // page: Backspace key, delete n previous characters.
-        // void  bsp(iota n) 
+        // void  bsp(iota n)
         // {
         // 	if (layer->caret >= n )
         // 	{
@@ -2186,10 +2181,10 @@ namespace netxs::console
         // 	{
         // 		auto  here = layer->caret;
         // 		auto there = n - here;
-        // 	
+        //
         // 		layer->caret = 0;
         // 		if (here) layer->del(here);
-        // 	
+        //
         // 		{
         // 			if (layer != batch.begin())
         // 			{
@@ -2215,7 +2210,7 @@ namespace netxs::console
         // 				}
         // 			}
         // 		}
-        // 	
+        //
         // 		//while (there)
         // 		//{
         // 		//	//todo concat layer with previous and try to move caret back then del(n)
@@ -2279,7 +2274,7 @@ namespace netxs::console
         //	//{
         //	//	layer->lyric.pop_back();
         //	//}
-        //	//else 
+        //	//else
         //	//{
         //	//	if (layer != batch.begin())
         //	//	{
@@ -2454,7 +2449,7 @@ namespace netxs::console
                         }
                     }
                 }
-            }; 
+            };
 
             // Get vertical position of the specified paragraph.
             auto find = [&](auto const& combo)
@@ -2471,11 +2466,11 @@ namespace netxs::console
                 decoy = caret && inside(deco::cp());
             }
             else
-            { 
+            {
                 textpage.stream(find);
             }
         }
-        // face: Reflow text page on the canvas and hold position 
+        // face: Reflow text page on the canvas and hold position
         //       of the top visible paragraph while resizing.
         void reflow(page& textpage)
         {
@@ -2615,11 +2610,11 @@ namespace netxs::console
             return { flow::corner, cover };
         }
 
-        // face: BACKSPACE Erase previous cell in line 
+        // face: BACKSPACE Erase previous cell in line
         //       and move the cursor one step back.
         //auto& bsp (iota n)
         //{
-        //	//todo EGC should we erase last codepoint 
+        //	//todo EGC should we erase last codepoint
         //	//     in grapheme cluster instead of wiping the cell?
         //
         //	auto caret = flow::cp();
@@ -2662,7 +2657,7 @@ namespace netxs::console
                             block.size.y = std::max(caret.y - flow::margin.coor().y, 0);
                             break;
 
-                        case 3:	//todo implement Erase Scrollback 
+                        case 3:	//todo implement Erase Scrollback
                         case 2:	// Erase All.
                             block.size.y = flow::margin.height();
                             break;
@@ -2696,17 +2691,17 @@ namespace netxs::console
                     //                            : core::marker.bgc());// last used brush
                     //color.fgc(face::brush.fga() ? face::brush.fgc()
                     //                            : core::marker.fgc());// last used brush
-                    
+
                     //log ("face::brush  fg/bg ", face::brush.fgc(), face::brush.bgc());
                     //log ("core::marker fg/bg ", core::marker.fgc(), core::marker.bgc());
                     //color.bgc(core::marker.bgc());// last used brush
                     //color.fgc(core::marker.fgc());// last used brush
                     //color.bgc(face::brush.bgc());// last used brush
                     //color.fgc(face::brush.fgc());// last used brush
-                    
+
                                                   //color.fuse(face::brush);
                     //color.txt(whitespace);
-                    
+
                     //auto color = face::brush;// last used brush
                     //color.fuse(core::marker);
                     //color.txt(whitespace);

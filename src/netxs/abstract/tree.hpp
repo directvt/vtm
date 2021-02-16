@@ -6,6 +6,10 @@
 
 #include <vector>
 
+#ifndef faux
+    #define faux (false)
+#endif
+
 namespace netxs::generics
 {
     template<class IN, class OUT, class FUNC = void (*)(IN&, OUT&)>
@@ -20,16 +24,16 @@ namespace netxs::generics
         bool rise;
 
         tree(bool reset_level_after_exec = true)
-            : proc (nullptr),
-              sure (false),
-              rise (reset_level_after_exec)
-        {}
+            : proc{ nullptr                },
+              sure{ faux                   },
+              rise{ reset_level_after_exec }
+        { }
 
-        tree(hndl func )
-            : proc (func),
-              sure (true),
-              rise (false)
-        {}
+        tree(hndl func)
+            : proc{ func },
+              sure{ true },
+              rise{ faux }
+        { }
 
         auto& resize(size_t newsize)
         {
@@ -53,7 +57,6 @@ namespace netxs::generics
         {
             auto base = this;
             auto last = base;
-
             while (queue)
             {
                 auto task = queue.front();
@@ -82,7 +85,6 @@ namespace netxs::generics
         {
             auto base = this;
             auto last = base;
-
             if (auto const& next = last->at(firstcmd))
             {
                 if (next.proc)

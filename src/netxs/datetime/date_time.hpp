@@ -101,7 +101,7 @@ namespace netxs::datetime
             elapsed = std::to_string(days) + " day" + ((days) != 1 ? ("s") : "") + " ";
         }
         elapsed += padded_to_string(hours,   2_sz) + ":"
-                 + padded_to_string(minutes, 2_sz) + ":" 
+                 + padded_to_string(minutes, 2_sz) + ":"
                  + padded_to_string(seconds, 2_sz);
         return elapsed;
     }

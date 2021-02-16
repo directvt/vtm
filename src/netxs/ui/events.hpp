@@ -17,12 +17,13 @@
 #include <optional>
 #include <thread>
 
-#ifndef faux 
+#ifndef faux
     #define faux (false)
 #endif
 
 namespace netxs::ui
 {
+    //todo unify/automate structure replenishment
     struct e2
     {
         using type = unsigned int;
@@ -75,18 +76,16 @@ namespace netxs::ui
         =  =  =  =
         **************************************************************************************************/
 
-        enum tier 
+        enum tier
         {
-            /// <summary>
-            /// Forward means from particular to general: 1. event_group::item, 2. event_group::any
-            /// Reverse means from general to particular: 1. event_group::any , 2. event_group::item
-            /// </summary>
+            // Forward means from particular to general: 1. event_group::item, 2. event_group::any
+            // Reverse means from general to particular: 1. event_group::any , 2. event_group::item
             release, // event: Run forwrad handlers with fixed param. Preserve subscription order.
             preview, // event: Run reverse handlers with fixed a param intended to change. Preserve subscription order.
             general, // event: Run forwrad handlers for all objects. Preserve subscription order.
             request, // event: Run forwrad a handler that provides the current value of the param. To avoid overriding, the handler should be the only one. Preserve subscription order.
         };
-        
+
         // e2 (static): Return item/msg level by its ID.
         constexpr static unsigned int level(type msg)
         {
@@ -167,7 +166,7 @@ namespace netxs::ui
             _config     = any | (7 << 0), // set/notify/get/global_set configuration data (e2::preview/e2::release/e2::request/e2::general)
             quit        = any | (8 << 0), // return bye msg //errcode (arg: const view)
             dtor        = any | (9 << 0), // Notify about object destruction (arg: const id_t)
-            
+
             //todo unify
             radio       = any | (10<< 0), // return active radio id_t (arg: const id_t)
             cout        = any | (11<< 0), // Append extra data to output (arg: const text)
@@ -409,7 +408,7 @@ namespace netxs::ui
                 _notify     = any | (15<< _level0), // request global canvas (arg: sptr<core>)
             };
             private: static const unsigned int _level1 = _level0 + _width;
-            public: 
+            public:
             // Form events that should be propagated down to the visual branch
             struct notify { enum : type {
                     any = form::_notify,
@@ -445,9 +444,8 @@ namespace netxs::ui
             //		rect		= any | (1 << _level1), // notify the client area has changed (arg is only release: rect)
             //		size		= any | (2 << _level1), // notify the client size has changed (arg is only release: twod)
             //		coor		= any | (3 << _level1), // notify the client coor has changed (arg is only release: twod)
-            //		align		= any | (4 << _level1), // 
+            //		align		= any | (4 << _level1), //
             //};};
-
             struct prop { enum : type {
                     any = form::_prop,
                     header      = any | (1 << _level1), // set the form caption header (arg: text)
@@ -554,7 +552,7 @@ namespace netxs::ui
                 flush       = any | (4 << _level0),
         };};
     };
-    
+
     template<class V>
     std::recursive_mutex e2::_globals<V>::mutex; // e2: shared mutex.
 
@@ -562,7 +560,7 @@ namespace netxs::ui
     {
         struct handler
         {
-            virtual ~handler(){}
+            virtual ~handler() { }
         };
 
         template <typename F>
@@ -577,9 +575,9 @@ namespace netxs::ui
         {
             hndl<F> proc;
 
-            wrapper(hndl<F> && f) 
+            wrapper(hndl<F> && f)
                 : proc{ f }
-            {}
+            { }
         };
 
         enum exec
@@ -633,7 +631,7 @@ namespace netxs::ui
                                 else
                                 {
                                     qcopy.emplace_back(a);
-                                    return false;
+                                    return faux;
                                 }
                             });
         }
@@ -673,7 +671,6 @@ namespace netxs::ui
 
             auto tail = qcopy.size();
             auto size = tail - head;
-            //if (head != tail)
             if (size)
             {
                 auto perform = [&](auto iter)
@@ -725,10 +722,10 @@ namespace netxs::ui
         static imap store;
 
     protected:
-        indexer(indexer const&) = delete;	// id is flushed out when 
-                                            // a copy of the object is deleted. 
-                                            // Thus, the original object instance 
-                                            // becomes invalid. 
+        indexer(indexer const&) = delete;	// id is flushed out when
+                                            // a copy of the object is deleted.
+                                            // Thus, the original object instance
+                                            // becomes invalid.
                                             // We should delete the copy ctr.
         indexer()
             : id { _counter() }
@@ -783,23 +780,6 @@ namespace netxs::ui
             //item->T::signal<e2::release>(e2::form::upon::created, item);
             return inst;
         }
-        //todo smell
-        //  indexer: Wait until the object is released by other threads and destroy it afterwards in this thread.
-        //template<class TT, class ...Args>
-        //static void destroy(sptr<TT>& item)
-        //{
-        //	if (item.use_count())
-        //	{
-        //		std::cout << "client active copies: " << item.use_count() << "\n" << std::flush;
-        //		while (item.use_count() > 1)
-        //		{
-        //			std::this_thread::yield();
-        //		}
-        //		std::cout << "client going to destroy in " << std::this_thread::get_id() << "\n" << std::flush;
-        //		item.reset();
-        //		std::cout << "client destroyed in " << std::this_thread::get_id() << "\n" << std::flush;
-        //	}
-        //}
     };
 
     // utils::ui: Ext link statics, unique ONLY for concrete T.
@@ -846,7 +826,7 @@ namespace netxs::ui
             //	tokens.push_back(func);
             //	return func->proc;
             //}
-        } 
+        }
         tracker;
 
         template<class EVENT>
@@ -904,16 +884,16 @@ namespace netxs::ui
             void  clear()       {        memo.clear();        }
         };
 
-        // bell: Subscribe on a specified event 
-        //       of specified reaction node by defining an event 
+        // bell: Subscribe on a specified event
+        //       of specified reaction node by defining an event
         //       handler. Return a lambda reference helper.
         template<class EVENT>//, class F>
         auto submit2(e2::tier level)//, F&)
         {
             return submit_helper<EVENT>(*this, level);
         }
-        //  bell: Subscribe on a specified event 
-        //        of specified reaction node by defining an event 
+        //  bell: Subscribe on a specified event
+        //        of specified reaction node by defining an event
         //        handler and token. Return a lambda reference helper.
         template<class EVENT>//, class F>
         auto submit2(e2::tier level, hook& token)//, F&)
@@ -1067,16 +1047,16 @@ namespace netxs::ui
             switch (level)
             {
                 case e2::tier::release:
-                    return release.queue.empty() ? std::nullopt 
+                    return release.queue.empty() ? std::nullopt
                                                  : std::optional<e2::type>{ release.queue.back() };
                 case e2::tier::preview:
-                    return preview.queue.empty() ? std::nullopt 
+                    return preview.queue.empty() ? std::nullopt
                                                  : std::optional<e2::type>{ preview.queue.back() };
                 case e2::tier::general:
-                    return general.queue.empty() ? std::nullopt 
+                    return general.queue.empty() ? std::nullopt
                                                  : std::optional<e2::type>{ general.queue.back() };
                 case e2::tier::request:
-                    return request.queue.empty() ? std::nullopt 
+                    return request.queue.empty() ? std::nullopt
                                                  : std::optional<e2::type>{ request.queue.back() };
                 default:
                     break;
@@ -1142,7 +1122,7 @@ namespace netxs::ui
             signal<e2::release>(e2::dtor, id);
         }
     };
-    
+
     template<class T>
     reactor bell::_globals<T>::general{ reactor::forward };
 
@@ -1157,7 +1137,7 @@ namespace netxs::ui
         using                     param = param_type; \
         static constexpr e2::type cause = event_item; \
     };
-    
+
     #define EVENT_SAME(event_master, event_item)                          \
     template<>                                                            \
     struct type_clue<event_item>                                          \
@@ -1168,58 +1148,41 @@ namespace netxs::ui
 
     #define ARGTYPE(event_item) typename type_clue<event_item>::param
 
-    //#define SUBMIT0(event_level, event_item, event_arg) \
-    //	bell::submit<type_clue<event_item>>(event_level, [&] (ARGTYPE(event_item)& event_arg)
-
     // Usage: SUBMIT(tier, item, arg) { ...expression; };
-    #define SUBMIT(event_level, event_item, event_arg)    \
+    #define SUBMIT(event_level, event_item, event_arg) \
         bell::template submit2<type_clue<event_item>>(event_level) \
             = [&] (ARGTYPE(event_item)& event_arg)
 
-    //#define SUBMIT_BYVAL0(event_level, event_item, event_arg) \
-    //	bell::submit<type_clue<event_item>>(event_level, [=] (ARGTYPE(event_item)& event_arg)
-
     // Usage: SUBMIT_BYVAL(tier, item, arg) { ...expression; };
     #define SUBMIT_BYVAL(event_level, event_item, event_arg) \
-        bell::template submit2<type_clue<event_item>>(event_level)    \
+        bell::template submit2<type_clue<event_item>>(event_level) \
             = [=] (ARGTYPE(event_item)& event_arg)
 
     // Usage: SUBMIT_BYVAL_T(tier, item, event_token, arg) { ...expression; };
     #define SUBMIT_BYVAL_T(event_level, event_item, event_token, event_arg) \
-        bell::template submit2<type_clue<event_item>>(event_level, event_token)    \
+        bell::template submit2<type_clue<event_item>>(event_level, event_token) \
             = [=] (ARGTYPE(event_item)& event_arg)
 
     #define SUBMIT_V(event_level, event_item, event_hndl) \
         bell::template submit<type_clue<event_item>>(event_level, event_hndl)
-    
+
     #define SUBMIT_TV(event_level, event_item, event_token, event_hndl) \
         bell::template submit<type_clue<event_item>>(event_level, event_token, event_hndl)
-    
-    //#define SUBMIT_T0(event_level, event_item, event_token, event_arg) \
-    //	bell::submit<type_clue<event_item>>(event_level, event_token, [&] (ARGTYPE(event_item)& event_arg)
 
     // Usage: SUBMIT_BYVAL(tier, item, token/tokens, arg) { ...expression; };
-    #define SUBMIT_T(event_level, event_item, event_token, event_arg)  \
+    #define SUBMIT_T(event_level, event_item, event_token, event_arg) \
         bell::template submit2<type_clue<event_item>>(event_level, event_token) \
             = [&] (ARGTYPE(event_item)& event_arg)
-
-    //todo deprecated: used only with pro::focus
-    //#define CHANGE(event_item_got, event_token, evemt_item_lost, event_arg) \
-    //	bell::template change<type_clue<event_item_got>>(event_token, evemt_item_lost, event_arg);
-
-    //#define SIGNAL(event_level, event_item, event_arg) \
-    //	bell::signal(event_level, event_item, static_cast<ARGTYPE(event_item) &>(event_arg));
 
     #define SIGNAL(event_level, event_item, event_arg) \
         bell::template signal<event_level>(event_item, static_cast<ARGTYPE(event_item) &>(event_arg))
 
     #define SIGNAL_GLOBAL(event_item, event_arg) \
         bell::template signal_global(event_item, static_cast<ARGTYPE(event_item) &>(event_arg))
-    
-    #define SUBMIT_GLOBAL(event_item, event_token, event_arg)  \
+
+    #define SUBMIT_GLOBAL(event_item, event_token, event_arg) \
         bell::template submit_global<type_clue<event_item>>(event_token) \
             = [&] (ARGTYPE(event_item)& event_arg)
-
 }
 
 #endif // NETXS_EVENTS_HPP

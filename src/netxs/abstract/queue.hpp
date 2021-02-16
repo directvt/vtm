@@ -56,8 +56,8 @@ namespace netxs
         }
 
         mt_queue() { }
-        mt_queue(mt_queue<T>&& x) 
-        { 
+        mt_queue(mt_queue<T>&& x)
+        {
             std::unique_lock<std::mutex> lock(x.d_mutex);
             d_queue = std::move(x.d_queue);
         }

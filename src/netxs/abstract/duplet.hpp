@@ -13,7 +13,7 @@
     #include <stdint.h>
 #endif
 
-#ifndef faux 
+#ifndef faux
     #define faux (false)
 #endif
 
@@ -32,11 +32,11 @@ namespace netxs
 
         constexpr duplet()
             : x(0), y(0)
-        { } 
+        { }
 
-        constexpr duplet (T const& x, T const& y) 
+        constexpr duplet (T const& x, T const& y)
             : x(x), y(y)
-        { } 
+        { }
 
         constexpr duplet (duplet const& p)
             : duplet{ p.x,p.y }
@@ -84,7 +84,7 @@ namespace netxs
         ///In C++11, signed shift left of a negative number is always undefined
         //duplet operator << (T i) const { return { x << i, y << i }; }
         //duplet operator >> (T i) const { return { x >> i, y >> i }; }
-        
+
         template<class D> duplet<D> operator /(D i) const { return { x / i, y / i }; }
         template<class D> duplet<D> operator +(D i) const { return { x + i, y + i }; }
         template<class D> duplet<D> operator -(D i) const { return { x - i, y - i }; }
@@ -102,7 +102,7 @@ namespace netxs
         }
         duplet less(duplet const& what, duplet const& iftrue, duplet const& iffalse) const
         {
-            return { x < what.x ? iftrue.x : iffalse.x, 
+            return { x < what.x ? iftrue.x : iffalse.x,
                      y < what.y ? iftrue.y : iffalse.y };
         }
         bool inside(duplet const& p) const
@@ -150,7 +150,7 @@ namespace netxs
     static constexpr const twod dot_22{ 2,2 };
     static constexpr const twod dot_21{ 2,1 };
     static constexpr const twod dot_33{ 3,3 };
-    static constexpr const twod dot_mx{ std::numeric_limits<iota>::max() / 2, 
+    static constexpr const twod dot_mx{ std::numeric_limits<iota>::max() / 2,
                                         std::numeric_limits<iota>::max() / 2 };
 
     static twod divround(twod const& p, iota n)
@@ -165,7 +165,7 @@ namespace netxs
     {
         return { divround(n.x, p.x), divround(n.y, p.y) };
     }
-    
+
     static twod divupper(twod const& n, twod const& p)
     {
         return { divupper(n.x, p.x), divupper(n.y, p.y) };
@@ -202,7 +202,6 @@ namespace std
     static netxs::duplet<T> abs(netxs::duplet<T> const& p)
     {
         return { std::abs(p.x), std::abs(p.y) };
-    
     }
 } // namespace std
 

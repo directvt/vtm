@@ -10,7 +10,6 @@
 #include "../text/logger.hpp"
 
 #include <iostream>
-//#include <unordered_set> // keybd clients
 
 #define SPD 10               // console.h: Auto-scroll initial speed component ΔR.
 #define PLS 167              // console.h: Auto-scroll initial speed component ΔT.
@@ -316,9 +315,9 @@ namespace netxs::console
         bool  wheeled = faux;           // sysmouse: Vertical scroll wheel.
         bool  hzwheel = faux;           // sysmouse: Horizontal scroll wheel.
         iota  wheeldt = 0;              // sysmouse: Scroll delta.
-        
+
         uint32_t ctlstate = 0;
-        
+
             bool operator !=(sysmouse const& m) const
         {
             bool result;
@@ -446,12 +445,12 @@ namespace netxs::console
         id_t   swift = 0;       // mouse: Delegate's ID of the current mouse owner
         id_t   hover = 0;       // mouse: Hover control ID
         id_t   start = 0;       // mouse: Initiator control ID
-        
+
         struct
         {
             moment fired;
             twod   coord;
-        } 
+        }
         stamp[sysmouse::numofbutton] = {}; // mouse: Recorded intervals between successive button presses to track double-clicks
         static constexpr period delay = 500ms;   // mouse: Double-click threshold
 
@@ -705,7 +704,6 @@ namespace netxs::console
         {
             ended = true;
         }
-        
         //todo unify
         // hids: Prevent double clicks.
         void dismiss_dblclick ()
@@ -760,7 +758,7 @@ namespace netxs::console
             scancode    = k.scancode;
             character   = k.character;
             keystrokes  = k.textline;
-            
+
             fire_keybd();
         }
 
@@ -802,7 +800,7 @@ namespace netxs::console
               id    { owner.id },
               idmap { idmap }
         { }
-        ~hids() 
+        ~hids()
         {
             if (auto last = bell::getref(mouse::hover))
             {
@@ -822,7 +820,7 @@ namespace netxs::console
             ctlstate = k.ctlstate;
             keybd::update(k);
         }
-        
+
         rect const& area() const { return idmap.area(); }
 
         template<e2::tier TIER, class T>
@@ -1012,7 +1010,7 @@ namespace netxs::console
         {
             return kb_focus_taken;
         }
-        
+
         //bool meta(modifiers ctl_key)
         bool meta(unsigned ctl_key)
         {
@@ -1050,10 +1048,10 @@ namespace netxs::console
 
         cell lo_colors;
         poly lo_grades;
-        
+
         cell sh_colors;
         poly sh_grades;
-        
+
         cell sl_colors;
         poly sl_grades;
 
@@ -1178,10 +1176,10 @@ namespace netxs::console
             return global.opaque;
         }
     };
-    
+
     template<class V>
     skin skin::_globals<V>::global;
-    
+
     class base
         : public bell, public std::enable_shared_from_this<base>
     {
@@ -1210,8 +1208,8 @@ namespace netxs::console
             {
                 return value;
             }
-            //bind: Set (preview then release) new value, 
-            //      override argument, and return the 
+            //bind: Set (preview then release) new value,
+            //      override argument, and return the
             //      difference with old value.
             type set(type& new_value)
             {
@@ -1265,7 +1263,7 @@ namespace netxs::console
         {
             twod min{ 0,0 };
             twod max{ 1920,1080 };
-        } 
+        }
         limit;
 
         cell brush;
@@ -1481,8 +1479,8 @@ namespace netxs::console
             auto& s = base::size.get();
             return s.inside(p);
         }
-        // base: Mark the form and its parent's subtree as wrecked 
-        //       and had to be recomposed. 
+        // base: Mark the form and its parent's subtree as wrecked
+        //       and had to be recomposed.
         //       If "just == faux" then recompose a subtree only.
         void strike ()
         {
@@ -1640,12 +1638,12 @@ namespace netxs::console
         //                        std::max(0, minmax.r - size.x),
         //                       -std::min(0, minmax.t),
         //                        0);
-        //    
+        //
         //    //return base::oversize.set(-std::min(0, minmax.l),
         //    //                           std::max(0, minmax.r - size.x),
         //    //                          -std::min(0, minmax.t),
         //    //                           0);
-        //    
+        //
         //    //base::oversize.l =-std::min(0, minmax.l);
         //    //base::oversize.t =-std::min(0, minmax.t);
         //    //base::oversize.r = std::max(0, minmax.r - size.x);
@@ -1680,7 +1678,7 @@ namespace netxs::console
                          .txt(whitespace);
         }
         // form: Default render proc.
-        virtual void redraw() 
+        virtual void redraw()
         {
 
         }
@@ -1760,7 +1758,7 @@ namespace netxs::console
             //	return depo.size();
             //}
         };
-        
+
         // pro: Provides size-binding functionality for child objects
         //      after attaching to the parent.
         template<class T>
@@ -1887,7 +1885,7 @@ namespace netxs::console
                 //{
                 //	coor = boss.base::coor.get();
                 //};
-        
+
                 //boss.SUBMIT_T(e2::release, e2::form::upon::attached, memo, parent_ptr)
                 //{
                 //	auto& gode = *parent_ptr;
@@ -2167,7 +2165,6 @@ namespace netxs::console
                     //{
                     //	expose();
                     //});
-
                 };
 
                 boss.SUBMIT_T(e2::preview, e2::form::layout::appear, memo, newpos)
@@ -2237,7 +2234,7 @@ namespace netxs::console
                     auto r1 = r0;
                     auto r2 = boundary;
                     r1.coor -= r2.coor;
-                
+
                     auto c = r1.rotate(-delta);
                     auto s = r2.size;
                     auto o = delta.less(dot_00, dot_00, dot_11);
@@ -2351,12 +2348,12 @@ namespace netxs::console
 
         public:
             maker(T&&) = delete;
-            maker(T& boss) 
+            maker(T& boss)
                 :	boss { boss },
                     mark { skin::color(tone::selector) }
             {
                 using drag = e2::hids::mouse::button::drag;
-                
+
                 boss.SUBMIT_T(e2::preview, e2::hids::keybd::any, memo, gear)
                 {
                     if (gear.captured(boss.bell::id))
@@ -2453,7 +2450,7 @@ namespace netxs::console
                         }
                     }
                 };
-            }		
+            }
         };
 
         // pro: The text caret controller.
@@ -2478,7 +2475,7 @@ namespace netxs::console
                   done{ faux },
                   body{ dot_00, dot_11 }, // Caret is always one cell size (see the term::wall definition)
                   step{ BLINK_PERIOD }
-            { 
+            {
                 boss.SUBMIT_T(e2::request, e2::config::intervals::blink, conf, req_step)
                 {
                     req_step = step;
@@ -2680,7 +2677,7 @@ namespace netxs::console
                 iota attr = 0;
                 for (auto& desc : description)
                 {
-                    status += " " + utf::adjust(desc, maxlen, " ", true) + " " 
+                    status += " " + utf::adjust(desc, maxlen, " ", true) + " "
                         + ansi::idx(attr++).nop().nil().eol();
                 }
 
@@ -2694,14 +2691,13 @@ namespace netxs::console
 
                     status[prop::frame_size].set(stress) =
                         utf::adjust(utf::format(track.frsize), 7, " ", true) + " bytes";
-                    
+
                     status[prop::total_size].set(stress) =
                         utf::format(track.totals) + " bytes";
 
                     track.number++;
 
                     canvas.output(status);
-
                 };
 
                 //boss.SUBMIT_T(e2::release, e2::debug, owner::memo, track)
@@ -2770,7 +2766,6 @@ namespace netxs::console
                     status[prop::mouse_vtwheel].set(stress) = m.wheel ? "active" : "idle";
 
                     status[prop::ctrl_state].set(stress) = "0x" + utf::to_hex(k.ctlstate);
-
                 };
 
                 //boss.SUBMIT_T(e2::release, e2::term::menu, memo, iface)
@@ -2846,10 +2841,10 @@ namespace netxs::console
             page logo; // title: Owner's caption
             text name; // title: Preserve original title
 
-            #define PROP_LIST         \
+            #define PROP_LIST                    \
             X(body, "Window title properties." ) \
-            X(head, "Window title." ) \
-            X(foot, "Window status.") 
+            X(head, "Window title." )            \
+            X(foot, "Window status.")
 
             #define X(a, b) a,
             enum prop { PROP_LIST count };
@@ -2865,7 +2860,7 @@ namespace netxs::console
 
             title(T&&) = delete;
             title(T& boss) : boss{ boss }
-            { 
+            {
                 //logo.current().brush.vis(cell::transparent);
                 //logo += ansi::idx(prop::head)
                 //      + ansi::wrp(faux).mgr(1).mgl(1)
@@ -3235,7 +3230,7 @@ namespace netxs::console
 
         public:
             scene(T&&) = delete;
-            scene(T& boss) 
+            scene(T& boss)
                 : boss { boss }
             {
                 paint = [&](face& canvas, page const& titles) -> bool
@@ -3374,7 +3369,7 @@ namespace netxs::console
                 };
             }
         };
-        
+
         // pro: Perform graceful shutdown functionality. LIMIT in seconds, ESC_THRESHOLD in milliseconds.
         template<class T>
         class watch
@@ -3406,7 +3401,7 @@ namespace netxs::console
                     //doubt.reset();
                     //alibi.reset();
                 };
-                
+
                 boss.SUBMIT_T(e2::general, e2::timer::tick, ping, timestamp)
                 {
                     if (tempus::now() > stop)
@@ -3419,7 +3414,7 @@ namespace netxs::console
                 };
             }
         };
-        
+
         // pro: Provides functionality related to keyboard input.
         template<class T>
         class keybd
@@ -3527,14 +3522,14 @@ namespace netxs::console
             bool highlightable = faux;
 
             mouse(T&&) = delete;
-            mouse(T& boss) 
+            mouse(T& boss)
             {
                 // pro::mouse: Forward preview to all parents.
                 boss.SUBMIT_T(e2::preview, e2::hids::mouse::any, memo, gear)
                 {
                     auto& offset = boss.base::coor.get();
                     gear.pass<e2::preview>(boss.parent.lock(), offset);
-                    
+
                     if (gear) gear.okay(boss);
                     else      boss.bell::expire(e2::preview);
                 };
@@ -3585,7 +3580,7 @@ namespace netxs::console
         };
 
         // pro: Provides functionality related to keyboard interaction.
-        template<class T> 
+        template<class T>
         class input : public hids
         {
             subs memo;
@@ -3695,7 +3690,7 @@ namespace netxs::console
             //	text data = "click " + std::to_string(i++) + "\n";
             //	SIGNAL_GLOBAL(e2::debug, data);
             //};
-                        
+
             SUBMIT(e2::release, bttn::click::right, gear)
             {
                 //auto newpos = gear.mouse.coord + gear.xview.coor;
@@ -3829,7 +3824,7 @@ namespace netxs::console
                 ready = true;
                 synch.notify_one();
             }
-            
+
             if (alive)
             {
                 log("link: signaling to close read channel ", canal);
@@ -3850,27 +3845,20 @@ namespace netxs::console
               focus { faux },
               close { faux },
               iface { 0    }
-        {
-            //log("pipe: ctor");
-        }
+        { }
 
         ~link()
         {
-            //alive = faux;
-            //log("------------- link dtor -----------------");
             canal->shut(); // Terminate all blocking calls.
-            
             if (input.joinable())
             {
                 input.join();
             }
-            
             log("link: std_input thread joined");
         }
 
         void output (view buffer)
         {
-            //if (alive) canal->send(buffer);
             canal->send(buffer);
         }
 
@@ -3880,7 +3868,7 @@ namespace netxs::console
             std::unique_lock guard{ mutex };
 
             input = std::thread([&] { reader(); });
-            
+
             if (title.size()) output(ansi::tag(title));
 
             while ((void)synch.wait(guard, [&] { return ready; }), alive)
@@ -3911,7 +3899,7 @@ namespace netxs::console
                     if (strv.front() == '\x1b') // two consecutive escapes
                     {
                         log("\t - two consecutive escapes: \n\tstrv:        ", strv);
-                
+
                         owner.SIGNAL(e2::release, e2::term::quit, "pipe two consecutive escapes");
                         return;
                     }
@@ -3929,7 +3917,7 @@ namespace netxs::console
                     if (strv.at(0) == '\x1b')
                     {
                         ++pos;
-                        
+
                         #ifdef DEMO
                         if (pos == len) // the only one esc
                         {
@@ -4018,7 +4006,7 @@ namespace netxs::console
                                                             auto clamp = [](auto a) { return std::clamp(a,
                                                                 std::numeric_limits<iota>::min() / 2,
                                                                 std::numeric_limits<iota>::max() / 2); };
-                
+
                                                             auto x = clamp(pos_x.value() - 1);
                                                             auto y = clamp(pos_y.value() - 1);
                                                             auto ctl = ctrl.value();
@@ -4120,7 +4108,7 @@ again:
                                     pos += l - tmp.size();
                                     if (pos == len) { total = strv; break; }// incomlpete sequence
                                     {
-                                        auto take = [&]() { 
+                                        auto take = [&]() {
                                             view tmp = strv.substr(pos);
                                             if (auto l = tmp.size())
                                             {
@@ -4238,7 +4226,7 @@ again:
                                                             break;
                                                     }
                                                 }
-                                                else 
+                                                else
                                                 {
                                                     keybd.textline.clear();
                                                 }
@@ -4395,8 +4383,8 @@ again:
         grid& cache; // diff: The current content buffer which going to be checked and processed.
         grid  front; // diff: The Shadow copy of the terminal/screen.
 
-        iota  rhash; // diff: Rendered buffer genus. The genus changes when the size of the buffer changes. 
-        iota  dhash; // diff: Unchecked buffer genus. The genus changes when the size of the buffer changes. 
+        iota  rhash; // diff: Rendered buffer genus. The genus changes when the size of the buffer changes.
+        iota  dhash; // diff: Unchecked buffer genus. The genus changes when the size of the buffer changes.
         twod  field; // diff: Current terminal/screen window size.
         twod  midst; // diff: Current terminal/screen window center.
         span  watch; // diff: Duration of the STDOUT rendering.
@@ -4819,7 +4807,7 @@ again:
             extra = utf8;
         }
     };
-    
+
     class gate // console: VTM client viewport.
         : public form
     {
@@ -4904,7 +4892,6 @@ again:
                         input.fire(e2::hids::mouse::move);
 #endif // DEBUG_OVERLAY
 
-                    
                         // in order to draw debug overlay, maker, titles, etc
                         SIGNAL(e2::release, e2::form::upon::redrawn, form::canvas);
                         #ifdef DEBUG_OVERLAY
@@ -4930,8 +4917,6 @@ again:
         {
             //todo unify
             uname = user_name;
-
-            //log("gate: ctor begin");
 
             using bttn = e2::hids::mouse::button;
 
@@ -5007,8 +4992,6 @@ again:
                                      moveby(-x);
                                  });
             };
-
-            //log("gate: ctor complete");
         }
 
         // gate: Draw the form composition on the specified canvas.

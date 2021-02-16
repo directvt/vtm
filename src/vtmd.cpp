@@ -39,7 +39,7 @@ text edit_menu = ansi::nil().wrp(faux)
 + " " + ansi::und(true) + "E" + ansi::nil() + "dit "
 + " " + ansi::und(true) + "V" + ansi::nil() + "iew "
 + " " + ansi::und(true) + "D" + ansi::nil() + "ata "
-+ ansi::jet(bias::right).chx(0) 
++ ansi::jet(bias::right).chx(0)
 + " " + ansi::und(true) + "H" + ansi::nil() + "elp "
 + "";
 
@@ -232,7 +232,7 @@ enum topic_vars
     object1,
     object2,
     object3,
-    
+
     canvas1,
     canvas2,
 
@@ -451,7 +451,7 @@ int main(int argc, char* argv[])
             }
             else buff += utf8;
         });
-    
+
     {
         auto banner = [&]() { log("Monotty Desktopio Environment Server"); };
         bool daemon = faux;
@@ -489,7 +489,7 @@ int main(int argc, char* argv[])
         {
             std::getline(conf, region);
         }
-        
+
         if (region.empty())
         {
             region = "unknown region";
@@ -594,7 +594,7 @@ int main(int argc, char* argv[])
             + ansi::fgc(clr) + "Win32 console" + ansi::nil() + " of "
             + ansi::fgc(clr) + "Microsoft Windows" + ansi::nil() + "."
             + "\n";
-        
+
         text topic2;
         text topic;
         {
@@ -623,7 +623,6 @@ int main(int argc, char* argv[])
             auto c1 = bluelt;// 0xffff00;
             auto c2 = whitedk;//0xffffff;
             text intro = ansi::mgl(0).mgr(0)
-                
                 //+ ansi::jet(bias::right).mgl(1).mgr(1).wrp(true)
                 //+ "https://github.com/netxs-group/VTM\n\n"
                 + ansi::jet(bias::center).wrp(faux).fgc(whitelt).mgl(0).mgr(0).eol()
@@ -652,7 +651,7 @@ int main(int argc, char* argv[])
                 + ansi::wrp(faux).fgc(whitelt).mgl(1).mgr(0)
                 + "Controls\n"
                 + ansi::jet(bias::left).mgl(1).mgr(0).wrp(faux) + "\n"
-                + ansi::fgc(whitelt).bld(true) 
+                + ansi::fgc(whitelt).bld(true)
                 + "Mouse:" + ansi::nil() + "\n"
                 + l1 + ansi::wrp(faux)
                 + "left" + ansi::nil() + "\n"
@@ -802,7 +801,7 @@ int main(int argc, char* argv[])
                                            .ref(topic_vars::canvas2).nop()
                 + ansi::nop().nil()
                 + "\n\n"
-                
+
                 + ansi::jet(bias::center).wrp(faux).fgc(clr)
                 + "Embedded content\n\n"
                 + ansi::jet(bias::left).wrp(true)
@@ -955,7 +954,7 @@ int main(int argc, char* argv[])
                 + "のYIS(YGT - 100)もよく知られている。また、コンピュータグラフィックスの黎"
                 + "明期には、多くのメインフレームにオプションとして専用のグラフィック端末が用意"
                 + "されていた。\n";
-            
+
             topic += intro;
             topic += data;
             topic += wiki;
@@ -1020,7 +1019,7 @@ int main(int argc, char* argv[])
                         c0 += step;
                     }
                     cellatix_text +=
-                        utf::repeat(cellatix_text_01, 26) 
+                        utf::repeat(cellatix_text_01, 26)
                         + (i == 99 ? ""s : ansi::eol());
                 }
                 else
@@ -1032,7 +1031,7 @@ int main(int argc, char* argv[])
                         c0 -= step;
                     }
                     cellatix_text +=
-                        utf::repeat(cellatix_text_00, 26) 
+                        utf::repeat(cellatix_text_00, 26)
                         + (i == 99 ? ""s : ansi::eol());
                 }
             }
@@ -1044,7 +1043,7 @@ int main(int argc, char* argv[])
 #ifdef ANSITEST
     { // ansi-parser performance test
         page e;
-        
+
         auto t = tempus::now();
         for (int i = 0; i < 10000; i++)
         {
@@ -1066,7 +1065,7 @@ int main(int argc, char* argv[])
             + "\t"s + mw_g_b
             + x_with_tilde
 
-            //+ "👯🏿‍♀️\u0001🏌🏻‍♀️❤z🐱z av\x1x᷉jj❤️o gh" 
+            //+ "👯🏿‍♀️\u0001🏌🏻‍♀️❤z🐱z av\x1x᷉jj❤️o gh"
             + ansi::fgc(tint::redlt)
             + "bc🏌🏻‍♀️ 👯🏿‍♀️"
             + ansi::cuf(1)
@@ -1143,7 +1142,7 @@ int main(int argc, char* argv[])
             X(Shop         , "▀▄ Shop"             ) \
             X(Logs         , "▀▄ Logs"             ) \
             X(Empty        , "Empty window"        ) \
-            X(Help         , "Help"                ) 
+            X(Help         , "Help"                )
 
             //X(Task         , "▀▄ Task"             )
             //X(Draw         , "▀▄ Draw"             )
@@ -1253,7 +1252,7 @@ int main(int argc, char* argv[])
                                 }
                             };
                         }
-                        
+
                         scroll_bars(layers, scroll);
                         break;
                     }
@@ -1366,7 +1365,7 @@ int main(int argc, char* argv[])
                         //     auto block = frame->attach<
                         //         stem_rate<e2::general, e2::form::global::lucidity>>
                         //         ("Alpha channel", 0, 255, "rgb");
-                        //     
+                        //
                         //     block->color(0xFFFFFF, bluedk);
                         //     break;
                         // }
@@ -1915,7 +1914,7 @@ int main(int argc, char* argv[])
                         client->SIGNAL(e2::preview, e2::form::prop::footer, footer);
                         //client->SIGNAL(e2::preview, e2::form::prop::params, params);
 
-                        //text header = ansi::jet(bias::center) 
+                        //text header = ansi::jet(bias::center)
                         //	+ "[User." + utf::remain(c_ip) + ":" + c_port + "]";
                         //text footer = MONOTTY_VER;
                         //client->title = ansi::wrp(faux).mgr(0).mgl(0)

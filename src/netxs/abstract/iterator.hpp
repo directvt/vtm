@@ -26,6 +26,7 @@ namespace netxs
         }
         return it;
     }
+
     // iterator.h: Execute the func(item) for each item in the iterable container if the predicate(item) is true.
     template <typename T, class P, class F>
     void foreach(T&& iterable, P predicate, F func)
@@ -43,19 +44,19 @@ namespace netxs
             }
         }
     }
-    
+
     // iterator.h: Reversed iterable helper wrapper.
     template <typename T>
     struct reversion_wrapper { T& iterable; };
-    
+
     // iterator.h: Reversed iterable helper begin().
     template <typename T>
     auto begin (reversion_wrapper<T> w) { return std::rbegin(w.iterable); }
-    
+
     // iterator.h: Reversed iterable helper end().
     template <typename T>
     auto end (reversion_wrapper<T> w) { return std::rend(w.iterable); }
-    
+
     // iterator.h: Reverse iterable.
     template <typename T>
     reversion_wrapper<T> reverse (T&& iterable) { return { iterable }; }
@@ -96,8 +97,8 @@ namespace netxs
         };
 
     public:
-        it	begin() const { return it(instance); }
-        it	end()   const { return it(nullptr); }
+        it begin() const { return it(instance); }
+        it end()   const { return it(nullptr); }
 
         iterator() { instance = this; }
 

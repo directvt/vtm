@@ -8,20 +8,6 @@
 
 namespace netxs
 {
-    // drop it (Windows API)
-    //struct intptr
-    //{
-    //	int * val;
-    //
-    //	template<typename T>
-    //	operator T    () { return reinterpret_cast<T>	(val); }
-    //	operator int  () { return reinterpret_cast<int> (val); }
-    //	operator bool () { return val; }
-    //
-    //	template<class T>
-    //	intptr(T val) : val((int*)(val)) { }
-    //};
-
     template<class T>
     struct testy
     {
@@ -46,7 +32,7 @@ namespace netxs
     struct	null_deleter
     {
         void operator()(void const*) const
-        {}
+        { }
     };
 
     template<class T>
@@ -61,21 +47,21 @@ namespace netxs
     template <class T1, class T2>
     inline bool equals(std::weak_ptr<T1> const& p1, std::weak_ptr<T2> const& p2)
     {
-        return !p1.owner_before(p2) 
+        return !p1.owner_before(p2)
             && !p2.owner_before(p1);
     }
 
     template <class T1, class T2>
     inline bool equals(std::shared_ptr<T1> const& p1, std::weak_ptr<T2> const& p2)
     {
-        return !p1.owner_before(p2) 
+        return !p1.owner_before(p2)
             && !p2.owner_before(p1);
     }
 
     template <class T1, class T2>
     inline bool equals(std::weak_ptr<T1> const& p1, std::shared_ptr<T2> const& p2)
     {
-        return !p1.owner_before(p2) 
+        return !p1.owner_before(p2)
             && !p2.owner_before(p1);
     }
 
@@ -95,7 +81,6 @@ namespace netxs
 
         return  thing;
     }
-
 }
 
 #endif // NETXS_PTR_HPP

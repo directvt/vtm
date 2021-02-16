@@ -4,7 +4,7 @@
 #ifndef NETXS_SYSTEM_HPP
 #define NETXS_SYSTEM_HPP
 
-#ifndef VTM_USE_CLASSICAL_WIN32_INPUT 
+#ifndef VTM_USE_CLASSICAL_WIN32_INPUT
 #define VTM_USE_CLASSICAL_WIN32_INPUT // Turns on classical console win32 input mode
 #endif
 
@@ -35,11 +35,11 @@
     //#pragma comment(lib, "Shlwapi.lib")   // SHDeleteKeyW
     //#pragma comment(lib, "Psapi.lib")  //GetModuleFileNameEx
     //#pragma comment(lib, "Ole32.lib")   //CoCreateInstance  (creating shortcut)
-    //#pragma comment(lib, "Shell32.lib")   //CommandLineToArgvW 
+    //#pragma comment(lib, "Shell32.lib")   //CommandLineToArgvW
 
     //#pragma comment(lib, "libvcruntime.lib")   //__except_handler4
 
-    // /* LINK : warning LNK4098: defaultlib 'libvcruntime.lib' conflicts 
+    // /* LINK : warning LNK4098: defaultlib 'libvcruntime.lib' conflicts
     //  *        with use of other libs; use /NODEFAULTLIB:library
     //  * https://docs.microsoft.com/en-us/cpp/c-runtime-library/crt-library-features?view=vs-2017
     //  */
@@ -61,11 +61,11 @@
     #include <shlguid.h>	//IID_IShellLink
     #include <Shlobj.h>		//create_shortcut: SHGetFolderLocation / (SHGetFolderPathW - vist and later) CLSID_ShellLink
     #include <Psapi.h>		//GetModuleFileNameEx
-    
+
     #include <DsGetDC.h>	//DsGetDcName
     #include <LMCons.h>		//DsGetDcName
     #include <Lmapibuf.h>	//DsGetDcName
-    
+
     #include <Sddl.h>		//security_descriptor
 
 #elif defined(__linux__) || defined(__APPLE__)
@@ -95,17 +95,17 @@
     #include <unistd.h>		// ::read(), PIPE_BUF
     #include <sys/un.h>
     #include <stdlib.h>
-    
+
     #include <csignal>		// ::signal(), for window size
     #include <termios.h>   // for raw mode
     #include <sys/ioctl.h> // ioctl, for window size
     #include <sys/wait.h>  // waitpid
     #include <syslog.h>    // syslog for daemonize
-    
+
     #include <sys/types.h>
     #include <sys/stat.h>
     #include <fcntl.h>		// ::splice()
-    
+
     //#include <ext/stdio_filebuf.h> // Linux specific ifstream from socket descriptor
 
 #endif
@@ -325,7 +325,7 @@ namespace netxs::os
 
         return result;
     }
-    
+
     auto split_cmdline(view cmdline)
     {
         std::vector<text> args;
@@ -400,7 +400,7 @@ namespace netxs::os
             ::execvp(argv[0], argv);
             os::exit(1, "exec: error ", errno);
         }
-        
+
         if (p_id > 0) // Parent branch
         {
             int stat;
@@ -630,7 +630,7 @@ namespace netxs::os
         // if (FILE* ufp = ::fopen(_PATH_UTMP, "r"))
         // {
         // 	struct utmp usr;
-        // 
+        //
         // 	while (::fread((char*)&usr, sizeof(usr), 1, ufp) == 1)
         // 	{
         // 		if (*usr.ut_user && *usr.ut_host && *usr.ut_line && *usr.ut_line != '~')
@@ -690,9 +690,9 @@ namespace netxs::os
         if (GetVolumePathName(file.c_str(), volume.data(), (DWORD)volume.size()) != 0)
         {
             std::vector<char> partition(50 + 1);
-            if (GetVolumeNameForVolumeMountPoint(	volume.data(), 
-                                                    partition.data(), 
-                                                    (DWORD)partition.size()) != 0)
+            if (GetVolumeNameForVolumeMountPoint( volume.data(),
+                                                  partition.data(),
+                                                  (DWORD)partition.size()) != 0)
                 result = text(partition.data());
             else
             {
@@ -1076,7 +1076,7 @@ namespace netxs::os
             static constexpr iota PIPE_BUF = 65536;
             static constexpr iota STDIN_BUF = 1024;
 
-            //static constexpr char* security_descriptor_string = 
+            //static constexpr char* security_descriptor_string =
             //	//"D:P(A;NP;GA;;;SY)(A;NP;GA;;;BA)(A;NP;GA;;;WD)";
             //	"O:AND:P(A;NP;GA;;;SY)(A;NP;GA;;;BA)(A;NP;GA;;;CO)";
             //	//"D:P(A;NP;GA;;;SY)(A;NP;GA;;;BA)(A;NP;GA;;;AU)";// Authenticated users
@@ -1239,24 +1239,24 @@ namespace netxs::os
         auto cred(T id) const // get peer cred
         {
             #if defined(_WIN32)
-            
+
             //todo implement for win32
-            
+
             //#elif defined(__linux__) || defined(__APPLE__)
             #elif defined(__linux__)
-            
+
             //struct result
             //{
             //	long pid, uid, gid;
             //};
-            
+
             struct ucred cred = {};
             unsigned size = sizeof(cred);
             auto error = -1 == ::getsockopt(handle, SOL_SOCKET, SO_PEERCRED, &cred, &size);
-            
+
             //return success ? std::optional{ result{ cred.pid, cred.uid, cred.gid } }
             //               : std::nullopt;
-            
+
             if (error)
             {
                 log("sock: getsockopt error ", errno, ", abort");
@@ -1267,29 +1267,29 @@ namespace netxs::os
                 log("sock: other users are not allowed to the session, abort");
                 return faux;
             }
-            
+
             log("sock: creds from SO_PEERCRED",
                 ":  pid=", cred.pid,
                 ", euid=", cred.uid,
                 ", egid=", cred.gid);
-            
+
             #elif defined(__APPLE__)
-            
+
             uid_t euid;
             gid_t egid;
             auto error = -1 == ::getpeereid(handle, &euid, &egid);
-            
+
             if (error || (euid && id != euid)) // Deny foreign users except root
             {
                 //log("sock: other users are not allowed to the session, abort");
                 return faux;
             }
-            
+
             log("sock: socket owner: ", id);
             log("sock: peer creds from getpeereid",
                 ", euid=", euid,
                 ", egid=", egid);
-            
+
             #endif
 
             return true;
@@ -1314,15 +1314,15 @@ namespace netxs::os
 
                 // recreate the waiting point for the next client
                 r_handle = CreateNamedPipe(
-                    to_server.c_str(),         // pipe name 
-                    PIPE_ACCESS_INBOUND,       // read/write access 
-                    PIPE_TYPE_BYTE |          // message type pipe 
-                    PIPE_READMODE_BYTE |      // message-read mode 
-                    PIPE_WAIT,                // blocking mode 
-                    PIPE_UNLIMITED_INSTANCES, // max. instances  
-                    PIPE_BUF,            // output buffer size 
-                    PIPE_BUF,            // input buffer size 
-                    0,                        // client time-out 
+                    to_server.c_str(),        // pipe name
+                    PIPE_ACCESS_INBOUND,      // read/write access
+                    PIPE_TYPE_BYTE |          // message type pipe
+                    PIPE_READMODE_BYTE |      // message-read mode
+                    PIPE_WAIT,                // blocking mode
+                    PIPE_UNLIMITED_INSTANCES, // max. instances
+                    PIPE_BUF,                 // output buffer size
+                    PIPE_BUF,                 // input buffer size
+                    0,                        // client time-out
                     NULL);  // DACL
                     // DACL: The ACLs in the default security descriptor
                     //       for a named pipe grant full control to the
@@ -1346,15 +1346,15 @@ namespace netxs::os
                 //log(w_handle, " is w_fConnected = ", w_fConnected ? "true" : "faux");
 
                 w_handle = CreateNamedPipe(
-                    to_client.c_str(),         // pipe name 
-                    PIPE_ACCESS_OUTBOUND,       // read/write access 
-                    PIPE_TYPE_BYTE |          // message type pipe 
-                    PIPE_READMODE_BYTE |      // message-read mode 
-                    PIPE_WAIT,                // blocking mode 
-                    PIPE_UNLIMITED_INSTANCES, // max. instances  
-                    PIPE_BUF,            // output buffer size 
-                    PIPE_BUF,            // input buffer size 
-                    0,                        // client time-out 
+                    to_client.c_str(),        // pipe name
+                    PIPE_ACCESS_OUTBOUND,     // read/write access
+                    PIPE_TYPE_BYTE |          // message type pipe
+                    PIPE_READMODE_BYTE |      // message-read mode
+                    PIPE_WAIT,                // blocking mode
+                    PIPE_UNLIMITED_INSTANCES, // max. instances
+                    PIPE_BUF,                 // output buffer size
+                    PIPE_BUF,                 // input buffer size
+                    0,                        // client time-out
                     NULL);
                     //pipe_acl);                // DACL
 
@@ -1366,16 +1366,12 @@ namespace netxs::os
                     w_handle = sock_ptr->w_handle;
                     return fail("CreateNamedPipe error (write)");
                 }
-                
+
                 return sock_ptr;
-                
-                    //return *sock_ptr && (handle != INVALID_FD)
-                //	? sock_ptr
-                //	: nullptr;
 
             #elif defined(__linux__) || defined(__APPLE__)
 
-                auto sock_ptr 
+                auto sock_ptr
                     = std::make_shared<ipc>(::accept(handle, 0, 0), true);
 
                 return *sock_ptr ? sock_ptr
@@ -1403,18 +1399,18 @@ namespace netxs::os
         auto recv(char* buff, SIZE_T size) const
         {
             #if defined(_WIN32)
-            
+
                 bool fSuccess = faux;
                 DWORD count;
 
                 //HANDLE waits[2] = { r_handle, charge };
                 //if (WAIT_OBJECT_0 == WaitForMultipleObjects(2, waits, FALSE, INFINITE))
                 fSuccess = ReadFile(
-                    r_handle,    // pipe handle 
-                    buff,      // buffer to receive reply 
-                    (DWORD)size,      // size of buffer 
-                    &count,  // number of bytes read 
-                    NULL);    // not overlapped 
+                    r_handle,    // pipe handle
+                    buff,        // buffer to receive reply
+                    (DWORD)size, // size of buffer
+                    &count,      // number of bytes read
+                    NULL);       // not overlapped
 
                 if (fSuccess) return qiew{ buff, count };
                 else          return qiew{};
@@ -1491,11 +1487,11 @@ namespace netxs::os
             #if defined(_WIN32)
                 DWORD count;
                 auto fSuccess = WriteFile(
-                    w_handle,            // pipe handle 
-                    data,                // message 
-                    (DWORD)size,         // message length 
-                    &count,              // bytes written 
-                    NULL);               // not overlapped 
+                    w_handle,    // pipe handle
+                    data,        // message
+                    (DWORD)size, // message length
+                    &count,      // bytes written
+                    NULL);       // not overlapped
                 if (!fSuccess) count = 0;
 
             #elif defined(__linux__) || defined(__APPLE__)
@@ -1504,16 +1500,15 @@ namespace netxs::os
                 //     or     ::send + , MSG_NOSIGNAL)
 
                 //::signal(SIGPIPE, SIG_IGN);
-                
+
                 // std::lock_guard guard{ mutex }; // socket shutdown while writing cause SIGPIPE
 
                 //auto count = ::write(handle, data, size);
-                
+
                 auto count = IS_TTY ? ::write(handle, data, size)
                                     : ::send (handle, data, size, MSG_NOSIGNAL); // not work with open_pty
                                                                                  // recursive connection causes sigpipe on destroy when using write(2)
                 //auto count = ::send(handle, data, size, MSG_NOSIGNAL);
-                
 
                 // send(2)does not work with file descriptors, only sockets
                 // write(2) works with fds as well as sockets
@@ -1572,7 +1567,7 @@ namespace netxs::os
 
             #if defined(_WIN32)
 
-                if (sealed) 
+                if (sealed)
                 { // Disconnection order does matter
                     if (w_handle != INVALID_FD) DisconnectNamedPipe(w_handle);
                     if (r_handle != INVALID_FD) DisconnectNamedPipe(r_handle);
@@ -1674,25 +1669,25 @@ namespace netxs::os
                     auto play = [&]() -> bool {
 
                         w_sock = CreateFile(
-                            to_server.c_str(), // pipe name 
+                            to_server.c_str(), // pipe name
                             GENERIC_WRITE,
-                            0,                // no sharing 
+                            0,                // no sharing
                             NULL,             // default security attributes
-                            OPEN_EXISTING,    // opens existing pipe 
-                            0,                // default attributes 
-                            NULL);            // no template file 
+                            OPEN_EXISTING,    // opens existing pipe
+                            0,                // default attributes
+                            NULL);            // no template file
 
                         if (w_sock == INVALID_FD)
                             return faux; // fail("could not open to_server link");
 
                         r_sock = CreateFile(
-                            to_client.c_str(), // pipe name 
+                            to_client.c_str(), // pipe name
                             GENERIC_READ,
-                            0,                // no sharing 
+                            0,                // no sharing
                             NULL,             // default security attributes
-                            OPEN_EXISTING,    // opens existing pipe 
-                            0,                // default attributes 
-                            NULL);            // no template file 
+                            OPEN_EXISTING,    // opens existing pipe
+                            0,                // default attributes
+                            NULL);            // no template file
 
                         if (r_sock == INVALID_FD)
                         {
@@ -1739,10 +1734,10 @@ namespace netxs::os
 
                 struct sockaddr_un addr = {};
                 addr.sun_family = AF_UNIX;
-            
+
             #if defined(__linux__)
 
-                // abstract namespace socket (begins with zero) 
+                // abstract namespace socket (begins with zero)
                 // The abstract socket namespace is a nonportable Linux extension.
                 std::copy(path.begin(), path.end(), addr.sun_path + 1);
 
@@ -1781,7 +1776,7 @@ namespace netxs::os
                             return fail("failed to start server");
 
                         auto stop = datetime::tempus::now() + retry_time;
-                        do 
+                        do
                         {
                             std::this_thread::sleep_for(100ms);
                             done = play();
@@ -1794,7 +1789,6 @@ namespace netxs::os
 
                     //int val = 1;
                     //auto error = -1 == ::setsockopt(sock, SOL_SOCKET, SO_PASSCRED, &val, sizeof(val));
-
                 }
 
             #endif
@@ -1887,7 +1881,7 @@ namespace netxs::os
 
             #endif
         };
-        
+
         #if defined(_WIN32)
 
             //ipc in_fd { STD_INPUT_HANDLE  };
@@ -1913,7 +1907,7 @@ namespace netxs::os
 
         #endif
 
-        static void defeat(text msg = "") 
+        static void defeat(text msg = "")
         {
             log("proxy: platform specific error: ", msg, " ",
                 #if defined(_WIN32)
@@ -1924,7 +1918,7 @@ namespace netxs::os
             );
         }
         template<class T>
-        static bool ok(T error_condition, text msg = "") 
+        static bool ok(T error_condition, text msg = "")
         {
             if(
                 #if defined(_WIN32)
@@ -1950,7 +1944,7 @@ namespace netxs::os
             auto& imode = _globals<void>::imode;
             auto& reset = _globals<void>::reset;
             auto& winsz = _globals<void>::winsz;
-            
+
             auto& sock = *_globals<void>::sock;
 
             // the input codepage to UTF-8 is severely
@@ -2084,7 +2078,7 @@ namespace netxs::os
                                     break;
                             }
                         }
-                        
+
                         if (vtcon)
                         {
                             CONSOLE_READCONSOLE_CONTROL state = { sizeof(state) };
@@ -2100,7 +2094,7 @@ namespace netxs::os
                             yield += utf::to_utf(slide.data(), count);
                         }
                         else FlushConsoleInputBuffer(input);
-                        
+
                         sock.send(yield);
                     }
                 }
@@ -2126,7 +2120,7 @@ namespace netxs::os
                 ok(SetEvent(reset), "SetEvent error");
 
             #elif defined(__linux__) || defined(__APPLE__)
-            
+
                 in_fd.fire(); // Unblock reading thread
 
             #endif
@@ -2183,7 +2177,7 @@ namespace netxs::os
 
                 //ok(reset = CreateEvent(NULL, TRUE, TRUE, NULL), "CreateEvent error");
                 ok(reset = CreateEvent(NULL, TRUE, FALSE, NULL), "CreateEvent error");
-                
+
                 ok(GetConsoleMode(board, &omode), "GetConsoleMode error (omode)");
                 ok(GetConsoleMode(input, &imode), "GetConsoleMode error (imode)");
 
@@ -2204,7 +2198,7 @@ namespace netxs::os
                            | DISABLE_NEWLINE_AUTO_RETURN
                            ;
                 ok(SetConsoleMode(board, mode), "SetConsoleMode error (board)");
-                
+
                 auto ctrlHandler = [](DWORD signal)->BOOL
                 {
                     auto& sock = *_globals<void>::sock;
@@ -2247,7 +2241,7 @@ namespace netxs::os
             #elif defined(__linux__) || defined(__APPLE__)
 
                 auto& mode = _globals<void>::mode;
-                
+
                 if (ok(::tcgetattr(0, &mode))) // set stdin raw mode
                 {
                     ::termios raw_mode = mode;
@@ -2263,8 +2257,7 @@ namespace netxs::os
                     defeat();
                 else ok(::raise(SIGWINCH)); // get current size
 
-                
-                //todo translate input to Application key mode if it 
+                //todo translate input to Application key mode if it
                 //is requested (\033[?1h) (ConPTY do it for me)
                 //for mc arrow keys
                 //output(ansi::appkey(true)); // Set application key mode.
@@ -2287,7 +2280,7 @@ namespace netxs::os
         void revert()
         {
             #if defined(_WIN32)
-            
+
                 ok(SetConsoleMode(_globals<void>::board, _globals<void>::omode), "SetConsoleMode error (revert_o)");
                 ok(SetConsoleMode(_globals<void>::input, _globals<void>::imode), "SetConsoleMode error (revert_i)");
 
@@ -2367,7 +2360,7 @@ namespace netxs::os
                     {
                         COORD consoleSize{ static_cast<SHORT>(winsz.x),
                                            static_cast<SHORT>(winsz.y)};
-                        err_code = 
+                        err_code =
                             CreatePseudoConsole(consoleSize, s_pipe_r, s_pipe_w, 0, &hPC);
                     }
 
@@ -2382,7 +2375,7 @@ namespace netxs::os
                     InitializeProcThreadAttributeList(nullptr, 1, 0, &attr_size);
 
                     attrs_buff.resize(attr_size);
-                    lpAttributeList = 
+                    lpAttributeList =
                         reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(attrs_buff.data());
 
                     if (InitializeProcThreadAttributeList(lpAttributeList, 1, 0, &attr_size)
@@ -2442,7 +2435,7 @@ namespace netxs::os
                     ::close(fdm);
 
                     auto rc = ::setsid(); // Make the current process a new session leader, return process group id
-                
+
                     // In order to receive WINCH signal make fds the controlling
                     // terminal of the current process.
                     // Current process must be a session leader (::setsid()) and not have
@@ -2451,26 +2444,26 @@ namespace netxs::os
                     // it doesn't matter here
                     if (::ioctl(fds, TIOCSCTTY, 0) == -1)
                         log("cons: assign controlling terminal error ", errno);
-                
-                    struct winsize wsize{ 
+
+                    struct winsize wsize{
                         static_cast<unsigned short>(winsz.y),
                         static_cast<unsigned short>(winsz.x) };
 
                     if (::ioctl(fds, TIOCSWINSZ, &wsize) == -1) // Preset slave tty size
                         log("cons: ioctl set winsize error ", errno);
-                
+
                     ::signal(SIGINT,  SIG_DFL); // Reset control signals to the default
                     ::signal(SIGQUIT, SIG_DFL); //
                     ::signal(SIGTSTP, SIG_DFL); //
                     ::signal(SIGTTIN, SIG_DFL); //
                     ::signal(SIGTTOU, SIG_DFL); //
                     ::signal(SIGCHLD, SIG_DFL); //
-                    
+
                     ::dup2 (fds, STDIN_FILENO);  // Assign stdio lines atomically
                     ::dup2 (fds, STDOUT_FILENO); // = close(new);
                     ::dup2 (fds, STDERR_FILENO); // fcntl(old, F_DUPFD, new)
                     ::close(fds);
-                
+
                     auto args = os::split_cmdline(cmdline);
 
                     std::vector<char*> argv;
@@ -2489,12 +2482,12 @@ namespace netxs::os
 
                 socket.set(fdm, true);
                 alive = true;
-                
+
             #endif
 
             std_input = std::thread([&] { read_socket_thread(); });
         }
-        
+
         void read_socket_thread ()
         {
             text content;
@@ -2507,7 +2500,7 @@ namespace netxs::os
                 content += data;
                 auto shadow = ansi::purify(content);
                 receiver(shadow);
-                
+
                 content.erase(0, shadow.size()); // Delete processed data
             }
             //log("cons: read_socket_thread ended");
@@ -2517,18 +2510,18 @@ namespace netxs::os
             alive = faux;
 
             #if defined(_WIN32)
-        
+
                 ClosePseudoConsole(hPC);
                 socket.shut();
                 CloseHandle(hProcess);
                 CloseHandle(hThread);
-        
+
             #elif defined(__linux__) || defined(__APPLE__)
-        
+
                 socket.shut();
                 ::kill(pid, SIGKILL);
                 ::waitpid (pid, 0, 0); // wait for the child to avoid zombies
-        
+
             #endif
 
             if (std_input.joinable())

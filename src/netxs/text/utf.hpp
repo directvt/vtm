@@ -17,7 +17,7 @@
 #include <sstream>
 
 /**
- * limits the number of code points in a grapheme cluster 
+ * limits the number of code points in a grapheme cluster
  * to a number sufficient for any possible linguistic situation
  **/
 #define GRAPHEME_CLUSTER_LIMIT (31)
@@ -99,26 +99,26 @@ namespace netxs::utf
             }
         }
     };
-    
+
     // utf: First byte based UTF-8 codepoint lengths.
-    static constexpr int utf8lengths[] = 
-    {	//      0	1	2	3	4	5	6	7	8	9	A	B	C	D	E	F
-        /* 0 */ 1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,
-        /* 1 */ 1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,
-        /* 2 */ 1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,
-        /* 3 */ 1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,
-        /* 4 */ 1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,
-        /* 5 */ 1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,
-        /* 6 */ 1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,
-        /* 7 */ 1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,	1,
-        /* 8 */ 0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,
-        /* 9 */ 0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,
-        /* A */ 0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,
-        /* B */ 0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,
-        /* C */ 0,	0,	2,	2,	2,	2,	2,	2,	2,	2,	2,	2,	2,	2,	2,	2,
-        /* D */ 2,	2,	2,	2,	2,	2,	2,	2,	2,	2,	2,	2,	2,	2,	2,	2,
-        /* E */ 3,	3,	3,	3,	3,	3,	3,	3,	3,	3,	3,	3,	3,	3,	3,	3,
-        /* F */ 4,	4,	4,	4,	4,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,
+    static constexpr int utf8lengths[] =
+    {	//      0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F
+        /* 0 */ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        /* 1 */ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        /* 2 */ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        /* 3 */ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        /* 4 */ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        /* 5 */ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        /* 6 */ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        /* 7 */ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        /* 8 */ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        /* 9 */ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        /* A */ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        /* B */ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        /* C */ 0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+        /* D */ 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+        /* E */ 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+        /* F */ 4, 4, 4, 4, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     } ;
 
     // utf: Codepoint iterator.
@@ -131,17 +131,17 @@ namespace netxs::utf
         size_t utf8len;
 
         cpit(view const& utf8)
-            :	textptr (utf8.data()),
-                balance (utf8.size()),
-                utf8len (0)
-        {}
+            : textptr { utf8.data() },
+              balance { utf8.size() },
+              utf8len { 0           }
+        { }
 
         void redo(view const& utf8)
         {
             textptr = utf8.data();
             balance = utf8.size();
         }
-        
+
         view rest()
         {
             return view{ textptr, balance };
@@ -179,7 +179,7 @@ namespace netxs::utf
                             if (c2 = *++data; (c2 & 0xC0) == 0x80)
                             {
                                 utf8len = 2U;
-                                cp = ((cp & 0b00011111) << 6) 
+                                cp = ((cp & 0b00011111) << 6)
                                     | (c2 & 0b00111111);
                             }
                             else return prop(utf8len = 1);
@@ -214,10 +214,10 @@ namespace netxs::utf
                     default: // case 4
                         if (balance > 3)
                         {
-                            if (c2 = *++data; (c2 & 0xC0) == 0x80) 
+                            if (c2 = *++data; (c2 & 0xC0) == 0x80)
                             {
-                                if (c3 = *++data; (c3 & 0xC0) == 0x80) 
-                                {		
+                                if (c3 = *++data; (c3 & 0xC0) == 0x80)
+                                {
                                     if (c4 = *++data; (c4 & 0xC0) == 0x80)
                                     {
                                         utf8len = 4U;
@@ -629,7 +629,7 @@ namespace netxs::utf
                 c = invalid_char;
                 for (auto j = 0UL; j < count; ++j)
                 {
-                    if (code >= cp_table[j].lb 
+                    if (code >= cp_table[j].lb
                      && code <= cp_table[j].rb)
                     {
                         c = static_cast<char>(code - cp_table[j].lb + cp_table[j].cp);
@@ -671,7 +671,7 @@ namespace netxs::utf
     {
         // � The standard also recommends replacing each error with the replacement character
         //
-        // In terms of the newline, Unicode introduced U+2028 LINE SEPARATOR 
+        // In terms of the newline, Unicode introduced U+2028 LINE SEPARATOR
         // and U+2029 PARAGRAPH SEPARATOR.
         //  c̳̻͚̻̩̻͉̯̄̏͑̋͆̎͐ͬ͑͌́͢h̵͔͈͍͇̪̯͇̞͖͇̜͉̪̪̤̙ͧͣ̓̐̓ͤ͋͒ͥ͑̆͒̓͋̑́͞ǎ̡̮̤̤̬͚̝͙̞͎̇ͧ͆͊ͅo̴̲̺͓̖͖͉̜̟̗̮̳͉̻͉̫̯̫̍̋̿̒͌̃̂͊̏̈̏̿ͧ́ͬ̌ͥ̇̓̀͢͜s̵̵̘̹̜̝̘̺̙̻̠̱͚̤͓͚̠͙̝͕͆̿̽ͥ̃͠͡
 
@@ -956,7 +956,7 @@ namespace netxs::utf
 
                 utf8 = temp; // assign to perform simultaneous shrinking and copying
             }
-            else 
+            else
             {
                 auto base = utf8.data();
                 auto repl = fill.data();
@@ -1094,7 +1094,7 @@ namespace netxs::utf
         return crop;
     }
     template <bool UCASE = faux>
-    auto to_hex(view buffer, bool formatted = faux) 
+    auto to_hex(view buffer, bool formatted = faux)
     {
         if (formatted)
         {

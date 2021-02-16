@@ -110,7 +110,7 @@ namespace netxs::ui
 
                 return levels(sector * s);
             }
-            // sock: 
+            // sock: .
             void drag(twod const& coord)
             {
                 auto delta = coord - origin;
@@ -284,7 +284,7 @@ namespace netxs::ui
                 middle.size = size - (middle.coor * 2);
                 if (client)
                     client->SIGNAL(e2::release, e2::form::layout::size, region.size);
-                
+
                 if (!nosize && client)
                 {
                     auto& size = client->base::size.get();
@@ -413,7 +413,7 @@ namespace netxs::ui
                 auto shadow = skin::color(tone::shadower);
                 shadow.alpha(bright.bga());
 
-                bool isnorm = 
+                bool isnorm =
                     !active && states.end() == std::find_if(states.begin(), states.end(),
                                                 [](auto& a) { return a.wholly; });
                 auto guides = [&](auto bright)
@@ -867,7 +867,7 @@ namespace netxs::ui
             };
             SUBMIT(e2::release, e2::form::layout::size, new_sz)
             {
-                //todo optimize avoid SIGNAL if size/coor is unchanged 
+                //todo optimize avoid SIGNAL if size/coor is unchanged
                 auto& y_size = up_down ? new_sz.y : new_sz.x;
                 auto& x_size = up_down ? new_sz.x : new_sz.y;
                 twod  new_xy;
@@ -1734,7 +1734,7 @@ namespace netxs::ui
                         gear.dismiss();
 
                         timer.template actify<activity::pager_first>(REPEAT_DELAY, [&](auto p)
-                        { 
+                        {
                             if (pager_repeat())
                             {
                                 timer.template actify<activity::pager_next>(REPEAT_RATE, [&](auto d)
@@ -1809,7 +1809,6 @@ namespace netxs::ui
                         {
                             gohome();
                         }
-                        
                         base::deface();
                         gear.release();
                         gear.dismiss();
@@ -1827,7 +1826,6 @@ namespace netxs::ui
                         {
                             gohome();
                         }
-
                         base::deface();
                         gear.release();
                         gear.dismiss();
@@ -1844,9 +1842,9 @@ namespace netxs::ui
                     base::reflow();
                     return faux; // One shot call
                 };
-            
+
                 timer.pacify(activity::mouse_leave);
-            
+
                 if (active)          apply(activity::mouse_hover);
                 else timer.template actify<activity::mouse_leave>(ACTIVE_TIMEOUT, apply);
             };
@@ -2169,7 +2167,7 @@ namespace netxs::ui
         {
             canvas.reflow(topic);
 
-            /// In order to update mutable vars in the topic 
+            /// In order to update mutable vars in the topic
             SIGNAL(e2::release, e2::form::upon::wiped, canvas);
 
             canvas.output(topic, true);
@@ -2235,7 +2233,7 @@ namespace netxs::ui
         }
     };
 
-    class chat 
+    class chat
         : public pane
     {
         using self = pane;
@@ -2293,7 +2291,7 @@ namespace netxs::ui
 
     };
 
-    class button 
+    class button
         : public form
     {
         using self = button;
@@ -2891,7 +2889,7 @@ namespace netxs::ui
         }
     };
 
-    struct ticker 
+    struct ticker
         : public form
     {
         twod	offset; // ticker: Ticker position.
@@ -2899,7 +2897,7 @@ namespace netxs::ui
 
         //todo unspecial!
         //pro::print cursor; // ticker: Cursor controller.
-        //pro::align<ticker> 
+        //pro::align<ticker>
 
         virtual void render(face& parent_canvas)
         {
@@ -2939,8 +2937,8 @@ namespace netxs::ui
                 ///auto outs = utf::adjust(utf::format(counters.frsize), 9, " ", true);
                 ///
                 /////statline.edit(" process:" + rend + "ns, render:" + outp + "ns ");
-                ///statline = " process:" + rend 
-                ///		 + "ns, render:" + outp 
+                ///statline = " process:" + rend
+                ///		 + "ns, render:" + outp
                 ///		 + "ns, frame size:" + outs + " bytes ";
                 ///statline.locus.jet(bias::center).wrp(false).cpp({ 50,0 });
                 ///
@@ -3109,7 +3107,7 @@ namespace netxs::ui
 //	datetime::moment	present;
 //
 //	datasrc(utils::iota count, datetime::period speed, period delay = period::zero())
-//		:	balls(count), 
+//		:	balls(count),
 //			clock(router(e2::release), e2::timer::tick),
 //			pause(delay)
 //	{
@@ -3153,7 +3151,7 @@ namespace netxs::ui
 //
 //	chaos(data_ptr datasrc)
 //		:	data(datasrc)
-//	{ 
+//	{
 //		base.txt("█").bgc(0x00u).fgc(0x00u);
 //
 //		data->SUBMIT_T(e2::release, e2::data::changed, logic, p)

@@ -22,13 +22,12 @@ namespace netxs::ui
         struct rgba_t { uint8_t r, g, b, a; } chan;
         uint32_t                              token;
 
-        constexpr rgba () 
+        constexpr rgba ()
             : token(0)
         { }
 
         template<class T, class A = uint8_t>
         constexpr rgba (T r, T g, T b, A a = 0xff)
-            //: token{ static_cast<uint32_t>((a << 24) + (b << 16) + (g << 8) + r) }
             : chan{ static_cast<uint8_t>(r),
                     static_cast<uint8_t>(g),
                     static_cast<uint8_t>(b),
@@ -39,11 +38,11 @@ namespace netxs::ui
             : token(c.token)
         { }
 
-        constexpr rgba (tint c) 
+        constexpr rgba (tint c)
             : rgba{ color16[c] }
         { }
-        
-        constexpr rgba (uint32_t c) 
+
+        constexpr rgba (uint32_t c)
             : token(c)
         { }
 
@@ -127,7 +126,7 @@ namespace netxs::ui
                 chan.r = blend(chan.r, c.chan.r, c.chan.a);
                 chan.g = blend(chan.g, c.chan.g, c.chan.a);
                 chan.b = blend(chan.b, c.chan.b, c.chan.a);
-            
+
                 //if (!chan.a) chan.a = c.chan.a;
             }
         }
@@ -215,7 +214,7 @@ namespace netxs::ui
             }
         }
         // rgba: Darken the color.
-        void shadow(uint8_t k = 39)//24) 
+        void shadow(uint8_t k = 39)//24)
         {
             if (chan.r + chan.g + chan.b > 39)//24)
             {
@@ -254,9 +253,9 @@ namespace netxs::ui
         // rgba: Serialize color.
         auto str() const
         {
-            return "{" + std::to_string(chan.r)   + "," 
+            return "{" + std::to_string(chan.r) + ","
                        + std::to_string(chan.g) + ","
-                       + std::to_string(chan.b)  + ","
+                       + std::to_string(chan.b) + ","
                        + std::to_string(chan.a) + "}";
         }
 
@@ -297,19 +296,20 @@ namespace netxs::ui
 
         irgb() = default;
 
-        irgb(T r, T g, T b) 
-            : r{ r }, g{ g }, b{ b } { }
-
-        irgb(rgba const& c) 
-            : r { c.chan.r   },
-              g { c.chan.g },
-              b { c.chan.b  }
+        irgb(T r, T g, T b)
+            : r{ r }, g{ g }, b{ b }
         { }
-        
+
+        irgb(rgba const& c)
+            : r { c.chan.r },
+              g { c.chan.g },
+              b { c.chan.b }
+        { }
+
         operator rgba() const  { return rgba{ r, g, b }; }
-        
+
         template<class V>
-        auto operator / (V v) const 
+        auto operator / (V v) const
         {
             return irgb<T>{ r / v, g / v, b / v }; // 10% faster than divround
 
@@ -317,37 +317,37 @@ namespace netxs::ui
             //                utils::divround(g, v),
             //                utils::divround(b, v) };
         }
-        
+
         template<class V>
-        void operator *=(V v) 
+        void operator *=(V v)
         {
             r *= v; g *= v; b *= v;
         }
-        void operator =(irgb const& c) 
+        void operator =(irgb const& c)
         {
             r = c.r;
             g = c.g;
             b = c.b;
         }
-        void operator +=(irgb const& c) 
+        void operator +=(irgb const& c)
         {
             r += c.r;
             g += c.g;
             b += c.b;
         }
-        void operator -=(irgb const& c) 
+        void operator -=(irgb const& c)
         {
             r -= c.r;
             g -= c.g;
             b -= c.b;
         }
-        void operator +=(rgba const& c) 
+        void operator +=(rgba const& c)
         {
             r += c.chan.r;
             g += c.chan.g;
             b += c.chan.b;
         }
-        void operator -=(rgba const& c) 
+        void operator -=(rgba const& c)
         {
             r -= c.chan.r;
             g -= c.chan.g;
@@ -369,7 +369,7 @@ namespace netxs::ui
         template<bool NESTED = faux>
         constexpr
         rect clip (rect block) const
-        { 
+        {
             auto clamp = [&](auto const& base, auto const& apex)
             {
                 auto block_apex = block.coor + block.size;
@@ -382,7 +382,7 @@ namespace netxs::ui
 
             return block;
         }
-        
+
         operator bool     ()              const { return size.x != 0 && size.y != 0;       }
         auto   area       ()              const { return size.x * size.y;                  }
         twod   map        (twod const& p) const { return p - coor;                         }
@@ -479,7 +479,7 @@ namespace netxs::ui
         }
         // rect: Intersect the rect with rect{ dot_00, edge }.
         rect trunc (twod const& edge) const
-        { 
+        {
             rect r;
             r.coor = std::clamp(coor, dot_00, edge);
             r.size = std::clamp(size, -coor, edge - coor) + coor - r.coor;
@@ -487,18 +487,18 @@ namespace netxs::ui
         }
         // rect: Return circumscribed rect.
         rect unite (rect const& annex) const
-        { 
+        {
             auto r1 = annex.normalize();
             auto r2 = normalize();
-            
+
             auto tl = std::min(r1.coor, r2.coor);
             auto br = std::max(r1.coor + r1.size, r2.coor + r2.size );
-            
+
             return { tl, br - tl};
         }
         // rect: Return true in case of normalized rectangles are overlapped.
         bool overlap (rect const& r) const
-        { 
+        {
             return coor.x          < r.coor.x + r.size.x
                 && coor.y          < r.coor.y + r.size.y
                 && coor.x + size.x > r.coor.x
@@ -528,11 +528,11 @@ namespace netxs::ui
     {
         iota l, r, t, b;
 
-        constexpr side () 
+        constexpr side ()
             : l(0), r(0), t(0), b(0)
         { }
 
-        constexpr side (iota left, iota right = 0, iota top = 0, iota bottom = 0) 
+        constexpr side (iota left, iota right = 0, iota top = 0, iota bottom = 0)
             : l(left), r(right), t(top), b(bottom)
         { }
 
@@ -609,7 +609,7 @@ namespace netxs::ui
             //	r != new_r ||
             //	t != new_t ||
             //	b != new_b)
-            //{ 
+            //{
             //	l = new_l;
             //	r = new_r;
             //	t = new_t;
@@ -649,15 +649,15 @@ namespace netxs::ui
             iota step = 0;
             bool just = faux;
             bool flip = faux;
-            
+
             //constexpr edge() = default;
-            constexpr edge(iota const& size, bool just) 
-                : size (size), 
+            constexpr edge(iota const& size, bool just)
+                : size (size),
                   just (just),
                   flip (faux),
                   step (0)
             { }
-            //void set(iota const& newsize, bool justify) 
+            //void set(iota const& newsize, bool justify)
             //{
             //	size = newsize;
             //	just = justify;
@@ -687,19 +687,19 @@ namespace netxs::ui
         edge foot;
 
         //dent() = default;
-        //constexpr 
-        //dent(twod const& size) 
+        //constexpr
+        //dent(twod const& size)
         //	:	west (size.x, true),
         //		east (size.x, faux),
         //		head (size.y, true),
         //		foot (size.y, faux)
         //{ }
-        constexpr 
-        dent(iota const& size_x, iota const& size_y) 
-            :	west (size_x, true),
-                east (size_x, faux),
-                head (size_y, true),
-                foot (size_y, faux)
+        constexpr
+        dent(iota const& size_x, iota const& size_y)
+            : west (size_x, true),
+              east (size_x, faux),
+              head (size_y, true),
+              foot (size_y, faux)
         { }
 
         dent& operator = (dent const& margin)
@@ -762,7 +762,7 @@ namespace netxs::ui
         //	foot.set(formsize.y, faux);
         //}
     };
-    
+
     struct rack // scroll info
     {
         twod region; // rack: Available scroll area

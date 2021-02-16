@@ -327,7 +327,7 @@ namespace netxs::ui
         {
             brush = preserve_brush ? caret->brush
                                    : cell{};
-            batch.clear();    
+            batch.clear();
             parid = 0;
             count = 0;
             basis = 0;
@@ -394,7 +394,7 @@ namespace netxs::ui
             {
                 while(delta-- > 0 ) fork();
             }
-            
+
             //auto h_test = cover.height() + 1;
             //if (h_test != count)
             //{
@@ -405,7 +405,6 @@ namespace netxs::ui
             auto viewport = rect{{ 0, basis }, { width, viewport_height }};
             flow::minmax(viewport);
             height = cover.height() + 1;
-            
 
             align_basis();
             //todo merge with main loop here
@@ -626,7 +625,7 @@ namespace netxs::ui
                     for (auto i = 0; i < 0x100; ++i)
                     {
                         auto& proc = vt::csier.table[i];
-                        if (!proc) 
+                        if (!proc)
                         {
                            proc = [i](auto& q, auto& p) { p->not_implemented_CSI(i, q); };
                         }
@@ -786,7 +785,7 @@ namespace netxs::ui
                  * - move caret one line up if it is outside of scrolling region or below the top line of scrolling region.
                  * - one line scroll down if caret is on the top line of scroll region.
                  */
-                if (coord.y != scroll_top) 
+                if (coord.y != scroll_top)
                 {
                     coord.y--;
                     set_coord();
@@ -1033,7 +1032,7 @@ namespace netxs::ui
                 {
                     scl(-n);
                 }
-                else 
+                else
                 {
                     coord.y += n;
                     set_coord();
@@ -1331,7 +1330,7 @@ namespace netxs::ui
                     auto new_coor = base::coor.get() - anchor_delta;
                     SIGNAL(e2::release, base::move_event, new_coor);
                 }
-                
+
                 //todo optimize/unify
                 if (mode_DECCKM)
                 {

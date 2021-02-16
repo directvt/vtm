@@ -21,7 +21,7 @@ namespace netxs
     template<class T1, class T2>
     bool sum_overflow(T1& accum, T2 delta)
     {
-        auto store = accum; 
+        auto store = accum;
         accum += delta;
         return accum <= store ? true : false;
     }
@@ -70,10 +70,10 @@ namespace netxs
         static_assert(std::is_integral<T3>::value, "Integral type only");
 
         return	n > 0
-            ?	1 + (n - 1) / d 
+            ?	1 + (n - 1) / d
             :	n / d;
     }
-    
+
     template<typename T1, typename T2, typename T3 = T2>
     T3 divfloor(T1 n, T2 d)
     {
@@ -82,7 +82,7 @@ namespace netxs
         static_assert(std::is_integral<T3>::value, "Integral type only");
 
         return	n < 0
-            ?	1 + (n - 1) / d 
+            ?	1 + (n - 1) / d
             :	n / d;
     }
 
@@ -97,7 +97,7 @@ namespace netxs
     using disintegrate = typename _disintegrate< std::is_integral<T>::value, T >::type;
 
     // intmath.h: Delta sequence generator.
-    //            The QUADRATIC-LAW fader from the initial velocity 
+    //            The QUADRATIC-LAW fader from the initial velocity
     //            to stop for a given period of time.
     template<class T>
     class quadratic
@@ -211,7 +211,7 @@ namespace netxs
     };
 
     // intmath.h: Delta sequence generator.
-    //            The LINEAR-LAW fader from the initial coord to the destination 
+    //            The LINEAR-LAW fader from the initial coord to the destination
     //            coord for a given period of time with constant speed.
     template<class T>
     class constlinearAtoB
@@ -266,7 +266,7 @@ namespace netxs
         }
     };
 
-    // intmath.h: Forward/Reverse (bool template arg) copy the specified 
+    // intmath.h: Forward/Reverse (bool template arg) copy the specified
     //            sequence of cells onto the canvas at the specified offset
     //            and return count of copied cells.
     template<bool RtoL, class T1, class T2, class P>
@@ -287,7 +287,7 @@ namespace netxs
         return width;
     }
 
-    // intmath.h: Copy the bitmap to the bitmap by invoking 
+    // intmath.h: Copy the bitmap to the bitmap by invoking
     //            handle(sprite1_element, sprite2_element) for each elem.
     template<class T, class P>
     void oncopy(T& bitmap1, T const& bitmap2, P handle)
@@ -307,8 +307,8 @@ namespace netxs
             }
         }
     }
-    
-    // intmath.h: Intersect two sprites and 
+
+    // intmath.h: Intersect two sprites and
     //            invoking handle(sprite1_element, sprite2_element)
     //            for each elem in the intersection.
     template<bool RtoL, class T, class R, class C, class P>
@@ -379,7 +379,7 @@ namespace netxs
             auto basis = joint.coor - place.coor;
             auto frame = place.size.x * basis.y + basis.x + canvas.data();
             auto notch = place.size.x - joint.size.x;
-            
+
             auto  limit = place.size.x * joint.size.y + frame;
             while(limit!= frame)
             {
@@ -393,10 +393,10 @@ namespace netxs
             }
         }
     }
-    
+
     static inline
     bool liang_barsky(float xmin, float ymin, float xmax, float ymax,
-                      float&  x1, float&  y1, float&  x2, float&  y2) 
+                      float&  x1, float&  y1, float&  x2, float&  y2)
     {
         auto dx = x2 - x1;
         auto dy = y2 - y1;
@@ -408,16 +408,16 @@ namespace netxs
 
         auto max = 0.0f;
         auto min = 1.0f;
-        
+
         auto cut = [&](auto side1, auto side2, auto delta)
         {
-            if (delta > 0.0f) 
+            if (delta > 0.0f)
             {
                 auto k1 =-side1 / delta;
                 auto k2 = side2 / delta;
                 if (max < k1) max = k1;
                 if (min > k2) min = k2;
-            } 
+            }
             else if (delta < 0.0f)
             {
                 auto k1 =-side1 / delta;
@@ -429,7 +429,7 @@ namespace netxs
 
         auto right  = xmax - x1;
         auto bottom = ymax - y1;
-        
+
         cut(left, right, dx);
         cut(top, bottom, dy);
 
@@ -467,7 +467,7 @@ namespace netxs
         int32_t  dy = p1.y - p0.y;
         uint32_t lx = std::abs(dx);
         uint32_t ly = std::abs(dy);
-        
+
         rect = rect.normalize();
         twod& coor = rect.coor;
         twod& size = rect.size;
@@ -493,9 +493,9 @@ namespace netxs
                 {
                     T mold = head;
 
-                    auto loop = [&](auto  size_x, auto  size_y, 
-                                    auto  incr_x, auto  incr_y, 
-                                    auto& head_x, auto& head_y, 
+                    auto loop = [&](auto  size_x, auto  size_y,
+                                    auto  incr_x, auto  incr_y,
+                                    auto& head_x, auto& head_y,
                                     auto& mold_x, auto& mold_y,
                                                   auto  tail_y)
                     {
@@ -508,17 +508,17 @@ namespace netxs
                             set(mold, k);
 
                             if (head_y == tail_y) break; // with last pixel
-                            incr_y(head_y); 
+                            incr_y(head_y);
                             //if (head_y == tail_y) break; // w/o last pixel
                             incr_y(mold_y);
                             if (sum_overflow(gain, step))
                             {
-                                incr_x(head_x); 
+                                incr_x(head_x);
                                 incr_x(mold_x);
                             }
                         }
                     };
-                    
+
                     if (ly > lx) loop(lx, ly, incx, incy, head.x, head.y, mold.x, mold.y, tail.y);
                     else         loop(ly, lx, incy, incx, head.y, head.x, mold.y, mold.x, tail.x);
                 };
@@ -556,7 +556,7 @@ namespace netxs
                     return delta;
                 };
 
-                p1.x = static_cast<iota>(x2); 
+                p1.x = static_cast<iota>(x2);
                 p1.y = static_cast<iota>(y2);
                 auto new_x = static_cast<iota>(x1);
                 auto new_y = static_cast<iota>(y1);
@@ -588,12 +588,12 @@ namespace netxs
 
         return true;
     }
-    
+
     namespace _private
     {
-        ///<summary> intmath.h: 
+        ///<summary> intmath.h:
         ///		Bitmap 1D box-blurring.
-        ///		To achieve a 2D blur, it needs to apply it again and swap the X with Y, 
+        ///		To achieve a 2D blur, it needs to apply it again and swap the X with Y,
         ///		and source with destination.
         /// </summary>
         /// <typeparam name="RGB_T">Point value accumulator type.					</typeparam>
@@ -708,7 +708,7 @@ namespace netxs
     /// <exmpla>
     ///		see console.h:pro::panel::blur()
     /// </exmpla>
-    template<class RGB_T, 
+    template<class RGB_T,
         class SRC_T,
         class DST_T, class INT_T,
         class P_BASE, class P_DEST, class POSTFX = noop>
@@ -721,7 +721,7 @@ namespace netxs
         //auto rx = std::min(r + r, w - 1) >> 1;
         auto rx = std::min((r + r) << 1, w - 1) >> 1; // x2 to preserve 2:1 text proportions
         auto ry = std::min(r + r, h - 1) >> 1;
-        
+
         //for (auto i = 0; i < 1000; i++) //test performance
         {
         _private::blur1d<RGB_T, 0>(s_ptr,    // blur horizontally and place

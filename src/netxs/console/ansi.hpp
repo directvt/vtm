@@ -58,7 +58,7 @@ namespace netxs::console::ansi
     static const char DECSTR  = 'p'; // CSI !      p  — Reset terminal to initial state
     static const char CSI_CCC = 'p'; // CSI n [; x1; x2; ...; xn ] p — Custom Cursor Command
     static const char W32_INP = '_'; // CSI EVENT_TYPEn [; x1; x2; ...; xn ] _ — win32-input-mode
-    
+
     static const char C0_NUL = '\x00'; // Null                - Originally used to allow gaps to be left on paper tape for edits. Later used for padding after a code that might take a terminal some time to process (e.g. a carriage return or line feed on a printing terminal). Now often used as a string terminator, especially in the programming language C.
     static const char C0_SOH = '\x01'; // Start of Heading    - First character of a message header. In Hadoop, it is often used as a field separator.
     static const char C0_STX = '\x02'; // Start of Text       - First character of message text, and may be used to terminate the message heading.
@@ -91,7 +91,7 @@ namespace netxs::console::ansi
     static const char C0_GS  = '\x1D'; // Group Separator
     static const char C0_RS  = '\x1E'; // Record Separator
     static const char C0_US  = '\x1F'; // Unit Separator
-    
+
     static const iota W32_START_EVENT = 10000; // for quick recognition
     static const iota W32_KEYBD_EVENT = 10001;
     static const iota W32_MOUSE_EVENT = 10002;
@@ -174,7 +174,7 @@ namespace netxs::console::ansi
     static const iota CCC_REF = 19 ; // CSI 19: id      p  — create the reference to the existing paragraph
     //static const iota CCC_WIN = 20 ; // CSI 20: x: y    p  — terminal window resize
 
-    struct esc 
+    struct esc
         : public text // ansi: Escaped sequences accumulator.
     {
         inline text str(iota n) { return std::to_string(n); }
@@ -189,7 +189,7 @@ namespace netxs::console::ansi
         add(T t) { operator+=(std::to_string(t)); return *this; }
 
         auto& add(char t) { operator+=(t); return *this; }
-        
+
         esc& locate(iota x, iota y) { add("\033[" + str(y) + ";" // esc: 1-Based cursor position.
                                                   + str(x) + "H");    return *this; }
         esc& locate(twod const& p)  { add("\033[" + str(p.y + 1) + ";" // esc: 0-Based cursor position.
@@ -208,7 +208,7 @@ namespace netxs::console::ansi
         esc& w32input (bool b) { add(b ? "\033[?9001h" : "\033[?9001l");        return *this; } // ansi: Application Cursor Keys (DECCKM).
         esc& w32begin () { clear(); add("\033["); return *this; }
         esc& w32close ()
-        { 
+        {
             if (back() == ';') back() = W32_INP;
             else push_back(W32_INP);
             return *this;
@@ -276,16 +276,15 @@ namespace netxs::console::ansi
         esc& itc (bool b = true) { add(b ? "\033[3m" : "\033[23m");    return *this; } // esc: SGR 𝑰𝒕𝒂𝒍𝒊𝒄 attribute.
         esc& fgc ()              { add("\033[39m");                    return *this; } // esc: Set default foreground color.
         esc& bgc ()              { add("\033[49m");                    return *this; } // esc: Set default background color.
-        
-        // Colon-separated variant
 
+        // Colon-separated variant
         //esc& fgc (rgba const& c) { add("\033[38:2:" + str(c.channel.red  ) + ":"// esc: SGR Foreground color. RGB: red, green, blue.
         //                                            + str(c.channel.green) + ":"
         //                                            + str(c.channel.blue ) + "m"); return *this; }
         //esc& bgc (rgba const& c) { add("\033[48:2:" + str(c.channel.red  ) + ":"// esc: SGR Background color. RGB: red, green, blue and alpha.
         //                                            + str(c.channel.green) + ":"
         //                                            + str(c.channel.blue ) + "m"); return *this; }
-        
+
         esc& fgc (rgba const& c) { add("\033[38;2;" + str(c.chan.r  ) + ";" // esc: SGR Foreground color. RGB: red, green, blue.
                                                     + str(c.chan.g) + ";"
                                                     + str(c.chan.b ) + "m"); return *this; }
@@ -389,8 +388,8 @@ namespace netxs::console::ansi
     static esc rlf (bool n = true)   { return esc{}.rlf (n); } // ansi: Reverse line feed.
     static esc rst ()                { return esc{}.rst ( ); } // ansi: Reset formatting parameters.
     static esc nop ()                { return esc{}.nop ( ); } // ansi: No operation. Split the text run.
-    //ansi: Split the text run and associate the fragment with an id. 
-    //      All following text is under the IDX until the next command is issued. 
+    //ansi: Split the text run and associate the fragment with an id.
+    //      All following text is under the IDX until the next command is issued.
     //      Redefine if the id already exists.
     static esc win (twod const& p)   { return esc{}.win (p); } // ansi: Terminal window resize.
     static esc fcs (bool b)          { return esc{}.fcs (b); } // ansi: Terminal window focus.
@@ -399,7 +398,7 @@ namespace netxs::console::ansi
     static esc eol ()                { return esc{}.eol ( ); } // ansi: EOL.
     static esc edl ()                { return esc{}.edl ( ); } // ansi: EDL.
 
-    // ansi: Cursor forwarding instructions. 
+    // ansi: Cursor forwarding instructions.
     // The order is important (see the richtext::flow::exec constexpr).
 
     // todo tie with richtext::flow::exec
@@ -488,7 +487,7 @@ namespace netxs::console::ansi
             * - void und(bool b);                    // Set underline attribute
             */
 
-            table_quest .resize(0x100); 
+            table_quest .resize(0x100);
                 table_quest[DECSET] = nullptr; // decset
                 table_quest[DECRST] = nullptr; // decrst
 
@@ -665,7 +664,7 @@ namespace netxs::console::ansi
             // Take the control sequence from the string until CSI (cmd >= 0x40 && cmd <= 0x7E) command occured
             // ESC [ n1 ; n2:p1:p2:...pi ; ... nx CSICMD
             //      [-----------------------]
-            
+
             static constexpr auto maxarg = 32_sz; // ansi: Maximal number of the parameters in one escaped sequence.
             using fifo = netxs::generics::bank <iota, maxarg>;
 
@@ -704,7 +703,7 @@ namespace netxs::console::ansi
 
                 auto& csier = _glb<T>::parser.csier;
                 auto c = ascii.front();
-                
+
                 if (nums(c))
                 {
                     fifo queue{ CCC_NOP }; // Reserve for the command type
@@ -736,14 +735,14 @@ namespace netxs::console::ansi
             // n: iota
             // ST: ESC \  (0x9C, ST = String Terminator)
             // BEL: 0x07
-            // 
+            //
             // ESC ] n ; _text_ BEL
             //      [--------------]
             // or
             // ESC ] n ; _text_ ST
             // ESC ] n ; _text_ ESC \
             //      [--------------]
-            // 
+            //
 
             if (auto cmd = utf::to_int(ascii))
             {
@@ -793,7 +792,7 @@ namespace netxs::console::ansi
                     }
 
                     //todo should we flush the queue without terminator
-                    // ascii.clear(); 
+                    // ascii.clear();
                 }
             }
         }
@@ -825,7 +824,7 @@ namespace netxs::console::ansi
         }
     };
 
-    //todo should we parse these controls as a C0-like? 
+    //todo should we parse these controls as a C0-like?
     //     split paragraphs when flow direction changes, for example
     template<class CELL>
     class marker
@@ -865,7 +864,7 @@ namespace netxs::console::ansi
 
         // Append multiple commands to the locus.
         //template <class ...Args> void push(Args... cmd) { locus.splice( std::end(locus), {cmd...} ); }
-        
+
         inline void  push(rule const& cmd)    { list::push_back(cmd); } // Append single command to the locus.
         inline void   pop()                   { list::pop_back();     } // Append single command to the locus.
         inline bool  bare()    const          { return list::empty(); } // Is it empty the list of commands?
@@ -890,7 +889,7 @@ namespace netxs::console::ansi
         writ& rtl (bool b)     { push({ fn::yx, b   }); return *this; } // Text right-to-left.
         writ& rlf (bool b)     { push({ fn::rf, b   }); return *this; } // Reverse line feed.
         writ& cup (twod p)     { push({ fn::ay, p.y });                 // 0-Based cursor position.
-                                 push({ fn::ax, p.x }); return *this; } 
+                                 push({ fn::ax, p.x }); return *this; }
         writ& cuu (iota n = 1) { push({ fn::dy,-n   }); return *this; } // Cursor up.
         writ& cud (iota n = 1) { push({ fn::dy, n   }); return *this; } // Cursor down.
         writ& cuf (iota n = 1) { push({ fn::dx, n   }); return *this; } // Cursor forward.
