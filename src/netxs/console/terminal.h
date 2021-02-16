@@ -147,6 +147,21 @@ namespace netxs::ui
               //current_para_it{batch.begin()},
               current_para{ 0 }
         { }
+        auto get_scroll_limits()
+        {
+            auto top = scroll_top    ? scroll_top - 1
+                                     : 0;
+            auto end = scroll_bottom ? scroll_bottom - 1
+                                     : viewport_height - 1;
+            end = std::clamp(end, 0, viewport_height - 1);
+            top = std::clamp(top, 0, end);
+            return std::pair{ top, end };
+        }
+        bool inside_scroll_region()
+        {
+            auto[top, end] = get_scroll_limits();
+            return coord.y >= top && coord.y <= end;
+        }
         //todo revise
         void color(cell const& c)
         {
@@ -556,20 +571,21 @@ namespace netxs::ui
 
                     vt::csier.table[CSI_CNL] = vt::csier.table[CSI_CUD];   // CSI n E
                     vt::csier.table[CSI_CPL] = vt::csier.table[CSI_CUU];   // CSI n F
-                    vt::csier.table[CSI_CHX] = VT_PROC{ p->chx( q(1)); };  // CSI n G - hz absolute
-                    vt::csier.table[CSI_CHY] = VT_PROC{ p->chy( q(1)); };  // CSI n d - vt absolute 
+                    vt::csier.table[CSI_CHX] = VT_PROC{ p->chx( q(1)); };  // CSI n G  Move caret hz absolute
+                    vt::csier.table[CSI_CHY] = VT_PROC{ p->chy( q(1)); };  // CSI n d  Move caret vt absolute
                     vt::csier.table[CSI_CUP] = VT_PROC{ p->cup( q   ); };  // CSI y ; x H (1-based)
                     vt::csier.table[CSI_HVP] = VT_PROC{ p->cup( q   ); };  // CSI y ; x f (1-based)
 
-                    vt::csier.table[CSI_DCH] = VT_PROC{ p->dch( q(1)); };  // CSI n P - del n chars
-                    vt::csier.table[CSI_ECH] = VT_PROC{ p->ech( q(1)); };  // CSI n X - erase n chars
-                    vt::csier.table[CSI_ICH] = VT_PROC{ p->ich( q(1)); };  // CSI n @ - insert n chars
+                    vt::csier.table[CSI_DCH] = VT_PROC{ p->dch( q(1)); };  // CSI n P  Delete n chars
+                    vt::csier.table[CSI_ECH] = VT_PROC{ p->ech( q(1)); };  // CSI n X  Erase n chars
+                    vt::csier.table[CSI_ICH] = VT_PROC{ p->ich( q(1)); };  // CSI n @  Insert n chars
 
                     vt::csier.table[CSI__ED] = VT_PROC{ p->ed ( q(0)); };  // CSI n J
                     vt::csier.table[CSI__EL] = VT_PROC{ p->el ( q(0)); };  // CSI n K
-                    vt::csier.table[CSI__DL] = VT_PROC{ p->dl ( q(1)); };  // CSI n M - Delete n lines
-                    vt::csier.table[CSI__SD] = VT_PROC{ p->scl( q(1)); };  // CSI n T - Scroll down by n lines, scrolled out lines are lost
-                    vt::csier.table[CSI__SU] = VT_PROC{ p->scl(-q(1)); };  // CSI n S - Scroll   up by n lines, scrolled out lines are lost
+                    vt::csier.table[CSI__IL] = VT_PROC{ p->il ( q(1)); };  // CSI n L  Insert n lines
+                    vt::csier.table[CSI__DL] = VT_PROC{ p->dl ( q(1)); };  // CSI n M  Delete n lines
+                    vt::csier.table[CSI__SD] = VT_PROC{ p->scl( q(1)); };  // CSI n T  Scroll down by n lines, scrolled out lines are lost
+                    vt::csier.table[CSI__SU] = VT_PROC{ p->scl(-q(1)); };  // CSI n S  Scroll   up by n lines, scrolled out lines are lost
 
                     vt::csier.table[DECSTBM] = VT_PROC{ p->scr( q   ); };  // CSI r; b r - Set scrolling region (t/b: top+bottom)
 
@@ -675,26 +691,19 @@ namespace netxs::ui
             // wall: CSI n T/S  Scroll down/up, scrolled out lines are lost
             void scl(iota n)
             {
-                auto top = scroll_top    ? scroll_top - 1
-                                         : 0;
-                auto end = scroll_bottom ? scroll_bottom - 1
-                                         : viewport_height - 1;
-
-                end = std::clamp(end, 0, viewport_height - 1);
-                top = std::clamp(top, 0, end);
-
+                auto[top, end] = get_scroll_limits();
                 auto scroll_top_index = basis + top;
                 auto scroll_end_index = basis + end;
                 auto master = batch[scroll_top_index].master;
                 auto count = end - top + 1;
-                n = std::clamp(n, 0, count);
-                if (n > 0)
+                if (n > 0) // Scroll down
                 {
+                    n = std::min(n, count);
                     // Move down by n all below the current
                     // one by one from the bottom
                     auto dst = batch.begin() + scroll_end_index;
                     auto src = dst - n;
-                    auto s = count-1;
+                    auto s = count - n;
                     while(s--)
                     {
                         //todo revise
@@ -708,14 +717,15 @@ namespace netxs::ui
                         (*head++).trim_to(0);
                     }
                 }
-                else if (n < 0)
+                else if (n < 0) // Scroll up
                 {
                     n = -n;
+                    n = std::min(n, count);
                     // Move up by n=-n all below the current
                     // one by one from the top
                     auto dst = batch.begin() + scroll_top_index;
                     auto src = dst + n;
-                    auto s = count-1;
+                    auto s = count - n;
                     while(s--)
                     {
                         //todo revise
@@ -733,6 +743,40 @@ namespace netxs::ui
                 // Rebuild overlaps from bottom to id
                 rods::rebuild_upto_id(master);
                 set_coord();
+            }
+            // wall: CSI n L  Insert n lines. Place caret to the begining of the current.
+            void il(iota n)
+            {
+               /* Works only if caret is in the scroll region.
+                * Inserts n lines at the current row and removes n lines at the scroll bottom.
+                */
+                finalize();
+                if (n > 0 && inside_scroll_region())
+                {
+                    auto old_top = scroll_top;
+                    scroll_top = coord.y;
+                    scl(n);
+                    scroll_top = old_top;
+                    coord.x = 0;
+                    set_coord();
+                }
+            }
+            // wall: CSI n M Delete n lines. Place caret to the begining of the current.
+            void dl(iota n)
+            {
+               /* Works only if caret is in the scroll region.
+                * Deletes n lines at the current row and add n lines at the scroll bottom.
+                */
+                finalize();
+                if (n > 0 && inside_scroll_region())
+                {
+                    auto old_top = scroll_top;
+                    scroll_top = coord.y;
+                    scl(-n);
+                    scroll_top = old_top;
+                    coord.x = 0;
+                    set_coord();
+                }
             }
             // wall: ESC M  Reverse index
             void ri()
@@ -754,15 +798,6 @@ namespace netxs::ui
             {
                 scroll_top    = queue(0);
                 scroll_bottom = queue(0);
-            }
-            // wall: CSI n M Delete n lines. Place caret to the begining of the current.
-            void dl(iota n)
-            {
-                //todo implement
-                log("DL - \\e[M is not implemented");
-
-
-                coord.x = 0;
             }
             // wall: CSI n @  Insert n blanks after cursor. Don't change cursor pos
             void ich(iota n)
@@ -986,25 +1021,36 @@ namespace netxs::ui
             void dn(iota n)
             {
                 finalize();
-                coord.y += n;
-                set_coord();
+                if (batch[current_para].wrapln
+                 && coord.x == width)
+                {
+                    coord.x = 0;
+                }
+
+                // Scroll regions up if coord.y == scroll_bottom and scroll region are defined
+                auto[top, end] = get_scroll_limits();
+                if (n > 0 && (scroll_top || scroll_bottom) && coord.y == end)
+                {
+                    scl(-n);
+                }
+                else 
+                {
+                    coord.y += n;
+                    set_coord();
+                }
             }
             // wall: '\r'  Go to home of visible line instead of home of para
             void home()
             {
                 finalize();
                 auto posx = caret->chx();
-                if (batch[current_para].wrapln)
-                {
-                    if (posx && (posx % width == 0)) posx--;
-                    caret->chx(posx -= posx % width);
+                if (batch[current_para].wrapln) posx -= posx % width;
+                else                            posx = 0;
+                caret->chx(posx);
+                coord.x = posx % width;
 
-                    //caret->chx(posx -= posx % width);
-                }
-                else
-                {
-                    caret->chx(0);
-                }
+                //if (posx && (posx % width == 0)) posx--;
+                //caret->chx(posx -= posx % width);
             }
             // wall: '\n' || '\r\n'  Carriage return + Line feed
             void eol(iota n)

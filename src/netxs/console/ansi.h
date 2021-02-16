@@ -45,6 +45,7 @@ namespace netxs::console::ansi
     static const char CSI_SCP = 's'; // CSI        s  — Save Cursor Position
     static const char CSI_RCP = 'u'; // CSI        u  — Restore Cursor Position
     static const char CSI__EL = 'K'; // CSI n      K  — Erase 0: from cursor to end, 1: from begin to cursor, 2: all line
+    static const char CSI__IL = 'L'; // CSI n      L  — Insert n blank lines
     static const char CSI__ED = 'J'; // CSI n      J  — Erase 0: from cursor to end of screen, 1: from begin to cursor, 2: all screen
     static const char CSI__DL = 'M'; // CSI n      M  — Delete n lines
     static const char CSI_DCH = 'P'; // CSI n      P  — Delete n character(s)
