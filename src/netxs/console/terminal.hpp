@@ -1,11 +1,11 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#ifndef NETXS_TERMINAL_H
-#define NETXS_TERMINAL_H
+#ifndef NETXS_TERMINAL_HPP
+#define NETXS_TERMINAL_HPP
 
-#include "../ui/controls.h"
-#include "../os/system.h"
+#include "../ui/controls.hpp"
+#include "../os/system.hpp"
 
 namespace netxs::ui
 {
@@ -1465,4 +1465,4 @@ namespace netxs::ui
     };
 }
 
-#endif // NETXS_TERMINAL_H
+#endif // NETXS_TERMINAL_HPP

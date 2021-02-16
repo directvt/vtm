@@ -1,13 +1,13 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#ifndef NETXS_EVENTS_H
-#define NETXS_EVENTS_H
+#ifndef NETXS_EVENTS_HPP
+#define NETXS_EVENTS_HPP
 
 // Description: Compile time typesafe hierarchical delegates.
 
-#include "../abstract/ptr.h"
-#include "../abstract/hash.h"
+#include "../abstract/ptr.hpp"
+#include "../abstract/hash.hpp"
 
 #include <vector>
 #include <mutex>
@@ -1222,4 +1222,4 @@ namespace netxs::ui
 
 }
 
-#endif // NETXS_EVENTS_H
+#endif // NETXS_EVENTS_HPP

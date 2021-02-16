@@ -220,7 +220,7 @@ ALLIED_IMPL = r'''
 '''.strip()
 
 MODULE_NAME = 'unidata'
-HEADER_FILE = MODULE_NAME + '.h'
+HEADER_FILE = MODULE_NAME + '.hpp'
 HEADER_BASE = r'''
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
@@ -330,8 +330,8 @@ HEADER_BASE = r'''
  *
  **/
 
-#ifndef NETXS_{MODULE}_H
-#define NETXS_{MODULE}_H
+#ifndef NETXS_{MODULE}_HPP
+#define NETXS_{MODULE}_HPP
 
 #include <cstdint>
 #include <vector>
@@ -461,7 +461,7 @@ namespace utils::{module}
     }}
 }}
 
-#endif // NETXS_{MODULE}_H
+#endif // NETXS_{MODULE}_HPP
 '''.strip()
 
 def writeln(text):

@@ -1,8 +1,8 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#ifndef NETXS_INTMATH_H
-#define NETXS_INTMATH_H
+#ifndef NETXS_INTMATH_HPP
+#define NETXS_INTMATH_HPP
 
 #include <optional>
 #include <algorithm>
@@ -740,4 +740,4 @@ namespace netxs
     }
 }
 
-#endif // NETXS_INTMATH_H
+#endif // NETXS_INTMATH_HPP

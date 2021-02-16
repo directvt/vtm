@@ -1,10 +1,10 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#ifndef NETXS_DATE_TIME_H
-#define NETXS_DATE_TIME_H
+#ifndef NETXS_DATE_TIME_HPP
+#define NETXS_DATE_TIME_HPP
 
-#include "../text/utf.h"
+#include "../text/utf.hpp"
 
 #include <chrono>
 #include <ctime>
@@ -164,4 +164,4 @@ namespace netxs::datetime
     }
 }
 
-#endif // NETXS_DATE_TIME_H
+#endif // NETXS_DATE_TIME_HPP

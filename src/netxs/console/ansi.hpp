@@ -1,12 +1,12 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#ifndef NETXS_ANSI_H
-#define NETXS_ANSI_H
+#ifndef NETXS_ANSI_HPP
+#define NETXS_ANSI_HPP
 
-#include "../ui/layout.h"
-#include "../text/utf.h"
-#include "../abstract/tree.h"
+#include "../ui/layout.hpp"
+#include "../text/utf.hpp"
+#include "../abstract/tree.hpp"
 
 #include <mutex>
 #include <array>
@@ -995,4 +995,4 @@ namespace netxs::console::ansi
     }
 }
 
-#endif // NETXS_ANSI_H
+#endif // NETXS_ANSI_HPP

@@ -106,8 +106,8 @@
  *
  **/
 
-#ifndef NETXS_UNIDATA_H
-#define NETXS_UNIDATA_H
+#ifndef NETXS_UNIDATA_HPP
+#define NETXS_UNIDATA_HPP
 
 #include <cstdint>
 #include <vector>
@@ -841,4 +841,4 @@ namespace netxs::unidata
     }
 }
 
-#endif // NETXS_UNIDATA_H
+#endif // NETXS_UNIDATA_HPP

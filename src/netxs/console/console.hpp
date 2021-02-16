@@ -1,13 +1,13 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#ifndef NETXS_CONSOLE_H
-#define NETXS_CONSOLE_H
+#ifndef NETXS_CONSOLE_HPP
+#define NETXS_CONSOLE_HPP
 
-#include "richtext.h"
-#include "../datetime/quartz.h"
-#include "../abstract/iterator.h"
-#include "../text/logger.h"
+#include "richtext.hpp"
+#include "../datetime/quartz.hpp"
+#include "../abstract/iterator.hpp"
+#include "../text/logger.hpp"
 
 #include <iostream>
 //#include <unordered_set> // keybd clients
@@ -5064,4 +5064,4 @@ again:
     };
 }
 
-#endif // NETXS_CONSOLE_H
+#endif // NETXS_CONSOLE_HPP

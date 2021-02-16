@@ -1,10 +1,10 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#ifndef NETXS_QUARTZ_H
-#define NETXS_QUARTZ_H
+#ifndef NETXS_QUARTZ_HPP
+#define NETXS_QUARTZ_HPP
 
-#include "../math/intmath.h"
+#include "../math/intmath.hpp"
 
 #include <string>
 #include <thread>
@@ -286,4 +286,4 @@ namespace netxs::datetime
     };
 }
 
-#endif // NETXS_QUARTZ_H
+#endif // NETXS_QUARTZ_HPP

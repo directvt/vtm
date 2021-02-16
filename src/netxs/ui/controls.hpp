@@ -1,10 +1,10 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#ifndef NETXS_CONTROLS_H
-#define NETXS_CONTROLS_H
+#ifndef NETXS_CONTROLS_HPP
+#define NETXS_CONTROLS_HPP
 
-#include "../console/console.h"
+#include "../console/console.hpp"
 
 #include <vector>
 #include <mutex>
@@ -3185,4 +3185,4 @@ namespace netxs::ui
 //	}
 //};
 
-#endif // NETXS_CONTROLS_H
+#endif // NETXS_CONTROLS_HPP

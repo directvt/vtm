@@ -21,10 +21,10 @@
 #pragma clang diagnostic ignored "-Wunused-variable"
 #pragma clang diagnostic ignored "-Wunused-function"
 
-#include "netxs/os/system.h"
-#include "netxs/text/utf.h"
-#include "netxs/console/terminal.h"
-#include "netxs/abstract/queue.h"
+#include "netxs/os/system.hpp"
+#include "netxs/text/utf.hpp"
+#include "netxs/console/terminal.hpp"
+#include "netxs/abstract/queue.hpp"
 
 #include <fstream>
 

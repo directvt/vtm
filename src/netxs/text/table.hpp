@@ -3,13 +3,13 @@
 
 //deprecated stuff
 
-#ifndef NETXS_TEXT_TABLE_H
-#define NETXS_TEXT_TABLE_H
+#ifndef NETXS_TEXT_TABLE_HPP
+#define NETXS_TEXT_TABLE_HPP
 
 #include <sstream>
 #include <vector>
 
-#include "text/utf.h"
+#include "text/utf.hpp"
 
 namespace utils
 {
@@ -144,4 +144,4 @@ namespace utils
     }
 }
 
-#endif // NETXS_TEXT_TABLE_H
+#endif // NETXS_TEXT_TABLE_HPP

@@ -4,7 +4,7 @@
 #pragma clang diagnostic ignored "-Wunused-variable"
 #pragma clang diagnostic ignored "-Wunused-function"
 
-#include "netxs/os/system.h"
+#include "netxs/os/system.hpp"
 
 #include <fstream> // std::ifstream
 

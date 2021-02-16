@@ -1,10 +1,10 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#ifndef NETXS_FILE_SYSTEM_H
-#define NETXS_FILE_SYSTEM_H
+#ifndef NETXS_FILE_SYSTEM_HPP
+#define NETXS_FILE_SYSTEM_HPP
 
-#include "../text/utf.h"
+#include "../text/utf.hpp"
 
 #include <filesystem>
 
@@ -89,4 +89,4 @@ namespace netxs::os
     }
 }
 
-#endif // NETXS_FILE_SYSTEM_H
+#endif // NETXS_FILE_SYSTEM_HPP

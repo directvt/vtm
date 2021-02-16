@@ -1,8 +1,8 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#ifndef NETXS_SYSTEM_H
-#define NETXS_SYSTEM_H
+#ifndef NETXS_SYSTEM_HPP
+#define NETXS_SYSTEM_HPP
 
 #ifndef VTM_USE_CLASSICAL_WIN32_INPUT 
 #define VTM_USE_CLASSICAL_WIN32_INPUT // Turns on classical console win32 input mode
@@ -12,11 +12,11 @@
 #elif defined(__linux__) || defined(__APPLE__)
 #endif
 
-#include "file_system.h"
-#include "../text/logger.h"
-#include "../datetime/quartz.h"
-#include "../abstract/ptr.h"
-#include "../console/ansi.h"
+#include "file_system.hpp"
+#include "../text/logger.hpp"
+#include "../datetime/quartz.hpp"
+#include "../abstract/ptr.hpp"
+#include "../console/ansi.hpp"
 
 #include <type_traits>
 #include <iostream>		// std::cout
@@ -2567,4 +2567,4 @@ namespace netxs::os
     };
 }
 
-#endif // NETXS_SYSTEM_H
+#endif // NETXS_SYSTEM_HPP

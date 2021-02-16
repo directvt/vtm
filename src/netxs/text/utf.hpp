@@ -1,11 +1,11 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#ifndef NETXS_UTF_H
-#define NETXS_UTF_H
+#ifndef NETXS_UTF_HPP
+#define NETXS_UTF_HPP
 
-#include "unidata.h"
-#include "../math/intmath.h"
+#include "unidata.hpp"
+#include "../math/intmath.hpp"
 
 #include <string>
 #include <string_view>
@@ -16,7 +16,7 @@
 #include <optional>
 #include <sstream>
 
-/** 
+/**
  * limits the number of code points in a grapheme cluster 
  * to a number sufficient for any possible linguistic situation
  **/
@@ -1342,4 +1342,4 @@ namespace netxs::utf
     }
 }
 
-#endif // NETXS_UTF_H
+#endif // NETXS_UTF_HPP

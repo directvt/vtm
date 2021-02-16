@@ -29,8 +29,8 @@
 //		...code...
 // }
 
-#ifndef NETXS_LOGGER_H
-#define NETXS_LOGGER_H
+#ifndef NETXS_LOGGER_HPP
+#define NETXS_LOGGER_HPP
 
 #include <sstream>
 #include <vector>
@@ -253,4 +253,4 @@ namespace
     //}
 }
 
-#endif // NETXS_LOGGER_H
+#endif // NETXS_LOGGER_HPP

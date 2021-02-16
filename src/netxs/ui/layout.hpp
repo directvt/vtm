@@ -1,10 +1,10 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#ifndef NETXS_LAYOUT_H
-#define NETXS_LAYOUT_H
+#ifndef NETXS_LAYOUT_HPP
+#define NETXS_LAYOUT_HPP
 
-#include "../abstract/duplet.h"
+#include "../abstract/duplet.hpp"
 
 namespace netxs::ui
 {
@@ -854,4 +854,4 @@ namespace netxs::ui
     //resource	load_ptr		(void * ptr = nullptr);
 }
 
-#endif // NETXS_LAYOUT_H
+#endif // NETXS_LAYOUT_HPP

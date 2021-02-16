@@ -1,14 +1,14 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#ifndef NETXS_RICHTEXT_H
-#define NETXS_RICHTEXT_H
+#ifndef NETXS_RICHTEXT_HPP
+#define NETXS_RICHTEXT_HPP
 
 #include <cstring>  // std::memcpy
 
-#include "ansi.h"
-#include "../ui/events.h"
-#include "../text/logger.h"
+#include "ansi.hpp"
+#include "../ui/events.hpp"
+#include "../text/logger.hpp"
 
 namespace netxs::console
 {
@@ -2870,4 +2870,4 @@ namespace netxs::console
     };
 }
 
-#endif // NETXS_RICHTEXT_H
+#endif // NETXS_RICHTEXT_HPP
