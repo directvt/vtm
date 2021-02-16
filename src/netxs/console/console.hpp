@@ -1011,10 +1011,59 @@ namespace netxs::console
             return kb_focus_taken;
         }
 
-        //bool meta(modifiers ctl_key)
         bool meta(unsigned ctl_key)
         {
             return hids::ctlstate & ctl_key;
+        }
+
+        auto to_sgr()
+        {
+            constexpr static int total = sysmouse::numofbutton;
+            constexpr static int first = sysmouse::left;
+            constexpr static int midst = sysmouse::middle;
+            constexpr static int other = sysmouse::right;
+            constexpr static int winbt = sysmouse::win;
+            constexpr static int wheel = sysmouse::wheel;
+            constexpr static int joint = sysmouse::leftright;
+
+            auto is_pressed = mouse::button[first].pressed ||
+                              mouse::button[midst].pressed ||
+                              mouse::button[other].pressed ||
+                              mouse::button[winbt].pressed;
+            char suffix;
+            auto x = coord.x + 1;
+            auto y = coord.y + 1;
+            iota ctl = 0;
+            text result;
+            if (is_pressed)
+            {
+                ctl += mouse::button[first].pressed ? 0 : 0;
+                ctl += mouse::button[midst].pressed ? 1 : 0;
+                ctl += mouse::button[other].pressed ? 0 << 2 : 0;
+                ctl += mouse::button[winbt].pressed ? 0 << 2 : 0;
+                suffix = 'M';
+            }
+            else
+            {
+                suffix = 'm';
+            }
+            //case 4:
+            //    mouse.button[wheel] = ispressed;
+            //    break;
+            //case 64:
+            //    mouse.wheeled = true;
+            //    mouse.wheeldt = 1;
+            //    break;
+            //case 65:
+            //    mouse.wheeled = true;
+            //    mouse.wheeldt = -1;
+            //    break;
+            //default:
+            //    fire = faux;
+            //    mouse.shuffle = !mouse.ismoved;
+            //    break;
+
+            return result;
         }
     };
 
@@ -1358,10 +1407,10 @@ namespace netxs::console
                         }
                         else
                         {
-                            if (auto deed = parent_ptr->bell::protos(e2::release))
+                            if (auto deed = parent_ptr->bell::protos<e2::release>())
                             {
                                 //SIGNAL(e2::release, e2::form::kboffer, gear);
-                                bell::signal<e2::release>(deed.value(), gear);
+                                bell::signal<e2::release>(deed, gear);
                             }
                         }
                     }
@@ -1379,9 +1428,9 @@ namespace netxs::console
             {
                 if (auto parent_ptr = parent.lock())
                 {
-                    if (auto deed = bell::protos(e2::release))
+                    if (auto deed = bell::protos<e2::release>())
                     {
-                        parent_ptr->bell::signal<e2::release>(deed.value(), gear);
+                        parent_ptr->bell::signal<e2::release>(deed, gear);
                     }
                 }
                 //strike();
@@ -3971,7 +4020,7 @@ namespace netxs::console
                                 log("\t - focus off: ", canal);
                                 ++pos;
                             }
-                            else if (strv.at(pos) == '<')
+                            else if (strv.at(pos) == '<') // "\033[<0;x;yM/m"
                             {
                                 if (++pos == len) { total = strv; break; }// incomlpete sequence
 
@@ -4024,7 +4073,8 @@ namespace netxs::console
                                                             mouse.ctlstate = (k_shift ? (1 << 4) : 0)
                                                                            + (k_alt   ? (1 << 1) : 0)
                                                                            + (k_ctrl  ? (1 << 2) : 0);
-                                                            ctl = ctl & ~0b00011100;
+                                                            //ctl = ctl & ~0b00011100;
+                                                            ctl = ctl & ~0b00011000;
 
                                                             mouse.wheeled = faux;
                                                             mouse.wheeldt = 0;
@@ -4067,9 +4117,14 @@ namespace netxs::console
                                                                     //	mouse.button[other] = ispressed;
                                                                     //}
                                                                     break;
-                                                                case 4:
+                                                                case 4: //todo ctl is truncated
                                                                     mouse.button[wheel] = ispressed;
                                                                     break;
+                                                                case 5: //todo ctl is truncated
+                                                                    mouse.button[first] = ispressed;
+                                                                    mouse.button[other] = ispressed;
+                                                                    break;
+
                                                                 case 64:
                                                                     mouse.wheeled = true;
                                                                     mouse.wheeldt = 1;
@@ -4940,7 +4995,7 @@ again:
                 }
             };
 
-            SUBMIT(e2::preview, bttn::drag::start::leftright, gear)
+            SUBMIT(e2::release, bttn::drag::start::leftright, gear)
             {
                 if (gear.capture(bell::id))
                 {

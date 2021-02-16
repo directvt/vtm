@@ -1042,38 +1042,33 @@ namespace netxs::ui
             tracker(token);
         }
         // bell: Return an initial event of the current event execution branch.
-        auto protos(e2::tier level) -> std::optional<e2::type>
+        template<e2::tier TIER>
+        auto protos() -> e2::type
         {
-            switch (level)
+            switch (TIER)
             {
                 case e2::tier::release:
-                    return release.queue.empty() ? std::nullopt
-                                                 : std::optional<e2::type>{ release.queue.back() };
+                    return release.queue.empty() ? e2::any
+                                                 : release.queue.back();
                 case e2::tier::preview:
-                    return preview.queue.empty() ? std::nullopt
-                                                 : std::optional<e2::type>{ preview.queue.back() };
+                    return preview.queue.empty() ? e2::any
+                                                 : preview.queue.back();
                 case e2::tier::general:
-                    return general.queue.empty() ? std::nullopt
-                                                 : std::optional<e2::type>{ general.queue.back() };
+                    return general.queue.empty() ? e2::any
+                                                 : general.queue.back();
                 case e2::tier::request:
-                    return request.queue.empty() ? std::nullopt
-                                                 : std::optional<e2::type>{ request.queue.back() };
+                    return request.queue.empty() ? e2::any
+                                                 : request.queue.back();
                 default:
                     break;
             }
-            return std::nullopt;
+            return e2::any;
         }
-        // bell: Return true if initial event equal to the specified.
-        auto protos(e2::tier level, e2::type action)
+        // bell: Return true if tha initial event equals to the specified.
+        template<e2::tier TIER>
+        auto protos(e2::type action)
         {
-            if (auto deal = bell::protos(level))
-            {
-                if (deal.value() == action)
-                {
-                    return true;
-                }
-            }
-            return faux;
+            return bell::protos<TIER>() == action;
         }
         // bell: Get the reference to the specified relay node.
         reactor& router(e2::tier level)

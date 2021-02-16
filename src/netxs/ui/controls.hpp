@@ -1205,23 +1205,20 @@ namespace netxs::ui
                 if (client)
                 {
                     auto& item = *client;
-                    if (auto deal = bell::protos(e2::preview))
+                    switch (bell::protos<e2::preview>())
                     {
-                        switch (deal.value())
-                        {
-                            case events[X]:
-                                scroll<X>(scinfo.window.coor.x - info.window.coor.x);
-                                break;
-                            case events[Y]:
-                                scroll<Y>(scinfo.window.coor.y - info.window.coor.y);
-                                break;
-                            case events[X + 2]:
-                                cancel<X, true>();
-                                break;
-                            case events[Y + 2]:
-                                cancel<Y, true>();
-                                break;
-                        }
+                        case events[X]:
+                            scroll<X>(scinfo.window.coor.x - info.window.coor.x);
+                            break;
+                        case events[Y]:
+                            scroll<Y>(scinfo.window.coor.y - info.window.coor.y);
+                            break;
+                        case events[X + 2]:
+                            cancel<X, true>();
+                            break;
+                        case events[Y + 2]:
+                            cancel<Y, true>();
+                            break;
                     }
                 }
             };
@@ -1723,8 +1720,8 @@ namespace netxs::ui
             SUBMIT(e2::release, bttn::down::any, gear)
             {
                 if (!on_pager)
-                if (bell::protos(e2::release, bttn::down::left) ||
-                    bell::protos(e2::release, bttn::down::right))
+                if (bell::protos<e2::release>(bttn::down::left ) ||
+                    bell::protos<e2::release>(bttn::down::right))
                 if (auto dir = calc.inside(xy(gear.mouse::coord)))
                 {
                     if (gear.capture(bell::id))
@@ -1751,8 +1748,8 @@ namespace netxs::ui
             {
                 if (on_pager && gear.captured(bell::id))
                 {
-                    if (bell::protos(e2::release, bttn::up::left) ||
-                        bell::protos(e2::release, bttn::up::right))
+                    if (bell::protos<e2::release>(bttn::up::left) ||
+                        bell::protos<e2::release>(bttn::up::right))
                     {
                         gear.release();
                         gear.dismiss();
@@ -1805,7 +1802,7 @@ namespace netxs::ui
                 {
                     if (gear.captured(bell::id))
                     {
-                        if (bell::protos(e2::release, bttn::drag::cancel::right))
+                        if (bell::protos<e2::release>(bttn::drag::cancel::right))
                         {
                             gohome();
                         }
@@ -1822,7 +1819,7 @@ namespace netxs::ui
                 {
                     if (gear.captured(bell::id))
                     {
-                        if (bell::protos(e2::release, bttn::drag::stop::right))
+                        if (bell::protos<e2::release>(bttn::drag::stop::right))
                         {
                             gohome();
                         }

@@ -924,6 +924,8 @@ namespace netxs::ui
             // wall: '\x7F'  Delete characters backwards.
             void del(iota n)
             {
+                log("not implemented: '\\x7F' Delete characters backwards.");
+
                 // auto& layer = rods::caret;
                 // if (layer->chx() >= n)
                 // {
@@ -967,9 +969,6 @@ namespace netxs::ui
             void cuf(iota n)
             {
                 finalize();
-                //coord.x += n;
-                //set_coord();
-
                 auto posx = caret->chx();
                 caret->chx(posx += n);
             }
@@ -1189,6 +1188,105 @@ namespace netxs::ui
 
         rect viewport = { {}, dot_11 }; // term: Viewport area
 
+        subs tokens; // term: SGR mouse tracking subscription tokens set.
+
+        text        m_track; // term: Mouse tracking buffer.
+        testy<twod> m_coord;
+
+        // term: SGR mouse tracking switcher.
+        void mouse_tracking(bool enable)
+        {
+            if (enable && !tokens.count())
+            {
+                tokens.clear();
+                SUBMIT_T(e2::release, e2::hids::mouse::any, tokens, gear)
+                {
+                    using m = e2::hids::mouse;
+
+                    iota ctrl = 0;
+                    char sffx = '\0';
+                    bool fire = faux;
+                    switch (auto deal = bell::protos<e2::release>())
+                    {
+                    case m::move:
+                        if (m_coord(gear.coord))
+                        {
+                            sffx = 'm';
+                            ctrl = 32;
+                        }
+                        break;
+                        
+                    case m::button::drag::pull::leftright : ++ctrl;
+                    case m::button::drag::pull::wheel : ++ctrl;
+                    case m::button::drag::pull::win   : ++ctrl;
+                    case m::button::drag::pull::right : ++ctrl;
+                    case m::button::drag::pull::middle: ++ctrl;
+                    case m::button::drag::pull::left  :
+                        if (m_coord(gear.coord))
+                        {
+                            sffx = 'M';
+                        }
+                        break;
+
+                    case m::button::down::leftright : ++ctrl;
+                    case m::button::down::wheel : ++ctrl;
+                    case m::button::down::win   : ++ctrl;
+                    case m::button::down::right : ++ctrl;
+                    case m::button::down::middle: ++ctrl;
+                    case m::button::down::left  :
+                        if (!gear.captured(bell::id))
+                        {
+                            gear.capture(bell::id);
+                        }
+                        gear.dismiss();
+                        sffx = 'M';
+                        break;
+
+                    case m::button::up::leftright : ++ctrl;
+                    case m::button::up::wheel : ++ctrl;
+                    case m::button::up::win   : ++ctrl;
+                    case m::button::up::right : ++ctrl;
+                    case m::button::up::middle: ++ctrl;
+                    case m::button::up::left  :
+                        if (gear.captured(bell::id))
+                        {
+                            gear.release();
+                        }
+                        gear.dismiss();
+                        sffx = 'm';
+                        break;
+
+                    case m::scroll::down:
+                        ctrl = 64;
+                        sffx = 'm';
+                        break;
+                    case m::scroll::up:
+                        ctrl = 65;
+                        sffx = 'm';
+                        break;
+
+                    default:
+                        break;
+                    }
+
+                    if (sffx)
+                    {
+                        //todo apply kb modifiefrs
+
+                        m_track.clear();
+                        auto coor = gear.coord + dot_11;
+                        m_track += "\033[<"
+                                + std::to_string(ctrl)   + ";"
+                                + std::to_string(coor.x) + ";"
+                                + std::to_string(coor.y) + sffx;
+                        ptycon.write(m_track);
+                        gear.dismiss();
+                    }
+                };
+            }
+            else tokens.clear();
+        }
+
         // term: Apply page props.
         void prop(iota cmd, view txt)
         {
@@ -1233,14 +1331,19 @@ namespace netxs::ui
                     case 1001: // Use Hilite mouse tracking.
                     case 1002: // Use cell motion mouse tracking.
                     case 1003: // Use all motion mouse tracking.
-                    case 1005: // Enable UTF - 8 mouse mode.
+                        log("decset: CSI ? 1000-1003 h  old mouse modes are not supported");
                         break;
-                    case 1006: // Enable SGR mouse mode.
+                    case 1006: // Enable SGR mouse tracking mode.
+                        mouse_tracking(true);
                         break;
 
                     case 1004: // Enable sending FocusIn/FocusOut events.
+                        log("decset: CSI ? 1004 h  is not implemented (focus)");
                         break;
-
+                    case 1005: // Enable UTF-8 mouse mode.
+                        log("decset: CSI ? 1005 h  UTF-8 mouse mode is not supported");
+                        break;
+                        
                     case 1048: // Save cursor
                         break;
                     case 1047: // Use alternate screen buffer
@@ -1249,7 +1352,7 @@ namespace netxs::ui
                         target = &altbuf;
                         break;
                     case 2004: // Set bracketed paste mode.
-                        log("decset: CSI ? 2004 h  is not implemented");
+                        log("decset: CSI ? 2004 h  is not implemented (bracketed paste mode)");
                         break;
 
                     default:
@@ -1277,12 +1380,17 @@ namespace netxs::ui
                     case 1001: // Don't use Hilite(c) mouse tracking.
                     case 1002: // Don't use cell motion mouse tracking.
                     case 1003: // Don't use all motion mouse tracking.
-                    case 1005: // Disable UTF - 8 mouse mode.
+                        log("decset: CSI ? 1000-1003 l  old mouse modes are not supported");
                         break;
-                    case 1006: // Disable SGR mouse mode.
+                    case 1006: // Disable SGR mouse tracking mode.
+                        mouse_tracking(faux);
                         break;
 
                     case 1004: // Don't send FocusIn / FocusOut events.
+                        log("decset: CSI ? 1004 l  is not implemented (focus)");
+                        break;
+                    case 1005: // Disable UTF-8 mouse mode.
+                        log("decset: CSI ? 1005 l  UTF-8 mouse mode is not supported");
                         break;
 
                     case 1048: // Restore cursor
@@ -1293,7 +1401,7 @@ namespace netxs::ui
                         target = &scroll;
                         break;
                     case 2004: // Set bracketed paste mode.
-                        log("decset: CSI ? 2004 l  is not implemented");
+                        log("decset: CSI ? 2004 l  is not implemented (bracketed paste mode)");
                         break;
 
                     default:
