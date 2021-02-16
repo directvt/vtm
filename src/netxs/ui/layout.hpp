@@ -650,20 +650,12 @@ namespace netxs::ui
             bool just = faux;
             bool flip = faux;
 
-            //constexpr edge() = default;
             constexpr edge(iota const& size, bool just)
-                : size (size),
-                  just (just),
-                  flip (faux),
-                  step (0)
+                : size { size },
+                  just { just },
+                  flip { faux },
+                  step { 0    }
             { }
-            //void set(iota const& newsize, bool justify)
-            //{
-            //	size = newsize;
-            //	just = justify;
-            //	flip = faux;
-            //	step = 0;
-            //}
 
             operator iota () const
             {
@@ -686,14 +678,6 @@ namespace netxs::ui
         edge head;
         edge foot;
 
-        //dent() = default;
-        //constexpr
-        //dent(twod const& size)
-        //	:	west (size.x, true),
-        //		east (size.x, faux),
-        //		head (size.y, true),
-        //		foot (size.y, faux)
-        //{ }
         constexpr
         dent(iota const& size_x, iota const& size_y)
             : west (size_x, true),
