@@ -439,7 +439,7 @@ namespace netxs::console
         bool   reach = faux;    // mouse: Has the event tree relay reached the mouse event target
         hint   cause = e2::any; // mouse: Current event id
         iota   index = none;    // mouse: Index of the active button. -1 if the buttons are not involed
-        bool   ended = faux;    // mouse: Whether event processing is complete
+        //bool   ended = faux;    // mouse: Whether event processing is complete
         bool   nodbl = faux;    // mouse: Whether single click event processed (to prevent double clicks)
         iota   locks = 0;       // mouse: Bit fields related to hooked up mouse buttons. Change the mouse event routing behavior: choose mouselk instead of hittest[xpoint]
         id_t   swift = 0;       // mouse: Delegate's ID of the current mouse owner
@@ -647,7 +647,7 @@ namespace netxs::console
 
         virtual void fire(e2::type cause) = 0;
 
-        // hids: Initiator of visual tree informing about mouse enters/leaves
+        // mouse: Initiator of visual tree informing about mouse enters/leaves
         template<bool ENTERED>
         bool direct(id_t asker)
         {
@@ -670,7 +670,7 @@ namespace netxs::console
                 return faux;
             }
         }
-        // hids: Seize specified mouse control
+        // mouse: Seize specified mouse control
         bool capture (id_t asker)
         {
             // the lock can be seized by one button and once
@@ -682,7 +682,7 @@ namespace netxs::console
             }
             return faux;
         }
-        // hids: Release specified mouse control
+        // mouse: Release specified mouse control
         void release ()
         {
             if (index < 0)
@@ -694,30 +694,19 @@ namespace netxs::console
                 locks &= ~(1 << index);
             }
         }
-        // hids: Is the mouse seized/captured?
+        // mouse: Is the mouse seized/captured?
         bool captured (id_t asker) const
         {
             return locks && swift == asker;
         }
-        // hids: Stop handeling this event.
-        void dismiss ()
-        {
-            ended = true;
-        }
         //todo unify
-        // hids: Prevent double clicks.
-        void dismiss_dblclick ()
-        {
-            nodbl = true;
-            ended = true;
-        }
-
-        // Whether event processing is complete.
-        operator bool() const
-        {
-            return !ended;
-        }
-        // hids: Bit buttons.
+        // mouse: Prevent double clicks.
+        //void dismiss_dblclick ()
+        //{
+        //    nodbl = true;
+        //    ended = true;
+        //}
+        // mouse: Bit buttons.
         iota buttons ()
         {
             iota b = 0;
@@ -738,6 +727,7 @@ namespace netxs::console
         text        keystrokes;
 
         bool        down = faux;
+//        bool        actual = faux;
         uint16_t    repeatcount = 0;
         uint16_t    virtcode = 0;
         uint16_t    scancode = 0;
@@ -761,11 +751,18 @@ namespace netxs::console
 
             fire_keybd();
         }
+        // keybd: Stop handeling this event.
+        //void dismiss_keybd ()
+        //{
+        //    actual = faux;
+        //}
 
         virtual void fire_keybd() = 0;
     };
 
-    class hids : public mouse, public keybd
+    class hids
+        : public mouse,
+          public keybd
     {
         using list = std::list<wptr<bell>>;
 
@@ -773,6 +770,7 @@ namespace netxs::console
         id_t        relay; // hids: Mouse routing call stack initiator
         core const& idmap; // hids: Area of the main form. Primary or relative region of the mouse coverage
         list        kb_focus; // hids: keyboard subscribers
+        bool        alive; // hids: Whether event processing is complete
 
     public:
         id_t const& id;    // hids: Owner/gear ID
@@ -795,10 +793,11 @@ namespace netxs::console
 
         template<class T>
         hids(T& owner, core const& idmap)
-            : relay { 0 },
-              owner { owner },
+            : relay { 0        },
+              owner { owner    },
               id    { owner.id },
-              idmap { idmap }
+              idmap { idmap    },
+              alive { faux     }
         { }
         ~hids()
         {
@@ -807,6 +806,18 @@ namespace netxs::console
                 last->SIGNAL(e2::release, e2::form::notify::mouse::leave, *this);
             }
             clear_kb_focus();
+        }
+
+        // mouse: Stop handeling this event.
+        void dismiss ()
+        {
+            alive = faux;
+        }
+
+        // Whether event processing is complete.
+        operator bool() const
+        {
+            return alive;
         }
 
         auto take(sysmouse& m)
@@ -857,9 +868,9 @@ namespace netxs::console
         }
         void fire(e2::type cause)
         {
+            alive = true;
             mouse::cause = cause;
             mouse::coord = mouse::prime;
-            mouse::ended = faux;
             mouse::nodbl = faux;
             //mouse::focus = 0;
 
@@ -874,7 +885,7 @@ namespace netxs::console
             {
                 owner.bell::template signal<e2::preview>(cause, *this);
 
-                if (mouse::ended) return;
+                if (!alive) return;
 
                 auto next = idmap.link(mouse::coord);
                 if (next != id)
@@ -883,7 +894,7 @@ namespace netxs::console
                     pass<e2::preview>(bell::getref(next), offset, true);
                     relay = 0;
 
-                    if (mouse::ended) return;
+                    if (!alive) return;
                 }
 
                 owner.bell::template signal<e2::release>(cause, *this);
@@ -891,33 +902,24 @@ namespace netxs::console
         }
         void fire_keybd()
         {
-            //for (auto item : kb_focus)
+            alive = true;
+            owner.bell::template signal<e2::preview>(keybd::cause, *this);
+
             auto iter = kb_focus.begin();
-            while (iter != kb_focus.end())
+            while (alive && iter != kb_focus.end())
             {
                 if (auto next = iter++->lock())
                 {
                     next->bell::template signal<e2::preview>(keybd::cause, *this);
                 }
                 else kb_focus.erase(std::prev(iter));
-                //iter++;
             }
-
-            owner.bell::template signal<e2::preview>(keybd::cause, *this);
         }
         void _add_kb_focus(sptr<bell> item)
         {
             kb_focus.push_back(item);
             item->bell::template signal<e2::release>(keybd::focus_got, *this);
         }
-        //void _pop_kb_focus(list::iterator iter)
-        //{
-        //	if (auto item = iter->lock())
-        //	{
-        //		item->bell::template signal<e2::release>(keybd::focus_got, *this);
-        //	}
-        //	kb_focus.erase(iter);
-        //}
         bool remove_from_kb_focus(sptr<bell> item)
         {
             auto iter = kb_focus.begin();
@@ -960,24 +962,6 @@ namespace netxs::console
         }
         void add_group_kb_focus_or_release_captured(sptr<bell> item)
         {
-            ////auto keep = true;
-            //auto iter = kb_focus.begin();
-            //while (iter != kb_focus.end())
-            //{
-            //  if (auto next = iter->lock())
-            //  {
-            //      if (item == next)
-            //      {
-            //          // Release kb focus if it already captured
-            //          _pop_kb_focus(iter);
-            //          return;
-            //          //keep = faux;
-            //          //break;
-            //      }
-            //  }
-            //  iter++;
-            //}
-            //if (keep) _add_kb_focus(item);
             if (!remove_from_kb_focus(item))
             {
                 _add_kb_focus(item);
@@ -986,8 +970,7 @@ namespace netxs::console
         void set_kb_focus(sptr<bell> item)
         {
             kb_focus_taken = true;
-            if (hids::meta(CTRL) ||
-                hids::meta(RCTRL))
+            if (hids::meta(CTRL | RCTRL))
                 add_group_kb_focus_or_release_captured(item);
             else
                 add_single_kb_focus(item);
@@ -1015,55 +998,9 @@ namespace netxs::console
         {
             return hids::ctlstate & ctl_key;
         }
-
-        auto to_sgr()
+        auto meta()
         {
-            constexpr static int total = sysmouse::numofbutton;
-            constexpr static int first = sysmouse::left;
-            constexpr static int midst = sysmouse::middle;
-            constexpr static int other = sysmouse::right;
-            constexpr static int winbt = sysmouse::win;
-            constexpr static int wheel = sysmouse::wheel;
-            constexpr static int joint = sysmouse::leftright;
-
-            auto is_pressed = mouse::button[first].pressed ||
-                              mouse::button[midst].pressed ||
-                              mouse::button[other].pressed ||
-                              mouse::button[winbt].pressed;
-            char suffix;
-            auto x = coord.x + 1;
-            auto y = coord.y + 1;
-            iota ctl = 0;
-            text result;
-            if (is_pressed)
-            {
-                ctl += mouse::button[first].pressed ? 0 : 0;
-                ctl += mouse::button[midst].pressed ? 1 : 0;
-                ctl += mouse::button[other].pressed ? 0 << 2 : 0;
-                ctl += mouse::button[winbt].pressed ? 0 << 2 : 0;
-                suffix = 'M';
-            }
-            else
-            {
-                suffix = 'm';
-            }
-            //case 4:
-            //    mouse.button[wheel] = ispressed;
-            //    break;
-            //case 64:
-            //    mouse.wheeled = true;
-            //    mouse.wheeldt = 1;
-            //    break;
-            //case 65:
-            //    mouse.wheeled = true;
-            //    mouse.wheeldt = -1;
-            //    break;
-            //default:
-            //    fire = faux;
-            //    mouse.shuffle = !mouse.ismoved;
-            //    break;
-
-            return result;
+            return hids::ctlstate;
         }
     };
 
@@ -2347,7 +2284,7 @@ namespace netxs::console
                     auto& init = data.init;
                     auto& step = data.step;
 
-                    data.ctrl = gear.meta(hids::CTRL) || gear.meta(hids::RCTRL);
+                    data.ctrl = gear.meta(hids::CTRL | hids::RCTRL);
                     slot.coor = init = step = gear.mouse::coord;
                     slot.size = dot_00;
                     boss.SIGNAL(e2::preview, e2::form::layout::strike, slot);
@@ -2408,7 +2345,7 @@ namespace netxs::console
                     if (gear.captured(boss.bell::id))
                     {
                         auto& data = slots[gear.id];
-                        data.ctrl = gear.meta(hids::CTRL) || gear.meta(hids::RCTRL);
+                        data.ctrl = gear.meta(hids::CTRL | hids::RCTRL);
                         if (data.ctrl)
                             boss.SIGNAL(e2::preview, e2::form::layout::strike, data.slot);
                     }
@@ -3181,6 +3118,8 @@ namespace netxs::console
                 }
 
             public:
+                operator bool () { return items.size(); }
+
                 void append(sptr<base> item)
                 {
                     items.push_back(std::make_shared<node>(item));
@@ -3264,6 +3203,18 @@ namespace netxs::console
 
                     return rect_00;
                 }
+                auto rotate_next()
+                {
+                    items.push_back(items.front());
+                    items.pop_front();
+                    return items.back();
+                }
+                auto rotate_prev()
+                {
+                    items.push_front(items.back());
+                    items.pop_back();
+                    return items.back();
+                }
             };
 
             using proc = drawfx;
@@ -3331,6 +3282,21 @@ namespace netxs::console
                 //{
                 //	empty_fx = paint;
                 //});
+
+                // pro::scene: Proceed request for available objects (next)
+                boss.SUBMIT_T(e2::request, e2::form::proceed::attach, memo, next)
+                {
+                    if (items)
+                        if (auto next_ptr = items.rotate_next())
+                            next = next_ptr->object;
+                };
+                // pro::scene: Proceed request for available objects (prev)
+                boss.SUBMIT_T(e2::request, e2::form::proceed::detach, memo, prev)
+                {
+                    if (items)
+                        if (auto prev_ptr = items.rotate_prev())
+                            prev = prev_ptr->object;
+                };
             }
 
             // scene: .
@@ -3531,7 +3497,9 @@ namespace netxs::console
                 boss.SUBMIT_T(e2::preview, e2::hids::keybd::any, memo, gear)
                 {
                     #ifdef KEYLOG
-                    log("keybd fired ", gear.virtcode);
+                    log("keybd fired virtcode: ", gear.virtcode,
+                                      " chars: ", utf::debase(gear.keystrokes),
+                                       " meta: ", gear.meta());
                     #endif
 
                     boss.SIGNAL(e2::release, e2::hids::keybd::any, gear);
@@ -3586,7 +3554,7 @@ namespace netxs::console
                 // pro::mouse: Forward all not expired mouse events to all parents.
                 boss.SUBMIT_T(e2::release, e2::hids::mouse::any, memo, gear)
                 {
-                    if (!gear.locks && !gear.ended)
+                    if (gear && !gear.locks)
                     {
                         auto& offset = boss.base::coor.get();
                         gear.pass<e2::release>(boss.parent.lock(), offset);
@@ -3719,16 +3687,6 @@ namespace netxs::console
 
             SUBMIT(e2::general, e2::timer::tick, timestamp)
             {
-                //static bool peep = faux;
-                //if (synch.stopwatch(BLINK_PERIOD))
-                //{
-                //	//caret.blink();
-                //	//pro::caret<void>::blink();
-                //	peep = !peep;
-                //	SIGNAL(e2::general, e2::form::cursor::blink, peep);
-                //}
-
-                //scene.redraw(timestamp);
                 scene.redraw();
             };
 
@@ -4073,8 +4031,8 @@ namespace netxs::console
                                                             mouse.ctlstate = (k_shift ? (1 << 4) : 0)
                                                                            + (k_alt   ? (1 << 1) : 0)
                                                                            + (k_ctrl  ? (1 << 2) : 0);
-                                                            //ctl = ctl & ~0b00011100;
-                                                            ctl = ctl & ~0b00011000;
+                                                            ctl = ctl & ~0b00011100;
+                                                            //ctl = ctl & ~0b00011000;
 
                                                             mouse.wheeled = faux;
                                                             mouse.wheeldt = 0;
@@ -4117,13 +4075,6 @@ namespace netxs::console
                                                                     //	mouse.button[other] = ispressed;
                                                                     //}
                                                                     break;
-                                                                case 4: //todo ctl is truncated
-                                                                    mouse.button[wheel] = ispressed;
-                                                                    break;
-                                                                case 5: //todo ctl is truncated
-                                                                    mouse.button[first] = ispressed;
-                                                                    mouse.button[other] = ispressed;
-                                                                    break;
 
                                                                 case 64:
                                                                     mouse.wheeled = true;
@@ -4133,6 +4084,16 @@ namespace netxs::console
                                                                     mouse.wheeled = true;
                                                                     mouse.wheeldt = -1;
                                                                     break;
+
+                                                                //case 66: //todo ctl is truncated
+                                                                //    mouse.button[wheel] = ispressed;
+                                                                //    break;
+                                                                case 67: //todo ctl is truncated
+                                                                    mouse.button[first] = ispressed;
+                                                                    mouse.button[other] = ispressed;
+                                                                    break;
+
+
                                                                 default:
                                                                     fire = faux;
                                                                     mouse.shuffle = !mouse.ismoved;
@@ -4974,6 +4935,7 @@ again:
             uname = user_name;
 
             using bttn = e2::hids::mouse::button;
+            using keyb = e2::hids::keybd;
 
             title.live = faux;
 
@@ -4992,6 +4954,40 @@ again:
                 {
                     gear.slot.coor += base::coor.get();
                     world->SIGNAL(e2::release, e2::form::proceed::createby, gear);
+                }
+            };
+
+            SUBMIT(e2::preview, keyb::any, gear)
+            {
+                //todo unify
+                //if (gear.meta(hids::CTRL | hids::RCTRL))
+                {
+                    //todo unify
+                    auto pgup = gear.keystrokes == "\033[5;5~"s;
+                    auto pgdn = gear.keystrokes == "\033[6;5~"s;
+                    if (pgup || pgdn)
+                    {
+                        if (auto world = parent.lock())
+                        {
+                            sptr<base> item_ptr;
+                            if (pgdn) world->SIGNAL(e2::request, e2::form::proceed::detach, item_ptr); // Take prev item
+                            else      world->SIGNAL(e2::request, e2::form::proceed::attach, item_ptr); // Take next item
+
+                            if (item_ptr)
+                            {
+                                auto& item = *item_ptr;
+                                auto square = item.square();
+                                auto center = square.coor + (square.size / 2);
+                                SIGNAL(e2::release, e2::form::layout::shift, center);
+
+                                //todo unify
+                                gear.clear_kb_focus();
+                                gear.kb_focus_taken = faux;
+                                item.SIGNAL(e2::release, e2::form::upevent::kboffer, gear);
+                            }
+                            gear.dismiss();
+                        }
+                    }
                 }
             };
 

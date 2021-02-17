@@ -497,8 +497,8 @@ namespace netxs::ui
                     createby    = any | (2 << _level1), // return gear with coordinates of the new object placeholder gear::slot (arg: gear)
                     destroy     = any | (3 << _level1), // ??? bool return reference to the parent
                     render      = any | (4 << _level1), // ask children to render itself to the parent canvas (arg: function drawfx to perform drawing)
-                    attach      = any | (5 << _level1), // order to attach a child (arg: parent bell_sptr)
-                    detach      = any | (6 << _level1), // order to detach a child (arg: child bell_sptr)
+                    attach      = any | (5 << _level1), // order to attach a child (arg: parent base_sptr)
+                    detach      = any | (6 << _level1), // order to detach a child (arg: child  base_sptr)
                     //commit      = any | (3 << _level1), // order to output the targets (arg: frame number iota)
                     //multirender = any | (5 << _level1), // ask children to render itself to the set of canvases (arg: array of the face sptrs: cuts = vector<shared_ptr<face>>)
                     //draw        = any | (6 << _level1), // ????  order to render itself to the canvas (arg: canvas face)
@@ -519,19 +519,19 @@ namespace netxs::ui
                     move        = any | (1 << _level1), // return client rect coor (preview: subject to change)
                     size        = any | (2 << _level1), // return client rect size (preview: subject to change)
                     //rect        = any | (3 << _level1), // return client rect (preview: subject to change)
-                    show        = any | (4 << _level1), // order to make it visible (arg: bool notify or not)
-                    hide        = any | (5 << _level1), // order to make it hidden (arg: bool notify or not)
-                    shift       = any | (6 << _level1), // request a global shifting  with delta (const twod)
-                    convey      = any | (7 << _level1), // request a global conveying with delta (Inform all children to be conveyed) (arg: cube)
-                    order       = any | (8 << _level1), // return
-                    local       = any | (9 << _level1), // Recursively calculate local coordinate from global (arg: twod)
-                    strike      = any | (10<< _level1), // (always preview) inform about the child canvas has changed (arg: modified region rect)
-                    bubble      = any | (11<< _level1), // order to popup the requested item through the visual tree (arg: form)
-                    expose      = any | (12<< _level1), // order to bring the requested item on top of the visual tree (arg: form)
-                    // active     = any | (12<< _level1), // notify the client is active or not. The form is active when the number of client (form::mouse::enter - mouse::leave) is not zero. (arg is only release: bool)
-                    // header     = any | (13<< _level1), // notify the client has changed title (arg is only release: const rich)
+                    show        = any | (3 << _level1), // order to make it visible (arg: bool notify or not)
+                    hide        = any | (4 << _level1), // order to make it hidden (arg: bool notify or not)
+                    shift       = any | (5 << _level1), // request a global shifting  with delta (const twod)
+                    convey      = any | (6 << _level1), // request a global conveying with delta (Inform all children to be conveyed) (arg: cube)
+                    order       = any | (7 << _level1), // return
+                    local       = any | (8 << _level1), // Recursively calculate local coordinate from global (arg: twod)
+                    strike      = any | (9 << _level1), // (always preview) inform about the child canvas has changed (arg: modified region rect)
+                    bubble      = any | (10<< _level1), // order to popup the requested item through the visual tree (arg: form)
+                    expose      = any | (11<< _level1), // order to bring the requested item on top of the visual tree (arg: base)
+                    //next        = any | (12<< _level1), // request client for next child object (arg is only request: sptr<base>)
+                    //prev        = any | (13<< _level1), // request client for prev child object (arg is only request: sptr<base>)
                     // footer     = any | (14<< _level1), // notify the client has changed footer (arg is only release: const rich)
-                    appear      = any | (15<< _level1), // fly tothe specified coords, arg: twod
+                    appear      = any | (14<< _level1), // fly tothe specified coords, arg: twod
                     //clientrect  = any | (15<< _level1), // notify the client area has changed (arg is only release: rect)
             };};
             struct state { enum : type {

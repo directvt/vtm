@@ -595,10 +595,6 @@ namespace netxs::ui
                     vt::intro[ctrl::BS ]     = VT_PROC{ p->cuf(-q.pop_all(ctrl::BS )); };
                     vt::intro[ctrl::DEL]     = VT_PROC{ p->del( q.pop_all(ctrl::DEL)); };
                     vt::intro[ctrl::TAB]     = VT_PROC{ p->tab( q.pop_all(ctrl::TAB)); };
-                    //vt::intro[ctrl::EOL]     = VT_PROC{ p->eol( q.pop_all(ctrl::EOL)); };
-                    //vt::intro[ctrl::CR ]     = VT_PROC{
-                    //        if (q.pop_if(ctrl::EOL)) p->eol(1);
-                    //        else                     p->home(); };
                     vt::intro[ctrl::CR ]     = VT_PROC{ p->home(); };
                     vt::intro[ctrl::EOL]     = VT_PROC{ p->dn ( q.pop_all(ctrl::EOL)); };
 
@@ -1215,9 +1211,15 @@ namespace netxs::ui
                             ctrl = 32;
                         }
                         break;
-                        
-                    case m::button::drag::pull::leftright : ++ctrl;
-                    case m::button::drag::pull::wheel : ++ctrl;
+
+                    case m::button::drag::pull::leftright:
+                        if (m_coord(gear.coord))
+                        {
+                            ctrl = 67;
+                            sffx = 'M';
+                        }
+                        break;
+                    //case m::button::drag::pull::wheel : ++ctrl;
                     case m::button::drag::pull::win   : ++ctrl;
                     case m::button::drag::pull::right : ++ctrl;
                     case m::button::drag::pull::middle: ++ctrl;
@@ -1228,8 +1230,16 @@ namespace netxs::ui
                         }
                         break;
 
-                    case m::button::down::leftright : ++ctrl;
-                    case m::button::down::wheel : ++ctrl;
+                    case m::button::down::leftright :
+                        if (!gear.captured(bell::id))
+                        {
+                            gear.capture(bell::id);
+                        }
+                        gear.dismiss();
+                        ctrl = 67;
+                        sffx = 'M';
+                        break;
+                    //case m::button::down::wheel : ++ctrl;
                     case m::button::down::win   : ++ctrl;
                     case m::button::down::right : ++ctrl;
                     case m::button::down::middle: ++ctrl;
@@ -1242,8 +1252,16 @@ namespace netxs::ui
                         sffx = 'M';
                         break;
 
-                    case m::button::up::leftright : ++ctrl;
-                    case m::button::up::wheel : ++ctrl;
+                    case m::button::up::leftright :
+                        if (gear.captured(bell::id))
+                        {
+                            gear.release();
+                        }
+                        gear.dismiss();
+                        ctrl = 67;
+                        sffx = 'm';
+                        break;
+                    //case m::button::up::wheel : ++ctrl;
                     case m::button::up::win   : ++ctrl;
                     case m::button::up::right : ++ctrl;
                     case m::button::up::middle: ++ctrl;
@@ -1256,11 +1274,11 @@ namespace netxs::ui
                         sffx = 'm';
                         break;
 
-                    case m::scroll::down:
+                    case m::scroll::up:
                         ctrl = 64;
                         sffx = 'm';
                         break;
-                    case m::scroll::up:
+                    case m::scroll::down:
                         ctrl = 65;
                         sffx = 'm';
                         break;

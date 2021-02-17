@@ -2,7 +2,7 @@
 // Licensed under the MIT license.
 
 //#define DEMO
-#define MONOTTY_VER "Monotty Desktopio Preview v0.3.0"
+#define MONOTTY_VER "Monotty Desktopio Preview v0.3.1"
 #define PROD
 
 // Terminal's default line wrapping mode
@@ -1595,9 +1595,11 @@ int main(int argc, char* argv[])
                             auto block = scroll->attach<term>(winsz, "wsl mc");
 
                             #elif defined(__linux__)
-
+#ifdef DEMO
+                            auto block = scroll->attach<term>(winsz, "bash -c 'LC_ALL=en_US.UTF-8 mc -c -x -d'");
+#else
                             auto block = scroll->attach<term>(winsz, "bash -c 'LC_ALL=en_US.UTF-8 mc -c -x'");
-
+#endif
                             #elif defined(__APPLE__)
 
                             auto block = scroll->attach<term>(winsz, "zsh -c 'LC_ALL=en_US.UTF-8 mc -c -x'");
@@ -1707,7 +1709,7 @@ int main(int argc, char* argv[])
                 auto location = gear.slot;
                 if (gear.meta(hids::CTRL) || gear.meta(hids::RCTRL))
                 {
-                    log("gate: copy area to clipboard ", location);
+                    log("gate: area copied to clipboard ", location);
                     sptr<core> canvas_ptr;
                     if (auto gate_ptr = bell::getref(gear.id))
                     {
