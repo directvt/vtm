@@ -328,6 +328,11 @@ namespace netxs::console::ansi
                                 + str(ctrl)       + ";"
                                 + str(coor.x + 1) + ";"
                                 + str(coor.y + 1) + (ispressed ? 'M' : 'm')); return *this; } // esc: Mouse tracking report (SGR).
+        esc& mtrack_x11 (iota ctrl, twod const& coor) { add("\033[M");
+                                push_back(static_cast<unsigned char>(std::min(ctrl,       255-32) + 32));
+                                push_back(static_cast<unsigned char>(std::min(coor.x + 1, 255-32) + 32));
+                                push_back(static_cast<unsigned char>(std::min(coor.y + 1, 255-32) + 32));
+                                return *this; } // esc: Mouse tracking report (X11).
     };
 
     static esc screen_wipe ()        { return esc{}.screen_wipe(); } // esc: Reset certain terminal settings to their defaults. Also resets the mouse tracking mode in VTE.

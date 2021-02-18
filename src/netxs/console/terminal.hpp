@@ -1185,18 +1185,97 @@ namespace netxs::ui
 
         rect viewport = { dot_00, dot_11 }; // term: Viewport area
 
-        subs tokens; // term: SGR mouse tracking subscription tokens set.
+        subs sgr_tokens; // term: SGR mouse tracking subscription tokens set.
+        subs x11_tokens; // term: X11 mouse tracking subscription tokens set.
 
         ansi::esc   mtrack; // term: Mouse tracking buffer.
         testy<twod> m_coord;
 
-        // term: SGR mouse tracking.
-        void mouse_tracking(bool enable)
+        // term: X11 mouse tracking.
+        void mouse_tracking_x11(bool enable)
         {
-            if (enable && !tokens.count())
+            if (enable && !x11_tokens.count())
             {
-                tokens.clear();
-                SUBMIT_T(e2::release, e2::hids::mouse::any, tokens, gear)
+                x11_tokens.clear();
+                SUBMIT_T(e2::release, e2::hids::mouse::any, x11_tokens, gear)
+                {
+                    using m = e2::hids::mouse;
+                    constexpr static iota left     = 0;
+                    constexpr static iota middle   = 1;
+                    constexpr static iota right    = 2;
+                    constexpr static iota bttnup   = 3;
+                    constexpr static iota wheel_up = 64;
+                    constexpr static iota wheel_dn = 65;
+
+                    constexpr static iota shift    = 4;
+                    constexpr static iota alt      = 8;
+                    constexpr static iota ctrl     = 16;
+
+                    auto capture = [&](){
+                        if (!gear.captured(bell::id)) gear.capture(bell::id);
+                        gear.dismiss();
+                    };
+                    auto release = [&](){
+                        if (gear.captured(bell::id)) gear.release();
+                        gear.dismiss();
+                    };
+                    auto proceed = [&](auto c){
+                        //todo revise (move to ansi.hpp)
+                        if (gear.meta(hids::SHIFT))   c |= shift;
+                        if (gear.meta(hids::ANYCTRL)) c |= ctrl;
+                        if (gear.meta(hids::ALT))     c |= alt;
+                        mtrack.mtrack_x11(c, gear.coord);
+                    };
+
+                    iota bttn = 0;
+                    switch (bell::protos<e2::release>())
+                    {
+                    case m::button::down::leftright:
+                        capture();
+                        proceed(left );
+                        proceed(right);
+                        break;
+                    case m::button::down::right : ++bttn;
+                    case m::button::down::middle: ++bttn;
+                    case m::button::down::left  :
+                        capture();
+                        proceed(bttn);
+                        break;
+                    case m::button::up::leftright:
+                    case m::button::up::win:
+                    case m::button::up::right:
+                    case m::button::up::middle:
+                    case m::button::up::left:
+                        release();
+                        proceed(bttnup);
+                        break;
+                    case m::scroll::up:
+                        proceed(wheel_up);
+                        break;
+                    case m::scroll::down:
+                        proceed(wheel_dn);
+                        break;
+                    default:
+                        break;
+                    }
+
+                    if (mtrack.length())
+                    {
+                        ptycon.write(mtrack);
+                        mtrack.clear();
+                        gear.dismiss();
+                    }
+                };
+            }
+            else x11_tokens.clear();
+        }
+        // term: SGR mouse tracking.
+        void mouse_tracking_sgr(bool enable)
+        {
+            if (enable && !sgr_tokens.count())
+            {
+                sgr_tokens.clear();
+                SUBMIT_T(e2::release, e2::hids::mouse::any, sgr_tokens, gear)
                 {
                     using m = e2::hids::mouse;
                     constexpr static iota left     = 0;
@@ -1275,7 +1354,7 @@ namespace netxs::ui
                     }
                 };
             }
-            else tokens.clear();
+            else sgr_tokens.clear();
         }
 
         // term: Apply page props.
@@ -1318,14 +1397,16 @@ namespace netxs::ui
                         caret.show();
                         target->caret_visible = true; //todo unify
                         break;
-                    case 1000: // Send mouse X & Y on button press and release.
+                    case 1000: // Send mouse X & Y on button press and release (+key modifiers).
+                        mouse_tracking_x11(true);
+                        break;
                     case 1001: // Use Hilite mouse tracking.
                     case 1002: // Use cell motion mouse tracking.
                     case 1003: // Use all motion mouse tracking.
                         log("decset: CSI ? 1000-1003 h  old mouse modes are not supported");
                         break;
                     case 1006: // Enable SGR mouse tracking mode.
-                        mouse_tracking(true);
+                        mouse_tracking_sgr(true);
                         break;
 
                     case 1004: // Enable sending FocusIn/FocusOut events.
@@ -1368,13 +1449,15 @@ namespace netxs::ui
                         target->caret_visible = faux; //todo unify
                         break;
                     case 1000: // Don't send mouse X & Y on button press and release.
+                        mouse_tracking_x11(true);
+                        break;
                     case 1001: // Don't use Hilite(c) mouse tracking.
                     case 1002: // Don't use cell motion mouse tracking.
                     case 1003: // Don't use all motion mouse tracking.
                         log("decset: CSI ? 1000-1003 l  old mouse modes are not supported");
                         break;
                     case 1006: // Disable SGR mouse tracking mode.
-                        mouse_tracking(faux);
+                        mouse_tracking_sgr(faux);
                         break;
 
                     case 1004: // Don't send FocusIn / FocusOut events.
