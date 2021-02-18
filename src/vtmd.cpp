@@ -138,7 +138,7 @@ std::list<text> appstore_body =
     "Terminal emulator."),
 
     item("Text", cyandk, "102", "Free ", "Get",
-    "A simple text editor for Monotty Desktop "
+    "A simple text editor for Monotty environment "
     "and a basic editing tool which enables "
     "desktop users to create documents that "
     "contain ANSI-formatted text."),
@@ -160,10 +160,10 @@ std::list<text> appstore_body =
     "code points and inspecting their metadata."),
 
     item(ansi::fgc(0xff0000) + "File", cyanlt, "4", "Free ", "Get",
-    "An orthodox file manager for Monotty Desktop."),
+    "An orthodox file manager for Monotty environment."),
 
     item("Time", bluedk, "4", "Free ", "Get",
-    "A calendar application made by NetXS Group for Monotty Desktop."),
+    "A calendar application made by NetXS Group for Monotty environment."),
 
     item("Goto", bluedk, "4", "Free ", "Get",
     "Internet/SSH browser."),
@@ -724,8 +724,9 @@ int main(int argc, char* argv[])
 
                 + ansi::mgl(1).mgr(0)
                 + ansi::fgc(whitelt).bld(true) + "Keyboard:" + ansi::nil().wrp(faux) + "\n"
-                + "    " + ansi::fgc(whitelt).und(true) + "Esc" + ansi::nil().wrp(true) + " - quit/disconnect.\n"
-                + "    " + ansi::fgc(whitelt).und(true) + "Ctrl" + ansi::nil().wrp(true) + " - combine with the left mouse button to set/unset keyboard focus; combining with dragging right/middle mouse buttons copies the selected area to the clipboard.\n\n"
+                + "    " + ansi::fgc(whitelt).und(true) + "Esc" + ansi::nil().wrp(true) + " - Quit/disconnect.\n"
+                + "    " + ansi::fgc(whitelt).und(true) + "Ctrl" + ansi::nil().wrp(true) + " - Combine with the left mouse button to set/unset keyboard focus; combining with dragging right/middle mouse buttons copies the selected area to the clipboard.\n"
+                + "    " + ansi::fgc(whitelt).und(true) + "Ctrl + PgUp/PgDn" + ansi::nil().wrp(true) + " - Navigation between windows.\n\n"
 
                 + ansi::fgc(whitelt).bld(true) + "Menu:" + ansi::nil().wrp(faux) + "\n"
                 + "    " + ansi::fgc(whitelt).und(true) + "Midnight Commander" + ansi::nil().wrp(faux) + " - live instance of Midnight Commander.\n"

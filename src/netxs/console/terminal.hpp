@@ -781,7 +781,8 @@ namespace netxs::ui
                  * - move caret one line up if it is outside of scrolling region or below the top line of scrolling region.
                  * - one line scroll down if caret is on the top line of scroll region.
                  */
-                if (coord.y != scroll_top)
+                auto[top, end] = get_scroll_limits();
+                if (coord.y != top)
                 {
                     coord.y--;
                     set_coord();
@@ -1182,14 +1183,14 @@ namespace netxs::ui
         bool mode_DECCKM{ faux }; // todo unify
         std::map<iota, text> props;
 
-        rect viewport = { {}, dot_11 }; // term: Viewport area
+        rect viewport = { dot_00, dot_11 }; // term: Viewport area
 
         subs tokens; // term: SGR mouse tracking subscription tokens set.
 
-        ansi::esc   m_track; // term: Mouse tracking buffer.
+        ansi::esc   mtrack; // term: Mouse tracking buffer.
         testy<twod> m_coord;
 
-        // term: SGR mouse tracking switcher.
+        // term: SGR mouse tracking.
         void mouse_tracking(bool enable)
         {
             if (enable && !tokens.count())
@@ -1216,11 +1217,11 @@ namespace netxs::ui
                         if (gear.meta(hids::SHIFT))   ctrl |= 0x4;
                         if (gear.meta(hids::ANYCTRL)) ctrl |= 0x8;
                         if (gear.meta(hids::ALT))     ctrl |= 0x10;
-                        m_track.mtrack(ctrl, gear.coord, ispressed);
+                        mtrack.mtrack(ctrl, gear.coord, ispressed);
                     };
 
                     iota bttn = 0;
-                    switch (auto deal = bell::protos<e2::release>())
+                    switch (bell::protos<e2::release>())
                     {
                     case m::move:
                         if (m_coord(gear.coord)) proceed(idle, faux);
@@ -1266,10 +1267,10 @@ namespace netxs::ui
                         break;
                     }
 
-                    if (m_track.length())
+                    if (mtrack.length())
                     {
-                        ptycon.write(m_track);
-                        m_track.clear();
+                        ptycon.write(mtrack);
+                        mtrack.clear();
                         gear.dismiss();
                     }
                 };
@@ -1507,7 +1508,6 @@ namespace netxs::ui
                 if (guard)
                 {
                     //log(" 1. target content: ", target->get_content());
-
 
                     SIGNAL(e2::general, e2::debug::output, shadow);
 
