@@ -1243,9 +1243,8 @@ namespace netxs::ui
             SUBMIT(e2::release, e2::hids::mouse::scroll::any, gear)
             {
                 auto dir = gear.whldt > 0;
-                if (permit == axes::ONLY_X || gear.meta(hids::SHIFT |
-                                                        hids::CTRL  |
-                                                        hids::RCTRL))
+                if (permit == axes::ONLY_X || gear.meta(hids::ANYCTRL |
+                                                        hids::SHIFT ))
                      wheels<X>(dir);
                 else wheels<Y>(dir);
 

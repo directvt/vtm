@@ -1186,7 +1186,7 @@ namespace netxs::ui
 
         subs tokens; // term: SGR mouse tracking subscription tokens set.
 
-        text        m_track; // term: Mouse tracking buffer.
+        ansi::esc   m_track; // term: Mouse tracking buffer.
         testy<twod> m_coord;
 
         // term: SGR mouse tracking switcher.
@@ -1198,106 +1198,78 @@ namespace netxs::ui
                 SUBMIT_T(e2::release, e2::hids::mouse::any, tokens, gear)
                 {
                     using m = e2::hids::mouse;
+                    constexpr static iota left     = 0;
+                    constexpr static iota right    = 2;
+                    constexpr static iota idle     = 32;
+                    constexpr static iota wheel_up = 64;
+                    constexpr static iota wheel_dn = 65;
 
-                    iota ctrl = 0;
-                    char sffx = '\0';
-                    bool fire = faux;
+                    auto capture = [&](){
+                        if (!gear.captured(bell::id)) gear.capture(bell::id);
+                        gear.dismiss();
+                    };
+                    auto release = [&](){
+                        if (gear.captured(bell::id)) gear.release();
+                        gear.dismiss();
+                    };
+                    auto proceed = [&](auto ctrl, bool ispressed){
+                        if (gear.meta(hids::SHIFT))   ctrl |= 0x4;
+                        if (gear.meta(hids::ANYCTRL)) ctrl |= 0x8;
+                        if (gear.meta(hids::ALT))     ctrl |= 0x10;
+                        m_track.mtrack(ctrl, gear.coord, ispressed);
+                    };
+
+                    iota bttn = 0;
                     switch (auto deal = bell::protos<e2::release>())
                     {
                     case m::move:
-                        if (m_coord(gear.coord))
-                        {
-                            sffx = 'm';
-                            ctrl = 32;
-                        }
+                        if (m_coord(gear.coord)) proceed(idle, faux);
                         break;
-
                     case m::button::drag::pull::leftright:
-                        if (m_coord(gear.coord))
-                        {
-                            ctrl = 67;
-                            sffx = 'M';
-                        }
+                    case m::button::drag::pull::win:
+                    case m::button::drag::pull::right:
+                    case m::button::drag::pull::middle:
+                    case m::button::drag::pull::left:
+                        if (m_coord(gear.coord)) proceed(idle, true);
                         break;
-                    //case m::button::drag::pull::wheel : ++ctrl;
-                    case m::button::drag::pull::win   : ++ctrl;
-                    case m::button::drag::pull::right : ++ctrl;
-                    case m::button::drag::pull::middle: ++ctrl;
-                    case m::button::drag::pull::left  :
-                        if (m_coord(gear.coord))
-                        {
-                            sffx = 'M';
-                        }
+                    case m::button::down::leftright:
+                        capture();
+                        proceed(left,  true);
+                        proceed(right, true);
                         break;
-
-                    case m::button::down::leftright :
-                        if (!gear.captured(bell::id))
-                        {
-                            gear.capture(bell::id);
-                        }
-                        gear.dismiss();
-                        ctrl = 67;
-                        sffx = 'M';
-                        break;
-                    //case m::button::down::wheel : ++ctrl;
-                    case m::button::down::win   : ++ctrl;
-                    case m::button::down::right : ++ctrl;
-                    case m::button::down::middle: ++ctrl;
+                    case m::button::down::win   : ++bttn;
+                    case m::button::down::right : ++bttn;
+                    case m::button::down::middle: ++bttn;
                     case m::button::down::left  :
-                        if (!gear.captured(bell::id))
-                        {
-                            gear.capture(bell::id);
-                        }
-                        gear.dismiss();
-                        sffx = 'M';
+                        capture();
+                        proceed(bttn, true);
                         break;
-
-                    case m::button::up::leftright :
-                        if (gear.captured(bell::id))
-                        {
-                            gear.release();
-                        }
-                        gear.dismiss();
-                        ctrl = 67;
-                        sffx = 'm';
+                    case m::button::up::leftright:
+                        release();
+                        proceed(left,  faux);
+                        proceed(right, faux);
                         break;
-                    //case m::button::up::wheel : ++ctrl;
-                    case m::button::up::win   : ++ctrl;
-                    case m::button::up::right : ++ctrl;
-                    case m::button::up::middle: ++ctrl;
+                    case m::button::up::win   : ++bttn;
+                    case m::button::up::right : ++bttn;
+                    case m::button::up::middle: ++bttn;
                     case m::button::up::left  :
-                        if (gear.captured(bell::id))
-                        {
-                            gear.release();
-                        }
-                        gear.dismiss();
-                        sffx = 'm';
+                        release();
+                        proceed(bttn, faux);
                         break;
-
                     case m::scroll::up:
-                        ctrl = 64;
-                        sffx = 'm';
+                        proceed(wheel_up, faux);
                         break;
                     case m::scroll::down:
-                        ctrl = 65;
-                        sffx = 'm';
+                        proceed(wheel_dn, faux);
                         break;
-
                     default:
                         break;
                     }
 
-                    if (sffx)
+                    if (m_track.length())
                     {
-                        //todo apply kb modifiefrs
-
-                        m_track.clear();
-                        auto coor = gear.coord + dot_11;
-                        m_track += "\033[<"
-                                + std::to_string(ctrl)   + ";"
-                                + std::to_string(coor.x) + ";"
-                                + std::to_string(coor.y) + sffx;
                         ptycon.write(m_track);
+                        m_track.clear();
                         gear.dismiss();
                     }
                 };

@@ -439,7 +439,6 @@ namespace netxs::console
         bool   reach = faux;    // mouse: Has the event tree relay reached the mouse event target
         hint   cause = e2::any; // mouse: Current event id
         iota   index = none;    // mouse: Index of the active button. -1 if the buttons are not involed
-        //bool   ended = faux;    // mouse: Whether event processing is complete
         bool   nodbl = faux;    // mouse: Whether single click event processed (to prevent double clicks)
         iota   locks = 0;       // mouse: Bit fields related to hooked up mouse buttons. Change the mouse event routing behavior: choose mouselk instead of hittest[xpoint]
         id_t   swift = 0;       // mouse: Delegate's ID of the current mouse owner
@@ -727,7 +726,6 @@ namespace netxs::console
         text        keystrokes;
 
         bool        down = faux;
-//        bool        actual = faux;
         uint16_t    repeatcount = 0;
         uint16_t    virtcode = 0;
         uint16_t    scancode = 0;
@@ -786,6 +784,7 @@ namespace netxs::console
             CTRL  = 1 << 2,
             RCTRL = 1 << 3,
             SHIFT = 1 << 4,
+            ANYCTRL = CTRL | RCTRL,
         };
 
         //todo revise
@@ -808,13 +807,13 @@ namespace netxs::console
             clear_kb_focus();
         }
 
-        // mouse: Stop handeling this event.
+        // hids: Stop handeling this event.
         void dismiss ()
         {
             alive = faux;
         }
 
-        // Whether event processing is complete.
+        // hids: Whether event processing is complete.
         operator bool() const
         {
             return alive;
@@ -970,7 +969,7 @@ namespace netxs::console
         void set_kb_focus(sptr<bell> item)
         {
             kb_focus_taken = true;
-            if (hids::meta(CTRL | RCTRL))
+            if (hids::meta(ANYCTRL))
                 add_group_kb_focus_or_release_captured(item);
             else
                 add_single_kb_focus(item);
@@ -2284,7 +2283,7 @@ namespace netxs::console
                     auto& init = data.init;
                     auto& step = data.step;
 
-                    data.ctrl = gear.meta(hids::CTRL | hids::RCTRL);
+                    data.ctrl = gear.meta(hids::ANYCTRL);
                     slot.coor = init = step = gear.mouse::coord;
                     slot.size = dot_00;
                     boss.SIGNAL(e2::preview, e2::form::layout::strike, slot);
@@ -2345,7 +2344,7 @@ namespace netxs::console
                     if (gear.captured(boss.bell::id))
                     {
                         auto& data = slots[gear.id];
-                        data.ctrl = gear.meta(hids::CTRL | hids::RCTRL);
+                        data.ctrl = gear.meta(hids::ANYCTRL);
                         if (data.ctrl)
                             boss.SIGNAL(e2::preview, e2::form::layout::strike, data.slot);
                     }
@@ -3985,131 +3984,119 @@ namespace netxs::console
                                 auto tmp = strv.substr(pos);
                                 auto l = tmp.size();
                                 if (auto ctrl = utf::to_int(tmp))
+                                {
+                                    pos += l - tmp.size();
+                                    if (pos == len) { total = strv; break; }// incomlpete sequence
                                     {
-                                        pos += l - tmp.size();
-                                        if (pos == len) { total = strv; break; }// incomlpete sequence
+                                        if (++pos == len) { total = strv; break; }// incomlpete sequence
+
+                                        view tmp = strv.substr(pos);
+                                        auto l = tmp.size();
+                                        if (auto pos_x = utf::to_int(tmp))
                                         {
-                                            if (++pos == len) { total = strv; break; }// incomlpete sequence
-
-                                            view tmp = strv.substr(pos);
-                                            auto l = tmp.size();
-                                            if (auto pos_x = utf::to_int(tmp))
+                                            pos += l - tmp.size();
+                                            if (pos == len) { total = strv; break; }// incomlpete sequence
                                             {
-                                                pos += l - tmp.size();
-                                                if (pos == len) { total = strv; break; }// incomlpete sequence
+                                                if (++pos == len) { total = strv; break; }// incomlpete sequence
+
+                                                view tmp = strv.substr(pos);
+                                                auto l = tmp.size();
+                                                if (auto pos_y = utf::to_int(tmp))
                                                 {
-                                                    if (++pos == len) { total = strv; break; }// incomlpete sequence
-
-                                                    view tmp = strv.substr(pos);
-                                                    auto l = tmp.size();
-                                                    if (auto pos_y = utf::to_int(tmp))
+                                                    pos += l - tmp.size();
+                                                    if (pos == len) { total = strv; break; }// incomlpete sequence
                                                     {
-                                                        pos += l - tmp.size();
-                                                        if (pos == len) { total = strv; break; }// incomlpete sequence
-                                                        {
-                                                            auto ispressed = (strv.at(pos) == 'M');
-                                                            ++pos;
+                                                        auto ispressed = (strv.at(pos) == 'M');
+                                                        ++pos;
 
-                                                            auto clamp = [](auto a) { return std::clamp(a,
-                                                                std::numeric_limits<iota>::min() / 2,
-                                                                std::numeric_limits<iota>::max() / 2); };
+                                                        auto clamp = [](auto a) { return std::clamp(a,
+                                                            std::numeric_limits<iota>::min() / 2,
+                                                            std::numeric_limits<iota>::max() / 2); };
 
-                                                            auto x = clamp(pos_x.value() - 1);
-                                                            auto y = clamp(pos_y.value() - 1);
-                                                            auto ctl = ctrl.value();
+                                                        auto x = clamp(pos_x.value() - 1);
+                                                        auto y = clamp(pos_y.value() - 1);
+                                                        auto ctl = ctrl.value();
 
-                                                            // ks & 0x10 ? f + ";2" // shift
-                                                            // ks & 0x02 || ks & 0x01 ? f + ";3" // alt
-                                                            // ks & 0x04 || ks & 0x08 ? f + ";5" // ctrl
-                                                            // 0000 0000
-                                                            //    | ||||
-                                                            //    | ||------ btn state
-                                                            //    ---------- ctl state
-                                                            bool k_shift = ctl & 0x4;
-                                                            bool k_alt   = ctl & 0x10;
-                                                            bool k_ctrl  = ctl & 0x8;
-                                                            mouse.ctlstate = (k_shift ? (1 << 4) : 0)
-                                                                           + (k_alt   ? (1 << 1) : 0)
-                                                                           + (k_ctrl  ? (1 << 2) : 0);
+                                                        // ks & 0x10 ? f + ";2" // shift
+                                                        // ks & 0x02 || ks & 0x01 ? f + ";3" // alt
+                                                        // ks & 0x04 || ks & 0x08 ? f + ";5" // ctrl
+                                                        // 0000 0000
+                                                        //    | ||||
+                                                        //    | ||------ btn state
+                                                        //    ---------- ctl state
+                                                        bool k_shift = ctl & 0x4;
+                                                        bool k_alt   = ctl & 0x10;
+                                                        bool k_ctrl  = ctl & 0x8;
+                                                        mouse.ctlstate = (k_shift ? (1 << 4) : 0)
+                                                                       + (k_alt   ? (1 << 1) : 0)
+                                                                       + (k_ctrl  ? (1 << 2) : 0);
                                                             ctl = ctl & ~0b00011100;
-                                                            //ctl = ctl & ~0b00011000;
 
-                                                            mouse.wheeled = faux;
-                                                            mouse.wheeldt = 0;
-                                                            mouse.shuffle = faux;
+                                                        mouse.wheeled = faux;
+                                                        mouse.wheeldt = 0;
+                                                        mouse.shuffle = faux;
 
-                                                            bool fire = true;
+                                                        bool fire = true;
 
-                                                            constexpr static int total = sysmouse::numofbutton;
-                                                            constexpr static int first = sysmouse::left;
-                                                            constexpr static int midst = sysmouse::middle;
-                                                            constexpr static int other = sysmouse::right;
-                                                            constexpr static int winbt = sysmouse::win;
-                                                            constexpr static int wheel = sysmouse::wheel;
-                                                            constexpr static int joint = sysmouse::leftright;
+                                                        constexpr static int total = sysmouse::numofbutton;
+                                                        constexpr static int first = sysmouse::left;
+                                                        constexpr static int midst = sysmouse::middle;
+                                                        constexpr static int other = sysmouse::right;
+                                                        constexpr static int winbt = sysmouse::win;
+                                                        constexpr static int wheel = sysmouse::wheel;
+                                                        constexpr static int joint = sysmouse::leftright;
 
-                                                            // Moving should be fired first
-                                                            if ((mouse.ismoved = mouse.coor({ x, y })))
-                                                            {
-                                                                owner.SIGNAL(e2::release, e2::term::mouse, mouse);
-                                                                mouse.ismoved = faux;
-                                                            }
+                                                        // Moving should be fired first
+                                                        if ((mouse.ismoved = mouse.coor({ x, y })))
+                                                        {
+                                                            owner.SIGNAL(e2::release, e2::term::mouse, mouse);
+                                                            mouse.ismoved = faux;
+                                                        }
 
-                                                            switch (ctl)
-                                                            {
-                                                                case 0:
-                                                                    mouse.button[first] = ispressed;
-                                                                    break;
-                                                                case 1:
-                                                                    mouse.button[midst] = ispressed;
-                                                                    break;
-                                                                case 2:
-                                                                    mouse.button[other] = ispressed;
-                                                                    break;
-                                                                case 3:
-                                                                    mouse.button[winbt] = ispressed;
-                                                                    //if (!ispressed) // WinSrv2019 vtmouse bug workaround
-                                                                    //{               //  - release any button always fires winbt release
-                                                                    //	mouse.button[first] = ispressed;
-                                                                    //	mouse.button[midst] = ispressed;
-                                                                    //	mouse.button[other] = ispressed;
-                                                                    //}
-                                                                    break;
+                                                        switch (ctl)
+                                                        {
+                                                            case 0:
+                                                                mouse.button[first] = ispressed;
+                                                                break;
+                                                            case 1:
+                                                                mouse.button[midst] = ispressed;
+                                                                break;
+                                                            case 2:
+                                                                mouse.button[other] = ispressed;
+                                                                break;
+                                                            case 3:
+                                                                mouse.button[winbt] = ispressed;
+                                                                //if (!ispressed) // WinSrv2019 vtmouse bug workaround
+                                                                //{               //  - release any button always fires winbt release
+                                                                //	mouse.button[first] = ispressed;
+                                                                //	mouse.button[midst] = ispressed;
+                                                                //	mouse.button[other] = ispressed;
+                                                                //}
+                                                                break;
+                                                            case 64:
+                                                                mouse.wheeled = true;
+                                                                mouse.wheeldt = 1;
+                                                                break;
+                                                            case 65:
+                                                                mouse.wheeled = true;
+                                                                mouse.wheeldt = -1;
+                                                                break;
+                                                            default:
+                                                                fire = faux;
+                                                                mouse.shuffle = !mouse.ismoved;
+                                                                break;
+                                                        }
 
-                                                                case 64:
-                                                                    mouse.wheeled = true;
-                                                                    mouse.wheeldt = 1;
-                                                                    break;
-                                                                case 65:
-                                                                    mouse.wheeled = true;
-                                                                    mouse.wheeldt = -1;
-                                                                    break;
-
-                                                                //case 66: //todo ctl is truncated
-                                                                //    mouse.button[wheel] = ispressed;
-                                                                //    break;
-                                                                case 67: //todo ctl is truncated
-                                                                    mouse.button[first] = ispressed;
-                                                                    mouse.button[other] = ispressed;
-                                                                    break;
-
-
-                                                                default:
-                                                                    fire = faux;
-                                                                    mouse.shuffle = !mouse.ismoved;
-                                                                    break;
-                                                            }
-
-                                                            if (fire)
-                                                            {
-                                                                owner.SIGNAL(e2::release, e2::term::mouse, mouse);
-                                                            }
+                                                        if (fire)
+                                                        {
+                                                            owner.SIGNAL(e2::release, e2::term::mouse, mouse);
                                                         }
                                                     }
                                                 }
                                             }
                                         }
                                     }
+                                }
                             }
                             else if (is_digit(strv.at(pos)))
                             {

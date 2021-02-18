@@ -1707,7 +1707,7 @@ int main(int argc, char* argv[])
             board->SUBMIT(e2::release, e2::form::proceed::createby, gear)
             {
                 auto location = gear.slot;
-                if (gear.meta(hids::CTRL) || gear.meta(hids::RCTRL))
+                if (gear.meta(hids::ANYCTRL))
                 {
                     log("gate: area copied to clipboard ", location);
                     sptr<core> canvas_ptr;
