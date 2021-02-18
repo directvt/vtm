@@ -1449,7 +1449,7 @@ namespace netxs::ui
                         target->caret_visible = faux; //todo unify
                         break;
                     case 1000: // Don't send mouse X & Y on button press and release.
-                        mouse_tracking_x11(true);
+                        mouse_tracking_x11(faux);
                         break;
                     case 1001: // Don't use Hilite(c) mouse tracking.
                     case 1002: // Don't use cell motion mouse tracking.
