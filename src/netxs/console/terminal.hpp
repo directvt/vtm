@@ -1204,6 +1204,7 @@ namespace netxs::ui
                     constexpr static iota middle   = 1;
                     constexpr static iota right    = 2;
                     constexpr static iota bttnup   = 3;
+                    //constexpr static iota motion   = 32;
                     constexpr static iota wheel_up = 64;
                     constexpr static iota wheel_dn = 65;
 
@@ -1230,6 +1231,15 @@ namespace netxs::ui
                     iota bttn = 0;
                     switch (bell::protos<e2::release>())
                     {
+                    //todo revise, seems it is incompatible with UTF-8
+                    //case m::move:
+                    //    if (m_coord(gear.coord)) proceed(motion);
+                    //    break;
+                    //case m::button::drag::pull::right : ++bttn;
+                    //case m::button::drag::pull::middle: ++bttn;
+                    //case m::button::drag::pull::left  :
+                    //    if (m_coord(gear.coord)) proceed(bttn + motion);
+                    //    break;
                     case m::button::down::leftright:
                         capture();
                         proceed(left );
@@ -1403,19 +1413,24 @@ namespace netxs::ui
                     case 1001: // Use Hilite mouse tracking.
                     case 1002: // Use cell motion mouse tracking.
                     case 1003: // Use all motion mouse tracking.
-                        log("decset: CSI ? 1000-1003 h  old mouse modes are not supported");
+                        log("decset: CSI ? 1001-1003 h  old mouse modes are not supported");
                         break;
-                    case 1006: // Enable SGR mouse tracking mode.
-                        mouse_tracking_sgr(true);
-                        break;
-
                     case 1004: // Enable sending FocusIn/FocusOut events.
                         log("decset: CSI ? 1004 h  is not implemented (focus)");
                         break;
                     case 1005: // Enable UTF-8 mouse mode.
                         log("decset: CSI ? 1005 h  UTF-8 mouse mode is not supported");
                         break;
-                        
+                    case 1006: // Enable SGR mouse tracking mode.
+                        mouse_tracking_sgr(true);
+                        break;
+                    case 1015: // Enable URXVT mouse mode.
+                        log("decset: CSI ? 1015 h  URXVT mouse mode is not supported");
+                        break;
+                    case 1016: // Enable Pixels (subcell) mouse mode.
+                        log("decset: CSI ? 1016 h  Pixels (subcell) mouse mode is not supported");
+                        break;
+
                     case 1048: // Save cursor
                         break;
                     case 1047: // Use alternate screen buffer
@@ -1454,17 +1469,22 @@ namespace netxs::ui
                     case 1001: // Don't use Hilite(c) mouse tracking.
                     case 1002: // Don't use cell motion mouse tracking.
                     case 1003: // Don't use all motion mouse tracking.
-                        log("decset: CSI ? 1000-1003 l  old mouse modes are not supported");
+                        log("decset: CSI ? 1001-1003 l  old mouse modes are not supported");
                         break;
-                    case 1006: // Disable SGR mouse tracking mode.
-                        mouse_tracking_sgr(faux);
-                        break;
-
                     case 1004: // Don't send FocusIn / FocusOut events.
                         log("decset: CSI ? 1004 l  is not implemented (focus)");
                         break;
                     case 1005: // Disable UTF-8 mouse mode.
                         log("decset: CSI ? 1005 l  UTF-8 mouse mode is not supported");
+                        break;
+                    case 1006: // Disable SGR mouse tracking mode.
+                        mouse_tracking_sgr(faux);
+                        break;
+                    case 1015: // Disable URXVT mouse mode.
+                        log("decset: CSI ? 1015 l  URXVT mouse mode is not supported");
+                        break;
+                    case 1016: // Disable Pixels (subcell) mouse mode.
+                        log("decset: CSI ? 1016 l  Pixels (subcell) mouse mode is not supported");
                         break;
 
                     case 1048: // Restore cursor
