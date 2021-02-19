@@ -1196,10 +1196,10 @@ namespace netxs::ui
         {
             if (enable && !x11_tokens.count())
             {
+                using m = e2::hids::mouse;
                 x11_tokens.clear();
-                SUBMIT_T(e2::release, e2::hids::mouse::any, x11_tokens, gear)
+                SUBMIT_T(e2::release, m::any, x11_tokens, gear)
                 {
-                    using m = e2::hids::mouse;
                     constexpr static iota left     = 0;
                     constexpr static iota middle   = 1;
                     constexpr static iota right    = 2;
@@ -1231,7 +1231,7 @@ namespace netxs::ui
                     iota bttn = 0;
                     switch (bell::protos<e2::release>())
                     {
-                    //todo revise, seems it is incompatible with UTF-8
+                    //todo revise (modes 1001-1003)
                     //case m::move:
                     //    if (m_coord(gear.coord)) proceed(motion);
                     //    break;
@@ -1284,10 +1284,10 @@ namespace netxs::ui
         {
             if (enable && !sgr_tokens.count())
             {
+                using m = e2::hids::mouse;
                 sgr_tokens.clear();
-                SUBMIT_T(e2::release, e2::hids::mouse::any, sgr_tokens, gear)
+                SUBMIT_T(e2::release, m::any, sgr_tokens, gear)
                 {
-                    using m = e2::hids::mouse;
                     constexpr static iota left     = 0;
                     constexpr static iota right    = 2;
                     constexpr static iota idle     = 32;
@@ -1407,7 +1407,8 @@ namespace netxs::ui
                         caret.show();
                         target->caret_visible = true; //todo unify
                         break;
-                    case 1000: // Send mouse X & Y on button press and release (+key modifiers).
+                    case    9: // Enable X10 mouse reporting protocol. Send mouse X & Y on button press and release.
+                    case 1000: // Enable X11 mouse reporting protocol. Send mouse X & Y on button press and release (+key modifiers).
                         mouse_tracking_x11(true);
                         break;
                     case 1001: // Use Hilite mouse tracking.
@@ -1463,7 +1464,8 @@ namespace netxs::ui
                         caret.hide();
                         target->caret_visible = faux; //todo unify
                         break;
-                    case 1000: // Don't send mouse X & Y on button press and release.
+                    case    9: // Disable X10 mouse reporting protocol.
+                    case 1000: // Disable X11 mouse reporting protocol.
                         mouse_tracking_x11(faux);
                         break;
                     case 1001: // Don't use Hilite(c) mouse tracking.
