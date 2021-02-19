@@ -329,9 +329,9 @@ namespace netxs::console::ansi
                                 + str(coor.x + 1) + ";"
                                 + str(coor.y + 1) + (ispressed ? 'M' : 'm')); return *this; } // esc: Mouse tracking report (SGR).
         esc& mtrack_x11 (iota ctrl, twod const& coor) { add("\033[M");
-                                push_back(static_cast<unsigned char>(std::min(ctrl,       255-32) + 32));
-                                push_back(static_cast<unsigned char>(std::min(coor.x + 1, 255-32) + 32));
-                                push_back(static_cast<unsigned char>(std::min(coor.y + 1, 255-32) + 32));
+                                push_back(static_cast<unsigned char>(std::clamp(ctrl,       0, 255-32) + 32));
+                                push_back(static_cast<unsigned char>(std::clamp(coor.x + 1, 1, 255-32) + 32));
+                                push_back(static_cast<unsigned char>(std::clamp(coor.y + 1, 1, 255-32) + 32));
                                 return *this; } // esc: Mouse tracking report (X11).
     };
 
