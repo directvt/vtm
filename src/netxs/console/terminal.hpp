@@ -1220,7 +1220,7 @@ namespace netxs::ui
                         if (gear.captured(bell::id)) gear.release();
                         gear.dismiss();
                     };
-                    auto proceed = [&](auto c){
+                    auto proceed = [&](iota c){ // in case of using `auto c`, MS Visual C++: fatal error C1001: Internal compiler error.
                         //todo revise (move to ansi.hpp)
                         if (gear.meta(hids::SHIFT))   c |= shift;
                         if (gear.meta(hids::ANYCTRL)) c |= ctrl;
