@@ -552,6 +552,190 @@ namespace netxs::ui
                 };
             };
         };
+        struct mouse_track
+        {
+            enum mode
+            {
+                none = 0,
+                bttn = 1 << 0,
+                drag = 1 << 1,
+                move = 1 << 2,
+                over = 1 << 3,
+
+                buttons_press = bttn,
+                buttons_drags = bttn | drag,
+                all_movements = bttn | drag | move,
+                negative_args = bttn | drag | move | over,
+            };
+            enum prot
+            {
+                x11 = 0,
+                sgr = 1,
+            };
+            term& boss;
+            testy<twod> m_coord;
+            iota format = prot::x11;
+            iota state = mode::none;
+            void enable (mode m) { state |= m;    }
+            void disable(mode m) { state &= ~(m); }
+            void setmode(prot p) { format = p;    }
+            // term: X11 mouse tracking.
+            void serialize_x11(hids& gear, ansi::esc& mtrack)
+            {
+                using m = e2::hids::mouse;
+                constexpr static iota left     = 0;
+                constexpr static iota middle   = 1;
+                constexpr static iota right    = 2;
+                constexpr static iota bttnup   = 3;
+                constexpr static iota motion   = 32;
+                constexpr static iota wheel_up = 64;
+                constexpr static iota wheel_dn = 65;
+
+                constexpr static iota shift    = 4;
+                constexpr static iota alt      = 8;
+                constexpr static iota ctrl     = 16;
+
+                auto capture = [&](){
+                    if (!gear.captured(boss.id)) gear.capture(boss.id);
+                    gear.dismiss();
+                };
+                auto release = [&](){
+                    if (gear.captured(boss.id)) gear.release();
+                    gear.dismiss();
+                };
+                auto proceed = [&](iota c){ // in case of using `auto c`, MS Visual C++: fatal error C1001: Internal compiler error.
+                    //todo revise (move to ansi.hpp)
+                    if (gear.meta(hids::SHIFT))   c |= shift;
+                    if (gear.meta(hids::ANYCTRL)) c |= ctrl;
+                    if (gear.meta(hids::ALT))     c |= alt;
+                    mtrack.mtrack_x11(c, m_coord);
+                };
+
+                iota bttn = 0;
+                auto moved = m_coord((state & mode::over) ? gear.coord
+                                                          : std::clamp(gear.coord, dot_00, boss.viewport.size - dot_11));
+                switch (boss.bell::protos<e2::release>())
+                {
+                    case m::move:
+                        if (moved && (state & mode::move)) proceed(motion);
+                        break;
+                    case m::button::drag::pull::right : ++bttn;
+                    case m::button::drag::pull::middle: ++bttn;
+                    case m::button::drag::pull::left  :
+                        if (moved && (state & mode::drag)) proceed(bttn + motion);
+                        break;
+
+                    case m::button::down::leftright:
+                        capture();
+                        proceed(left );
+                        proceed(right);
+                        break;
+                    case m::button::down::right : ++bttn;
+                    case m::button::down::middle: ++bttn;
+                    case m::button::down::left  :
+                        capture();
+                        proceed(bttn);
+                        break;
+                    case m::button::up::leftright:
+                    case m::button::up::win:
+                    case m::button::up::right:
+                    case m::button::up::middle:
+                    case m::button::up::left:
+                        release();
+                        proceed(bttnup);
+                        break;
+                    case m::scroll::up:
+                        proceed(wheel_up);
+                        break;
+                    case m::scroll::down:
+                        proceed(wheel_dn);
+                        break;
+                    default:
+                        break;
+                };
+            }
+            // term: SGR mouse tracking.
+            void serialize_sgr(hids& gear, ansi::esc& mtrack)
+            {
+                using m = e2::hids::mouse;
+                constexpr static iota left     = 0;
+                constexpr static iota right    = 2;
+                constexpr static iota idle     = 32;
+                constexpr static iota wheel_up = 64;
+                constexpr static iota wheel_dn = 65;
+
+                auto capture = [&](){
+                    if (!gear.captured(boss.id)) gear.capture(boss.id);
+                    gear.dismiss();
+                };
+                auto release = [&](){
+                    if (gear.captured(boss.id)) gear.release();
+                    gear.dismiss();
+                };
+                auto proceed = [&](auto ctrl, bool ispressed){
+                    if (gear.meta(hids::SHIFT))   ctrl |= 0x4;
+                    if (gear.meta(hids::ANYCTRL)) ctrl |= 0x8;
+                    if (gear.meta(hids::ALT))     ctrl |= 0x10;
+                    mtrack.mtrack(ctrl, m_coord, ispressed);
+                };
+                iota bttn = 0;
+                auto moved = m_coord((state & mode::over) ? gear.coord
+                                                          : std::clamp(gear.coord, dot_00, boss.viewport.size - dot_11));
+                switch (boss.bell::protos<e2::release>())
+                {
+                    case m::move:
+                        if (moved && (state & mode::move)) proceed(idle, faux);
+                        break;
+                    case m::button::drag::pull::leftright:
+                    case m::button::drag::pull::win:
+                    case m::button::drag::pull::right:
+                    case m::button::drag::pull::middle:
+                    case m::button::drag::pull::left:
+                        if (moved && (state & mode::drag)) proceed(idle, true);
+                        break;
+                    case m::button::down::leftright:
+                        capture();
+                        proceed(left,  true);
+                        proceed(right, true);
+                        break;
+                    case m::button::down::win   : ++bttn;
+                    case m::button::down::right : ++bttn;
+                    case m::button::down::middle: ++bttn;
+                    case m::button::down::left  :
+                        capture();
+                        proceed(bttn, true);
+                        break;
+                    case m::button::up::leftright:
+                        release();
+                        proceed(left,  faux);
+                        proceed(right, faux);
+                        break;
+                    case m::button::up::win   : ++bttn;
+                    case m::button::up::right : ++bttn;
+                    case m::button::up::middle: ++bttn;
+                    case m::button::up::left  :
+                        release();
+                        proceed(bttn, faux);
+                        break;
+                    case m::scroll::up:
+                        proceed(wheel_up, faux);
+                        break;
+                    case m::scroll::down:
+                        proceed(wheel_dn, faux);
+                        break;
+                    default:
+                        break;
+                }
+            }
+
+            auto serialize(hids& gear, ansi::esc& mtrack)
+            {
+                if (format == mouse_track::sgr) serialize_sgr(gear, mtrack);
+                else                            serialize_x11(gear, mtrack);
+                return !!mtrack.length();
+            }
+        }
+        mouse_tracking;
 
         struct wall // term: VT-behavior for the rods
             : public rods
@@ -1185,186 +1369,27 @@ namespace netxs::ui
 
         rect viewport = { dot_00, dot_11 }; // term: Viewport area
 
-        subs sgr_tokens; // term: SGR mouse tracking subscription tokens set.
-        subs x11_tokens; // term: X11 mouse tracking subscription tokens set.
-
+        hook        mtoken; // term: Mouse tracking subscription token.
         ansi::esc   mtrack; // term: Mouse tracking buffer.
-        testy<twod> m_coord;
 
-        // term: X11 mouse tracking.
-        void mouse_tracking_x11(bool enable)
+        void set_mouse_tracking(bool enable)
         {
-            if (enable && !x11_tokens.count())
+            if (enable)
             {
-                using m = e2::hids::mouse;
-                x11_tokens.clear();
-                SUBMIT_T(e2::release, m::any, x11_tokens, gear)
+                if (!mtoken) // Do not subscribe if it is already subscribed
                 {
-                    constexpr static iota left     = 0;
-                    constexpr static iota middle   = 1;
-                    constexpr static iota right    = 2;
-                    constexpr static iota bttnup   = 3;
-                    //constexpr static iota motion   = 32;
-                    constexpr static iota wheel_up = 64;
-                    constexpr static iota wheel_dn = 65;
-
-                    constexpr static iota shift    = 4;
-                    constexpr static iota alt      = 8;
-                    constexpr static iota ctrl     = 16;
-
-                    auto capture = [&](){
-                        if (!gear.captured(bell::id)) gear.capture(bell::id);
-                        gear.dismiss();
-                    };
-                    auto release = [&](){
-                        if (gear.captured(bell::id)) gear.release();
-                        gear.dismiss();
-                    };
-                    auto proceed = [&](iota c){ // in case of using `auto c`, MS Visual C++: fatal error C1001: Internal compiler error.
-                        //todo revise (move to ansi.hpp)
-                        if (gear.meta(hids::SHIFT))   c |= shift;
-                        if (gear.meta(hids::ANYCTRL)) c |= ctrl;
-                        if (gear.meta(hids::ALT))     c |= alt;
-                        mtrack.mtrack_x11(c, gear.coord);
-                    };
-
-                    iota bttn = 0;
-                    switch (bell::protos<e2::release>())
+                    SUBMIT_T(e2::release, e2::hids::mouse::any, mtoken, gear)
                     {
-                    //todo revise (modes 1001-1003)
-                    //case m::move:
-                    //    if (m_coord(gear.coord)) proceed(motion);
-                    //    break;
-                    //case m::button::drag::pull::right : ++bttn;
-                    //case m::button::drag::pull::middle: ++bttn;
-                    //case m::button::drag::pull::left  :
-                    //    if (m_coord(gear.coord)) proceed(bttn + motion);
-                    //    break;
-                    case m::button::down::leftright:
-                        capture();
-                        proceed(left );
-                        proceed(right);
-                        break;
-                    case m::button::down::right : ++bttn;
-                    case m::button::down::middle: ++bttn;
-                    case m::button::down::left  :
-                        capture();
-                        proceed(bttn);
-                        break;
-                    case m::button::up::leftright:
-                    case m::button::up::win:
-                    case m::button::up::right:
-                    case m::button::up::middle:
-                    case m::button::up::left:
-                        release();
-                        proceed(bttnup);
-                        break;
-                    case m::scroll::up:
-                        proceed(wheel_up);
-                        break;
-                    case m::scroll::down:
-                        proceed(wheel_dn);
-                        break;
-                    default:
-                        break;
-                    }
-
-                    if (mtrack.length())
-                    {
-                        ptycon.write(mtrack);
-                        mtrack.clear();
-                        gear.dismiss();
-                    }
-                };
+                        if (mouse_tracking.serialize(gear, mtrack))
+                        {
+                            ptycon.write(mtrack);
+                            mtrack.clear();
+                            gear.dismiss();
+                        }
+                    };
+                }
             }
-            else x11_tokens.clear();
-        }
-        // term: SGR mouse tracking.
-        void mouse_tracking_sgr(bool enable)
-        {
-            if (enable && !sgr_tokens.count())
-            {
-                using m = e2::hids::mouse;
-                sgr_tokens.clear();
-                SUBMIT_T(e2::release, m::any, sgr_tokens, gear)
-                {
-                    constexpr static iota left     = 0;
-                    constexpr static iota right    = 2;
-                    constexpr static iota idle     = 32;
-                    constexpr static iota wheel_up = 64;
-                    constexpr static iota wheel_dn = 65;
-
-                    auto capture = [&](){
-                        if (!gear.captured(bell::id)) gear.capture(bell::id);
-                        gear.dismiss();
-                    };
-                    auto release = [&](){
-                        if (gear.captured(bell::id)) gear.release();
-                        gear.dismiss();
-                    };
-                    auto proceed = [&](auto ctrl, bool ispressed){
-                        if (gear.meta(hids::SHIFT))   ctrl |= 0x4;
-                        if (gear.meta(hids::ANYCTRL)) ctrl |= 0x8;
-                        if (gear.meta(hids::ALT))     ctrl |= 0x10;
-                        mtrack.mtrack(ctrl, gear.coord, ispressed);
-                    };
-
-                    iota bttn = 0;
-                    switch (bell::protos<e2::release>())
-                    {
-                    case m::move:
-                        if (m_coord(gear.coord)) proceed(idle, faux);
-                        break;
-                    case m::button::drag::pull::leftright:
-                    case m::button::drag::pull::win:
-                    case m::button::drag::pull::right:
-                    case m::button::drag::pull::middle:
-                    case m::button::drag::pull::left:
-                        if (m_coord(gear.coord)) proceed(idle, true);
-                        break;
-                    case m::button::down::leftright:
-                        capture();
-                        proceed(left,  true);
-                        proceed(right, true);
-                        break;
-                    case m::button::down::win   : ++bttn;
-                    case m::button::down::right : ++bttn;
-                    case m::button::down::middle: ++bttn;
-                    case m::button::down::left  :
-                        capture();
-                        proceed(bttn, true);
-                        break;
-                    case m::button::up::leftright:
-                        release();
-                        proceed(left,  faux);
-                        proceed(right, faux);
-                        break;
-                    case m::button::up::win   : ++bttn;
-                    case m::button::up::right : ++bttn;
-                    case m::button::up::middle: ++bttn;
-                    case m::button::up::left  :
-                        release();
-                        proceed(bttn, faux);
-                        break;
-                    case m::scroll::up:
-                        proceed(wheel_up, faux);
-                        break;
-                    case m::scroll::down:
-                        proceed(wheel_dn, faux);
-                        break;
-                    default:
-                        break;
-                    }
-
-                    if (mtrack.length())
-                    {
-                        ptycon.write(mtrack);
-                        mtrack.clear();
-                        gear.dismiss();
-                    }
-                };
-            }
-            else sgr_tokens.clear();
+            else mtoken.reset();
         }
 
         // term: Apply page props.
@@ -1407,26 +1432,41 @@ namespace netxs::ui
                         caret.show();
                         target->caret_visible = true; //todo unify
                         break;
-                    case    9: // Enable X10 mouse reporting protocol. Send mouse X & Y on button press and release.
-                    case 1000: // Enable X11 mouse reporting protocol. Send mouse X & Y on button press and release (+key modifiers).
-                        mouse_tracking_x11(true);
+                    case    9: // Enable X10 mouse reporting protocol.
+                        log("decset: CSI ? 9 h  X10 Mouse reporting protocol is not supported");
                         break;
-                    case 1001: // Use Hilite mouse tracking.
-                    case 1002: // Use cell motion mouse tracking.
-                    case 1003: // Use all motion mouse tracking.
-                        log("decset: CSI ? 1001-1003 h  old mouse modes are not supported");
+
+                    case 1000: // Enable mouse buttons reporting mode.
+                        mouse_tracking.enable(mouse_track::buttons_press);
+                        set_mouse_tracking(true);
                         break;
+                    case 1001: // Use Hilite mouse tracking mode.
+                        log("decset: CSI ? 1001 h  Hilite mouse tracking mode is not supported");
+                        break;
+                    case 1002: // Enable mouse buttons and drags reporting mode.
+                        mouse_tracking.enable(mouse_track::buttons_drags);
+                        set_mouse_tracking(true);
+                        break;
+                    case 1003: // Enable all mouse events reporting mode.
+                        mouse_tracking.enable(mouse_track::all_movements);
+                        set_mouse_tracking(true);
+                        break;
+
                     case 1004: // Enable sending FocusIn/FocusOut events.
                         log("decset: CSI ? 1004 h  is not implemented (focus)");
                         break;
-                    case 1005: // Enable UTF-8 mouse mode.
-                        log("decset: CSI ? 1005 h  UTF-8 mouse mode is not supported");
+                    case 1005: // Enable UTF-8 mouse reporting protocol.
+                        log("decset: CSI ? 1005 h  UTF-8 mouse reporting protocol is not supported");
                         break;
-                    case 1006: // Enable SGR mouse tracking mode.
-                        mouse_tracking_sgr(true);
+                    case 1006: // Enable SGR mouse reporting protocol.
+                        mouse_tracking.setmode(mouse_track::sgr);
                         break;
-                    case 1015: // Enable URXVT mouse mode.
-                        log("decset: CSI ? 1015 h  URXVT mouse mode is not supported");
+                    case 10060: // Enable the mouse reporting outside the viewport (outside+negative coordinates).
+                        mouse_tracking.enable(mouse_track::negative_args);
+                        break;
+
+                    case 1015: // Enable URXVT mouse reporting protocol.
+                        log("decset: CSI ? 1015 h  URXVT mouse reporting protocol is not supported");
                         break;
                     case 1016: // Enable Pixels (subcell) mouse mode.
                         log("decset: CSI ? 1016 h  Pixels (subcell) mouse mode is not supported");
@@ -1464,26 +1504,41 @@ namespace netxs::ui
                         caret.hide();
                         target->caret_visible = faux; //todo unify
                         break;
+
                     case    9: // Disable X10 mouse reporting protocol.
-                    case 1000: // Disable X11 mouse reporting protocol.
-                        mouse_tracking_x11(faux);
+                        log("decset: CSI ? 9 l  X10 Mouse tracking protocol is not supported");
                         break;
-                    case 1001: // Don't use Hilite(c) mouse tracking.
-                    case 1002: // Don't use cell motion mouse tracking.
-                    case 1003: // Don't use all motion mouse tracking.
-                        log("decset: CSI ? 1001-1003 l  old mouse modes are not supported");
+                    case 1000: // Disable mouse buttons reporting mode.
+                        mouse_tracking.disable(mouse_track::buttons_press);
+                        set_mouse_tracking(faux);
                         break;
+                    case 1001: // Don't use Hilite(c) mouse tracking mode.
+                        log("decset: CSI ? 1001 l  Hilite mouse tracking mode is not supported");
+                        break;
+                    case 1002: // Disable mouse buttons and drags reporting mode.
+                        mouse_tracking.disable(mouse_track::buttons_drags);
+                        set_mouse_tracking(faux);
+                        break;
+                    case 1003: // Disable all mouse events reporting mode.
+                        mouse_tracking.disable(mouse_track::all_movements);
+                        set_mouse_tracking(faux);
+                        break;
+
                     case 1004: // Don't send FocusIn / FocusOut events.
                         log("decset: CSI ? 1004 l  is not implemented (focus)");
                         break;
-                    case 1005: // Disable UTF-8 mouse mode.
-                        log("decset: CSI ? 1005 l  UTF-8 mouse mode is not supported");
+                    case 1005: // Disable UTF-8 mouse reporting protocol.
+                        log("decset: CSI ? 1005 l  UTF-8 mouse reporting protocol is not supported");
                         break;
-                    case 1006: // Disable SGR mouse tracking mode.
-                        mouse_tracking_sgr(faux);
+                    case 1006: // Disable SGR mouse reporting protocol (set X11 mode).
+                        mouse_tracking.setmode(mouse_track::x11);
                         break;
-                    case 1015: // Disable URXVT mouse mode.
-                        log("decset: CSI ? 1015 l  URXVT mouse mode is not supported");
+                    case 10060: // Disable the mouse reporting outside the viewport (allow reopting inside the viewport only).
+                        mouse_tracking.disable(mouse_track::negative_args);
+                        break;
+
+                    case 1015: // Disable URXVT mouse reporting protocol.
+                        log("decset: CSI ? 1015 l  URXVT mouse reporting protocol is not supported");
                         break;
                     case 1016: // Disable Pixels (subcell) mouse mode.
                         log("decset: CSI ? 1016 l  Pixels (subcell) mouse mode is not supported");
@@ -1508,6 +1563,7 @@ namespace netxs::ui
 
     public:
         term(twod winsz, text cmdline)
+            : mouse_tracking{ *this }
         {
             caret.show();
 

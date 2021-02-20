@@ -194,7 +194,7 @@ namespace netxs::console::ansi
                                                   + str(x) + "H");    return *this; }
         esc& locate(twod const& p)  { add("\033[" + str(p.y + 1) + ";" // esc: 0-Based cursor position.
                                                   + str(p.x + 1) + "H"); return *this; }
-        esc& vmouse (bool b) { add(b ? "\033[?1002;1003;1004;1006h" : "\033[?1002;1003;1004;1006l"); return *this; } // esc: Focus and Mouse position reporting/tracking.
+        esc& vmouse (bool b) { add(b ? "\033[?1002;1003;1004;1006;10060h" : "\033[?1002;1003;1004;1006;10060l"); return *this; } // esc: Focus and Mouse position reporting/tracking.
         esc& locate_wipe ()  { add("\033[r");                           return *this; } // esc: Enable scrolling for entire display (clear screen).
         esc& locate_call ()  { add("\033[6n");                          return *this; } // esc: Report cursor position.
         esc& screen_wipe ()  { add("\033[!p");                          return *this; } // esc: Reset certain terminal settings to their defaults. Also resets the mouse tracking mode in VTE.
