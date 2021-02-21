@@ -147,6 +147,7 @@ namespace netxs::ui
               //current_para_it{batch.begin()},
               current_para{ 0 }
         { }
+        // rods: Return 0-based srcoll region (pair)
         auto get_scroll_limits()
         {
             auto top = scroll_top    ? scroll_top - 1
@@ -878,7 +879,7 @@ namespace netxs::ui
                 if (n > 0 && inside_scroll_region())
                 {
                     auto old_top = scroll_top;
-                    scroll_top = coord.y;
+                    scroll_top = coord.y + 1;
                     scl(n);
                     scroll_top = old_top;
                     coord.x = 0;
@@ -895,7 +896,7 @@ namespace netxs::ui
                 if (n > 0 && inside_scroll_region())
                 {
                     auto old_top = scroll_top;
-                    scroll_top = coord.y;
+                    scroll_top = coord.y + 1;
                     scl(-n);
                     scroll_top = old_top;
                     coord.x = 0;
@@ -1171,7 +1172,7 @@ namespace netxs::ui
                 if (batch[current_para].wrapln) posx -= posx % width;
                 else                            posx = 0;
                 caret->chx(posx);
-                coord.x = posx % width;
+                coord.x = 0;
 
                 //if (posx && (posx % width == 0)) posx--;
                 //caret->chx(posx -= posx % width);
