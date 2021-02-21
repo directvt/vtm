@@ -324,7 +324,7 @@ namespace netxs::console::ansi
         esc& eol ()             { add("\n");                     return *this; } // esc: EOL.
         esc& edl ()             { add("\033[K");                 return *this; } // esc: EDL.
 
-        esc& mtrack (iota ctrl, twod const& coor, bool ispressed) { add("\033[<"
+        esc& mtrack_sgr (iota ctrl, twod const& coor, bool ispressed) { add("\033[<"
                                 + str(ctrl)       + ";"
                                 + str(coor.x + 1) + ";"
                                 + str(coor.y + 1) + (ispressed ? 'M' : 'm')); return *this; } // esc: Mouse tracking report (SGR).
@@ -356,8 +356,6 @@ namespace netxs::console::ansi
     static esc w32focus (Args&&... p)  { return esc{}.w32focus(p...);  } // ansi: win32-input-mode sequence (focus).
     template<typename... Args>
     static esc w32winsz (Args&&... p)  { return esc{}.w32winsz(p...);  } // ansi: win32-input-mode sequence (window resize).
-    template<typename... Args>
-    static esc mtrack   (Args&&... p)  { return esc{}.mtrack  (p...);  } // ansi: Mouse tracking report (SGR).
 
     static esc cup (twod const& n)   { return esc{}.cup (n); } // ansi: 0-Based cursor position.
     static esc cuu (iota n)          { return esc{}.cuu (n); } // ansi: Cursor up.

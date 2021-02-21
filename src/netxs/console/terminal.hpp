@@ -572,90 +572,105 @@ namespace netxs::ui
                 x11 = 0,
                 sgr = 1,
             };
-            term& boss;
+            constexpr static iota shift    = 4;
+            constexpr static iota alt      = 8;
+            constexpr static iota ctrl     = 16;
+
+            term&       boss;
             testy<twod> m_coord;
-            iota format = prot::x11;
-            iota state = mode::none;
+            iota        format = prot::x11;
+            iota        state = mode::none;
+            bool        moved = faux;
+            ansi::esc   mtrack; // .: Mouse tracking buffer.
+
             void enable (mode m) { state |= m;    }
             void disable(mode m) { state &= ~(m); }
             void setmode(prot p) { format = p;    }
+            void capture(hids& gear)
+            {
+                if (!gear.captured(boss.id)) gear.capture(boss.id);
+                gear.dismiss();
+            }
+            void release(hids& gear)
+            {
+                if (gear.captured(boss.id)) gear.release();
+                gear.dismiss();
+            }
+            template<prot PROT>
+            void proceed(hids& gear, iota modifier, bool ispressed = faux)
+            {
+                if (gear.meta(hids::SHIFT))   modifier |= shift;
+                if (gear.meta(hids::ANYCTRL)) modifier |= ctrl;
+                if (gear.meta(hids::ALT))     modifier |= alt;
+                switch (PROT)
+                {
+                    case prot::x11:
+                        mtrack.mtrack_x11(modifier, m_coord);
+                        break;
+                    case prot::sgr:
+                        mtrack.mtrack_sgr(modifier, m_coord, ispressed);
+                        break;
+                    default:
+                        break;
+                }
+            }
             // term: X11 mouse tracking.
-            void serialize_x11(hids& gear, ansi::esc& mtrack)
+            void serialize_x11(hids& gear)
             {
                 using m = e2::hids::mouse;
                 constexpr static iota left     = 0;
-                constexpr static iota middle   = 1;
                 constexpr static iota right    = 2;
                 constexpr static iota bttnup   = 3;
                 constexpr static iota motion   = 32;
                 constexpr static iota wheel_up = 64;
                 constexpr static iota wheel_dn = 65;
 
-                constexpr static iota shift    = 4;
-                constexpr static iota alt      = 8;
-                constexpr static iota ctrl     = 16;
-
-                auto capture = [&](){
-                    if (!gear.captured(boss.id)) gear.capture(boss.id);
-                    gear.dismiss();
-                };
-                auto release = [&](){
-                    if (gear.captured(boss.id)) gear.release();
-                    gear.dismiss();
-                };
-                auto proceed = [&](iota c){ // in case of using `auto c`, MS Visual C++: fatal error C1001: Internal compiler error.
-                    //todo revise (move to ansi.hpp)
-                    if (gear.meta(hids::SHIFT))   c |= shift;
-                    if (gear.meta(hids::ANYCTRL)) c |= ctrl;
-                    if (gear.meta(hids::ALT))     c |= alt;
-                    mtrack.mtrack_x11(c, m_coord);
-                };
-
                 iota bttn = 0;
-                auto moved = m_coord((state & mode::over) ? gear.coord
-                                                          : std::clamp(gear.coord, dot_00, boss.viewport.size - dot_11));
                 switch (boss.bell::protos<e2::release>())
                 {
                     case m::move:
-                        if (moved && (state & mode::move)) proceed(motion);
+                        if (moved) proceed<x11>(gear, motion, true);
                         break;
-                    case m::button::drag::pull::right : ++bttn;
-                    case m::button::drag::pull::middle: ++bttn;
-                    case m::button::drag::pull::left  :
-                        if (moved && (state & mode::drag)) proceed(bttn + motion);
+                    case m::button::drag::pull::right : ++bttn; // =2
+                    case m::button::drag::pull::middle: ++bttn; // =1
+                    case m::button::drag::pull::left  :         // =0
+                        if (moved) proceed<x11>(gear, bttn + motion, true);
                         break;
-
                     case m::button::down::leftright:
-                        capture();
-                        proceed(left );
-                        proceed(right);
+                        capture(gear);
+                        proceed<x11>(gear, left , true);
+                        proceed<x11>(gear, right, true);
                         break;
-                    case m::button::down::right : ++bttn;
-                    case m::button::down::middle: ++bttn;
-                    case m::button::down::left  :
-                        capture();
-                        proceed(bttn);
+                    case m::button::down::right : ++bttn; // =2
+                    case m::button::down::middle: ++bttn; // =1
+                    case m::button::down::left  :         // =0
+                        capture(gear);
+                        proceed<x11>(gear, bttn, true);
                         break;
                     case m::button::up::leftright:
+                        release(gear);
+                        proceed<x11>(gear, bttnup);
+                        proceed<x11>(gear, bttnup);
+                        break;
                     case m::button::up::win:
                     case m::button::up::right:
                     case m::button::up::middle:
                     case m::button::up::left:
-                        release();
-                        proceed(bttnup);
+                        release(gear);
+                        proceed<x11>(gear, bttnup);
                         break;
                     case m::scroll::up:
-                        proceed(wheel_up);
+                        proceed<x11>(gear, wheel_up);
                         break;
                     case m::scroll::down:
-                        proceed(wheel_dn);
+                        proceed<x11>(gear, wheel_dn);
                         break;
                     default:
                         break;
-                };
+                }
             }
             // term: SGR mouse tracking.
-            void serialize_sgr(hids& gear, ansi::esc& mtrack)
+            void serialize_sgr(hids& gear)
             {
                 using m = e2::hids::mouse;
                 constexpr static iota left     = 0;
@@ -664,75 +679,68 @@ namespace netxs::ui
                 constexpr static iota wheel_up = 64;
                 constexpr static iota wheel_dn = 65;
 
-                auto capture = [&](){
-                    if (!gear.captured(boss.id)) gear.capture(boss.id);
-                    gear.dismiss();
-                };
-                auto release = [&](){
-                    if (gear.captured(boss.id)) gear.release();
-                    gear.dismiss();
-                };
-                auto proceed = [&](auto ctrl, bool ispressed){
-                    if (gear.meta(hids::SHIFT))   ctrl |= 0x4;
-                    if (gear.meta(hids::ANYCTRL)) ctrl |= 0x8;
-                    if (gear.meta(hids::ALT))     ctrl |= 0x10;
-                    mtrack.mtrack(ctrl, m_coord, ispressed);
-                };
+                //auto proceed = [&](auto ctrl, bool ispressed){
+                //    if (gear.meta(hids::SHIFT))   ctrl |= 0x4;
+                //    if (gear.meta(hids::ANYCTRL)) ctrl |= 0x8;
+                //    if (gear.meta(hids::ALT))     ctrl |= 0x10;
+                //    mtrack.mtrack(ctrl, m_coord, ispressed);
+                //};
                 iota bttn = 0;
-                auto moved = m_coord((state & mode::over) ? gear.coord
-                                                          : std::clamp(gear.coord, dot_00, boss.viewport.size - dot_11));
                 switch (boss.bell::protos<e2::release>())
                 {
                     case m::move:
-                        if (moved && (state & mode::move)) proceed(idle, faux);
+                        if (moved) proceed<sgr>(gear, idle, faux);
                         break;
                     case m::button::drag::pull::leftright:
                     case m::button::drag::pull::win:
                     case m::button::drag::pull::right:
                     case m::button::drag::pull::middle:
                     case m::button::drag::pull::left:
-                        if (moved && (state & mode::drag)) proceed(idle, true);
+                        if (moved) proceed<sgr>(gear, idle, true);
                         break;
                     case m::button::down::leftright:
-                        capture();
-                        proceed(left,  true);
-                        proceed(right, true);
+                        capture(gear);
+                        proceed<sgr>(gear, left,  true);
+                        proceed<sgr>(gear, right, true);
                         break;
-                    case m::button::down::win   : ++bttn;
-                    case m::button::down::right : ++bttn;
-                    case m::button::down::middle: ++bttn;
-                    case m::button::down::left  :
-                        capture();
-                        proceed(bttn, true);
+                    case m::button::down::win   : ++bttn; // =3
+                    case m::button::down::right : ++bttn; // =2
+                    case m::button::down::middle: ++bttn; // =1
+                    case m::button::down::left  :         // =0
+                        capture(gear);
+                        proceed<sgr>(gear, bttn, true);
                         break;
                     case m::button::up::leftright:
-                        release();
-                        proceed(left,  faux);
-                        proceed(right, faux);
+                        release(gear);
+                        proceed<sgr>(gear, left );
+                        proceed<sgr>(gear, right);
                         break;
-                    case m::button::up::win   : ++bttn;
-                    case m::button::up::right : ++bttn;
-                    case m::button::up::middle: ++bttn;
-                    case m::button::up::left  :
-                        release();
-                        proceed(bttn, faux);
+                    case m::button::up::win   : ++bttn; // =3
+                    case m::button::up::right : ++bttn; // =2
+                    case m::button::up::middle: ++bttn; // =1
+                    case m::button::up::left  :         // =0
+                        release(gear);
+                        proceed<sgr>(gear, bttn);
                         break;
                     case m::scroll::up:
-                        proceed(wheel_up, faux);
+                        proceed<sgr>(gear, wheel_up);
                         break;
                     case m::scroll::down:
-                        proceed(wheel_dn, faux);
+                        proceed<sgr>(gear, wheel_dn);
                         break;
                     default:
                         break;
                 }
             }
 
-            auto serialize(hids& gear, ansi::esc& mtrack)
+            auto& serialize(hids& gear)
             {
-                if (format == mouse_track::sgr) serialize_sgr(gear, mtrack);
-                else                            serialize_x11(gear, mtrack);
-                return !!mtrack.length();
+                moved = m_coord((state & mode::over) ? gear.coord
+                                                     : std::clamp(gear.coord, dot_00, boss.viewport.size - dot_11));
+                moved = moved && state & mode::move;
+                if (format == mouse_track::sgr) serialize_sgr(gear);
+                else                            serialize_x11(gear);
+                return mtrack;
             }
         }
         mouse_tracking;
@@ -1370,7 +1378,6 @@ namespace netxs::ui
         rect viewport = { dot_00, dot_11 }; // term: Viewport area
 
         hook        mtoken; // term: Mouse tracking subscription token.
-        ansi::esc   mtrack; // term: Mouse tracking buffer.
 
         void set_mouse_tracking(bool enable)
         {
@@ -1380,7 +1387,8 @@ namespace netxs::ui
                 {
                     SUBMIT_T(e2::release, e2::hids::mouse::any, mtoken, gear)
                     {
-                        if (mouse_tracking.serialize(gear, mtrack))
+                        auto& mtrack = mouse_tracking.serialize(gear);
+                        if (mtrack.length())
                         {
                             ptycon.write(mtrack);
                             mtrack.clear();
@@ -1461,7 +1469,7 @@ namespace netxs::ui
                     case 1006: // Enable SGR mouse reporting protocol.
                         mouse_tracking.setmode(mouse_track::sgr);
                         break;
-                    case 10060: // Enable the mouse reporting outside the viewport (outside+negative coordinates).
+                    case 10060: // Enable mouse reporting outside the viewport (outside+negative coordinates).
                         mouse_tracking.enable(mouse_track::negative_args);
                         break;
 
@@ -1533,7 +1541,7 @@ namespace netxs::ui
                     case 1006: // Disable SGR mouse reporting protocol (set X11 mode).
                         mouse_tracking.setmode(mouse_track::x11);
                         break;
-                    case 10060: // Disable the mouse reporting outside the viewport (allow reopting inside the viewport only).
+                    case 10060: // Disable mouse reporting outside the viewport (allow reporting inside the viewport only).
                         mouse_tracking.disable(mouse_track::negative_args);
                         break;
 

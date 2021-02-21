@@ -2274,6 +2274,16 @@ namespace netxs::console
             };
             std::map<id_t, slot_t> slots;
 
+            void check_modifiers(hids& gear)
+            {
+                auto& data = slots[gear.id];
+                auto state = gear.meta(hids::ANYCTRL);
+                if (data.ctrl != state)
+                {
+                    data.ctrl = state;
+                    boss.SIGNAL(e2::preview, e2::form::layout::strike, data.slot);
+                }
+            }
             void handle_init(hids& gear)
             {
                 if (gear.capture(boss.bell::id))
@@ -2294,6 +2304,7 @@ namespace netxs::console
             {
                 if (gear.captured(boss.bell::id))
                 {
+                    check_modifiers(gear);
                     auto& data = slots[gear.id];
                     auto& slot = data.slot;
                     auto& init = data.init;
@@ -2319,6 +2330,7 @@ namespace netxs::console
             {
                 if (gear.captured(boss.bell::id))
                 {
+                    check_modifiers(gear);
                     auto& data = slots[gear.id];
                     if (data.slot)
                     {
@@ -2341,13 +2353,7 @@ namespace netxs::console
 
                 boss.SUBMIT_T(e2::preview, e2::hids::keybd::any, memo, gear)
                 {
-                    if (gear.captured(boss.bell::id))
-                    {
-                        auto& data = slots[gear.id];
-                        data.ctrl = gear.meta(hids::ANYCTRL);
-                        if (data.ctrl)
-                            boss.SIGNAL(e2::preview, e2::form::layout::strike, data.slot);
-                    }
+                    if (gear.captured(boss.bell::id)) check_modifiers(gear);
                 };
 
                 //todo unify - args... + template?
@@ -4020,16 +4026,17 @@ namespace netxs::console
                                                         // ks & 0x10 ? f + ";2" // shift
                                                         // ks & 0x02 || ks & 0x01 ? f + ";3" // alt
                                                         // ks & 0x04 || ks & 0x08 ? f + ";5" // ctrl
-                                                        // 0000 0000
-                                                        //    | ||||
-                                                        //    | ||------ btn state
-                                                        //    ---------- ctl state
+                                                        // 00000 000
+                                                        //   ||| |||
+                                                        //   ||| |------ btn state
+                                                        //   |---------- ctl state
                                                         bool k_shift = ctl & 0x4;
-                                                        bool k_alt   = ctl & 0x10;
-                                                        bool k_ctrl  = ctl & 0x8;
-                                                        mouse.ctlstate = (k_shift ? (1 << 4) : 0)
-                                                                       + (k_alt   ? (1 << 1) : 0)
-                                                                       + (k_ctrl  ? (1 << 2) : 0);
+                                                        bool k_alt   = ctl & 0x8;
+                                                        bool k_ctrl  = ctl & 0x10;
+                                                        mouse.ctlstate = (k_shift ? hids::SHIFT : 0)
+                                                                       + (k_alt   ? hids::ALT   : 0)
+                                                                       + (k_ctrl  ? hids::CTRL  : 0);
+                                                        if ( mouse.ctlstate ) log(" mouse.ctlstate =",  mouse.ctlstate );
                                                             ctl = ctl & ~0b00011100;
 
                                                         mouse.wheeled = faux;
