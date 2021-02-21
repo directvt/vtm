@@ -324,11 +324,11 @@ namespace netxs::console::ansi
         esc& eol ()             { add("\n");                     return *this; } // esc: EOL.
         esc& edl ()             { add("\033[K");                 return *this; } // esc: EDL.
 
-        esc& mtrack_sgr (iota ctrl, twod const& coor, bool ispressed) { add("\033[<"
+        esc& mouse_sgr (iota ctrl, twod const& coor, bool ispressed) { add("\033[<"
                                 + str(ctrl)       + ";"
                                 + str(coor.x + 1) + ";"
                                 + str(coor.y + 1) + (ispressed ? 'M' : 'm')); return *this; } // esc: Mouse tracking report (SGR).
-        esc& mtrack_x11 (iota ctrl, twod const& coor) { add("\033[M");
+        esc& mouse_x11 (iota ctrl, twod const& coor) { add("\033[M");
                                 push_back(static_cast<unsigned char>(std::clamp(ctrl,       0, 255-32) + 32));
                                 push_back(static_cast<unsigned char>(std::clamp(coor.x + 1, 1, 255-32) + 32));
                                 push_back(static_cast<unsigned char>(std::clamp(coor.y + 1, 1, 255-32) + 32));

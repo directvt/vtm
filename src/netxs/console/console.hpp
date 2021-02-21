@@ -769,6 +769,8 @@ namespace netxs::console
         core const& idmap; // hids: Area of the main form. Primary or relative region of the mouse coverage
         list        kb_focus; // hids: keyboard subscribers
         bool        alive; // hids: Whether event processing is complete
+        //todo revise
+        uint32_t ctlstate = 0;
 
     public:
         id_t const& id;    // hids: Owner/gear ID
@@ -780,15 +782,21 @@ namespace netxs::console
 
         enum modifiers : unsigned
         {
-            ALT   = 1 << 1,
-            CTRL  = 1 << 2,
-            RCTRL = 1 << 3,
-            SHIFT = 1 << 4,
+            SHIFT = 1 << 2,
+            ALT   = 1 << 3,
+            CTRL  = 1 << 4,
+            RCTRL = 1 << 5,
             ANYCTRL = CTRL | RCTRL,
         };
 
-        //todo revise
-        uint32_t ctlstate = 0;
+        auto meta(unsigned ctl_key)
+        {
+            return hids::ctlstate & ctl_key;
+        }
+        auto meta()
+        {
+            return hids::ctlstate;
+        }
 
         template<class T>
         hids(T& owner, core const& idmap)
@@ -991,15 +999,6 @@ namespace netxs::console
         bool focus_taken()
         {
             return kb_focus_taken;
-        }
-
-        bool meta(unsigned ctl_key)
-        {
-            return hids::ctlstate & ctl_key;
-        }
-        auto meta()
-        {
-            return hids::ctlstate;
         }
     };
 
@@ -4036,8 +4035,8 @@ namespace netxs::console
                                                         mouse.ctlstate = (k_shift ? hids::SHIFT : 0)
                                                                        + (k_alt   ? hids::ALT   : 0)
                                                                        + (k_ctrl  ? hids::CTRL  : 0);
-                                                        if ( mouse.ctlstate ) log(" mouse.ctlstate =",  mouse.ctlstate );
-                                                            ctl = ctl & ~0b00011100;
+                                                        //if ( mouse.ctlstate ) log(" mouse.ctlstate =",  mouse.ctlstate );
+                                                        ctl = ctl & ~0b00011100;
 
                                                         mouse.wheeled = faux;
                                                         mouse.wheeldt = 0;
