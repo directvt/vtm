@@ -2276,7 +2276,7 @@ namespace netxs::console
             void check_modifiers(hids& gear)
             {
                 auto& data = slots[gear.id];
-                auto state = gear.meta(hids::ANYCTRL);
+                auto state = !!gear.meta(hids::ANYCTRL);
                 if (data.ctrl != state)
                 {
                     data.ctrl = state;
