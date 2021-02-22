@@ -2,7 +2,7 @@
 // Licensed under the MIT license.
 
 //#define DEMO
-#define MONOTTY_VER "Monotty Desktopio Preview v0.3.1"
+#define MONOTTY_VER "Monotty Desktopio Preview v0.3.2"
 #define PROD
 
 // Terminal's default line wrapping mode

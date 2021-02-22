@@ -282,25 +282,6 @@ namespace netxs::ui
                        + std::to_string(chan.a) + "}";
         }
 
-        //static constexpr uint32_t color16[] =
-        //{
-        //    0xFF000000,	// black
-        //    0xFF1F0FC4,	// red
-        //    0xFF0EA112,	// green
-        //    0xFF009CC0,	// yellow
-        //    0xFFDB3700,	// blue
-        //    0xFF981787,	// magenta
-        //    0xFFDD963B,	// cyan
-        //    0xFFBBBBBB,	// white
-        //    0xFF757575,	// blacklt
-        //    0xFF5648E6,	// redlt
-        //    0xFF0CC615,	// greenlt
-        //    0xFFA5F1F8,	// yellowlt
-        //    0xFFFF783A,	// bluelt
-        //    0xFF9E00B3,	// magentalt
-        //    0xFFD6D660,	// cyanlt
-        //    0xFFF3F3F3,	// whitelt
-        //};
         static constexpr uint32_t color256[] =
         {
             0xFF000000,	// black
