@@ -2755,7 +2755,7 @@ namespace netxs::console
                     status[prop::mouse_hzwheel].set(stress) = m.hzwhl ? "active" : "idle";
                     status[prop::mouse_vtwheel].set(stress) = m.wheel ? "active" : "idle";
 
-                    status[prop::ctrl_state].set(stress) = "0x" + utf::to_hex(k.ctlstate);
+                    status[prop::ctrl_state].set(stress) = "0x" + utf::to_hex(k.meta());
                 };
 
                 //boss.SUBMIT_T(e2::release, e2::term::menu, memo, iface)
