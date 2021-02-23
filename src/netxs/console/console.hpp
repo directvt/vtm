@@ -687,15 +687,12 @@ namespace netxs::console
         // mouse: Bit buttons.
         iota buttons ()
         {
-            iota b = 0;
+            iota bitfield = 0;
             for (auto i = 0; i < sysmouse::numofbutton; i++)
             {
-                if (mouse::button[i].pressed)
-                {
-                    b += 1 << i;
-                }
+                if (mouse::button[i].pressed) bitfield |= 1 << i;
             }
-            return b;
+            return bitfield;
         }
     };
 
@@ -848,10 +845,8 @@ namespace netxs::console
             mouse::cause = cause;
             mouse::coord = mouse::prime;
             mouse::nodbl = faux;
-            //mouse::focus = 0;
 
             auto& offset = idmap.coor();
-            //if (mouse::locks)
             if (mouse::swift)
             {
                 auto next = bell::getref(mouse::swift);
