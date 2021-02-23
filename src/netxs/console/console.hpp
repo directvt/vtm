@@ -420,6 +420,7 @@ namespace netxs::console
             testy<bool> pressed = { faux };
             bool        flipped = { faux };
             bool        dragged = { faux };
+            bool        succeed = { true };
         };
 
         template<class LAW>
@@ -440,7 +441,7 @@ namespace netxs::console
         hint   cause = e2::any; // mouse: Current event id
         iota   index = none;    // mouse: Index of the active button. -1 if the buttons are not involed
         bool   nodbl = faux;    // mouse: Whether single click event processed (to prevent double clicks)
-        iota   locks = 0;       // mouse: Bit fields related to hooked up mouse buttons. Change the mouse event routing behavior: choose mouselk instead of hittest[xpoint]
+        bool   locks = faux;    // mouse: Capture state.
         id_t   swift = 0;       // mouse: Delegate's ID of the current mouse owner
         id_t   hover = 0;       // mouse: Hover control ID
         id_t   start = 0;       // mouse: Initiator control ID
@@ -467,42 +468,45 @@ namespace netxs::console
             //}
             //else
             {
-                // interpret button combinations
-                bool state_button[total];
-                if ((state_button[joint] = (m.button[first]         & m.button[other])
-                                         | (  button[joint].pressed & m.button[first])
-                                         | (  button[joint].pressed & m.button[other])))
+                // Interpret button combinations
+                if ((m.button[joint] = (m.button[first]         & m.button[other])
+                                     | (  button[joint].pressed & m.button[first])
+                                     | (  button[joint].pressed & m.button[other])))
                 {
-                    state_button[first] = faux;
-                    state_button[other] = faux;
+                    if (button[first].dragged)
+                    {
+                        button[first].dragged = faux;
+                        action(dragcncl, first);
+                    }
+                    if (button[other].dragged)
+                    {
+                        button[other].dragged = faux;
+                        action(dragcncl, other);
+                    }
                 }
-                else
-                {
-                    state_button[first] = m.button[first];
-                    state_button[other] = m.button[other];
-                }
-                state_button[midst] = m.button[midst];
-                state_button[third] = m.button[third];
-                state_button[extra] = m.button[extra];
+                // In order to avoid single button tracking (Click, Pull, etc)
+                button[first].succeed = !(m.button[joint] || button[joint].pressed);
+                button[other].succeed = button[first].succeed;
 
-                auto sysptr = std::begin(state_button);
-                auto genptr = std::begin(      button);
+                auto sysptr = std::begin(m.button);
+                auto genptr = std::begin(  button);
                 if (m.ismoved)
                 {
                     delta.set(m.coor - prime);
-
                     for (auto i = 0; i < total; i++)
                     {
                         auto& genbtn = *genptr++;
                         auto& sysbtn = *sysptr++;
-
                         if (sysbtn)
                         {
                             if (genbtn.flipped)
                             {
                                 genbtn.flipped = faux;
-                                genbtn.dragged = true;
-                                action(dragstrt, i);
+                                if (button[i].succeed)
+                                {
+                                    genbtn.dragged = true;
+                                    action(dragstrt, i);
+                                }
                             }
                             pressed_list.push_back(i);
                         }
@@ -517,15 +521,15 @@ namespace netxs::console
                     {
                         for (auto i : pressed_list)
                         {
-                            action(dragpull, i);
+                            if (button[i].succeed) action(dragpull, i);
                         }
                         pressed_list.clear();
                     }
 
                     action(movement);
 
-                    sysptr = std::begin(state_button);
-                    genptr = std::begin(      button);
+                    sysptr = std::begin(m.button);
+                    genptr = std::begin(  button);
                 }
 
                 for (auto i = 0; i < total; i++)
@@ -584,46 +588,33 @@ namespace netxs::console
                         }
                         else
                         {
-                            if (button[joint].flipped && (i == first || i == other))
+                            if (b.dragged)
                             {
-                                if (b.dragged)
-                                {
-                                    b.flipped = faux;
-                                    b.dragged = faux;
-                                    action(dragcncl, i);
-                                }
+                                b.dragged = faux;
+                                action(dragstop, i);
                             }
                             else
                             {
-                                if (b.dragged)
+                                if (b.succeed) action(sglclick, i);
+                                if (!nodbl)
                                 {
-                                    b.dragged = faux;
-                                    action(dragstop, i);
-                                }
-                                else
-                                {
-                                    action(sglclick, i);
-                                    if (!nodbl)
+                                    // Fire double-click if delay is not expired
+                                    // and the same mouseposition
+                                    auto& s = stamp[i];
+                                    auto fired = tempus::now();
+                                    if (fired - s.fired < delay
+                                        && s.coord == coord)
                                     {
-                                        // Fire double-click if delay is not expired
-                                        // and the same mouseposition
-                                        auto& s = stamp[i];
-                                        auto fired = tempus::now();
-                                        if (fired - s.fired < delay
-                                            && s.coord == coord)
-                                        {
-                                            s.fired = {}; // To avoid successive double-clicks if triple-click
-                                            action(dblclick, i);
-                                        }
-                                        else
-                                        {
-                                            s.fired = fired;
-                                            s.coord = coord;
-                                        }
+                                        s.fired = {}; // To avoid successive double-clicks if triple-click
+                                        if (b.succeed) action(dblclick, i);
+                                    }
+                                    else
+                                    {
+                                        s.fired = fired;
+                                        s.coord = coord;
                                     }
                                 }
                             }
-
                             action(released, i);
                         }
                     }
@@ -672,10 +663,9 @@ namespace netxs::console
         // mouse: Seize specified mouse control
         bool capture (id_t asker)
         {
-            // the lock can be seized by one button and once
-            if (!locks && index >= 0)
+            if (!locks)
             {
-                locks |= 1 << index;
+                locks = true;
                 swift = asker;
                 return true;
             }
@@ -684,27 +674,13 @@ namespace netxs::console
         // mouse: Release specified mouse control
         void release ()
         {
-            if (index < 0)
-            {
-                locks = 0;
-            }
-            else
-            {
-                locks &= ~(1 << index);
-            }
+            locks = 0;
         }
         // mouse: Is the mouse seized/captured?
         bool captured (id_t asker) const
         {
             return locks && swift == asker;
         }
-        //todo unify
-        // mouse: Prevent double clicks.
-        //void dismiss_dblclick ()
-        //{
-        //    nodbl = true;
-        //    ended = true;
-        //}
         // mouse: Bit buttons.
         iota buttons ()
         {
@@ -724,23 +700,18 @@ namespace netxs::console
     {
     public:
         text        keystrokes;
-
         bool        down = faux;
         uint16_t    repeatcount = 0;
         uint16_t    virtcode = 0;
         uint16_t    scancode = 0;
         wchar_t     character = 0;
-        //char      ascii = 0;
-        //uint32_t  ctlstate = 0;
         e2::type    cause = e2::hids::keybd::any;
         e2::type    focus_got  = e2::form::notify::keybd::got;
         e2::type    focus_lost = e2::form::notify::keybd::lost;
 
         void update	(syskeybd& k)
         {
-            //ascii       = k.ascii;
             virtcode    = k.virtcode;
-            //ctlstate   = k.ctlstate;
             down        = k.down;
             repeatcount = k.repeatcount;
             scancode    = k.scancode;
@@ -749,11 +720,6 @@ namespace netxs::console
 
             fire_keybd();
         }
-        // keybd: Stop handeling this event.
-        //void dismiss_keybd ()
-        //{
-        //    actual = faux;
-        //}
 
         virtual void fire_keybd() = 0;
     };

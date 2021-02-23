@@ -594,8 +594,9 @@ namespace netxs::ui
                         {
                             owner.ptycon.write(queue);
                             queue.clear();
-                            gear.dismiss();
                         }
+                        //owner.bell::expire(e2::release);
+                        //gear.dismiss();
                     };
                 }
             }
@@ -610,26 +611,30 @@ namespace netxs::ui
             bool        moved = faux;
             iota        proto = prot::x11;
             iota        state = mode::none;
+            std::map<id_t, iota> locks; // mtracking: Capture counter.
 
-            void capture(hids& gear)
+            void capture(hids& gear, iota button)
             {
+                locks[gear.id] |= button;
                 if (!gear.captured(owner.id)) gear.capture(owner.id);
                 gear.dismiss();
             }
-            void release(hids& gear)
+            void release(hids& gear, iota button)
             {
-                if (gear.captured(owner.id)) gear.release();
+                auto& locked = locks[gear.id];
+                locked &= ~button;
+                if (!locked && gear.captured(owner.id)) gear.release();
                 gear.dismiss();
             }
             template<prot PROT>
-            void proceed(hids& gear, iota modifier, bool ispressed = faux)
+            void proceed(hids& gear, iota meta, bool ispressed = faux)
             {
-                modifier |= gear.meta(hids::SHIFT | hids::ALT | hids::CTRL);
-                modifier |= gear.meta(hids::RCTRL) ? hids::CTRL : 0;
+                meta |= gear.meta(hids::SHIFT | hids::ALT | hids::CTRL);
+                meta |= gear.meta(hids::RCTRL) ? hids::CTRL : 0;
                 switch (PROT)
                 {
-                    case prot::x11: queue.mouse_x11(modifier, coord); break;
-                    case prot::sgr: queue.mouse_sgr(modifier, coord, ispressed); break;
+                    case prot::x11: queue.mouse_x11(meta, coord); break;
+                    case prot::sgr: queue.mouse_sgr(meta, coord, ispressed); break;
                     default:
                         break;
                 }
@@ -657,22 +662,20 @@ namespace netxs::ui
                 {
                     // Move
                     case b::drag::pull::leftright:
-                    case b::drag::pull::left  : if (isdrag) proceed<PROT>(gear, idle + left, true); break;
-                    case b::drag::pull::middle: if (isdrag) proceed<PROT>(gear, idle + mddl, true); break;
-                    case b::drag::pull::right : if (isdrag) proceed<PROT>(gear, idle + rght, true); break;
-                    case e2::hids::mouse::move: if (ismove) proceed<PROT>(gear, idle, faux); break;
+                    case b::drag::pull::left     : if (isdrag) proceed<PROT>(gear, idle + left, true); break;
+                    case b::drag::pull::middle   : if (isdrag) proceed<PROT>(gear, idle + mddl, true); break;
+                    case b::drag::pull::right    : if (isdrag) proceed<PROT>(gear, idle + rght, true); break;
+                    case e2::hids::mouse::move   : if (ismove) proceed<PROT>(gear, idle, faux); break;
                     // Press
-                    case b::down::left     : capture(gear); proceed<PROT>(gear, left, true); break;
-                    case b::down::middle   : capture(gear); proceed<PROT>(gear, mddl, true); break;
-                    case b::down::right    : capture(gear); proceed<PROT>(gear, rght, true); break;
-                    case b::down::leftright: capture(gear); proceed<PROT>(gear, left, true);
-                                                            proceed<PROT>(gear, rght, true); break;
+                    case b::down::leftright: capture(gear, 1); break;
+                    case b::down::left     : capture(gear, 2); proceed<PROT>(gear, left, true); break;
+                    case b::down::middle   : capture(gear, 4); proceed<PROT>(gear, mddl, true); break;
+                    case b::down::right    : capture(gear, 8); proceed<PROT>(gear, rght, true); break;
                     // Release
-                    case b::up::left     :   release(gear); proceed<PROT>(gear, up_left); break;
-                    case b::up::middle   :   release(gear); proceed<PROT>(gear, up_mddl); break;
-                    case b::up::right    :   release(gear); proceed<PROT>(gear, up_rght); break;
-                    case b::up::leftright:   release(gear); proceed<PROT>(gear, up_left);
-                                                            proceed<PROT>(gear, up_rght); break;
+                    case b::up::leftright:   release(gear, 1); break;
+                    case b::up::left     :   release(gear, 2); proceed<PROT>(gear, up_left); break;
+                    case b::up::middle   :   release(gear, 4); proceed<PROT>(gear, up_mddl); break;
+                    case b::up::right    :   release(gear, 8); proceed<PROT>(gear, up_rght); break;
                     // Wheel
                     case m::scroll::up  : proceed<PROT>(gear, wheel_up); break;
                     case m::scroll::down: proceed<PROT>(gear, wheel_dn); break;
