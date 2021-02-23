@@ -114,7 +114,12 @@ namespace netxs::console::ansi
     static const iota SGR_INV       = 7;
     static const iota SGR_NOINV     = 27;
     static const iota SGR_UND       = 4;
+    static const iota SGR_DOUBLEUND = 21;
     static const iota SGR_NOUND     = 24;
+    static const iota SGR_STRIKE    = 9;
+    static const iota SGR_NOSTRIKE  = 29;
+    static const iota SGR_OVERLN    = 53;
+    static const iota SGR_NOOVERLN  = 55;
     static const iota SGR_FG_BLK    = 30;
     static const iota SGR_FG_RED    = 31;
     static const iota SGR_FG_GRN    = 32;
@@ -274,6 +279,9 @@ namespace netxs::console::ansi
         esc& und (bool b = true) { add(b ? "\033[4m" : "\033[24m");    return *this; } // esc: SGR 𝗨𝗻𝗱𝗲𝗿𝗹𝗶𝗻𝗲 attribute.
         esc& inv (bool b = true) { add(b ? "\033[7m" : "\033[27m");    return *this; } // esc: SGR 𝗡𝗲𝗴𝗮𝘁𝗶𝘃𝗲 attribute.
         esc& itc (bool b = true) { add(b ? "\033[3m" : "\033[23m");    return *this; } // esc: SGR 𝑰𝒕𝒂𝒍𝒊𝒄 attribute.
+        esc& stk (bool b = true) { add(b ? "\033[9m" : "\033[29m");    return *this; } // esc: SGR Strikethrough attribute.
+        esc& dnl (bool b = true) { add(b ? "\033[21m": "\033[24m");    return *this; } // esc: SGR Double underline attribute.
+        esc& ovr (bool b = true) { add(b ? "\033[53m": "\033[55m");    return *this; } // esc: SGR Overline attribute.
         esc& fgc ()              { add("\033[39m");                    return *this; } // esc: Set default foreground color.
         esc& bgc ()              { add("\033[49m");                    return *this; } // esc: Set default background color.
 
@@ -371,10 +379,14 @@ namespace netxs::console::ansi
     static esc chx (iota n)          { return esc{}.chx (n); } // ansi: Cursor 0-based horizontal absolute.
     static esc chy (iota n)          { return esc{}.chy (n); } // ansi: Cursor 0-based vertical absolute.
 
-    static esc bld (bool n = true)   { return esc{}.bld (n); } // ansi: SGR 𝗕𝗼𝗹𝗱 attribute.
-    static esc und (bool n = true)   { return esc{}.und (n); } // ansi: SGR 𝗨𝗻𝗱𝗲𝗿𝗹𝗶𝗻𝗲 attribute.
-    static esc inv (bool n = true)   { return esc{}.inv (n); } // ansi: SGR 𝗡𝗲𝗴𝗮𝘁𝗶𝘃𝗲 attribute.
-    static esc itc (bool n = true)   { return esc{}.itc (n); } // ansi: SGR 𝑰𝒕𝒂𝒍𝒊𝒄 attribute.
+    static esc bld (bool b = true)   { return esc{}.bld (b); } // ansi: SGR 𝗕𝗼𝗹𝗱 attribute.
+    static esc und (bool b = true)   { return esc{}.und (b); } // ansi: SGR 𝗨𝗻𝗱𝗲𝗿𝗹𝗶𝗻𝗲 attribute.
+    static esc inv (bool b = true)   { return esc{}.inv (b); } // ansi: SGR 𝗡𝗲𝗴𝗮𝘁𝗶𝘃𝗲 attribute.
+    static esc itc (bool b = true)   { return esc{}.itc (b); } // ansi: SGR 𝑰𝒕𝒂𝒍𝒊𝒄 attribute.
+    static esc stk (bool b = true)   { return esc{}.stk (b); } // ansi: SGR Strikethrough attribute.
+    static esc dnl (bool b = true)   { return esc{}.dnl (b); } // ansi: SGR Double underline attribute.
+    static esc ovr (bool b = true)   { return esc{}.ovr (b); } // ansi: SGR Overline attribute.
+
     static esc fgc ()                { return esc{}.fgc ( ); } // ansi: Set default foreground color.
     static esc bgc ()                { return esc{}.bgc ( ); } // ansi: Set default background color.
     static esc fgc (rgba const& n)   { return esc{}.fgc (n); } // ansi: SGR Foreground color.
@@ -553,20 +565,25 @@ namespace netxs::console::ansi
                     csi_ccc[CCC_REF] = nullptr;
 
                 auto& csi_sgr = table[CSI_SGR].resize(0x100);
-                    csi_sgr[SGR_RST      ] = VT_PROC{ p->nil( );    }; // fx_sgr_rst       ;
-                    csi_sgr[SGR_SAV      ] = VT_PROC{ p->sav( );    }; // fx_sgr_sav       ;
-                    csi_sgr[SGR_BOLD     ] = VT_PROC{ p->bld(true); }; // fx_sgr_bld<true> ;
-                    csi_sgr[SGR_FAINT    ] = VT_PROC{ p->bld(faux); }; // fx_sgr_bld<faux> ;
-                    csi_sgr[SGR_ITALIC   ] = VT_PROC{ p->itc(true); }; // fx_sgr_itc<true> ;
-                    csi_sgr[SGR_NONITALIC] = VT_PROC{ p->itc(faux); }; // fx_sgr_itc<faux> ;
+                    csi_sgr[SGR_RST      ] = VT_PROC{ p->nil( );    }; // fx_sgr_rst      ;
+                    csi_sgr[SGR_SAV      ] = VT_PROC{ p->sav( );    }; // fx_sgr_sav      ;
+                    csi_sgr[SGR_BOLD     ] = VT_PROC{ p->bld(true); }; // fx_sgr_bld<true>;
+                    csi_sgr[SGR_FAINT    ] = VT_PROC{ p->bld(faux); }; // fx_sgr_bld<faux>;
+                    csi_sgr[SGR_ITALIC   ] = VT_PROC{ p->itc(true); }; // fx_sgr_itc<true>;
+                    csi_sgr[SGR_NONITALIC] = VT_PROC{ p->itc(faux); }; // fx_sgr_itc<faux>;
                     csi_sgr[SGR_INV      ] = VT_PROC{ p->inv(true); }; // fx_sgr_inv<true>;
                     csi_sgr[SGR_NOINV    ] = VT_PROC{ p->inv(faux); }; // fx_sgr_inv<faux>;
-                    csi_sgr[SGR_UND      ] = VT_PROC{ p->und(true); }; // fx_sgr_und<true>;
-                    csi_sgr[SGR_NOUND    ] = VT_PROC{ p->und(faux); }; // fx_sgr_und<faux>;
-                    csi_sgr[SGR_FG       ] = VT_PROC{ p->rfg( );    }; // fx_sgr_fg_def    ;
-                    csi_sgr[SGR_BG       ] = VT_PROC{ p->rbg( );    }; // fx_sgr_bg_def    ;
-                    csi_sgr[SGR_FG_RGB   ] = VT_PROC{ p->fgc(q);    }; // fx_sgr_fg_rgb    ;
-                    csi_sgr[SGR_BG_RGB   ] = VT_PROC{ p->bgc(q);    }; // fx_sgr_bg_rgb    ;
+                    csi_sgr[SGR_UND      ] = VT_PROC{ p->und(true); }; // fx_sgr_und;
+                    csi_sgr[SGR_DOUBLEUND] = VT_PROC{ p->dnl(true); }; // fx_sgr_dnl;
+                    csi_sgr[SGR_NOUND    ] = VT_PROC{ p->und(faux); }; // fx_sgr_und;
+                    csi_sgr[SGR_STRIKE   ] = VT_PROC{ p->stk(true); }; // fx_sgr_stk<true>;
+                    csi_sgr[SGR_NOSTRIKE ] = VT_PROC{ p->stk(faux); }; // fx_sgr_stk<faux>;
+                    csi_sgr[SGR_OVERLN   ] = VT_PROC{ p->ovr(true); }; // fx_sgr_ovr<faux>;
+                    csi_sgr[SGR_NOOVERLN ] = VT_PROC{ p->ovr(faux); }; // fx_sgr_ovr<faux>;
+                    csi_sgr[SGR_FG       ] = VT_PROC{ p->rfg( );    }; // fx_sgr_fg_def   ;
+                    csi_sgr[SGR_BG       ] = VT_PROC{ p->rbg( );    }; // fx_sgr_bg_def   ;
+                    csi_sgr[SGR_FG_RGB   ] = VT_PROC{ p->fgc(q);    }; // fx_sgr_fg_rgb   ;
+                    csi_sgr[SGR_BG_RGB   ] = VT_PROC{ p->bgc(q);    }; // fx_sgr_bg_rgb   ;
                     csi_sgr[SGR_FG_BLK   ] = VT_PROC{ p->fgc(tint::blackdk  ); }; // fx_sgr_fg_16<tint::blackdk>  ;
                     csi_sgr[SGR_FG_RED   ] = VT_PROC{ p->fgc(tint::reddk    ); }; // fx_sgr_fg_16<tint::reddk>    ;
                     csi_sgr[SGR_FG_GRN   ] = VT_PROC{ p->fgc(tint::greendk  ); }; // fx_sgr_fg_16<tint::greendk>  ;

@@ -183,8 +183,10 @@ namespace netxs::console
                     {
                         bitstate bolded : 1;
                         bitstate italic : 1;
-                        bitstate unline : 1;
+                        bitstate unline : 2; // 0: no underline, 1 - single, 2 - double underline
                         bitstate invert : 1;
+                        bitstate overln : 1;
+                        bitstate strike : 1;
                         bitstate r_to_l : 1;
                     } var;
                 } shared;
@@ -253,6 +255,14 @@ namespace netxs::console
                     {
                         dest.inv(cvar.invert);
                     }
+                    if (cvar.strike != bvar.strike)
+                    {
+                        dest.stk(cvar.strike);
+                    }
+                    if (cvar.overln != bvar.overln)
+                    {
+                        dest.ovr(cvar.overln);
+                    }
                     if (cvar.r_to_l != bvar.r_to_l)
                     {
                         //todo implement RTL
@@ -268,15 +278,19 @@ namespace netxs::console
 
             void bld (bool b) { param.shared.var.bolded = b; }
             void itc (bool b) { param.shared.var.italic = b; }
-            void und (bool b) { param.shared.var.unline = b; }
+            void und (iota n) { param.shared.var.unline = n; }
             void inv (bool b) { param.shared.var.invert = b; }
+            void ovr (bool b) { param.shared.var.overln = b; }
+            void stk (bool b) { param.shared.var.strike = b; }
             void rtl (bool b) { param.shared.var.r_to_l = b; }
             void vis (iota l) { param.unique.var.render = l; }
 
             bool bld () const { return param.shared.var.bolded; }
             bool itc () const { return param.shared.var.italic; }
-            bool und () const { return param.shared.var.unline; }
+            iota und () const { return param.shared.var.unline; }
             bool inv () const { return param.shared.var.invert; }
+            bool ovr () const { return param.shared.var.overln; }
+            bool stk () const { return param.shared.var.strike; }
             bool rtl () const { return param.shared.var.r_to_l; }
             iota vis () const { return param.unique.var.render; }
         };
@@ -330,7 +344,6 @@ namespace netxs::console
         glyf<void> gc;     // 8U, cell: Grapheme cluster
         body       st;     // 4U, cell: Style attributes
         id_t       id = 0; // 4U, cell: Link ID
-        //id_t       pg = 0; // 4U, cell: Paragraph ID
         id_t       rsrvd0; // 4U, cell: pad, the size should be a power of 2
         id_t       rsrvd1; // 4U, cell: pad, the size should be a power of 2
 
@@ -358,14 +371,12 @@ namespace netxs::console
               gc{ base.gc },
               st{ base.st },
               id{ base.id }
-              //pg{ base.pg }
         { }
 
         cell(cell const& base, view const& cluster, size_t wcwidth)
             : uv{ base.uv },
               st{ base.st },
               id{ base.id },
-              //pg{ base.pg },
               gc{ base.gc, cluster, wcwidth }
         { }
 
@@ -373,7 +384,6 @@ namespace netxs::console
             : uv{ base.uv },
               st{ base.st },
               id{ base.id },
-              //pg{ base.pg },
               gc{ c }
         { }
 
@@ -393,7 +403,6 @@ namespace netxs::console
             gc = c.gc;
             st = c.st;
             id = c.id;
-            //pg = c.pg;
             return *this;
         }
 
@@ -547,8 +556,11 @@ namespace netxs::console
         cell& fga (uint8_t k)     { uv.fg.chan.a = k; return *this; } // cell: Set Foreground alpha/transparency.
         cell& bld (bool b)        { st.bld(b); return *this; } // cell: Set Bold attribute.
         cell& itc (bool b)        { st.itc(b); return *this; } // cell: Set Italic attribute.
-        cell& und (bool b)        { st.und(b); return *this; } // cell: Set Underline/Underscore attribute.
+        cell& und (bool b)        { st.und(b ? 1 : 0); return *this; } // cell: Set Underline attribute.
+        cell& dnl (bool b)        { st.und(b ? 2 : 0); return *this; } // cell: Set Double underline attribute.
+        cell& ovr (bool b)        { st.ovr(b); return *this; } // cell: Set Overline attribute.
         cell& inv (bool b)        { st.inv(b); return *this; } // cell: Set Invert attribute.
+        cell& stk (bool b)        { st.stk(b); return *this; } // cell: Set Strikethrough attribute.
         cell& rtl (bool b)        { st.rtl(b); return *this; } // cell: Set Right-To-Left attribute.
         cell& link(id_t oid)      { id = oid;  return *this; } // cell: Set link object ID.
         //cell& para(id_t opg)      { pg = opg;  return *this; } // cell: Set paragraph ID and return the cell itself.
@@ -580,8 +592,11 @@ namespace netxs::console
         rgba const& fgc () const { return uv.fg;         } // cell: Return Foreground color.
         bool        bld () const { return st.bld();      } // cell: Return Bold attribute.
         bool        itc () const { return st.itc();      } // cell: Return Italic attribute.
-        bool        und () const { return st.und();      } // cell: Return Underline/Underscore attribute.
+        bool        und () const { return st.und() == 1 ? true : faux; } // cell: Return Underline/Underscore attribute.
+        bool        dnl () const { return st.und() == 2 ? true : faux; } // cell: Return Underline/Underscore attribute.
+        bool        ovr () const { return st.ovr();      } // cell: Return Underline/Underscore attribute.
         bool        inv () const { return st.inv();      } // cell: Return Negative attribute.
+        bool        stk () const { return st.stk();      } // cell: Return Strikethrough attribute.
         id_t       link () const { return id;            } // cell: Return link object ID.
         //id_t       para () const { return pg;            } // cell: Return paragraph ID.
         view        txt () const { return gc.get();      } // cell: Return Grapheme cluster.
@@ -1665,7 +1680,10 @@ namespace netxs::console
         void  bld(bool b)         { brush.bld(b);                 } // para: Bold.
         void  itc(bool b)         { brush.itc(b);                 } // para: Italic.
         void  inv(bool b)         { brush.inv(b);                 } // para: Inversion.
+        void  ovr(bool b)         { brush.ovr(b);                 } // para: Overline.
+        void  stk(bool b)         { brush.stk(b);                 } // para: Strikethrough.
         void  und(bool b)         { brush.und(b);                 } // para: Underline.
+        void  dnl(bool b)         { brush.dnl(b);                 } // para: Double underline.
         auto chx() const          { return caret;                 }
         void chx(iota new_pos)    { caret = new_pos;              }
         auto  id() const          { return parid;                 }
@@ -2324,7 +2342,10 @@ namespace netxs::console
         void  bld(bool b) { layer->bld(b); }
         void  itc(bool b) { layer->itc(b); }
         void  inv(bool b) { layer->inv(b); }
+        void  stk(bool b) { layer->stk(b); }
         void  und(bool b) { layer->und(b); }
+        void  dnl(bool b) { layer->dnl(b); }
+        void  ovr(bool b) { layer->ovr(b); }
 
         void  chx(iota n) { layer->chx(n); } // page: Move caret to n.
         void  cuf(iota n) { layer->cuf(n); } // page: Move caret forward by n.

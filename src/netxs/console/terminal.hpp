@@ -783,7 +783,10 @@ namespace netxs::ui
             void  bld(bool b)                   { caret->bld(b); }
             void  itc(bool b)                   { caret->itc(b); }
             void  inv(bool b)                   { caret->inv(b); }
+            void  stk(bool b)                   { caret->stk(b); }
             void  und(bool b)                   { caret->und(b); }
+            void  dnl(bool b)                   { caret->dnl(b); }
+            void  ovr(bool b)                   { caret->ovr(b); }
             void  wrp(bool b)                   { batch[current_para].wrapln = b; }
             void  jet(iota n)                   { batch[current_para].adjust = (bias)n; }
 

@@ -684,7 +684,8 @@ namespace netxs::console
                           : locks & ~(1 << index);
             if (!locks) swift = {};
         }
-        // mouse: Bit buttons.
+        //todo revise
+        // mouse: Bit buttons. Used only for foreign mouse pointer in the gate (pro::input)
         iota buttons ()
         {
             iota bitfield = 0;
@@ -792,7 +793,6 @@ namespace netxs::console
         {
             return alive;
         }
-
         auto take(sysmouse& m)
         {
             ctlstate = m.ctlstate;
@@ -3573,7 +3573,7 @@ namespace netxs::console
             face xmap;
 
         public:
-            iota push = 0; // Mouse pressed buttons bits
+            iota push = 0; // Mouse pressed buttons bits (Used only for foreign mouse pointer in the gate)
 
             input(T&&) = delete;
             input(T& boss)
