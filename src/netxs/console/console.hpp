@@ -441,7 +441,7 @@ namespace netxs::console
         hint   cause = e2::any; // mouse: Current event id
         iota   index = none;    // mouse: Index of the active button. -1 if the buttons are not involed
         bool   nodbl = faux;    // mouse: Whether single click event processed (to prevent double clicks)
-        bool   locks = faux;    // mouse: Capture state.
+        iota   locks = 0;       // mouse: State of the captured buttons (bit field).
         id_t   swift = 0;       // mouse: Delegate's ID of the current mouse owner
         id_t   hover = 0;       // mouse: Hover control ID
         id_t   start = 0;       // mouse: Initiator control ID
@@ -660,26 +660,29 @@ namespace netxs::console
                 return faux;
             }
         }
+        // mouse: Is the mouse seized/captured?
+        bool captured (id_t asker) const
+        {
+            return swift == asker;
+        }
         // mouse: Seize specified mouse control
         bool capture (id_t asker)
         {
-            if (!locks)
+            if (!swift || swift == asker)
             {
-                locks = true;
                 swift = asker;
+                if (index != mouse::none) locks |= 1 << index;
                 return true;
             }
             return faux;
         }
         // mouse: Release specified mouse control
-        void release ()
+        void release (bool force = true)
         {
-            locks = 0;
-        }
-        // mouse: Is the mouse seized/captured?
-        bool captured (id_t asker) const
-        {
-            return locks && swift == asker;
+            force = force || index == mouse::none;
+            locks = force ? 0
+                          : locks & ~(1 << index);
+            if (!locks) swift = {};
         }
         // mouse: Bit buttons.
         iota buttons ()
@@ -848,7 +851,8 @@ namespace netxs::console
             //mouse::focus = 0;
 
             auto& offset = idmap.coor();
-            if (mouse::locks)
+            //if (mouse::locks)
+            if (mouse::swift)
             {
                 auto next = bell::getref(mouse::swift);
                 if (next) pass<e2::release>(next, offset, true);

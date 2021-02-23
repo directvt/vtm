@@ -595,8 +595,6 @@ namespace netxs::ui
                             owner.ptycon.write(queue);
                             queue.clear();
                         }
-                        //owner.bell::expire(e2::release);
-                        //gear.dismiss();
                     };
                 }
             }
@@ -611,19 +609,15 @@ namespace netxs::ui
             bool        moved = faux;
             iota        proto = prot::x11;
             iota        state = mode::none;
-            std::map<id_t, iota> locks; // mtracking: Capture counter.
 
-            void capture(hids& gear, iota button)
+            void capture(hids& gear)
             {
-                locks[gear.id] |= button;
-                if (!gear.captured(owner.id)) gear.capture(owner.id);
+                gear.capture(owner.id);
                 gear.dismiss();
             }
-            void release(hids& gear, iota button)
+            void release(hids& gear)
             {
-                auto& locked = locks[gear.id];
-                locked &= ~button;
-                if (!locked && gear.captured(owner.id)) gear.release();
+                if (gear.captured(owner.id)) gear.release(faux);
                 gear.dismiss();
             }
             template<prot PROT>
@@ -662,20 +656,20 @@ namespace netxs::ui
                 {
                     // Move
                     case b::drag::pull::leftright:
-                    case b::drag::pull::left     : if (isdrag) proceed<PROT>(gear, idle + left, true); break;
-                    case b::drag::pull::middle   : if (isdrag) proceed<PROT>(gear, idle + mddl, true); break;
-                    case b::drag::pull::right    : if (isdrag) proceed<PROT>(gear, idle + rght, true); break;
-                    case e2::hids::mouse::move   : if (ismove) proceed<PROT>(gear, idle, faux); break;
+                    case b::drag::pull::left  : if (isdrag) proceed<PROT>(gear, idle + left, true); break;
+                    case b::drag::pull::middle: if (isdrag) proceed<PROT>(gear, idle + mddl, true); break;
+                    case b::drag::pull::right : if (isdrag) proceed<PROT>(gear, idle + rght, true); break;
+                    case e2::hids::mouse::move: if (ismove) proceed<PROT>(gear, idle, faux); break;
                     // Press
-                    case b::down::leftright: capture(gear, 1); break;
-                    case b::down::left     : capture(gear, 2); proceed<PROT>(gear, left, true); break;
-                    case b::down::middle   : capture(gear, 4); proceed<PROT>(gear, mddl, true); break;
-                    case b::down::right    : capture(gear, 8); proceed<PROT>(gear, rght, true); break;
+                    case b::down::leftright: capture(gear); break;
+                    case b::down::left     : capture(gear); proceed<PROT>(gear, left, true); break;
+                    case b::down::middle   : capture(gear); proceed<PROT>(gear, mddl, true); break;
+                    case b::down::right    : capture(gear); proceed<PROT>(gear, rght, true); break;
                     // Release
-                    case b::up::leftright:   release(gear, 1); break;
-                    case b::up::left     :   release(gear, 2); proceed<PROT>(gear, up_left); break;
-                    case b::up::middle   :   release(gear, 4); proceed<PROT>(gear, up_mddl); break;
-                    case b::up::right    :   release(gear, 8); proceed<PROT>(gear, up_rght); break;
+                    case b::up::leftright:   release(gear); break;
+                    case b::up::left     :   release(gear); proceed<PROT>(gear, up_left); break;
+                    case b::up::middle   :   release(gear); proceed<PROT>(gear, up_mddl); break;
+                    case b::up::right    :   release(gear); proceed<PROT>(gear, up_rght); break;
                     // Wheel
                     case m::scroll::up  : proceed<PROT>(gear, wheel_up); break;
                     case m::scroll::down: proceed<PROT>(gear, wheel_dn); break;
