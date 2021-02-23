@@ -16,7 +16,8 @@
 //#define KEYLOG
 
 // Show codepoint by the "logs"
-#define SHOW_CPOINTS true
+#define SHOW_CPOINTS faux
+//#define SHOW_CPOINTS true
 
 #pragma clang diagnostic ignored "-Wunused-variable"
 #pragma clang diagnostic ignored "-Wunused-function"

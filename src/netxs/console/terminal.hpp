@@ -589,12 +589,7 @@ namespace netxs::ui
                                                            : std::clamp(gear.coord, dot_00, owner.viewport.size - dot_11));
                         if (proto == sgr) serialize<sgr>(gear);
                         else              serialize<x11>(gear);
-
-                        if (queue.length())
-                        {
-                            owner.ptycon.write(queue);
-                            queue.clear();
-                        }
+                        owner.write(queue);
                     };
                 }
             }
@@ -679,6 +674,42 @@ namespace netxs::ui
             }
         }
         mtracker;
+
+        struct ftracking
+        {
+            ftracking(term& owner)
+                : owner{ owner }
+            { }
+
+            operator bool () { return token.operator bool(); }
+            void set(bool enable)
+            {
+                if (enable)
+                {
+                    if (!token) // Do not subscribe if it is already subscribed)
+                    {
+                        owner.SUBMIT_T(e2::release, e2::form::notify::keybd::any, token, gear)
+                        {
+                            switch(owner.bell::protos<e2::release>())
+                            {
+                                case e2::form::notify::keybd::got:  queue.fcs(true); break;
+                                case e2::form::notify::keybd::lost: queue.fcs(faux); break;
+                                default:
+                                    break;
+                            }
+                            owner.write(queue);
+                        };
+                    }
+                }
+                else token.reset();
+            }
+        private:
+            term&       owner;
+            hook        token; // ftracking: Subscription token.
+            ansi::esc   queue; // ftracking: Buffer.
+            bool        state = faux;
+        }
+        ftracker;
 
         struct wall // term: VT-behavior for the rods
             : public rods
@@ -1315,6 +1346,15 @@ namespace netxs::ui
 
         rect viewport = { dot_00, dot_11 }; // term: Viewport area
 
+        // term: Write tty data and flush the queue.
+        void write(ansi::esc& queue)
+        {
+            if (queue.length())
+            {
+                ptycon.write(queue);
+                queue.clear();
+            }
+        }
         // term: Apply page props.
         void prop(iota cmd, view txt)
         {
@@ -1370,8 +1410,8 @@ namespace netxs::ui
                     case 1003: // Enable all mouse events reporting mode.
                         mtracker.enable(mtracking::all_movements);
                         break;
-                    case 1004: // Enable sending FocusIn/FocusOut events.
-                        log("decset: CSI ? 1004 h  is not implemented (focus)");
+                    case 1004: // Enable focus travking
+                        ftracker.set(true);
                         break;
                     case 1005: // Enable UTF-8 mouse reporting protocol.
                         log("decset: CSI ? 1005 h  UTF-8 mouse reporting protocol is not supported");
@@ -1434,8 +1474,8 @@ namespace netxs::ui
                     case 1003: // Disable all mouse events reporting mode.
                         mtracker.disable(mtracking::all_movements);
                         break;
-                    case 1004: // Don't send FocusIn / FocusOut events.
-                        log("decset: CSI ? 1004 l  is not implemented (focus)");
+                    case 1004: // Disable focus travking.
+                        ftracker.set(faux);
                         break;
                     case 1005: // Disable UTF-8 mouse reporting protocol.
                         log("decset: CSI ? 1005 l  UTF-8 mouse reporting protocol is not supported");
@@ -1470,7 +1510,8 @@ namespace netxs::ui
 
     public:
         term(twod winsz, text cmdline)
-            : mtracker{ *this }
+            : mtracker{ *this },
+              ftracker{ *this }
         {
             caret.show();
 
