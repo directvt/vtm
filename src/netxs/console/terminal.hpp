@@ -1349,6 +1349,7 @@ namespace netxs::ui
         ansi::esc   output_queue;
 
         rect viewport = { dot_00, dot_11 }; // term: Viewport area
+        bool bracketed_paste_mode = faux;
 
         // term: Write tty data and flush the queue.
         void write(text& queue)
@@ -1496,8 +1497,7 @@ namespace netxs::ui
                         target = &altbuf;
                         break;
                     case 2004: // Set bracketed paste mode.
-                        //todo proxify (enable it globally)
-                        log("decset: CSI ? 2004 h  is not implemented (bracketed paste mode)");
+                        bracketed_paste_mode = true;
                         break;
                     default:
                         break;
@@ -1561,8 +1561,7 @@ namespace netxs::ui
                         target = &scroll;
                         break;
                     case 2004: // Disable bracketed paste mode.
-                        //todo proxify
-                        log("decrst: CSI ? 2004 l  is not implemented (bracketed paste mode)");
+                        bracketed_paste_mode = faux;
                         break;
                     default:
                         break;
@@ -1607,25 +1606,24 @@ namespace netxs::ui
                 }
 
                 //todo optimize/unify
+                auto trans = gear.keystrokes;
+                if (!bracketed_paste_mode)
+                {
+                    utf::change(trans, "\033[200~", "");
+                    utf::change(trans, "\033[201~", "");
+                }
                 if (mode_DECCKM)
                 {
-                    auto trans = gear.keystrokes;
                     utf::change(trans, "\033[A", "\033OA");
                     utf::change(trans, "\033[B", "\033OB");
                     utf::change(trans, "\033[C", "\033OC");
                     utf::change(trans, "\033[D", "\033OD");
-
                     utf::change(trans, "\033[1A", "\033OA");
                     utf::change(trans, "\033[1B", "\033OB");
                     utf::change(trans, "\033[1C", "\033OC");
                     utf::change(trans, "\033[1D", "\033OD");
-
-                    ptycon.write(trans);
                 }
-                else
-                {
-                    ptycon.write(gear.keystrokes);
-                }
+                ptycon.write(trans);
 
                 #ifdef KEYLOG
                     std::stringstream d;

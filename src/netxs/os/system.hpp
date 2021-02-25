@@ -1864,7 +1864,6 @@ namespace netxs::os
                 }
                 static void signal_handler(int signal)
                 {
-                    //signalHandlers.at(signal)(signal);
                     switch (signal)
                     {
                         case SIGWINCH:
@@ -1924,7 +1923,7 @@ namespace netxs::os
                 #if defined(_WIN32)
                     error_condition == 0
                 #elif defined(__linux__) || defined(__APPLE__)
-                    error_condition == -1
+                    error_condition == (T)-1
                 #endif
             )
             {
@@ -2150,11 +2149,7 @@ namespace netxs::os
 
             #elif defined(__linux__) || defined(__APPLE__)
 
-            //if (alive && text.size())
-            //	return out_fd.send(text);
-            //else
-            //	return faux;
-            return out_fd.send(text);
+                return out_fd.send(text);
 
             #endif
         }
@@ -2226,7 +2221,6 @@ namespace netxs::os
                 };
                 SetConsoleCtrlHandler(ctrlHandler, TRUE);
 
-                           //| ENABLE_WRAP_AT_EOL_OUTPUT
                 // Get current terminal window size
                 ansi::esc yield;
                 winsz(get_size());
@@ -2235,32 +2229,22 @@ namespace netxs::os
                 yield.w32close();
                 sock.send(yield);
 
-                //todo why? init with required state
-                //ok(ResetEvent(reset), "ResetEvent error");
-
             #elif defined(__linux__) || defined(__APPLE__)
 
-                auto& mode = _globals<void>::mode;
+                auto& cur_mode = _globals<void>::mode;
+                auto& sig_hndl = _globals<void>::signal_handler;
+                auto& def_mode = _globals<void>::default_mode;
 
-                if (ok(::tcgetattr(0, &mode))) // set stdin raw mode
+                if (ok(::tcgetattr(0, &cur_mode))) // Set stdin raw mode
                 {
-                    ::termios raw_mode = mode;
+                    ::termios raw_mode = cur_mode;
                     ::cfmakeraw(&raw_mode);
                     if (ok(::tcsetattr(0, TCSANOW, &raw_mode)))
-                        ok(::atexit(_globals<void>::default_mode));
+                        ok(::atexit(def_mode));
                 }
-
-                if (::signal(SIGPIPE, SIG_IGN) == SIG_ERR) // disable sigpipe
-                    defeat();
-
-                if (::signal(SIGWINCH, _globals<void>::signal_handler) == SIG_ERR) // set resize handler
-                    defeat();
-                else ok(::raise(SIGWINCH)); // get current size
-
-                //todo translate input to Application key mode if it
-                //is requested (\033[?1h) (ConPTY do it for me)
-                //for mc arrow keys
-                //output(ansi::appkey(true)); // Set application key mode.
+                ok(::signal(SIGPIPE,  SIG_IGN )); // Disable sigpipe
+                ok(::signal(SIGWINCH, sig_hndl)); // Set resize handler
+                ok(::raise (SIGWINCH));           // Get current terminal window size
 
             #endif
         }

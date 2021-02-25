@@ -1853,7 +1853,6 @@ int main(int argc, char* argv[])
             iota fps = 60;
             board->SIGNAL(e2::general, e2::timer::fps, fps);
 
-
             iota usr_count = 0;
 
             if (auto link = os::ipc::open<os::server>(path))
@@ -1873,10 +1872,9 @@ int main(int argc, char* argv[])
                     auto _user   = peer->line(';');
                     auto _name   = peer->line(';');
                     log("peer: region= ", _region,
-                            ", ip= ",     _ip,
-                            ", user= ",   _user,
-                            ", name= ",   _name);
-
+                            ", ip= "    , _ip,
+                            ", user= "  , _user,
+                            ", name= "  , _name);
                     text c_ip;
                     text c_port;
                     auto c_info = utf::divide(_ip, " ");
@@ -1885,13 +1883,10 @@ int main(int argc, char* argv[])
 
                     utf::change(_ip, " ", ":");
 
-                    //bool test = _user == "bsu_test";
-                    //auto coor = test ? twod{ -100, 30 } : twod{};
-                    auto coor = twod{};
+                    //todo Move user's viewport to the last saved position
+                    auto user_coor = twod{};
 
-                    //log("main: spawn a new thread for client: ", (test ? "bsu_test" : "vtm"));
-
-                    //todo disyinct users via config, enumerate if no config
+                    //todo distinguish users by config, enumerate if no config
                     _name = "[" + _name + ":" + std::to_string(usr_count++) + "]";
                     log("main: spawn a new thread for client: ", _name);
 
@@ -1906,28 +1901,14 @@ int main(int argc, char* argv[])
                         #endif
 
                         auto client = board->invite<gate>(username);
-
                         client->color(whitedk, blacklt);
-                        //text params = ansi::mgr(0).mgl(0);
                         text header = ansi::jet(bias::center).mgr(0).mgl(0)
                             + username;
-                        //text header = ansi::jet(bias::center) + "Monotty Desktop Environment";
                         text footer = ansi::mgr(1).mgl(1)
                             + MONOTTY_VER;
                         client->SIGNAL(e2::preview, e2::form::prop::header, header);
                         client->SIGNAL(e2::preview, e2::form::prop::footer, footer);
-                        //client->SIGNAL(e2::preview, e2::form::prop::params, params);
-
-                        //text header = ansi::jet(bias::center)
-                        //	+ "[User." + utf::remain(c_ip) + ":" + c_port + "]";
-                        //text footer = MONOTTY_VER;
-                        //client->title = ansi::wrp(faux).mgr(0).mgl(0)
-                        //	+ ansi::rlf(faux).jet(bias::left).cup(dot_00)
-                        //	+ header
-                        //	+ ansi::rlf(true).jet(bias::right).cup(dot_00)
-                        //	+ footer
-                        //	+ ansi::rlf(faux).jet(bias::left).cup(dot_00);
-                        client->base::moveby(coor);
+                        client->base::moveby(user_coor);
 
                         log("main: new gate created on ", peer);
 
@@ -1938,11 +1919,8 @@ int main(int argc, char* argv[])
                         #endif
 
                         log("main: proceed complete on ", peer);
-
                         client->detach();
-
                         log("main: exit from the threads sync on ", peer);
-
                     } }.detach();
 
                     log("main: new thread is running on ", peer);

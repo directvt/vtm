@@ -63,10 +63,11 @@ int main(int argc, char* argv[])
 
     auto gate = os::tty::proxy(link);
     ansi::esc mode;
-    mode.save_title(). // Switch to alternate buffer.
+    mode.save_title(). // Push current title onto the stack.
          altbuf(true). // Switch to alternate buffer.
          vmouse(true). // Turn mouse reporting on/off.
-         cursor(faux). // Set the cursor visibility.
+         cursor(faux). // Set the caret visibility.
+         bpmode(true). // Enable bracketed paste mode.
          setutf(true); // Set UTF-8 character set.
     gate.ignite();
     gate.output(mode);
@@ -77,6 +78,7 @@ int main(int argc, char* argv[])
     mode.vmouse(faux).
          cursor(true).
          altbuf(faux).
+         bpmode(faux).
          load_title();
     gate.output(mode);
     gate.revert();
