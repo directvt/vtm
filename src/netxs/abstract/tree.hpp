@@ -19,22 +19,16 @@ namespace netxs::generics
         using bulk = std::vector<tree>;
         using hndl = FUNC;
 
-        hndl proc;
-        bool sure;
-        bool rise;
+        hndl proc = nullptr;
+        bool sure = faux;
+        bool stop = true;
 
-        tree(bool reset_level_after_exec = true)
-            : proc{ nullptr                },
-              sure{ faux                   },
-              rise{ reset_level_after_exec }
-        { }
-
-        tree(hndl func)
-            : proc{ func },
-              sure{ true },
-              rise{ faux }
-        { }
-
+        template<class F>
+        void operator = (F func)
+        {
+            sure = true;
+            proc = func;
+        }
         auto& resize(size_t newsize)
         {
             proc = nullptr;
@@ -42,11 +36,9 @@ namespace netxs::generics
             bulk::resize(newsize);
             return *this;
         }
-        template<class F>
-        void operator = (F func)
+        void enable_multi_arg()
         {
-            sure = true;
-            proc = func;
+            for (auto& rec : *this) rec.stop = faux;
         }
         operator bool () const
         {
@@ -55,8 +47,7 @@ namespace netxs::generics
 
         void execute(IN& queue, OUT& story) const
         {
-            auto base = this;
-            auto last = base;
+            auto last = this;
             while (queue)
             {
                 auto task = queue.front();
@@ -68,12 +59,9 @@ namespace netxs::generics
                         if (next.proc)
                         {
                             next.proc(queue, story);
-                            if (rise) last = base;
+                            if (next.stop) break;
                         }
-                        else
-                        {
-                            last = &next;
-                        }
+                        else last = &next;
                     }
                     else break;
                 }
@@ -83,8 +71,7 @@ namespace netxs::generics
 
         void execute(size_t firstcmd, IN& queue, OUT& story) const
         {
-            auto base = this;
-            auto last = base;
+            auto last = this;
             if (auto const& next = last->at(firstcmd))
             {
                 if (next.proc)
@@ -105,13 +92,9 @@ namespace netxs::generics
                                 if (next.proc)
                                 {
                                     next.proc(queue, story);
-                                    if (rise) break;//todo revise ansi::parser::proceed(x,y,z)
-                                    //if (rise) last = base;
+                                    break;
                                 }
-                                else
-                                {
-                                    last = &next;
-                                }
+                                else last = &next;
                             }
                             else break;
                         }
@@ -120,7 +103,7 @@ namespace netxs::generics
                 }
             }
         }
-
+        // Exec without parameters
         void execute(size_t alonecmd, OUT& story) const
         {
             auto& queue = IN::fake();

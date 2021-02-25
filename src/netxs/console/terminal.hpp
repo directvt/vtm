@@ -744,7 +744,9 @@ namespace netxs::ui
                     vt::csier.table[CSI__SD] = VT_PROC{ p->scl( q(1)); };  // CSI n T  Scroll down by n lines, scrolled out lines are lost
                     vt::csier.table[CSI__SU] = VT_PROC{ p->scl(-q(1)); };  // CSI n S  Scroll   up by n lines, scrolled out lines are lost
 
-                    vt::csier.table[DECSTBM] = VT_PROC{ p->scr( q   ); };  // CSI r; b r - Set scrolling region (t/b: top+bottom)
+                    vt::csier.table[DECSTBM] = VT_PROC{ p->scr( q   ); };  // CSI r; b r  Set scrolling region (t/b: top+bottom)
+
+                    vt::csier.table[CSI_WIN] = VT_PROC{ p->boss.winopt(q); };  // CSI n;m;k t  Terminal window options (XTWINOPT)
 
                     vt::intro[ctrl::ESC]['M']= VT_PROC{ p->ri(); }; // ESC M  Reverse index
                     vt::intro[ctrl::ESC]['H']= VT_PROC{ p->na("ESC H  Place tabstop at the current caret posistion"); }; // ESC H  Place tabstop at the current caret posistion
@@ -758,7 +760,7 @@ namespace netxs::ui
 
                     vt::csier.table_quest[DECSET] = VT_PROC{ p->boss.decset(p, q); };
                     vt::csier.table_quest[DECRST] = VT_PROC{ p->boss.decrst(p, q); };
-                    vt::csier.table_excl [DECSTR] = VT_PROC{ p->boss.decstr(); }; // CSI ! p = Soft terminal reset (DECSTR)
+                    vt::csier.table_excl [DECSTR] = VT_PROC{ p->boss.decstr(); }; // CSI ! p  Soft terminal reset (DECSTR)
 
                     vt::csier.table[CSI_SGR][SGR_RST] = VT_PROC{ p->nil(); }; // fx_sgr_rst       ;
                     vt::csier.table[CSI_SGR][SGR_SAV] = VT_PROC{ p->sav(); }; // fx_sgr_sav       ;
@@ -770,10 +772,10 @@ namespace netxs::ui
                     vt::csier.table[CSI_CCC][CCC_RTL] = nullptr; // fx_ccc_rtl //todo implement
                     vt::csier.table[CSI_CCC][CCC_RLF] = nullptr; // fx_ccc_rlf
 
-                    vt::oscer[OSC_0] = VT_PROC{ p->boss.prop(OSC_0, q); };
-                    vt::oscer[OSC_1] = VT_PROC{ p->boss.prop(OSC_1, q); };
-                    vt::oscer[OSC_2] = VT_PROC{ p->boss.prop(OSC_2, q); };
-                    vt::oscer[OSC_3] = VT_PROC{ p->boss.prop(OSC_3, q); };
+                    vt::oscer[OSC_LABEL_TITLE] = VT_PROC{ p->boss.prop(OSC_LABEL_TITLE, q); };
+                    vt::oscer[OSC_LABEL]       = VT_PROC{ p->boss.prop(OSC_LABEL,       q); };
+                    vt::oscer[OSC_TITLE]       = VT_PROC{ p->boss.prop(OSC_TITLE,       q); };
+                    vt::oscer[OSC_XPROP]       = VT_PROC{ p->boss.prop(OSC_XPROP,       q); };
 
                     // Log all unimplemented CSI commands
                     for (auto i = 0; i < 0x100; ++i)
@@ -841,7 +843,7 @@ namespace netxs::ui
                         params.push_back(delim);
                     }
                 }
-                log("CSI ", params, " ", (unsigned char)i, " is not implemented.");
+                log("CSI ", params, " ", (unsigned char)i, "(", std::to_string(i), ") is not implemented.");
             }
             void tab(iota n) { caret->ins(n); }
             // wall: CSI n T/S  Scroll down/up, scrolled out lines are lost
@@ -1342,12 +1344,14 @@ namespace netxs::ui
         os::cons ptycon;
 
         bool mode_DECCKM{ faux }; // todo unify
-        std::map<iota, text> props;
+        std::map<text, text> props;
+        std::map<text, std::vector<text>> props_stack;
+        ansi::esc   output_queue;
 
         rect viewport = { dot_00, dot_11 }; // term: Viewport area
 
         // term: Write tty data and flush the queue.
-        void write(ansi::esc& queue)
+        void write(text& queue)
         {
             if (queue.length())
             {
@@ -1355,23 +1359,79 @@ namespace netxs::ui
                 queue.clear();
             }
         }
-        // term: Apply page props.
-        void prop(iota cmd, view txt)
+        // term: Set terminal window props.
+        void prop(text const& cmd, view txt)
         {
-            auto& utf8 = (props[cmd] = txt);
-            switch (cmd)
+            if (cmd == ansi::OSC_LABEL_TITLE)
             {
-                case ansi::OSC_0: // prop_name::icon_title:
-                case ansi::OSC_1: // prop_name::icon:
-                case ansi::OSC_2: // prop_name::x_prop:
-                case ansi::OSC_3: // prop_name::title:
+                              props[ansi::OSC_LABEL] = txt;
+                auto& utf8 = (props[ansi::OSC_TITLE] = txt);
+                base::riseup<e2::preview, e2::form::prop::header>(utf8);
+            }
+            else
+            {
+                auto& utf8 = (props[cmd] = txt);
+                if (cmd == ansi::OSC_TITLE)
                     base::riseup<e2::preview, e2::form::prop::header>(utf8);
+            }
+        }
+        // term: Manage terminal window props (XTWINOPS)
+        void winopt(fifo& queue)
+        {
+            static constexpr iota get_label = 20; // Report icon   label. (Report as OSC L label ST)
+            static constexpr iota get_title = 21; // Report window title. (Report as OSC l title ST)
+            static constexpr iota put_stack = 22; // Push icon label and window title to   stack.
+            static constexpr iota pop_stack = 23; // Pop  icon label and window title from stack.
+            static constexpr iota all_title = 0; // Sub commands
+            static constexpr iota label     = 1; // Sub commands
+            static constexpr iota title     = 2; // Sub commands
+
+            switch(auto option = queue(0))
+            {
+                // Return an empty string for security reasons
+                case get_label: write(output_queue.osc(ansi::OSC_LABEL_REPORT, "")); break;
+                case get_title: write(output_queue.osc(ansi::OSC_TITLE_REPORT, "")); break;
+                case put_stack:
+                {
+                    auto push = [&](auto const& cmd){
+                        auto& stack = props_stack[cmd];
+                        stack.push_back(props[cmd]);
+                    };
+                    switch(queue(all_title))
+                    {
+                        case title:     push(ansi::OSC_TITLE); break;
+                        case label:     push(ansi::OSC_LABEL); break;
+                        case all_title: push(ansi::OSC_TITLE);
+                                        push(ansi::OSC_LABEL); break;
+                        default: break;
+                    }
                     break;
+                }
+                case pop_stack:
+                {
+                    auto pop = [&](auto const& cmd){
+                        auto& stack = props_stack[cmd];
+                        if (stack.size())
+                        {
+                            prop(cmd, stack.back());
+                            stack.pop_back();
+                        }
+                    };
+                    switch(queue(all_title))
+                    {
+                        case title:     pop(ansi::OSC_TITLE); break;
+                        case label:     pop(ansi::OSC_LABEL); break;
+                        case all_title: pop(ansi::OSC_TITLE);
+                                        pop(ansi::OSC_LABEL); break;
+                        default: break;
+                    }
+                    break;
+                }
                 default:
+                    log("CSI ", option, "... t (XTWINOPS) is not supported");
                     break;
             }
         }
-
         // term: Soft terminal reset (DECSTR)
         void decstr()
         {
@@ -1395,7 +1455,7 @@ namespace netxs::ui
                         caret.show();
                         target->caret_visible = true; //todo unify
                         break;
-                    case    9: // Enable X10 mouse reporting protocol.
+                    case 9:    // Enable X10 mouse reporting protocol.
                         log("decset: CSI ? 9 h  X10 Mouse reporting protocol is not supported");
                         break;
                     case 1000: // Enable mouse buttons reporting mode.
@@ -1410,7 +1470,7 @@ namespace netxs::ui
                     case 1003: // Enable all mouse events reporting mode.
                         mtracker.enable(mtracking::all_movements);
                         break;
-                    case 1004: // Enable focus travking
+                    case 1004: // Enable focus tracking
                         ftracker.set(true);
                         break;
                     case 1005: // Enable UTF-8 mouse reporting protocol.
@@ -1419,7 +1479,7 @@ namespace netxs::ui
                     case 1006: // Enable SGR mouse reporting protocol.
                         mtracker.setmode(mtracking::sgr);
                         break;
-                    case 10060: // Enable mouse reporting outside the viewport (outside+negative coordinates).
+                    case 10060:// Enable mouse reporting outside the viewport (outside+negative coordinates).
                         mtracker.enable(mtracking::negative_args);
                         break;
                     case 1015: // Enable URXVT mouse reporting protocol.
@@ -1436,6 +1496,7 @@ namespace netxs::ui
                         target = &altbuf;
                         break;
                     case 2004: // Set bracketed paste mode.
+                        //todo proxify (enable it globally)
                         log("decset: CSI ? 2004 h  is not implemented (bracketed paste mode)");
                         break;
                     default:
@@ -1459,7 +1520,7 @@ namespace netxs::ui
                         caret.hide();
                         target->caret_visible = faux; //todo unify
                         break;
-                    case    9: // Disable X10 mouse reporting protocol.
+                    case 9:    // Disable X10 mouse reporting protocol.
                         log("decset: CSI ? 9 l  X10 Mouse tracking protocol is not supported");
                         break;
                     case 1000: // Disable mouse buttons reporting mode.
@@ -1474,7 +1535,7 @@ namespace netxs::ui
                     case 1003: // Disable all mouse events reporting mode.
                         mtracker.disable(mtracking::all_movements);
                         break;
-                    case 1004: // Disable focus travking.
+                    case 1004: // Disable focus tracking.
                         ftracker.set(faux);
                         break;
                     case 1005: // Disable UTF-8 mouse reporting protocol.
@@ -1483,7 +1544,7 @@ namespace netxs::ui
                     case 1006: // Disable SGR mouse reporting protocol (set X11 mode).
                         mtracker.setmode(mtracking::x11);
                         break;
-                    case 10060: // Disable mouse reporting outside the viewport (allow reporting inside the viewport only).
+                    case 10060:// Disable mouse reporting outside the viewport (allow reporting inside the viewport only).
                         mtracker.disable(mtracking::negative_args);
                         break;
                     case 1015: // Disable URXVT mouse reporting protocol.
@@ -1499,8 +1560,9 @@ namespace netxs::ui
                         target->cook();
                         target = &scroll;
                         break;
-                    case 2004: // Set bracketed paste mode.
-                        log("decset: CSI ? 2004 l  is not implemented (bracketed paste mode)");
+                    case 2004: // Disable bracketed paste mode.
+                        //todo proxify
+                        log("decrst: CSI ? 2004 l  is not implemented (bracketed paste mode)");
                         break;
                     default:
                         break;
@@ -1514,6 +1576,11 @@ namespace netxs::ui
               ftracker{ *this }
         {
             caret.show();
+
+            SUBMIT(e2::release, e2::form::upon::attached, parent)
+            {
+                base::riseup<e2::request, e2::form::prop::header>(props[ansi::OSC_TITLE]);
+            };
 
             #ifdef DEMO
             //pane::scrollable = faux;

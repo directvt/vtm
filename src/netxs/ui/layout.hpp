@@ -50,7 +50,7 @@ namespace netxs::ui
         {
             static constexpr auto mode_RGB = 2;
             static constexpr auto mode_256 = 5;
-            auto mode = queue(mode_RGB);
+            auto mode = queue.rawarg(mode_RGB);
             if (fifo::issub(mode))
             {
                 switch(fifo::desub(mode))

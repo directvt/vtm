@@ -17,11 +17,11 @@ namespace netxs::generics
         size_t size;
         ITEM   zero;
 
-        /// The second to last bit in the arg to mark the arg as a subparameter
-        /// In section 4.3.3.2 of EK-VT520-RM:
-        ///		“any parameter greater than 9 999 (decimal) is set to 9 999 (decimal)”.
-        /// In the DECSR (Secure Reset) - from 0 to 16 383 (decimal).
-        /// Our maximum for ITEM=int32_t is +/- 1 073 741 823 (wo two last bits)
+        // The second to last bit in the arg to mark the arg as a subparameter
+        // In section 4.3.3.2 of EK-VT520-RM:
+        //    “any parameter greater than 9 999 (decimal) is set to 9 999 (decimal)”.
+        // In the DECSR (Secure Reset) - from 0 to 16 383 (decimal).
+        // Our maximum for ITEM=int32_t is +/- 1 073 741 823 (wo two last bits)
         constexpr static unsigned subbit = 1 << (std::numeric_limits<ITEM>::digits - 2);
 
     public:
@@ -94,6 +94,17 @@ namespace netxs::generics
         void settop(ITEM value)
         {
             if (size) *item = value;
+        }
+        constexpr
+        ITEM rawarg(ITEM const& dflt = {})
+        {
+            if (size)
+            {
+                size--;
+                auto result = *item++;
+                return result;
+            }
+            else return dflt;
         }
         constexpr
         ITEM subarg(ITEM const& dflt = {})

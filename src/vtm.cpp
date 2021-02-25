@@ -62,15 +62,23 @@ int main(int argc, char* argv[])
                            user, ";"));
 
     auto gate = os::tty::proxy(link);
+    ansi::esc mode;
+    mode.save_title(). // Switch to alternate buffer.
+         altbuf(true). // Switch to alternate buffer.
+         vmouse(true). // Turn mouse reporting on/off.
+         cursor(faux). // Set the cursor visibility.
+         setutf(true); // Set UTF-8 character set.
     gate.ignite();
-    gate.output(ansi::altbuf(true) + // Switch to alternate buffer.
-                ansi::vmouse(true) + // Turn mouse reporting on/off.
-                ansi::cursor(faux) + // Set the cursor visibility.
-                ansi::setutf(true)); // Set UTF-8 character set.
+    gate.output(mode);
+    
     gate.splice();
-    gate.output(ansi::vmouse(faux) +
-                ansi::cursor(true) +
-                ansi::altbuf(faux));
+    
+    mode.clear();
+    mode.vmouse(faux).
+         cursor(true).
+         altbuf(faux).
+         load_title();
+    gate.output(mode);
     gate.revert();
 
     // Pause to consume/receive buffered input (e.g. mouse tracking)

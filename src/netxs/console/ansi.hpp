@@ -50,11 +50,13 @@ namespace netxs::console::ansi
     static const char CSI__DL = 'M'; // CSI n      M  — Delete n lines
     static const char CSI_DCH = 'P'; // CSI n      P  — Delete n character(s)
     static const char CSI__SD = 'T'; // CSI n      T  — Scroll down by n lines, scrolled out lines are lost
+    static const char CSI_WIN = 't'; // CSI n;m;k  t  — XTWINOPS, Terminal window props
     static const char CSI__SU = 'S'; // CSI n      S  — Scroll   up by n lines, scrolled out lines are lost
     static const char CSI_ECH = 'X'; // CSI n      X  — Erase n character(s) ? difference with delete ?
     static const char CSI_ICH = '@'; // CSI n      @  — Insert/wedge n character(s)
     static const char DECSET  = 'h'; // CSI ? n    h  — DECSET
     static const char DECRST  = 'l'; // CSI ? n    l  — DECRST
+    static const char CSI_IRM = 'l'; // CSI 4      l  — Reset mode (always Replace mode 4)
     static const char DECSTR  = 'p'; // CSI !      p  — Reset terminal to initial state
     static const char CSI_CCC = 'p'; // CSI n [; x1; x2; ...; xn ] p — Custom Cursor Command
     static const char W32_INP = '_'; // CSI EVENT_TYPEn [; x1; x2; ...; xn ] _ — win32-input-mode
@@ -99,11 +101,13 @@ namespace netxs::console::ansi
     static const iota W32_FOCUS_EVENT = 10004;
     static const iota W32_FINAL_EVENT = 10005; // for quick recognition
 
-    static const iota OSC_0  = 0;  // set icon and title
-    static const iota OSC_1  = 1;  // set icon
-    static const iota OSC_2  = 2;  // set title
-    static const iota OSC_3  = 3;  // set xprop
-    static const iota OSC_52 = 52; // set clipboard
+    static const auto OSC_LABEL_TITLE  = "0" ; // set icon label and title
+    static const auto OSC_LABEL        = "1" ; // set icon label
+    static const auto OSC_TITLE        = "2" ; // set title
+    static const auto OSC_XPROP        = "3" ; // set xprop
+    static const auto OSC_CLIPBRD      = "52"; // set clipboard
+    static const auto OSC_TITLE_REPORT = "l" ; // Get terminal window title
+    static const auto OSC_LABEL_REPORT = "L" ; // Get terminal window icon label
 
     static const iota SGR_RST       = 0;
     static const iota SGR_SAV       = 10;
@@ -208,7 +212,10 @@ namespace netxs::console::ansi
         esc& altbuf (bool b) { add(b ? "\033[?1049h" : "\033[?1049l");  return *this; } // esc: Alternative buffer.
         esc& cursor (bool b) { add(b ? "\033[?25h" : "\033[?25l");      return *this; } // esc: Cursor visibility.
         esc& appkey (bool b) { add(b ? "\033[?1h" : "\033[?1l");        return *this; } // ansi: Application(=on)/ANSI(=off) Cursor Keys (DECCKM).
-        esc& setbuf (view utf8) { add("\033]52;;" + utf::base64(utf8) + C0_BEL);  return *this; } // esc: Set clipboard.
+        esc& setbuf (view t) { add("\033]52;;" + utf::base64(t) + C0_BEL);  return *this; } // esc: Set clipboard.
+        esc& bpmode (bool b) { add(b ? "\033[?2004h" : "\033[?2004l");  return *this; } // esc: Set bracketed paste mode.
+        esc& save_title ()   { add("\033[22;0t");                       return *this; } // esc: Save terminal window title.
+        esc& load_title ()   { add("\033[23;0t");                       return *this; } // esc: Restore terminal window title.
 
         esc& w32input (bool b) { add(b ? "\033[?9001h" : "\033[?9001l");        return *this; } // ansi: Application Cursor Keys (DECCKM).
         esc& w32begin () { clear(); add("\033["); return *this; }
@@ -341,6 +348,12 @@ namespace netxs::console::ansi
                                 push_back(static_cast<unsigned char>(std::clamp(coor.x + 1, 1, 255-32) + 32));
                                 push_back(static_cast<unsigned char>(std::clamp(coor.y + 1, 1, 255-32) + 32));
                                 return *this; } // esc: Mouse tracking report (X11).
+        esc& osc (text const& cmd, text const& param) { add(ESCOCS);
+                                add(cmd);
+                                push_back(';');
+                                add(param);
+                                push_back(C0_BEL);
+                                return *this; } // esc: OSC report.
     };
 
     static esc screen_wipe ()        { return esc{}.screen_wipe(); } // esc: Reset certain terminal settings to their defaults. Also resets the mouse tracking mode in VTE.
@@ -480,12 +493,12 @@ namespace netxs::console::ansi
     {
         using tree = func<fifo, T>;
 
-        tree table        { faux };
-        tree table_quest  { faux };
-        tree table_excl   { faux };
-        tree table_gt     { faux };
-        tree table_equals { faux };
-        tree table_hash   { faux };
+        tree table;
+        tree table_quest;
+        tree table_excl;
+        tree table_gt;
+        tree table_equals;
+        tree table_hash;
 
         csi_t()
         {
@@ -532,6 +545,7 @@ namespace netxs::console::ansi
                 table[CSI_RCP] = VT_PROC{ F(rc,   0 ); };              // fx_rcp
                 table[CSI_CUP] = VT_PROC{ F(oy, q(1)); F(ox, q(1)); }; // fx_ocp
                 table[CSI_HVP] = VT_PROC{ F(oy, q(1)); F(ox, q(1)); }; // fx_ocp
+                table[CSI_IRM] = VT_PROC{ /*Nothing, Replace mode*/ }; // fx_irm
                 table[CSI__ED] = nullptr;
                 table[CSI__EL] = nullptr;
                 table[CSI_DCH] = nullptr;
@@ -541,8 +555,10 @@ namespace netxs::console::ansi
                 table[DECSTBM] = nullptr;
                 table[CSI__SD] = nullptr;
                 table[CSI__SU] = nullptr;
+                table[CSI_WIN] = nullptr;
 
                 auto& csi_ccc = table[CSI_CCC].resize(0x100);
+                csi_ccc.enable_multi_arg();
                     csi_ccc[CCC_CUP] = VT_PROC{ F(ay, q(0)); F(ax, q(0)); }; // fx_ccc_cup
                     csi_ccc[CCC_CPP] = VT_PROC{ F(py, q(0)); F(px, q(0)); }; // fx_ccc_cpp
                     csi_ccc[CCC_MGN] = VT_PROC{ F(wl, q(0)); F(wr, q(0)); F(wt, q(0)); F(wb, q(0)); }; // fx_ccc_mgn
@@ -565,6 +581,7 @@ namespace netxs::console::ansi
                     csi_ccc[CCC_REF] = nullptr;
 
                 auto& csi_sgr = table[CSI_SGR].resize(0x100);
+                csi_sgr.enable_multi_arg();
                     csi_sgr[SGR_RST      ] = VT_PROC{ p->nil( );    }; // fx_sgr_rst      ;
                     csi_sgr[SGR_SAV      ] = VT_PROC{ p->sav( );    }; // fx_sgr_sav      ;
                     csi_sgr[SGR_BOLD     ] = VT_PROC{ p->bld(true); }; // fx_sgr_bld<true>;
@@ -637,7 +654,7 @@ namespace netxs::console::ansi
 
     template<class T> using esc_t = func<qiew, T>;
     template<class T> using osc_h = std::function<void(view&, T*&)>;
-    template<class T> using osc_t = std::map<iota, osc_h<T>>;
+    template<class T> using osc_t = std::map<text, osc_h<T>>;
 
     template<class T>
     struct parser
@@ -770,56 +787,72 @@ namespace netxs::console::ansi
             // ESC ] n ; _text_ ESC \
             //      [--------------]
             //
+            // ESC ] I ; _text_ ST  Set icon to file.
+            // ESC ] l ; _text_ ST  Set window title.
+            // ESC ] L ; _text_ ST  Set window icon label.
 
-            if (auto cmd = utf::to_int(ascii))
+            // Find ST and ';', if no ST or no ';' when drop
+            if (ascii)
             {
-                if (ascii)
+                auto base = ascii.data();
+                auto head = base;
+                auto tail = head + ascii.length();
+                auto delm = tail; // Semicolon ';' position
+                auto exec = [&](auto pad)
                 {
-                    ascii.pop_front(); // Take semicolon ';'
-
-                    auto base = ascii.data();
-                    auto head = base;
-                    auto tail = head + ascii.length();
-                    auto exec = [&](auto pad)
+                    auto& oscer = _glb<T>::parser.oscer;
+                    text cmd(base, delm);
+                    ++delm;
+                    auto size = head - delm;
+                    if (auto it = oscer.find(cmd); it != oscer.end())
                     {
-                        //auto& oscer = get_oscer<T>();
-                        //auto& oscer = get_parser().oscer;
-                        auto& oscer = _glb<T>::parser.oscer;
+                        auto data = view(delm, size);
+                        auto proc = (*it).second;
+                        proc(data, client);
+                    }
+                    ascii.remove_prefix(head - base + pad); // Take the text and BEL or ST too
+                };
 
-                        auto size = head - base;
-                        if (auto it = oscer.find(cmd.value()); it != oscer.end())
-                        {
-                            auto data = view(base, size);
-                            auto proc = (*it).second;
-                            proc(data, client);
-                        }
-                        ascii.remove_prefix(size + pad); // Take the text and BEL or ST too
-                    };
-
-                    while (head != tail)
+                while (head != tail)
+                {
+                    auto c = *head;
+                    if (c == ';')
                     {
-                        if (unsigned char c = *head; c < '\x1c')
+                        delm = head++;
+                        while (head != tail)
                         {
-                            if (c == '\x07')
+                            unsigned char c = *head;
+                            if (c <= C0_ESC) // To avoid double comparing
                             {
-                                exec(1);
-                                return;
-                            }
-                            else if (c == '\x1b')
-                            {
-                                auto next = head + 1;
-                                if (next != tail && *next == '\\')
+                                if (c == C0_BEL)
                                 {
-                                    exec(2);
+                                    exec(1);
                                     return;
                                 }
+                                else if (c == C0_ESC)
+                                {
+                                    auto next = std::next(head);
+                                    if (next != tail && *next == '\\')
+                                    {
+                                        exec(2);
+                                        return;
+                                    }
+                                }
                             }
+                            ++head;
                         }
-                        head++;
+                        return; // Drop bcuz no ST in the sequence
                     }
-
-                    //todo should we flush the queue without terminator
-                    // ascii.clear();
+                    else if (c == C0_BEL) return; // Drop bcuz no ';' in the sequence
+                    else if (c == C0_ESC)
+                    {
+                        auto next = std::next(head);
+                        if (next != tail && *next == '\\')
+                        {
+                            return; // Drop bcuz no ';' in the sequence
+                        }
+                    }
+                    ++head;
                 }
             }
         }

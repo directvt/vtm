@@ -2382,7 +2382,7 @@ namespace netxs::console
                                 auto head = area;
                                 head.size.y = 1;
                                 canvas.each(head, sumfx);
-                                auto b = light / (count * 3);
+                                auto b = count ? light / (count * 3) : 0;
 
                                 // Draw the frame
                                 auto mark = skin::color(tone::kb_focus);
@@ -4130,8 +4130,16 @@ again:
                                                 mouse.wheeldt = wheel;
 
                                                 // Windows Terminal Reported mouse ctrlstate is broken
-                                                //todo check transcoding to_int/from_int
-                                                mouse.ctlstate = keybd.ctlstate;// << 2;
+                                                bool k_ralt  = ctrls & 0x1;
+                                                bool k_alt   = ctrls & 0x2;
+                                                bool k_rctrl = ctrls & 0x4;
+                                                bool k_ctrl  = ctrls & 0x8;
+                                                bool k_shift = ctrls & 0x10;
+                                                mouse.ctlstate = (k_shift ? hids::SHIFT : 0)
+                                                               + (k_alt   ? hids::ALT   : 0)
+                                                               + (k_ralt  ? hids::ALT   : 0)
+                                                               + (k_rctrl ? hids::RCTRL : 0)
+                                                               + (k_ctrl  ? hids::CTRL  : 0);
 
                                                 if (!mouse.shuffle)
                                                     owner.SIGNAL(e2::release, e2::term::mouse, mouse);
