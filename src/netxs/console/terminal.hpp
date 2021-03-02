@@ -13,7 +13,8 @@
 namespace netxs::ui
 {
     class rods // terminal: scrollback/altbuf internals v2 (New concept of the buffer)
-        : public flow
+        : public flow,
+          public mark
     {
     protected:
         //todo implement as a ring buffer of size MAX_SCROLLBACK
@@ -22,28 +23,27 @@ namespace netxs::ui
         heap        batch; // rods: Rods inner container.
         twod const& panel; // rods: Viewport.
         side&       upset; // rods: Viewport oversize.
-        cell&       spare; // rods: Shared current brush state (default brush).
         //todo move count to ring
         iota        count; // rods: Scrollback height (& =batch.size()).
         twod        coord; // rods: Actual caret position.
-        cell        brush; // rods: Last used brush.
         iota        basis; // rods: Index of O(0, 0).
-        iota scroll_top    = 0; // rods: Scrolling region top. 1-based, 0: use top of viewport
-        iota scroll_bottom = 0; // rods: Scrolling region bottom. 1-based, 0: use bottom of viewport
-        iota current_para; // rods: Active insertion point index (not id).
+        iota        caret; // rods: Active insertion point index (not id).
+        iota        sctop; // rods: Scrolling region top. 1-based, 0: use top of viewport
+        iota        scend; // rods: Scrolling region bottom. 1-based, 0: use bottom of viewport
 
     public:
         bool caret_visible = faux;
 
-        rods(twod& anker, side& oversize, twod const& viewport, cell& spare)
+        rods(twod& anker, side& oversize, twod const& viewport)
             : flow { viewport.x, count /*use count from batch*/       },
-              batch{ para(0)                  },
+              batch{ para{}                   },
               panel{ viewport                 },
               upset{ oversize                 },
-              spare{ spare                    },
               count{ 1                        },
               basis{ 0                        },
-              current_para{ 0                 }
+              caret{ 0                        },
+              sctop{ 0                        },
+              scend{ 0                        }
         { }
         auto line_height(para const& l)
         {
@@ -58,23 +58,27 @@ namespace netxs::ui
         // rods: Return 0-based srcoll region (pair)
         auto get_scroll_limits()
         {
-            auto top = scroll_top    ? scroll_top    - 1 : 0;
-            auto end = scroll_bottom ? scroll_bottom - 1 : panel.y - 1;
+            auto top = sctop ? sctop - 1 : 0;
+            auto end = scend ? scend - 1 : panel.y - 1;
             end = std::clamp(end, 0, panel.y - 1);
             top = std::clamp(top, 0, end);
             return std::pair{ top, end };
         }
-        bool inside_scroll_region()
+        auto using_regions()
+        {
+            return sctop || scend;
+        }
+        auto inside_scroll_region()
         {
             auto[top, end] = get_scroll_limits();
             return coord.y >= top && coord.y <= end;
         }
         //todo revise
-        void color(cell const& c)
-        {
-            batch[current_para].brush = c;
-            brush = c;
-        }
+        //void color(cell const& c)
+        //{
+        //    batch[caret].brush = c;
+        //    brush = c;
+        //}
         void align_basis()
         {
             auto new_basis = count - panel.y;
@@ -85,15 +89,16 @@ namespace netxs::ui
         void add_lines(iota amount, para const& proto)
         {
             assert(amount > 0);
-            auto marker = proto.brush;
-            auto adjust = proto.adjust;
-            auto wrapln = proto.wrapln;
-            auto nextid = batch.back().id();
+            auto state = proto.state;
+            //auto adjust = proto.state.adjust;
+            //auto wrapln = proto.state.wrapln;
+            //auto r_to_l = proto.state.r_to_l;
+            auto newid = batch.back().state.selfid;
             count += amount;
-            while(amount-- > 0 ) batch.emplace_back(++nextid, 
-                                                      marker,
-                                                      adjust,
-                                                      wrapln);
+            while(amount-- > 0 ) batch.emplace_back(++newid, state);
+                                                      //adjust,
+                                                      //wrapln,
+                                                      //r_to_l);
             align_basis();
         }
         void del_lines(iota erase_count)
@@ -104,7 +109,7 @@ namespace netxs::ui
         }
         auto get_line_index_by_id(iota id)
         {
-                return id - batch.front().id();
+                return id - batch.front().state.selfid;
         }
         void set_coord(twod new_coord)
         {
@@ -113,26 +118,26 @@ namespace netxs::ui
             coord = new_coord;
             new_coord.y += basis; // set coord inside batch
 
-            auto& cur_state = batch[current_para];
-            brush = cur_state.brush;
+            auto& cur_state = batch[caret];
+            //brush = cur_state.brush;
             if (new_coord.y > count - 1) // Add new lines
             {
                 auto add_count = new_coord.y - (count - 1);
                 add_lines(add_count, cur_state);
             }
             auto& new_line = batch[new_coord.y];
-            auto index = get_line_index_by_id(new_line.id()); // current index inside batch
-            if (new_line.id() != new_line.bossid) // bossid always less or eq selfid
+            auto index = get_line_index_by_id(new_line.state.selfid); // current index inside batch
+            if (new_line.state.selfid != new_line.state.bossid) // bossid always less or eq selfid
             {
-                auto delta = new_line.id() - new_line.bossid;
+                auto delta = new_line.state.selfid - new_line.state.bossid;
                 index -= delta;
                 new_coord.x += delta * panel.x;
                 //todo implement checking hit by x
             }
-            current_para = index;
-            auto& cur_line = batch[current_para];
+            caret = index;
+            auto& cur_line = batch[caret];
             cur_line.chx(new_coord.x);
-            cur_line.brush = brush;
+            //cur_line.brush = brush;
             //todo implement the case when the coord is set to the outside viewport
             //     after the right side: disable wrapping (on overlapped line too)
             //     before the left side: disable wrapping + bias::right (on overlapped line too)
@@ -149,7 +154,7 @@ namespace netxs::ui
 
         void finalize()
         {
-            auto& cur_line1 = batch[current_para];
+            auto& cur_line1 = batch[caret];
             auto old_height = line_height(cur_line1);
                               cur_line1.cook();
                               cur_line1.trim(spare);
@@ -157,32 +162,32 @@ namespace netxs::ui
 
             if (new_height > old_height)
             {
-                auto overflow = current_para + new_height - count;
+                auto overflow = caret + new_height - count;
                 if (overflow > 0)
                 {
                     add_lines(overflow, cur_line1);
                 }
                 // Update bossid id on overlapped below lines
-                auto from = current_para + new_height - 1;
-                auto upto = current_para + old_height;
-                auto& cur_line2 = batch[current_para];
+                auto from = caret + new_height - 1;
+                auto upto = caret + old_height;
+                auto& cur_line2 = batch[caret];
                 for_each(from, upto, [&](para& l)
                 {
-                    auto open = l.bossid - cur_line2.id() > 0;
-                    if  (open)  l.bossid = cur_line2.id();
+                    auto open = l.state.bossid - cur_line2.state.selfid > 0;
+                    if  (open)  l.state.bossid = cur_line2.state.selfid;
                     return open;
                 });
             }
             else if (new_height < old_height)
             {
                 // Update bossid id on opened below lines
-                auto from = current_para + old_height - 1;
-                auto upto = current_para + new_height;
+                auto from = caret + old_height - 1;
+                auto upto = caret + new_height;
                 for_each(from, upto, [&](para& l)
                 {
-                    if (l.bossid != cur_line1.id()) return faux; // this line, like all those lying above, is covered with a long super line above, don't touch it
+                    if (l.state.bossid != cur_line1.state.selfid) return faux; // this line, like all those lying above, is covered with a long super line above, don't touch it
                     // Looking for who else covers the current line below
-                    auto from2 = current_para + 1;
+                    auto from2 = caret + 1;
                     auto upto2 = from--;
                     for_each(from2, upto2, [&](para& l2)
                     {
@@ -190,7 +195,7 @@ namespace netxs::ui
                         auto d = upto2 - from2++;
                         if (h > d)
                         {
-                            l.bossid = l2.id();
+                            l.state.bossid = l2.state.selfid;
                             return faux;
                         }
                         return true;
@@ -199,9 +204,9 @@ namespace netxs::ui
                 });
             }
 
-            auto& cur_line3 = batch[current_para];
-            auto pos = twod{ cur_line3.chx(), current_para - basis };
-            if (cur_line3.wrapln)
+            auto& cur_line3 = batch[caret];
+            auto pos = twod{ cur_line3.chx(), caret - basis };
+            if (cur_line3.state.wrapln)
             {
                 if (pos.x && pos.x == cur_line3.length() && (pos.x % panel.x == 0))
                 {
@@ -223,14 +228,15 @@ namespace netxs::ui
         }
         void clear(bool preserve_brush = faux)
         {
-            brush = preserve_brush ? batch[current_para].brush
-                                   : cell{};
+            if (!preserve_brush) mark::brush = {};
+            ///brush = preserve_brush ? batch[caret].brush
+            //                       : cell{};
             basis = 0;
             count = 0;
-            current_para = 0;
+            caret = 0;
             upset.set(0);
             batch.clear();
-            batch.emplace_back(0, brush);
+            batch.emplace_back(0);
             count++;
             align_basis();
         }
@@ -238,7 +244,7 @@ namespace netxs::ui
         {
             auto pos = coord;
             pos.y += basis;
-            if (pos.x == panel.x && batch[current_para].wrapln)
+            if (pos.x == panel.x && batch[caret].state.wrapln)
             {
                 pos.x = 0;
                 pos.y++;
@@ -258,10 +264,8 @@ namespace netxs::ui
                 auto& line = *tail++;
                 --coor.y;
                 flow::cursor = coor;
-                flow::wrapln = line.wrapln;
-                flow::adjust = line.adjust;
                 compose(line, print_proc);
-                brush = line.mark(); // current mark of the last printed fragment
+                //brush = line.brush; // current mark of the last printed fragment
             }
         }
         void output(face& canvas)
@@ -293,11 +297,11 @@ namespace netxs::ui
             }
             
             auto viewport = rect{{ 0, basis }, panel};
-            flow::minmax(viewport); // Register viewport (why?)
+            flow::minmax(viewport); // Register viewport
 
-            //todo merge with main loop here
+            //todo merge with the vizualisation loop here
             //todo recalc overlapping bossid id's over selfid's on resize
-            rebuild_upto_id(batch.front().id());
+            rebuild_upto_id(batch.front().state.selfid);
 
             auto scroll_height = cover.height() + 1;
             return twod{ panel.x, scroll_height };
@@ -321,19 +325,19 @@ namespace netxs::ui
             }
             auto erase_count = static_cast<iota>(tail - iter);
             del_lines(erase_count);
-            if (current_para >= count) current_para = count - 1;
+            if (caret >= count) caret = count - 1;
         }
         // rods: Cut all lines above and current line
         void cut_above()
         {
-            auto cur_line_it = batch.begin() + current_para;
-            auto master_id = cur_line_it->bossid;
+            auto cur_line_it = batch.begin() + caret;
+            auto master_id = cur_line_it->state.bossid;
             auto mas_index = get_line_index_by_id(master_id);
             auto head = batch.begin() + mas_index;
             auto tail = cur_line_it;
             do
             {
-                auto required_len = (current_para - mas_index) * panel.x + coord.x; // todo optimize
+                auto required_len = (caret - mas_index) * panel.x + coord.x; // todo optimize
                 auto& line = *head;
                 line.trim_to(required_len);
                 mas_index++;
@@ -351,7 +355,7 @@ namespace netxs::ui
                 auto below = head - line_height(line) + 1;
                 do  // Assign iff line isn't overlapped by somaething higher
                 {   // Comparing the difference with zero In order to support id incrementing overflow
-                    if (below->bossid - top_id > 0) below->bossid = line.id();
+                    if (below->state.bossid - top_id > 0) below->state.bossid = line.state.selfid;
                     else                            break; // overlapped by a higher line
                 }
                 while(head != below++);
@@ -617,15 +621,14 @@ namespace netxs::ui
                     vt::csier.table_quest[DECRST] = VT_PROC{ p->boss.decrst(p, q); };
                     vt::csier.table_excl [DECSTR] = VT_PROC{ p->boss.decstr(); }; // CSI ! p  Soft terminal reset (DECSTR)
 
-                    vt::csier.table[CSI_SGR][SGR_RST] = VT_PROC{ p->nil(); }; // fx_sgr_rst       ;
-                    vt::csier.table[CSI_SGR][SGR_SAV] = VT_PROC{ p->sav(); }; // fx_sgr_sav       ;
-                    vt::csier.table[CSI_SGR][SGR_FG ] = VT_PROC{ p->rfg(); }; // fx_sgr_fg_def    ;
-                    vt::csier.table[CSI_SGR][SGR_BG ] = VT_PROC{ p->rbg(); }; // fx_sgr_bg_def    ;
-
-                    vt::csier.table[CSI_CCC][CCC_JET] = VT_PROC{ p->jet(q(0)); }; // fx_ccc_jet  default=bias::left=0
-                    vt::csier.table[CSI_CCC][CCC_WRP] = VT_PROC{ p->wrp(q(1)); }; // fx_ccc_wrp  default=true
-                    vt::csier.table[CSI_CCC][CCC_RTL] = nullptr; // fx_ccc_rtl //todo implement
-                    vt::csier.table[CSI_CCC][CCC_RLF] = nullptr; // fx_ccc_rlf
+                    //vt::csier.table[CSI_SGR][SGR_RST] = VT_PROC{ p->nil(); }; // fx_sgr_rst       ;
+                    //vt::csier.table[CSI_SGR][SGR_SAV] = VT_PROC{ p->sav(); }; // fx_sgr_sav       ;
+                    //vt::csier.table[CSI_SGR][SGR_FG ] = VT_PROC{ p->rfg(); }; // fx_sgr_fg_def    ;
+                    //vt::csier.table[CSI_SGR][SGR_BG ] = VT_PROC{ p->rbg(); }; // fx_sgr_bg_def    ;
+                    //vt::csier.table[CSI_CCC][CCC_JET] = VT_PROC{ p->jet(q(0)); }; // fx_ccc_jet  default=bias::left=0
+                    //vt::csier.table[CSI_CCC][CCC_WRP] = VT_PROC{ p->wrp(q(1)); }; // fx_ccc_wrp  default=true
+                    //vt::csier.table[CSI_CCC][CCC_RTL] = nullptr; // fx_ccc_rtl //todo implement
+                    //vt::csier.table[CSI_CCC][CCC_RLF] = nullptr; // fx_ccc_rlf
 
                     vt::oscer[OSC_LABEL_TITLE] = VT_PROC{ p->boss.prop(OSC_LABEL_TITLE, q); };
                     vt::oscer[OSC_LABEL]       = VT_PROC{ p->boss.prop(OSC_LABEL,       q); };
@@ -649,8 +652,8 @@ namespace netxs::ui
             wall(term& boss)
                 : rods( boss.base::anchor,
                         boss.base::oversize,
-                        boss.viewport.size,
-                        boss.base::color()),
+                        boss.viewport.size),
+                        //boss.base::color()),
                   boss{ boss }
             { }
 
@@ -658,32 +661,20 @@ namespace netxs::ui
             void task(ansi::rule const& cmd)
             {
                 finalize();
-                auto& cur_line = batch[current_para];
-                if (!cur_line.empty())
+                auto& cur_line = batch[caret];
+                if (cur_line.busy())
                 {
                     add_lines(1, cur_line);
-                    current_para = count - 1;
+                    caret = count - 1;
                 } 
-                batch[current_para].locus.push(cmd);
+                batch[caret].locus.push(cmd);
             }
-            void post(utf::frag const& cluster) { batch[current_para].post(cluster); }
+            void post(utf::frag const& cluster) { batch[caret].post(cluster, mark::brush); }
             void cook()                         { finalize(); }
-            void  nil()                         { batch[current_para].nil(spare); }
-            void  sav()                         { batch[current_para].sav(spare); }
-            void  rfg()                         { batch[current_para].rfg(spare); }
-            void  rbg()                         { batch[current_para].rbg(spare); }
-            void  fgc(rgba const& c)            { batch[current_para].fgc(c); }
-            void  bgc(rgba const& c)            { batch[current_para].bgc(c); }
-            void  bld(bool b)                   { batch[current_para].bld(b); }
-            void  itc(bool b)                   { batch[current_para].itc(b); }
-            void  inv(bool b)                   { batch[current_para].inv(b); }
-            void  stk(bool b)                   { batch[current_para].stk(b); }
-            void  und(bool b)                   { batch[current_para].und(b); }
-            void  dnl(bool b)                   { batch[current_para].dnl(b); }
-            void  ovr(bool b)                   { batch[current_para].ovr(b); }
-            void  wrp(bool b)                   { batch[current_para].wrp(b); }
-            void  jet(iota n)                   { batch[current_para].jet(n); }
-            void  rtl(bool b)                   { batch[current_para].rtl(b); }
+
+            void  wrp(bool b)                   { batch[caret].wrp(b); }
+            void  jet(iota n)                   { batch[caret].jet(n); }
+            void  rtl(bool b)                   { batch[caret].rtl(b); }
 
             // Implement text manipulation procs
             template<class T>
@@ -706,7 +697,7 @@ namespace netxs::ui
                 }
                 log("CSI ", params, " ", (unsigned char)i, "(", std::to_string(i), ") is not implemented.");
             }
-            void tab(iota n) { batch[current_para].ins(n); }
+            void tab(iota n) { batch[caret].ins(n, mark::brush); }
             // wall: CSI n T/S  Scroll down/up, scrolled out lines are lost
             void scl(iota n)
             {
@@ -714,7 +705,7 @@ namespace netxs::ui
                 auto[top, end] = get_scroll_limits();
                 auto scroll_top_index = basis + top;
                 auto scroll_end_index = basis + end;
-                auto bossid = batch[scroll_top_index].bossid;
+                auto bossid = batch[scroll_top_index].state.bossid;
                 auto count = end - top + 1;
                 if (n > 0) // Scroll down
                 {
@@ -770,10 +761,10 @@ namespace netxs::ui
                 finalize();
                 if (n > 0 && inside_scroll_region())
                 {
-                    auto old_top = scroll_top;
-                    scroll_top = coord.y + 1;
+                    auto old_top = sctop;
+                    sctop = coord.y + 1;
                     scl(n);
-                    scroll_top = old_top;
+                    sctop = old_top;
                     coord.x = 0;
                     set_coord();
                 }
@@ -787,10 +778,10 @@ namespace netxs::ui
                 finalize();
                 if (n > 0 && inside_scroll_region())
                 {
-                    auto old_top = scroll_top;
-                    scroll_top = coord.y + 1;
+                    auto old_top = sctop;
+                    sctop = coord.y + 1;
                     scl(-n);
-                    scroll_top = old_top;
+                    sctop = old_top;
                     coord.x = 0;
                     set_coord();
                 }
@@ -815,8 +806,8 @@ namespace netxs::ui
             // wall: CSI t;b r - Set scrolling region (t/b: top+bottom)
             void scr(fifo& queue)
             {
-                scroll_top    = queue(0);
-                scroll_bottom = queue(0);
+                sctop = queue(0);
+                scend = queue(0);
             }
             // wall: CSI n @  Insert n blanks after cursor. Don't change cursor pos
             void ich(iota n)
@@ -829,15 +820,16 @@ namespace netxs::ui
                 finalize();
                 if (n > 0)
                 {
-                    auto size   = rods::batch[current_para].para::length();
-                    auto pos    = rods::batch[current_para].chx();
-                    auto brush  = rods::batch[current_para].brush;
+                    auto size   = rods::batch[caret].length();
+                    auto pos    = rods::batch[caret].chx();
+                    //auto brush  = rods::batch[caret].brush;
+                    auto brush  = mark::brush;
                     brush.txt(whitespace);
                     //todo unify
                     if (pos < size)
                     {
                         // Move existing chars to right (backward decrement)
-                        auto& lyric = *batch[current_para].lyric;
+                        auto& lyric = *batch[caret].lyric;
                         lyric.crop(size + n);
                         auto dst = lyric.data() + size + n;
                         auto end = lyric.data() + pos + n;
@@ -856,7 +848,7 @@ namespace netxs::ui
                     }
                     else
                     {
-                        auto& lyric = *batch[current_para].lyric;
+                        auto& lyric = *batch[caret].lyric;
                         lyric.crop(pos + n);
                         // Fill blanks
                         auto dst = lyric.data() + size;
@@ -866,7 +858,7 @@ namespace netxs::ui
                             *dst++ = brush;
                         }
                     }
-                    batch[current_para].chx(pos);
+                    batch[caret].chx(pos);
                     finalize();
                 }
             }
@@ -876,10 +868,10 @@ namespace netxs::ui
                 if (n > 0)
                 {
                     finalize();
-                    auto pos = batch[current_para].chx();
-                    batch[current_para].ins(n);
+                    auto pos = batch[caret].chx();
+                    batch[caret].ins(n, mark::brush);
                     finalize();
-                    batch[current_para].chx(pos);
+                    batch[caret].chx(pos);
                 }
             }
             // wall: CSI n P  Delete (not Erase) letters under the caret.
@@ -892,46 +884,44 @@ namespace netxs::ui
                  *    The terminal adds blank characters at the right margin.
                  */
                 finalize();
-                auto& lyric =*rods::batch[current_para].lyric;
-                auto size   = rods::batch[current_para].length();
-                auto caret  = rods::batch[current_para].chx();
-                auto brush  = rods::batch[current_para].brush;
-                brush.txt(whitespace);
-
+                auto& frag =*rods::batch[caret].lyric;
+                auto  size = rods::batch[caret].length();
+                auto  coor = rods::batch[caret].chx();
+                //auto  mark = rods::batch[caret].brush;
+                auto  mark = rods::brush;
+                mark.txt(whitespace);
                 //todo unify for size.y > 1
                 if (n > 0)
                 {
-                    if (caret < size)
+                    if (coor < size)
                     {
-                        auto max_n = panel.x - caret % panel.x;
+                        auto max_n = panel.x - coor % panel.x;
                         n = std::min(n, max_n);
-                        auto right_margin = max_n + caret;
-
+                        auto right_margin = max_n + coor;
                         //todo unify all
-                        if (n >= size - caret)
+                        if (n >= size - coor)
                         {
-                            auto dst = lyric.data() + caret;
-                            auto end = lyric.data() + size;
+                            auto dst = frag.data() + coor;
+                            auto end = frag.data() + size;
                             while (dst != end)
                             {
-                                *dst++ = brush;
+                                *dst++ = mark;
                             }
                         }
                         else
                         {
-                            if (size < right_margin) lyric.crop(right_margin);
-
-                            auto dst = lyric.data() + caret;
-                            auto src = lyric.data() + caret + n;
+                            if (size < right_margin) frag.crop(right_margin);
+                            auto dst = frag.data() + coor;
+                            auto src = frag.data() + coor + n;
                             auto end = dst + (max_n - n);
                             while (dst != end)
                             {
                                 *dst++ = *src++;
                             }
-                            end = lyric.data() + right_margin;
+                            end = frag.data() + right_margin;
                             while (dst != end)
                             {
-                                *dst++ = brush;
+                                *dst++ = mark;
                             }
                         }
                     }
@@ -989,8 +979,8 @@ namespace netxs::ui
             void cuf(iota n)
             {
                 finalize();
-                auto posx = batch[current_para].chx();
-                batch[current_para].chx(posx += n);
+                auto posx = batch[caret].chx();
+                batch[caret].chx(posx += n);
             }
             // wall: CSI n G  Absolute horizontal caret position (1-based)
             void chx(iota n)
@@ -1022,7 +1012,7 @@ namespace netxs::ui
             void up(iota n)
             {
                 finalize();
-                if (batch[current_para].wrapln)
+                if (batch[caret].state.wrapln)
                 {
                     // Check the temp caret position (deffered wrap)
                     if (coord.x && (coord.x % panel.x == 0))
@@ -1038,15 +1028,14 @@ namespace netxs::ui
             void dn(iota n)
             {
                 finalize();
-                if (batch[current_para].wrapln
-                 && coord.x == panel.x)
-                {
-                    coord.x = 0;
-                }
-                // Scroll regions up if coord.y == scroll_bottom and scroll region are defined
+                if (batch[caret].state.wrapln && coord.x == panel.x) coord.x = 0;
+                // Scroll regions up if coord.y == scend and scroll region are defined
                 auto[top, end] = get_scroll_limits();
-                if (n > 0 && (scroll_top || scroll_bottom) && coord.y == end)
+                if (n > 0 && using_regions() && coord.y <= end
+                                             && coord.y + n > end)
                 {
+                    n -= end - coord.y;
+                    coord.y = end;
                     scl(-n);
                 }
                 else
@@ -1059,10 +1048,10 @@ namespace netxs::ui
             void home()
             {
                 finalize();
-                auto posx = batch[current_para].chx();
-                if (batch[current_para].wrapln) posx -= posx % panel.x;
+                auto posx = batch[caret].chx();
+                if (batch[caret].state.wrapln) posx -= posx % panel.x;
                 else                            posx = 0;
-                batch[current_para].chx(posx);
+                batch[caret].chx(posx);
                 coord.x = 0;
             }
             // wall: '\n' || '\r\n'  Carriage return + Line feed
@@ -1078,22 +1067,23 @@ namespace netxs::ui
             void ed(iota n)
             {
                 finalize();
-                auto current_brush = batch[current_para].brush;
+                //auto current_brush = batch[caret].brush;
+                auto current_brush = mark::brush;
                 switch (n)
                 {
                     case commands::erase::display::below: // n = 0(default)  Erase viewport after caret.
                         cut_above(); // Cut all lines above and current line
-                        del_lines(count - (current_para + 1)); // Remove all lines below
+                        del_lines(count - (caret + 1)); // Remove all lines below
                         break;
                     case commands::erase::display::above: // n = 1  Erase viewport before caret.
                     {
                         // Insert spaces on all lines above including the current line,
                         //   begining from bossid of viewport top line
                         //   ending the current line
-                        auto master_id = batch[basis].bossid;
+                        auto master_id = batch[basis].state.bossid;
                         auto mas_index = get_line_index_by_id(master_id);
                         auto head = batch.begin() + mas_index;
-                        auto tail = batch.begin() + current_para;
+                        auto tail = batch.begin() + caret;
                         auto count = coord.y * panel.x + coord.x;
                         auto start = (basis - mas_index) * panel.x;
                         //todo unify
@@ -1117,14 +1107,15 @@ namespace netxs::ui
                     default:
                         break;
                 }
-                batch[current_para].brush = current_brush;
+                //batch[caret].brush = current_brush;
+                mark::brush = current_brush;
                 //todo preserve other attributes: wrp, jet
             }
             // wall: CSI n K  Erase line (don't move caret)
             void el(iota n)
             {
                 finalize();
-                auto& lyric = *batch[current_para].lyric;
+                auto& lyric = *batch[caret].lyric;
 
                 switch (n)
                 {
@@ -1132,24 +1123,26 @@ namespace netxs::ui
                     case commands::erase::line::right: // Ps = 0  ⇒  Erase to Right (default).
                     {
                         //todo optimize
-                        auto brush = batch[current_para].brush;
+                        //auto brush = batch[caret].brush;
+                        auto brush = mark::brush;
                         brush.txt(' ');
-                        auto coor = batch[current_para].chx();
-                        //if (batch[current_para].wrapln)
+                        auto coor = batch[caret].chx();
+                        //if (batch[caret].wrapln)
                         {
                             auto right = panel.x - (coor + panel.x) % panel.x;
-                            batch[current_para].ins(right);
-                            batch[current_para].cook();
-                            batch[current_para].trim(spare);
-                            batch[current_para].chx(coor);
+                            batch[caret].ins(right, brush);
+                            batch[caret].cook();
+                            batch[caret].trim(spare);
+                            batch[caret].chx(coor);
                         }
                         break;
                     }
                     case commands::erase::line::left: // Ps = 1  ⇒  Erase to Left.
                     {
-                        auto brush = batch[current_para].brush;
+                        //auto brush = batch[caret].brush;
+                        auto brush = mark::brush;
                         brush.txt(' ');
-                        auto coor = batch[current_para].chx();
+                        auto coor = batch[caret].chx();
                         auto width = boss.viewport.size.x;
                         if (coor < width)
                         {
@@ -1166,8 +1159,9 @@ namespace netxs::ui
                     case commands::erase::line::all: // Ps = 2  ⇒  Erase All.
                     {
                         //todo optimize
-                        auto coor  = batch[current_para].chx();
-                        auto brush = batch[current_para].brush;
+                        auto coor  = batch[caret].chx();
+                        //auto brush = batch[caret].brush;
+                        auto brush = mark::brush;
                         brush.txt(' ');
                         auto width = boss.viewport.size.x;
                         auto left_edge = coor - coor % width;
@@ -1577,7 +1571,8 @@ namespace netxs::ui
         virtual void color(rgba const& fg_color, rgba const& bg_color)
         {
             base::color(fg_color, bg_color);
-            target->color(base::color());
+            //target->color(base::color());
+            target->mark::brush = base::color();
         }
     };
 }

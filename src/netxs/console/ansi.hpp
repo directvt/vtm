@@ -503,8 +503,6 @@ namespace netxs::console::ansi
 
         csi_t()
         {
-            #define F(t, q) p->task(rule{ fn::t, q })
-
            /* Contract for client p
             * Unicode
             * - void post(utf::frag const& cluster); // Proceed grapheme cluster
@@ -528,6 +526,7 @@ namespace netxs::console::ansi
             * - void jet(iota b);                    // Set adjustment
             * - void rtl(bool b);                    // Set reverse line feed
             */
+            #define F(t, q) p->task(rule{ fn::t, q })
 
             table_quest .resize(0x100);
                 table_quest[DECSET] = nullptr; // decset
@@ -594,55 +593,55 @@ namespace netxs::console::ansi
                 csi_sgr.enable_multi_arg();
                     csi_sgr[SGR_RST      ] = VT_PROC{ p->nil( );    }; // fx_sgr_rst      ;
                     csi_sgr[SGR_SAV      ] = VT_PROC{ p->sav( );    }; // fx_sgr_sav      ;
-                    csi_sgr[SGR_BOLD     ] = VT_PROC{ p->bld(true); }; // fx_sgr_bld<true>;
-                    csi_sgr[SGR_FAINT    ] = VT_PROC{ p->bld(faux); }; // fx_sgr_bld<faux>;
-                    csi_sgr[SGR_ITALIC   ] = VT_PROC{ p->itc(true); }; // fx_sgr_itc<true>;
-                    csi_sgr[SGR_NONITALIC] = VT_PROC{ p->itc(faux); }; // fx_sgr_itc<faux>;
-                    csi_sgr[SGR_INV      ] = VT_PROC{ p->inv(true); }; // fx_sgr_inv<true>;
-                    csi_sgr[SGR_NOINV    ] = VT_PROC{ p->inv(faux); }; // fx_sgr_inv<faux>;
-                    csi_sgr[SGR_UND      ] = VT_PROC{ p->und(true); }; // fx_sgr_und;
-                    csi_sgr[SGR_DOUBLEUND] = VT_PROC{ p->dnl(true); }; // fx_sgr_dnl;
-                    csi_sgr[SGR_NOUND    ] = VT_PROC{ p->und(faux); }; // fx_sgr_und;
-                    csi_sgr[SGR_STRIKE   ] = VT_PROC{ p->stk(true); }; // fx_sgr_stk<true>;
-                    csi_sgr[SGR_NOSTRIKE ] = VT_PROC{ p->stk(faux); }; // fx_sgr_stk<faux>;
-                    csi_sgr[SGR_OVERLN   ] = VT_PROC{ p->ovr(true); }; // fx_sgr_ovr<faux>;
-                    csi_sgr[SGR_NOOVERLN ] = VT_PROC{ p->ovr(faux); }; // fx_sgr_ovr<faux>;
                     csi_sgr[SGR_FG       ] = VT_PROC{ p->rfg( );    }; // fx_sgr_fg_def   ;
                     csi_sgr[SGR_BG       ] = VT_PROC{ p->rbg( );    }; // fx_sgr_bg_def   ;
-                    csi_sgr[SGR_FG_RGB   ] = VT_PROC{ p->fgc(q);    }; // fx_sgr_fg_rgb   ;
-                    csi_sgr[SGR_BG_RGB   ] = VT_PROC{ p->bgc(q);    }; // fx_sgr_bg_rgb   ;
-                    csi_sgr[SGR_FG_BLK   ] = VT_PROC{ p->fgc(tint::blackdk  ); }; // fx_sgr_fg_16<tint::blackdk>  ;
-                    csi_sgr[SGR_FG_RED   ] = VT_PROC{ p->fgc(tint::reddk    ); }; // fx_sgr_fg_16<tint::reddk>    ;
-                    csi_sgr[SGR_FG_GRN   ] = VT_PROC{ p->fgc(tint::greendk  ); }; // fx_sgr_fg_16<tint::greendk>  ;
-                    csi_sgr[SGR_FG_YLW   ] = VT_PROC{ p->fgc(tint::yellowdk ); }; // fx_sgr_fg_16<tint::yellowdk> ;
-                    csi_sgr[SGR_FG_BLU   ] = VT_PROC{ p->fgc(tint::bluedk   ); }; // fx_sgr_fg_16<tint::bluedk>   ;
-                    csi_sgr[SGR_FG_MGT   ] = VT_PROC{ p->fgc(tint::magentadk); }; // fx_sgr_fg_16<tint::magentadk>;
-                    csi_sgr[SGR_FG_CYN   ] = VT_PROC{ p->fgc(tint::cyandk   ); }; // fx_sgr_fg_16<tint::cyandk>   ;
-                    csi_sgr[SGR_FG_WHT   ] = VT_PROC{ p->fgc(tint::whitedk  ); }; // fx_sgr_fg_16<tint::whitedk>  ;
-                    csi_sgr[SGR_FG_BLK_LT] = VT_PROC{ p->fgc(tint::blacklt  ); }; // fx_sgr_fg_16<tint::blacklt>  ;
-                    csi_sgr[SGR_FG_RED_LT] = VT_PROC{ p->fgc(tint::redlt    ); }; // fx_sgr_fg_16<tint::redlt>    ;
-                    csi_sgr[SGR_FG_GRN_LT] = VT_PROC{ p->fgc(tint::greenlt  ); }; // fx_sgr_fg_16<tint::greenlt>  ;
-                    csi_sgr[SGR_FG_YLW_LT] = VT_PROC{ p->fgc(tint::yellowlt ); }; // fx_sgr_fg_16<tint::yellowlt> ;
-                    csi_sgr[SGR_FG_BLU_LT] = VT_PROC{ p->fgc(tint::bluelt   ); }; // fx_sgr_fg_16<tint::bluelt>   ;
-                    csi_sgr[SGR_FG_MGT_LT] = VT_PROC{ p->fgc(tint::magentalt); }; // fx_sgr_fg_16<tint::magentalt>;
-                    csi_sgr[SGR_FG_CYN_LT] = VT_PROC{ p->fgc(tint::cyanlt   ); }; // fx_sgr_fg_16<tint::cyanlt>   ;
-                    csi_sgr[SGR_FG_WHT_LT] = VT_PROC{ p->fgc(tint::whitelt  ); }; // fx_sgr_fg_16<tint::whitelt>  ;
-                    csi_sgr[SGR_BG_BLK   ] = VT_PROC{ p->bgc(tint::blackdk  ); }; // fx_sgr_bg_16<tint::blackdk>  ;
-                    csi_sgr[SGR_BG_RED   ] = VT_PROC{ p->bgc(tint::reddk    ); }; // fx_sgr_bg_16<tint::reddk>    ;
-                    csi_sgr[SGR_BG_GRN   ] = VT_PROC{ p->bgc(tint::greendk  ); }; // fx_sgr_bg_16<tint::greendk>  ;
-                    csi_sgr[SGR_BG_YLW   ] = VT_PROC{ p->bgc(tint::yellowdk ); }; // fx_sgr_bg_16<tint::yellowdk> ;
-                    csi_sgr[SGR_BG_BLU   ] = VT_PROC{ p->bgc(tint::bluedk   ); }; // fx_sgr_bg_16<tint::bluedk>   ;
-                    csi_sgr[SGR_BG_MGT   ] = VT_PROC{ p->bgc(tint::magentadk); }; // fx_sgr_bg_16<tint::magentadk>;
-                    csi_sgr[SGR_BG_CYN   ] = VT_PROC{ p->bgc(tint::cyandk   ); }; // fx_sgr_bg_16<tint::cyandk>   ;
-                    csi_sgr[SGR_BG_WHT   ] = VT_PROC{ p->bgc(tint::whitedk  ); }; // fx_sgr_bg_16<tint::whitedk>  ;
-                    csi_sgr[SGR_BG_BLK_LT] = VT_PROC{ p->bgc(tint::blacklt  ); }; // fx_sgr_bg_16<tint::blacklt>  ;
-                    csi_sgr[SGR_BG_RED_LT] = VT_PROC{ p->bgc(tint::redlt    ); }; // fx_sgr_bg_16<tint::redlt>    ;
-                    csi_sgr[SGR_BG_GRN_LT] = VT_PROC{ p->bgc(tint::greenlt  ); }; // fx_sgr_bg_16<tint::greenlt>  ;
-                    csi_sgr[SGR_BG_YLW_LT] = VT_PROC{ p->bgc(tint::yellowlt ); }; // fx_sgr_bg_16<tint::yellowlt> ;
-                    csi_sgr[SGR_BG_BLU_LT] = VT_PROC{ p->bgc(tint::bluelt   ); }; // fx_sgr_bg_16<tint::bluelt>   ;
-                    csi_sgr[SGR_BG_MGT_LT] = VT_PROC{ p->bgc(tint::magentalt); }; // fx_sgr_bg_16<tint::magentalt>;
-                    csi_sgr[SGR_BG_CYN_LT] = VT_PROC{ p->bgc(tint::cyanlt   ); }; // fx_sgr_bg_16<tint::cyanlt>   ;
-                    csi_sgr[SGR_BG_WHT_LT] = VT_PROC{ p->bgc(tint::whitelt  ); }; // fx_sgr_bg_16<tint::whitelt>  ;
+                    csi_sgr[SGR_BOLD     ] = VT_PROC{ p->brush.bld(true); }; // fx_sgr_bld<true>;
+                    csi_sgr[SGR_FAINT    ] = VT_PROC{ p->brush.bld(faux); }; // fx_sgr_bld<faux>;
+                    csi_sgr[SGR_ITALIC   ] = VT_PROC{ p->brush.itc(true); }; // fx_sgr_itc<true>;
+                    csi_sgr[SGR_NONITALIC] = VT_PROC{ p->brush.itc(faux); }; // fx_sgr_itc<faux>;
+                    csi_sgr[SGR_INV      ] = VT_PROC{ p->brush.inv(true); }; // fx_sgr_inv<true>;
+                    csi_sgr[SGR_NOINV    ] = VT_PROC{ p->brush.inv(faux); }; // fx_sgr_inv<faux>;
+                    csi_sgr[SGR_UND      ] = VT_PROC{ p->brush.und(true); }; // fx_sgr_und;
+                    csi_sgr[SGR_DOUBLEUND] = VT_PROC{ p->brush.dnl(true); }; // fx_sgr_dnl;
+                    csi_sgr[SGR_NOUND    ] = VT_PROC{ p->brush.und(faux); }; // fx_sgr_und;
+                    csi_sgr[SGR_STRIKE   ] = VT_PROC{ p->brush.stk(true); }; // fx_sgr_stk<true>;
+                    csi_sgr[SGR_NOSTRIKE ] = VT_PROC{ p->brush.stk(faux); }; // fx_sgr_stk<faux>;
+                    csi_sgr[SGR_OVERLN   ] = VT_PROC{ p->brush.ovr(true); }; // fx_sgr_ovr<faux>;
+                    csi_sgr[SGR_NOOVERLN ] = VT_PROC{ p->brush.ovr(faux); }; // fx_sgr_ovr<faux>;
+                    csi_sgr[SGR_FG_RGB   ] = VT_PROC{ p->brush.fgc(q);    }; // fx_sgr_fg_rgb   ;
+                    csi_sgr[SGR_BG_RGB   ] = VT_PROC{ p->brush.bgc(q);    }; // fx_sgr_bg_rgb   ;
+                    csi_sgr[SGR_FG_BLK   ] = VT_PROC{ p->brush.fgc(tint::blackdk  ); }; // fx_sgr_fg_16<tint::blackdk>  ;
+                    csi_sgr[SGR_FG_RED   ] = VT_PROC{ p->brush.fgc(tint::reddk    ); }; // fx_sgr_fg_16<tint::reddk>    ;
+                    csi_sgr[SGR_FG_GRN   ] = VT_PROC{ p->brush.fgc(tint::greendk  ); }; // fx_sgr_fg_16<tint::greendk>  ;
+                    csi_sgr[SGR_FG_YLW   ] = VT_PROC{ p->brush.fgc(tint::yellowdk ); }; // fx_sgr_fg_16<tint::yellowdk> ;
+                    csi_sgr[SGR_FG_BLU   ] = VT_PROC{ p->brush.fgc(tint::bluedk   ); }; // fx_sgr_fg_16<tint::bluedk>   ;
+                    csi_sgr[SGR_FG_MGT   ] = VT_PROC{ p->brush.fgc(tint::magentadk); }; // fx_sgr_fg_16<tint::magentadk>;
+                    csi_sgr[SGR_FG_CYN   ] = VT_PROC{ p->brush.fgc(tint::cyandk   ); }; // fx_sgr_fg_16<tint::cyandk>   ;
+                    csi_sgr[SGR_FG_WHT   ] = VT_PROC{ p->brush.fgc(tint::whitedk  ); }; // fx_sgr_fg_16<tint::whitedk>  ;
+                    csi_sgr[SGR_FG_BLK_LT] = VT_PROC{ p->brush.fgc(tint::blacklt  ); }; // fx_sgr_fg_16<tint::blacklt>  ;
+                    csi_sgr[SGR_FG_RED_LT] = VT_PROC{ p->brush.fgc(tint::redlt    ); }; // fx_sgr_fg_16<tint::redlt>    ;
+                    csi_sgr[SGR_FG_GRN_LT] = VT_PROC{ p->brush.fgc(tint::greenlt  ); }; // fx_sgr_fg_16<tint::greenlt>  ;
+                    csi_sgr[SGR_FG_YLW_LT] = VT_PROC{ p->brush.fgc(tint::yellowlt ); }; // fx_sgr_fg_16<tint::yellowlt> ;
+                    csi_sgr[SGR_FG_BLU_LT] = VT_PROC{ p->brush.fgc(tint::bluelt   ); }; // fx_sgr_fg_16<tint::bluelt>   ;
+                    csi_sgr[SGR_FG_MGT_LT] = VT_PROC{ p->brush.fgc(tint::magentalt); }; // fx_sgr_fg_16<tint::magentalt>;
+                    csi_sgr[SGR_FG_CYN_LT] = VT_PROC{ p->brush.fgc(tint::cyanlt   ); }; // fx_sgr_fg_16<tint::cyanlt>   ;
+                    csi_sgr[SGR_FG_WHT_LT] = VT_PROC{ p->brush.fgc(tint::whitelt  ); }; // fx_sgr_fg_16<tint::whitelt>  ;
+                    csi_sgr[SGR_BG_BLK   ] = VT_PROC{ p->brush.bgc(tint::blackdk  ); }; // fx_sgr_bg_16<tint::blackdk>  ;
+                    csi_sgr[SGR_BG_RED   ] = VT_PROC{ p->brush.bgc(tint::reddk    ); }; // fx_sgr_bg_16<tint::reddk>    ;
+                    csi_sgr[SGR_BG_GRN   ] = VT_PROC{ p->brush.bgc(tint::greendk  ); }; // fx_sgr_bg_16<tint::greendk>  ;
+                    csi_sgr[SGR_BG_YLW   ] = VT_PROC{ p->brush.bgc(tint::yellowdk ); }; // fx_sgr_bg_16<tint::yellowdk> ;
+                    csi_sgr[SGR_BG_BLU   ] = VT_PROC{ p->brush.bgc(tint::bluedk   ); }; // fx_sgr_bg_16<tint::bluedk>   ;
+                    csi_sgr[SGR_BG_MGT   ] = VT_PROC{ p->brush.bgc(tint::magentadk); }; // fx_sgr_bg_16<tint::magentadk>;
+                    csi_sgr[SGR_BG_CYN   ] = VT_PROC{ p->brush.bgc(tint::cyandk   ); }; // fx_sgr_bg_16<tint::cyandk>   ;
+                    csi_sgr[SGR_BG_WHT   ] = VT_PROC{ p->brush.bgc(tint::whitedk  ); }; // fx_sgr_bg_16<tint::whitedk>  ;
+                    csi_sgr[SGR_BG_BLK_LT] = VT_PROC{ p->brush.bgc(tint::blacklt  ); }; // fx_sgr_bg_16<tint::blacklt>  ;
+                    csi_sgr[SGR_BG_RED_LT] = VT_PROC{ p->brush.bgc(tint::redlt    ); }; // fx_sgr_bg_16<tint::redlt>    ;
+                    csi_sgr[SGR_BG_GRN_LT] = VT_PROC{ p->brush.bgc(tint::greenlt  ); }; // fx_sgr_bg_16<tint::greenlt>  ;
+                    csi_sgr[SGR_BG_YLW_LT] = VT_PROC{ p->brush.bgc(tint::yellowlt ); }; // fx_sgr_bg_16<tint::yellowlt> ;
+                    csi_sgr[SGR_BG_BLU_LT] = VT_PROC{ p->brush.bgc(tint::bluelt   ); }; // fx_sgr_bg_16<tint::bluelt>   ;
+                    csi_sgr[SGR_BG_MGT_LT] = VT_PROC{ p->brush.bgc(tint::magentalt); }; // fx_sgr_bg_16<tint::magentalt>;
+                    csi_sgr[SGR_BG_CYN_LT] = VT_PROC{ p->brush.bgc(tint::cyanlt   ); }; // fx_sgr_bg_16<tint::cyanlt>   ;
+                    csi_sgr[SGR_BG_WHT_LT] = VT_PROC{ p->brush.bgc(tint::whitelt  ); }; // fx_sgr_bg_16<tint::whitelt>  ;
 
             #undef F
         }

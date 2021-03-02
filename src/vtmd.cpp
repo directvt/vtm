@@ -40,7 +40,7 @@ text edit_menu = ansi::nil().wrp(faux)
 + " " + ansi::und(true) + "E" + ansi::nil() + "dit "
 + " " + ansi::und(true) + "V" + ansi::nil() + "iew "
 + " " + ansi::und(true) + "D" + ansi::nil() + "ata "
-+ ansi::jet(bias::right).chx(0)
++ ansi::nop().jet(bias::right).chx(0)
 + " " + ansi::und(true) + "H" + ansi::nil() + "elp "
 + "";
 
@@ -51,7 +51,7 @@ text calc_menu = ansi::nil().wrp(faux)
 + " " + ansi::und(true) + "V" + ansi::nil() + "iew "
 + " " + ansi::und(true) + "D" + ansi::nil() + "ata ";
 
-text calc_help = ansi::nil().wrp(faux)
+text calc_help = ansi::nop().nil().wrp(faux)
 + " " + ansi::und(true) + "H" + ansi::nil() + "elp "
 + "";
 
@@ -88,17 +88,17 @@ auto item = [](auto app, auto clr, auto rating, auto price, auto buy, auto desc)
     text lot = ansi::nil()
         + ansi::jet(bias::left)
         + ansi::mgl(2).mgr(1).eol()
-        + ansi::fgc().jet(bias::left).wrp(faux)
+        + ansi::fgc().nop().jet(bias::left).wrp(faux)
         + ansi::bgc(clr).fgc(0xFFffffff) + "▀▄" + " "
         + ansi::fgc(0xFFffffff) + app + " " + ansi::nil().eol()
         + ansi::fgc(yellowlt) + "   ★★★★" + ansi::fgc(cyandk) + "★  " + ansi::fgc(yellowlt) + rating
 
-        + ansi::jet(bias::right).chx(0)
+        + ansi::nop().jet(bias::right).chx(0)
         + ansi::fgc(yellowlt).bgc() + "   " + price + "  "
         + ansi::nil().eol().eol()
         + ansi::fgc(bluedk).bgc(whitelt) + " "+ buy +" " + ansi::nil() + "  "
 
-        + ansi::fgc().jet(bias::left).chx(0)
+        + ansi::fgc().nop().jet(bias::left).chx(0)
         + ansi::mgr(11).wrp(true)
         + desc
         + "\n\n"
@@ -1084,6 +1084,7 @@ int main(int argc, char* argv[])
         truecolor += r_grut01;
         truecolor += r_grut02;
         truecolor += r_grut03;
+        truecolor += ansi::nop();
         truecolor += wiki01;
 
         {

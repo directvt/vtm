@@ -2378,7 +2378,8 @@ namespace netxs::ui
             //if (enabled) checked.vis(cell::unalterable).bga(0xff);
             //else         checked.vis(cell::darklighter).bga(0x2f);
 
-            topic[box_id].set(checked) = "  "; //"██";
+            topic[box_id].set(checked);
+            topic[box_id] = "  "; //"██";
             //topic[txt_id].set(hilight) = "  " + sticker;
             topic[txt_id] = "  " + sticker;
             topic[box_id].link(bell::id);

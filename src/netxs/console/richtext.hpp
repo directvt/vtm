@@ -1269,9 +1269,9 @@ namespace netxs::console
         template<class T, class P = noop>
         void compose(T const& block, P print = P())//, twod const& offset = dot_00)
         {
-            deco::wrapln = block.wrapln;
-            deco::adjust = block.adjust;
-            deco::r_to_l = block.r_to_l;
+            deco::wrapln = block.state.wrapln;
+            deco::adjust = block.state.adjust;
+            deco::r_to_l = block.state.r_to_l;
 
             auto block_size = block.size(); // 2D size
             fullsize = get_len(block_size); // 1D length
@@ -1437,32 +1437,75 @@ namespace netxs::console
         }
     };
 
-    class para // richtext: Enriched text paragraph.
+    struct para_state
     {
-        friend class page;
-        using corx = sptr<core>;
-
-        cell spare;     // para: Saved brush
-        cell prime;     // para: Prime brush
-        grid proto;     // para: Proto lyric
-        iota width = 0; // para: Length of the proto lyric
-        iota caret = 0; // para: Cursor position inside lyric
-
-    public:
-        //todo make a struct
         iota  selfid = 0;
         iota  bossid = 0;          // para: Index of the top visible text line.
         bias  adjust = bias::left; // para: Horizontal alignment.
         bool  wrapln = WRAPPING;   // para: Auto wrapping.
         bool  r_to_l = faux;       // para: RTL.
 
+        para_state() = default;
+        para_state(para_state const& s)
+            : adjust { s.adjust },
+              wrapln { s.wrapln },
+              r_to_l { s.r_to_l }
+        { }
+        para_state(iota selfid, para_state const& s)
+            : selfid { selfid   },
+              bossid { selfid   },
+              adjust { s.adjust },
+              wrapln { s.wrapln },
+              r_to_l { s.r_to_l }
+        { }
+        void operator = (para_state const& s)
+        {
+            adjust = s.adjust;
+            wrapln = s.wrapln;
+            r_to_l = s.r_to_l;
+        }
+    };
+
+    class mark
+    {
+    public:
+        cell brush; // mark: Current brush
+        cell spare; // mark: Stored  brush
+        cell fresh; // mark: Initial brush
+        mark() = default;
+        mark(cell const& brush)
+            : brush{ brush },
+              fresh{ brush }
+        { }
+        void reset(cell const& c) { fresh = brush = c; }
+        auto busy() const         { return brush != fresh;  } // mark: Is the marker modified
+        auto  set(cell const& c)  { brush.set(c);           } // mark: Set the brush using the cell (keeping link and paragraph id)
+        void  nil()               { brush.set(spare);       } // mark: Restore saved SGR attributes
+        void  sav()               { spare.set(brush);       } // mark: Save current SGR attributes
+        //void  nil(cell const& c)  { brush.set(c);           } // mark: Restore saved SGR attributes
+        //void  sav(cell& c)        { c.set(brush);           } // mark: Save current SGR attributes
+        void  rfg()               { brush.fgc(spare.fgc()); } // mark: Reset SGR Foreground color
+        void  rbg()               { brush.bgc(spare.bgc()); } // mark: Reset SGR Background color
+    };
+
+    class para // richtext: Enriched text paragraph.
+        : public mark
+    {
+        friend class page;
+        using corx = sptr<core>;
+
+        grid proto;     // para: Proto lyric
+        iota width = 0; // para: Length of the proto lyric
+        iota caret = 0; // para: Cursor position inside lyric
+
+    public:
         template<class T>
         using parser = ansi::parser<T>;
 
         text debug; // para: debug string
-        cell brush; // para: Current brush
         writ locus;
         corx lyric = std::make_shared<core>();
+        para_state state;
 
         para()                         = default;
         para(para&&) noexcept          = default;
@@ -1470,22 +1513,14 @@ namespace netxs::console
         para& operator = (para&&)      = default;
         para& operator = (para const&) = default;
 
-        para(cell const& brush)
-            : brush{ brush },
-              prime{ brush }
+        para(para_state const& state)
+            : state{ state }
         { }
-        para(iota        selfid,
-             cell const& marker = {},
-             bias        adjust = bias::left,
-             bool        wrapln = WRAPPING)
-            : selfid { selfid },
-              brush  { marker },
-              bossid { selfid },
-              adjust { adjust },
-              wrapln { wrapln }
+        para(iota selfid, para_state const& state = {})
+            : state{ selfid, state }
         { }
-        para(view utf8, cell const& brush = cell{})
-            : para{ brush }
+        para(view utf8, cell const& brush = {})
+            : mark{ brush }
         {
             ansi::parse(utf8, this);
         }
@@ -1511,59 +1546,41 @@ namespace netxs::console
 
         void move(para&& p)
         {
-            brush = p.brush;
-            prime = p.prime;
-            spare = p.spare;
             width = p.width;
             caret = p.caret;
-            adjust = p.adjust;
-            wrapln = p.wrapln;
-            r_to_l = p.r_to_l;
-            //selfid = p.selfid;
+            state = p.state;
             locus = std::move(p.locus);
             proto = std::move(p.proto);
             debug = std::move(p.debug);
             lyric = std::move(p.lyric);
             p.lyric = std::make_shared<core>();
-            //p.selfid = 0;
         }
         void decouple() { lyric = std::make_shared<core>(*lyric); } // para: Make canvas isolated copy.
-        //auto&  settle() const { return  locus; } // para: Return paragraph locator.
         shot   shadow() const { return *lyric; } // para: Return paragraph shadow.
         shot   substr(iota start, iota width) const // para: Return paragraph substring shadow.
         {
             return shadow().substr(start, width);
         }
-        auto&  mark() const { return brush; } // para: Return current brush reference.
         bool   bare() const { return locus.bare();    } // para: Does the paragraph have no locator?
         auto length() const { return lyric->size().x; } // para: Return printable length.
         auto   step() const { return lyric->size().x - caret; } // para: Return step back.
         auto   size() const { return lyric->size();   } // para: Return 2D volume size.
         auto&  back() const { return brush;           } // para: Return current brush.
-        bool  empty() const { return !length() && proto.empty() && (brush == prime); } // para: Is it filled?
+        bool   busy() const { return length() || !proto.empty() || mark::busy(); } // para: Is it filled?
         void   ease() { brush = spare; lyric->each([&](auto& c) { c.clr(brush); });  } // para: Reset color for all text.
         void   link(id_t id)         { lyric->each([&](auto& c) { c.link(id);   });  } // para: Set object ID for each cell.
-        //void wipe_locus() { locus.kill(); }
         void   wipe(cell c = cell{}) // para: Clear the text and locus, and reset SGR attributes.
         {
-            //if (entirely)
-            //{
-            //	brush.wipe();
-            //	prime = brush;
-            //}
-
             width = 0;
             caret = 0;
-            //prime = spare = brush = c;
-            prime = brush = c;
-
+            mark::reset(c);
             debug.clear();
             proto.clear();
             locus.kill();
             lyric->kill();
         }
-        void task(ansi::rule const& cmd) { if (empty()) locus.push(cmd); } // para: Add locus command. In case of text presence try to change current target otherwise abort content building.
-        void post(utf::frag const& cluster)                                // para: Add grapheme cluster.
+        void task(ansi::rule const& cmd) { if (!busy()) locus.push(cmd); } // para: Add locus command. In case of text presence try to change current target otherwise abort content building.
+        void post(utf::frag const& cluster, cell& brush)                   // para: Add grapheme cluster.
         {
             static ansi::marker<cell> marker;
 
@@ -1602,6 +1619,10 @@ namespace netxs::console
                 auto i = utf::to_hex((size_t)attr.control, 5, true);
                 debug += (debug.size() ? "_<fn:"s : "<fn:"s) + i + ">"s;
             }
+        }
+        void post(utf::frag const& cluster)                                // para: Add grapheme cluster.
+        {
+            post(cluster, brush);
         }
         // para: Convert into the screen-adapted sequence (unfold, remove zerospace chars, etc.).
         void cook()
@@ -1691,33 +1712,14 @@ namespace netxs::console
             //width = 0;
         }
 
-        auto& set(cell const& c)  { brush.set(c); return *this;   } // para: Set the brush using the cell (keeping link and paragraph id).
-        void  nil()               { brush.set(spare);             } // para: Restore saved SGR attributes.
-        void  sav()               { spare.set(brush);             } // para: Save current SGR attributes.
-        void  nil(cell const& c)  { brush.set(c);                 } // para: Restore saved SGR attributes.
-        void  sav(cell& c)        { c.set(brush);                 } // para: Save current SGR attributes.
-        void  rfg()               { brush.fgc(spare.fgc());       } // para: Reset SGR Foreground color.
-        void  rbg()               { brush.bgc(spare.bgc());       } // para: Reset SGR Background color.
-        void  rfg(cell const& c)  { brush.fgc(c.fgc());           } // para: Reset SGR Foreground color.
-        void  rbg(cell const& c)  { brush.bgc(c.bgc());           } // para: Reset SGR Background color.
-        void  fgc(rgba const& c)  { brush.fgc(c);                 } // para: FG color.
-        void  bgc(rgba const& c)  { brush.bgc(c);                 } // para: BG color.
-        void  bld(bool b)         { brush.bld(b);                 } // para: Bold.
-        void  itc(bool b)         { brush.itc(b);                 } // para: Italic.
-        void  inv(bool b)         { brush.inv(b);                 } // para: Inversion.
-        void  ovr(bool b)         { brush.ovr(b);                 } // para: Overline.
-        void  stk(bool b)         { brush.stk(b);                 } // para: Strikethrough.
-        void  und(bool b)         { brush.und(b);                 } // para: Underline.
-        void  dnl(bool b)         { brush.dnl(b);                 } // para: Double underline.
+        auto& wrp(bool b)         { state.wrapln = b;       return *this; } // para: Auto wrapping.
+        auto& jet(iota n)         { state.adjust = (bias)n; return *this; } // para: Paragraph adjustment.
+        auto& rtl(bool b)         { state.r_to_l = b;       return *this; } // para: RTL.
 
-        auto& wrp(bool b)         { wrapln = b;       return *this; } // para: Auto wrapping.
-        auto& jet(iota n)         { adjust = (bias)n; return *this; } // para: Paragraph adjustment.
-        auto& rtl(bool b)         { r_to_l = b;       return *this; } // para: RTL.
-
-        auto  chx() const         { return caret;                 }
-        void  chx(iota new_pos)   { caret = new_pos;              }
-        auto  id() const          { return selfid;                }
-        void  id(iota newid)      { selfid = newid;               }
+        auto  chx() const         { return caret;         }
+        void  chx(iota new_pos)   { caret = new_pos;      }
+        auto  id() const          { return state.selfid;  }
+        void  id(iota newid)      { state.selfid = newid; }
 
         void trim_to(iota max_width)
         {
@@ -1749,7 +1751,7 @@ namespace netxs::console
             }
         }
          // Insert n spaces (= Erase n, CSI n X)
-        void ins(iota n)
+        void ins(iota n, cell& brush)
         {
             static const utf::frag space = utf::frag
             {
@@ -1758,7 +1760,11 @@ namespace netxs::console
             };
 
             for (auto i = 0; i < n; ++i)
-                post(space);
+                post(space, brush);
+        }
+        void ins(iota n)
+        {
+            ins(n, mark::brush);
         }
         void ins(iota start, iota count, cell const& brush)
         {
@@ -1807,15 +1813,11 @@ namespace netxs::console
               finish{ finish },
               suffix{ suffix },
               volume{ volume }
-              ,wrapln{source->wrapln}
-              ,adjust{source->adjust}
-              ,r_to_l{source->r_to_l}
+              ,state{source->state}
         { }
 
     public:
-        bias  adjust = bias::left; // para: Horizontal alignment.
-        bool  wrapln = WRAPPING;   // para: Auto wrapping.
-        bool  r_to_l = faux;       // para: RTL.
+        para_state state;
 
         rope(iter const& head, iter const& tail, twod const& size)
             : source{ head },
@@ -1823,9 +1825,7 @@ namespace netxs::console
               prefix{ 0    },
               suffix{ 0    },
               volume{ size }
-              ,wrapln{head->wrapln}
-              ,adjust{head->adjust}
-              ,r_to_l{head->r_to_l}
+              ,state{head->state}
         { }
 
         operator writ const& () const { return *source; }
@@ -1915,21 +1915,22 @@ namespace netxs::console
             }
         }
         constexpr
-        auto  size  () const { return volume;        } // rope: Return volume of the source content.
-        auto  length() const { return volume.x;      } // rope: Return the length of the source content.
-        auto& mark  () const { return finish->brush; } // rope: Return the the last paragraph brush state.
-        auto  id    () const { return source->id();  } // rope: Return paragraph id.
-        auto  caret () const { return source->chx(); } // rope: Return interal paragraph caret.
+        auto  size  () const { return volume;         } // rope: Return volume of the source content.
+        auto  length() const { return volume.x;       } // rope: Return the length of the source content.
+        auto& mark  () const { return finish->brush;  } // rope: Return the the last paragraph brush state.
+        auto  id    () const { return source->id();   } // rope: Return paragraph id.
+        auto  caret () const { return source->chx();  } // rope: Return interal paragraph caret.
     };
 
     class page // richtext: Enriched text page.
+        : public mark
     {
         using list = std::list<para>;
         using iter = list::iterator;
         using imap = std::map<iota, iter>;
 
     protected:
-        id_t  parid = 1;             // page: Current paragraph id.
+        iota  parid = 1;             // page: Current paragraph id.
         list  batch = { para(parid) };    // page: The list of the rich-text paragraphs.
         iter  layer = batch.begin(); // page: Current paragraph.
         imap  parts;                 // page: Embedded text blocks.
@@ -1954,8 +1955,6 @@ namespace netxs::console
         }
 
     public:
-        cell spare;
-
         template<class T>
         struct parser : public ansi::parser<T>
         {
@@ -2056,15 +2055,15 @@ namespace netxs::console
             return limit;
         }
         // page: Clear the list of paragraphs.
-        page& clear (bool preserve_brush = faux)
+        page& clear (bool preserve_state = faux)
         {
-            cell brush = preserve_brush ? layer->brush : cell{};
+            if (!preserve_state) mark::brush = {};
             parts.clear();
             batch.resize(1);
             layer = batch.begin();
             parid = 1;
             batch.front().id(parid);
-            layer->wipe(brush);
+            layer->wipe(mark::brush);
             return *this;
         }
 
@@ -2098,7 +2097,7 @@ namespace netxs::console
         void fork()
         {
             layer->cook();
-            layer = batch.insert(std::next(layer), para{ layer->brush });
+            layer = batch.insert(std::next(layer), para{ layer->state });
             layer->id(++parid);
             shrink();
         }
@@ -2112,7 +2111,7 @@ namespace netxs::console
         //       or create a new one if it doesn't exist.
         void bind(iota id)
         {
-            if (!layer->empty()) fork();
+            if (layer->busy()) fork();
 
             auto it = parts.find(id);
             if (it != parts.end())
@@ -2124,38 +2123,20 @@ namespace netxs::console
         //       current target otherwise abort content building.
         void task(ansi::rule const& cmd)
         {
-            if (!layer->empty())
-            {
-                fork();
-            }
+            if (layer->busy()) fork();
             layer->locus.push(cmd);
         }
-        void post(utf::frag const& cluster) { layer->post(cluster); }
+        void post(utf::frag const& cluster) { layer->post(cluster, mark::brush); }
         void cook() { layer->cook(); }
         auto size() const { return static_cast<iota>(batch.size()); }
         auto& current()       { return *layer; } // page: Access to the current paragraph.
         auto& current() const { return *layer; } // page: RO access to the current paragraph.
 
-        void  nil() { layer->nil(spare); }
-        void  sav() { layer->sav(spare); }
-        void  rfg() { layer->rfg(spare); }
-        void  rbg() { layer->rbg(spare); }
-
-        void  fgc(rgba const& c) { layer->fgc(c); } // para: Color.
-        void  bgc(rgba const& c) { layer->bgc(c); } // para: Color.
-        void  bld(bool b) { layer->bld(b); }
-        void  itc(bool b) { layer->itc(b); }
-        void  inv(bool b) { layer->inv(b); }
-        void  stk(bool b) { layer->stk(b); }
-        void  und(bool b) { layer->und(b); }
-        void  dnl(bool b) { layer->dnl(b); }
-        void  ovr(bool b) { layer->ovr(b); }
-
         void  wrp(bool b) { layer->wrp(b); }
         void  jet(iota n) { layer->jet(n); }
         void  rtl(bool b) { layer->rtl(b); }
 
-        void  tab(iota n) { layer->ins(n); } // page: Inset tabs via space
+        void  tab(iota n) { layer->ins(n, mark::brush); } // page: Inset tabs via space
     };
 
     class face // richtext: Textographical canvas.
