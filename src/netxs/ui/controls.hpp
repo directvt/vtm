@@ -1010,7 +1010,7 @@ namespace netxs::ui
     {
         struct item
         {
-            id_t id;
+            iota id;
             twod coor;
         };
 
@@ -2743,7 +2743,7 @@ namespace netxs::ui
 
             topic[min_id] = std::to_string(min_val);
             topic[max_id] = std::to_string(max_val);
-            topic[max_id].locus.jet(bias::right).chx(pad);
+            topic[max_id].jet(bias::right).locus.chx(pad);
             topic[min_id].locus.chx(pad);
 
             using bttn = e2::hids::mouse::button;

@@ -2621,8 +2621,8 @@ namespace netxs::console
                 alerts = cell{}.fgc(rgba{ 0xFFd0d0FFu });
 
                 //status.end().locus.wrp(true).rlf(true).jet(bias::left).cup(dot_00).cnl(2);
-                status.current().locus.wrp(true).rlf(true)
-                    .jet(bias::left).cup(dot_00).cnl(2);
+                status.current().wrp(true).jet(bias::left)
+                    .locus.rlf(true).cup(dot_00).cnl(2);
 
                 auto maxlen = 0_sz;
                 for (auto& desc : description)

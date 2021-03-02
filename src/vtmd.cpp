@@ -169,12 +169,15 @@ std::list<text> appstore_body =
     item("Goto", bluedk, "4", "Free ", "Get",
     "Internet/SSH browser."),
 
-    item(ansi::fgc(0xFF00FFFF)+"Game"+ansi::fgc(), bluedk, "4", "Free ", "Get",
+    item(ansi::fgc(0xFF00FFFF)+"Game"+ansi::fgc(), reddk, "4", "Free ", "Get",
     "Doom II."),
 
     item("Logs", blackdk, "4096", "Free ", "Get",
     "Application for displaying debug trace. "
     "This is more efficient than writing to STDOUT."),
+
+    item("Clip", bluedk, "1", "Free ", "Get",
+    "Clipboard manager. "),
 };
 
 text qr = ""s//"\033[38;2;000;000;000m\033[48;2;000;000;000m"s
@@ -203,7 +206,7 @@ text desktopio_body = ansi::nil().eol()
 + ansi::fgc(bluedk).jet(bias::left)
 //+ "▀▄ "
 + ansi::bgc(bluedk).fgc(0xFFFFFFFF)
-+ " Monotty Desktop "
++ " Monotty Desktopio "
 + "\n\n"
 + ansi::fgc().bgc().jet(bias::left).wrp(true)
 + "Monotty Desktopio is a cross-platform, full-featured desktop environment."
@@ -1752,6 +1755,11 @@ int main(int argc, char* argv[])
             creator(objs::Text, { { 30,20 },{ 59,26 } });
             creator(objs::MC,   { { 49,26 },{ 63,22 } });
             creator(objs::Term, { { 34,34 },{ 57,15 } });
+
+            auto sub_pos = twod{-120, 60};
+            creator(objs::Truecolor,   { twod{ 20,15 } + sub_pos,{ 70,30 } });
+            creator(objs::Logs,       { twod{ 52,33 } + sub_pos,{ 45,12 } });
+            creator(objs::RefreshRate, { twod{ 60,41 } + sub_pos,{ 35,10 } });
 #endif
 #ifndef DEMO
             creator(objs::CommandPrompt,   { { 10,5 },{ 80,25 } });

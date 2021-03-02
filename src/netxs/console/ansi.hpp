@@ -56,7 +56,8 @@ namespace netxs::console::ansi
     static const char CSI_ICH = '@'; // CSI n      @  — Insert/wedge n character(s)
     static const char DECSET  = 'h'; // CSI ? n    h  — DECSET
     static const char DECRST  = 'l'; // CSI ? n    l  — DECRST
-    static const char CSI_IRM = 'l'; // CSI 4      l  — Reset mode (always Replace mode 4)
+    static const char CSI_hRM = 'h'; // CSI n      h  — Reset mode (always Replace mode n=4)
+    static const char CSI_lRM = 'l'; // CSI n      l  — Reset mode (always Replace mode n=4)
     static const char DECSTR  = 'p'; // CSI !      p  — Reset terminal to initial state
     static const char CSI_CCC = 'p'; // CSI n [; x1; x2; ...; xn ] p — Custom Cursor Command
     static const char W32_INP = '_'; // CSI EVENT_TYPEn [; x1; x2; ...; xn ] _ — win32-input-mode
@@ -450,9 +451,9 @@ namespace netxs::console::ansi
         ts, // set tab size
         tb, // tab forward
         nl, // next line and reset x to west (carriage return)
-        br, // text wrap mode (DECSET: CSI ? 7 h/l Auto-wrap Mode (DECAWM) or CSI ? 45 h/l reverse wrap around mode)
-        yx, // bidi
-        hz, // text horizontal alignment
+        //br, // text wrap mode (DECSET: CSI ? 7 h/l Auto-wrap Mode (DECAWM) or CSI ? 45 h/l reverse wrap around mode)
+        //yx, // bidi
+        //hz, // text horizontal alignment
         rf, // reverse (line) feed
 
         wl, // set left	horizontal wrapping field
@@ -519,7 +520,13 @@ namespace netxs::console::ansi
             * - void bld(bool b);                    // Set bold attribute
             * - void itc(bool b);                    // Set italic attribute
             * - void inv(bool b);                    // Set inverse attribute
+            * - void stk(bool b);                    // Set strikethgh attribute
             * - void und(bool b);                    // Set underline attribute
+            * - void dnl(bool b);                    // Set double underline attribute
+            * - void ovr(bool b);                    // Set overline attribute
+            * - void wrp(bool b);                    // Set auto wrap
+            * - void jet(iota b);                    // Set adjustment
+            * - void rtl(bool b);                    // Set reverse line feed
             */
 
             table_quest .resize(0x100);
@@ -545,7 +552,8 @@ namespace netxs::console::ansi
                 table[CSI_RCP] = VT_PROC{ F(rc,   0 ); };              // fx_rcp
                 table[CSI_CUP] = VT_PROC{ F(oy, q(1)); F(ox, q(1)); }; // fx_ocp
                 table[CSI_HVP] = VT_PROC{ F(oy, q(1)); F(ox, q(1)); }; // fx_ocp
-                table[CSI_IRM] = VT_PROC{ /*Nothing, Replace mode*/ }; // fx_irm
+                table[CSI_hRM] = VT_PROC{ /*Nothing, Replace mode*/ }; // fx_irm
+                table[CSI_lRM] = VT_PROC{ /*Nothing, Replace mode*/ }; // fx_irm
                 table[CSI__ED] = nullptr;
                 table[CSI__EL] = nullptr;
                 table[CSI_DCH] = nullptr;
@@ -571,11 +579,13 @@ namespace netxs::console::ansi
                     csi_ccc[CCC_CPX] = VT_PROC{ F(px, q(0)); }; // fx_ccc_cpx
                     csi_ccc[CCC_CPY] = VT_PROC{ F(py, q(0)); }; // fx_ccc_cpy
                     csi_ccc[CCC_TBS] = VT_PROC{ F(ts, q(0)); }; // fx_ccc_tbs
-                    csi_ccc[CCC_JET] = VT_PROC{ F(hz, q(0)); }; // fx_ccc_jet
-                    csi_ccc[CCC_WRP] = VT_PROC{ F(br, q(0)); }; // fx_ccc_wrp
-                    csi_ccc[CCC_RTL] = VT_PROC{ F(yx, q(0)); }; // fx_ccc_rtl
                     csi_ccc[CCC_RLF] = VT_PROC{ F(rf, q(0)); }; // fx_ccc_rlf
                     csi_ccc[CCC_RST] = VT_PROC{ F(zz,   0);  }; // fx_ccc_rst
+
+                    csi_ccc[CCC_JET] = VT_PROC{ p->jet(q(0)); }; // fx_ccc_jet
+                    csi_ccc[CCC_WRP] = VT_PROC{ p->wrp(q(0)); }; // fx_ccc_wrp
+                    csi_ccc[CCC_RTL] = VT_PROC{ p->rtl(q(0)); }; // fx_ccc_rtl
+
                     csi_ccc[CCC_NOP] = nullptr;
                     csi_ccc[CCC_IDX] = nullptr;
                     csi_ccc[CCC_REF] = nullptr;
@@ -936,7 +946,7 @@ namespace netxs::console::ansi
         writ& cpx (iota x)     { push({ fn::px, x   }); return *this; } // Cursor horizontal percent position.
         writ& cpy (iota y)     { push({ fn::py, y   }); return *this; } // Cursor vertical percent position.
         writ& tbs (iota t)     { push({ fn::ts, t   }); return *this; } // Tabulation step length.
-        writ& jet (bias j)     { push({ fn::hz, j   }); return *this; } // Text alignment.
+        //writ& jet (bias j)     { push({ fn::hz, j   }); return *this; } // Text alignment.
         writ& mgn (side m)     { push({ fn::wl, m.l });                 // Margin (left, right, top, bottom).
                                  push({ fn::wr, m.r });
                                  push({ fn::wt, m.t });
@@ -945,8 +955,8 @@ namespace netxs::console::ansi
         writ& mgr (iota m)     { push({ fn::wr, m   }); return *this; } // Right margin.
         writ& mgt (iota m)     { push({ fn::wt, m   }); return *this; } // Top margin.
         writ& mgb (iota m)     { push({ fn::wb, m   }); return *this; } // Bottom margin.
-        writ& wrp (bool b)     { push({ fn::br, b   }); return *this; } // Text wrapping.
-        writ& rtl (bool b)     { push({ fn::yx, b   }); return *this; } // Text right-to-left.
+        //writ& wrp (bool b)     { push({ fn::br, b   }); return *this; } // Text wrapping.
+        //writ& rtl (bool b)     { push({ fn::yx, b   }); return *this; } // Text right-to-left.
         writ& rlf (bool b)     { push({ fn::rf, b   }); return *this; } // Reverse line feed.
         writ& cup (twod p)     { push({ fn::ay, p.y });                 // 0-Based cursor position.
                                  push({ fn::ax, p.x }); return *this; }

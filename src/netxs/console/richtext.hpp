@@ -662,14 +662,14 @@ namespace netxs::console
     {
         // prefill canvas using brush
         core(twod const& coor, twod const& size, cell const& brush)
-            : region{ coor, size },
+            : region{ coor  , size },
               client{ dot_00, size },
               canvas(size.x * size.y, brush),
               marker{ brush }
         { }
         // prefill canvas by zero
         core(twod const& coor, twod const& size)
-            : region{ coor, size },
+            : region{ coor  , size },
               client{ dot_00, size },
               canvas(size.x * size.y)
         { }
@@ -1026,10 +1026,10 @@ namespace netxs::console
         void py	(iota y)        { ay (margin.v_ratio(y)); }
         void pc	(twod const& c) { px(c.x); py(c.y);       }
         void ts	(iota n)        { tablen = n ? n : 8;     }
-        void br	(bool w)        { wrapln = w;             } // DECSET: CSI ? 7 h/l Auto-wrap Mode (DECAWM) or CSI ? 45 h/l reverse wrap around mode
+        void br	(bool w)        { wrapln = w;             }
         void hz	(bias a)        { adjust = a;             }
-        void rf	(bool f)        { rlfeed = f;             }
         void yx	(bool r)        { r_to_l = r;             }
+        void rf	(bool f)        { rlfeed = f;             }
         void wl	(iota l)        { margin.west = l;        }
         void wr	(iota r)        { margin.east = r;        }
         void wt	(iota t)        { margin.head = t;        }
@@ -1109,9 +1109,9 @@ namespace netxs::console
         static void exec_ts(flow& f, iota a) { f.ts(a); }
         static void exec_tb(flow& f, iota a) { f.tb(a); }
         static void exec_nl(flow& f, iota a) { f.nl(a); }
-        static void exec_br(flow& f, iota a) { f.br(a); }
-        static void exec_yx(flow& f, iota a) { f.yx(a); }
-        static void exec_hz(flow& f, iota a) { f.hz((bias)a); }
+        //static void exec_br(flow& f, iota a) { f.br(a); }
+        //static void exec_yx(flow& f, iota a) { f.yx(a); }
+        //static void exec_hz(flow& f, iota a) { f.hz((bias)a); }
         static void exec_rf(flow& f, iota a) { f.rf(a); }
         static void exec_wl(flow& f, iota a) { f.wl(a); }
         static void exec_wr(flow& f, iota a) { f.wr(a); }
@@ -1144,9 +1144,9 @@ namespace netxs::console
             exec_ts, // set tab size
             exec_tb, // horizontal tab
             exec_nl, // next line and reset x to west (carriage return)
-            exec_br, // text wrap mode
-            exec_yx, // bidi
-            exec_hz, // text horizontal alignment
+            //exec_br, // text wrap mode
+            //exec_yx, // bidi
+            //exec_hz, // text horizontal alignment
             exec_rf, // reverse (line) feed
 
             exec_wl, // set left   horizontal wrapping field
@@ -1163,11 +1163,10 @@ namespace netxs::console
         };
 
         // flow: Main cursor forwarding proc
-        template<bool WRAP, bool RtoL, bool ReLF, class P>
-        void output(P print)
+        template<bool WRAP, bool RtoL, bool ReLF, class T, class P>
+        void output(T const& block, P print)
         {
-            //todo deprecate `origin`
-            textline.coor = cursor;// +origin;
+            textline.coor = cursor;
             auto printout = WRAP ? textline.trunc(pagearea.size)
                                  : textline;
             auto outwidth = WRAP ? printout.coor.x + printout.size.x - textline.coor.x
@@ -1195,7 +1194,8 @@ namespace netxs::console
                 auto& width = printout.size.x;
                 auto& start = straight ? startpos
                                        : textline.size.x;
-                print(coord, start, width);
+                //print(coord, start, width);
+                print(coord, block.substr(start, width));
             }
 
             highness = textline.size.y;
@@ -1204,8 +1204,8 @@ namespace netxs::console
         auto middle() { return (pagearea.size.x >> 1) - (textline.size.x >> 1); }
         void autocr() { if (cursor.x >= cursormx) deco::nl(highness); }
 
-        template<bool RtoL, bool ReLF, class P>
-        void centred(P print)
+        template<bool RtoL, bool ReLF, class T, class P>
+        void centred(T const& block, P print)
         {
             while (textline.size.x > 0)
             {
@@ -1213,23 +1213,23 @@ namespace netxs::console
                 auto axis = textline.size.x >= cursormx ? 0
                                                         : middle();
                 deco::ax(axis);
-                output<true, RtoL, ReLF>(print);
+                output<true, RtoL, ReLF>(block, print);
             }
         }
-        template<bool RtoL, bool ReLF, class P>
-        void wrapped(P print)
+        template<bool RtoL, bool ReLF, class T, class P>
+        void wrapped(T const& block, P print)
         {
             while (textline.size.x > 0)
             {
                 autocr();
-                output<true, RtoL, ReLF>(print);
+                output<true, RtoL, ReLF>(block, print);
             }
         }
-        template<bool RtoL, bool ReLF, class P>
-        void trimmed(P print)
+        template<bool RtoL, bool ReLF, class T, class P>
+        void trimmed(T const& block, P print)
         {
             if (adjust == center) deco::ax(middle());
-            output<faux, RtoL, ReLF>(print);
+            output<faux, RtoL, ReLF>(block, print);
         }
 
         template<class T> constexpr
@@ -1244,20 +1244,35 @@ namespace netxs::console
             if constexpr (std::is_same<T, twod>::value) return { dot_00, p };
             else                                        return { dot_00, { static_cast<iota>(p),  1 } };
         }
-        template<bool RtoL, bool ReLF, class P>
-        void proceed(P print)
+        template<bool RtoL, bool ReLF, class T, class P>
+        void proceed(T const& block, P print)
         {
             auto centered = deco::adjust == center;
-            if (deco::wrapln) if (centered) centred<RtoL, ReLF>(print);
-                              else          wrapped<RtoL, ReLF>(print);
-            else                            trimmed<RtoL, ReLF>(print);
+            if (deco::wrapln) if (centered) centred<RtoL, ReLF>(block, print);
+                              else          wrapped<RtoL, ReLF>(block, print);
+            else                            trimmed<RtoL, ReLF>(block, print);
         }
 
+    public:
+        std::function<void(ansi::fn cmd, iota arg)> custom; // flow: Draw commands (customizable)
+
+        flow(iota const& size_x, iota const& size_y)
+            : deco     { size_x, size_y },
+              selfcopy { size_x, size_y }
+        { }
+        flow(twod const& size )
+            : flow { size.x, size.y }
+        { }
+        
         // flow: Split specified textblock on the substrings
         //       and place it to the form by the specified proc.
         template<class T, class P = noop>
         void compose(T const& block, P print = P())//, twod const& offset = dot_00)
         {
+            deco::wrapln = block.wrapln;
+            deco::adjust = block.adjust;
+            deco::r_to_l = block.r_to_l;
+
             auto block_size = block.size(); // 2D size
             fullsize = get_len(block_size); // 1D length
 
@@ -1280,11 +1295,11 @@ namespace netxs::console
                 }
 
                 if (arighted)
-                    if (deco::rlfeed) proceed<true, true>(print);
-                    else              proceed<true, faux>(print);
+                    if (deco::rlfeed) proceed<true, true>(block, print);
+                    else              proceed<true, faux>(block, print);
                 else
-                    if (deco::rlfeed) proceed<faux, true>(print);
-                    else              proceed<faux, faux>(print);
+                    if (deco::rlfeed) proceed<faux, true>(block, print);
+                    else              proceed<faux, faux>(block, print);
             }
         }
         // flow: Execute specified locus instruction list.
@@ -1298,18 +1313,6 @@ namespace netxs::console
             }
             return flow::up();
         }
-
-    public:
-        std::function<void(ansi::fn cmd, iota arg)> custom; // flow: Draw commands (customizable)
-
-        flow(iota const& size_x, iota const& size_y)
-            : deco     { size_x, size_y },
-              selfcopy { size_x, size_y }
-        { }
-        flow(twod const& size )
-            : flow { size.x, size.y }
-        { }
-
         // flow: Register cursor position.
         twod up ()
         {
@@ -1323,10 +1326,15 @@ namespace netxs::console
             auto cp = USE_LOCUS ? forward(block)
                                 : deco::cp();
             compose(block,
-                [&](auto const& coord, auto start, auto width)
+                //[&](auto const& coord, auto start, auto width)
+                //{
+                //    canvas.text(coord, block.substr(start, width), deco::r_to_l);
+                //});
+                [&](auto const& coord, auto const& subblock)
                 {
-                    canvas.text(coord, block.substr(start, width), deco::r_to_l);
+                    canvas.text(coord, subblock, deco::r_to_l);
                 });
+
             return cp;
         }
         template<bool USE_LOCUS = true, class T>
@@ -1440,9 +1448,14 @@ namespace netxs::console
         iota width = 0; // para: Length of the proto lyric
         iota caret = 0; // para: Cursor position inside lyric
 
-        id_t parid;
-
     public:
+        //todo make a struct
+        iota  selfid = 0;
+        iota  bossid = 0;          // para: Index of the top visible text line.
+        bias  adjust = bias::left; // para: Horizontal alignment.
+        bool  wrapln = WRAPPING;   // para: Auto wrapping.
+        bool  r_to_l = faux;       // para: RTL.
+
         template<class T>
         using parser = ansi::parser<T>;
 
@@ -1457,15 +1470,20 @@ namespace netxs::console
         para& operator = (para&&)      = default;
         para& operator = (para const&) = default;
 
-        para(id_t parid)
-            : parid{ parid }
-        { }
-
         para(cell const& brush)
             : brush{ brush },
               prime{ brush }
         { }
-
+        para(iota        selfid,
+             cell const& marker = {},
+             bias        adjust = bias::left,
+             bool        wrapln = WRAPPING)
+            : selfid { selfid },
+              brush  { marker },
+              bossid { selfid },
+              adjust { adjust },
+              wrapln { wrapln }
+        { }
         para(view utf8, cell const& brush = cell{})
             : para{ brush }
         {
@@ -1491,6 +1509,24 @@ namespace netxs::console
 
         operator writ const& () const { return locus; }
 
+        void move(para&& p)
+        {
+            brush = p.brush;
+            prime = p.prime;
+            spare = p.spare;
+            width = p.width;
+            caret = p.caret;
+            adjust = p.adjust;
+            wrapln = p.wrapln;
+            r_to_l = p.r_to_l;
+            //selfid = p.selfid;
+            locus = std::move(p.locus);
+            proto = std::move(p.proto);
+            debug = std::move(p.debug);
+            lyric = std::move(p.lyric);
+            p.lyric = std::make_shared<core>();
+            //p.selfid = 0;
+        }
         void decouple() { lyric = std::make_shared<core>(*lyric); } // para: Make canvas isolated copy.
         //auto&  settle() const { return  locus; } // para: Return paragraph locator.
         shot   shadow() const { return *lyric; } // para: Return paragraph shadow.
@@ -1625,16 +1661,6 @@ namespace netxs::console
             auto newsz = caret + width;
             if (newsz > lyric.size().x)
             {
-                //if (lyric.size().x)
-                //{
-                //	log("ols size ", lyric.size().x, " new size ", newsz);
-                //	log("caret ", caret, " width ", width);
-                //}
-
-
-                //lyric.crop(twod{ newsz,1 });
-                //lyric.crop(newsz);
-
                 lyric.crop(twod{ newsz, std::max(lyric.size().y,1) });
             }
 
@@ -1642,7 +1668,6 @@ namespace netxs::console
             merge([&](auto c) { *it++ = c; });
 
             caret = newsz;
-            //log("cook ", caret);
             proto.clear();
             width = 0;
 
@@ -1684,10 +1709,15 @@ namespace netxs::console
         void  stk(bool b)         { brush.stk(b);                 } // para: Strikethrough.
         void  und(bool b)         { brush.und(b);                 } // para: Underline.
         void  dnl(bool b)         { brush.dnl(b);                 } // para: Double underline.
-        auto chx() const          { return caret;                 }
-        void chx(iota new_pos)    { caret = new_pos;              }
-        auto  id() const          { return parid;                 }
-        void  id(id_t newid)      { parid = newid;                }
+
+        auto& wrp(bool b)         { wrapln = b;       return *this; } // para: Auto wrapping.
+        auto& jet(iota n)         { adjust = (bias)n; return *this; } // para: Paragraph adjustment.
+        auto& rtl(bool b)         { r_to_l = b;       return *this; } // para: RTL.
+
+        auto  chx() const         { return caret;                 }
+        void  chx(iota new_pos)   { caret = new_pos;              }
+        auto  id() const          { return selfid;                }
+        void  id(iota newid)      { selfid = newid;               }
 
         void trim_to(iota max_width)
         {
@@ -1718,77 +1748,7 @@ namespace netxs::console
                 lyric.crop({ size, 1 });
             }
         }
-
-        //todo deprecate cursor movement
-        void  cuf(iota n) // para: Move caret by n.
-        {
-            cook();
-            caret = std::max(caret+n, 0);
-        }
-        void  del(iota n) // para: Delete (not Erase) letters under the caret.
-        {
-            /*
-            As characters are deleted, the remaining characters
-            between the cursor and right margin move to the left.
-            Character attributes move with the characters.
-            The terminal adds blank characters at the right margin.
-            */
-
-            cook();
-
-            //shot shadow = lyric;
-            //iota size = lyric.size();
-            //if (caret < size)
-            //{
-            //	auto p1 = shadow.substr(0, caret);
-            //	auto p2 = shadow.substr(std::min(caret + n, size));
-            //	rich t;
-            //	t.reserve(p1.size() + p2.size());
-            //	t = p1;
-            //	t += p2;
-            //	lyric = std::move(t);
-            //}
-
-            auto& lyric = *this->lyric;
-
-            //todo unify for size.y > 1
-            if (n > 0)
-            {
-                //todo revise shifting to the left (right? RTL?)
-                auto size = lyric.size();
-                if (caret + n < size.x)
-                {
-                    auto dst = lyric.data() + caret;
-
-                    auto end = dst + (size.x - (caret + n));
-                    auto src = dst + n;
-                    while (dst != end)
-                    {
-                        *dst++ = *src++;
-                    }
-                    lyric.crop(size.x - n);
-                }
-                else if (caret < size.x)
-                {
-                    lyric.crop(caret);
-                }
-
-                //add empty cell at the end
-                //todo optimize realloc
-                auto d = lyric.size();
-                d.y = std::max(d.y, 1);
-                d.x += n;
-                auto b = brush;
-                b.txt(whitespace);
-                //b.txt('.');
-                lyric.crop(d, b);
-            }
-            else
-            {
-                //todo negative n support
-            }
-        }
-        // Insert n spaces (= Erase n, CSI n X)
+         // Insert n spaces (= Erase n, CSI n X)
         void ins(iota n)
         {
             static const utf::frag space = utf::frag
@@ -1847,15 +1807,25 @@ namespace netxs::console
               finish{ finish },
               suffix{ suffix },
               volume{ volume }
+              ,wrapln{source->wrapln}
+              ,adjust{source->adjust}
+              ,r_to_l{source->r_to_l}
         { }
 
     public:
+        bias  adjust = bias::left; // para: Horizontal alignment.
+        bool  wrapln = WRAPPING;   // para: Auto wrapping.
+        bool  r_to_l = faux;       // para: RTL.
+
         rope(iter const& head, iter const& tail, twod const& size)
             : source{ head },
               finish{ tail },
               prefix{ 0    },
               suffix{ 0    },
               volume{ size }
+              ,wrapln{head->wrapln}
+              ,adjust{head->adjust}
+              ,r_to_l{head->r_to_l}
         { }
 
         operator writ const& () const { return *source; }
@@ -1950,7 +1920,6 @@ namespace netxs::console
         auto& mark  () const { return finish->brush; } // rope: Return the the last paragraph brush state.
         auto  id    () const { return source->id();  } // rope: Return paragraph id.
         auto  caret () const { return source->chx(); } // rope: Return interal paragraph caret.
-        //auto  locus () const { return source->settle(); } // rope: Return coor instructions.
     };
 
     class page // richtext: Enriched text page.
@@ -1960,9 +1929,6 @@ namespace netxs::console
         using imap = std::map<iota, iter>;
 
     protected:
-        //cell  spare_fallback;
-        //cell& spare;
-
         id_t  parid = 1;             // page: Current paragraph id.
         list  batch = { para(parid) };    // page: The list of the rich-text paragraphs.
         iter  layer = batch.begin(); // page: Current paragraph.
@@ -1997,16 +1963,11 @@ namespace netxs::console
             parser() : base()
             {
                 using namespace netxs::console::ansi;
-                // base::intro[ctrl::BS ] = VT_PROC{ p->cuf(-q.pop_all(ctrl::BS )); };
-                // base::intro[ctrl::DEL] = VT_PROC{ p->bsp( q.pop_all(ctrl::DEL)); };
                 base::intro[ctrl::CR ]     = VT_PROC{ q.pop_if(ctrl::EOL); p->task({ fn::nl,1 }); };
                 base::intro[ctrl::TAB]     = VT_PROC{ p->task({ fn::tb,q.pop_all(ctrl::TAB) }); };
                 base::intro[ctrl::EOL]     = VT_PROC{ p->task({ fn::nl,q.pop_all(ctrl::EOL) }); };
                 base::csier.table[CSI__ED] = VT_PROC{ p->task({ fn::ed, q(0) }); }; // CSI Ps J
                 base::csier.table[CSI__EL] = VT_PROC{ p->task({ fn::el, q(0) }); }; // CSI Ps K
-                //base::csier.table[CSI__EL] = VT_PROC{ p->  el(q(0)); }; // CSI Ps K
-                // base::csier.table[CSI_DCH] = VT_PROC{ p-> del(q(1)); };
-                // base::csier.table[CSI_ECH] = VT_PROC{ p-> del(q(1)); };
                 base::csier.table[CSI_CCC][CCC_NOP] = VT_PROC{ p->fork(); };
                 base::csier.table[CSI_CCC][CCC_IDX] = VT_PROC{ p->fork(q(0)); };
                 base::csier.table[CSI_CCC][CCC_REF] = VT_PROC{ p->bind(q(0)); };
@@ -2046,11 +2007,9 @@ namespace netxs::console
         // page: Parse UTF-8 text string and appends result.
         auto& operator += (view utf8)
         {
-            //layer->cook();
             ansi::parse(utf8, this);
             return *this;
         }
-
         // page: Append another page. Move semantic.
         page& operator += (page const& p)
         {
@@ -2066,7 +2025,6 @@ namespace netxs::console
             layer = std::prev(batch.end());
             return *this;
         }
-
 
         //todo implement pararaph's id synchronization
         // page: Append another page. Move semantic.
@@ -2097,14 +2055,6 @@ namespace netxs::console
         {
             return limit;
         }
-        //void hz_trim(iota max_width)
-        //{
-        //	auto s = twod{ max_width, 1 };
-        //	for (auto& p : page::batch)
-        //	{
-        //		p.lyric->crop(s);
-        //	}
-        //}
         // page: Clear the list of paragraphs.
         page& clear (bool preserve_brush = faux)
         {
@@ -2114,7 +2064,6 @@ namespace netxs::console
             layer = batch.begin();
             parid = 1;
             batch.front().id(parid);
-            //brush.para(parid);
             layer->wipe(brush);
             return *this;
         }
@@ -2151,9 +2100,7 @@ namespace netxs::console
             layer->cook();
             layer = batch.insert(std::next(layer), para{ layer->brush });
             layer->id(++parid);
-            //layer->brush.para(++parid);
             shrink();
-            //log("fork");
         }
         // page: Split the text run and associate the next paragraph with id.
         void fork(iota id)
@@ -2183,149 +2130,6 @@ namespace netxs::console
             }
             layer->locus.push(cmd);
         }
-
-        //// page: Backspace char, move caret back.
-        //void backspace_chr(iota n) { layer->cuf(-n); }
-
-        // page: Backspace key, delete n previous characters.
-        // void  bsp(iota n)
-        // {
-        // 	if (layer->caret >= n )
-        // 	{
-        // 		layer->caret -= n;
-        // 		layer->del(n);
-        // 	}
-        // 	else
-        // 	{
-        // 		auto  here = layer->caret;
-        // 		auto there = n - here;
-        //
-        // 		layer->caret = 0;
-        // 		if (here) layer->del(here);
-        //
-        // 		{
-        // 			if (layer != batch.begin())
-        // 			{
-        // 				if (!layer->length())
-        // 				{
-        // 					if (layer->locus.bare())
-        // 					{
-        // 						layer = std::prev(batch.erase(layer));
-        // 					}
-        // 					else
-        // 					{
-        // 						layer->locus.pop();
-        // 					}
-        // 					there--;
-        // 				}
-        // 				else
-        // 				{
-        // 					auto prev = std::prev(layer);
-        // 					*(*prev).lyric += *(*layer).lyric;
-        // 					batch.erase(layer);
-        // 					layer = prev;
-        // 					layer->caret = layer->length();
-        // 				}
-        // 			}
-        // 		}
-        //
-        // 		//while (there)
-        // 		//{
-        // 		//	//todo concat layer with previous and try to move caret back then del(n)
-        // 		//
-        // 		//	while (layer != batch.begin())
-        // 		//	{
-        // 		//		layer = std::prev(batch.erase(layer));
-        // 		//		if (layer->length())
-        // 		//		{
-        // 		//			layer->lyric.pop_back();
-        // 		//			break;
-        // 		//		}
-        // 		//	}
-        // 		//}
-        // 	}
-        // }
-
-        //void bsp(iota n)
-        //{
-        //	//log("page bsp: ", n);
-        //	//layer->bsp(n);
-        //
-        //	if (layer->caret >= n )
-        //	{
-        //		layer->caret -= n;;
-        //		layer->del(n);
-        //	}
-        //	else
-        //	{
-        //		//todo concat layer with previous and try to move caret back then del(n)
-        //
-        //		//while (layer != batch.begin())
-        //		//{
-        //		//	layer = std::prev(batch.erase(layer));
-        //		//	if (layer->lyric.size())
-        //		//	{
-        //		//		layer->lyric.pop_back();
-        //		//		break;
-        //		//	}
-        //		//}
-        //	}
-        //
-        //	//if (layer->lyric.size())
-        //	//{
-        //	//	layer->lyric.pop_back();
-        //	//}
-        //	//else
-        //	//{
-        //	//	while (layer != batch.begin())
-        //	//	{
-        //	//		layer = std::prev(batch.erase(layer));
-        //	//		if (layer->lyric.size())
-        //	//		{
-        //	//			layer->lyric.pop_back();
-        //	//			break;
-        //	//		}
-        //	//	}
-        //	//}
-        //
-        //	//if (layer->lyric.size())
-        //	//{
-        //	//	layer->lyric.pop_back();
-        //	//}
-        //	//else
-        //	//{
-        //	//	if (layer != batch.begin())
-        //	//	{
-        //	//		layer = std::prev(batch.erase(layer));
-        //	//		if (layer->lyric.size())
-        //	//		{
-        //	//			layer->lyric.pop_back();
-        //	//		}
-        //	//		else
-        //	//		{
-        //	//			if (layer != batch.begin())
-        //	//			{
-        //	//				layer = std::prev(batch.erase(layer));
-        //	//				if (layer->lyric.size())
-        //	//				{
-        //	//					layer->lyric.pop_back();
-        //	//				}
-        //	//				else
-        //	//				{
-        //	//					//todo fall into a loop
-        //	//				}
-        //	//			}
-        //	//		}
-        //	//
-        //	//		//bool same_line = layer->locus.bare();
-        //	//		//layer = std::prev(batch.erase(layer));
-        //	//		//if (same_line && layer->lyric.size())
-        //	//		//{
-        //	//		//	layer->lyric.pop_back();
-        //	//		//}
-        //	//	}
-        //	//}
-        //}
         void post(utf::frag const& cluster) { layer->post(cluster); }
         void cook() { layer->cook(); }
         auto size() const { return static_cast<iota>(batch.size()); }
@@ -2347,49 +2151,11 @@ namespace netxs::console
         void  dnl(bool b) { layer->dnl(b); }
         void  ovr(bool b) { layer->ovr(b); }
 
-        void  chx(iota n) { layer->chx(n); } // page: Move caret to n.
-        void  cuf(iota n) { layer->cuf(n); } // page: Move caret forward by n.
+        void  wrp(bool b) { layer->wrp(b); }
+        void  jet(iota n) { layer->jet(n); }
+        void  rtl(bool b) { layer->rtl(b); }
 
-        //void  del(iota n) { layer->del(n); } // page: CSI Delete n letters.
-
-        //void   el(iota n)
-        //{
-        //	cook();
-        //
-        //	auto& lyric = *layer->lyric;
-        //
-        //	switch (n)
-        //	{
-        //		default:
-        //		case 0: /// Ps = 0  ⇒  Erase to Right (default).
-        //			if (layer->caret >= lyric.size().x)
-        //			{
-        //				task(ansi::rule{ ansi::fn::el, 0 });
-        //			}
-        //			else
-        //			{
-        //				//layer->lyric.resize(layer->caret);
-        //				//lyric.crop(layer->caret);
-        //				lyric.crop({ layer->caret,1 });
-        //				//why?
-        //				//task(ansi::rule{ ansi::fn::el, 0 });
-        //			}
-        //			break;
-        //		case 1: /// Ps = 1  ⇒  Erase to Left.
-        //			task(ansi::rule{ ansi::fn::el, 1 });
-        //			break;
-        //		case 2: // Ps = 2  ⇒  Erase All.
-        //			task(ansi::rule{ ansi::fn::el, 2 });
-        //			break;
-        //	}
-        //}
-
-
-        // page: Inset tabs via space
-        void tab(iota n)
-        {
-            layer->ins(n);
-        }
+        void  tab(iota n) { layer->ins(n); } // page: Inset tabs via space
     };
 
     class face // richtext: Textographical canvas.
@@ -2597,11 +2363,13 @@ namespace netxs::console
         face& mgb (iota n)        { flow::wb( n); return *this; } // face: Margin bottom	╯.
         face& tab (iota n = 1)    { flow::tb( n); return *this; } // face: Proceed the \t.
         face& eol (iota n = 1)    { flow::nl( n); return *this; } // face: Proceed the \r || \n || \r\n.
-        face& jet (bias j)        { flow::hz( j); return *this; } // face: Text alignment (bias).
         face& tbs (iota n)        { flow::ts( n); return *this; } // face: Tab step length.
+
         face& wrp (bool w)        { flow::br( w); return *this; } // face: Text wrapping on/off.
-        face& rlf (bool f)        { flow::rf( f); return *this; } // face: Reverse line feed on/off.
+        face& jet (bias j)        { flow::hz( j); return *this; } // face: Text alignment (bias).
         face& rtl (bool m)        { flow::yx( m); return *this; } // face: Text right-to-left on/off.
+
+        face& rlf (bool f)        { flow::rf( f); return *this; } // face: Reverse line feed on/off.
         auto& rtl () const        { return flow::r_to_l;        } // face: Text right-to-left on/off.
         face& rst ()  { flow::zz(  ); flow::sc(); return *this; } // face: Reset to zero all cursor params.
         //todo revise
@@ -2837,7 +2605,6 @@ namespace netxs::console
     //	bool rigid;
     //	cell brush;
     //	rect field;
-
         // core: Fill the specified region with the its own color and copying method.
         //void	draw (mesh const& shape)
         //{
@@ -2854,7 +2621,6 @@ namespace netxs::console
         //		fill(part.field, elem, part.rigid);
         //	}
         //}
-
     //};
     //
     //using mesh = std::vector<meta>;
