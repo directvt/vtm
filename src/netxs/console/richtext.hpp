@@ -4,9 +4,6 @@
 #ifndef NETXS_RICHTEXT_HPP
 #define NETXS_RICHTEXT_HPP
 
-//todo deprecate
-#include <cstring>  // std::memcpy
-
 #include "ansi.hpp"
 #include "../ui/events.hpp"
 #include "../text/logger.hpp"
@@ -16,617 +13,10 @@ namespace netxs::console
     using namespace std::literals;
     using namespace netxs::ui;
 
-    using utf::text;
-    using utf::view;
     using ansi::qiew;
     using ansi::writ;
-    using id_t = bell::id_t;
-    using grid = std::vector<class cell>;
+    using grid = std::vector<cell>;
     using irgb = netxs::ui::irgb<uint32_t>;
-
-    class cell // richtext: Enriched grapheme cluster.
-    {
-    public:
-        using bitstate = unsigned char;
-
-    private:
-        template<class V = void> // Use template in order to define statics in the header file.
-        union glyf
-        {
-            struct mode
-            {
-                unsigned char count : CLUSTER_FIELD_SIZE; // grapheme cluster length (utf-8 encoded) (max GRAPHEME_CLUSTER_LIMIT)
-                //todo unify with CFA https://gitlab.freedesktop.org/terminal-wg/specifications/-/issues/23
-                unsigned char width : WCWIDTH_FIELD_SIZE; // 0: non-printing, 1: narrow, 2: wide:left_part, 3: wide:right_part  // 2: wide, 3: three-cell width
-                unsigned char jumbo : 1;                  // grapheme cluster length overflow bit
-            };
-
-            // there is no need to reset/clear/flush the map because
-            // count of different grapheme clusters is finite
-            static constexpr size_t         limit = sizeof(uint64_t);
-            static std::hash<view>          coder;
-            static text                     empty;
-            static std::map<uint64_t, text> jumbo;
-
-            uint64_t                        token;
-            mode                            state;
-            char                            glyph[limit];
-
-            constexpr glyf()
-                : token(0)
-            { }
-
-            constexpr glyf(glyf const& c)
-                : token(c.token)
-            { }
-
-            glyf (char c)
-                : token(0)
-            {
-                set(c);
-            }
-
-            glyf (glyf const& c, view const& utf8, size_t width)
-                : token(c.token)
-            {
-                set(utf8, width);
-            }
-
-            bool operator == (glyf const& c) const
-            {
-                return token == c.token;
-            }
-
-            // Check the grapheme clusters are the same.
-            bool same(glyf const& c) const
-            {
-                //auto mask = ~(decltype(token))0xFF;
-                //return (token >> sizeof(mode)) == c.token >> sizeof(mode);
-                return (token >> 8) == (c.token >> 8);
-            }
-
-            void wipe()
-            {
-                token = 0;
-            }
-
-            /*
-            *   Width property
-            *       W   Wide                    ┌-------------------------------┐
-            *       Na  Narrow                  |   Narrow      ┌-------------------------------┐
-            *       F   Fullwidth, Em wide      |┌-------------┐|               |   Wide        |
-            *       H   Halfwidth, 1/2 Em wide  ||  Halfwidth  ||   Ambiguous	|┌-------------┐|
-            *       A   Ambiguous               |└-------------┘|               ||  Fullwidth  ||
-            *       N   Neutral =Not East Asian └---------------|---------------┘└-------------┘|
-            *                                                   └-------------------------------┘
-            *   This width takes on either of 𝐭𝐰𝐨 𝐯𝐚𝐥𝐮𝐞𝐬: 𝐧𝐚𝐫𝐫𝐨𝐰 or 𝐰𝐢𝐝𝐞. (UAX TR11)
-            *   For any given operation, these six default property values resolve into
-            *   only two property values, narrow and wide, depending on context.
-            *
-            *   width := {0 - nonprintable | 1 - Halfwidth(Narrow) | 2 - Fullwidth(Wide) }
-            *
-            *   ! Unicode Variation Selector 16 (U+FE0F) makes the character it combines with double-width.
-            *
-            *   The 0xfe0f character is "variation selector 16" that says "show the emoji version of
-            *   the previous character" and 0xfe0e is "variation selector 15" to say "show the non-emoji
-            *   version of the previous character"
-            */
-
-            void set(char c)
-            {
-                token       = 0;
-                state.width = 1;
-                state.count = 1;
-                glyph[1]    = c;
-            }
-            void set(view const& utf8, size_t cwidth)
-            {
-                auto count = utf8.size();
-                if (count >= limit)
-                {
-                    token = coder(utf8);
-                    state.jumbo = true;
-                    state.width = cwidth;
-                    jumbo.insert(std::pair{ token, utf8 }); // silently ignore if it exists
-                }
-                else
-                {
-                    token = 0;
-                    state.count = count;
-                    state.width = cwidth;
-                    //todo deprecate
-                    std::memcpy(glyph + 1, utf8.data(), count);
-                }
-            }
-            void set(view const& utf8)
-            {
-                auto cluster = utf::letter(utf8);
-                set(cluster.text, cluster.attr.wcwidth);
-            }
-            view get() const
-            {
-                if (state.jumbo)
-                {
-                    return netxs::get_or(jumbo, token, empty);
-                }
-                else
-                {
-                    return view{ glyph + 1, state.count };
-                }
-            }
-            void rst()
-            {
-                set(whitespace);
-            }
-        };
-        union body
-        {
-            // there are no applicable rich text formatting attributes due to their gradual nature
-            // e.g.: the degree of thickness or italiciety/oblique varies from 0 to 255, etc.,
-            // and should not be represented as a flag
-            //
-            // In Chinese, the underline/underscore is a punctuation mark for proper names
-            // and should never be used for emphasis
-            //
-            // weigth := 0..255
-            // italic := 0..255
-            //
-
-            uint32_t token;
-
-            struct
-            {
-                union
-                {
-                    bitstate token;
-                    struct
-                    {
-                        bitstate bolded : 1;
-                        bitstate italic : 1;
-                        bitstate unline : 2; // 0: no underline, 1 - single, 2 - double underline
-                        bitstate invert : 1;
-                        bitstate overln : 1;
-                        bitstate strike : 1;
-                        bitstate r_to_l : 1;
-                    } var;
-                } shared;
-
-                union
-                {
-                    bitstate token;
-                    struct
-                    {
-                        bitstate hyphen : 1;
-                        bitstate fnappl : 1;
-                        bitstate itimes : 1;
-                        bitstate isepar : 1;
-                        bitstate inplus : 1;
-                        bitstate zwnbsp : 1;
-                        //todo use these bits as a underline variator
-                        bitstate render : 2; // reserved
-                    } var;
-
-                } unique;
-            }
-            param;
-
-            constexpr body ()
-                : token(0)
-            { }
-
-            constexpr body (body const& b)
-                : token(b.token)
-            { }
-
-            bool operator == (body const& b) const
-            {
-                return token == b.token;
-                // sizeof(*this);
-                // sizeof(param.shared.var);
-                // sizeof(param.unique.var);
-            }
-            bool operator != (body const& b) const
-            {
-                return !operator == (b);
-            }
-            bool like(body const& b) const
-            {
-                return param.shared.token == b.param.shared.token;
-            }
-            void get(body& base, ansi::esc& dest)	const
-            {
-                if (!like(base))
-                {
-                    auto& cvar =      param.shared.var;
-                    auto& bvar = base.param.shared.var;
-                    if (cvar.bolded != bvar.bolded)
-                    {
-                        dest.bld(cvar.bolded);
-                    }
-                    if (cvar.italic != bvar.italic)
-                    {
-                        dest.itc(cvar.italic);
-                    }
-                    if (cvar.unline != bvar.unline)
-                    {
-                        dest.und(cvar.unline);
-                    }
-                    if (cvar.invert != bvar.invert)
-                    {
-                        dest.inv(cvar.invert);
-                    }
-                    if (cvar.strike != bvar.strike)
-                    {
-                        dest.stk(cvar.strike);
-                    }
-                    if (cvar.overln != bvar.overln)
-                    {
-                        dest.ovr(cvar.overln);
-                    }
-                    if (cvar.r_to_l != bvar.r_to_l)
-                    {
-                        //todo implement RTL
-                    }
-
-                    bvar = cvar;
-                }
-            }
-            void wipe()
-            {
-                token = 0;
-            }
-
-            void bld (bool b) { param.shared.var.bolded = b; }
-            void itc (bool b) { param.shared.var.italic = b; }
-            void und (iota n) { param.shared.var.unline = n; }
-            void inv (bool b) { param.shared.var.invert = b; }
-            void ovr (bool b) { param.shared.var.overln = b; }
-            void stk (bool b) { param.shared.var.strike = b; }
-            void rtl (bool b) { param.shared.var.r_to_l = b; }
-            void vis (iota l) { param.unique.var.render = l; }
-
-            bool bld () const { return param.shared.var.bolded; }
-            bool itc () const { return param.shared.var.italic; }
-            iota und () const { return param.shared.var.unline; }
-            bool inv () const { return param.shared.var.invert; }
-            bool ovr () const { return param.shared.var.overln; }
-            bool stk () const { return param.shared.var.strike; }
-            bool rtl () const { return param.shared.var.r_to_l; }
-            iota vis () const { return param.unique.var.render; }
-        };
-        struct clrs
-        {
-            // Concept of using default colors:
-            //  if alpha is set to zero, then underlaid color should be used
-
-            rgba bg;
-            rgba fg;
-
-            constexpr clrs ()
-                : bg{}, fg{}
-            { }
-
-            constexpr clrs (clrs const& c)
-                : bg{ c.bg }, fg{ c.fg }
-            { }
-
-            bool operator == (clrs const& c) const
-            {
-                return bg == c.bg && fg == c.fg;
-                //sizeof(*this);
-            }
-            bool operator != (clrs const& c) const
-            {
-                return !operator == (c);
-            }
-
-            void get(clrs& base, ansi::esc& dest)	const
-            {
-                if (bg != base.bg)
-                {
-                    base.bg = bg;
-                    dest.bgc(bg);
-                }
-                if (fg != base.fg)
-                {
-                    base.fg = fg;
-                    dest.fgc(fg);
-                }
-            }
-            void wipe()
-            {
-                bg.wipe();
-                fg.wipe();
-            }
-        };
-
-        clrs       uv;     // 8U, cell: RGBA color
-        glyf<void> gc;     // 8U, cell: Grapheme cluster
-        body       st;     // 4U, cell: Style attributes
-        id_t       id = 0; // 4U, cell: Link ID
-        id_t       rsrvd0; // 4U, cell: pad, the size should be a power of 2
-        id_t       rsrvd1; // 4U, cell: pad, the size should be a power of 2
-
-    public:
-        cell() = default;
-
-        cell(char c)
-            : gc{ c }
-        {
-            // sizeof(glyf<void>);
-            // sizeof(clrs);
-            // sizeof(body);
-            // sizeof(id_t);
-            // sizeof(id_t);
-            // sizeof(cell);
-        }
-
-        cell(view chr)
-        {
-            gc.set(chr);
-        }
-
-        cell(cell const& base)
-            : uv{ base.uv },
-              gc{ base.gc },
-              st{ base.st },
-              id{ base.id }
-        { }
-
-        cell(cell const& base, view const& cluster, size_t wcwidth)
-            : uv{ base.uv },
-              st{ base.st },
-              id{ base.id },
-              gc{ base.gc, cluster, wcwidth }
-        { }
-
-        cell(cell const& base, char c)
-            : uv{ base.uv },
-              st{ base.st },
-              id{ base.id },
-              gc{ c }
-        { }
-
-        bool operator == (cell const& c) const
-        {
-            return uv == c.uv
-                && st == c.st
-                && gc == c.gc;
-        }
-        bool operator != (cell const& c) const
-        {
-            return !operator == (c);
-        }
-        auto& operator = (cell const& c)
-        {
-            uv = c.uv;
-            gc = c.gc;
-            st = c.st;
-            id = c.id;
-            return *this;
-        }
-
-        operator bool() const { return wdt(); } // cell: Is the cell not transparent?
-
-        bool like(cell const& c) const // cell: Precise comparisons of the two cells.
-        {
-            return uv == c.uv
-                && st.like(c.st);
-        }
-        void wipe() // cell: Set colors, attributes and grapheme cluster to zero.
-        {
-            uv.wipe();
-            gc.wipe();
-            st.wipe();
-        }
-        cell const&	data() const{ return *this;} // cell: Return the const reference of the base cell.
-
-        // cell: Merge the two cells according to visibility and other attributes.
-        inline void fuse(cell const& c)
-        {
-            //if (c.uv.fg.chan.a) uv.fg = c.uv.fg;
-            ////uv.param.fg.mix(c.uv.param.fg);
-
-            if (uv.fg.chan.a == 0xFF) uv.fg.mix_one(c.uv.fg);
-            else                      uv.fg.mix(c.uv.fg);
-
-            if (uv.bg.chan.a == 0xFF) uv.bg.mix_one(c.uv.bg);
-            else                      uv.bg.mix(c.uv.bg);
-
-            st = c.st;
-            if (c.wdt()) gc = c.gc;
-        }
-        // cell: Mix colors using alpha and copy grapheme cluster if it's exist.
-        //void mix_colors	(cell const& c)
-        //{
-        //	uv.param.fg.mix_alpha(c.fgc());
-        //	uv.param.bg.mix_alpha(c.bgc());
-        //	if (c.wdt())
-        //	{
-        //		gc = c.gc;
-        //	}
-        //}
-        // cell: Merge the two cells and update ID with COOR.
-        void fuse(cell const& c, id_t oid)//, twod const& pos)
-        {
-            fuse(c);
-            id = oid;
-        }
-        // cell: Merge the two cells and update ID with COOR.
-        void fusefull(cell const& c)
-        {
-            fuse(c);
-            if (c.id) id = c.id;
-            //pg = c.pg;
-
-            //mark paragraphs
-            //if (c.pg) uv.param.bg.channel.blue = 0xff;
-        }
-        void meta(cell const& c)
-        {
-            uv = c.uv;
-            st = c.st;
-        }
-        // cell: Get differences of the visual attributes only (ANSI CSI/SGR format).
-        void scan_attr(cell& base, ansi::esc& dest) const
-        {
-            if (!like(base))
-            {
-                //todo additionally consider UNIQUE ATTRIBUTES
-                uv.get(base.uv, dest);
-                st.get(base.st, dest);
-            }
-        }
-        // cell: Get differences (ANSI CSI/SGR format) of "base" and add it to "dest" and update the "base".
-        void scan(cell& base, ansi::esc& dest) const
-        {
-            if (!like(base))
-            {
-                //todo additionally consider UNIQUE ATTRIBUTES
-                uv.get(base.uv, dest);
-                st.get(base.st, dest);
-            }
-
-            if (wdt()) dest += gc.get();
-            else       dest += whitespace;
-        }
-        // cell: !!! Ensure that this.wdt == 2 and the next wdt == 3 and they are the same.
-        bool scan(cell& next, cell& base, ansi::esc& dest) const
-        {
-            if (gc.same(next.gc) && like(next))
-            {
-                if (!like(base))
-                {
-                    //todo additionally consider UNIQUE ATTRIBUTES
-                    uv.get(base.uv, dest);
-                    st.get(base.st, dest);
-                }
-                dest += gc.get();
-                return true;
-            }
-            else
-            {
-                return faux;
-            }
-        }
-        // cell: Is the cell not transparent?
-        //bool is_unalterable() const
-        //{
-        //	return vis() == unalterable;
-        //}
-        // cell: Delight both foreground and background.
-        void xlight()
-        {
-            uv.fg.xlight();
-            uv.bg.xlight();
-        }
-        // cell: Darken both foreground and background.
-        void shadow(uint8_t fk, uint8_t bk) //void shadow(uint8_t k = 24)
-        {
-            uv.fg.shadow(fk);
-            uv.bg.shadow(bk);
-        }
-        //todo xlight conflict
-        // cell: Lighten both foreground and background.
-        void bright(uint8_t fk, uint8_t bk) //void bright(uint8_t k = 24)
-        {
-            uv.fg.bright(fk);
-            uv.bg.bright(bk);
-        }
-        // cell: Is the cell not transparent?
-        bool is_alpha_blendable() const
-        {
-            return uv.bg.is_alpha_blendable();//&& uv.param.fg.is_alpha_blendable();
-        }
-        // cell: Set Grapheme cluster and its width.
-        void set_gc (view c, size_t w) { gc.set(c, w); }
-        // cell: Set Grapheme cluster.
-        void set_gc (cell const& c) { gc = c.gc; }
-        // cell: Reset Grapheme cluster.
-        void set_gc () { gc.wipe(); }
-
-        // cell: Copy view of the cell (Preserve ID).
-        cell& set (cell const& c) { uv = c.uv;
-                                    st = c.st;
-                                    gc = c.gc;       return *this; }
-        cell& alpha (uint8_t k)   { bga(k); fga(k);  return *this; } // cell: Set alpha/transparency (background and foreground).
-        cell& bgc (rgba const& c) { uv.bg = c; return *this; } // cell: Set Background color.
-        cell& fgc (rgba const& c) { uv.fg = c; return *this; } // cell: Set Foreground color.
-        cell& bga (uint8_t k)     { uv.bg.chan.a = k; return *this; } // cell: Set Background alpha/transparency.
-        cell& fga (uint8_t k)     { uv.fg.chan.a = k; return *this; } // cell: Set Foreground alpha/transparency.
-        cell& bld (bool b)        { st.bld(b); return *this; } // cell: Set Bold attribute.
-        cell& itc (bool b)        { st.itc(b); return *this; } // cell: Set Italic attribute.
-        cell& und (bool b)        { st.und(b ? 1 : 0); return *this; } // cell: Set Underline attribute.
-        cell& dnl (bool b)        { st.und(b ? 2 : 0); return *this; } // cell: Set Double underline attribute.
-        cell& ovr (bool b)        { st.ovr(b); return *this; } // cell: Set Overline attribute.
-        cell& inv (bool b)        { st.inv(b); return *this; } // cell: Set Invert attribute.
-        cell& stk (bool b)        { st.stk(b); return *this; } // cell: Set Strikethrough attribute.
-        cell& rtl (bool b)        { st.rtl(b); return *this; } // cell: Set Right-To-Left attribute.
-        cell& link(id_t oid)      { id = oid;  return *this; } // cell: Set link object ID.
-        //cell& para(id_t opg)      { pg = opg;  return *this; } // cell: Set paragraph ID and return the cell itself.
-        cell& txt (view c)        { c.size() ? gc.set(c) : gc.wipe(); return *this; } // cell: Set Grapheme cluster.
-        cell& txt (char c)        { gc.set(c); return *this; } // cell: Set Grapheme cluster from char.
-        cell& clr (cell const& c) { uv = c.uv; return *this; } // cell: Set the foreground and background colors only.
-        cell& wdt (iota w)        { gc.state.width = w; return *this; } // cell: Return Grapheme cluster screen width.
-        cell& rst () // cell: Reset view attributes of the cell to zero.
-        {
-            static cell empty{ whitespace };
-            uv = empty.uv;
-            st = empty.st;
-            gc = empty.gc;
-            return *this;
-        }
-
-        void hyphen (bool b) { st.param.unique.var.hyphen = b; } // cell: Set the presence of the SOFT HYPHEN (U+00AD).
-        void fnappl (bool b) { st.param.unique.var.fnappl = b; } // cell: Set the presence of the FUNCTION APPLICATION (U+2061).
-        void itimes (bool b) { st.param.unique.var.itimes = b; } // cell: Set the presence of the INVISIBLE TIMES (U+2062).
-        void isepar (bool b) { st.param.unique.var.isepar = b; } // cell: Set the presence of the INVISIBLE SEPARATOR (U+2063).
-        void inplus (bool b) { st.param.unique.var.inplus = b; } // cell: Set the presence of the INVISIBLE PLUS (U+2064).
-        void zwnbsp (bool b) { st.param.unique.var.zwnbsp = b; } // cell: Set the presence of the ZERO WIDTH NO-BREAK SPACE (U+FEFF).
-
-        uint8_t     bga () const { return uv.bg.chan.a;  } // cell: Return Background alpha/transparency.
-        uint8_t     fga () const { return uv.fg.chan.a;  } // cell: Return Foreground alpha/transparency.
-        rgba&       bgc ()       { return uv.bg;         } // cell: Return Background color.
-        rgba&       fgc ()       { return uv.fg;         } // cell: Return Foreground color.
-        rgba const& bgc () const { return uv.bg;         } // cell: Return Background color.
-        rgba const& fgc () const { return uv.fg;         } // cell: Return Foreground color.
-        bool        bld () const { return st.bld();      } // cell: Return Bold attribute.
-        bool        itc () const { return st.itc();      } // cell: Return Italic attribute.
-        bool        und () const { return st.und() == 1 ? true : faux; } // cell: Return Underline/Underscore attribute.
-        bool        dnl () const { return st.und() == 2 ? true : faux; } // cell: Return Underline/Underscore attribute.
-        bool        ovr () const { return st.ovr();      } // cell: Return Underline/Underscore attribute.
-        bool        inv () const { return st.inv();      } // cell: Return Negative attribute.
-        bool        stk () const { return st.stk();      } // cell: Return Strikethrough attribute.
-        id_t       link () const { return id;            } // cell: Return link object ID.
-        //id_t       para () const { return pg;            } // cell: Return paragraph ID.
-        view        txt () const { return gc.get();      } // cell: Return Grapheme cluster.
-        size_t      len () const { return gc.state.count;} // cell: Return Grapheme cluster utf-8 length.
-        size_t      wdt () const { return gc.state.width;} // cell: Return Grapheme cluster screen width.
-        bool     iswide () const { return wdt() > 1;     } // cell: Return true if char is wide.
-        bool     issame_visual (cell const& c) const // cell: Is the cell visually identical.
-        {
-            if (gc == c.gc)
-            {
-                if (uv.bg == c.uv.bg)
-                {
-                    if (wdt() == 0 || txt().front() == ' ')
-                    {
-                        return true;
-                    }
-                    else
-                    {
-                        return uv.fg == c.uv.fg;
-                    }
-                }
-            }
-            return faux;
-        }
-    };
-
-    /// Extern link statics
-    template<class T> std::hash<view>          cell::glyf<T>::coder;
-    template<class T> text                     cell::glyf<T>::empty;
-    template<class T> std::map<uint64_t, text> cell::glyf<T>::jumbo;
 
     class poly
     {
@@ -658,7 +48,7 @@ namespace netxs::console
         }
     };
 
-    class core // richtext: Canvas core grid.
+    class core // richtext: Canvas core grid
     {
         // prefill canvas using brush
         core(twod const& coor, twod const& size, cell const& brush)
@@ -973,7 +363,7 @@ namespace netxs::console
         }
     };
 
-    class deco // richtext: Flow controller and state holder.
+    class deco // richtext: Flow controller and state holder
     {
     public:
         dent margin;
@@ -1077,7 +467,7 @@ namespace netxs::console
         }
     };
 
-    class flow // richtext: The text line feeder.
+    class flow // richtext: The text line feeder
         : public deco
     {
         deco selfcopy;        // flow: Flow state storage.
@@ -1089,11 +479,7 @@ namespace netxs::console
         iota fullsize = 0;    // flow: Full textline length.
         iota cursormx = 0;    // flow: Maximum x-coor value on the visible area.
         iota highness = 1;    // flow: Height of the last processed line.
-        //bool arighted = faux; // flow: Is the text line right aligned.
         bool straight = faux; // flow: Text substring retrieving direction.
-        //bool centered = faux; // flow: Is the text line centered.
-
-        //twod const& size_ref;
 
         using hndl = void (*)(flow&, iota);
 
@@ -1269,9 +655,9 @@ namespace netxs::console
         template<class T, class P = noop>
         void compose(T const& block, P print = P())//, twod const& offset = dot_00)
         {
-            deco::wrapln = block.state.wrapln;
-            deco::adjust = block.state.adjust;
-            deco::r_to_l = block.state.r_to_l;
+            deco::wrapln = block.align.wrapln;
+            deco::adjust = block.align.adjust;
+            deco::r_to_l = block.align.r_to_l;
 
             auto block_size = block.size(); // 2D size
             fullsize = get_len(block_size); // 1D length
@@ -1325,16 +711,10 @@ namespace netxs::console
         {
             auto cp = USE_LOCUS ? forward(block)
                                 : deco::cp();
-            compose(block,
-                //[&](auto const& coord, auto start, auto width)
-                //{
-                //    canvas.text(coord, block.substr(start, width), deco::r_to_l);
-                //});
-                [&](auto const& coord, auto const& subblock)
-                {
-                    canvas.text(coord, subblock, deco::r_to_l);
-                });
-
+            compose(block, [&](auto const& coord, auto const& subblock)
+                           {
+                               canvas.text(coord, subblock, deco::r_to_l);
+                           });
             return cp;
         }
         template<bool USE_LOCUS = true, class T>
@@ -1359,7 +739,7 @@ namespace netxs::console
         //auto& areasize() { return size_ref; }
     };
 
-    class shot // richtext: The shadow of the para.
+    class shot // richtext: The shadow of the para
     {
         static constexpr iota maxlen = std::numeric_limits<iota>::max();
 
@@ -1466,30 +846,7 @@ namespace netxs::console
         }
     };
 
-    class mark
-    {
-    public:
-        cell brush; // mark: Current brush
-        cell spare; // mark: Stored  brush
-        cell fresh; // mark: Initial brush
-        mark() = default;
-        mark(cell const& brush)
-            : brush{ brush },
-              fresh{ brush }
-        { }
-        void reset(cell const& c) { fresh = brush = c; }
-        auto busy() const         { return brush != fresh;  } // mark: Is the marker modified
-        auto  set(cell const& c)  { brush.set(c);           } // mark: Set the brush using the cell (keeping link and paragraph id)
-        void  nil()               { brush.set(spare);       } // mark: Restore saved SGR attributes
-        void  sav()               { spare.set(brush);       } // mark: Save current SGR attributes
-        //void  nil(cell const& c)  { brush.set(c);           } // mark: Restore saved SGR attributes
-        //void  sav(cell& c)        { c.set(brush);           } // mark: Save current SGR attributes
-        void  rfg()               { brush.fgc(spare.fgc()); } // mark: Reset SGR Foreground color
-        void  rbg()               { brush.bgc(spare.bgc()); } // mark: Reset SGR Background color
-    };
-
-    class para // richtext: Enriched text paragraph.
-        : public mark
+    class para // richtext: Enriched text paragraph
     {
         friend class page;
         using corx = sptr<core>;
@@ -1500,12 +857,14 @@ namespace netxs::console
 
     public:
         template<class T>
-        using parser = ansi::parser<T>;
+        using parser = ansi::parser<T>; // Use default static parser
+        using mark   = ansi::mark;
 
         text debug; // para: debug string
         writ locus;
         corx lyric = std::make_shared<core>();
-        para_state state;
+        mark brush; // para: Brush for parser
+        para_state align;
 
         para()                         = default;
         para(para&&) noexcept          = default;
@@ -1514,13 +873,13 @@ namespace netxs::console
         para& operator = (para const&) = default;
 
         para(para_state const& state)
-            : state{ state }
+            : align{ state }
         { }
-        para(iota selfid, para_state const& state = {})
-            : state{ selfid, state }
+        para(iota newid, para_state const& state = {})
+            : align{ newid, state }
         { }
         para(view utf8, cell const& brush = {})
-            : mark{ brush }
+            : brush{ brush }
         {
             ansi::parse(utf8, this);
         }
@@ -1548,7 +907,7 @@ namespace netxs::console
         {
             width = p.width;
             caret = p.caret;
-            state = p.state;
+            align = p.align;
             locus = std::move(p.locus);
             proto = std::move(p.proto);
             debug = std::move(p.debug);
@@ -1566,14 +925,14 @@ namespace netxs::console
         auto   step() const { return lyric->size().x - caret; } // para: Return step back.
         auto   size() const { return lyric->size();   } // para: Return 2D volume size.
         auto&  back() const { return brush;           } // para: Return current brush.
-        bool   busy() const { return length() || !proto.empty() || mark::busy(); } // para: Is it filled?
-        void   ease() { brush = spare; lyric->each([&](auto& c) { c.clr(brush); });  } // para: Reset color for all text.
+        bool   busy() const { return length() || !proto.empty() || brush.busy(); } // para: Is it filled?
+        void   ease()   { brush.nil(); lyric->each([&](auto& c) { c.clr(brush); });  } // para: Reset color for all text.
         void   link(id_t id)         { lyric->each([&](auto& c) { c.link(id);   });  } // para: Set object ID for each cell.
         void   wipe(cell c = cell{}) // para: Clear the text and locus, and reset SGR attributes.
         {
             width = 0;
             caret = 0;
-            mark::reset(c);
+            brush.reset(c);
             debug.clear();
             proto.clear();
             locus.kill();
@@ -1712,14 +1071,14 @@ namespace netxs::console
             //width = 0;
         }
 
-        auto& wrp(bool b)         { state.wrapln = b;       return *this; } // para: Auto wrapping.
-        auto& jet(iota n)         { state.adjust = (bias)n; return *this; } // para: Paragraph adjustment.
-        auto& rtl(bool b)         { state.r_to_l = b;       return *this; } // para: RTL.
+        auto& wrp(bool b)         { align.wrapln = b;       return *this; } // para: Auto wrapping.
+        auto& jet(iota n)         { align.adjust = (bias)n; return *this; } // para: Paragraph adjustment.
+        auto& rtl(bool b)         { align.r_to_l = b;       return *this; } // para: RTL.
+        auto  id() const          { return align.selfid;  }
+        void  id(iota newid)      { align.selfid = newid; }
 
         auto  chx() const         { return caret;         }
         void  chx(iota new_pos)   { caret = new_pos;      }
-        auto  id() const          { return state.selfid;  }
-        void  id(iota newid)      { state.selfid = newid; }
 
         void trim_to(iota max_width)
         {
@@ -1764,7 +1123,7 @@ namespace netxs::console
         }
         void ins(iota n)
         {
-            ins(n, mark::brush);
+            ins(n, brush);
         }
         void ins(iota start, iota count, cell const& brush)
         {
@@ -1798,7 +1157,7 @@ namespace netxs::console
         }
     };
 
-    class rope // richtext: Cascade of the identical paragraphs.
+    class rope // richtext: Cascade of the identical paragraphs
     {
         using iter = typename std::list<para>::const_iterator;
         iter source;
@@ -1813,11 +1172,11 @@ namespace netxs::console
               finish{ finish },
               suffix{ suffix },
               volume{ volume }
-              ,state{source->state}
+              ,align{source->align}
         { }
 
     public:
-        para_state state;
+        para_state align;
 
         rope(iter const& head, iter const& tail, twod const& size)
             : source{ head },
@@ -1825,7 +1184,7 @@ namespace netxs::console
               prefix{ 0    },
               suffix{ 0    },
               volume{ size }
-              ,state{head->state}
+              ,align{head->align}
         { }
 
         operator writ const& () const { return *source; }
@@ -1915,27 +1274,27 @@ namespace netxs::console
             }
         }
         constexpr
-        auto  size  () const { return volume;         } // rope: Return volume of the source content.
-        auto  length() const { return volume.x;       } // rope: Return the length of the source content.
-        auto& mark  () const { return finish->brush;  } // rope: Return the the last paragraph brush state.
-        auto  id    () const { return source->id();   } // rope: Return paragraph id.
-        auto  caret () const { return source->chx();  } // rope: Return interal paragraph caret.
+        auto  size  () const { return volume;         } // rope: Return volume of the source content
+        auto  length() const { return volume.x;       } // rope: Return the length of the source content
+        auto& mark  () const { return finish->brush;  } // rope: Return the the last paragraph brush state
+        auto  id    () const { return source->id();   } // rope: Return paragraph id
+        auto  caret () const { return source->chx();  } // rope: Return interal paragraph caret
     };
 
-    class page // richtext: Enriched text page.
-        : public mark
+    class page // richtext: Enriched text page
     {
         using list = std::list<para>;
         using iter = list::iterator;
         using imap = std::map<iota, iter>;
+        using mark = ansi::mark;
 
-    protected:
-        iota  parid = 1;             // page: Current paragraph id.
-        list  batch = { para(parid) };    // page: The list of the rich-text paragraphs.
-        iter  layer = batch.begin(); // page: Current paragraph.
-        imap  parts;                 // page: Embedded text blocks.
-        iota  limit = std::numeric_limits<iota>::max(); // page: Paragraphs number limit.
-
+    public:
+        iota  parid = 1;               // page: Current paragraph id
+        list  batch = { para(parid) }; // page: The list of the rich-text paragraphs
+        iter  layer = batch.begin();   // page: Current paragraph
+        imap  parts;                   // page: Embedded text blocks
+        iota  limit = std::numeric_limits<iota>::max(); // page: Paragraphs number limit
+        mark  brush;                   // page: Parser brush
         // page: Remove over limit paragraphs.
         void shrink()
         {
@@ -1954,22 +1313,21 @@ namespace netxs::console
             }
         }
 
-    public:
         template<class T>
         struct parser : public ansi::parser<T>
         {
-            using base = ansi::parser<T>;
-            parser() : base()
+            using vt = ansi::parser<T>;
+            parser() : vt()
             {
                 using namespace netxs::console::ansi;
-                base::intro[ctrl::CR ]     = VT_PROC{ q.pop_if(ctrl::EOL); p->task({ fn::nl,1 }); };
-                base::intro[ctrl::TAB]     = VT_PROC{ p->task({ fn::tb,q.pop_all(ctrl::TAB) }); };
-                base::intro[ctrl::EOL]     = VT_PROC{ p->task({ fn::nl,q.pop_all(ctrl::EOL) }); };
-                base::csier.table[CSI__ED] = VT_PROC{ p->task({ fn::ed, q(0) }); }; // CSI Ps J
-                base::csier.table[CSI__EL] = VT_PROC{ p->task({ fn::el, q(0) }); }; // CSI Ps K
-                base::csier.table[CSI_CCC][CCC_NOP] = VT_PROC{ p->fork(); };
-                base::csier.table[CSI_CCC][CCC_IDX] = VT_PROC{ p->fork(q(0)); };
-                base::csier.table[CSI_CCC][CCC_REF] = VT_PROC{ p->bind(q(0)); };
+                vt::intro[ctrl::CR ]     = VT_PROC{ q.pop_if(ctrl::EOL); p->task({ fn::nl,1 }); };
+                vt::intro[ctrl::TAB]     = VT_PROC{ p->task({ fn::tb,q.pop_all(ctrl::TAB) }); };
+                vt::intro[ctrl::EOL]     = VT_PROC{ p->task({ fn::nl,q.pop_all(ctrl::EOL) }); };
+                vt::csier.table[CSI__ED] = VT_PROC{ p->task({ fn::ed, q(0) }); }; // CSI Ps J
+                vt::csier.table[CSI__EL] = VT_PROC{ p->task({ fn::el, q(0) }); }; // CSI Ps K
+                vt::csier.table[CSI_CCC][CCC_NOP] = VT_PROC{ p->fork(); };
+                vt::csier.table[CSI_CCC][CCC_IDX] = VT_PROC{ p->fork(q(0)); };
+                vt::csier.table[CSI_CCC][CCC_REF] = VT_PROC{ p->bind(q(0)); };
             }
         };
 
@@ -2057,13 +1415,13 @@ namespace netxs::console
         // page: Clear the list of paragraphs.
         page& clear (bool preserve_state = faux)
         {
-            if (!preserve_state) mark::brush = {};
+            if (!preserve_state) brush.reset();
             parts.clear();
             batch.resize(1);
             layer = batch.begin();
             parid = 1;
             batch.front().id(parid);
-            layer->wipe(mark::brush);
+            layer->wipe(brush);
             return *this;
         }
 
@@ -2097,7 +1455,7 @@ namespace netxs::console
         void fork()
         {
             layer->cook();
-            layer = batch.insert(std::next(layer), para{ layer->state });
+            layer = batch.insert(std::next(layer), para{ layer->align });
             layer->id(++parid);
             shrink();
         }
@@ -2107,12 +1465,15 @@ namespace netxs::console
             fork();
             parts[id] = layer;
         }
+        void test()
+        {
+            if (layer->busy()) fork();
+        }
         // page: Make a shared copy of an existing paragraph,
         //       or create a new one if it doesn't exist.
         void bind(iota id)
         {
-            if (layer->busy()) fork();
-
+            test();
             auto it = parts.find(id);
             if (it != parts.end())
                 layer->lyric = (*it).second->lyric;
@@ -2123,23 +1484,23 @@ namespace netxs::console
         //       current target otherwise abort content building.
         void task(ansi::rule const& cmd)
         {
-            if (layer->busy()) fork();
+            test();
             layer->locus.push(cmd);
         }
-        void post(utf::frag const& cluster) { layer->post(cluster, mark::brush); }
+        void post(utf::frag const& cluster) { layer->post(cluster, brush); }
         void cook() { layer->cook(); }
         auto size() const { return static_cast<iota>(batch.size()); }
         auto& current()       { return *layer; } // page: Access to the current paragraph.
         auto& current() const { return *layer; } // page: RO access to the current paragraph.
 
-        void  wrp(bool b) { layer->wrp(b); }
-        void  jet(iota n) { layer->jet(n); }
-        void  rtl(bool b) { layer->rtl(b); }
+        void  wrp(bool b) { test(); layer->wrp(b); }
+        void  jet(iota n) { test(); layer->jet(n); }
+        void  rtl(bool b) { test(); layer->rtl(b); }
 
-        void  tab(iota n) { layer->ins(n, mark::brush); } // page: Inset tabs via space
+        void  tab(iota n) { layer->ins(n, brush); } // page: Inset tabs via space
     };
 
-    class face // richtext: Textographical canvas.
+    class face // richtext: Textographical canvas
         : public core, protected flow, public std::enable_shared_from_this<face>
     {
         using vrgb = std::vector<irgb>;

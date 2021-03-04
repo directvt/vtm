@@ -485,6 +485,24 @@ namespace netxs::console::ansi
         iota cmd;
         iota arg;
     };
+    struct mark
+        : public cell
+    {
+        cell spare; // mark: Stored  brush
+        cell fresh; // mark: Initial brush
+        mark() = default;
+        mark(cell const& brush)
+            : cell { brush },
+              fresh{ brush }
+        { }
+        void reset()              { *this = fresh; }
+        void reset(cell const& c) { *this = fresh = c; }
+        auto busy() const         { return  fresh != *this; } // mark: Is the marker modified
+        void  sav()               { spare.set(*this);       } // mark: Save current SGR attributes
+        void  nil()               { this->set(spare);       } // mark: Restore saved SGR attributes
+        void  rfg()               { this->fgc(spare.fgc()); } // mark: Reset SGR Foreground color
+        void  rbg()               { this->bgc(spare.bgc()); } // mark: Reset SGR Background color
+    };
 
     template<class Q, class C>
     using func = netxs::generics::tree <Q, C*, std::function<void(Q&, C*&)>>;
@@ -591,10 +609,10 @@ namespace netxs::console::ansi
 
                 auto& csi_sgr = table[CSI_SGR].resize(0x100);
                 csi_sgr.enable_multi_arg();
-                    csi_sgr[SGR_RST      ] = VT_PROC{ p->nil( );    }; // fx_sgr_rst      ;
-                    csi_sgr[SGR_SAV      ] = VT_PROC{ p->sav( );    }; // fx_sgr_sav      ;
-                    csi_sgr[SGR_FG       ] = VT_PROC{ p->rfg( );    }; // fx_sgr_fg_def   ;
-                    csi_sgr[SGR_BG       ] = VT_PROC{ p->rbg( );    }; // fx_sgr_bg_def   ;
+                    csi_sgr[SGR_RST      ] = VT_PROC{ p->brush.nil( );    }; // fx_sgr_rst      ;
+                    csi_sgr[SGR_SAV      ] = VT_PROC{ p->brush.sav( );    }; // fx_sgr_sav      ;
+                    csi_sgr[SGR_FG       ] = VT_PROC{ p->brush.rfg( );    }; // fx_sgr_fg_def   ;
+                    csi_sgr[SGR_BG       ] = VT_PROC{ p->brush.rbg( );    }; // fx_sgr_bg_def   ;
                     csi_sgr[SGR_BOLD     ] = VT_PROC{ p->brush.bld(true); }; // fx_sgr_bld<true>;
                     csi_sgr[SGR_FAINT    ] = VT_PROC{ p->brush.bld(faux); }; // fx_sgr_bld<faux>;
                     csi_sgr[SGR_ITALIC   ] = VT_PROC{ p->brush.itc(true); }; // fx_sgr_itc<true>;

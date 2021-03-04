@@ -3034,14 +3034,12 @@ namespace netxs::console
 
                     auto& grade = skin::grade(header.active ? header.color.active
                                                             : header.color.passive);
-
                     auto pset = [&](twod const& p, uint8_t k)
                     {
                         //canvas[p].fuse(grade[k], obj_id, p - offset);
                         //canvas[p].fuse(grade[k], obj_id);
                         canvas[p].link(obj_id).bgc().mix_one(grade[k].bgc());
                     };
-
                     window.coor = dot_00;
                     netxs::online(window, origin, center, pset);
                 }
@@ -3063,10 +3061,6 @@ namespace netxs::console
 
                 void postrender(face& canvas)
                 {
-                    //if (auto& postrender = object->base::postrender)
-                    //{
-                    //	postrender(canvas);
-                    //}
                     object->postrender(canvas);
                 }
             };
@@ -3208,18 +3202,13 @@ namespace netxs::console
                     {
                         canvas.wipe(boss.id);
                         canvas.output(titles);
-
                         //todo revise
-                        users.prerender (canvas); // Drawing backpane for spectators
-                        items.render    (canvas); // Drawing objects of the world
+                        users.prerender (canvas); // Draw backpane for spectators
+                        items.render    (canvas); // Draw objects of the world
                         users.postrender(canvas); // Draw spectator's mouse pointers
-
                         return true;
                     }
-                    else
-                    {
-                        return faux;
-                    }
+                    else return faux;
                 };
 
                 boss.SUBMIT_T(e2::preview, e2::form::proceed::detach, memo, item)
