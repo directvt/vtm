@@ -1039,9 +1039,21 @@ namespace netxs::ui
     template<class T> text                     cell::glyf<T>::empty;
     template<class T> std::map<uint64_t, text> cell::glyf<T>::jumbo;
 
-    enum bias
+    struct bias
     {
-        left, right, center,
+        enum : iota { none, left, right, center, };
+    };
+    struct wrap
+    {
+        enum : iota { none, on, off, };
+    };
+    struct rtol
+    {
+        enum : iota { none, rtl, ltr, };
+    };
+    struct feed
+    {
+        enum : iota { none, rev, fwd, };
     };
 
     struct rect

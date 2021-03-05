@@ -2621,8 +2621,8 @@ namespace netxs::console
                 alerts = cell{}.fgc(rgba{ 0xFFd0d0FFu });
 
                 //status.end().locus.wrp(true).rlf(true).jet(bias::left).cup(dot_00).cnl(2);
-                status.current().wrp(true).jet(bias::left)
-                    .locus.rlf(true).cup(dot_00).cnl(2);
+                status.current().style.wrp(wrap::on).jet(bias::left).rlf(feed::rev);
+                status.current().locus.cup(dot_00).cnl(2);
 
                 auto maxlen = 0_sz;
                 for (auto& desc : description)
@@ -2828,12 +2828,12 @@ namespace netxs::console
                 logo += ansi::idx(prop::body).nop();
 
                 //logo.current().brush.vis(cell::transparent);
-                logo += ansi::wrp(faux).mgr(1).mgl(1)
-                      + ansi::rlf(faux).jet(bias::left).cup(dot_00)
+                logo += ansi::wrp(wrap::off).mgr(1).mgl(1)
+                      + ansi::rlf(feed::fwd).jet(bias::left).cup(dot_00)
                       + ansi::idx(prop::head) + ansi::nop()
-                      + ansi::rlf(true).jet(bias::right).cup(dot_00)
+                      + ansi::rlf(feed::rev).jet(bias::right).cup(dot_00)
                       + ansi::idx(prop::foot) + ansi::nop()
-                      + ansi::rlf(faux).jet(bias::left).cup(dot_00).mgr(0).mgl(0);
+                      + ansi::rlf(feed::fwd).jet(bias::left).cup(dot_00).mgr(0).mgl(0);
 
                 boss.SUBMIT_T(e2::release, e2::form::upon::redrawn, memo, canvas)
                 {

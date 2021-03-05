@@ -187,6 +187,8 @@ namespace netxs::console::ansi
     struct esc
         : public text // ansi: Escaped sequences accumulator.
     {
+        template<class T>
+        inline text str(T    n) { return std::to_string(static_cast<iota>(n)); }
         inline text str(iota n) { return std::to_string(n); }
         inline text str(char n) { return text(1, n); }
 
@@ -317,7 +319,6 @@ namespace netxs::console::ansi
         esc& cpx (iota n)        { add("\033[3:" + str(n  ) + CSI_CCC); return *this; } // esc: Cursor horizontal percent position.
         esc& cpy (iota n)        { add("\033[4:" + str(n  ) + CSI_CCC); return *this; } // esc: Cursor vertical percent position.
         esc& tbs (iota n)        { add("\033[5:" + str(n  ) + CSI_CCC); return *this; } // esc: Tabulation step length.
-        esc& jet (bias j)        { add("\033[6:" + str(j  ) + CSI_CCC); return *this; } // esc: Text alignment.
         esc& mgn (side const& n) { add("\033[7:" + str(n.l) + ":"                       // esc: Margin (left, right, top, bottom).
                                                  + str(n.r) + ":"
                                                  + str(n.t) + ":"
@@ -326,9 +327,12 @@ namespace netxs::console::ansi
         esc& mgr (iota n)        { add("\033[9:" + str(n  ) + CSI_CCC); return *this; } // esc: Right margin. Positive - native binding. Negative - opposite binding.
         esc& mgt (iota n)        { add("\033[10:"+ str(n  ) + CSI_CCC); return *this; } // esc: Top margin. Positive - native binding. Negative - opposite binding.
         esc& mgb (iota n)        { add("\033[11:"+ str(n  ) + CSI_CCC); return *this; } // esc: Bottom margin. Positive - native binding. Negative - opposite binding.
-        esc& wrp (bool b = true) { add("\033[12:"+ str(b  ) + CSI_CCC); return *this; } // esc: Text wrapping.
-        esc& rtl (bool b = true) { add("\033[13:"+ str(b  ) + CSI_CCC); return *this; } // esc: Text right-to-left.
-        esc& rlf (bool b = true) { add("\033[14:"+ str(b  ) + CSI_CCC); return *this; } // esc: Reverse line feed.
+
+        esc& jet (iota n)        { add("\033[6:" + str(n  ) + CSI_CCC); return *this; } // esc: Text alignment.
+        esc& wrp (iota n)        { add("\033[12:"+ str(n  ) + CSI_CCC); return *this; } // esc: Text wrapping.
+        esc& rtl (iota n)        { add("\033[13:"+ str(n  ) + CSI_CCC); return *this; } // esc: Text right-to-left.
+        esc& rlf (iota n)        { add("\033[14:"+ str(n  ) + CSI_CCC); return *this; } // esc: Reverse line feed.
+
         esc& idx (iota i)        { add("\033[15:"+ str(i  ) + CSI_CCC); return *this; } // esc: Split the text run and associate the fragment with an id.
         esc& ref (iota i)        { add("\033[19:"+ str(i  ) + CSI_CCC); return *this; } // esc: Create the reference to the existing paragraph.
         //todo unify
@@ -413,15 +417,17 @@ namespace netxs::console::ansi
     static esc cpx (iota n)          { return esc{}.cpx (n); } // ansi: Cursor horizontal percent position.
     static esc cpy (iota n)          { return esc{}.cpy (n); } // ansi: Cursor vertical percent position.
     static esc tbs (iota n)          { return esc{}.tbs (n); } // ansi: Tabulation step length.
-    static esc jet (bias n)          { return esc{}.jet (n); } // ansi: Text alignment.
     static esc mgn (side const& n)   { return esc{}.mgn (n); } // ansi: Margin (left, right, top, bottom).
     static esc mgl (iota n)          { return esc{}.mgl (n); } // ansi: Left margin.
     static esc mgr (iota n)          { return esc{}.mgr (n); } // ansi: Right margin.
     static esc mgt (iota n)          { return esc{}.mgt (n); } // ansi: Top margin.
     static esc mgb (iota n)          { return esc{}.mgb (n); } // ansi: Bottom margin.
-    static esc wrp (bool n = true)   { return esc{}.wrp (n); } // ansi: Text wrapping.
-    static esc rtl (bool n = true)   { return esc{}.rtl (n); } // ansi: Text right-to-left.
-    static esc rlf (bool n = true)   { return esc{}.rlf (n); } // ansi: Reverse line feed.
+
+    static esc jet (iota n)          { return esc{}.jet (n); } // ansi: Text alignment.
+    static esc wrp (iota n)          { return esc{}.wrp (n); } // ansi: Text wrapping.
+    static esc rtl (iota n)          { return esc{}.rtl (n); } // ansi: Text right-to-left.
+    static esc rlf (iota n)          { return esc{}.rlf (n); } // ansi: Reverse line feed.
+
     static esc rst ()                { return esc{}.rst ( ); } // ansi: Reset formatting parameters.
     static esc nop ()                { return esc{}.nop ( ); } // ansi: No operation. Split the text run.
     //ansi: Split the text run and associate the fragment with an id.
@@ -454,7 +460,7 @@ namespace netxs::console::ansi
         //br, // text wrap mode (DECSET: CSI ? 7 h/l Auto-wrap Mode (DECAWM) or CSI ? 45 h/l reverse wrap around mode)
         //yx, // bidi
         //hz, // text horizontal alignment
-        rf, // reverse (line) feed
+        //rf, // reverse (line) feed
 
         wl, // set left	horizontal wrapping field
         wr, // set right	horizontal wrapping field
@@ -502,6 +508,17 @@ namespace netxs::console::ansi
         void  nil()               { this->set(spare);       } // mark: Restore saved SGR attributes
         void  rfg()               { this->fgc(spare.fgc()); } // mark: Reset SGR Foreground color
         void  rbg()               { this->bgc(spare.bgc()); } // mark: Reset SGR Background color
+    };
+    struct look
+    {
+        iota adjust = bias::left; // look: Horizontal alignment
+        iota wrapln = WRAPPING;   // look: Auto wrapping
+        iota r_to_l = rtol::ltr;  // look: RTL
+        iota rlfeed = feed::fwd;  // look: Reverse line feed
+        auto& wrp(iota n) { wrapln = n; return *this; } // look: Auto wrapping
+        auto& jet(iota n) { adjust = n; return *this; } // look: Paragraph adjustment
+        auto& rtl(iota n) { r_to_l = n; return *this; } // look: RTL
+        auto& rlf(iota n) { rlfeed = n; return *this; } // look: Reverse line feed
     };
 
     template<class Q, class C>
@@ -596,12 +613,12 @@ namespace netxs::console::ansi
                     csi_ccc[CCC_CPX] = VT_PROC{ F(px, q(0)); }; // fx_ccc_cpx
                     csi_ccc[CCC_CPY] = VT_PROC{ F(py, q(0)); }; // fx_ccc_cpy
                     csi_ccc[CCC_TBS] = VT_PROC{ F(ts, q(0)); }; // fx_ccc_tbs
-                    csi_ccc[CCC_RLF] = VT_PROC{ F(rf, q(0)); }; // fx_ccc_rlf
                     csi_ccc[CCC_RST] = VT_PROC{ F(zz,   0);  }; // fx_ccc_rst
 
-                    csi_ccc[CCC_JET] = VT_PROC{ p->jet(q(0)); }; // fx_ccc_jet
-                    csi_ccc[CCC_WRP] = VT_PROC{ p->wrp(q(0)); }; // fx_ccc_wrp
-                    csi_ccc[CCC_RTL] = VT_PROC{ p->rtl(q(0)); }; // fx_ccc_rtl
+                    csi_ccc[CCC_JET] = VT_PROC{ p->style.jet(q(0)); }; // fx_ccc_jet
+                    csi_ccc[CCC_WRP] = VT_PROC{ p->style.wrp(q(0)); }; // fx_ccc_wrp
+                    csi_ccc[CCC_RTL] = VT_PROC{ p->style.rtl(q(0)); }; // fx_ccc_rtl
+                    csi_ccc[CCC_RLF] = VT_PROC{ p->style.rlf(q(0)); }; // fx_ccc_rlf
 
                     csi_ccc[CCC_NOP] = nullptr;
                     csi_ccc[CCC_IDX] = nullptr;
@@ -918,8 +935,8 @@ namespace netxs::console::ansi
     {
         using changer = std::array<void (*)(CELL &), ctrl::COUNT>;
 
-        static void set_r_to_l (CELL& p) { p.rtl(true); }
-        static void set_l_to_r (CELL& p) { p.rtl(faux); }
+        static void set_r_to_l (CELL& p) { p.rtl(rtol::rtl); }
+        static void set_l_to_r (CELL& p) { p.rtl(rtol::ltr); }
         static void set_hyphen (CELL& p) { p.hyphen(true); }
         static void set_fnappl (CELL& p) { p.fnappl(true); }
         static void set_invtms (CELL& p) { p.itimes(true); }
@@ -963,7 +980,6 @@ namespace netxs::console::ansi
         writ& cpx (iota x)     { push({ fn::px, x   }); return *this; } // Cursor horizontal percent position.
         writ& cpy (iota y)     { push({ fn::py, y   }); return *this; } // Cursor vertical percent position.
         writ& tbs (iota t)     { push({ fn::ts, t   }); return *this; } // Tabulation step length.
-        //writ& jet (bias j)     { push({ fn::hz, j   }); return *this; } // Text alignment.
         writ& mgn (side m)     { push({ fn::wl, m.l });                 // Margin (left, right, top, bottom).
                                  push({ fn::wr, m.r });
                                  push({ fn::wt, m.t });
@@ -972,9 +988,10 @@ namespace netxs::console::ansi
         writ& mgr (iota m)     { push({ fn::wr, m   }); return *this; } // Right margin.
         writ& mgt (iota m)     { push({ fn::wt, m   }); return *this; } // Top margin.
         writ& mgb (iota m)     { push({ fn::wb, m   }); return *this; } // Bottom margin.
+        //writ& jet (bias j)     { push({ fn::hz, j   }); return *this; } // Text alignment.
         //writ& wrp (bool b)     { push({ fn::br, b   }); return *this; } // Text wrapping.
         //writ& rtl (bool b)     { push({ fn::yx, b   }); return *this; } // Text right-to-left.
-        writ& rlf (bool b)     { push({ fn::rf, b   }); return *this; } // Reverse line feed.
+        //writ& rlf (iota b)     { push({ fn::rf, b   }); return *this; } // Reverse line feed.
         writ& cup (twod p)     { push({ fn::ay, p.y });                 // 0-Based cursor position.
                                  push({ fn::ax, p.x }); return *this; }
         writ& cuu (iota n = 1) { push({ fn::dy,-n   }); return *this; } // Cursor up.

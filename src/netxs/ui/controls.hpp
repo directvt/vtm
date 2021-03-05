@@ -2737,14 +2737,15 @@ namespace netxs::ui
             base::limits({ utf::length(caption) + (pad + 2) * 2,
                            10 });
 
-            topic = ansi::wrp(faux).jet(bias::left)
+            topic = ansi::wrp(wrap::off).jet(bias::left)
                 .cpy(50).chx(pad + 2).cuu(3) + caption + ansi::cud(3)
                 + ansi::idx(bar_id).nop().eol()
                 + ansi::idx(min_id).nop() + ansi::idx(max_id).nop();
 
             topic[min_id] = std::to_string(min_val);
             topic[max_id] = std::to_string(max_val);
-            topic[max_id].jet(bias::right).locus.chx(pad);
+            topic[max_id].style.jet(bias::right);
+            topic[max_id].locus.chx(pad);
             topic[min_id].locus.chx(pad);
 
             using bttn = e2::hids::mouse::button;
@@ -2915,7 +2916,7 @@ namespace netxs::ui
                 //purify();
                 canvas.wipe();
                 //canvas.rst();
-                canvas.jet(bias::left).wrp(false);
+                canvas.jet(bias::left).wrp(wrap::off);
 
                 auto& size = base::size.get();
                 while (curpos.x < size.x)

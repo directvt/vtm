@@ -367,10 +367,10 @@ namespace netxs::console
     {
     public:
         dent margin;
-        bias adjust;
-        bool wrapln;
-        bool r_to_l;
-        bool rlfeed;
+        iota adjust;
+        iota wrapln;
+        iota r_to_l;
+        iota rlfeed;
         iota tablen;
         twod cursor;
         //twod origin; // deco: Relative cursor external offset.
@@ -379,11 +379,11 @@ namespace netxs::console
         constexpr
         deco(iota const& size_x, iota const& size_y)
             : margin{ size_x, size_y },
-              adjust{ left },
+              adjust{ bias::left },
               wrapln{ WRAPPING },
               //wrapln{ true }, //{ faux },
-              r_to_l{ faux },
-              rlfeed{ faux },
+              r_to_l{ rtol::ltr },
+              rlfeed{ feed::fwd },
               tablen{ 8    }
         { }
         constexpr
@@ -416,10 +416,10 @@ namespace netxs::console
         void py	(iota y)        { ay (margin.v_ratio(y)); }
         void pc	(twod const& c) { px(c.x); py(c.y);       }
         void ts	(iota n)        { tablen = n ? n : 8;     }
-        void br	(bool w)        { wrapln = w;             }
-        void hz	(bias a)        { adjust = a;             }
-        void yx	(bool r)        { r_to_l = r;             }
-        void rf	(bool f)        { rlfeed = f;             }
+        void br	(iota w)        { wrapln = w;             }
+        void hz	(iota a)        { adjust = a;             }
+        void yx	(iota r)        { r_to_l = r;             }
+        void rf	(iota f)        { rlfeed = f;             }
         void wl	(iota l)        { margin.west = l;        }
         void wr	(iota r)        { margin.east = r;        }
         void wt	(iota t)        { margin.head = t;        }
@@ -441,11 +441,10 @@ namespace netxs::console
         }
         void zz	()
         {
-            adjust = left;
+            adjust = bias::left;
             wrapln = WRAPPING;
-            //wrapln = true; //faux;
-            r_to_l = faux;
-            rlfeed = faux;
+            r_to_l = rtol::ltr;
+            rlfeed = feed::fwd;
             tablen = 8   ;
             cursor = dot_00;
             corner = dot_00;
@@ -459,8 +458,8 @@ namespace netxs::console
             //twod coor{ cursor + origin };
             twod coor{ cursor };
 
-            if (adjust == right) coor.x = margin.width()  - 1 - coor.x;
-            if (rlfeed == true ) coor.y = margin.height() - 1 - coor.y;
+            if (adjust == bias::right) coor.x = margin.width()  - 1 - coor.x;
+            if (rlfeed == feed::rev  ) coor.y = margin.height() - 1 - coor.y;
 
             coor += margin.coor();
             return coor;
@@ -533,7 +532,7 @@ namespace netxs::console
             //exec_br, // text wrap mode
             //exec_yx, // bidi
             //exec_hz, // text horizontal alignment
-            exec_rf, // reverse (line) feed
+            //exec_rf, // reverse (line) feed
 
             exec_wl, // set left   horizontal wrapping field
             exec_wr, // set right  horizontal wrapping field
@@ -614,7 +613,7 @@ namespace netxs::console
         template<bool RtoL, bool ReLF, class T, class P>
         void trimmed(T const& block, P print)
         {
-            if (adjust == center) deco::ax(middle());
+            if (centered) deco::ax(middle());
             output<faux, RtoL, ReLF>(block, print);
         }
 
@@ -633,13 +632,18 @@ namespace netxs::console
         template<bool RtoL, bool ReLF, class T, class P>
         void proceed(T const& block, P print)
         {
-            auto centered = deco::adjust == center;
-            if (deco::wrapln) if (centered) centred<RtoL, ReLF>(block, print);
-                              else          wrapped<RtoL, ReLF>(block, print);
-            else                            trimmed<RtoL, ReLF>(block, print);
+            if (iswrapln) if (centered) centred<RtoL, ReLF>(block, print);
+                           else         wrapped<RtoL, ReLF>(block, print);
+            else                        trimmed<RtoL, ReLF>(block, print);
         }
 
     public:
+        bool iswrapln = faux;
+        bool arighted = faux;
+        bool isr_to_l = faux;
+        bool isrlfeed = faux;
+        bool centered = faux;
+
         std::function<void(ansi::fn cmd, iota arg)> custom; // flow: Draw commands (customizable)
 
         flow(iota const& size_x, iota const& size_y)
@@ -655,19 +659,33 @@ namespace netxs::console
         template<class T, class P = noop>
         void compose(T const& block, P print = P())//, twod const& offset = dot_00)
         {
-            deco::wrapln = block.align.wrapln;
-            deco::adjust = block.align.adjust;
-            deco::r_to_l = block.align.r_to_l;
+            // Local settings take precedence over global ones (deco::*)
+            iswrapln = block.style.wrapln != wrap::none ? block.style.wrapln == wrap::on
+                                                        : deco::wrapln == wrap::on;
+            isr_to_l = block.style.r_to_l != rtol::none ? block.style.r_to_l == rtol::rtl
+                                                        : deco::r_to_l == rtol::rtl;
+            isrlfeed = block.style.rlfeed != feed::none ? block.style.rlfeed == feed::rev
+                                                        : deco::rlfeed == feed::rev;
+            if (block.style.adjust != bias::none)
+            {
+                arighted = block.style.adjust == bias::right;
+                centered = block.style.adjust == bias::center;
+            }
+            else
+            {
+                arighted = deco::adjust == bias::right;
+                centered = deco::adjust == bias::center;
+            }
 
             auto block_size = block.size(); // 2D size
             fullsize = get_len(block_size); // 1D length
 
             if (fullsize)
             {
-                auto arighted = deco::adjust == bias::right;
+                //auto arighted = deco::adjust == bias::right;
                 textline = get_vol(block_size); // 2D size
                 curpoint = 0;
-                straight = deco::wrapln || deco::r_to_l == arighted;
+                straight = iswrapln || isr_to_l == arighted;
                 pagearea = deco::margin;
                 pagearea.coor += deco::corner;
                 cursormx = pagearea.size.x;// -origin.x;
@@ -681,11 +699,11 @@ namespace netxs::console
                 }
 
                 if (arighted)
-                    if (deco::rlfeed) proceed<true, true>(block, print);
-                    else              proceed<true, faux>(block, print);
+                    if (isrlfeed) proceed<true, true>(block, print);
+                    else          proceed<true, faux>(block, print);
                 else
-                    if (deco::rlfeed) proceed<faux, true>(block, print);
-                    else              proceed<faux, faux>(block, print);
+                    if (isrlfeed) proceed<faux, true>(block, print);
+                    else          proceed<faux, faux>(block, print);
             }
         }
         // flow: Execute specified locus instruction list.
@@ -713,7 +731,7 @@ namespace netxs::console
                                 : deco::cp();
             compose(block, [&](auto const& coord, auto const& subblock)
                            {
-                               canvas.text(coord, subblock, deco::r_to_l);
+                               canvas.text(coord, subblock, isr_to_l);
                            });
             return cp;
         }
@@ -817,38 +835,8 @@ namespace netxs::console
         }
     };
 
-    struct para_state
-    {
-        iota  selfid = 0;
-        iota  bossid = 0;          // para: Index of the top visible text line.
-        bias  adjust = bias::left; // para: Horizontal alignment.
-        bool  wrapln = WRAPPING;   // para: Auto wrapping.
-        bool  r_to_l = faux;       // para: RTL.
-
-        para_state() = default;
-        para_state(para_state const& s)
-            : adjust { s.adjust },
-              wrapln { s.wrapln },
-              r_to_l { s.r_to_l }
-        { }
-        para_state(iota selfid, para_state const& s)
-            : selfid { selfid   },
-              bossid { selfid   },
-              adjust { s.adjust },
-              wrapln { s.wrapln },
-              r_to_l { s.r_to_l }
-        { }
-        void operator = (para_state const& s)
-        {
-            adjust = s.adjust;
-            wrapln = s.wrapln;
-            r_to_l = s.r_to_l;
-        }
-    };
-
     class para // richtext: Enriched text paragraph
     {
-        friend class page;
         using corx = sptr<core>;
 
         grid proto;     // para: Proto lyric
@@ -859,12 +847,17 @@ namespace netxs::console
         template<class T>
         using parser = ansi::parser<T>; // Use default static parser
         using mark   = ansi::mark;
+        using look   = ansi::look;
+
+        iota selfid = 0;
+        iota bossid = 0;          // para: Index of the top visible text line
 
         text debug; // para: debug string
         writ locus;
         corx lyric = std::make_shared<core>();
+
         mark brush; // para: Brush for parser
-        para_state align;
+        look style; // para: Style for parser
 
         para()                         = default;
         para(para&&) noexcept          = default;
@@ -872,11 +865,13 @@ namespace netxs::console
         para& operator = (para&&)      = default;
         para& operator = (para const&) = default;
 
-        para(para_state const& state)
-            : align{ state }
+        para(look const& style)
+            : style{ style }
         { }
-        para(iota newid, para_state const& state = {})
-            : align{ newid, state }
+        para(iota newid, look const& style = {})
+            : style  { style },
+              selfid { newid },
+              bossid { newid }
         { }
         para(view utf8, cell const& brush = {})
             : brush{ brush }
@@ -907,7 +902,7 @@ namespace netxs::console
         {
             width = p.width;
             caret = p.caret;
-            align = p.align;
+            style = p.style;
             locus = std::move(p.locus);
             proto = std::move(p.proto);
             debug = std::move(p.debug);
@@ -1071,11 +1066,8 @@ namespace netxs::console
             //width = 0;
         }
 
-        auto& wrp(bool b)         { align.wrapln = b;       return *this; } // para: Auto wrapping.
-        auto& jet(iota n)         { align.adjust = (bias)n; return *this; } // para: Paragraph adjustment.
-        auto& rtl(bool b)         { align.r_to_l = b;       return *this; } // para: RTL.
-        auto  id() const          { return align.selfid;  }
-        void  id(iota newid)      { align.selfid = newid; }
+        auto  id() const          { return selfid;  }
+        void  id(iota newid)      { selfid = newid; }
 
         auto  chx() const         { return caret;         }
         void  chx(iota new_pos)   { caret = new_pos;      }
@@ -1172,11 +1164,11 @@ namespace netxs::console
               finish{ finish },
               suffix{ suffix },
               volume{ volume }
-              ,align{source->align}
+              ,style{source->style}
         { }
 
     public:
-        para_state align;
+        ansi::look style;
 
         rope(iter const& head, iter const& tail, twod const& size)
             : source{ head },
@@ -1184,7 +1176,7 @@ namespace netxs::console
               prefix{ 0    },
               suffix{ 0    },
               volume{ size }
-              ,align{head->align}
+              ,style{head->style}
         { }
 
         operator writ const& () const { return *source; }
@@ -1287,14 +1279,18 @@ namespace netxs::console
         using iter = list::iterator;
         using imap = std::map<iota, iter>;
         using mark = ansi::mark;
+        using look = ansi::look;
 
     public:
-        iota  parid = 1;               // page: Current paragraph id
-        list  batch = { para(parid) }; // page: The list of the rich-text paragraphs
-        iter  layer = batch.begin();   // page: Current paragraph
-        imap  parts;                   // page: Embedded text blocks
-        iota  limit = std::numeric_limits<iota>::max(); // page: Paragraphs number limit
-        mark  brush;                   // page: Parser brush
+        iota parid = 1;               // page: Current paragraph id
+        list batch = { para(parid) }; // page: The list of the rich-text paragraphs
+        iter layer = batch.begin();   // page: Current paragraph
+        imap parts;                   // page: Embedded text blocks
+        iota limit = std::numeric_limits<iota>::max(); // page: Paragraphs number limit
+
+        mark brush; // page: Parser brush
+        look style; // page: Parser style
+
         // page: Remove over limit paragraphs.
         void shrink()
         {
@@ -1382,25 +1378,6 @@ namespace netxs::console
             layer = std::prev(batch.end());
             return *this;
         }
-
-        //todo implement pararaph's id synchronization
-        // page: Append another page. Move semantic.
-        //page& operator += (page& p)
-        //{
-        //	parts.insert(p.parts.begin(), p.parts.end()); /// Part id should be unique across pages
-        //	batch.splice(std::next(layer), p.batch);
-        //	shrink();
-        //	layer = std::prev(batch.end());
-        //	return *this;
-        //}
-        // page: Append rich-textline. Dont copy - Move semantic.
-        //page& operator += (para& p)
-        //{
-        //	layer->cook();
-        //	batch.insert(std::next(layer), std::move(p));
-        //	layer = std::prev(batch.end());
-        //	return *this;
-        //}
         // page: Set the limit of paragraphs.
         void maxlen(iota m)
         {
@@ -1452,10 +1429,11 @@ namespace netxs::console
     //private:
     //protected:
         // page: Split the text run.
+        template<bool COOK = true>
         void fork()
         {
-            layer->cook();
-            layer = batch.insert(std::next(layer), para{ layer->align });
+            if constexpr (COOK) cook();
+            layer = batch.insert(std::next(layer), style);
             layer->id(++parid);
             shrink();
         }
@@ -1467,7 +1445,8 @@ namespace netxs::console
         }
         void test()
         {
-            if (layer->busy()) fork();
+            cook();
+            if (layer->busy()) fork<faux>();
         }
         // page: Make a shared copy of an existing paragraph,
         //       or create a new one if it doesn't exist.
@@ -1488,14 +1467,15 @@ namespace netxs::console
             layer->locus.push(cmd);
         }
         void post(utf::frag const& cluster) { layer->post(cluster, brush); }
-        void cook() { layer->cook(); }
+        void cook() { layer->style = style; layer->cook(); }
         auto size() const { return static_cast<iota>(batch.size()); }
         auto& current()       { return *layer; } // page: Access to the current paragraph.
         auto& current() const { return *layer; } // page: RO access to the current paragraph.
 
-        void  wrp(bool b) { test(); layer->wrp(b); }
-        void  jet(iota n) { test(); layer->jet(n); }
-        void  rtl(bool b) { test(); layer->rtl(b); }
+        //void  wrp(iota n) { test(); layer->style.wrp(n); }
+        //void  jet(iota n) { test(); layer->style.jet(n); }
+        //void  rtl(iota n) { test(); layer->style.rtl(n); }
+        //void  rlf(iota n) { test(); layer->style.rlf(n); }
 
         void  tab(iota n) { layer->ins(n, brush); } // page: Inset tabs via space
     };
@@ -1678,52 +1658,52 @@ namespace netxs::console
             flow::reset();
         }
 
-        auto& cup () const        { return flow::cursor;        } // face: Get cursor position.
-        face& cup (twod const& p) { flow::ac( p); return *this; } // face: Cursor 0-based absolute position.
-        face& chx (iota x)        { flow::ax( x); return *this; } // face: Cursor 0-based horizontal absolute.
-        face& chy (iota y)        { flow::ay( y); return *this; } // face: Cursor 0-based vertical absolute.
-        face& cpp (twod const& p) { flow::pc( p); return *this; } // face: Cursor percent position.
-        face& cpx (iota x)        { flow::px( x); return *this; } // face: Cursor H percent position.
-        face& cpy (iota y)        { flow::py( y); return *this; } // face: Cursor V percent position.
-        face& cuu (iota n = 1)    { flow::dy(-n); return *this; } // face: cursor up.
-        face& cud (iota n = 1)    { flow::dy( n); return *this; } // face: Cursor down.
-        face& cuf (iota n = 1)    { flow::dx( n); return *this; } // face: Cursor forward.
-        face& cub (iota n = 1)    { flow::dx(-n); return *this; } // face: Cursor backward.
-        face& cnl (iota n = 1)    { flow::dx(-n); return *this; } // face: Cursor next line.
-        face& cpl (iota n = 1)    { flow::dx(-n); return *this; } // face: Cursor previous line.
+        auto& cup () const        { return flow::cursor;        } // face: Get cursor position
+        face& cup (twod const& p) { flow::ac( p); return *this; } // face: Cursor 0-based absolute position
+        face& chx (iota x)        { flow::ax( x); return *this; } // face: Cursor 0-based horizontal absolute
+        face& chy (iota y)        { flow::ay( y); return *this; } // face: Cursor 0-based vertical absolute
+        face& cpp (twod const& p) { flow::pc( p); return *this; } // face: Cursor percent position
+        face& cpx (iota x)        { flow::px( x); return *this; } // face: Cursor H percent position
+        face& cpy (iota y)        { flow::py( y); return *this; } // face: Cursor V percent position
+        face& cuu (iota n = 1)    { flow::dy(-n); return *this; } // face: cursor up
+        face& cud (iota n = 1)    { flow::dy( n); return *this; } // face: Cursor down
+        face& cuf (iota n = 1)    { flow::dx( n); return *this; } // face: Cursor forward
+        face& cub (iota n = 1)    { flow::dx(-n); return *this; } // face: Cursor backward
+        face& cnl (iota n = 1)    { flow::dx(-n); return *this; } // face: Cursor next line
+        face& cpl (iota n = 1)    { flow::dx(-n); return *this; } // face: Cursor previous line
 
-        face& ocp (twod const& p) { flow::oc( p); return *this; } // face: Cursor 1-based absolute position.
-        face& ocx (iota x)        { flow::ox( x); return *this; } // face: Cursor 1-based horizontal absolute.
-        face& ocy (iota y)        { flow::oy( y); return *this; } // face: Cursor 1-based vertical absolute.
+        face& ocp (twod const& p) { flow::oc( p); return *this; } // face: Cursor 1-based absolute position
+        face& ocx (iota x)        { flow::ox( x); return *this; } // face: Cursor 1-based horizontal absolute
+        face& ocy (iota y)        { flow::oy( y); return *this; } // face: Cursor 1-based vertical absolute
 
-        face& scp ()              { flow::sc(  ); return *this; } // face: Save cursor position.
-        face& rcp ()              { flow::rc(  ); return *this; } // face: Restore cursor position.
-        face& mgn (side const& s) { flow::wn( s); return *this; } // face: Margin left, right, top, bottom.
-        face& mgl (iota n)        { flow::wl( n); return *this; } // face: Margin left	╮.
-        face& mgr (iota n)        { flow::wr( n); return *this; } // face: Margin right	│ positive - native binding.
-        face& mgt (iota n)        { flow::wt( n); return *this; } // face: Margin top	│ negative - oppisite binding.
-        face& mgb (iota n)        { flow::wb( n); return *this; } // face: Margin bottom	╯.
-        face& tab (iota n = 1)    { flow::tb( n); return *this; } // face: Proceed the \t.
-        face& eol (iota n = 1)    { flow::nl( n); return *this; } // face: Proceed the \r || \n || \r\n.
-        face& tbs (iota n)        { flow::ts( n); return *this; } // face: Tab step length.
+        face& scp ()              { flow::sc(  ); return *this; } // face: Save cursor position
+        face& rcp ()              { flow::rc(  ); return *this; } // face: Restore cursor position
+        face& mgn (side const& s) { flow::wn( s); return *this; } // face: Margin left, right, top, bottom
+        face& mgl (iota n)        { flow::wl( n); return *this; } // face: Margin left   ╮
+        face& mgr (iota n)        { flow::wr( n); return *this; } // face: Margin right  │ positive - native binding
+        face& mgt (iota n)        { flow::wt( n); return *this; } // face: Margin top    │ negative - oppisite binding
+        face& mgb (iota n)        { flow::wb( n); return *this; } // face: Margin bottom ╯
+        face& tab (iota n = 1)    { flow::tb( n); return *this; } // face: Proceed the \t
+        face& eol (iota n = 1)    { flow::nl( n); return *this; } // face: Proceed the \r || \n || \r\n
+        face& tbs (iota n)        { flow::ts( n); return *this; } // face: Tab step length
 
-        face& wrp (bool w)        { flow::br( w); return *this; } // face: Text wrapping on/off.
-        face& jet (bias j)        { flow::hz( j); return *this; } // face: Text alignment (bias).
-        face& rtl (bool m)        { flow::yx( m); return *this; } // face: Text right-to-left on/off.
+        face& wrp (bool w)        { flow::br( w); return *this; } // face: Text wrapping on/off
+        face& jet (iota j)        { flow::hz( j); return *this; } // face: Text alignment (bias)
+        face& rtl (bool m)        { flow::yx( m); return *this; } // face: Text right-to-left on/off
+        face& rlf (bool f)        { flow::rf( f); return *this; } // face: Reverse line feed on/off
 
-        face& rlf (bool f)        { flow::rf( f); return *this; } // face: Reverse line feed on/off.
-        auto& rtl () const        { return flow::r_to_l;        } // face: Text right-to-left on/off.
-        face& rst ()  { flow::zz(  ); flow::sc(); return *this; } // face: Reset to zero all cursor params.
+        auto& rtl () const        { return flow::r_to_l;        } // face: Text right-to-left on/off
+        face& rst ()  { flow::zz(  ); flow::sc(); return *this; } // face: Reset to zero all cursor params
         //todo revise
-        auto cp	() { return flow::cp(); } // face: Return relative cursor position.
+        auto cp	() { return flow::cp(); } // face: Return relative cursor position
 
 
         //todo unify all core::size
-        auto& size () // face: Return the size of the face/core.
+        auto& size () // face: Return the size of the face/core
         {
             return core::size();
         }
-        void  size (twod const& newsize) // face: Change the size of the face/core.
+        void  size (twod const& newsize) // face: Change the size of the face/core
         {
             core::size(newsize);
             cover = newsize;
@@ -1872,7 +1852,7 @@ namespace netxs::console
                                                       d_point, shade);
         }
 
-        // face: Render nested object to the canvas using renderproc. TRIM = trim viewport to the client area.
+        // face: Render nested object to the canvas using renderproc. TRIM = trim viewport to the client area
         template<bool TRIM = true, class T>
         void render(sptr<T> nested_ptr, twod const& basis)
         {
@@ -1882,7 +1862,7 @@ namespace netxs::console
                 face::render<TRIM>(nested, basis);
             }
         }
-        // face: Render nested object to the canvas using renderproc. TRIM = trim viewport to the client area.
+        // face: Render nested object to the canvas using renderproc. TRIM = trim viewport to the client area
         template<bool TRIM = true, class T>
         void render(T& nested, twod const& basis)
         {
