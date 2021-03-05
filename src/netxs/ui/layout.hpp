@@ -1039,22 +1039,10 @@ namespace netxs::ui
     template<class T> text                     cell::glyf<T>::empty;
     template<class T> std::map<uint64_t, text> cell::glyf<T>::jumbo;
 
-    struct bias
-    {
-        enum : iota { none, left, right, center, };
-    };
-    struct wrap
-    {
-        enum : iota { none, on, off, };
-    };
-    struct rtol
-    {
-        enum : iota { none, rtl, ltr, };
-    };
-    struct feed
-    {
-        enum : iota { none, rev, fwd, };
-    };
+    struct bias { enum : iota { none, left, right, center, }; };
+    struct wrap { enum : iota { none, on,  off,            }; };
+    struct rtol { enum : iota { none, rtl, ltr,            }; };
+    struct feed { enum : iota { none, rev, fwd,            }; };
 
     struct rect
     {
@@ -1337,23 +1325,19 @@ namespace netxs::ui
 
     struct dent
     {
-        class edge
+        struct edge
         {
-            iota const& size;
-
-        public:
             iota step = 0;
             bool just = faux;
             bool flip = faux;
 
-            constexpr edge(iota const& size, bool just)
-                : size { size },
-                  just { just },
+            constexpr edge(bool just)
+                : just { just },
                   flip { faux },
                   step { 0    }
             { }
 
-            operator iota () const
+            auto get(iota size) const
             {
                 return (just != flip) ? step : size - step;
             }
@@ -1374,12 +1358,11 @@ namespace netxs::ui
         edge head;
         edge foot;
 
-        constexpr
-        dent(iota const& size_x, iota const& size_y)
-            : west (size_x, true),
-              east (size_x, faux),
-              head (size_y, true),
-              foot (size_y, faux)
+        constexpr dent()
+            : west{ true },
+              east{ faux },
+              head{ true },
+              foot{ faux }
         { }
 
         dent& operator = (dent const& margin)
@@ -1390,57 +1373,72 @@ namespace netxs::ui
             foot = margin.foot;
             return *this;
         }
+        dent& operator += (dent const& margin)
+        {
+            west.step += margin.west.step;
+            east.step += margin.east.step;
+            head.step += margin.head.step;
+            foot.step += margin.foot.step;
+            return *this;
+        }
         // dent: Return inner area rectangle.
-        operator rect () const
+        auto area(iota size_x, iota size_y) const
         {
             //todo RTL
-            iota w = west;
-            iota h = head;
-            iota e = east;
-            iota f = foot;
-            return { {w, h}, {std::max(e - w, 0), std::max(f - h, 0)} };
+            auto w = west.get(size_x);
+            auto h = head.get(size_y);
+            auto e = east.get(size_x);
+            auto f = foot.get(size_y);
+            return rect{ {w, h}, {std::max(e - w, 0), std::max(f - h, 0)} };
         }
         // dent: Return the coor of the area rectangle.
-        twod coor() const
+        auto coor(iota size_x, iota size_y) const
         {
-            return twod{ west,head };
+            return twod{ west.get(size_x),
+                         head.get(size_y) };
         }
         // dent: Return inner width.
-        iota width() const
+        auto width(iota size_x) const
         {
-            iota w = west;
-            iota e = east;
+            auto w = west.get(size_x);
+            auto e = east.get(size_x);
             return std::max(e - w, 0);
         }
         // dent: Return inner height.
-        iota height() const
+        auto height(iota size_y) const
         {
-            iota h = head;
-            iota f = foot;
+            auto h = head.get(size_y);
+            auto f = foot.get(size_y);
             return std::max(f - h, 0);
         }
         // dent: Return the horizontal coordinate using percentages.
-        iota h_ratio(iota px) const
+        auto h_ratio(iota px, iota size_x) const
         {
-            iota w = west;
-            iota e = east;
+            auto w = west.get(size_x);
+            auto e = east.get(size_x);
             return divround(px * (std::max(e - w, 1) - 1), 100);
         }
         // dent: Return the vertical coordinate using percentages.
-        iota v_ratio(iota py) const
+        auto v_ratio(iota py, iota size_y) const
         {
-            iota h = head;
-            iota f = foot;
+            auto h = head.get(size_y);
+            auto f = foot.get(size_y);
             return divround(py * (std::max(f - h, 1) - 1), 100);
         }
-
-        //void set_size(twod const& formsize)
-        //{
-        //	west.set(formsize.x, true);
-        //	east.set(formsize.x, faux);
-        //	head.set(formsize.y, true);
-        //	foot.set(formsize.y, faux);
-        //}
+        void reset()
+        {
+            west.step = 0;
+            east.step = 0;
+            head.step = 0;
+            foot.step = 0;
+        }
+        void set(fifo& q)
+        {
+            west = q(0);
+            east = q(0);
+            head = q(0);
+            foot = q(0);
+        }
     };
 
     struct rack // scroll info

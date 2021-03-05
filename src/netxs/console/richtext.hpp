@@ -364,27 +364,19 @@ namespace netxs::console
     };
 
     class deco // richtext: Flow controller and state holder
+        : public ansi::look
     {
     public:
-        dent margin;
-        iota adjust;
-        iota wrapln;
-        iota r_to_l;
-        iota rlfeed;
-        iota tablen;
         twod cursor;
-        //twod origin; // deco: Relative cursor external offset.
-        twod corner; // deco: Nesting offset accumulator.
+        twod corner; // deco: Nesting offset accumulator
+
+        iota const& size_x;
+        iota const& size_y;
 
         constexpr
         deco(iota const& size_x, iota const& size_y)
-            : margin{ size_x, size_y },
-              adjust{ bias::left },
-              wrapln{ WRAPPING },
-              //wrapln{ true }, //{ faux },
-              r_to_l{ rtol::ltr },
-              rlfeed{ feed::fwd },
-              tablen{ 8    }
+            : size_x{ size_x },
+              size_y{ size_y }
         { }
         constexpr
         deco(twod const& size)
@@ -393,14 +385,8 @@ namespace netxs::console
 
         void commit(deco const& f)
         {
+            ansi::look::set(f);
             cursor = f.cursor;
-            adjust = f.adjust;
-            wrapln = f.wrapln;
-            r_to_l = f.r_to_l;
-            rlfeed = f.rlfeed;
-            tablen = f.tablen;
-            margin = f.margin;
-            //origin = f.origin;
             corner = f.corner;
         }
         void ax	(iota x)        { cursor.x  = x;          }
@@ -412,8 +398,8 @@ namespace netxs::console
         void dx	(iota n)        { cursor.x += n;          }
         void dy	(iota n)        { cursor.y += n;          }
         void nl	(iota n)        { ax(0); dy(n);           }
-        void px	(iota x)        { ax (margin.h_ratio(x)); }
-        void py	(iota y)        { ay (margin.v_ratio(y)); }
+        void px	(iota x)        { ax (margin.h_ratio(x, size_x)); }
+        void py	(iota y)        { ay (margin.v_ratio(y, size_y)); }
         void pc	(twod const& c) { px(c.x); py(c.y);       }
         void ts	(iota n)        { tablen = n ? n : 8;     }
         void br	(iota w)        { wrapln = w;             }
@@ -441,28 +427,9 @@ namespace netxs::console
         }
         void zz	()
         {
-            adjust = bias::left;
-            wrapln = WRAPPING;
-            r_to_l = rtol::ltr;
-            rlfeed = feed::fwd;
-            tablen = 8   ;
+            ansi::look::rst();
             cursor = dot_00;
             corner = dot_00;
-            margin.west = 0;
-            margin.head = 0;
-            margin.east = 0;
-            margin.foot = 0;
-        }
-        twod cp() const // deco: Return absolute cursor position.
-        {
-            //twod coor{ cursor + origin };
-            twod coor{ cursor };
-
-            if (adjust == bias::right) coor.x = margin.width()  - 1 - coor.x;
-            if (rlfeed == feed::rev  ) coor.y = margin.height() - 1 - coor.y;
-
-            coor += margin.coor();
-            return coor;
         }
     };
 
@@ -491,17 +458,8 @@ namespace netxs::console
         static void exec_oy(flow& f, iota a) { f.oy(a); }
         static void exec_px(flow& f, iota a) { f.px(a); }
         static void exec_py(flow& f, iota a) { f.py(a); }
-        static void exec_ts(flow& f, iota a) { f.ts(a); }
         static void exec_tb(flow& f, iota a) { f.tb(a); }
         static void exec_nl(flow& f, iota a) { f.nl(a); }
-        //static void exec_br(flow& f, iota a) { f.br(a); }
-        //static void exec_yx(flow& f, iota a) { f.yx(a); }
-        //static void exec_hz(flow& f, iota a) { f.hz((bias)a); }
-        static void exec_rf(flow& f, iota a) { f.rf(a); }
-        static void exec_wl(flow& f, iota a) { f.wl(a); }
-        static void exec_wr(flow& f, iota a) { f.wr(a); }
-        static void exec_wt(flow& f, iota a) { f.wt(a); }
-        static void exec_wb(flow& f, iota a) { f.wb(a); }
         static void exec_sc(flow& f, iota a) { f.sc( ); }
         static void exec_rc(flow& f, iota a) { f.rc( ); }
         static void exec_zz(flow& f, iota a) { f.zz( ); }
@@ -526,7 +484,7 @@ namespace netxs::console
             exec_oy, // old format y absolute (1-based)
             exec_px, // x percent
             exec_py, // y percent
-            exec_ts, // set tab size
+            //exec_ts, // set tab size
             exec_tb, // horizontal tab
             exec_nl, // next line and reset x to west (carriage return)
             //exec_br, // text wrap mode
@@ -534,10 +492,10 @@ namespace netxs::console
             //exec_hz, // text horizontal alignment
             //exec_rf, // reverse (line) feed
 
-            exec_wl, // set left   horizontal wrapping field
-            exec_wr, // set right  horizontal wrapping field
-            exec_wt, // set top      vertical wrapping field
-            exec_wb, // set bottom   vertical wrapping field
+            //exec_wl, // set left   horizontal wrapping field
+            //exec_wr, // set right  horizontal wrapping field
+            //exec_wt, // set top      vertical wrapping field
+            //exec_wb, // set bottom   vertical wrapping field
 
             exec_sc, // save cursor position
             exec_rc, // load cursor position
@@ -643,6 +601,7 @@ namespace netxs::console
         bool isr_to_l = faux;
         bool isrlfeed = faux;
         bool centered = faux;
+        dent margin;
 
         std::function<void(ansi::fn cmd, iota arg)> custom; // flow: Draw commands (customizable)
 
@@ -653,20 +612,42 @@ namespace netxs::console
         flow(twod const& size )
             : flow { size.x, size.y }
         { }
-        
+
+        twod cp() const // deco: Return absolute cursor position.
+        {
+            twod coor{ cursor };
+
+            if (adjust == bias::right) coor.x = margin.width(size_x)  - 1 - coor.x;
+            if (rlfeed == feed::rev  ) coor.y = margin.height(size_y) - 1 - coor.y;
+
+            coor += margin.coor(size_x, size_y);
+            return coor;
+        }
+        auto coor()
+        {
+            return margin.coor(size_x, size_y);
+        }
+        auto width()
+        {
+            return margin.width(size_x);
+        }
+        auto height()
+        {
+            return margin.height(size_y);
+        }
         // flow: Split specified textblock on the substrings
         //       and place it to the form by the specified proc.
         template<class T, class P = noop>
         void compose(T const& block, P print = P())//, twod const& offset = dot_00)
         {
             // Local settings take precedence over global ones (deco::*)
-            iswrapln = block.style.wrapln != wrap::none ? block.style.wrapln == wrap::on
-                                                        : deco::wrapln == wrap::on;
-            isr_to_l = block.style.r_to_l != rtol::none ? block.style.r_to_l == rtol::rtl
-                                                        : deco::r_to_l == rtol::rtl;
-            isrlfeed = block.style.rlfeed != feed::none ? block.style.rlfeed == feed::rev
-                                                        : deco::rlfeed == feed::rev;
-            if (block.style.adjust != bias::none)
+            iswrapln = block.style.wrapln ? block.style.wrapln == wrap::on
+                                          : deco::wrapln == wrap::on;
+            isr_to_l = block.style.r_to_l ? block.style.r_to_l == rtol::rtl
+                                          : deco::r_to_l == rtol::rtl;
+            isrlfeed = block.style.rlfeed ? block.style.rlfeed == feed::rev
+                                          : deco::rlfeed == feed::rev;
+            if (block.style.adjust)
             {
                 arighted = block.style.adjust == bias::right;
                 centered = block.style.adjust == bias::center;
@@ -676,6 +657,9 @@ namespace netxs::console
                 arighted = deco::adjust == bias::right;
                 centered = deco::adjust == bias::center;
             }
+            // Combine local and global margins
+            margin = deco::margin;
+            margin += block.style.margin;
 
             auto block_size = block.size(); // 2D size
             fullsize = get_len(block_size); // 1D length
@@ -686,7 +670,7 @@ namespace netxs::console
                 textline = get_vol(block_size); // 2D size
                 curpoint = 0;
                 straight = iswrapln || isr_to_l == arighted;
-                pagearea = deco::margin;
+                pagearea = flow::margin.area(size_x, size_y);
                 pagearea.coor += deco::corner;
                 cursormx = pagearea.size.x;// -origin.x;
 
@@ -720,7 +704,7 @@ namespace netxs::console
         // flow: Register cursor position.
         twod up ()
         {
-            auto cp = deco::cp();
+            auto cp = flow::cp();
             boundary |= cp; /* |= cursor*/;
             return cp;
         }
@@ -728,7 +712,7 @@ namespace netxs::console
         auto print(T const& block, core& canvas)
         {
             auto cp = USE_LOCUS ? forward(block)
-                                : deco::cp();
+                                : flow::cp();
             compose(block, [&](auto const& coord, auto const& subblock)
                            {
                                canvas.text(coord, subblock, isr_to_l);
@@ -739,7 +723,7 @@ namespace netxs::console
         auto print(T const& block)
         {
             auto cp = USE_LOCUS ? forward(block)
-                                : deco::cp();
+                                : flow::cp();
             compose(block);
             return cp;
         }
@@ -754,7 +738,6 @@ namespace netxs::console
         auto& minmax() const { return boundary; } // flow: Return the output range.
         void  minmax(twod const& p) { boundary |= p; } // flow: Register twod.
         void  minmax(rect const& r) { boundary |= r; } // flow: Register rect.
-        //auto& areasize() { return size_ref; }
     };
 
     class shot // richtext: The shadow of the para
@@ -1066,11 +1049,11 @@ namespace netxs::console
             //width = 0;
         }
 
-        auto  id() const          { return selfid;  }
-        void  id(iota newid)      { selfid = newid; }
+        auto id() const        { return selfid;  }
+        void id(iota newid)    { selfid = newid; }
 
-        auto  chx() const         { return caret;         }
-        void  chx(iota new_pos)   { caret = new_pos;      }
+        auto chx() const       { return caret;    }
+        void chx(iota new_pos) { caret = new_pos; }
 
         void trim_to(iota max_width)
         {
@@ -1540,7 +1523,7 @@ namespace netxs::console
                 auto pred = flow::print(combo, *this);
                 brush = combo.mark(); // current mark of the last printed fragment
 
-                auto post = deco::cp();
+                auto post = flow::cp();
                 if (!done)
                 {
                     if (pred.y <= 0 && post.y >= 0)
@@ -1572,7 +1555,7 @@ namespace netxs::console
                 anker.y = std::numeric_limits<iota>::max();
                 textpage.stream(gain);
 
-                decoy = caret && inside(deco::cp());
+                decoy = caret && inside(flow::cp());
             }
             else
             {
@@ -1600,14 +1583,14 @@ namespace netxs::console
                 {
                     // Don't tie the first line if it's the only one. Make one step forward.
                     if (anker.y == 0 &&
-                        anker.y == deco::cp().y &&
+                        anker.y == flow::cp().y &&
                         cover.height() > 1)
                     {
                         // the increment is removed bcos it shifts mc one row down on Ctrl+O and back
                         //basis.y++;
                     }
 
-                    auto newcp = deco::cp();
+                    auto newcp = flow::cp();
                     if (!inside(newcp))
                     {
                         if (newcp.y < 0) basis.y -= newcp.y;
@@ -1687,10 +1670,10 @@ namespace netxs::console
         face& eol (iota n = 1)    { flow::nl( n); return *this; } // face: Proceed the \r || \n || \r\n
         face& tbs (iota n)        { flow::ts( n); return *this; } // face: Tab step length
 
-        face& wrp (bool w)        { flow::br( w); return *this; } // face: Text wrapping on/off
+        face& wrp (iota w)        { flow::br( w); return *this; } // face: Text wrapping on/off
         face& jet (iota j)        { flow::hz( j); return *this; } // face: Text alignment (bias)
-        face& rtl (bool m)        { flow::yx( m); return *this; } // face: Text right-to-left on/off
-        face& rlf (bool f)        { flow::rf( f); return *this; } // face: Reverse line feed on/off
+        face& rtl (iota m)        { flow::yx( m); return *this; } // face: Text right-to-left on/off
+        face& rlf (iota f)        { flow::rf( f); return *this; } // face: Reverse line feed on/off
 
         auto& rtl () const        { return flow::r_to_l;        } // face: Text right-to-left on/off
         face& rst ()  { flow::zz(  ); flow::sc(); return *this; } // face: Reset to zero all cursor params
@@ -1752,7 +1735,7 @@ namespace netxs::console
             {
                 case ansi::fn::ed: // CSI Ps J  Erase in Display (ED).
                 {
-                    auto block = rect{ flow::margin.coor(), { flow::margin.width(),0 } };
+                    auto block = rect{ flow::coor(), { flow::width(),0 } };
                     auto brush = core::marker;
                     //auto color = face::brush;// last used brush
                     //color.txt(whitespace);
@@ -1760,17 +1743,17 @@ namespace netxs::console
                     {
                         default:
                         case 0:	// Erase Below (default).
-                            block.size.y = std::max(flow::margin.height() - caret.y, 0);
+                            block.size.y = std::max(flow::height() - caret.y, 0);
                             block.coor.y = caret.y;
                             break;
 
                         case 1:	// Erase Above.
-                            block.size.y = std::max(caret.y - flow::margin.coor().y, 0);
+                            block.size.y = std::max(caret.y - flow::coor().y, 0);
                             break;
 
                         case 3:	//todo implement Erase Scrollback
                         case 2:	// Erase All.
-                            block.size.y = flow::margin.height();
+                            block.size.y = flow::height();
                             break;
                     }
                     core::fill(block, brush.txt(whitespace));
@@ -1783,15 +1766,15 @@ namespace netxs::console
                     {
                         default:
                         case 0:	// Erase to Right (default).
-                            block.size.x = std::max(flow::margin.width() - caret.x, 0);
+                            block.size.x = std::max(flow::width() - caret.x, 0);
                             break;
                         case 1:	// Erase to Left.
-                            block.size.x = -std::max(caret.x - flow::margin.coor().x, 0);
+                            block.size.x = -std::max(caret.x - flow::coor().x, 0);
                             block = block.normalize();
                             break;
                         case 2:	// Erase Line.
-                            block.size.x = flow::margin.width();
-                            block.coor.x = flow::margin.coor().x;
+                            block.size.x = flow::width();
+                            block.coor.x = flow::coor().x;
                             break;
                     }
                     auto color = face::brush;// last used brush

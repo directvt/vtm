@@ -187,8 +187,6 @@ namespace netxs::console::ansi
     struct esc
         : public text // ansi: Escaped sequences accumulator.
     {
-        template<class T>
-        inline text str(T    n) { return std::to_string(static_cast<iota>(n)); }
         inline text str(iota n) { return std::to_string(n); }
         inline text str(char n) { return text(1, n); }
 
@@ -454,7 +452,7 @@ namespace netxs::console::ansi
         oy, // old format y absolute (1-based)
         px, // x percent
         py, // y percent
-        ts, // set tab size
+        //ts, // set tab size
         tb, // tab forward
         nl, // next line and reset x to west (carriage return)
         //br, // text wrap mode (DECSET: CSI ? 7 h/l Auto-wrap Mode (DECAWM) or CSI ? 45 h/l reverse wrap around mode)
@@ -462,10 +460,10 @@ namespace netxs::console::ansi
         //hz, // text horizontal alignment
         //rf, // reverse (line) feed
 
-        wl, // set left	horizontal wrapping field
-        wr, // set right	horizontal wrapping field
-        wt, // set top		vertical wrapping field
-        wb, // set bottom	vertical wrapping field
+        //wl, // set left	horizontal wrapping field
+        //wr, // set right	horizontal wrapping field
+        //wt, // set top		vertical wrapping field
+        //wb, // set bottom	vertical wrapping field
 
         sc, // save cursor position
         rc, // load cursor position
@@ -515,10 +513,39 @@ namespace netxs::console::ansi
         iota wrapln = WRAPPING;   // look: Auto wrapping
         iota r_to_l = rtol::ltr;  // look: RTL
         iota rlfeed = feed::fwd;  // look: Reverse line feed
-        auto& wrp(iota n) { wrapln = n; return *this; } // look: Auto wrapping
-        auto& jet(iota n) { adjust = n; return *this; } // look: Paragraph adjustment
-        auto& rtl(iota n) { r_to_l = n; return *this; } // look: RTL
-        auto& rlf(iota n) { rlfeed = n; return *this; } // look: Reverse line feed
+        iota tablen = 8;
+        dent margin;
+
+        auto& wrp(iota  n) { wrapln = n;      return *this; } // look: Auto wrapping
+        auto& jet(iota  n) { adjust = n;      return *this; } // look: Paragraph adjustment
+        auto& rtl(iota  n) { r_to_l = n;      return *this; } // look: RTL
+        auto& rlf(iota  n) { rlfeed = n;      return *this; } // look: Reverse line feed
+        auto& tbs(iota  n) { tablen = n;      return *this; }; // look: fx_ccc_tbs
+        auto& mgl(iota  n) { margin.west = n; return *this; }; // look: fx_ccc_mgl
+        auto& mgr(iota  n) { margin.east = n; return *this; }; // look: fx_ccc_mgr
+        auto& mgt(iota  n) { margin.head = n; return *this; }; // look: fx_ccc_mgt
+        auto& mgb(iota  n) { margin.foot = n; return *this; }; // look: fx_ccc_mgb
+        auto& mgn(fifo& q) { margin.set(q);   return *this; }; // fx_ccc_mgn
+        auto& rst()  // look: Reset
+        {
+            adjust = bias::left;
+            wrapln = WRAPPING;
+            r_to_l = rtol::ltr;
+            rlfeed = feed::fwd;
+            tablen = 8;
+            margin.reset();
+            return *this;
+        }
+        auto& set(look const& l)  // look: Copy
+        {
+            adjust = l.adjust;
+            wrapln = l.wrapln;
+            r_to_l = l.r_to_l;
+            rlfeed = l.rlfeed;
+            margin = l.margin;
+            tablen = l.tablen;
+            return *this;
+        }
     };
 
     template<class Q, class C>
@@ -603,18 +630,18 @@ namespace netxs::console::ansi
                 csi_ccc.enable_multi_arg();
                     csi_ccc[CCC_CUP] = VT_PROC{ F(ay, q(0)); F(ax, q(0)); }; // fx_ccc_cup
                     csi_ccc[CCC_CPP] = VT_PROC{ F(py, q(0)); F(px, q(0)); }; // fx_ccc_cpp
-                    csi_ccc[CCC_MGN] = VT_PROC{ F(wl, q(0)); F(wr, q(0)); F(wt, q(0)); F(wb, q(0)); }; // fx_ccc_mgn
-                    csi_ccc[CCC_MGL] = VT_PROC{ F(wl, q(0)); }; // fx_ccc_mgl
-                    csi_ccc[CCC_MGR] = VT_PROC{ F(wr, q(0)); }; // fx_ccc_mgr
-                    csi_ccc[CCC_MGT] = VT_PROC{ F(wt, q(0)); }; // fx_ccc_mgt
-                    csi_ccc[CCC_MGB] = VT_PROC{ F(wb, q(0)); }; // fx_ccc_mgb
                     csi_ccc[CCC_CHX] = VT_PROC{ F(ax, q(0)); }; // fx_ccc_chx
                     csi_ccc[CCC_CHY] = VT_PROC{ F(ay, q(0)); }; // fx_ccc_chy
                     csi_ccc[CCC_CPX] = VT_PROC{ F(px, q(0)); }; // fx_ccc_cpx
                     csi_ccc[CCC_CPY] = VT_PROC{ F(py, q(0)); }; // fx_ccc_cpy
-                    csi_ccc[CCC_TBS] = VT_PROC{ F(ts, q(0)); }; // fx_ccc_tbs
                     csi_ccc[CCC_RST] = VT_PROC{ F(zz,   0);  }; // fx_ccc_rst
 
+                    csi_ccc[CCC_MGN] = VT_PROC{ p->style.mgn(q   ); }; // fx_ccc_mgn
+                    csi_ccc[CCC_MGL] = VT_PROC{ p->style.mgl(q(0)); }; // fx_ccc_mgl
+                    csi_ccc[CCC_MGR] = VT_PROC{ p->style.mgr(q(0)); }; // fx_ccc_mgr
+                    csi_ccc[CCC_MGT] = VT_PROC{ p->style.mgt(q(0)); }; // fx_ccc_mgt
+                    csi_ccc[CCC_MGB] = VT_PROC{ p->style.mgb(q(0)); }; // fx_ccc_mgb
+                    csi_ccc[CCC_TBS] = VT_PROC{ p->style.tbs(q(0)); }; // fx_ccc_tbs
                     csi_ccc[CCC_JET] = VT_PROC{ p->style.jet(q(0)); }; // fx_ccc_jet
                     csi_ccc[CCC_WRP] = VT_PROC{ p->style.wrp(q(0)); }; // fx_ccc_wrp
                     csi_ccc[CCC_RTL] = VT_PROC{ p->style.rtl(q(0)); }; // fx_ccc_rtl
@@ -935,8 +962,8 @@ namespace netxs::console::ansi
     {
         using changer = std::array<void (*)(CELL &), ctrl::COUNT>;
 
-        static void set_r_to_l (CELL& p) { p.rtl(rtol::rtl); }
-        static void set_l_to_r (CELL& p) { p.rtl(rtol::ltr); }
+        static void set_r_to_l (CELL& p) { p.rtl(true);    } // cell RTL state
+        static void set_l_to_r (CELL& p) { p.rtl(faux);    } // cell RTL state
         static void set_hyphen (CELL& p) { p.hyphen(true); }
         static void set_fnappl (CELL& p) { p.fnappl(true); }
         static void set_invtms (CELL& p) { p.itimes(true); }
@@ -979,15 +1006,15 @@ namespace netxs::console::ansi
                                  push({ fn::py, p.y }); return *this; }
         writ& cpx (iota x)     { push({ fn::px, x   }); return *this; } // Cursor horizontal percent position.
         writ& cpy (iota y)     { push({ fn::py, y   }); return *this; } // Cursor vertical percent position.
-        writ& tbs (iota t)     { push({ fn::ts, t   }); return *this; } // Tabulation step length.
-        writ& mgn (side m)     { push({ fn::wl, m.l });                 // Margin (left, right, top, bottom).
-                                 push({ fn::wr, m.r });
-                                 push({ fn::wt, m.t });
-                                 push({ fn::wb, m.b }); return *this; }
-        writ& mgl (iota m)     { push({ fn::wl, m   }); return *this; } // Left margin.
-        writ& mgr (iota m)     { push({ fn::wr, m   }); return *this; } // Right margin.
-        writ& mgt (iota m)     { push({ fn::wt, m   }); return *this; } // Top margin.
-        writ& mgb (iota m)     { push({ fn::wb, m   }); return *this; } // Bottom margin.
+        //writ& tbs (iota t)     { push({ fn::ts, t   }); return *this; } // Tabulation step length.
+        //writ& mgn (side m)     { push({ fn::wl, m.l });                 // Margin (left, right, top, bottom).
+        //                         push({ fn::wr, m.r });
+        //                         push({ fn::wt, m.t });
+        //                         push({ fn::wb, m.b }); return *this; }
+        //writ& mgl (iota m)     { push({ fn::wl, m   }); return *this; } // Left margin.
+        //writ& mgr (iota m)     { push({ fn::wr, m   }); return *this; } // Right margin.
+        //writ& mgt (iota m)     { push({ fn::wt, m   }); return *this; } // Top margin.
+        //writ& mgb (iota m)     { push({ fn::wb, m   }); return *this; } // Bottom margin.
         //writ& jet (bias j)     { push({ fn::hz, j   }); return *this; } // Text alignment.
         //writ& wrp (bool b)     { push({ fn::br, b   }); return *this; } // Text wrapping.
         //writ& rtl (bool b)     { push({ fn::yx, b   }); return *this; } // Text right-to-left.

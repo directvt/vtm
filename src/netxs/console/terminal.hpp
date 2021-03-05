@@ -35,7 +35,7 @@ namespace netxs::ui
 
     public:
         mark        brush; // rods: Current brush for parser
-        look        style; // rods: Parser style
+        look        style; // rods: Parser style state
 
         bool caret_visible = faux;
 
@@ -78,32 +78,17 @@ namespace netxs::ui
             auto[top, end] = get_scroll_limits();
             return coord.y >= top && coord.y <= end;
         }
-        //todo revise
-        //void color(cell const& c)
-        //{
-        //    batch[caret].brush = c;
-        //    brush = c;
-        //}
         void align_basis()
         {
             auto new_basis = count - panel.y;
             if (new_basis > basis) basis = new_basis; // Move basis down if scrollback grows
         }
-        //template<class L>
-        //void add_lines(iota amount, L const& proto)
-        void add_lines(iota amount)//, para const& proto)
+        void add_lines(iota amount)
         {
             assert(amount > 0);
-            //auto style = proto.style;
-            //auto adjust = proto.state.adjust;
-            //auto wrapln = proto.state.wrapln;
-            //auto r_to_l = proto.state.r_to_l;
             auto newid = batch.back().selfid;
             count += amount;
             while(amount-- > 0 ) batch.emplace_back(++newid, style);
-                                                      //adjust,
-                                                      //wrapln,
-                                                      //r_to_l);
             align_basis();
         }
         void del_lines(iota erase_count)
@@ -128,7 +113,7 @@ namespace netxs::ui
             if (new_coord.y > count - 1) // Add new lines
             {
                 auto add_count = new_coord.y - (count - 1);
-                add_lines(add_count);//, cur_state);
+                add_lines(add_count);
             }
             auto& new_line = batch[new_coord.y];
             auto index = get_line_index_by_id(new_line.selfid); // current index inside batch
@@ -171,7 +156,7 @@ namespace netxs::ui
                 auto overflow = caret + new_height - count;
                 if (overflow > 0)
                 {
-                    add_lines(overflow);//, cur_line1);
+                    add_lines(overflow);
                 }
                 // Update bossid id on overlapped below lines
                 auto from = caret + new_height - 1;
@@ -271,7 +256,6 @@ namespace netxs::ui
                 --coor.y;
                 flow::cursor = coor;
                 compose(line, print_proc);
-                //brush = line.brush; // current mark of the last printed fragment
             }
         }
         void output(face& canvas)
@@ -299,7 +283,7 @@ namespace netxs::ui
             auto delta = cover.height() + 1 - count;
             if (delta > 0) // All visible lines must exist (including blank lines under wrapped lines)
             {
-                add_lines(delta);//, batch.back());
+                add_lines(delta);
             }
             
             auto viewport = rect{{ 0, basis }, panel};
@@ -626,15 +610,6 @@ namespace netxs::ui
                     vt::csier.table_quest[DECSET] = VT_PROC{ p->boss.decset(p, q); };
                     vt::csier.table_quest[DECRST] = VT_PROC{ p->boss.decrst(p, q); };
                     vt::csier.table_excl [DECSTR] = VT_PROC{ p->boss.decstr(); }; // CSI ! p  Soft terminal reset (DECSTR)
-
-                    //vt::csier.table[CSI_SGR][SGR_RST] = VT_PROC{ p->nil(); }; // fx_sgr_rst       ;
-                    //vt::csier.table[CSI_SGR][SGR_SAV] = VT_PROC{ p->sav(); }; // fx_sgr_sav       ;
-                    //vt::csier.table[CSI_SGR][SGR_FG ] = VT_PROC{ p->rfg(); }; // fx_sgr_fg_def    ;
-                    //vt::csier.table[CSI_SGR][SGR_BG ] = VT_PROC{ p->rbg(); }; // fx_sgr_bg_def    ;
-                    //vt::csier.table[CSI_CCC][CCC_JET] = VT_PROC{ p->jet(q(0)); }; // fx_ccc_jet  default=bias::left=0
-                    //vt::csier.table[CSI_CCC][CCC_WRP] = VT_PROC{ p->wrp(q(1)); }; // fx_ccc_wrp  default=true
-                    //vt::csier.table[CSI_CCC][CCC_RTL] = nullptr; // fx_ccc_rtl //todo implement
-                    //vt::csier.table[CSI_CCC][CCC_RLF] = nullptr; // fx_ccc_rlf
 
                     vt::oscer[OSC_LABEL_TITLE] = VT_PROC{ p->boss.prop(OSC_LABEL_TITLE, q); };
                     vt::oscer[OSC_LABEL]       = VT_PROC{ p->boss.prop(OSC_LABEL,       q); };
@@ -1027,7 +1002,8 @@ namespace netxs::ui
             void dn(iota n)
             {
                 finalize();
-                if (batch[caret].style.wrapln == wrap::on && coord.x == panel.x) coord.x = 0;
+                if (batch[caret].style.wrapln == wrap::on
+                    && coord.x == panel.x) coord.x = 0;
                 // Scroll regions up if coord.y == scend and scroll region are defined
                 auto[top, end] = get_scroll_limits();
                 if (n > 0 && using_regions() && coord.y <= end
