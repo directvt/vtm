@@ -260,8 +260,7 @@ namespace netxs::ui
         }
         void output(face& canvas)
         {
-            flow::reset();
-            flow::corner(canvas.corner());
+            flow::reset(canvas);
             visualize([&](auto const& coord, auto const& subblock)
                       {
                           canvas.text(coord, subblock, flow::isr_to_l);

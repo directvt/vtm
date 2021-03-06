@@ -1392,7 +1392,7 @@ namespace netxs::ui
             return rect{ {w, h}, {std::max(e - w, 0), std::max(f - h, 0)} };
         }
         // dent: Return the coor of the area rectangle.
-        auto coor(iota size_x, iota size_y) const
+        auto corner(iota size_x, iota size_y) const
         {
             return twod{ west.get(size_x),
                          head.get(size_y) };

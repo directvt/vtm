@@ -364,26 +364,23 @@ namespace netxs::console
         }
     };
 
-    class flow // richtext: The text line feeder
+    class flow // richtext: The text feeder
         : public ansi::look
     {
         using look = ansi::look;
-        look selfcopy;        // flow: Flow state storage.
-        rect viewarea;        // flow: Viewport area.
-        rect pagearea;        // flow: Client area inside page margins.
-        rect textline;        // flow: Textline placeholder.
-        side boundary;        // flow: Affected area by the text output.
-        iota curpoint = 0;    // flow: Current substring start position.
-        iota fullsize = 0;    // flow: Full textline length.
-        iota cursormx = 0;    // flow: Maximum x-coor value on the visible area.
-        iota highness = 1;    // flow: Height of the last processed line.
-        bool straight = faux; // flow: Text substring retrieving direction.
-
-        twod cursor;
-        twod cursor_copy;
-
-        rect client_g;   // flow: Nesting accumulator
-        rect client_copy;
+        rect textline{ }; // flow: Textline placeholder
+        side boundary{ }; // flow: Affected area by the text output
+        iota curpoint{ }; // flow: Current substring start position
+        iota fullsize{ }; // flow: Full textline length
+        bool straight{ }; // flow: Text substring retrieving direction
+        iota caret_mx{ }; // flow: Maximum x-coor value on the visible area
+        twod caretpos{ }; // flow: Current virtual (w/o style applied) caret position
+        twod caretsav{ }; // flow: Caret pos saver
+        rect viewrect{ }; // flow: Client area inside page margins
+        rect pagerect{ }; // flow: Client full area. Used as a nested areas (coords++) accumulator
+        rect pagecopy{ }; // flow: Client full area saver
+        look selfcopy{ }; // flow: Flow state storage
+        iota highness{1}; // flow: Last processed line height
 
         iota const& size_x;
         iota const& size_y;
@@ -416,7 +413,7 @@ namespace netxs::console
         //virtual void custom(ansi::fn cmd, iota arg) = 0;
 
         constexpr static std::array<hndl, ansi::fn_count> exec =
-        {	// Order does matter, see definition of ansi::fn
+        {   // Order does matter, see definition of ansi::fn
             exec_dx, // horizontal delta
             exec_dy, // vertical delta
             exec_ax, // x absolute
@@ -432,16 +429,16 @@ namespace netxs::console
             exec_rc, // load cursor position
             exec_zz, // all params reset to zero
 
-            exec_dc<ansi::fn::ed>, // CSI Ps J  Erase in Display (ED), VT100.
-            exec_dc<ansi::fn::el>, // CSI Ps K  Erase in Line    (EL), VT100.
+            exec_dc<ansi::fn::ed>, // CSI Ps J  Erase in Display (ED)
+            exec_dc<ansi::fn::el>, // CSI Ps K  Erase in Line    (EL)
         };
 
         // flow: Main cursor forwarding proc
         template<bool WRAP, bool RtoL, bool ReLF, class T, class P>
         void output(T const& block, P print)
         {
-            textline.coor = cursor;
-            auto printout = WRAP ? textline.trunc(pagearea.size)
+            textline.coor = caretpos;
+            auto printout = WRAP ? textline.trunc(viewrect.size)
                                  : textline;
             auto outwidth = WRAP ? printout.coor.x + printout.size.x - textline.coor.x
                                  : textline.size.x;
@@ -453,12 +450,12 @@ namespace netxs::console
             curpoint += std::max(printout.size.x, 1);
             textline.size.x = fullsize - curpoint;
 
-            if (RtoL) printout.coor.x = pagearea.size.x - (printout.coor.x + printout.size.x);
-            if (ReLF) printout.coor.y = pagearea.size.y - (printout.coor.y + printout.size.y);
+            if (RtoL) printout.coor.x = viewrect.size.x - (printout.coor.x + printout.size.x);
+            if (ReLF) printout.coor.y = viewrect.size.y - (printout.coor.y + printout.size.y);
             else      printout.coor.y = textline.coor.y; //do not truncate y-axis?
             //todo revise: It is actually only for the coor.y that is negative.
 
-            printout.coor += pagearea.coor;
+            printout.coor += viewrect.coor;
             boundary |= printout;
 
             if constexpr (!std::is_same_v<P, noop>)
@@ -474,8 +471,8 @@ namespace netxs::console
             highness = textline.size.y;
         }
 
-        auto middle() { return (pagearea.size.x >> 1) - (textline.size.x >> 1); }
-        void autocr() { if (cursor.x >= cursormx) flow::nl(highness); }
+        auto middle() { return (viewrect.size.x >> 1) - (textline.size.x >> 1); }
+        void autocr() { if (caretpos.x >= caret_mx) flow::nl(highness); }
 
         template<bool RtoL, bool ReLF, class T, class P>
         void centred(T const& block, P print)
@@ -483,7 +480,7 @@ namespace netxs::console
             while (textline.size.x > 0)
             {
                 autocr();
-                auto axis = textline.size.x >= cursormx ? 0
+                auto axis = textline.size.x >= caret_mx ? 0
                                                         : middle();
                 flow::ax(axis);
                 output<true, RtoL, ReLF>(block, print);
@@ -531,8 +528,8 @@ namespace netxs::console
         bool isr_to_l = faux;
         bool isrlfeed = faux;
         bool centered = faux;
-        iota tablen_g = 0;
-        dent margin_g;
+        iota tabwidth = 0;
+        dent textpads;
 
         std::function<void(ansi::fn cmd, iota arg)> custom; // flow: Draw commands (customizable)
 
@@ -544,46 +541,42 @@ namespace netxs::console
             : flow { size.x, size.y }
         { }
         flow()
-            : flow { client_g.size }
+            : flow { pagerect.size }
         { }
 
         auto coor()
         {
-            return margin_g.coor(size_x, size_y);
+            return textpads.corner(size_x, size_y);
         }
         void size(twod const& newsize)
         {
-            client_g.size = newsize;
+            pagerect.size = newsize;
         }
-        auto width()
+        auto width() // flow: Get visible width
         {
-            return margin_g.width(size_x);
+            return textpads.width(size_x);
         }
-        auto height()
+        auto height() // flow: Get visible height
         {
-            return margin_g.height(size_y);
+            return textpads.height(size_y);
         }
         auto& corner() const // flow: Get flow::corner reference
         {
-            return client_g.coor;
+            return pagerect.coor;
         }
         void corner(twod const& newcorner) // flow: Set flow::corner
         {
-            client_g.coor = newcorner;
+            pagerect.coor = newcorner;
         }
         auto& full() const // flow: Get client full size reference
         {
-            return client_g;
+            return pagerect;
         }
         void full(rect const& area) // flow: Set client full size
         {
-            client_g = area;
+            pagerect = area;
         }
-        void full(twod const& coor, twod const& size)
-        {
-            client_g.coor = coor;
-            client_g.size = size;
-        }
+
         // flow: Split specified textblock on the substrings
         //       and place it to the form by the specified proc.
         template<class T, class P = noop>
@@ -596,7 +589,7 @@ namespace netxs::console
                                           : look::r_to_l == rtol::rtl;
             isrlfeed = block.style.rlfeed ? block.style.rlfeed == feed::rev
                                           : look::rlfeed == feed::rev;
-            tablen_g = block.style.tablen ? block.style.tablen
+            tabwidth = block.style.tablen ? block.style.tablen
                                           : look::tablen;
             if (block.style.adjust)
             {
@@ -609,8 +602,8 @@ namespace netxs::console
                 centered = look::adjust == bias::center;
             }
             // Combine local and global margins
-            margin_g = look::margin;
-            margin_g += block.style.margin;
+            textpads = look::margin;
+            textpads += block.style.margin;
 
             auto block_size = block.size(); // 2D size
             fullsize = get_len(block_size); // 1D length
@@ -620,9 +613,9 @@ namespace netxs::console
                 textline = get_vol(block_size); // 2D size
                 curpoint = 0;
                 straight = iswrapln || isr_to_l == arighted;
-                pagearea = flow::margin_g.area(size_x, size_y);
-                pagearea.coor += client_g.coor;
-                cursormx = pagearea.size.x;
+                viewrect = textpads.area(size_x, size_y);
+                viewrect.coor += pagerect.coor;
+                caret_mx = viewrect.size.x;
 
                 // Move cursor down if next line is lower than previous
                 if (highness > textline.size.y)
@@ -671,14 +664,14 @@ namespace netxs::console
             return cp;
         }
 
-        void ax	(iota x)        { cursor.x  = x;          }
-        void ay	(iota y)        { cursor.y  = y;          }
+        void ax	(iota x)        { caretpos.x  = x;          }
+        void ay	(iota y)        { caretpos.y  = y;          }
         void ac	(twod const& c) { ax(c.x); ay(c.y);       }
-        void ox	(iota x)        { cursor.x  = x - 1;      }
-        void oy	(iota y)        { cursor.y  = y - 1;      }
+        void ox	(iota x)        { caretpos.x  = x - 1;      }
+        void oy	(iota y)        { caretpos.y  = y - 1;      }
         void oc	(twod const& c) { ox(c.x); oy(c.y);       }
-        void dx	(iota n)        { cursor.x += n;          }
-        void dy	(iota n)        { cursor.y += n;          }
+        void dx	(iota n)        { caretpos.x += n;          }
+        void dy	(iota n)        { caretpos.y += n;          }
         void nl	(iota n)        { ax(0); dy(n);           }
         void px	(iota x)        { ax(margin.h_ratio(x, size_x)); }
         void py	(iota y)        { ay(margin.v_ratio(y, size_y)); }
@@ -687,18 +680,18 @@ namespace netxs::console
         {
             if (n)
             {
-                dx(tablen - cursor.x % tablen);
+                dx(tablen - caretpos.x % tablen);
                 if (n > 0 ? --n : ++n) dx(tablen * n);
             }
         }
         twod cp() const // flow: Return absolute cursor position.
         {
-            twod coor{ cursor };
+            twod coor{ caretpos };
 
-            if (adjust == bias::right) coor.x = margin_g.width(size_x)  - 1 - coor.x;
-            if (rlfeed == feed::rev  ) coor.y = margin_g.height(size_y) - 1 - coor.y;
+            if (adjust == bias::right) coor.x = textpads.width(size_x)  - 1 - coor.x;
+            if (rlfeed == feed::rev  ) coor.y = textpads.height(size_y) - 1 - coor.y;
 
-            coor += margin_g.coor(size_x, size_y);
+            coor += textpads.corner(size_x, size_y);
             return coor;
         }
         twod up () // flow: Register cursor position.
@@ -707,29 +700,33 @@ namespace netxs::console
             boundary |= cp; /* |= cursor*/;
             return cp;
         }
-        void zz	()
+        void zz	(twod const& offset = dot_00)
         {
             look::rst();
-            cursor = dot_00;
-            client_g.coor = dot_00;
+            caretpos = dot_00;
+            pagerect.coor = offset;
         }
         void sc () // flow: Save current state.
         {
             selfcopy.set(*this);
-            cursor_copy = cursor;
-            client_copy.coor = client_g.coor;
+            caretsav = caretpos;
+            pagecopy.coor = pagerect.coor;
         }
         void rc () // flow: Restore state.
         {
             look::set(selfcopy);
-            cursor = cursor_copy;
-            client_g.coor = client_copy.coor;
+            caretpos = caretsav;
+            pagerect.coor = pagecopy.coor;
         }
-        void reset() // flow: Reset flow state.
+        void reset(twod const& offset = dot_00) // flow: Reset flow state.
         {
-            flow::zz();
+            flow::zz(offset);
             flow::sc();
-            boundary = cursor;
+            boundary = caretpos;
+        }
+        void reset(flow const& canvas) // flow: Reset flow state.
+        {
+            reset(canvas.pagerect.coor);
         }
         auto& minmax() const { return boundary; } // flow: Return the output range.
         void  minmax(twod const& p) { boundary |= p; } // flow: Register twod.
