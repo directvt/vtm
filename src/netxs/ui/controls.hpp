@@ -449,7 +449,7 @@ namespace netxs::ui
                 if (active)
                 {
                     // Draw the border around
-                    auto area = parent_canvas.client_area();
+                    auto area = parent_canvas.full();
                     auto mark = skin::color(tone::kb_focus);
                     auto fill = [&](cell& c) { c.fuse(mark); };
                     parent_canvas.cage(area, gripsz, fill);
@@ -1067,9 +1067,6 @@ namespace netxs::ui
         FEATURE(pro::mouse, mouse); // post: Mouse controller.
 
         twod width; // post: Page dimensions.
-        //flow frame{ width };
-        //cell brush; // post: The nearest to top paragraph.
-
         page_layout layout;
 
     public:
@@ -1079,12 +1076,10 @@ namespace netxs::ui
         void output(face& canvas)
         {
             flow::reset();
-            //flow::origin = {};
-            flow::corner = canvas.corner();
+            flow::corner(canvas.corner());
             auto publish = [&](auto const& combo)
             {
                 flow::print(combo, canvas);
-                //brush = combo.mark(); // current mark of the last printed fragment
             };
             topic.stream(publish);
         }

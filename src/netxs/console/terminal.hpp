@@ -254,14 +254,14 @@ namespace netxs::ui
             {
                 auto& line = *tail++;
                 --coor.y;
-                flow::cursor = coor;
+                flow::ac(coor);
                 compose(line, print_proc);
             }
         }
         void output(face& canvas)
         {
             flow::reset();
-            flow::corner = canvas.corner();
+            flow::corner(canvas.corner());
             visualize([&](auto const& coord, auto const& subblock)
                       {
                           canvas.text(coord, subblock, flow::isr_to_l);

@@ -40,7 +40,7 @@ text edit_menu = ansi::nil().wrp(wrap::off)
 + " " + ansi::und(true) + "E" + ansi::nil() + "dit "
 + " " + ansi::und(true) + "V" + ansi::nil() + "iew "
 + " " + ansi::und(true) + "D" + ansi::nil() + "ata "
-+ ansi::jet(bias::right).chx(0)
++ ansi::chx(0).jet(bias::right)
 + " " + ansi::und(true) + "H" + ansi::nil() + "elp "
 + "";
 
