@@ -18,16 +18,7 @@ namespace netxs
 {
     constexpr size_t operator "" _sz (unsigned long long i)	{ return i; }
 
-    struct noop
-    {
-        template<class T = void>
-        struct no
-        {
-            static noop value;
-        };
-        template<class ...T> void operator()(T...) {};
-    };
-    template<class T> noop noop::no<T>::value;
+    struct noop { template<class ...T> void operator()(T...) {}; };
 
     // intmath.h: Summ and return TRUE in case of
     //            unsigned integer overflow and store result in accum.

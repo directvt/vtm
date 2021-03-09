@@ -638,16 +638,18 @@ namespace netxs::console
             compose(block);
             return cp;
         }
-        template<class T, class C = noop>
-        void go(T const& block, C& canvas = noop::no<void>::value)
+        template<class T>
+        void go(T const& block)
         {
-            if constexpr (std::is_same_v<C, noop>)
-                compose(block);
-            else
-                compose(block, [&](auto const& coord, auto const& subblock)
-                               {
-                                   canvas.text(coord, subblock, isr_to_l);
-                               });
+            compose(block);
+        }
+        template<class T>
+        void go(T const& block, core& canvas)
+        {
+            compose(block, [&](auto const& coord, auto const& subblock)
+                           {
+                               canvas.text(coord, subblock, isr_to_l);
+                           });
         }
 
         void ax	(iota x)        { caretpos.x  = x;               }
@@ -704,13 +706,15 @@ namespace netxs::console
             caretpos = caretsav;
             pagerect.coor = pagecopy.coor;
         }
-        template<class FLOW = noop>
-        void reset(FLOW const& canvas = noop::no<void>::value) // flow: Reset flow state
+        void reset(twod const& offset = dot_00) // flow: Reset flow state
         {
-            if constexpr (std::is_same_v<FLOW, noop>) flow::zz();
-            else                                      flow::zz(canvas.pagerect.coor);
+            flow::zz(offset);
             flow::sc();
             boundary = caretpos;
+        }
+        void reset(flow const& canvas) // flow: Reset flow state
+        {
+            reset(canvas.pagerect.coor);
         }
     };
 
