@@ -507,26 +507,26 @@ namespace netxs::console::ansi
         void  rfg()               { this->fgc(spare.fgc()); } // mark: Reset SGR Foreground color
         void  rbg()               { this->bgc(spare.bgc()); } // mark: Reset SGR Background color
     };
-    struct look
+    struct deco
     {
-        iota adjust = bias::left; // look: Horizontal alignment
-        iota wrapln = WRAPPING;   // look: Auto wrapping
-        iota r_to_l = rtol::ltr;  // look: RTL
-        iota rlfeed = feed::fwd;  // look: Reverse line feed
-        iota tablen = 8;
-        dent margin;
+        iota adjust = bias::left; // deco: Horizontal alignment
+        iota wrapln = WRAPPING;   // deco: Auto wrapping
+        iota r_to_l = rtol::ltr;  // deco: RTL
+        iota rlfeed = feed::fwd;  // deco: Reverse line feed
+        iota tablen = 8;          // deco: Tab length
+        dent margin;              // deco: Page margins
 
-        auto& wrp(iota  n) { wrapln = n;      return *this; } // look: Auto wrapping
-        auto& jet(iota  n) { adjust = n;      return *this; } // look: Paragraph adjustment
-        auto& rtl(iota  n) { r_to_l = n;      return *this; } // look: RTL
-        auto& rlf(iota  n) { rlfeed = n;      return *this; } // look: Reverse line feed
-        auto& tbs(iota  n) { tablen = n;      return *this; }; // look: fx_ccc_tbs
-        auto& mgl(iota  n) { margin.west = n; return *this; }; // look: fx_ccc_mgl
-        auto& mgr(iota  n) { margin.east = n; return *this; }; // look: fx_ccc_mgr
-        auto& mgt(iota  n) { margin.head = n; return *this; }; // look: fx_ccc_mgt
-        auto& mgb(iota  n) { margin.foot = n; return *this; }; // look: fx_ccc_mgb
-        auto& mgn(fifo& q) { margin.set(q);   return *this; }; // fx_ccc_mgn
-        auto& rst()  // look: Reset
+        auto& wrp(iota  n) { wrapln = n;      return *this; } // deco: Auto wrapping
+        auto& jet(iota  n) { adjust = n;      return *this; } // deco: Paragraph adjustment
+        auto& rtl(iota  n) { r_to_l = n;      return *this; } // deco: RTL
+        auto& rlf(iota  n) { rlfeed = n;      return *this; } // deco: Reverse line feed
+        auto& tbs(iota  n) { tablen = n;      return *this; } // deco: fx_ccc_tbs
+        auto& mgl(iota  n) { margin.west = n; return *this; } // deco: fx_ccc_mgl
+        auto& mgr(iota  n) { margin.east = n; return *this; } // deco: fx_ccc_mgr
+        auto& mgt(iota  n) { margin.head = n; return *this; } // deco: fx_ccc_mgt
+        auto& mgb(iota  n) { margin.foot = n; return *this; } // deco: fx_ccc_mgb
+        auto& mgn(fifo& q) { margin.set(q);   return *this; } // deco: fx_ccc_mgn
+        auto& rst()  // deco: Reset
         {
             adjust = bias::left;
             wrapln = WRAPPING;
@@ -536,7 +536,7 @@ namespace netxs::console::ansi
             margin.reset();
             return *this;
         }
-        auto& set(look const& l)  // look: Copy
+        auto& set(deco const& l)  // deco: Copy
         {
             adjust = l.adjust;
             wrapln = l.wrapln;

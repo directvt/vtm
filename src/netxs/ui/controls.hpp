@@ -1075,8 +1075,7 @@ namespace netxs::ui
         // post: Print page.
         void output(face& canvas)
         {
-            flow::reset();
-            flow::corner(canvas.corner());
+            flow::reset(canvas);
             auto publish = [&](auto const& combo)
             {
                 flow::print(combo, canvas);

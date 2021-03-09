@@ -20,7 +20,7 @@ namespace netxs::ui
         using heap = std::vector<para>;
         using iter = heap::iterator;
         using mark = ansi::mark;
-        using look = ansi::look;
+        using deco = ansi::deco;
 
         heap        batch; // rods: Rods inner container
         twod const& panel; // rods: Viewport
@@ -35,7 +35,7 @@ namespace netxs::ui
 
     public:
         mark        brush; // rods: Current brush for parser
-        look        style; // rods: Parser style state
+        deco        style; // rods: Parser style state
 
         bool caret_visible = faux;
 
@@ -220,8 +220,6 @@ namespace netxs::ui
         void clear(bool preserve_brush = faux)
         {
             if (!preserve_brush) brush.reset();
-            ///brush = preserve_brush ? batch[caret].brush
-            //                       : cell{};
             basis = 0;
             count = 0;
             caret = 0;
@@ -242,9 +240,10 @@ namespace netxs::ui
             }
             return pos;
         }
-        template<class P = noop>
-        void visualize(P print_proc = P())
+        template<class ...T>
+        void output(T& ...canvas)
         {
+            flow::reset(canvas...);
             // Output lines in backward order from bottom to top
             auto tail = batch.rbegin();
             auto head = batch.rend();
@@ -255,21 +254,12 @@ namespace netxs::ui
                 auto& line = *tail++;
                 --coor.y;
                 flow::ac(coor);
-                compose(line, print_proc);
+                flow::go(line, canvas...);
             }
-        }
-        void output(face& canvas)
-        {
-            flow::reset(canvas);
-            visualize([&](auto const& coord, auto const& subblock)
-                      {
-                          canvas.text(coord, subblock, flow::isr_to_l);
-                      });
         }
         auto reflow()
         {
-            flow::reset();
-            visualize();
+            output();
 
             if (caret_visible) flow::minmax(cp()); // Register current caret position
 

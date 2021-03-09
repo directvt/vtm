@@ -10,11 +10,24 @@
 #include <cmath>
 #include <cfenv>
 
+#ifndef faux
+    #define faux (false)
+#endif
+
 namespace netxs
 {
     constexpr size_t operator "" _sz (unsigned long long i)	{ return i; }
 
-    struct noop { template<class ...T> void operator()(T...) {}; };
+    struct noop
+    {
+        template<class T = void>
+        struct no
+        {
+            static noop value;
+        };
+        template<class ...T> void operator()(T...) {};
+    };
+    template<class T> noop noop::no<T>::value;
 
     // intmath.h: Summ and return TRUE in case of
     //            unsigned integer overflow and store result in accum.
@@ -23,7 +36,7 @@ namespace netxs
     {
         auto store = accum;
         accum += delta;
-        return accum <= store ? true : false;
+        return accum <= store ? true : faux;
     }
 
     // intmath.h: Clamp a value in case it exceeds its numerical limits.
@@ -90,7 +103,7 @@ namespace netxs
     struct _disintegrate { using type = T; };
 
     template<typename T>
-    struct _disintegrate<false, T> { using type = typename T::type; };
+    struct _disintegrate<faux, T> { using type = typename T::type; };
 
     // intmath.h: Deduce a scalar type from the vector type.
     template<typename T>
@@ -362,7 +375,7 @@ namespace netxs
             auto basis = joint.coor - rect2.coor;
             joint.coor-= rect1.coor;
 
-            inbody<false>(canvas, bitmap, joint, basis, handle);
+            inbody<faux>(canvas, bitmap, joint, basis, handle);
         }
     }
 
@@ -404,7 +417,7 @@ namespace netxs
         auto top  = y1 - ymin;
 
         if ((dx == 0.0f && left < 0.0f) ||
-            (dy == 0.0f && top  < 0.0f)) return false; // the line is parallel to the rectangle
+            (dy == 0.0f && top  < 0.0f)) return faux; // the line is parallel to the rectangle
 
         auto max = 0.0f;
         auto min = 1.0f;
@@ -449,7 +462,7 @@ namespace netxs
         }
         else
         {
-            return false; // the line is outside
+            return faux; // the line is outside
         }
     }
 
@@ -580,7 +593,7 @@ namespace netxs
             }
             else
             {
-                return false;
+                return faux;
             }
         }
 

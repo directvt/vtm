@@ -365,13 +365,13 @@ namespace netxs::console
     };
 
     class flow // richtext: The text feeder
-        : public ansi::look
+        : public ansi::deco
     {
-        using look = ansi::look;
+        using deco = ansi::deco;
         rect textline{ }; // flow: Textline placeholder
+        iota textsize{ }; // flow: Full textline length (1D)
         side boundary{ }; // flow: Affected area by the text output
         iota curpoint{ }; // flow: Current substring start position
-        iota fullsize{ }; // flow: Full textline length
         bool straight{ }; // flow: Text substring retrieving direction
         iota caret_mx{ }; // flow: Maximum x-coor value on the visible area
         twod caretpos{ }; // flow: Current virtual (w/o style applied) caret position
@@ -379,7 +379,7 @@ namespace netxs::console
         rect viewrect{ }; // flow: Client area inside page margins
         rect pagerect{ }; // flow: Client full area. Used as a nested areas (coords++) accumulator
         rect pagecopy{ }; // flow: Client full area saver
-        look selfcopy{ }; // flow: Flow state storage
+        deco selfcopy{ }; // flow: Flow state storage
         iota highness{1}; // flow: Last processed line height
 
         iota const& size_x;
@@ -448,7 +448,7 @@ namespace netxs::console
 
             auto startpos = curpoint;
             curpoint += std::max(printout.size.x, 1);
-            textline.size.x = fullsize - curpoint;
+            textline.size.x = textsize - curpoint;
 
             if (RtoL) printout.coor.x = viewrect.size.x - (printout.coor.x + printout.size.x);
             if (ReLF) printout.coor.y = viewrect.size.y - (printout.coor.y + printout.size.y);
@@ -505,14 +505,14 @@ namespace netxs::console
         template<class T> constexpr
         iota get_len(T p)
         {
-            if constexpr (std::is_same<T, twod>::value) return p.x;
-            else                                        return static_cast<iota>(p);
+            if constexpr (std::is_same_v<T, twod>) return p.x;
+            else                                   return static_cast<iota>(p);
         }
         template<class T> constexpr
         rect get_vol(T p)
         {
-            if constexpr (std::is_same<T, twod>::value) return { dot_00, p };
-            else                                        return { dot_00, { static_cast<iota>(p),  1 } };
+            if constexpr (std::is_same_v<T, twod>) return { dot_00, p };
+            else                                   return { dot_00, { static_cast<iota>(p),  1 } };
         }
         template<bool RtoL, bool ReLF, class T, class P>
         void proceed(T const& block, P print)
@@ -522,17 +522,18 @@ namespace netxs::console
             else                        trimmed<RtoL, ReLF>(block, print);
         }
 
-    public:
-        bool iswrapln = faux;
-        bool arighted = faux;
-        bool isr_to_l = faux;
-        bool isrlfeed = faux;
-        bool centered = faux;
-        iota tabwidth = 0;
-        dent textpads;
+    protected:
+        bool iswrapln{ };
+        bool arighted{ };
+        bool isr_to_l{ };
+        bool isrlfeed{ };
+        bool centered{ };
+        iota tabwidth{ };
+        dent textpads{ };
 
         std::function<void(ansi::fn cmd, iota arg)> custom; // flow: Draw commands (customizable)
 
+    public:
         flow(iota const& size_x, iota const& size_y)
             : size_x { size_x },
               size_y { size_y }
@@ -544,38 +545,12 @@ namespace netxs::console
             : flow { pagerect.size }
         { }
 
-        auto coor()
-        {
-            return textpads.corner(size_x, size_y);
-        }
-        void size(twod const& newsize)
-        {
-            pagerect.size = newsize;
-        }
-        auto width() // flow: Get visible width
-        {
-            return textpads.width(size_x);
-        }
-        auto height() // flow: Get visible height
-        {
-            return textpads.height(size_y);
-        }
-        auto& corner() const // flow: Get flow::corner reference
-        {
-            return pagerect.coor;
-        }
-        void corner(twod const& newcorner) // flow: Set flow::corner
-        {
-            pagerect.coor = newcorner;
-        }
-        auto& full() const // flow: Get client full size reference
-        {
-            return pagerect;
-        }
-        void full(rect const& area) // flow: Set client full size
-        {
-            pagerect = area;
-        }
+        void  size(twod const& size) { pagerect.size = size; } // flow: Set client full size
+        void  full(rect const& area) { pagerect = area;      } // flow: Set client full rect
+        auto& full() const           { return pagerect;      } // flow: Get client full rect reference
+        auto& minmax() const         { return boundary;      } // flow: Return the output range
+        void  minmax(twod const& p)  { boundary |= p;        } // flow: Register twod
+        void  minmax(rect const& r)  { boundary |= r;        } // flow: Register rect
 
         // flow: Split specified textblock on the substrings
         //       and place it to the form by the specified proc.
@@ -584,13 +559,13 @@ namespace netxs::console
         {
             // Local settings take precedence over global ones (deco::*)
             iswrapln = block.style.wrapln ? block.style.wrapln == wrap::on
-                                          : look::wrapln == wrap::on;
+                                          : deco::wrapln == wrap::on;
             isr_to_l = block.style.r_to_l ? block.style.r_to_l == rtol::rtl
-                                          : look::r_to_l == rtol::rtl;
+                                          : deco::r_to_l == rtol::rtl;
             isrlfeed = block.style.rlfeed ? block.style.rlfeed == feed::rev
-                                          : look::rlfeed == feed::rev;
+                                          : deco::rlfeed == feed::rev;
             tabwidth = block.style.tablen ? block.style.tablen
-                                          : look::tablen;
+                                          : deco::tablen;
             if (block.style.adjust)
             {
                 arighted = block.style.adjust == bias::right;
@@ -598,17 +573,17 @@ namespace netxs::console
             }
             else
             {
-                arighted = look::adjust == bias::right;
-                centered = look::adjust == bias::center;
+                arighted = deco::adjust == bias::right;
+                centered = deco::adjust == bias::center;
             }
             // Combine local and global margins
-            textpads = look::margin;
+            textpads = deco::margin;
             textpads += block.style.margin;
 
             auto block_size = block.size(); // 2D size
-            fullsize = get_len(block_size); // 1D length
+            textsize = get_len(block_size); // 1D length
 
-            if (fullsize)
+            if (textsize)
             {
                 textline = get_vol(block_size); // 2D size
                 curpoint = 0;
@@ -633,7 +608,7 @@ namespace netxs::console
                     else          proceed<faux, faux>(block, print);
             }
         }
-        // flow: Execute specified locus instruction list.
+        // flow: Execute specified locus instruction list
         auto forward(writ const& cmd)
         {
             auto& inst = *this;
@@ -663,19 +638,30 @@ namespace netxs::console
             compose(block);
             return cp;
         }
+        template<class T, class C = noop>
+        void go(T const& block, C& canvas = noop::no<void>::value)
+        {
+            if constexpr (std::is_same_v<C, noop>)
+                compose(block);
+            else
+                compose(block, [&](auto const& coord, auto const& subblock)
+                               {
+                                   canvas.text(coord, subblock, isr_to_l);
+                               });
+        }
 
-        void ax	(iota x)        { caretpos.x  = x;          }
-        void ay	(iota y)        { caretpos.y  = y;          }
-        void ac	(twod const& c) { ax(c.x); ay(c.y);       }
-        void ox	(iota x)        { caretpos.x  = x - 1;      }
-        void oy	(iota y)        { caretpos.y  = y - 1;      }
-        void oc	(twod const& c) { ox(c.x); oy(c.y);       }
-        void dx	(iota n)        { caretpos.x += n;          }
-        void dy	(iota n)        { caretpos.y += n;          }
-        void nl	(iota n)        { ax(0); dy(n);           }
+        void ax	(iota x)        { caretpos.x  = x;               }
+        void ay	(iota y)        { caretpos.y  = y;               }
+        void ac	(twod const& c) { ax(c.x); ay(c.y);              }
+        void ox	(iota x)        { caretpos.x  = x - 1;           }
+        void oy	(iota y)        { caretpos.y  = y - 1;           }
+        void oc	(twod const& c) { ox(c.x); oy(c.y);              }
+        void dx	(iota n)        { caretpos.x += n;               }
+        void dy	(iota n)        { caretpos.y += n;               }
+        void nl	(iota n)        { ax(0); dy(n);                  }
         void px	(iota x)        { ax(margin.h_ratio(x, size_x)); }
         void py	(iota y)        { ay(margin.v_ratio(y, size_y)); }
-        void pc	(twod const& c) { px(c.x); py(c.y);       }
+        void pc	(twod const& c) { px(c.x); py(c.y);              }
         void tb	(iota n)
         {
             if (n)
@@ -684,17 +670,17 @@ namespace netxs::console
                 if (n > 0 ? --n : ++n) dx(tablen * n);
             }
         }
-        twod cp() const // flow: Return absolute cursor position.
+        twod cp() const // flow: Return absolute cursor position
         {
             twod coor{ caretpos };
 
-            if (adjust == bias::right) coor.x = textpads.width(size_x)  - 1 - coor.x;
+            if (adjust == bias::right) coor.x = textpads.width (size_x) - 1 - coor.x;
             if (rlfeed == feed::rev  ) coor.y = textpads.height(size_y) - 1 - coor.y;
 
             coor += textpads.corner(size_x, size_y);
             return coor;
         }
-        twod up () // flow: Register cursor position.
+        twod up () // flow: Register cursor position
         {
             auto cp = flow::cp();
             boundary |= cp; /* |= cursor*/;
@@ -702,35 +688,30 @@ namespace netxs::console
         }
         void zz	(twod const& offset = dot_00)
         {
-            look::rst();
+            deco::rst();
             caretpos = dot_00;
             pagerect.coor = offset;
         }
-        void sc () // flow: Save current state.
+        void sc () // flow: Save current state
         {
             selfcopy.set(*this);
             caretsav = caretpos;
             pagecopy.coor = pagerect.coor;
         }
-        void rc () // flow: Restore state.
+        void rc () // flow: Restore state
         {
-            look::set(selfcopy);
+            deco::set(selfcopy);
             caretpos = caretsav;
             pagerect.coor = pagecopy.coor;
         }
-        void reset(twod const& offset = dot_00) // flow: Reset flow state.
+        template<class FLOW = noop>
+        void reset(FLOW const& canvas = noop::no<void>::value) // flow: Reset flow state
         {
-            flow::zz(offset);
+            if constexpr (std::is_same_v<FLOW, noop>) flow::zz();
+            else                                      flow::zz(canvas.pagerect.coor);
             flow::sc();
             boundary = caretpos;
         }
-        void reset(flow const& canvas) // flow: Reset flow state.
-        {
-            reset(canvas.pagerect.coor);
-        }
-        auto& minmax() const { return boundary; } // flow: Return the output range.
-        void  minmax(twod const& p) { boundary |= p; } // flow: Register twod.
-        void  minmax(rect const& r) { boundary |= r; } // flow: Register rect.
     };
 
     class shot // richtext: The shadow of the para
@@ -823,7 +804,7 @@ namespace netxs::console
         template<class T>
         using parser = ansi::parser<T>; // Use default static parser
         using mark   = ansi::mark;
-        using look   = ansi::look;
+        using deco   = ansi::deco;
 
         iota selfid = 0;
         iota bossid = 0;          // para: Index of the top visible text line
@@ -833,7 +814,7 @@ namespace netxs::console
         corx lyric = std::make_shared<core>();
 
         mark brush; // para: Brush for parser
-        look style; // para: Style for parser
+        deco style; // para: Style for parser
 
         para()                         = default;
         para(para&&) noexcept          = default;
@@ -841,10 +822,10 @@ namespace netxs::console
         para& operator = (para&&)      = default;
         para& operator = (para const&) = default;
 
-        para(look const& style)
+        para(deco const& style)
             : style{ style }
         { }
-        para(iota newid, look const& style = {})
+        para(iota newid, deco const& style = {})
             : style  { style },
               selfid { newid },
               bossid { newid }
@@ -1136,7 +1117,7 @@ namespace netxs::console
         { }
 
     public:
-        ansi::look style;
+        ansi::deco style;
 
         rope(iter const& head, iter const& tail, twod const& size)
             : source{ head },
@@ -1247,7 +1228,7 @@ namespace netxs::console
         using iter = list::iterator;
         using imap = std::map<iota, iter>;
         using mark = ansi::mark;
-        using look = ansi::look;
+        using deco = ansi::deco;
 
     public:
         iota parid = 1;               // page: Current paragraph id
@@ -1257,7 +1238,7 @@ namespace netxs::console
         iota limit = std::numeric_limits<iota>::max(); // page: Paragraphs number limit
 
         mark brush; // page: Parser brush
-        look style; // page: Parser style
+        deco style; // page: Parser style
 
         // page: Remove over limit paragraphs.
         void shrink()
