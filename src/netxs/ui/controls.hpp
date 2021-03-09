@@ -18,13 +18,13 @@ namespace netxs::ui
     enum axis : id_t { X, Y };
     enum axes
     {
-        NONE = 0,
+        NONE   = 0,
         ONLY_X = 1 << 0,
         ONLY_Y = 1 << 1,
         ALL    = (ONLY_X | ONLY_Y),
     };
 
-    class mold // controls.h: Flexible window frame.
+    class mold // controls.h: Flexible window frame
         : public form
     {
     public:
@@ -65,7 +65,7 @@ namespace netxs::ui
                 //todo revise
                 //auto c = master.base::coor.get() + corner.less(dot_11, dot_00, length);
                 auto c = master.base::coor.get()
-                    - canvas.coor() + corner.less(dot_11, dot_00, length);
+                       - canvas.coor() + corner.less(dot_11, dot_00, length);
 
                 auto side_x = rect{ c, { levels.x, widths.y } }.normalize();
                 c.y += levels.y > 0 ? 1 : -1;
@@ -390,7 +390,7 @@ namespace netxs::ui
                 }
             };
         }
-        // mold: Draw client window.
+        // mold: Draw client window
         virtual void renderproc (face& parent_canvas)
         {
             auto const& normal = base::brush;
@@ -472,17 +472,17 @@ namespace netxs::ui
             parent_canvas.plot(canvas);
         }
 
-        // mold: Get client region.
+        // mold: Get client region
         auto get_region()
         {
             return region;
         }
-        // mold: Set the window undeleteble.
+        // mold: Set the window undeleteble
         void strong(bool immortal)
         {
             secure = immortal;
         }
-        // mold: Set window title.
+        // mold: Set window title
         void header(view title)
         {
             legend.header(title);
@@ -492,7 +492,7 @@ namespace netxs::ui
         {
             locked = !resizeble;
         }
-        // mold: Create a new item of the specified subtype and attach it.
+        // mold: Create a new item of the specified subtype and attach it
         template<class T, class ...Args>
         auto attach(Args... args)
         {
@@ -517,14 +517,14 @@ namespace netxs::ui
         }
     };
 
-    class fork // controls.h: Splitter control.
+    class fork // controls.h: Splitter control
         : public base
     {
         using sptr = netxs::sptr<base>;
     public:
         using self = fork;
-        FEATURE(pro::align, align); // fork: Size linking controller.
-        FEATURE(pro::mouse, mouse); // fork: Mouse controller.
+        FEATURE(pro::align, align); // fork: Size linking controller
+        FEATURE(pro::mouse, mouse); // fork: Mouse controller
 
         enum slot { _1, _2 };
         enum orientation { horizontal, vertical };
@@ -534,8 +534,8 @@ namespace netxs::ui
         static constexpr iota MAX_RATIO = 0xFFFF;
         static constexpr iota HALF_RATIO = 0xFFFF >> 1;
 
-        sptr client_1; // fork: Client 1 object.
-        sptr client_2; // fork: Client 2 object.
+        sptr client_1; // fork: Client 1 object
+        sptr client_2; // fork: Client 2 object
 
         twod size1;
         twod size2;
@@ -632,7 +632,7 @@ namespace netxs::ui
             //  	}
             //  	return 0;
         }
-        // base (virtual, auto): Draw the form composition on the specified canvas.
+        // base (virtual, auto): Draw the form composition on the specified canvas
         virtual void renderproc (face& parent_canvas)
         {
             base::renderproc(parent_canvas);
@@ -802,7 +802,7 @@ namespace netxs::ui
                 base::deface();
             }
         }
-        // fork: Create a new item of the specified subtype and attach it to a specified slot.
+        // fork: Create a new item of the specified subtype and attach it to a specified slot
         template<class T, class ...Args>
         auto attach(slot client_slot, Args... args)
         {
@@ -824,8 +824,8 @@ namespace netxs::ui
         : public base
     {
         using self = list;
-        FEATURE(pro::mouse, mouse); // list: Mouse controller.
-        FEATURE(pro::align, align); // list: Size linking controller.
+        FEATURE(pro::mouse, mouse); // list: Mouse controller
+        FEATURE(pro::align, align); // list: Size linking controller
 
         using sptr = netxs::sptr<base>;
         using roll = std::list<std::pair<sptr, iota>>;
@@ -900,7 +900,7 @@ namespace netxs::ui
                 }
             };
         }
-        // list (virtual, auto): Draw the form composition on the specified canvas.
+        // list (virtual, auto): Draw the form composition on the specified canvas
         virtual void renderproc (face& parent_canvas)
         {
             base::renderproc(parent_canvas);
@@ -911,7 +911,7 @@ namespace netxs::ui
                 parent_canvas.render(client.first, basis);
             }
         }
-        // list: Create a new item of the specified subtype and attach it.
+        // list: Create a new item of the specified subtype and attach it
         template<class T, class ...Args>
         auto attach(Args... args)
         {
@@ -929,12 +929,12 @@ namespace netxs::ui
         }
     };
 
-    class cake // controls.h: (puff) Layered cake of forms on top of each other.
+    class cake // controls.h: (puff) Layered cake of forms on top of each other
         : public base
     {
         using self = cake;
-        FEATURE(pro::mouse, mouse); // cake: Mouse controller.
-        FEATURE(pro::align, align); // cake: Size linking controller.
+        FEATURE(pro::mouse, mouse); // cake: Mouse controller
+        FEATURE(pro::align, align); // cake: Size linking controller
 
         using sptr = netxs::sptr<base>;
         std::list<sptr> clients;
@@ -975,7 +975,7 @@ namespace netxs::ui
                 }
             };
         }
-        // cake (virtual, auto): Draw the form composition on the specified canvas.
+        // cake (virtual, auto): Draw the form composition on the specified canvas
         virtual void renderproc (face& parent_canvas)
         {
             base::renderproc(parent_canvas);
@@ -987,7 +987,7 @@ namespace netxs::ui
             }
         }
 
-        // cake: Create a new item of the specified subtype and attach it.
+        // cake: Create a new item of the specified subtype and attach it
         template<class T, class ...Args>
         auto attach(Args... args)
         {
@@ -1059,20 +1059,20 @@ namespace netxs::ui
         void clear() { layout.clear(); }
     };
 
-    class post // controls.h: Rigid text page.
+    class post // controls.h: Rigid text page
         : public base,
           public flow
     {
         using self = post;
-        FEATURE(pro::mouse, mouse); // post: Mouse controller.
+        FEATURE(pro::mouse, mouse); // post: Mouse controller
 
-        twod width; // post: Page dimensions.
+        twod width; // post: Page dimensions
         page_layout layout;
 
     public:
-        page topic; // post: Text content.
+        page topic; // post: Text content
 
-        // post: Print page.
+        // post: Print page
         void output(face& canvas)
         {
             flow::reset(canvas);
@@ -1129,7 +1129,6 @@ namespace netxs::ui
                 recalc(size);
                 size.y = width.y;
             };
-
             SUBMIT(e2::release, e2::form::layout::size, size)
             {
                 //if (width != size)
@@ -1141,7 +1140,7 @@ namespace netxs::ui
             };
         }
 
-        // post: Render base and output topic content.
+        // post: Render base and output topic content
         virtual void renderproc (face& parent_canvas)
         {
             base::renderproc(parent_canvas);
@@ -1155,35 +1154,35 @@ namespace netxs::ui
         }
     };
 
-    class rail // controls.h: Scroller.
+    class rail // controls.h: Scroller
         : public base
     {
         using sptr = netxs::sptr<base>;
         using self = rail;
-        FEATURE(pro::mouse, mouse); // rail: Mouse controller.
-        FEATURE(pro::robot, robot); // rail: Animation controller.
-        FEATURE(pro::align, align); // rail: Size linking controller.
+        FEATURE(pro::mouse, mouse); // rail: Mouse controller
+        FEATURE(pro::robot, robot); // rail: Animation controller
+        FEATURE(pro::align, align); // rail: Size linking controller
 
         static constexpr hint events[] = { e2::form::upon::scroll::x,
                                            e2::form::upon::scroll::y,
                                            e2::form::upon::scroll::resetx,
                                            e2::form::upon::scroll::resety };
-        bool locked = faux; // rail: Client is under resizing.
-        sptr client; // rail: Client instance.
-        subs tokens; // rail: Subscriptions on client moveto and resize.
-        rack scinfo; // rail: Scroll info.
-        bool strict[2] = { true, true }; // rail: Don't allow overscroll.
-        bool manual[2] = { true, true }; // rail: Manaul scrolling (no auto align).
-        axes permit; // rail: Allowed axes to scroll.
-        axes siezed; // rail: Allowed axes to capture.
+        bool locked = faux; // rail: Client is under resizing
+        sptr client; // rail: Client instance
+        subs tokens; // rail: Subscriptions on client moveto and resize
+        rack scinfo; // rail: Scroll info
+        bool strict[2] = { true, true }; // rail: Don't allow overscroll
+        bool manual[2] = { true, true }; // rail: Manaul scrolling (no auto align)
+        axes permit; // rail: Allowed axes to scroll
+        axes siezed; // rail: Allowed axes to capture
 
-        iota speed; // rail: Text auto-scroll initial speed component ΔR.
-        iota pulse; // rail: Text auto-scroll initial speed component ΔT.
-        iota cycle; // rail: Text auto-scroll duration in ms.
-        bool steer; // rail: Text scroll vertical direction.
+        iota speed; // rail: Text auto-scroll initial speed component ΔR
+        iota pulse; // rail: Text auto-scroll initial speed component ΔT
+        iota cycle; // rail: Text auto-scroll duration in ms
+        bool steer; // rail: Text scroll vertical direction
 
     public:
-        bool overscroll[2] = { true, true }; // rail: Allow overscroll with auto correct.
+        bool overscroll[2] = { true, true }; // rail: Allow overscroll with auto correct
 
         rail(axes allow_to_scroll = axes::ALL, axes allow_to_capture = axes::ALL)
             : speed{ SPD  },
@@ -1445,13 +1444,13 @@ namespace netxs::ui
 
             return inside;
         }
-        // rail (virtual, auto): Draw the form composition on the specified canvas.
+        // rail (virtual, auto): Draw the form composition on the specified canvas
         virtual void renderproc (face& parent_canvas)
         {
             base::renderproc(parent_canvas);
             if (client) parent_canvas.render<faux>(client, base::coor.get());
         }
-        // rail: Create a new item of the specified subtype and attach it.
+        // rail: Create a new item of the specified subtype and attach it
         template<class T, class ...Args>
         auto attach(Args... args)
         {
@@ -1487,16 +1486,16 @@ namespace netxs::ui
     };
 
     template<axis AXIS>
-    class grip // controls.h: Scroll bar.
+    class grip // controls.h: Scroll bar
         : public base
     {
         using wptr = netxs::wptr<bell>;
         using sptr = netxs::sptr<bell>;
 
         using self = grip;
-        FEATURE(pro::mouse, mouse); // grip: Mouse events controller.
-        FEATURE(pro::align, align); // grip: Size linking controller.
-        FEATURE(pro::timer, timer); // grip: Minimize by timeout.
+        FEATURE(pro::mouse, mouse); // grip: Mouse events controller
+        FEATURE(pro::align, align); // grip: Size linking controller
+        FEATURE(pro::timer, timer); // grip: Minimize by timeout
 
         enum activity
         {
@@ -1516,20 +1515,20 @@ namespace netxs::ui
 
         struct math
         {
-            rack  master_inf = {};                        // math: Master scroll info.
-            iota& master_len = xy(master_inf.region);      // math: Master len.
-            iota& master_pos = xy(master_inf.window.coor); // math: Master viewport pos.
-            iota& master_box = xy(master_inf.window.size); // math: Master viewport len.
-            iota  scroll_len = 0; // math: Scrollbar len.
-            iota  scroll_pos = 0; // math: Scrollbar grip pos.
-            iota  scroll_box = 0; // math: Scrollbar grip len.
-            iota   m         = 0; // math: Master max pos.
-            iota   s         = 0; // math: Scroll max pos.
-            double r         = 1; // math: Scroll/master len ratio.
+            rack  master_inf = {};                         // math: Master scroll info
+            iota& master_len = xy(master_inf.region);      // math: Master len
+            iota& master_pos = xy(master_inf.window.coor); // math: Master viewport pos
+            iota& master_box = xy(master_inf.window.size); // math: Master viewport len
+            iota  scroll_len = 0; // math: Scrollbar len
+            iota  scroll_pos = 0; // math: Scrollbar grip pos
+            iota  scroll_box = 0; // math: Scrollbar grip len
+            iota   m         = 0; // math: Master max pos
+            iota   s         = 0; // math: Scroll max pos
+            double r         = 1; // math: Scroll/master len ratio
 
-            iota  cursor_pos = 0; // math: Mouse cursor position.
+            iota  cursor_pos = 0; // math: Mouse cursor position
 
-            // Calc scroll to master metrics
+            // math: Calc scroll to master metrics
             void s_to_m()
             {
                 auto scroll_center = scroll_pos + scroll_box / 2.0;
@@ -1540,23 +1539,13 @@ namespace netxs::ui
                 // Reset to extreme positions
                 if (scroll_pos == 0 && master_pos > 0) master_pos = 0;
                 if (scroll_pos == s && master_pos < m) master_pos = m;
-
-                //log (" master max pos ", m);
-                //log (" scroll max pos ", s);
-                //log (" ratio ", r);
-                //
-                //log ("master_pos ", master_pos);
-                //log ("scroll_pos ", scroll_pos);
-                //log ("--------------------------------------");
             }
-            // Calc master to scroll metrics
+            // math: Calc master to scroll metrics
             void m_to_s()
             {
                 r = (double)scroll_len / master_len;
                 auto master_middle = master_pos + master_box / 2.0;
                 auto scroll_middle = master_middle * r;
-                //scroll_box = 1 + (iota)(master_box * r);
-                //scroll_box = (iota)(master_box * r);
                 scroll_box = std::max(1, (iota)(master_box * r));
                 scroll_pos = (iota)std::round(scroll_middle - scroll_box / 2.0);
 
@@ -1567,12 +1556,6 @@ namespace netxs::ui
                 s = scroll_len - scroll_box;
                 m = master_len - master_box;
 
-                //log (" scroll_len ", scroll_len);
-                //log (" scroll_box ", scroll_box);
-                //log (" master_len ", master_len);
-                //log (" master_box ", master_box);
-                //log (" --------------------------- m_to_s");
-
                 if (scroll_len > 2) // Two-row hight is not suitable for this type of aligning
                 {
                     if (scroll_pos == 0 && master_pos > 0) scroll_pos = 1;
@@ -1582,13 +1565,6 @@ namespace netxs::ui
             void update(rack const& scinfo)
             {
                 master_inf = scinfo;
-                //if (AXIS == axis::X)
-                //{
-                //	log (" --------------------------- scinfo");
-                //	log(" region: ", scinfo.region);
-                //	log(" window: ", scinfo.window);
-                //	log(" beyond: ", scinfo.beyond);
-                //}
                 m_to_s();
             }
             void resize(twod const& new_size)
@@ -1599,7 +1575,6 @@ namespace netxs::ui
             void stepby(iota delta)
             {
                 scroll_pos = std::clamp(scroll_pos + delta, 0, s);
-                //scroll_pos = scroll_pos + delta;
                 s_to_m();
             }
             void commit(rect& handle)
@@ -1634,10 +1609,10 @@ namespace netxs::ui
 
         wptr boss;
         hook memo;
-        iota thin; // grip: Scrollbar thickness.
-        iota init; // grip: Handle base width.
-        math calc; // grip: Scrollbar calculator.
-        bool wide; // grip: Is the scrollbar active.
+        iota thin; // grip: Scrollbar thickness
+        iota init; // grip: Handle base width
+        math calc; // grip: Scrollbar calculator
+        bool wide; // grip: Is the scrollbar active
 
         bool on_pager = faux;
 
@@ -1828,7 +1803,7 @@ namespace netxs::ui
                 {
                     wide = active;
                     if (AXIS == axis::Y) config(active ? init * 2 // Make vertical scrollbar
-                                                       : init);   //  wider on hover
+                                                       : init);   //          wider on hover
                     base::reflow();
                     return faux; // One shot call
                 };
@@ -1854,7 +1829,7 @@ namespace netxs::ui
             //	timer.template actify<activity::mouse_leave>(ACTIVE_TIMEOUT, apply);
             //};
         }
-        // grip (virtual, auto): Draw the form composition on the specified canvas.
+        // grip (virtual, auto): Draw the form composition on the specified canvas
         virtual void renderproc (face& parent_canvas)
         {
             base::renderproc(parent_canvas);

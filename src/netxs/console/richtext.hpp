@@ -72,33 +72,31 @@ namespace netxs::console
         rect client;
 
     public:
-        //core(core const& c) = default;
-        //core(core&& c) = delete;
-        core() { }; // = default;
+        core() = default;
 
-        constexpr auto& size() const { return region.size;   }
-        auto& coor() const { return region.coor;   }
-        auto& area() const { return region;        }
-        auto  hash()       { return digest;        } // core: Return the digest value that associatated with the current canvas size.
-        auto  data() const { return canvas.data(); }
-        auto  data()       { return canvas.data(); }
-        auto& pick()       { return canvas;        }
-        auto  test(twod const& coord) const { return region.size.inside(coord); } // core: Check the coor inside the canvas.
-        auto  data(twod const& coord)       { return  data() + coord.x + coord.y * region.size.x; } // core: Return the offset of the cell corresponding to the specified coordinates.
-        auto  data(twod const& coord) const { return  data() + coord.x + coord.y * region.size.x; } // core: Return the const offset value of the cell.
-        auto& data(size_t offset)           { return*(data() + offset);  } // core: Return the const offset value of the cell corresponding to the specified coordinates.
-        auto& operator[] (twod const& coord){ return*(data(coord));      } // core: Return reference of the canvas cell at the specified location. It is dangerous in case of layer resizing.
-        auto& mark()                        { return marker;             } // core: Return a reference to the default cell value.
-        auto& mark() const                  { return marker;             } // core: Return a reference to the default cell value.
-        auto& mark(cell const& c)           { marker = c; return marker; } // core: Set the default cell value.
-        void  move(twod const& newcoor)     { region.coor = newcoor;     } // core: Change the location of the face.
-        void  step(twod const& delta)       { region.coor += delta;      } // core: Shift location of the face by delta.
-        void  back(twod const& delta)       { region.coor -= delta;      } // core: Shift location of the face by -delta.
-        void  link(id_t id)                 { marker.link(id);           } // core: Set the default object ID.
-        auto  link(twod const& coord) const { return test(coord) ? (*(data(coord))).link() : 0; } // core: Return ID of the object in cell at the specified coordinates.
-        auto  view() const                  { return client; }
+        constexpr auto& size() const        { return region.size;   }
+        auto& coor() const                  { return region.coor;   }
+        auto& area() const                  { return region;        }
+        auto  hash()                        { return digest;        } // core: Return the digest value that associatated with the current canvas size
+        auto  data() const                  { return canvas.data(); }
+        auto  data()                        { return canvas.data(); }
+        auto& pick()                        { return canvas;        }
+        auto  test(twod const& coord) const { return region.size.inside(coord); } // core: Check the coor inside the canvas
+        auto  data(twod const& coord)       { return  data() + coord.x + coord.y * region.size.x; } // core: Return the offset of the cell corresponding to the specified coordinates
+        auto  data(twod const& coord) const { return  data() + coord.x + coord.y * region.size.x; } // core: Return the const offset value of the cell
+        auto& data(size_t offset)           { return*(data() + offset);  } // core: Return the const offset value of the cell corresponding to the specified coordinates
+        auto& operator[] (twod const& coord){ return*(data(coord));      } // core: Return reference of the canvas cell at the specified location. It is dangerous in case of layer resizing
+        auto& mark()                        { return marker;             } // core: Return a reference to the default cell value
+        auto& mark() const                  { return marker;             } // core: Return a reference to the default cell value
+        auto& mark(cell const& c)           { marker = c; return marker; } // core: Set the default cell value
+        void  move(twod const& newcoor)     { region.coor = newcoor;     } // core: Change the location of the face
+        void  step(twod const& delta)       { region.coor += delta;      } // core: Shift location of the face by delta
+        void  back(twod const& delta)       { region.coor -= delta;      } // core: Shift location of the face by -delta
+        void  link(id_t id)                 { marker.link(id);           } // core: Set the default object ID
+        auto  link(twod const& coord) const { return test(coord) ? (*(data(coord))).link() : 0; } // core: Return ID of the object in cell at the specified coordinates
+        auto  view() const                  { return client;    }
         void  view(rect const& viewreg)     { client = viewreg; }
-        void  size(twod const& newsize) // core: Change the size of the face.
+        void  size(twod const& newsize) // core: Change the size of the face
         {
             if (region.size(newsize))
             {
@@ -107,7 +105,7 @@ namespace netxs::console
                 canvas.assign(region.size.x * region.size.y, marker);
             }
         }
-        void  crop(iota newsizex) // core: Resize while saving the textline.
+        void  crop(iota newsizex) // core: Resize while saving the textline
         {
             region.size.x = newsizex;
             region.size.y = 1;
@@ -116,7 +114,7 @@ namespace netxs::console
             digest++;
         }
         //todo unify
-        void  crop(twod const& newsize) // core: Resize while saving the bitmap.
+        void  crop(twod const& newsize) // core: Resize while saving the bitmap
         {
             core block{ region.coor, newsize };
 
@@ -128,7 +126,7 @@ namespace netxs::console
             swap(block);
             digest++;
         }
-        void  crop(twod const& newsize, cell const& c) // core: Resize while saving the bitmap.
+        void  crop(twod const& newsize, cell const& c) // core: Resize while saving the bitmap
         {
             core block{ region.coor, newsize, c };
 
@@ -140,16 +138,16 @@ namespace netxs::console
             swap(block);
             digest++;
         }
-        void  kill() // core: Collapse canvas to size zero (see para).
+        void  kill() // core: Collapse canvas to size zero (see para)
         {
             region.size.x = 0;
             client.size.x = 0;
             canvas.resize(0);
             digest++;
         }
-        void  wipe(cell const& c) { std::fill(canvas.begin(), canvas.end(), c); } // core: Fill the canvas with the specified marker.
-        void  wipe() { wipe(marker); } // core: Fill the canvas with the default color.
-        void  wipe(id_t id)            // core: Fill the canvas with the specified id.
+        void  wipe(cell const& c) { std::fill(canvas.begin(), canvas.end(), c); } // core: Fill the canvas with the specified marker
+        void  wipe() { wipe(marker); } // core: Fill the canvas with the default color
+        void  wipe(id_t id)            // core: Fill the canvas with the specified id
         {
             auto my = marker.link();
             marker.link(id);
@@ -157,7 +155,7 @@ namespace netxs::console
             marker.link(my);
         }
         template<class P>
-        void  each(P proc) // core: Exec a proc for each cell.
+        void  each(P proc) // core: Exec a proc for each cell
         {
             for (auto& c : canvas)
             {
@@ -165,12 +163,12 @@ namespace netxs::console
             }
         }
         template<class P>
-        void  each(rect const& region, P proc) // core: Exec a proc for each cell of the specified region.
+        void  each(rect const& region, P proc) // core: Exec a proc for each cell of the specified region
         {
             netxs::onrect(*this, region, proc);
         }
-        auto  copy(grid& target) const { target = canvas; return region.size; } // core: Copy only grid of the canvas to the specified grid bitmap.
-        void  copy(core& target, bool copymetadata = faux) const // core: Copy the canvas to the specified target bitmap. The target bitmap must be the same size.
+        auto  copy(grid& target) const { target = canvas; return region.size; } // core: Copy only grid of the canvas to the specified grid bitmap
+        void  copy(core& target, bool copymetadata = faux) const // core: Copy the canvas to the specified target bitmap. The target bitmap must be the same size
         {
             auto full = [](auto& dst, auto& src) { dst = src; };
             auto flat = [](auto& dst, auto& src) { dst.set(src); };
@@ -182,7 +180,7 @@ namespace netxs::console
             //target.marker = marker;
             //flow::cursor
         }
-        void  plot(core const& block, bool force = faux) // core: Place the specified face using its coordinates.
+        void  plot(core const& block, bool force = faux) // core: Place the specified face using its coordinates
         {
             auto full = [](auto& dst, auto& src) { dst = src; };
             auto fuse = [](auto& dst, auto& src) { dst.fusefull(src); };
@@ -190,7 +188,7 @@ namespace netxs::console
             force ? netxs::onbody(*this, block, full)
                   : netxs::onbody(*this, block, fuse);
         }
-        void  fill(core const& block, bool force = faux) // core: Fill by the specified face using its coordinates.
+        void  fill(core const& block, bool force = faux) // core: Fill by the specified face using its coordinates
         {
             auto flat = [](auto& dst, auto& src) { dst.set(src); };
             auto fuse = [](auto& dst, auto& src) { dst.fuse(src); };
@@ -198,11 +196,11 @@ namespace netxs::console
             force ? netxs::onbody(*this, block, flat)
                   : netxs::onbody(*this, block, fuse);
         }
-        void  fill(sptr<core> block_ptr, bool force = faux) // core: Fill by the specified face using its coordinates.
+        void  fill(sptr<core> block_ptr, bool force = faux) // core: Fill by the specified face using its coordinates
         {
             if (block_ptr) fill(*block_ptr, force);
         }
-        void  fill(ui::rect block, cell const& brush, bool force = faux) // core: Fill the specified region with the specified color. If forced == true use direct copy instead of mixing.
+        void  fill(ui::rect block, cell const& brush, bool force = faux) // core: Fill the specified region with the specified color. If forced == true use direct copy instead of mixing
         {
             auto flat = [brush](auto& dst) { dst = brush ; };
             auto fuse = [brush](auto& dst) { dst.fusefull(brush); };
@@ -211,22 +209,22 @@ namespace netxs::console
             force ? netxs::onrect(*this, block, flat)
                   : netxs::onrect(*this, block, fuse);
         }
-        void  fill(cell const& brush, bool force = faux) // core: Fill the client area with the specified color. If forced == true use direct copy instead of mixing.
+        void  fill(cell const& brush, bool force = faux) // core: Fill the client area with the specified color. If forced == true use direct copy instead of mixing
         {
             fill(view(), brush, force);
         }
         template<class P>
-        void  fill(ui::rect block, P fuse) // core: Process the specified region by the specified proc.
+        void  fill(ui::rect block, P fuse) // core: Process the specified region by the specified proc
         {
             block.coor += region.coor;
             netxs::onrect(*this, block, fuse);
         }
         template<class P>
-        void  fill(P fuse) // core: Fill the client area using lambda.
+        void  fill(P fuse) // core: Fill the client area using lambda
         {
             fill(view(), fuse);
         }
-        void  grad(rgba const& c1, rgba const& c2) // core: Fill the specified region with the linear gradient.
+        void  grad(rgba const& c1, rgba const& c2) // core: Fill the specified region with the linear gradient
         {
             auto mx = (float)region.size.x;
             auto my = (float)region.size.y;
@@ -254,8 +252,8 @@ namespace netxs::console
             };
             netxs::onrect(*this, region, allfx, eolfx);
         }
-        void  swap(core& target) { canvas.swap(target.canvas); } // core: Unconditionally swap canvases.
-        auto  swap(grid& target)                                 // core: Move the canvas to the specified array and return the current layout size.
+        void  swap(core& target) { canvas.swap(target.canvas); } // core: Unconditionally swap canvases
+        auto  swap(grid& target)                                 // core: Move the canvas to the specified array and return the current layout size
         {
             if (auto size = canvas.size())
             {
@@ -337,12 +335,12 @@ namespace netxs::console
             fill(temp, fuse);
         }
         template<class TEXT>
-        void  text(twod const& pos, TEXT const& txt, bool rtl = faux) // core: Put the specified text substring to the specified coordinates on the canvas.
+        void  text(twod const& pos, TEXT const& txt, bool rtl = faux) // core: Put the specified text substring to the specified coordinates on the canvas
         {
             rtl ? txt.template output<true>(*this, pos)
                 : txt.template output<faux>(*this, pos);
         }
-        void operator += (core const& src) // core: Append specified canvas.
+        void operator += (core const& src) // core: Append specified canvas
         {
             //todo inbody::RTL
             auto a_size = size();
@@ -553,7 +551,7 @@ namespace netxs::console
         void  minmax(rect const& r)  { boundary |= r;        } // flow: Register rect
 
         // flow: Split specified textblock on the substrings
-        //       and place it to the form by the specified proc.
+        //       and place it to the form by the specified proc
         template<class T, class P = noop>
         void compose(T const& block, P print = P())
         {
@@ -619,25 +617,6 @@ namespace netxs::console
             }
             return flow::up();
         }
-        template<bool USE_LOCUS = true, class T>
-        auto print(T const& block, core& canvas)
-        {
-            auto cp = USE_LOCUS ? forward(block)
-                                : flow::cp();
-            compose(block, [&](auto const& coord, auto const& subblock)
-                           {
-                               canvas.text(coord, subblock, isr_to_l);
-                           });
-            return cp;
-        }
-        template<bool USE_LOCUS = true, class T>
-        auto print(T const& block)
-        {
-            auto cp = USE_LOCUS ? forward(block)
-                                : flow::cp();
-            compose(block);
-            return cp;
-        }
         template<class T>
         void go(T const& block)
         {
@@ -650,6 +629,22 @@ namespace netxs::console
                            {
                                canvas.text(coord, subblock, isr_to_l);
                            });
+        }
+        template<bool USE_LOCUS = true, class T>
+        auto print(T const& block, core& canvas)
+        {
+            auto cp = USE_LOCUS ? forward(block)
+                                : flow::cp();
+            go(block, canvas);
+            return cp;
+        }
+        template<bool USE_LOCUS = true, class T>
+        auto print(T const& block)
+        {
+            auto cp = USE_LOCUS ? forward(block)
+                                : flow::cp();
+            go(block);
+            return cp;
         }
 
         void ax	(iota x)        { caretpos.x  = x;               }
@@ -766,7 +761,7 @@ namespace netxs::console
         constexpr auto  length() const { return  width;                }
 
         template<bool RtoL>
-        auto output(core& canvas, twod const& pos) const  // wide: Print the source content using the specified print proc, which returns the number of characters printed.
+        auto output(core& canvas, twod const& pos) const  // shot: Print the source content using the specified print proc, which returns the number of characters printed
         {
             //todo place is wrong if RtoL==true
             //rect place{ pos, { RtoL ? width, basis.size().y } };
@@ -811,7 +806,7 @@ namespace netxs::console
         using deco   = ansi::deco;
 
         iota selfid = 0;
-        iota bossid = 0;          // para: Index of the top visible text line
+        iota bossid = 0; // para: Index of the top visible text line
 
         text debug; // para: debug string
         writ locus;
@@ -840,12 +835,12 @@ namespace netxs::console
         }
 
         operator writ const& () const { return locus; }
-        auto& operator += (view utf8) // para: Append a new text using current attributes.
+        auto& operator += (view utf8) // para: Append a new text using current attributes
         {
             ansi::parse(utf8, this);
             return *this;
         }
-        auto& operator = (view utf8) // para: Replace with a new text. Preserve current attributes.
+        auto& operator = (view utf8) // para: Replace with a new text. Preserve current attributes
         {
             wipe(brush);
             return operator += (utf8);
@@ -862,21 +857,21 @@ namespace netxs::console
             lyric = std::move(p.lyric);
             p.lyric = std::make_shared<core>();
         }
-        void decouple() { lyric = std::make_shared<core>(*lyric); } // para: Make canvas isolated copy.
-        shot   shadow() const { return *lyric; } // para: Return paragraph shadow.
-        shot   substr(iota start, iota width) const // para: Return paragraph substring shadow.
+        void decouple() { lyric = std::make_shared<core>(*lyric); } // para: Make canvas isolated copy
+        shot   shadow() const { return *lyric; } // para: Return paragraph shadow
+        shot   substr(iota start, iota width) const // para: Return paragraph substring shadow
         {
             return shadow().substr(start, width);
         }
-        bool   bare() const { return locus.bare();    } // para: Does the paragraph have no locator?
-        auto length() const { return lyric->size().x; } // para: Return printable length.
-        auto   step() const { return lyric->size().x - caret; } // para: Return step back.
-        auto   size() const { return lyric->size();   } // para: Return 2D volume size.
-        auto&  back() const { return brush;           } // para: Return current brush.
-        bool   busy() const { return length() || !proto.empty() || brush.busy(); } // para: Is it filled?
-        void   ease()   { brush.nil(); lyric->each([&](auto& c) { c.clr(brush); });  } // para: Reset color for all text.
-        void   link(id_t id)         { lyric->each([&](auto& c) { c.link(id);   });  } // para: Set object ID for each cell.
-        void   wipe(cell c = cell{}) // para: Clear the text and locus, and reset SGR attributes.
+        bool   bare() const { return locus.bare();    } // para: Does the paragraph have no locator
+        auto length() const { return lyric->size().x; } // para: Return printable length
+        auto   step() const { return lyric->size().x - caret; } // para: Return step back
+        auto   size() const { return lyric->size();   } // para: Return 2D volume size
+        auto&  back() const { return brush;           } // para: Return current brush
+        bool   busy() const { return length() || !proto.empty() || brush.busy(); } // para: Is it filled
+        void   ease()   { brush.nil(); lyric->each([&](auto& c) { c.clr(brush); });  } // para: Reset color for all text
+        void   link(id_t id)         { lyric->each([&](auto& c) { c.link(id);   });  } // para: Set object ID for each cell
+        void   wipe(cell c = cell{}) // para: Clear the text and locus, and reset SGR attributes
         {
             width = 0;
             caret = 0;
@@ -886,8 +881,8 @@ namespace netxs::console
             locus.kill();
             lyric->kill();
         }
-        void task(ansi::rule const& cmd) { if (!busy()) locus.push(cmd); } // para: Add locus command. In case of text presence try to change current target otherwise abort content building.
-        void post(utf::frag const& cluster, cell& brush)                   // para: Add grapheme cluster.
+        void task(ansi::rule const& cmd) { if (!busy()) locus.push(cmd); } // para: Add locus command. In case of text presence try to change current target otherwise abort content building
+        void post(utf::frag const& cluster, cell& brush)                   // para: Add grapheme cluster
         {
             static ansi::marker<cell> marker;
 
@@ -927,11 +922,11 @@ namespace netxs::console
                 debug += (debug.size() ? "_<fn:"s : "<fn:"s) + i + ">"s;
             }
         }
-        void post(utf::frag const& cluster)                                // para: Add grapheme cluster.
+        void post(utf::frag const& cluster) // para: Add grapheme cluster
         {
             post(cluster, brush);
         }
-        // para: Convert into the screen-adapted sequence (unfold, remove zerospace chars, etc.).
+        // para: Convert into the screen-adapted sequence (unfold, remove zerospace chars, etc.)
         void cook()
         {
             //log(" para cook ", " para id ", this);
@@ -971,7 +966,7 @@ namespace netxs::console
                     }
                     else if (w > 2)
                     {
-                        /// Forbid using wide characters until terminal emulators support the fragmentation attribute
+                        // Forbid using wide characters until terminal emulators support the fragmentation attribute
                         auto dumb = c.txt(utf::REPLACEMENT_CHARACTER_UTF8_VIEW);
                         while (w--)
                         {
@@ -1054,7 +1049,7 @@ namespace netxs::console
                 lyric.crop({ size, 1 });
             }
         }
-         // Insert n spaces (= Erase n, CSI n X)
+        // para: Insert n spaces (= Erase n, CSI n X)
         void ins(iota n, cell& brush)
         {
             static const utf::frag space = utf::frag
@@ -1090,7 +1085,7 @@ namespace netxs::console
                 }
             }
         }
-        // for bug testing
+        // para: for bug testing
         auto get_utf8()
         {
             text yield;
@@ -1134,7 +1129,7 @@ namespace netxs::console
 
         operator writ const& () const { return *source; }
 
-        // rope: Return a substring rope the source content.
+        // rope: Return a substring rope the source content
         //       ! No checking of boundaries !
         rope substr(iota start, iota width) const
         {
@@ -1158,7 +1153,7 @@ namespace netxs::console
             return rope{ first, start, end, piece, { width, volume.y } };
         }
         // rope: Print the source content using the specified print proc,
-        //       which returns the number of characters printed.
+        //       which returns the number of characters printed
         template<bool RtoL>
         void output(core& canvas, twod locate) const
         {
@@ -1244,7 +1239,7 @@ namespace netxs::console
         mark brush; // page: Parser brush
         deco style; // page: Parser style
 
-        // page: Remove over limit paragraphs.
+        // page: Remove over limit paragraphs
         void shrink()
         {
             auto size = batch.size();
@@ -1290,7 +1285,7 @@ namespace netxs::console
             ansi::parse(utf8, this);
         }
 
-        // page: Acquire para by id.
+        // page: Acquire para by id
         auto& operator [] (iota index)
         {
             if (netxs::on_key(parts, index))
@@ -1303,20 +1298,20 @@ namespace netxs::console
                 return *layer;
             }
         }
-        // page: Wipe current content and store parsed UTF-8 text string.
+        // page: Wipe current content and store parsed UTF-8 text string
         auto& operator =  (view utf8)
         {
             clear();
             ansi::parse(utf8, this);
             return *this;
         }
-        // page: Parse UTF-8 text string and appends result.
+        // page: Parse UTF-8 text string and appends result
         auto& operator += (view utf8)
         {
             ansi::parse(utf8, this);
             return *this;
         }
-        // page: Append another page. Move semantic.
+        // page: Append another page. Move semantic
         page& operator += (page const& p)
         {
             //parts.insert(p.parts.begin(), p.parts.end()); // Part id should be unique across pages
@@ -1331,18 +1326,18 @@ namespace netxs::console
             layer = std::prev(batch.end());
             return *this;
         }
-        // page: Set the limit of paragraphs.
+        // page: Set the limit of paragraphs
         void maxlen(iota m)
         {
             limit = std::max(1, m);
             shrink();
         }
-        // page: Get the limit of paragraphs.
+        // page: Get the limit of paragraphs
         auto maxlen()
         {
             return limit;
         }
-        // page: Clear the list of paragraphs.
+        // page: Clear the list of paragraphs
         page& clear (bool preserve_state = faux)
         {
             if (!preserve_state) brush.reset();
@@ -1379,9 +1374,7 @@ namespace netxs::console
                 publish(rope{ head, std::prev(last), size });
             }
         }
-    //private:
-    //protected:
-        // page: Split the text run.
+        // page: Split the text run
         template<bool COOK = true>
         void fork()
         {
@@ -1390,7 +1383,7 @@ namespace netxs::console
             layer->id(++parid);
             shrink();
         }
-        // page: Split the text run and associate the next paragraph with id.
+        // page: Split the text run and associate the next paragraph with id
         void fork(iota id)
         {
             fork();
@@ -1402,7 +1395,7 @@ namespace netxs::console
             if (layer->busy()) fork<faux>();
         }
         // page: Make a shared copy of an existing paragraph,
-        //       or create a new one if it doesn't exist.
+        //       or create a new one if it doesn't exist
         void bind(iota id)
         {
             test();
@@ -1413,7 +1406,7 @@ namespace netxs::console
                 parts.emplace(id, layer);
         }
         // page: Add locus command. In case of text presence to change
-        //       current target otherwise abort content building.
+        //       current target otherwise abort content building
         void task(ansi::rule const& cmd)
         {
             test();
@@ -1423,8 +1416,8 @@ namespace netxs::console
         void cook() { layer->style = style; layer->cook(); }
         auto size() const { return static_cast<iota>(batch.size()); }
 
-        auto& current()       { return *layer; } // page: Access to the current paragraph.
-        auto& current() const { return *layer; } // page: RO access to the current paragraph.
+        auto& current()       { return *layer; } // page: Access to the current paragraph
+        auto& current() const { return *layer; } // page: RO access to the current paragraph
 
         void  tab(iota n) { layer->ins(n, brush); } // page: Inset tabs via space
     };
@@ -1435,8 +1428,8 @@ namespace netxs::console
         using vrgb = std::vector<irgb>;
 
         cell brush;
-        twod anker;     // face: The position of the nearest visible paragraph.
-        id_t piece = 1; // face: The nearest to top paragraph.
+        twod anker;     // face: The position of the nearest visible paragraph
+        id_t piece = 1; // face: The nearest to top paragraph
 
         vrgb cache; // face: BlurFX temp buffer
 
@@ -1449,16 +1442,16 @@ namespace netxs::console
 
     public:
         //todo revise
-        bool caret = faux; // face: Cursor visibility.
-        bool moved = faux; // face: Is reflow required?
-        bool decoy = true; // face: Is the cursor inside the viewport?
+        bool caret = faux; // face: Cursor visibility
+        bool moved = faux; // face: Is reflow required
+        bool decoy = true; // face: Is the cursor inside the viewport
 
-        // face: Print paragraph.
+        // face: Print paragraph
         void output(para const& block)
         {
             flow::print(block, *this);
         }
-        // face: Print page.
+        // face: Print page
         void output(page const& textpage)
         {
             auto publish = [&](auto const& combo)
@@ -1468,14 +1461,14 @@ namespace netxs::console
             };
             textpage.stream(publish);
         }
-        // face: Print page with holding top visible paragraph on its own place.
+        // face: Print page with holding top visible paragraph on its own place
         void output(page const& textpage, bool reset)
         {
             //todo if cursor is visible when tie to the cursor position
             //     else tie to the first visible text line
 
             bool done = faux;
-            // Get vertical position of the nearest paragraph to the top.
+            // Get vertical position of the nearest paragraph to the top
             auto gain = [&](auto const& combo)
             {
                 auto pred = flow::print(combo, *this);
@@ -1501,7 +1494,7 @@ namespace netxs::console
                 }
             };
 
-            // Get vertical position of the specified paragraph.
+            // Get vertical position of the specified paragraph
             auto find = [&](auto const& combo)
             {
                 auto cp = flow::print(combo);
@@ -1521,7 +1514,7 @@ namespace netxs::console
             }
         }
         // face: Reflow text page on the canvas and hold position
-        //       of the top visible paragraph while resizing.
+        //       of the top visible paragraph while resizing
         void reflow(page& textpage)
         {
             if (moved)
@@ -1539,7 +1532,7 @@ namespace netxs::console
 
                 if (decoy)
                 {
-                    // Don't tie the first line if it's the only one. Make one step forward.
+                    // Don't tie the first line if it's the only one. Make one step forward
                     if (anker.y == 0 &&
                         anker.y == flow::cp().y &&
                         cover.height() > 1)
@@ -1566,7 +1559,7 @@ namespace netxs::console
             wipe();
         }
 
-        // face: Forward call to the core and reset cursor.
+        // face: Forward call to the core and reset cursor
         template<class ...Args>
         void wipe(Args... args)
         {
@@ -1667,7 +1660,7 @@ namespace netxs::console
                 flow::full(parent_area);
             }
         }
-        // face: Render itself to the canvas using renderproc.
+        // face: Render itself to the canvas using renderproc
         template<class T>
         void render(T& object)
         {
