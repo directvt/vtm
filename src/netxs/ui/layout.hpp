@@ -107,14 +107,14 @@ namespace netxs::ui
         {
             token = 0;
         }
-        // rgba: Set the color to opaque black.
+        // rgba: Set color to opaque black.
         void rst()
         {
             static constexpr uint32_t colorblack = 0xFF000000;
 
             token = colorblack;
         }
-        // rgba: Are the colors alpha blenable? </summary>
+        // rgba: Are the colors alpha blenable?
         bool is_alpha_blendable() const
         {
             if (chan.a && chan.a != 0xFF)
@@ -123,12 +123,12 @@ namespace netxs::ui
             }
             return faux;
         }
-        // rgba: Set the alpha channel.
+        // rgba: Set alpha channel.
         void alpha(uint8_t k)
         {
             chan.a = k;
         }
-        // rgba: Return the alpha channel.
+        // rgba: Return alpha channel.
         uint8_t alpha() const
         {
             return chan.a;
@@ -275,12 +275,12 @@ namespace netxs::ui
                 chan.b = chan.b > 0xFF - k ? 0xFF : chan.b + k;
             }
         }
-        // rgba: Invert color.
+        // rgba: Invert the color.
         void invert()
         {
             token = (token & 0xFF000000) | ~(token & 0x00FFFFFF);
         }
-        // rgba: Serialize color.
+        // rgba: Serialize the color.
         auto str() const
         {
             return "{" + std::to_string(chan.r) + ","
@@ -484,7 +484,7 @@ namespace netxs::ui
                 return token == c.token;
             }
 
-            // Check the grapheme clusters are the same.
+            // Check grapheme clusters equality.
             bool same(glyf const& c) const
             {
                 //auto mask = ~(decltype(token))0xFF;
@@ -959,25 +959,24 @@ namespace netxs::ui
         // cell: Copy view of the cell (Preserve ID).
         cell& set (cell const& c) { uv = c.uv;
                                     st = c.st;
-                                    gc = c.gc;       return *this; }
-        cell& alpha (uint8_t k)   { bga(k); fga(k);  return *this; } // cell: Set alpha/transparency (background and foreground).
-        cell& bgc (rgba const& c) { uv.bg = c; return *this; } // cell: Set Background color.
-        cell& fgc (rgba const& c) { uv.fg = c; return *this; } // cell: Set Foreground color.
-        cell& bga (uint8_t k)     { uv.bg.chan.a = k; return *this; } // cell: Set Background alpha/transparency.
-        cell& fga (uint8_t k)     { uv.fg.chan.a = k; return *this; } // cell: Set Foreground alpha/transparency.
-        cell& bld (bool b)        { st.bld(b); return *this; } // cell: Set Bold attribute.
-        cell& itc (bool b)        { st.itc(b); return *this; } // cell: Set Italic attribute.
-        cell& und (bool b)        { st.und(b ? 1 : 0); return *this; } // cell: Set Underline attribute.
-        cell& dnl (bool b)        { st.und(b ? 2 : 0); return *this; } // cell: Set Double underline attribute.
-        cell& ovr (bool b)        { st.ovr(b); return *this; } // cell: Set Overline attribute.
-        cell& inv (bool b)        { st.inv(b); return *this; } // cell: Set Invert attribute.
-        cell& stk (bool b)        { st.stk(b); return *this; } // cell: Set Strikethrough attribute.
-        cell& rtl (bool b)        { st.rtl(b); return *this; } // cell: Set Right-To-Left attribute.
-        cell& link(id_t oid)      { id = oid;  return *this; } // cell: Set link object ID.
-        //cell& para(id_t opg)      { pg = opg;  return *this; } // cell: Set paragraph ID and return the cell itself.
+                                    gc = c.gc;          return *this; }
+        cell& alpha (uint8_t k)   { bga(k); fga(k);     return *this; } // cell: Set alpha/transparency (background and foreground).
+        cell& bgc (rgba const& c) { uv.bg = c;          return *this; } // cell: Set Background color.
+        cell& fgc (rgba const& c) { uv.fg = c;          return *this; } // cell: Set Foreground color.
+        cell& bga (uint8_t k)     { uv.bg.chan.a = k;   return *this; } // cell: Set Background alpha/transparency.
+        cell& fga (uint8_t k)     { uv.fg.chan.a = k;   return *this; } // cell: Set Foreground alpha/transparency.
+        cell& bld (bool b)        { st.bld(b);          return *this; } // cell: Set Bold attribute.
+        cell& itc (bool b)        { st.itc(b);          return *this; } // cell: Set Italic attribute.
+        cell& und (bool b)        { st.und(b ? 1 : 0);  return *this; } // cell: Set Underline attribute.
+        cell& dnl (bool b)        { st.und(b ? 2 : 0);  return *this; } // cell: Set Double underline attribute.
+        cell& ovr (bool b)        { st.ovr(b);          return *this; } // cell: Set Overline attribute.
+        cell& inv (bool b)        { st.inv(b);          return *this; } // cell: Set Invert attribute.
+        cell& stk (bool b)        { st.stk(b);          return *this; } // cell: Set Strikethrough attribute.
+        cell& rtl (bool b)        { st.rtl(b);          return *this; } // cell: Set Right-To-Left attribute.
+        cell& link(id_t oid)      { id = oid;           return *this; } // cell: Set link object ID.
         cell& txt (view c)        { c.size() ? gc.set(c) : gc.wipe(); return *this; } // cell: Set Grapheme cluster.
-        cell& txt (char c)        { gc.set(c); return *this; } // cell: Set Grapheme cluster from char.
-        cell& clr (cell const& c) { uv = c.uv; return *this; } // cell: Set the foreground and background colors only.
+        cell& txt (char c)        { gc.set(c);          return *this; } // cell: Set Grapheme cluster from char.
+        cell& clr (cell const& c) { uv = c.uv;          return *this; } // cell: Set the foreground and background colors only.
         cell& wdt (iota w)        { gc.state.width = w; return *this; } // cell: Return Grapheme cluster screen width.
         cell& rst () // cell: Reset view attributes of the cell to zero.
         {
