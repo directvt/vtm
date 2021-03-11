@@ -246,12 +246,12 @@ namespace netxs::ui
         {
             flow::reset(canvas...);
             // Output lines in backward order from bottom to top
-            auto tail = batch.rbegin();
-            auto head = batch.rend();
+            auto head = batch.begin();
+            auto tail = batch.end();
             auto coor = twod{ 0, count };
             while(tail != head)
             {
-                auto& line = *tail++;
+                auto& line = *--tail;
                 --coor.y;
                 flow::ac(coor);
                 flow::go(line, canvas...);
@@ -325,20 +325,35 @@ namespace netxs::ui
         // rods: Rebuild overlaps from bottom to line with selfid=top_id (inclusive)
         void rebuild_upto_id(iota top_id)
         {
-            auto head = batch.rbegin();
-            auto tail = head + count - get_line_index_by_id(top_id) - 1;
+            auto tail = batch.rbegin();
+            auto head = tail + (count - get_line_index_by_id(top_id) - 1);
             do
             {
-                auto& line =*head;
-                auto below = head - line_height(line) + 1;
+                auto& line =*tail;
+                auto below = tail - (line_height(line) - 1);
                 do  // Assign iff line isn't overlapped by somaething higher
                 {   // Comparing the difference with zero In order to support id incrementing overflow
                     if (below->bossid - top_id > 0) below->bossid = line.selfid;
                     else                            break; // overlapped by a higher line
                 }
-                while(head != below++);
+                while(tail != below++);
             }
-            while(head++ != tail);
+            while(tail++ != head);
+
+            //auto head = batch.rbegin();
+            //auto tail = head + count - get_line_index_by_id(top_id) - 1;
+            //do
+            //{
+            //    auto& line =*head;
+            //    auto below = head - line_height(line) + 1;
+            //    do  // Assign iff line isn't overlapped by somaething higher
+            //    {   // Comparing the difference with zero In order to support id incrementing overflow
+            //        if (below->bossid - top_id > 0) below->bossid = line.selfid;
+            //        else                            break; // overlapped by a higher line
+            //    }
+            //    while(head != below++);
+            //}
+            //while(head++ != tail);
         }
         // for bug testing
         auto get_content()
@@ -668,11 +683,13 @@ namespace netxs::ui
             {
                 finalize();
                 auto[top, end] = get_scroll_limits();
-                auto scroll_top_index = basis + top;
-                auto scroll_end_index = basis + end;
+                auto scroll_top_index = rods::basis + top;
+                auto scroll_end_index = rods::basis + end;
                 auto bossid = batch[scroll_top_index].bossid;
                 auto count = end - top + 1;
-                if (n > 0) // Scroll down
+                auto delta = scroll_end_index - (batch.size() - 1); //todo optimize
+                if (delta > 0) rods::add_lines(delta);              //
+                if (n > 0) // Scroll down (move text down)
                 {
                     n = std::min(n, count);
                     // Move down by n all below the current
@@ -692,7 +709,7 @@ namespace netxs::ui
                         (*head++).trim_to(0);
                     }
                 }
-                else if (n < 0) // Scroll up
+                else if (n < 0) // Scroll up (move text up)
                 {
                     n = -n;
                     n = std::min(n, count);
