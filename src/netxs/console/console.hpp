@@ -105,7 +105,7 @@ namespace netxs::console
         EVENT_BIND(e2::form::prop::any, text)
             EVENT_BIND(e2::form::prop::header, text)
             EVENT_BIND(e2::form::prop::footer, text)
-            EVENT_BIND(e2::form::prop::params, text)
+            //EVENT_BIND(e2::form::prop::params, text)
 
         // use e2::form::events instead
         //EVENT_BIND(e2::form::mouse::any, hids)
@@ -2797,9 +2797,9 @@ namespace netxs::console
             text name; // title: Preserve original title
 
             #define PROP_LIST                    \
-            X(body, "Window title properties." ) \
             X(head, "Window title." )            \
             X(foot, "Window status.")
+            //X(body, "Window title properties." )
 
             #define X(a, b) a,
             enum prop { PROP_LIST count };
@@ -2816,24 +2816,19 @@ namespace netxs::console
             title(T&&) = delete;
             title(T& boss) : boss{ boss }
             {
-                //logo.current().brush.vis(cell::transparent);
-                //logo += ansi::idx(prop::head)
-                //      + ansi::wrp(faux).mgr(1).mgl(1)
-                //      + ansi::rlf(faux).jet(bias::left).cup(dot_00)
+                //logo += ansi::idx(prop::body).nop()
+                //      + ansi::wrp(wrap::off).mgr(1).mgl(1)
+                //      + ansi::rlf(feed::fwd).jet(bias::left).cup(dot_00)
                 //      + ansi::idx(prop::head) + ansi::nop()
-                //      + ansi::rlf(true).jet(bias::right).cup(dot_00)
-                //      + ansi::idx(prop::foot) + ansi::nop();
-
-                //logo.current().brush.vis(cell::unalterable);
-                logo += ansi::idx(prop::body).nop();
-
-                //logo.current().brush.vis(cell::transparent);
-                logo += ansi::wrp(wrap::off).mgr(1).mgl(1)
-                      + ansi::rlf(feed::fwd).jet(bias::left).cup(dot_00)
+                //      + ansi::rlf(feed::rev).jet(bias::right).cup(dot_00)
+                //      + ansi::idx(prop::foot) + ansi::nop()
+                //      + ansi::rlf(feed::fwd).jet(bias::left).cup(dot_00).mgr(0).mgl(0);
+                logo += ansi::cup(dot_00)
+                      + ansi::wrp(wrap::off).rtl(rtol::ltr).rlf(feed::fwd).jet(bias::left).mgr(1).mgl(1)
                       + ansi::idx(prop::head) + ansi::nop()
-                      + ansi::rlf(feed::rev).jet(bias::right).cup(dot_00)
-                      + ansi::idx(prop::foot) + ansi::nop()
-                      + ansi::rlf(feed::fwd).jet(bias::left).cup(dot_00).mgr(0).mgl(0);
+                      + ansi::cup(dot_00).rlf(feed::rev).jet(bias::right)
+                      + ansi::idx(prop::foot);// + ansi::nop()
+                      //+ ansi::rlf(feed::fwd).jet(bias::left).cup(dot_00).mgr(0).mgl(0);
 
                 boss.SUBMIT_T(e2::release, e2::form::upon::redrawn, memo, canvas)
                 {
@@ -2847,10 +2842,10 @@ namespace netxs::console
                 {
                     footer(newtext);
                 };
-                boss.SUBMIT_T(e2::preview, e2::form::prop::params, memo, newtext)
-                {
-                    params(newtext);
-                };
+                //boss.SUBMIT_T(e2::preview, e2::form::prop::params, memo, newtext)
+                //{
+                //    params(newtext);
+                //};
 
                 boss.SUBMIT_T(e2::request, e2::form::prop::header, memo, curtext)
                 {
@@ -2865,10 +2860,10 @@ namespace netxs::console
                 {
                     caption = footer();
                 };
-                boss.SUBMIT_T(e2::request, e2::form::state::params, memo, caption)
-                {
-                    caption = params();
-                };
+                //boss.SUBMIT_T(e2::request, e2::form::state::params, memo, caption)
+                //{
+                //    caption = params();
+                //};
             }
 
             auto& titles() const
@@ -2883,15 +2878,19 @@ namespace netxs::console
             {
                 return logo[prop::foot];
             }
-            auto& params()
-            {
-                return logo[prop::body];
-            }
+            //auto& params()
+            //{
+            //    return logo[prop::body];
+            //}
             void header(view newtext)
             {
                 name = newtext;
                 auto& textline = header();
                 textline = newtext;
+                textline.style.or_rtl(rtol::ltr);
+                textline.style.or_rlf(feed::fwd);
+                textline.style.or_wrp(wrap::off);
+                textline.style.or_jet(bias::left);
                 textline.link(boss.id);
                 boss.SIGNAL(e2::release, e2::form::state::header, textline);
             }
@@ -2899,16 +2898,20 @@ namespace netxs::console
             {
                 auto& textline = footer();
                 textline = newtext;
+                textline.style.or_rtl(rtol::ltr);
+                textline.style.or_rlf(feed::rev);
+                textline.style.or_wrp(wrap::off);
+                textline.style.or_jet(bias::right);
                 textline.link(boss.id);
                 boss.SIGNAL(e2::release, e2::form::state::footer, textline);
             }
-            void params(view newtext)
-            {
-                auto& textline = params();
-                textline = newtext;
-                textline.link(boss.id);
-                boss.SIGNAL(e2::release, e2::form::state::params, textline);
-            }
+            //void params(view newtext)
+            //{
+            //    auto& textline = params();
+            //    textline = newtext;
+            //    textline.link(boss.id);
+            //    boss.SIGNAL(e2::release, e2::form::state::params, textline);
+            //}
         };
 
         // pro: Provides functionality for the scene objects manipulations.
@@ -2967,6 +2970,7 @@ namespace netxs::console
 
                             //todo unify clear formatting/aligning in header
                             label.locus.kill();
+                            label.style.rst();
                             label.lyric->each([&](auto& a) { a.meta(c); });
                         }
                     }

@@ -450,7 +450,7 @@ namespace netxs::ui
                     any = form::_prop,
                     header      = any | (1 << _level1), // set the form caption header (arg: text)
                     footer      = any | (2 << _level1), // set the form caption footer (arg: text)
-                    params      = any | (3 << _level1), // set the form caption params (arg: text)
+                    //params      = any | (3 << _level1), // set the form caption params (arg: text)
             };};
             //struct mouse { enum : type {
             //		any = form::_mouse,

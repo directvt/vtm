@@ -457,15 +457,19 @@ namespace netxs::console
             boundary |= printout;
 
             if constexpr (!std::is_same_v<P, noop>)
-            if (printout)
             {
-                auto& coord = printout.coor;
-                auto& width = printout.size.x;
-                auto& start = straight ? startpos
-                                       : textline.size.x;
-                print(coord, block.substr(start, width));
+                //todo margins don't apply to unwrapped text
+                //auto imprint = WRAP ? printout
+                //                    : viewrect.clip(printout);
+                if (printout)
+                {
+                    auto& coord = printout.coor;
+                    auto& width = printout.size.x;
+                    auto& start = straight ? startpos
+                                           : textline.size.x;
+                    print(coord, block.substr(start, width));
+                }
             }
-
             highness = textline.size.y;
         }
 
@@ -535,7 +539,9 @@ namespace netxs::console
         flow(iota const& size_x, iota const& size_y)
             : size_x { size_x },
               size_y { size_y }
-        { }
+        {
+            deco::glb();
+        }
         flow(twod const& size )
             : flow { size.x, size.y }
         { }
@@ -685,7 +691,7 @@ namespace netxs::console
         }
         void zz	(twod const& offset = dot_00)
         {
-            deco::rst();
+            deco::glb();
             caretpos = dot_00;
             pagerect.coor = offset;
         }
@@ -876,6 +882,7 @@ namespace netxs::console
             width = 0;
             caret = 0;
             brush.reset(c);
+            style.rst();
             debug.clear();
             proto.clear();
             locus.kill();

@@ -227,7 +227,7 @@ text desktopio_body = ansi::nil().eol()
 text cellatix_head;
 text cellatix_text;
 text cellatix_foot = ansi::scp()
-+ ansi::jet(bias::left).rlf(feed::rev).mgl(1).chx(4).chy(0).wrp(wrap::off)
++ ansi::chx(4).chy(0).jet(bias::left).rlf(feed::rev).mgl(1).wrp(wrap::off)
 + ansi::bgc(whitelt).fgc(blackdk) + " Sheet1 "
 + ansi::bgc(whitedk).fgc(blackdk) + "＋" + ansi::nil().rcp();
 
@@ -1457,7 +1457,8 @@ int main(int argc, char* argv[])
                         frame->limits({ -1,-1 }, { -1,105 });
                         frame->color(whitelt, 0x601A5f00);
                         frame->header(ansi::jet(bias::center) + "Spreadsheet");
-                        frame->SIGNAL(e2::preview, e2::form::prop::params, cellatix_foot);
+                        //frame->SIGNAL(e2::preview, e2::form::prop::params, cellatix_foot);
+                        frame->SIGNAL(e2::preview, e2::form::prop::footer, cellatix_foot);
 
                         auto block = frame->attach<fork>();
                         block->color(whitelt, 0);

@@ -190,7 +190,7 @@ namespace netxs::ui
             {//todo only for the title test
                 static auto item_number = 0_sz;
                 item_number++;
-                legend.header("Instance: " + std::to_string(item_number));
+                legend.header(ansi::mgl(1).mgr(1) + "Instance: " + std::to_string(item_number));
                 //SUBMIT(e2::release, e2::form::layout::size, size)
                 //{
                 //	//if (!nosize)
@@ -288,12 +288,12 @@ namespace netxs::ui
                 if (!nosize && client)
                 {
                     auto& size = client->base::size.get();
-                    legend.footer("client " + std::to_string(size.x) + ":"
+                    legend.footer(ansi::mgl(1).mgr(1) + "client " + std::to_string(size.x) + ":"
                         + std::to_string(size.y));
                 }
                 else
                 {
-                    legend.footer("window " + std::to_string(size.x) + ":"
+                    legend.footer(ansi::mgl(1).mgr(1) + "window " + std::to_string(size.x) + ":"
                         + std::to_string(size.y));
                 }
             };

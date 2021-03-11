@@ -162,27 +162,34 @@ namespace netxs::console::ansi
     static const iota SGR_BG_CYN_LT = 106;
     static const iota SGR_BG_WHT_LT = 107;
 
-    static const iota CCC_NOP = 0  ; // CSI             p  - no operation
-    static const iota CCC_RST = 1  ; // CSI 1           p  - reset to zero all params (zz)
-    static const iota CCC_CPP = 2  ; // CSI 2 : x [: y] p  — cursor percent position
-    static const iota CCC_CPX = 3  ; // CSI 3 : x       p  — cursor H percent position
-    static const iota CCC_CPY = 4  ; // CSI 4 : y       p  — cursor V percent position
-    static const iota CCC_TBS = 5  ; // CSI 5 : n       p  — tab step length
-    static const iota CCC_JET = 6  ; // CSI 6 : n       p  — text alignment (bias)
-    static const iota CCC_MGN = 7  ; // CSI 7 : l:r:t:b p  — margin left, right, top, bottom
-    static const iota CCC_MGL = 8  ; // CSI 8 : n       p  — margin left   ╮
-    static const iota CCC_MGR = 9  ; // CSI 9 : n       p  — margin right  │ positive - native binding
-    static const iota CCC_MGT = 10 ; // CSI 10: n       p  — margin top    │ negative - oppisite binding
-    static const iota CCC_MGB = 11 ; // CSI 11: n       p  — margin bottom ╯
-    static const iota CCC_WRP = 12 ; // CSI 12: {0,1}   p  - text wrapping on/off
-    static const iota CCC_RTL = 13 ; // CSI 13: {0,1}   p  - text right-to-left on/off
-    static const iota CCC_RLF = 14 ; // CSI 14: {0,1}   p  - reverse line feed on/off
-    static const iota CCC_IDX = 15 ; // CSI 15: id      p  - Split the text run and associate the fragment with an id
-    static const iota CCC_CUP = 16 ; // CSI 16: x [: y] p  — cursor absolute position 0-based
-    static const iota CCC_CHX = 17 ; // CSI 17: x       p  — cursor H absolute position 0-based
-    static const iota CCC_CHY = 18 ; // CSI 18: y       p  — cursor V absolute position 0-based
-    static const iota CCC_REF = 19 ; // CSI 19: id      p  — create the reference to the existing paragraph
-    //static const iota CCC_WIN = 20 ; // CSI 20: x: y    p  — terminal window resize
+    static const iota CCC_NOP    = 0  ; // CSI             p  - no operation
+    static const iota CCC_RST    = 1  ; // CSI 1           p  - reset to zero all params (zz)
+    static const iota CCC_CPP    = 2  ; // CSI 2 : x [: y] p  - cursor percent position
+    static const iota CCC_CPX    = 3  ; // CSI 3 : x       p  - cursor H percent position
+    static const iota CCC_CPY    = 4  ; // CSI 4 : y       p  - cursor V percent position
+    static const iota CCC_TBS    = 5  ; // CSI 5 : n       p  - tab step length
+    static const iota CCC_MGN    = 6  ; // CSI 6 : l:r:t:b p  - margin left, right, top, bottom
+    static const iota CCC_MGL    = 7  ; // CSI 7 : n       p  - margin left   ╮
+    static const iota CCC_MGR    = 8  ; // CSI 8 : n       p  - margin right  │ positive - native binding
+    static const iota CCC_MGT    = 9  ; // CSI 9 : n       p  - margin top    │ negative - oppisite binding
+    static const iota CCC_MGB    = 10 ; // CSI 10: n       p  - margin bottom ╯
+
+    static const iota CCC_JET    = 11 ; // CSI 6 : n       p  - text alignment (bias)
+    static const iota CCC_WRP    = 12 ; // CSI 12: n       p  - text wrapping none/on/off
+    static const iota CCC_RTL    = 13 ; // CSI 13: n       p  - text right-to-left none/on/off
+    static const iota CCC_RLF    = 14 ; // CSI 14: n       p  - reverse line feed none/on/off
+
+    static const iota CCC_or_JET = 15 ; // CSI 15: n       p  - set text alignment (bias) if it is not set
+    static const iota CCC_or_WRP = 16 ; // CSI 16: n       p  - set text wrapping none/on/off if it is not set
+    static const iota CCC_or_RTL = 17 ; // CSI 17: n       p  - set text right-to-left none/on/off if it is not set
+    static const iota CCC_or_RLF = 18 ; // CSI 18: n       p  - set reverse line feed none/on/off if it is not set
+
+    static const iota CCC_IDX    = 19 ; // CSI 19: id      p  - Split the text run and associate the fragment with an id
+    static const iota CCC_CUP    = 20 ; // CSI 20: x [: y] p  - cursor absolute position 0-based
+    static const iota CCC_CHX    = 21 ; // CSI 21: x       p  - cursor H absolute position 0-based
+    static const iota CCC_CHY    = 22 ; // CSI 22: y       p  - cursor V absolute position 0-based
+    static const iota CCC_REF    = 23 ; // CSI 23: id      p  - create the reference to the existing paragraph
+    //static const iota CCC_WIN = 20 ; // CSI 20: x: y    p    terminal window resize
 
     struct esc
         : public text // ansi: Escaped sequences accumulator.
@@ -270,7 +277,7 @@ namespace netxs::console::ansi
         }
 
        //esc& ocp (twod const& p)   { add("\033[" + str(p.y) + ";" + str(p.x) + "H"); return *this; }    // esc: 1-Based cursor position.
-        esc& cup (twod const& p) { add("\033[16:" + str(p.y) + ":" + str(p.x) + CSI_CCC); return *this; } // esc: 0-Based cursor position.
+        esc& cup (twod const& p) { add("\033[20:" + str(p.y) + ":" + str(p.x) + CSI_CCC); return *this; } // esc: 0-Based cursor position.
         esc& cuu (iota n)        { add(n == 1 ? "\033[A" : "\033[" + str(n) + "A"); return *this; } // esc: Cursor up.
         esc& cud (iota n)        { add(n == 1 ? "\033[B" : "\033[" + str(n) + "B"); return *this; } // esc: Cursor down.
         esc& cuf (iota n)        { add(n == 1 ? "\033[C" : "\033[" + str(n) + "C"); return *this; } // esc: Cursor forward.
@@ -279,8 +286,8 @@ namespace netxs::console::ansi
         esc& cpl (iota n)        { add("\033[" + str(n) + "F");        return *this; } // esc: Cursor previous line.
         esc& ocx (iota n)        { add("\033[" + str(n) + "G");        return *this; } // esc: Cursor 1-based horizontal absolute.
         esc& ocy (iota n)        { add("\033[" + str(n) + "d");        return *this; } // esc: Cursor 1-based vertical absolute.
-        esc& chx (iota n)        { add("\033[17:" + str(n) + CSI_CCC); return *this; } // esc: Cursor 0-based horizontal absolute.
-        esc& chy (iota n)        { add("\033[18:" + str(n) + CSI_CCC); return *this; } // esc: Cursor 0-based vertical absolute.
+        esc& chx (iota n)        { add("\033[21:" + str(n) + CSI_CCC); return *this; } // esc: Cursor 0-based horizontal absolute.
+        esc& chy (iota n)        { add("\033[22:" + str(n) + CSI_CCC); return *this; } // esc: Cursor 0-based vertical absolute.
         esc& scp ()              { add("\033[s");                      return *this; } // esc: Save cursor position in memory.
         esc& rcp ()              { add("\033[u");                      return *this; } // esc: Restore cursor position from memory.
         esc& bld (bool b = true) { add(b ? "\033[1m" : "\033[22m");    return *this; } // esc: SGR 𝗕𝗼𝗹𝗱 attribute.
@@ -317,22 +324,26 @@ namespace netxs::console::ansi
         esc& cpx (iota n)        { add("\033[3:" + str(n  ) + CSI_CCC); return *this; } // esc: Cursor horizontal percent position.
         esc& cpy (iota n)        { add("\033[4:" + str(n  ) + CSI_CCC); return *this; } // esc: Cursor vertical percent position.
         esc& tbs (iota n)        { add("\033[5:" + str(n  ) + CSI_CCC); return *this; } // esc: Tabulation step length.
-        esc& mgn (side const& n) { add("\033[7:" + str(n.l) + ":"                       // esc: Margin (left, right, top, bottom).
+        esc& mgn (side const& n) { add("\033[6:" + str(n.l) + ":"                       // esc: Margin (left, right, top, bottom).
                                                  + str(n.r) + ":"
                                                  + str(n.t) + ":"
                                                  + str(n.b) + CSI_CCC); return *this; }
-        esc& mgl (iota n)        { add("\033[8:" + str(n  ) + CSI_CCC); return *this; } // esc: Left margin. Positive - native binding. Negative - opposite binding.
-        esc& mgr (iota n)        { add("\033[9:" + str(n  ) + CSI_CCC); return *this; } // esc: Right margin. Positive - native binding. Negative - opposite binding.
-        esc& mgt (iota n)        { add("\033[10:"+ str(n  ) + CSI_CCC); return *this; } // esc: Top margin. Positive - native binding. Negative - opposite binding.
-        esc& mgb (iota n)        { add("\033[11:"+ str(n  ) + CSI_CCC); return *this; } // esc: Bottom margin. Positive - native binding. Negative - opposite binding.
+        esc& mgl (iota n)        { add("\033[7:" + str(n  ) + CSI_CCC); return *this; } // esc: Left margin. Positive - native binding. Negative - opposite binding.
+        esc& mgr (iota n)        { add("\033[8:" + str(n  ) + CSI_CCC); return *this; } // esc: Right margin. Positive - native binding. Negative - opposite binding.
+        esc& mgt (iota n)        { add("\033[9:" + str(n  ) + CSI_CCC); return *this; } // esc: Top margin. Positive - native binding. Negative - opposite binding.
+        esc& mgb (iota n)        { add("\033[10:"+ str(n  ) + CSI_CCC); return *this; } // esc: Bottom margin. Positive - native binding. Negative - opposite binding.
 
-        esc& jet (iota n)        { add("\033[6:" + str(n  ) + CSI_CCC); return *this; } // esc: Text alignment.
+        esc& jet (iota n)        { add("\033[11:"+ str(n  ) + CSI_CCC); return *this; } // esc: Text alignment.
         esc& wrp (iota n)        { add("\033[12:"+ str(n  ) + CSI_CCC); return *this; } // esc: Text wrapping.
         esc& rtl (iota n)        { add("\033[13:"+ str(n  ) + CSI_CCC); return *this; } // esc: Text right-to-left.
         esc& rlf (iota n)        { add("\033[14:"+ str(n  ) + CSI_CCC); return *this; } // esc: Reverse line feed.
+        esc& or_jet (iota n)     { add("\033[15:"+ str(n  ) + CSI_CCC); return *this; } // esc: Text alignment.
+        esc& or_wrp (iota n)     { add("\033[16:"+ str(n  ) + CSI_CCC); return *this; } // esc: Text wrapping.
+        esc& or_rtl (iota n)     { add("\033[17:"+ str(n  ) + CSI_CCC); return *this; } // esc: Text right-to-left.
+        esc& or_rlf (iota n)     { add("\033[18:"+ str(n  ) + CSI_CCC); return *this; } // esc: Reverse line feed.
 
-        esc& idx (iota i)        { add("\033[15:"+ str(i  ) + CSI_CCC); return *this; } // esc: Split the text run and associate the fragment with an id.
-        esc& ref (iota i)        { add("\033[19:"+ str(i  ) + CSI_CCC); return *this; } // esc: Create the reference to the existing paragraph.
+        esc& idx (iota i)        { add("\033[19:"+ str(i  ) + CSI_CCC); return *this; } // esc: Split the text run and associate the fragment with an id.
+        esc& ref (iota i)        { add("\033[23:"+ str(i  ) + CSI_CCC); return *this; } // esc: Create the reference to the existing paragraph.
         //todo unify
         //esc& win (twod const& p){ add("\033[20:" + str(p.x) + ":"                       // esc: Terminal window resize report.
         //                                         + str(p.y) + CSI_CCC); return *this; }
@@ -425,6 +436,10 @@ namespace netxs::console::ansi
     static esc wrp (iota n)          { return esc{}.wrp (n); } // ansi: Text wrapping.
     static esc rtl (iota n)          { return esc{}.rtl (n); } // ansi: Text right-to-left.
     static esc rlf (iota n)          { return esc{}.rlf (n); } // ansi: Reverse line feed.
+    static esc or_jet (iota n)       { return esc{}.or_jet (n); } // ansi: Set text alignment if it is not set.
+    static esc or_wrp (iota n)       { return esc{}.or_wrp (n); } // ansi: Set text wrapping if it is not set.
+    static esc or_rtl (iota n)       { return esc{}.or_rtl (n); } // ansi: Set text right-to-left if it is not set.
+    static esc or_rlf (iota n)       { return esc{}.or_rlf (n); } // ansi: Set reverse line feed if it is not set.
 
     static esc rst ()                { return esc{}.rst ( ); } // ansi: Reset formatting parameters.
     static esc nop ()                { return esc{}.nop ( ); } // ansi: No operation. Split the text run.
@@ -509,24 +524,41 @@ namespace netxs::console::ansi
     };
     struct deco
     {
-        iota adjust = bias::left; // deco: Horizontal alignment
-        iota wrapln = WRAPPING;   // deco: Auto wrapping
-        iota r_to_l = rtol::ltr;  // deco: RTL
-        iota rlfeed = feed::fwd;  // deco: Reverse line feed
-        iota tablen = 8;          // deco: Tab length
+        iota adjust = bias::none; // deco: Horizontal alignment
+        iota wrapln = wrap::none; // deco: Auto wrapping
+        iota r_to_l = rtol::none; // deco: RTL
+        iota rlfeed = feed::none; // deco: Reverse line feed
+        iota tablen = 0;          // deco: Tab length
         dent margin;              // deco: Page margins
 
-        auto& wrp(iota  n) { wrapln = n;      return *this; } // deco: Auto wrapping
-        auto& jet(iota  n) { adjust = n;      return *this; } // deco: Paragraph adjustment
-        auto& rtl(iota  n) { r_to_l = n;      return *this; } // deco: RTL
-        auto& rlf(iota  n) { rlfeed = n;      return *this; } // deco: Reverse line feed
-        auto& tbs(iota  n) { tablen = n;      return *this; } // deco: fx_ccc_tbs
-        auto& mgl(iota  n) { margin.west = n; return *this; } // deco: fx_ccc_mgl
-        auto& mgr(iota  n) { margin.east = n; return *this; } // deco: fx_ccc_mgr
-        auto& mgt(iota  n) { margin.head = n; return *this; } // deco: fx_ccc_mgt
-        auto& mgb(iota  n) { margin.foot = n; return *this; } // deco: fx_ccc_mgb
-        auto& mgn(fifo& q) { margin.set(q);   return *this; } // deco: fx_ccc_mgn
-        auto& rst()  // deco: Reset
+        auto& wrp(bool  b) { wrapln = b ? wrap::on  : wrap::off;  return *this; } // deco: Set auto wrapping
+        auto& rtl(bool  b) { r_to_l = b ? rtol::rtl : rtol::ltr;  return *this; } // deco: Set RTL
+        auto& rlf(bool  b) { rlfeed = b ? feed::rev : feed::fwd;  return *this; } // deco: Set revverse line feed
+        auto& jet(iota  n = bias::none)        { adjust = n;      return *this; } // deco: Paragraph adjustment
+        auto& wrp(iota  n = wrap::none)        { wrapln = n;      return *this; } // deco: Auto wrapping
+        auto& rtl(iota  n = rtol::none)        { r_to_l = n;      return *this; } // deco: RTL
+        auto& rlf(iota  n = feed::none)        { rlfeed = n;      return *this; } // deco: Reverse line feed
+        auto& or_jet(iota  n)     { if (!adjust) adjust = n;      return *this; } // deco: Paragraph adjustment
+        auto& or_wrp(iota  n)     { if (!wrapln) wrapln = n;      return *this; } // deco: Auto wrapping
+        auto& or_rtl(iota  n)     { if (!r_to_l) r_to_l = n;      return *this; } // deco: RTL
+        auto& or_rlf(iota  n)     { if (!rlfeed) rlfeed = n;      return *this; } // deco: Reverse line feed
+        auto& tbs(iota  n = 0)                 { tablen = n;      return *this; } // deco: fx_ccc_tbs
+        auto& mgl(iota  n = 0)                 { margin.west = n; return *this; } // deco: fx_ccc_mgl
+        auto& mgr(iota  n = 0)                 { margin.east = n; return *this; } // deco: fx_ccc_mgr
+        auto& mgt(iota  n = 0)                 { margin.head = n; return *this; } // deco: fx_ccc_mgt
+        auto& mgb(iota  n = 0)                 { margin.foot = n; return *this; } // deco: fx_ccc_mgb
+        auto& mgn(fifo& q)                     { margin.set(q);   return *this; } // deco: fx_ccc_mgn
+        auto& rst()  // deco: Reset to none
+        {
+            adjust = bias::none;
+            wrapln = wrap::none;
+            r_to_l = rtol::none;
+            rlfeed = feed::none;
+            tablen = 0;
+            margin.reset();
+            return *this;
+        }
+        auto& glb()  // deco: Reset to default
         {
             adjust = bias::left;
             wrapln = WRAPPING;
@@ -646,6 +678,10 @@ namespace netxs::console::ansi
                     csi_ccc[CCC_WRP] = VT_PROC{ p->style.wrp(q(0)); }; // fx_ccc_wrp
                     csi_ccc[CCC_RTL] = VT_PROC{ p->style.rtl(q(0)); }; // fx_ccc_rtl
                     csi_ccc[CCC_RLF] = VT_PROC{ p->style.rlf(q(0)); }; // fx_ccc_rlf
+                    csi_ccc[CCC_or_JET] = VT_PROC{ p->style.or_jet(q(0)); }; // fx_ccc_or_jet
+                    csi_ccc[CCC_or_WRP] = VT_PROC{ p->style.or_wrp(q(0)); }; // fx_ccc_or_wrp
+                    csi_ccc[CCC_or_RTL] = VT_PROC{ p->style.or_rtl(q(0)); }; // fx_ccc_or_rtl
+                    csi_ccc[CCC_or_RLF] = VT_PROC{ p->style.or_rlf(q(0)); }; // fx_ccc_or_rlf
 
                     csi_ccc[CCC_NOP] = nullptr;
                     csi_ccc[CCC_IDX] = nullptr;

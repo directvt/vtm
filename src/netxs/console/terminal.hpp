@@ -240,6 +240,7 @@ namespace netxs::ui
             }
             return pos;
         }
+        //todo optimize: print only visible (TIA canvas offsets)
         template<class ...T>
         void output(T& ...canvas)
         {
@@ -248,7 +249,6 @@ namespace netxs::ui
             auto tail = batch.rbegin();
             auto head = batch.rend();
             auto coor = twod{ 0, count };
-            //todo optimize: print only visible (TIA canvas offsets)
             while(tail != head)
             {
                 auto& line = *tail++;
@@ -260,7 +260,6 @@ namespace netxs::ui
         auto reflow()
         {
             output();
-
             if (caret_visible) flow::minmax(cp()); // Register current caret position
 
             auto& cover = flow::minmax();
@@ -1163,13 +1162,17 @@ namespace netxs::ui
             {
                               props[ansi::OSC_LABEL] = txt;
                 auto& utf8 = (props[ansi::OSC_TITLE] = txt);
+                utf8 = ansi::mgr(1).mgl(1) + utf8 + ansi::or_jet(bias::left);
                 base::riseup<e2::preview, e2::form::prop::header>(utf8);
             }
             else
             {
                 auto& utf8 = (props[cmd] = txt);
                 if (cmd == ansi::OSC_TITLE)
+                {
+                    utf8 = ansi::mgr(1).mgl(1) + utf8 + ansi::or_jet(bias::left);
                     base::riseup<e2::preview, e2::form::prop::header>(utf8);
+                }
             }
         }
         // term: Manage terminal window props (XTWINOPS)

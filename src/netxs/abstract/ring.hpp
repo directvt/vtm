@@ -28,6 +28,24 @@ namespace netxs::generics
             : limit{ limit }
         { }
 
+        // count()/size()/length()
+        // begin() (+const)
+        // end() (+const)
+        // rbegin() (+const)
+        // end() (+const)
+        // operator[] (+const)
+        // back() (+const)
+        // front() (+const)
+        // push_back()
+        // push_front()
+        // pop_back()
+        // pop_front()
+        // emplace_back()
+        // emplace_front()
+        // clear()
+        // resize()
+        // erase()
+        // 
 
     };
 }
