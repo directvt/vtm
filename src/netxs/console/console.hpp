@@ -2887,10 +2887,10 @@ namespace netxs::console
                 name = newtext;
                 auto& textline = header();
                 textline = newtext;
-                textline.style.or_rtl(rtol::ltr);
-                textline.style.or_rlf(feed::fwd);
-                textline.style.or_wrp(wrap::off);
-                textline.style.or_jet(bias::left);
+                textline.style.rtl_or(rtol::ltr);
+                textline.style.rlf_or(feed::fwd);
+                textline.style.wrp_or(wrap::off);
+                textline.style.jet_or(bias::left);
                 textline.link(boss.id);
                 boss.SIGNAL(e2::release, e2::form::state::header, textline);
             }
@@ -2898,10 +2898,10 @@ namespace netxs::console
             {
                 auto& textline = footer();
                 textline = newtext;
-                textline.style.or_rtl(rtol::ltr);
-                textline.style.or_rlf(feed::rev);
-                textline.style.or_wrp(wrap::off);
-                textline.style.or_jet(bias::right);
+                textline.style.rtl_or(rtol::ltr);
+                textline.style.rlf_or(feed::rev);
+                textline.style.wrp_or(wrap::off);
+                textline.style.jet_or(bias::right);
                 textline.link(boss.id);
                 boss.SIGNAL(e2::release, e2::form::state::footer, textline);
             }

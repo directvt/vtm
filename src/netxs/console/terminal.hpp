@@ -328,35 +328,22 @@ namespace netxs::ui
         // rods: Rebuild overlaps from bottom to line with selfid=top_id (inclusive)
         void rebuild_upto_id(iota top_id)
         {
-            auto tail = batch.rbegin();
-            auto head = tail + (count - get_line_index_by_id(top_id) - 1);
+            //todo revise (bug)
+            auto tail = batch.end();
+            auto head = tail - (count - get_line_index_by_id(top_id));
             do
             {
-                auto& line =*tail;
-                auto below = tail - (line_height(line) - 1);
+                auto& line =*--tail;
+                auto below = tail + (line_height(line) - 1);
                 do  // Assign iff line isn't overlapped by somaething higher
                 {   // Comparing the difference with zero In order to support id incrementing overflow
-                    if (below->bossid - top_id > 0) below->bossid = line.selfid;
-                    else                            break; // overlapped by a higher line
+                    below->bossid = line.selfid;
+                    //if (below->bossid - top_id > 0) below->bossid = line.selfid;
+                    //else                            break; // overlapped by a higher line
                 }
-                while(tail != below++);
+                while(tail != below--);
             }
-            while(tail++ != head);
-
-            //auto head = batch.rbegin();
-            //auto tail = head + count - get_line_index_by_id(top_id) - 1;
-            //do
-            //{
-            //    auto& line =*head;
-            //    auto below = head - line_height(line) + 1;
-            //    do  // Assign iff line isn't overlapped by somaething higher
-            //    {   // Comparing the difference with zero In order to support id incrementing overflow
-            //        if (below->bossid - top_id > 0) below->bossid = line.selfid;
-            //        else                            break; // overlapped by a higher line
-            //    }
-            //    while(head != below++);
-            //}
-            //while(head++ != tail);
+            while(tail != head);
         }
         // for bug testing
         auto get_content()
@@ -1182,7 +1169,7 @@ namespace netxs::ui
             {
                               props[ansi::OSC_LABEL] = txt;
                 auto& utf8 = (props[ansi::OSC_TITLE] = txt);
-                utf8 = ansi::mgr(1).mgl(1) + utf8 + ansi::or_jet(bias::left);
+                utf8 = ansi::mgr(1).mgl(1) + utf8 + ansi::jet_or(bias::left);
                 base::riseup<e2::preview, e2::form::prop::header>(utf8);
             }
             else
@@ -1190,7 +1177,7 @@ namespace netxs::ui
                 auto& utf8 = (props[cmd] = txt);
                 if (cmd == ansi::OSC_TITLE)
                 {
-                    utf8 = ansi::mgr(1).mgl(1) + utf8 + ansi::or_jet(bias::left);
+                    utf8 = ansi::mgr(1).mgl(1) + utf8 + ansi::jet_or(bias::left);
                     base::riseup<e2::preview, e2::form::prop::header>(utf8);
                 }
             }

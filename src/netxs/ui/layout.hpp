@@ -7,6 +7,7 @@
 #include "../abstract/duplet.hpp"
 #include "../abstract/hash.hpp"
 #include "../text/utf.hpp"
+#include "events.hpp"
 
 #include <cstring> // std::memcpy
 
@@ -14,6 +15,7 @@ namespace netxs::ui
 {
     using utf::text;
     using utf::view;
+    using id_t = bell::id_t;
 
     static const char whitespace = 0x20;
     //static const char whitespace = '.';

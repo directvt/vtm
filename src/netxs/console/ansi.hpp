@@ -179,10 +179,10 @@ namespace netxs::console::ansi
     static const iota CCC_RTL    = 13 ; // CSI 13: n       p  - text right-to-left none/on/off
     static const iota CCC_RLF    = 14 ; // CSI 14: n       p  - reverse line feed none/on/off
 
-    static const iota CCC_or_JET = 15 ; // CSI 15: n       p  - set text alignment (bias) if it is not set
-    static const iota CCC_or_WRP = 16 ; // CSI 16: n       p  - set text wrapping none/on/off if it is not set
-    static const iota CCC_or_RTL = 17 ; // CSI 17: n       p  - set text right-to-left none/on/off if it is not set
-    static const iota CCC_or_RLF = 18 ; // CSI 18: n       p  - set reverse line feed none/on/off if it is not set
+    static const iota CCC_JET_or = 15 ; // CSI 15: n       p  - set text alignment (bias) if it is not set
+    static const iota CCC_WRP_or = 16 ; // CSI 16: n       p  - set text wrapping none/on/off if it is not set
+    static const iota CCC_RTL_or = 17 ; // CSI 17: n       p  - set text right-to-left none/on/off if it is not set
+    static const iota CCC_RLF_or = 18 ; // CSI 18: n       p  - set reverse line feed none/on/off if it is not set
 
     static const iota CCC_IDX    = 19 ; // CSI 19: id      p  - Split the text run and associate the fragment with an id
     static const iota CCC_CUP    = 20 ; // CSI 20: x [: y] p  - cursor absolute position 0-based
@@ -337,10 +337,10 @@ namespace netxs::console::ansi
         esc& wrp (iota n)        { add("\033[12:"+ str(n  ) + CSI_CCC); return *this; } // esc: Text wrapping.
         esc& rtl (iota n)        { add("\033[13:"+ str(n  ) + CSI_CCC); return *this; } // esc: Text right-to-left.
         esc& rlf (iota n)        { add("\033[14:"+ str(n  ) + CSI_CCC); return *this; } // esc: Reverse line feed.
-        esc& or_jet (iota n)     { add("\033[15:"+ str(n  ) + CSI_CCC); return *this; } // esc: Text alignment.
-        esc& or_wrp (iota n)     { add("\033[16:"+ str(n  ) + CSI_CCC); return *this; } // esc: Text wrapping.
-        esc& or_rtl (iota n)     { add("\033[17:"+ str(n  ) + CSI_CCC); return *this; } // esc: Text right-to-left.
-        esc& or_rlf (iota n)     { add("\033[18:"+ str(n  ) + CSI_CCC); return *this; } // esc: Reverse line feed.
+        esc& jet_or (iota n)     { add("\033[15:"+ str(n  ) + CSI_CCC); return *this; } // esc: Text alignment.
+        esc& wrp_or (iota n)     { add("\033[16:"+ str(n  ) + CSI_CCC); return *this; } // esc: Text wrapping.
+        esc& rtl_or (iota n)     { add("\033[17:"+ str(n  ) + CSI_CCC); return *this; } // esc: Text right-to-left.
+        esc& rlf_or (iota n)     { add("\033[18:"+ str(n  ) + CSI_CCC); return *this; } // esc: Reverse line feed.
 
         esc& idx (iota i)        { add("\033[19:"+ str(i  ) + CSI_CCC); return *this; } // esc: Split the text run and associate the fragment with an id.
         esc& ref (iota i)        { add("\033[23:"+ str(i  ) + CSI_CCC); return *this; } // esc: Create the reference to the existing paragraph.
@@ -436,10 +436,10 @@ namespace netxs::console::ansi
     static esc wrp (iota n)          { return esc{}.wrp (n); } // ansi: Text wrapping.
     static esc rtl (iota n)          { return esc{}.rtl (n); } // ansi: Text right-to-left.
     static esc rlf (iota n)          { return esc{}.rlf (n); } // ansi: Reverse line feed.
-    static esc or_jet (iota n)       { return esc{}.or_jet (n); } // ansi: Set text alignment if it is not set.
-    static esc or_wrp (iota n)       { return esc{}.or_wrp (n); } // ansi: Set text wrapping if it is not set.
-    static esc or_rtl (iota n)       { return esc{}.or_rtl (n); } // ansi: Set text right-to-left if it is not set.
-    static esc or_rlf (iota n)       { return esc{}.or_rlf (n); } // ansi: Set reverse line feed if it is not set.
+    static esc jet_or (iota n)       { return esc{}.jet_or (n); } // ansi: Set text alignment if it is not set.
+    static esc wrp_or (iota n)       { return esc{}.wrp_or (n); } // ansi: Set text wrapping if it is not set.
+    static esc rtl_or (iota n)       { return esc{}.rtl_or (n); } // ansi: Set text right-to-left if it is not set.
+    static esc rlf_or (iota n)       { return esc{}.rlf_or (n); } // ansi: Set reverse line feed if it is not set.
 
     static esc rst ()                { return esc{}.rst ( ); } // ansi: Reset formatting parameters.
     static esc nop ()                { return esc{}.nop ( ); } // ansi: No operation. Split the text run.
@@ -512,7 +512,8 @@ namespace netxs::console::ansi
         mark() = default;
         mark(cell const& brush)
             : cell { brush },
-              fresh{ brush }
+              fresh{ brush },
+              spare{ brush }
         { }
         void reset()              { *this = fresh; }
         void reset(cell const& c) { *this = fresh = c; }
@@ -538,10 +539,10 @@ namespace netxs::console::ansi
         auto& wrp(iota  n = wrap::none)        { wrapln = n;      return *this; } // deco: Auto wrapping
         auto& rtl(iota  n = rtol::none)        { r_to_l = n;      return *this; } // deco: RTL
         auto& rlf(iota  n = feed::none)        { rlfeed = n;      return *this; } // deco: Reverse line feed
-        auto& or_jet(iota  n)     { if (!adjust) adjust = n;      return *this; } // deco: Paragraph adjustment
-        auto& or_wrp(iota  n)     { if (!wrapln) wrapln = n;      return *this; } // deco: Auto wrapping
-        auto& or_rtl(iota  n)     { if (!r_to_l) r_to_l = n;      return *this; } // deco: RTL
-        auto& or_rlf(iota  n)     { if (!rlfeed) rlfeed = n;      return *this; } // deco: Reverse line feed
+        auto& jet_or(iota  n)     { if (!adjust) adjust = n;      return *this; } // deco: Paragraph adjustment
+        auto& wrp_or(iota  n)     { if (!wrapln) wrapln = n;      return *this; } // deco: Auto wrapping
+        auto& rtl_or(iota  n)     { if (!r_to_l) r_to_l = n;      return *this; } // deco: RTL
+        auto& rlf_or(iota  n)     { if (!rlfeed) rlfeed = n;      return *this; } // deco: Reverse line feed
         auto& tbs(iota  n = 0)                 { tablen = n;      return *this; } // deco: fx_ccc_tbs
         auto& mgl(iota  n = 0)                 { margin.west = n; return *this; } // deco: fx_ccc_mgl
         auto& mgr(iota  n = 0)                 { margin.east = n; return *this; } // deco: fx_ccc_mgr
@@ -561,7 +562,7 @@ namespace netxs::console::ansi
         auto& glb()  // deco: Reset to default
         {
             adjust = bias::left;
-            wrapln = WRAPPING;
+            wrapln = wrap::on;
             r_to_l = rtol::ltr;
             rlfeed = feed::fwd;
             tablen = 8;
@@ -668,20 +669,20 @@ namespace netxs::console::ansi
                     csi_ccc[CCC_CPY] = VT_PROC{ F(py, q(0)); }; // fx_ccc_cpy
                     csi_ccc[CCC_RST] = VT_PROC{ F(zz,   0);  }; // fx_ccc_rst
 
-                    csi_ccc[CCC_MGN] = VT_PROC{ p->style.mgn(q   ); }; // fx_ccc_mgn
-                    csi_ccc[CCC_MGL] = VT_PROC{ p->style.mgl(q(0)); }; // fx_ccc_mgl
-                    csi_ccc[CCC_MGR] = VT_PROC{ p->style.mgr(q(0)); }; // fx_ccc_mgr
-                    csi_ccc[CCC_MGT] = VT_PROC{ p->style.mgt(q(0)); }; // fx_ccc_mgt
-                    csi_ccc[CCC_MGB] = VT_PROC{ p->style.mgb(q(0)); }; // fx_ccc_mgb
-                    csi_ccc[CCC_TBS] = VT_PROC{ p->style.tbs(q(0)); }; // fx_ccc_tbs
-                    csi_ccc[CCC_JET] = VT_PROC{ p->style.jet(q(0)); }; // fx_ccc_jet
-                    csi_ccc[CCC_WRP] = VT_PROC{ p->style.wrp(q(0)); }; // fx_ccc_wrp
-                    csi_ccc[CCC_RTL] = VT_PROC{ p->style.rtl(q(0)); }; // fx_ccc_rtl
-                    csi_ccc[CCC_RLF] = VT_PROC{ p->style.rlf(q(0)); }; // fx_ccc_rlf
-                    csi_ccc[CCC_or_JET] = VT_PROC{ p->style.or_jet(q(0)); }; // fx_ccc_or_jet
-                    csi_ccc[CCC_or_WRP] = VT_PROC{ p->style.or_wrp(q(0)); }; // fx_ccc_or_wrp
-                    csi_ccc[CCC_or_RTL] = VT_PROC{ p->style.or_rtl(q(0)); }; // fx_ccc_or_rtl
-                    csi_ccc[CCC_or_RLF] = VT_PROC{ p->style.or_rlf(q(0)); }; // fx_ccc_or_rlf
+                    csi_ccc[CCC_MGN   ] = VT_PROC{ p->style.mgn   (q   ); }; // fx_ccc_mgn
+                    csi_ccc[CCC_MGL   ] = VT_PROC{ p->style.mgl   (q(0)); }; // fx_ccc_mgl
+                    csi_ccc[CCC_MGR   ] = VT_PROC{ p->style.mgr   (q(0)); }; // fx_ccc_mgr
+                    csi_ccc[CCC_MGT   ] = VT_PROC{ p->style.mgt   (q(0)); }; // fx_ccc_mgt
+                    csi_ccc[CCC_MGB   ] = VT_PROC{ p->style.mgb   (q(0)); }; // fx_ccc_mgb
+                    csi_ccc[CCC_TBS   ] = VT_PROC{ p->style.tbs   (q(0)); }; // fx_ccc_tbs
+                    csi_ccc[CCC_JET   ] = VT_PROC{ p->style.jet   (q(0)); }; // fx_ccc_jet
+                    csi_ccc[CCC_WRP   ] = VT_PROC{ p->style.wrp   (q(0)); }; // fx_ccc_wrp
+                    csi_ccc[CCC_RTL   ] = VT_PROC{ p->style.rtl   (q(0)); }; // fx_ccc_rtl
+                    csi_ccc[CCC_RLF   ] = VT_PROC{ p->style.rlf   (q(0)); }; // fx_ccc_rlf
+                    csi_ccc[CCC_JET_or] = VT_PROC{ p->style.jet_or(q(0)); }; // fx_ccc_or_jet
+                    csi_ccc[CCC_WRP_or] = VT_PROC{ p->style.wrp_or(q(0)); }; // fx_ccc_or_wrp
+                    csi_ccc[CCC_RTL_or] = VT_PROC{ p->style.rtl_or(q(0)); }; // fx_ccc_or_rtl
+                    csi_ccc[CCC_RLF_or] = VT_PROC{ p->style.rlf_or(q(0)); }; // fx_ccc_or_rlf
 
                     csi_ccc[CCC_NOP] = nullptr;
                     csi_ccc[CCC_IDX] = nullptr;
