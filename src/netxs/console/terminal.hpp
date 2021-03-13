@@ -49,7 +49,9 @@ namespace netxs::ui
               caret{ 0                        },
               sctop{ 0                        },
               scend{ 0                        }
-        { }
+        {
+            style.glb();
+        }
         auto line_height(para const& l)
         {
             if (l.style.wrapln == wrap::on)
@@ -60,7 +62,7 @@ namespace netxs::ui
             }
             else return 1;
         }
-        // rods: Return 0-based srcoll region (pair)
+        // rods: Return 0-based scroll region (pair)
         auto get_scroll_limits()
         {
             auto top = sctop ? sctop - 1 : 0;
@@ -220,6 +222,7 @@ namespace netxs::ui
         void clear(bool preserve_brush = faux)
         {
             if (!preserve_brush) brush.reset();
+            style.glb();
             basis = 0;
             count = 0;
             caret = 0;
@@ -1030,7 +1033,7 @@ namespace netxs::ui
                 finalize();
                 auto posx = batch[caret].chx();
                 if (batch[caret].style.wrapln == wrap::on) posx -= posx % panel.x;
-                else                           posx = 0;
+                else                                       posx = 0;
                 batch[caret].chx(posx);
                 coord.x = 0;
             }
