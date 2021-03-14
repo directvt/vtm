@@ -271,9 +271,9 @@ namespace netxs::ui
                       -std::min(0, cover.t),
                        0);
 
-            auto delta = cover.height() + 1 - count;
-            if (delta > 0) // All visible lines must exist (including blank lines under wrapped lines)
+            if (cover.height() >= count) // All visible lines must exist (including blank lines under wrapped lines)
             {
+                auto delta = cover.height() - (count - 1);
                 add_lines(delta);
             }
             
@@ -676,17 +676,20 @@ namespace netxs::ui
                 auto scroll_top_index = rods::basis + top;
                 auto scroll_end_index = rods::basis + end;
                 auto bossid = batch[scroll_top_index].bossid;
-                auto count = end - top + 1;
-                auto delta = scroll_end_index - (batch.size() - 1); //todo optimize
-                if (delta > 0) rods::add_lines(delta);              //
+                auto height = end - top + 1;
+                if (scroll_end_index >= count)
+                {
+                    auto delta = scroll_end_index - (count - 1);
+                    rods::add_lines(delta);
+                }
                 if (n > 0) // Scroll down (move text down)
                 {
-                    n = std::min(n, count);
+                    n = std::min(n, height);
                     // Move down by n all below the current
                     // one by one from the bottom
                     auto dst = batch.begin() + scroll_end_index;
                     auto src = dst - n;
-                    auto s = count - n;
+                    auto s = height - n;
                     while(s--)
                     {
                         (*dst--).move(std::move(*src--));
@@ -702,12 +705,12 @@ namespace netxs::ui
                 else if (n < 0) // Scroll up (move text up)
                 {
                     n = -n;
-                    n = std::min(n, count);
+                    n = std::min(n, height);
                     // Move up by n=-n all below the current
                     // one by one from the top
                     auto dst = batch.begin() + scroll_top_index;
                     auto src = dst + n;
-                    auto s = count - n;
+                    auto s = height - n;
                     while(s--)
                     {
                         (*dst++).move(std::move(*src++));
