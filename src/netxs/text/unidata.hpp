@@ -106,8 +106,8 @@
  *
  **/
 
-#ifndef NETXS_UNIDATA_H
-#define NETXS_UNIDATA_H
+#ifndef NETXS_UNIDATA_HPP
+#define NETXS_UNIDATA_HPP
 
 #include <cstdint>
 #include <vector>
@@ -348,7 +348,7 @@ namespace netxs::unidata
 
                 (  l == gbreak::RI    &&  r == gbreak::RI   )  ? true: // GB12,13
                                                                  faux; // GB999
-            if (l == gbreak::EP) 
+            if (l == gbreak::EP)
             {
                 l = (r == gbreak::EXT) ? gbreak::EP    :
                	    (r == gbreak::ZWJ) ? gbreak::COMBO : r;
@@ -395,7 +395,7 @@ namespace netxs::unidata
             -2796, 15872, 38656, 38912, -14, 39168, -240, 15872, -255, 256,
             39424, -255, 256, 39424
         };
-        
+
         static constexpr size_t  offset_size = 39680;
         static constexpr int32_t offset_pack[] =
         {
@@ -841,4 +841,4 @@ namespace netxs::unidata
     }
 }
 
-#endif // NETXS_UNIDATA_H
+#endif // NETXS_UNIDATA_HPP

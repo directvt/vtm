@@ -15,7 +15,7 @@ import datetime
 import collections
 
 DATA_SOURCE = { 'GCBREAK' : ('https://www.unicode.org/Public/UNIDATA/auxiliary/GraphemeBreakProperty.txt',
-                             ['CODERANGE', 
+                             ['CODERANGE',
                               'BREAK_CLASS' ]),
                 'EAWIDTH' : ('https://www.unicode.org/Public/UNIDATA/EastAsianWidth.txt',
                              ['CODERANGE',
@@ -207,7 +207,7 @@ ALLIED_IMPL = r'''
 
                 (  l == {break_RI}    &&  r == {break_RI}   )  ? true: // GB12,13
                                                                  faux; // GB999
-            if (l == {break_EP}) 
+            if (l == {break_EP})
             {{
                 l = (r == {break_EXT}) ? {break_EP}    :
                	    (r == {break_ZWJ}) ? {break_COMBO} : r;
@@ -220,7 +220,7 @@ ALLIED_IMPL = r'''
 '''.strip()
 
 MODULE_NAME = 'unidata'
-HEADER_FILE = MODULE_NAME + '.h'
+HEADER_FILE = MODULE_NAME + '.hpp'
 HEADER_BASE = r'''
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
@@ -330,8 +330,8 @@ HEADER_BASE = r'''
  *
  **/
 
-#ifndef NETXS_{MODULE}_H
-#define NETXS_{MODULE}_H
+#ifndef NETXS_{MODULE}_HPP
+#define NETXS_{MODULE}_HPP
 
 #include <cstdint>
 #include <vector>
@@ -419,13 +419,13 @@ namespace utils::{module}
         {{
             {blocks}
         }};
-        
+
         static constexpr size_t  offset_size = {offset_size};
         static constexpr int32_t offset_pack[] =
         {{
             {offset}
         }};
-        
+
         static constexpr {module} ucspec[] =
         {{
             {ucspec}
@@ -461,7 +461,7 @@ namespace utils::{module}
     }}
 }}
 
-#endif // NETXS_{MODULE}_H
+#endif // NETXS_{MODULE}_HPP
 '''.strip()
 
 def writeln(text):
@@ -471,7 +471,7 @@ def write(text):
     sys.stdout.write(text)
     sys.stdout.flush()
 def progress(code):
-    if code % round(UNICODESPACE / 100) == 0: 
+    if code % round(UNICODESPACE / 100) == 0:
         write('.')
 
 def loaddata(url):
@@ -502,7 +502,7 @@ class uniprop(object):
 
     def prop(self):
         return [ self.wcwidth, self.gcbreak, self.ctrl_index ]
-        
+
 class unidata(object):
     def __init__(self, src):
         url = src[0]
@@ -574,7 +574,7 @@ def apply_eawemoji(source, chrs):
     for cprange, brprop in source.props('CODEVALUE', 'EMOJI_BREAK_PROP'):
         for cp in sequencer(cprange):
             # why the emoji should be always wide?
-            #chrs[cp].wcwidth = EAWIDTH['W']                      
+            #chrs[cp].wcwidth = EAWIDTH['W']
             if (brprop == 'Extended_Pictographic'): # https://www.unicode.org/reports/tr29/#GB11
                 chrs[cp].gcbreak = brprop
             elif (brprop == 'Emoji_Modifier_Base'): # https://www.unicode.org/reports/tr29/#Extend
@@ -648,10 +648,10 @@ def apply_commands(commands, excluded, printable, chrs):
     for cp in cmmnds:
         cp.ctrl_index = index
         index += 1
-    
+
     noncmd_id = index
     index += 1
-    
+
     for cp in formts:
         cp.ctrl_index = index
         index += 1
@@ -662,7 +662,7 @@ def apply_commands(commands, excluded, printable, chrs):
 def get_name(text):
     return text.replace(' ', '_').replace('-', '_')
 
-def sortFirst(val): 
+def sortFirst(val):
     return val[1]
 
 chrs = [uniprop(cp) for cp in range(UNICODESPACE)]
@@ -685,7 +685,7 @@ control_list = { -1 : (noncmd_id, 'NON CONTROL', 'NON_CONTROL', -1 ) }
 control_list.update({ cp.code: (cp.ctrl_index, cp.name, cp.alias, cp.code) for cp in chrs if not cp.ctrl_index is None })
 
 cntrls = ''
-control_idx = []  
+control_idx = []
 #for i, (cpval, (cpctrlidx, cpname, cpalias, cpcode)) in enumerate(control_list.items()):
 #for i, (cpval, (cpctrlidx, cpname, cpalias, cpcode)) in enumerate(list(control_list.items()).sort(key = sortFirst)):
 a = control_list.items()
@@ -711,8 +711,8 @@ ucspec = ''
 for i, (key, (wide, brgroup, ctrl_id)) in enumerate(ucspec_index.items()):
     ctrlname = control_idx[ctrl_id] if ctrl_id else control_idx[noncmd_id]
     ucspec += '            ' if i != 0 else ''
-    ucspec += '{{ {}, {:<12}, {:<30} }},  // {:>3}'.format(WCWIDTHTYPE + '::%s' % wide, 
-                                                           BREAKSCLASS + '::%s' % BREAKCAT[brgroup][0], 
+    ucspec += '{{ {}, {:<12}, {:<30} }},  // {:>3}'.format(WCWIDTHTYPE + '::%s' % wide,
+                                                           BREAKSCLASS + '::%s' % BREAKCAT[brgroup][0],
                                                            CNTRLCLSASS + '::%s' % ctrlname, i)
     ucspec += '\n' if i != len(ucspec_index) - 1 else ''
 
@@ -741,7 +741,7 @@ for code in range(UNICODESPACE):
         for cp in range(code, code + block_size):
             index = chrs[cp].hash()
             blocks_temp.append(list(ucspec_index.keys()).index(index))
-        
+
         if blocks_temp in offset_index:
             old_index = offset_index.index(blocks_temp)
             blocks_index.append(old_index * block_size)

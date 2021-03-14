@@ -1,7 +1,10 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#include "netxs/os/system.h"
+#pragma clang diagnostic ignored "-Wunused-variable"
+#pragma clang diagnostic ignored "-Wunused-function"
+
+#include "netxs/os/system.hpp"
 
 #include <fstream> // std::ifstream
 
@@ -26,7 +29,7 @@ int main(int argc, char* argv[])
             error += '\n';
             error += utf::text(argv[i]);
         }
-        os::exit(1, error); 
+        os::exit(1, error);
     }
 
     //[Demo] get current region from ~./vtm/vtm.conf
@@ -34,14 +37,14 @@ int main(int argc, char* argv[])
     {
         std::ifstream config;
         config.open("vtm.conf");
-        
+
         if (config.is_open())
             std::getline(config, spot);
 
         if (spot.empty())
             spot = "unknown region";
     }
-    
+
     auto user = os::user();
     auto path = utf::concat("monotty_", user); //todo unify, use vtm.conf
 
@@ -59,15 +62,25 @@ int main(int argc, char* argv[])
                            user, ";"));
 
     auto gate = os::tty::proxy(link);
+    ansi::esc mode;
+    mode.save_title(). // Push current title onto the stack.
+         altbuf(true). // Switch to alternate buffer.
+         vmouse(true). // Turn mouse reporting on/off.
+         cursor(faux). // Set the caret visibility.
+         bpmode(true). // Enable bracketed paste mode.
+         setutf(true); // Set UTF-8 character set.
     gate.ignite();
-    gate.output(ansi::altbuf(true) + // Switch to alternate buffer.
-                ansi::vmouse(true) + // Turn mouse reporting on/off.
-                ansi::cursor(faux) + // Set the cursor visibility.
-                ansi::setutf(true)); // Set UTF-8 character set.
+    gate.output(mode);
+    
     gate.splice();
-    gate.output(ansi::vmouse(faux) +
-                ansi::cursor(true) +
-                ansi::altbuf(faux));
+    
+    mode.clear();
+    mode.vmouse(faux).
+         cursor(true).
+         altbuf(faux).
+         bpmode(faux).
+         load_title();
+    gate.output(mode);
     gate.revert();
 
     // Pause to consume/receive buffered input (e.g. mouse tracking)
