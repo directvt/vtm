@@ -1438,8 +1438,7 @@ namespace netxs::console
             //status.invalid = true;
             if (auto parent_ptr = parent.lock())
             {
-                auto region = square();
-                parent_ptr->SIGNAL(e2::preview, e2::form::layout::strike, region);
+                parent_ptr->SIGNAL(e2::preview, e2::form::layout::strike, square());
             }
         }
         // base: Mark the form as invalid and going to be redrawn.
@@ -1988,8 +1987,7 @@ namespace netxs::console
                     }
                 };
                 boss.SUBMIT_TV(e2::general, e2::timer::any, token, handler);
-                auto id = ID;
-                boss.SIGNAL(e2::release, e2::form::animate::start, id);
+                boss.SIGNAL(e2::release, e2::form::animate::start, ID);
             }
             // animate: Optional proceed every timer tick,
             //          yield the delta from the flow and,
@@ -2696,7 +2694,7 @@ namespace netxs::console
                     auto& k = gear;
 
                     status[prop::last_event].set(stress) = "mouse";
-                    status[prop::mouse_pos] .set(stress) =
+                    status[prop::mouse_pos ].set(stress) =
                         (m.coord.x < 10000 ? std::to_string(m.coord.x) : "-") + " : " +
                         (m.coord.y < 10000 ? std::to_string(m.coord.y) : "-") ;
 
@@ -3014,7 +3012,7 @@ namespace netxs::console
 
                     inst.SIGNAL(e2::request, e2::form::layout::size,  region.size);
                     inst.SIGNAL(e2::request, e2::form::layout::move,  region.coor);
-                    inst.SIGNAL(e2::request, e2::form::state::mouse, header.active);
+                    inst.SIGNAL(e2::request, e2::form::state::mouse,  header.active);
                     inst.SIGNAL(e2::request, e2::form::state::header, header.basis);
                     inst.SIGNAL(e2::request, e2::form::state::color,  header.color);
 
@@ -3220,8 +3218,7 @@ namespace netxs::console
                     auto& inst = *item;
                     denote(items.remove(inst.id));
                     denote(users.remove(inst.id));
-                    auto master = boss.This();
-                    inst.SIGNAL(e2::release, e2::form::upon::detached, master);
+                    inst.SIGNAL(e2::release, e2::form::upon::detached, boss.This());
                 };
                 boss.SUBMIT_T(e2::preview, e2::form::layout::strike, memo, region)
                 {
@@ -3282,8 +3279,7 @@ namespace netxs::console
             {
                 auto item = boss.indexer<bell>::create<S>(std::forward<Args>(args)...);
                 items.append(item);
-                auto creator = boss.base::This();
-                item->SIGNAL(e2::release, e2::form::upon::attached, creator);
+                item->SIGNAL(e2::release, e2::form::upon::attached, boss.base::This()); // Send creator
                 return item;
             }
             // scene: Create a new user of the specified subtype
@@ -3294,8 +3290,7 @@ namespace netxs::console
                 auto user = boss.indexer<bell>::create<S>(std::forward<Args>(args)...);
                 users.append(user);
 
-                auto creator = boss.base::This();
-                user->SIGNAL(e2::release, e2::form::upon::attached, creator);
+                user->SIGNAL(e2::release, e2::form::upon::attached, boss.base::This()); // Send creator
 
                 //todo unify
                 tone color{ tone::brighter, tone::shadow};
@@ -3435,8 +3430,8 @@ namespace netxs::console
                     {
                         if (!clients++)
                         {
-                            auto active = true;
-                            boss.SIGNAL(e2::release, e2::form::state::keybd, active);
+                            //auto active = true;
+                            boss.SIGNAL(e2::release, e2::form::state::keybd, true);
                         }
                     }
                 };
@@ -3447,8 +3442,8 @@ namespace netxs::console
                     {
                         if (!--clients)
                         {
-                            auto active = faux;
-                            boss.SIGNAL(e2::release, e2::form::state::keybd, active);
+                            //auto active = faux;
+                            boss.SIGNAL(e2::release, e2::form::state::keybd, faux);
                         }
                     }
                 };

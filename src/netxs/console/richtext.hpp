@@ -1102,6 +1102,11 @@ namespace netxs::console
             );
             return yield;
         }
+        auto& set (cell const& c)
+        {
+            brush.set(c);
+            return *this;
+        }
     };
 
     class rope // richtext: Cascade of the identical paragraphs

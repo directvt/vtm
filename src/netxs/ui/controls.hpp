@@ -385,8 +385,7 @@ namespace netxs::ui
                 if (client == shadow)
                 {
                     client.reset();
-                    auto parent = This();
-                    shadow->SIGNAL(e2::release, e2::form::upon::detached, parent);
+                    shadow->SIGNAL(e2::release, e2::form::upon::detached, This()); // Send parent
                 }
             };
         }
@@ -501,18 +500,13 @@ namespace netxs::ui
 
             auto item = base::create<T>(std::forward<Args>(args)...);
             client = item;
-            auto creator = This();
-            item->SIGNAL(e2::release, e2::form::upon::attached, creator);
+            item->SIGNAL(e2::release, e2::form::upon::attached, This()); // Send creator
 
             region.coor = gripsz;
             item->SIGNAL(e2::release, e2::form::layout::move, region.coor);
             base::reflow(); // Ask client about the new size (the client can override the size)
 
-            //todo unify
-            //std::shared_ptr<core> canvas_ptr = item->canvas.shared_from_this();
-            std::shared_ptr<core> canvas_ptr = canvas.shared_from_this();
-            SIGNAL(e2::general, e2::form::canvas, canvas_ptr);
-
+            SIGNAL(e2::general, e2::form::canvas, canvas.shared_from_this());
             return item;
         }
     };
@@ -813,8 +807,7 @@ namespace netxs::ui
             if (client_slot == slot::_1) client_1 = item;
             else                         client_2 = item;
 
-            auto creator = This();
-            item->SIGNAL(e2::release, e2::form::upon::attached, creator);
+            item->SIGNAL(e2::release, e2::form::upon::attached, This()); // Send creator
             base::reflow(); // Ask the client about the new size (the client can override the size)
             return item;
         }
@@ -922,8 +915,7 @@ namespace netxs::ui
             clients.push_back({ item, 0 });
             //heights.push_back(0);
 
-            auto creator = This();
-            item->SIGNAL(e2::release, e2::form::upon::attached, creator);
+            item->SIGNAL(e2::release, e2::form::upon::attached, This()); // Send creator
             base::reflow(); // Ask the client about the new size (the client can override the size)
             return item;
         }
@@ -997,8 +989,7 @@ namespace netxs::ui
             auto item = create<T>(std::forward<Args>(args)...);
             clients.push_back(item);
 
-            auto creator = This();
-            item->SIGNAL(e2::release, e2::form::upon::attached, creator);
+            item->SIGNAL(e2::release, e2::form::upon::attached, This()); // Send creator
             base::reflow(); // Ask the client about the new size (the client can override the size)
             return item;
         }
@@ -1478,8 +1469,7 @@ namespace netxs::ui
                 tokens.clear();
             };
 
-            auto creator = This();
-            item->SIGNAL(e2::release, e2::form::upon::attached, creator);
+            item->SIGNAL(e2::release, e2::form::upon::attached, This()); // Send creator
             base::reflow(); // Ask the client about the new size (the client can override the size)
             return item;
         }
@@ -2478,8 +2468,7 @@ namespace netxs::ui
 
             auto item = base::create<T>(std::forward<Args>(args)...);
             clients.push_back(item);
-            auto root = This();
-            item->SIGNAL(e2::release, e2::form::upon::attached, root);
+            item->SIGNAL(e2::release, e2::form::upon::attached, This()); // Send root
             return item;
         }
 
@@ -2743,8 +2732,7 @@ namespace netxs::ui
             SUBMIT(e2::release, e2::form::upon::attached, parent)
             {
                 grip_ctl = create<stem_rate_grip>(grip_suffix);
-                auto root = This();
-                grip_ctl->SIGNAL(e2::release, e2::form::upon::attached, root);
+                grip_ctl->SIGNAL(e2::release, e2::form::upon::attached, This()); // Send root
                 //grip->SIGNAL(e2::release, e2::form::upon::attached, This());
 
                 grip_ctl->SUBMIT(e2::release, bttn::drag::start::left, gear)

@@ -178,7 +178,7 @@ namespace netxs::generics
             inc(tail);
             if (size != peak) ++size;
             else              inc(head);
-            back() = a;
+            back() = std::move(a);
         }
         // ring: push_back() copy
             //void push_back(type const& a)
@@ -191,7 +191,7 @@ namespace netxs::generics
             dec(head);
             if (size != peak) ++size;
             else              dec(tail);
-            front() = a;
+            front() = std::move(a);
         }
         // ring: push_front() copy
             //void push_front(type const& a)
@@ -201,20 +201,18 @@ namespace netxs::generics
         // ring: pop_back()
         void pop_back()
         {
-            if(size>0){
             assert(size > 0);
+            back() = type{};
             dec(tail);
             --size;
-            }
         }
         // ring: pop_front()
         void pop_front()
         {
-            if(size>0){
             assert(size > 0);
+            front() = type{};
             inc(head);
             --size;
-            }
         }
         // ring: emplace_back()
         template<class... Args>
@@ -231,7 +229,7 @@ namespace netxs::generics
         // ring: clear()
         void clear()
         {
-            size = 0;
+            while(size) pop_back();
             head = 0;
             tail = 0;
         }

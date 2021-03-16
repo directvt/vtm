@@ -10,7 +10,7 @@
 //#define WRAPPING (wrap::off)
 
 // Enable to show debug overlay
-//#define DEBUG_OVERLAY
+#define DEBUG_OVERLAY
 
 // Enable to show all terminal input (keyboard/mouse etc)
 //#define KEYLOG
@@ -446,12 +446,10 @@ int main(int argc, char* argv[])
             {
                 if (buff.size())
                 {
-                    view shadow{ buff };
-                    SIGNAL_GLOBAL(e2::debug::logs, shadow);
+                    SIGNAL_GLOBAL(e2::debug::logs, view{ buff });
                     buff.clear();
                 }
-                view shadow{ utf8 };
-                SIGNAL_GLOBAL(e2::debug::logs, shadow);
+                SIGNAL_GLOBAL(e2::debug::logs, view{ utf8 });
             }
             else buff += utf8;
         });
@@ -1727,8 +1725,7 @@ int main(int argc, char* argv[])
                             auto data = canvas.meta(location);
                             if (data.length())
                             {
-                                auto str = ansi::setbuf(data);
-                                gate.SIGNAL(e2::release, e2::cout, str);
+                                gate.SIGNAL(e2::release, e2::cout, ansi::setbuf(data));
                             }
                         }
                     }
@@ -1821,8 +1818,7 @@ int main(int argc, char* argv[])
                     {
                         if (auto owner = base::getref(gear.id))
                         {
-                            text msg = "main logout by button";
-                            owner->SIGNAL(e2::release, e2::term::quit, msg);
+                            owner->SIGNAL(e2::release, e2::term::quit, "main logout by button");
                         }
                     };
 
@@ -1845,8 +1841,7 @@ int main(int argc, char* argv[])
 
                     //current_default = objs::Help;
                     current_default = objs::CommandPrompt;
-                    auto data = static_cast<iota>(current_default);
-                    block->SIGNAL(e2::release, e2::data::changed, data);
+                    block->SIGNAL(e2::release, e2::data::changed, current_default);
                 }
 
                 wptr<mold> weak = frame;
@@ -1859,8 +1854,7 @@ int main(int argc, char* argv[])
                 };
             }
 
-            iota fps = 60;
-            board->SIGNAL(e2::general, e2::timer::fps, fps);
+            board->SIGNAL(e2::general, e2::timer::fps, 60);
 
             iota usr_count = 0;
 
@@ -1935,8 +1929,7 @@ int main(int argc, char* argv[])
                     log("main: new thread is running on ", peer);
                 }
 
-                fps = 0;
-                board->SIGNAL(e2::general, e2::timer::fps, fps);
+                board->SIGNAL(e2::general, e2::timer::fps, 0);
             }
         }
         os::exit(0, "bye!");
