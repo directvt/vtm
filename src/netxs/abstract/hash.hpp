@@ -9,7 +9,7 @@
 
 namespace netxs
 {
-    template <typename M, typename K>
+    template <class M, class K>
     bool on_key(M const& map, K const& key)
     {
         const auto it = map.find(key);
@@ -20,7 +20,7 @@ namespace netxs
     }
 
     // do it in place
-    //template <typename M, typename K>
+    //template <class M, class K>
     //auto	on_key_get(const M& map, const K& key)
     //{
     //	const auto it = map.find(key);
@@ -28,13 +28,13 @@ namespace netxs
     //	                       : std::optional{ it };
     //}
 
-    template<typename M>
+    template<class M>
     struct addref
     {
         using type = typename std::conditional<std::is_class<typename M::mapped_type>::value, typename M::mapped_type &, typename M::mapped_type>::type;
     };
 
-    template<typename M, typename K>
+    template<class M, class K>
     typename addref<M>::type get_or(M& map, K const& key, typename addref<M>::type default_value)
     {
         const auto it = map.find(key);

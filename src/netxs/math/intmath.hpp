@@ -48,7 +48,7 @@ namespace netxs
         }
     }
 
-    template<typename T1, typename T2, typename T3 = T2>
+    template<class T1, class T2, class T3 = T2>
     T3 divround(T1 n, T2 d)
     {
         static_assert(std::is_integral<T1>::value, "Integral type only");
@@ -66,7 +66,7 @@ namespace netxs
                       : 0;
     }
 
-    template<typename T1, typename T2, typename T3 = T2>
+    template<class T1, class T2, class T3 = T2>
     T3 divupper(T1 n, T2 d)
     {
         static_assert(std::is_integral<T1>::value, "Integral type only");
@@ -78,7 +78,7 @@ namespace netxs
             :	n / d;
     }
 
-    template<typename T1, typename T2, typename T3 = T2>
+    template<class T1, class T2, class T3 = T2>
     T3 divfloor(T1 n, T2 d)
     {
         static_assert(std::is_integral<T1>::value, "Integral type only");
@@ -90,14 +90,14 @@ namespace netxs
             :	n / d;
     }
 
-    template<bool B, typename T>
+    template<bool B, class T>
     struct _disintegrate { using type = T; };
 
-    template<typename T>
+    template<class T>
     struct _disintegrate<faux, T> { using type = typename T::type; };
 
     // intmath.h: Deduce a scalar type from the vector type.
-    template<typename T>
+    template<class T>
     using disintegrate = typename _disintegrate< std::is_integral<T>::value, T >::type;
 
     // intmath.h: Delta sequence generator.

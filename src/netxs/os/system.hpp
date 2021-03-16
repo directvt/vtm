@@ -280,7 +280,7 @@ namespace netxs::os
 
         #endif
     }
-    template<class... Args>
+    template<class ...Args>
     void exit(int code, Args&&... args)
     {
         log(args...);
@@ -1126,7 +1126,7 @@ namespace netxs::os
             template<class T>
             operator T () { return T{}; }
         };
-        template<typename... Args>
+        template<class ...Args>
         static auto fail(Args&&... msg)
         {
             log("xipc: ", msg..., " (", os::error(), ") ");

@@ -201,7 +201,7 @@ namespace netxs::console::ansi
         typename std::enable_if<!std::is_integral<T>::value, esc&>::type
         add(T&& t) { operator+=(t); return *this; }
 
-        template<typename T>
+        template<class T>
         typename std::enable_if<std::is_integral<T>::value, esc&>::type
         add(T t) { operator+=(std::to_string(t)); return *this; }
 
@@ -382,15 +382,15 @@ namespace netxs::console::ansi
     static esc appkey (bool b)       { return esc{}.appkey(b);     } // ansi: Application Cursor Keys (DECCKM).
     static esc setbuf (view t)       { return esc{}.setbuf(t);     } // ansi: Set clipboard.
 
-    static esc w32input (bool b)       { return esc{}.w32input(b); } // ansi: Turn on w32-input-mode (Microsoft specific, not released yet).
-    template<typename... Args>
-    static esc w32keybd (Args&&... p)  { return esc{}.w32keybd(p...);  } // ansi: win32-input-mode sequence (keyboard).
-    template<typename... Args>
-    static esc w32mouse (Args&&... p)  { return esc{}.w32mouse(p...);  } // ansi: win32-input-mode sequence (mouse).
-    template<typename... Args>
-    static esc w32focus (Args&&... p)  { return esc{}.w32focus(p...);  } // ansi: win32-input-mode sequence (focus).
-    template<typename... Args>
-    static esc w32winsz (Args&&... p)  { return esc{}.w32winsz(p...);  } // ansi: win32-input-mode sequence (window resize).
+    static esc w32input (bool b)     { return esc{}.w32input(b); } // ansi: Turn on w32-input-mode (Microsoft specific, not released yet).
+    template<class ...Args>
+    static esc w32keybd (Args&&... p){ return esc{}.w32keybd(std::forward<Args>(p)...); } // ansi: win32-input-mode sequence (keyboard).
+    template<class ...Args>
+    static esc w32mouse (Args&&... p){ return esc{}.w32mouse(std::forward<Args>(p)...); } // ansi: win32-input-mode sequence (mouse).
+    template<class ...Args>
+    static esc w32focus (Args&&... p){ return esc{}.w32focus(std::forward<Args>(p)...); } // ansi: win32-input-mode sequence (focus).
+    template<class ...Args>
+    static esc w32winsz (Args&&... p){ return esc{}.w32winsz(std::forward<Args>(p)...); } // ansi: win32-input-mode sequence (window resize).
 
     static esc cup (twod const& n)   { return esc{}.cup (n); } // ansi: 0-Based cursor position.
     static esc cuu (iota n)          { return esc{}.cuu (n); } // ansi: Cursor up.
@@ -1030,9 +1030,6 @@ namespace netxs::console::ansi
     {
         using list = std::list<ansi::rule>;
 
-        // Append multiple commands to the locus.
-        //template <class ...Args> void push(Args... cmd) { locus.splice( std::end(locus), {cmd...} ); }
-
         inline void  push(rule const& cmd)    { list::push_back(cmd); } // Append single command to the locus.
         inline void   pop()                   { list::pop_back();     } // Append single command to the locus.
         inline bool  bare()    const          { return list::empty(); } // Is it empty the list of commands?
@@ -1086,7 +1083,7 @@ namespace netxs::console::ansi
 
         */
 
-        view crop{ utf8 };
+        view crop{ std::forward<TEXT_OR_VIEW>(utf8) };
 
         // check ansi integrity
         if (auto size = crop.size())

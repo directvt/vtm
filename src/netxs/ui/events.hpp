@@ -761,17 +761,17 @@ namespace netxs::ui
         }
         // indexer: Create a new object of the specified subtype and return its shared_ptr.
         template<class TT, class ...Args>
-        static auto create(Args... args)
+        static auto create(Args&&... args)
         {
             struct make_shared_enabler : public TT
             {
-                make_shared_enabler(Args... args)
-                    : TT{ args... }
+                make_shared_enabler(Args&&... args)
+                    : TT{ std::forward<Args>(args)... }
                 { }
             };
 
             e2::sync lock;
-            sptr<TT> inst = std::make_shared<make_shared_enabler>(args...);
+            sptr<TT> inst = std::make_shared<make_shared_enabler>(std::forward<Args>(args)...);
             inst->_actuate(inst);
 
             //todo move to the bell
@@ -887,21 +887,21 @@ namespace netxs::ui
         // bell: Subscribe on a specified event
         //       of specified reaction node by defining an event
         //       handler. Return a lambda reference helper.
-        template<class EVENT>//, class F>
-        auto submit2(e2::tier level)//, F&)
+        template<class EVENT>
+        auto submit2(e2::tier level)
         {
             return submit_helper<EVENT>(*this, level);
         }
         //  bell: Subscribe on a specified event
         //        of specified reaction node by defining an event
         //        handler and token. Return a lambda reference helper.
-        template<class EVENT>//, class F>
-        auto submit2(e2::tier level, hook& token)//, F&)
+        template<class EVENT>
+        auto submit2(e2::tier level, hook& token)
         {
             return submit_helper_token<EVENT>(*this, level, token);
         }
-        template<class EVENT>//, class F>
-        auto submit2(e2::tier level, subs& tokens)//, F&)
+        template<class EVENT>
+        auto submit2(e2::tier level, subs& tokens)
         {
             return submit_helper_token<EVENT>(*this, level, tokens.extra());
         }
@@ -1075,14 +1075,10 @@ namespace netxs::ui
         {
             switch (level)
             {
-                case e2::tier::release:
-                    return release;
-                case e2::tier::preview:
-                    return preview;
-                case e2::tier::general:
-                    return general;
-                case e2::tier::request:
-                    return request;
+                case e2::tier::release: return release;
+                case e2::tier::preview: return preview;
+                case e2::tier::general: return general;
+                case e2::tier::request: return request;
                 default:
                     break;
             }
@@ -1093,18 +1089,10 @@ namespace netxs::ui
         {
             switch (level)
             {
-                case e2::tier::release:
-                    release.discontinue();
-                    break;
-                case e2::tier::preview:
-                    preview.discontinue();
-                    break;
-                case e2::tier::general:
-                    general.discontinue();
-                    break;
-                case e2::tier::request:
-                    request.discontinue();
-                    break;
+                case e2::tier::release: release.discontinue(); break;
+                case e2::tier::preview: preview.discontinue(); break;
+                case e2::tier::general: general.discontinue(); break;
+                case e2::tier::request: request.discontinue(); break;
                 default:
                     break;
             }

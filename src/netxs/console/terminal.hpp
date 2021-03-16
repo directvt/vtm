@@ -17,8 +17,9 @@ namespace netxs::ui
     {
     protected:
         //todo implement as a ring buffer of size MAX_SCROLLBACK
-        using heap = std::vector<para>;
-        using iter = heap::iterator;
+        //using heap = std::vector<para>;
+        using heap = netxs::generics::ring<std::vector<para>>;
+        using iter = heap::iter;
         using mark = ansi::mark;
         using deco = ansi::deco;
 
@@ -41,7 +42,7 @@ namespace netxs::ui
 
         rods(twod& anker, side& oversize, twod const& viewport)
             : flow { viewport.x, count /*use count from batch*/       },
-              batch{ para{}                   },
+              //batch{ para{}                   },
               panel{ viewport                 },
               upset{ oversize                 },
               count{ 1                        },
@@ -51,6 +52,7 @@ namespace netxs::ui
               scend{ 0                        }
         {
             style.glb();
+            batch.push_back(para{});
         }
         auto line_height(para const& l)
         {
@@ -245,7 +247,7 @@ namespace netxs::ui
         }
         //todo optimize: print only visible (TIA canvas offsets)
         template<class ...T>
-        void output(T& ...canvas)
+        void output(T& ...canvas) // The canvas is an optional arg
         {
             flow::reset(canvas...);
             // Output lines in backward order from bottom to top
@@ -298,7 +300,8 @@ namespace netxs::ui
         void remove_empties()
         {
             auto head = batch.begin();
-            auto tail = std::prev(batch.end()); // Exclude first line
+            //auto tail = std::prev(batch.end()); // Exclude first line
+            auto tail = batch.end() - 1; // Exclude first line
             auto iter = tail;
             while(head != iter && iter->length() == 0)
             {

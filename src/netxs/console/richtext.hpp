@@ -1568,7 +1568,7 @@ namespace netxs::console
 
         // face: Forward call to the core and reset cursor
         template<class ...Args>
-        void wipe(Args... args)
+        void wipe(Args&&... args) // Optional args
         {
             core::wipe(args...);
             flow::reset();

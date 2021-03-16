@@ -96,18 +96,18 @@ namespace netxs::logger
             }
         };
 
-        template <typename T>
+        template <class T>
         logger(T writer)
         {
             std::unique_lock<std::recursive_mutex> lock(_g::_mutex);
             _add(writer);
         }
-        template<typename T, typename... Args>
-        logger(T writer, Args... args)
+        template<class T, class ...Args>
+        logger(T writer, Args&&... args)
         {
             std::unique_lock<std::recursive_mutex> lock(_g::_mutex);
             _writers.push_back(writer);
-            _add(args...);
+            _add(std::forward<Args>(args)...);
         }
         ~logger()
         {
@@ -116,7 +116,7 @@ namespace netxs::logger
             _writers.clear();
         }
 
-        template <typename T>
+        template <class T>
         static void feed(T&& entity)
         {
             std::unique_lock<std::recursive_mutex> lock(_g::_mutex);
@@ -128,12 +128,12 @@ namespace netxs::logger
             std::unique_lock<std::recursive_mutex> lock(_g::_mutex);
             _flush(prompted);
         }
-        template<typename T, typename... Args>
+        template<class T, class ...Args>
         static void feed(T&& entity, Args&&... args)
         {
             std::unique_lock<std::recursive_mutex> lock(_g::_mutex);
             _g::_builder << entity;
-            feed(args...);
+            feed(std::forward<Args>(args)...);
         }
 
     private:
@@ -203,7 +203,7 @@ namespace netxs::logger
             _g::_builder.clear();
         }
 
-        template <typename T>
+        template <class T>
         void _add(T&& writer)
         {
             _writers.push_back(writer);
@@ -213,11 +213,11 @@ namespace netxs::logger
                 _flush(false);
             }
         }
-        template<typename T, typename... Args>
+        template<class T, class ...Args>
         void _add(T writer, Args&&... args)
         {
             _writers.push_back(writer);
-            _add(args...);
+            _add(std::forward<Args>(args)...);
         }
 
     };
@@ -233,16 +233,16 @@ namespace netxs::logger
 
 namespace
 {
-    template<typename... Args>
+    template<class ...Args>
     void Z(Args&&... args)
     {
-        netxs::logger::logger::feed(args...);
+        netxs::logger::logger::feed(std::forward<Args>(args)...);
     }
 
-    template<typename... Args>
+    template<class ...Args>
     void log(Args&&... args)
     {
-        netxs::logger::logger::feed(args...);
+        netxs::logger::logger::feed(std::forward<Args>(args)...);
     }
 
     //todo revise

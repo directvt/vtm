@@ -494,12 +494,12 @@ namespace netxs::ui
         }
         // mold: Create a new item of the specified subtype and attach it
         template<class T, class ...Args>
-        auto attach(Args... args)
+        auto attach(Args&&... args)
         {
             static_assert(std::is_base_of<base, T>::value,
                 "The only a derivative of the «base» class can be attached to the «mold».");
 
-            auto item = base::create<T>(args...);
+            auto item = base::create<T>(std::forward<Args>(args)...);
             client = item;
             auto creator = This();
             item->SIGNAL(e2::release, e2::form::upon::attached, creator);
@@ -804,12 +804,12 @@ namespace netxs::ui
         }
         // fork: Create a new item of the specified subtype and attach it to a specified slot
         template<class T, class ...Args>
-        auto attach(slot client_slot, Args... args)
+        auto attach(slot client_slot, Args&&... args)
         {
             static_assert(std::is_base_of<base, T>::value,
                 "The only a derivative of the «base» class can be attached to the «mold».");
 
-            auto item = create<T>(args...);
+            auto item = create<T>(std::forward<Args>(args)...);
             if (client_slot == slot::_1) client_1 = item;
             else                         client_2 = item;
 
@@ -913,12 +913,12 @@ namespace netxs::ui
         }
         // list: Create a new item of the specified subtype and attach it
         template<class T, class ...Args>
-        auto attach(Args... args)
+        auto attach(Args&&... args)
         {
             static_assert(std::is_base_of<base, T>::value,
                 "The only a derivative of the «base» class can be attached to the «mold».");
 
-            auto item = create<T>(args...);
+            auto item = create<T>(std::forward<Args>(args)...);
             clients.push_back({ item, 0 });
             //heights.push_back(0);
 
@@ -989,12 +989,12 @@ namespace netxs::ui
 
         // cake: Create a new item of the specified subtype and attach it
         template<class T, class ...Args>
-        auto attach(Args... args)
+        auto attach(Args&&... args)
         {
             static_assert(std::is_base_of<base, T>::value,
                 "The only a derivative of the «base» class can be attached to the «mold».");
 
-            auto item = create<T>(args...);
+            auto item = create<T>(std::forward<Args>(args)...);
             clients.push_back(item);
 
             auto creator = This();
@@ -1452,12 +1452,12 @@ namespace netxs::ui
         }
         // rail: Create a new item of the specified subtype and attach it
         template<class T, class ...Args>
-        auto attach(Args... args)
+        auto attach(Args&&... args)
         {
             static_assert(std::is_base_of<base, T>::value,
                 "The only a derivative of the «base» class can be attached to the «mold».");
 
-            auto item = create<T>(args...);
+            auto item = create<T>(std::forward<Args>(args)...);
             client = item;
 
             tokens.clear();
@@ -2471,12 +2471,12 @@ namespace netxs::ui
 
         // stem_bsu: Create a new item of the specified subtype and attach it.
         template<class T, class ...Args>
-        auto attach(Args... args)
+        auto attach(Args&&... args)
         {
             static_assert(std::is_base_of<base, T>::value,
                 "The only a derivative of the «base» class can be attached to the «mold».");
 
-            auto item = base::create<T>(args...);
+            auto item = base::create<T>(std::forward<Args>(args)...);
             clients.push_back(item);
             auto root = This();
             item->SIGNAL(e2::release, e2::form::upon::attached, root);

@@ -3278,9 +3278,9 @@ namespace netxs::console
             // scene: Create a new item of the specified subtype
             //        and attach it to the scene.
             template<class S, class ...Args>
-            auto attach(Args... args)
+            auto attach(Args&&... args)
             {
-                auto item = boss.indexer<bell>::create<S>(args...);
+                auto item = boss.indexer<bell>::create<S>(std::forward<Args>(args)...);
                 items.append(item);
                 auto creator = boss.base::This();
                 item->SIGNAL(e2::release, e2::form::upon::attached, creator);
@@ -3289,9 +3289,9 @@ namespace netxs::console
             // scene: Create a new user of the specified subtype
             //        and invite him to the scene.
             template<class S, class ...Args>
-            auto invite(Args... args)
+            auto invite(Args&&... args)
             {
-                auto user = boss.indexer<bell>::create<S>(args...);
+                auto user = boss.indexer<bell>::create<S>(std::forward<Args>(args)...);
                 users.append(user);
 
                 auto creator = boss.base::This();
@@ -3624,16 +3624,16 @@ namespace netxs::console
     public:
         // host: Create a new item of the specified subtype and attach it.
         template<class T, class ...Args>
-        auto attach(Args... args)
+        auto attach(Args&&... args)
         {
-            return scene.attach<T>(args...);
+            return scene.attach<T>(std::forward<Args>(args)...);
         }
 
         //todo unify
         template<class T, class ...Args>
-        auto invite(Args... args)
+        auto invite(Args&&... args)
         {
-            return scene.invite<T>(args...);
+            return scene.invite<T>(std::forward<Args>(args)...);
         }
 
     protected:

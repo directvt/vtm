@@ -4,7 +4,7 @@
 #ifndef NETXS_RING_HPP
 #define NETXS_RING_HPP
 
-#include <vector>
+#include <cassert> // ::assert(msg, 0)
 
 #ifndef faux
     #define faux (false)
@@ -15,149 +15,245 @@ namespace netxs::generics
     template<class T>
     struct ring
     {
-        using buff = std::vector<T>;
+        using heap = T;
+        using type = typename T::value_type;
         using iota = int32_t;
 
-        struct iter
-        {
+        // []
+        // addr = addr < 0 ? addr % peak + peak
+        //                 : addr % peak;
+        // inc()
+        // addr = (addr + 1) % peak;
+        // dec()
+        // addr = (addr + peak - 1) % peak;
+        auto mod(iota  addr) const
+        { 
+            return addr < 0 ? addr % peak + peak
+                            : addr % peak;
+        }
+        void inc(iota& addr)       { if (++addr == peak) addr = 0;        }
+        void dec(iota& addr)       { if (--addr < 0)     addr = peak - 1; }
+        auto get(iota  addr) const { return mod(head + addr); }
 
+        class iter
+        {
+            friend struct ring;
+        protected:
+            ring& buff;
+            iota  addr;
+            iter(ring& buff, iota addr)
+              : buff{ buff },
+                addr{ addr }
+            { }
+
+        public:
+            auto operator + (int n)
+            {
+                return iter{ buff, addr + n };
+            }
+            auto operator - (int n)
+            {
+                return iter{ buff, addr - n };
+            }
+            auto operator - (iter const& r)
+            {
+                return addr - r.addr;
+            }
+            auto operator ++ (int) // Postfix++
+            {
+                return iter{ buff, addr++ };
+            }
+            auto& operator ++ () // ++Prefix
+            {
+                ++addr;
+                return *this;
+            }
+            auto operator -- (int) // Postfix--
+            {
+                return iter{ buff, addr-- };
+            }
+            auto& operator -- () // --Prefix
+            {
+                --addr;
+                return *this;
+            }
+            auto& operator * ()
+            {
+                return buff[addr];
+            }
+            auto operator -> ()
+            {
+                return &(buff[addr]);
+            }
+            //auto get_addr() const
+            //{
+            //    return buff.get(addr);
+            //}
+            auto operator != (iter const& m) const
+            {
+                assert(&buff == &m.buff);
+                return addr != m.addr;
+            }
+            auto operator == (iter const& m) const
+            {
+                assert(&buff == &m.buff);
+                return addr == m.addr;
+            }
         };
 
-        buff batch; // ring: Inner container
-        iota limit; // ring: Limit of the ring buffer (-1: unlimited)
-        iota count; // ring: Elements count
-        iota start; // ring: Ring head
-        iota finis; // ring: Ring tail
+        heap buff; // ring: Inner container
+        iota peak; // ring: Limit of the ring buffer (-1: unlimited)
+        iota size; // ring: Elements count
+        iota head; // ring: Ring head
+        iota tail; // ring: Ring tail
 
-        ring(iota limit = -1)
-            : limit{ limit }
-        { }
-
-        // []
-        // addr = addr < 0 ? addr % size + size
-        //                 : addr % size;
-        // inc()
-        // addr = (addr + 1) % size;
-        // dec()
-        // addr = (addr + size - 1) % size;
+        //ring(iota limit = -1)
+        ring(iota limit = 30)
+            : peak{ limit },
+              size{ 0     },
+              head{ 0     },
+              tail{ 0     }
+        {
+            buff.resize(limit);
+        }
 
         // ring: count()/size()/length()
-        auto size() const
+        auto length() const
         {
-
+            return size;
         }
         // ring: begin()
         auto begin()
         {
-
+            return iter{ *this, 0 };
         }
         // ring: begin() const
-        auto begin() const
-        {
-
-        }
+            //auto begin() const
+            //{
+            //
+            //}
         // ring: end()
         auto end()
         {
-
+            return iter{ *this, size };
         }
         // ring: end() const
-        auto end() const
-        {
-
-        }
+            //auto end() const
+            //{
+            //
+            //}
         // ring: operator[]
-        auto& operator[] (size_t n)
+        auto& operator[] (iota addr)
         {
-
+            return buff[mod(head + addr)];
         }
         // ring: operator[] const
-        auto& operator[] (size_t n) const
-        {
-
-        }
+            //auto& operator[] (iota n) const
+            //{
+            //
+            //}
         // ring: back()
         auto& back()
         {
-            
+            return buff[mod(tail - 1)];
         }
         // ring: back() const
-        auto& back() const
-        {
-
-        }
+            //auto& back() const
+            //{
+            //
+            //}
         // ring: front()
         auto& front()
         {
-            
+            return buff[head];
         }
         // ring: front() const
-        auto& front() const
-        {
-
-        }
+            //auto& front() const
+            //{
+            //
+            //}
         // ring: push_back() move
-        void push_back(T&& a)
+        void push_back(type&& a)
         {
-
+            inc(tail);
+            if (size != peak) ++size;
+            else              inc(head);
+            back() = a;
         }
         // ring: push_back() copy
-        void push_back(T const& a)
-        {
-
-        }
+            //void push_back(type const& a)
+            //{
+            //
+            //}
         // ring: push_front() move
-        void push_front(T&& a)
+        void push_front(type&& a)
         {
-            
+            dec(head);
+            if (size != peak) ++size;
+            else              dec(tail);
+            front() = a;
         }
         // ring: push_front() copy
-        void push_front(T const& a)
-        {
-
-        }
+            //void push_front(type const& a)
+            //{
+            //
+            //}
         // ring: pop_back()
         void pop_back()
         {
-
+            if(size>0){
+            assert(size > 0);
+            dec(tail);
+            --size;
+            }
         }
         // ring: pop_front()
         void pop_front()
         {
-            
+            if(size>0){
+            assert(size > 0);
+            inc(head);
+            --size;
+            }
         }
         // ring: emplace_back()
         template<class... Args>
         void emplace_back(Args&&... args)
         {
-
+            push_back(type(std::forward<Args>(args)...));
         }
         // ring: emplace_front()
         template<class... Args>
         void emplace_front(Args&&... args)
         {
-
+            push_front(type(std::forward<Args>(args)...));
         }
         // ring: clear()
         void clear()
         {
-
+            size = 0;
+            head = 0;
+            tail = 0;
         }
         // ring: resize()
-        void resize(size_t newsize)
-        {
-            
-        }
+            //void resize(size_t newsize)
+            //{
+            //    buff.resize(newsize);
+            //    peak = newsize;
+            //    //...
+            //    //head = std::clamp(head, ...);
+            //    //tail = std::clamp(tail, ...);
+            //}
         // ring: erase()
-        auto erase(iter const& pos)
-        {
-
-        }
+            //auto erase(iter const& pos)
+            //{
+            //
+            //}
         // ring: erase()
-        auto erase(iter const& first, iter const& last) // [first, last) -> last/end()
-        {
-
-        }
+            //auto erase(iter const& first, iter const& last) // [first, last) -> last/end()
+            //{
+            //
+            //}
     };
 }
 
