@@ -27,7 +27,7 @@ namespace netxs::ui
         twod const& panel; // rods: Viewport
         side&       upset; // rods: Viewport oversize
         //todo move count to ring
-        iota        count; // rods: Scrollback height (& =batch.size())
+        //iota        count; // rods: Scrollback height (& =batch.size())
         twod        coord; // rods: Actual caret position
         iota        basis; // rods: Index of O(0, 0)
         iota        caret; // rods: Active insertion point index (not id)
@@ -41,18 +41,19 @@ namespace netxs::ui
         bool caret_visible = faux;
 
         rods(twod& anker, side& oversize, twod const& viewport)
-            : flow { viewport.x, count /*use count from batch*/       },
+            : flow { viewport.x, batch.length() },
               //batch{ para{}                   },
               panel{ viewport                 },
               upset{ oversize                 },
-              count{ 1                        },
+              //count{ 1                        },
               basis{ 0                        },
               caret{ 0                        },
               sctop{ 0                        },
               scend{ 0                        }
         {
             style.glb();
-            batch.push_back(para{});
+            //batch.push_back(para{});
+            batch.push();
         }
         auto line_height(para const& l)
         {
@@ -77,6 +78,10 @@ namespace netxs::ui
         {
             return sctop || scend;
         }
+        void clear_regions()
+        {
+            sctop = scend = 0;
+        }
         auto inside_scroll_region()
         {
             auto[top, end] = get_scroll_limits();
@@ -84,22 +89,20 @@ namespace netxs::ui
         }
         void align_basis()
         {
-            auto new_basis = count - panel.y;
+            auto new_basis = batch.length() - panel.y;
             if (new_basis > basis) basis = new_basis; // Move basis down if scrollback grows
         }
         void add_lines(iota amount)
         {
             assert(amount > 0);
             auto newid = batch.back().selfid;
-            count += amount;
-            while(amount-- > 0 ) batch.emplace_back(++newid, style);
+            while(amount-- > 0 ) batch.push(++newid, style);
             align_basis();
         }
         void del_lines(iota erase_count)
         {
-            assert(erase_count >= 0 && erase_count < count);
-            count -= erase_count;
-            while(erase_count--) batch.pop_back();
+            assert(erase_count >= 0 && erase_count < batch.length());
+            while(erase_count--) batch.pop();
         }
         auto get_line_index_by_id(iota id)
         {
@@ -114,9 +117,9 @@ namespace netxs::ui
 
             auto& cur_state = batch[caret];
             //brush = cur_state.brush;
-            if (new_coord.y > count - 1) // Add new lines
+            if (new_coord.y > batch.length() - 1) // Add new lines
             {
-                auto add_count = new_coord.y - (count - 1);
+                auto add_count = new_coord.y - (batch.length() - 1);
                 add_lines(add_count);
             }
             auto& new_line = batch[new_coord.y];
@@ -157,7 +160,7 @@ namespace netxs::ui
 
             if (new_height > old_height)
             {
-                auto overflow = caret + new_height - count;
+                auto overflow = caret + new_height - batch.length();
                 if (overflow > 0)
                 {
                     add_lines(overflow);
@@ -226,13 +229,21 @@ namespace netxs::ui
             if (!preserve_brush) brush.reset();
             style.glb();
             basis = 0;
-            count = 0;
+            //count = 0;
             caret = 0;
             upset.set(0);
             batch.clear();
-            batch.emplace_back(0);
-            count++;
+            batch.push(0);
+            //count++;
             align_basis();
+        }
+        void resize(iota newsize)
+        {
+            batch.resize(newsize);
+            clear_regions();
+            align_basis();
+            //todo revise caret positioning
+            if (caret >= newsize) caret = newsize - 1;
         }
         auto cp()
         {
@@ -253,7 +264,7 @@ namespace netxs::ui
             // Output lines in backward order from bottom to top
             auto head = batch.begin();
             auto tail = batch.end();
-            auto coor = twod{ 0, count };
+            auto coor = twod{ 0, batch.length() };
             while(tail != head)
             {
                 auto& line = *--tail;
@@ -273,9 +284,9 @@ namespace netxs::ui
                       -std::min(0, cover.t),
                        0);
 
-            if (cover.height() >= count) // All visible lines must exist (including blank lines under wrapped lines)
+            if (cover.height() >= batch.length()) // All visible lines must exist (including blank lines under wrapped lines)
             {
-                auto delta = cover.height() - (count - 1);
+                auto delta = cover.height() - (batch.length() - 1);
                 add_lines(delta);
             }
             
@@ -289,10 +300,10 @@ namespace netxs::ui
             auto scroll_height = cover.height() + 1;
             return twod{ panel.x, scroll_height };
         }
-        auto height() const
-        {
-            return count;
-        }
+        //auto& height() const
+        //{
+        //    return batch.length();
+        //}
         void height(iota limits)
         {
             //todo resize ring buffer
@@ -309,7 +320,7 @@ namespace netxs::ui
             }
             auto erase_count = static_cast<iota>(tail - iter);
             del_lines(erase_count);
-            if (caret >= count) caret = count - 1;
+            if (caret >= batch.length()) caret = batch.length() - 1;
         }
         // rods: Cut all lines above and current line
         void cut_above()
@@ -333,7 +344,7 @@ namespace netxs::ui
         {
             //todo revise (bug)
             auto tail = batch.end();
-            auto head = tail - (count - get_line_index_by_id(top_id));
+            auto head = tail - (batch.length() - get_line_index_by_id(top_id));
             do
             {
                 auto& line =*--tail;
@@ -642,7 +653,7 @@ namespace netxs::ui
                 if (cur_line.busy())
                 {
                     add_lines(1);
-                    caret = count - 1;
+                    caret = batch.length() - 1;
                 } 
                 batch[caret].locus.push(cmd);
             }
@@ -680,9 +691,9 @@ namespace netxs::ui
                 auto scroll_end_index = rods::basis + end;
                 auto bossid = batch[scroll_top_index].bossid;
                 auto height = end - top + 1;
-                if (scroll_end_index >= count)
+                if (scroll_end_index >= batch.length())
                 {
-                    auto delta = scroll_end_index - (count - 1);
+                    auto delta = scroll_end_index - (batch.length() - 1);
                     rods::add_lines(delta);
                 }
                 if (n > 0) // Scroll down (move text down)
@@ -1049,7 +1060,7 @@ namespace netxs::ui
                 {
                     case commands::erase::display::below: // n = 0(default)  Erase viewport after caret.
                         cut_above(); // Cut all lines above and current line
-                        del_lines(count - (caret + 1)); // Remove all lines below
+                        del_lines(batch.length() - (caret + 1)); // Remove all lines below
                         break;
                     case commands::erase::display::above: // n = 1  Erase viewport before caret.
                     {
@@ -1463,7 +1474,8 @@ namespace netxs::ui
                     viewport.size = new_size;
                     if (target == &altbuf)
                     {
-                        altbuf.ed(commands::erase::display::scrollback);
+                        //altbuf.ed(commands::erase::display::scrollback);
+                        altbuf.resize(new_size.y);
                     }
                     else
                     {

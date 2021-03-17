@@ -26,14 +26,6 @@ namespace netxs::generics
         // addr = (addr + 1) % peak;
         // dec()
         // addr = (addr + peak - 1) % peak;
-        auto mod(iota  addr) const
-        { 
-            return addr < 0 ? addr % peak + peak
-                            : addr % peak;
-        }
-        void inc(iota& addr)       { if (++addr == peak) addr = 0;        }
-        void dec(iota& addr)       { if (--addr < 0)     addr = peak - 1; }
-        auto get(iota  addr) const { return mod(head + addr); }
 
         class iter
         {
@@ -47,49 +39,16 @@ namespace netxs::generics
             { }
 
         public:
-            auto operator + (int n)
-            {
-                return iter{ buff, addr + n };
-            }
-            auto operator - (int n)
-            {
-                return iter{ buff, addr - n };
-            }
-            auto operator - (iter const& r)
-            {
-                return addr - r.addr;
-            }
-            auto operator ++ (int) // Postfix++
-            {
-                return iter{ buff, addr++ };
-            }
-            auto& operator ++ () // ++Prefix
-            {
-                ++addr;
-                return *this;
-            }
-            auto operator -- (int) // Postfix--
-            {
-                return iter{ buff, addr-- };
-            }
-            auto& operator -- () // --Prefix
-            {
-                --addr;
-                return *this;
-            }
-            auto& operator * ()
-            {
-                return buff[addr];
-            }
-            auto operator -> ()
-            {
-                return &(buff[addr]);
-            }
-            //auto get_addr() const
-            //{
-            //    return buff.get(addr);
-            //}
-            auto operator != (iter const& m) const
+            auto  operator -  (iter const& r) { return addr - r.addr;          }
+            auto  operator -  (int n)         { return iter{ buff, addr - n }; }
+            auto  operator +  (int n)         { return iter{ buff, addr + n }; }
+            auto  operator ++ (int)           { return iter{ buff, addr++   }; }
+            auto  operator -- (int)           { return iter{ buff, addr--   }; }
+            auto& operator ++ ()              { ++addr; return *this;          }
+            auto& operator -- ()              { --addr; return *this;          }
+            auto& operator *  ()              { return   buff[addr];           }
+            auto  operator -> ()              { return &(buff[addr]);          }
+            auto  operator != (iter const& m) const
             {
                 assert(&buff == &m.buff);
                 return addr != m.addr;
@@ -104,154 +63,75 @@ namespace netxs::generics
         heap buff; // ring: Inner container
         iota peak; // ring: Limit of the ring buffer (-1: unlimited)
         iota size; // ring: Elements count
-        iota head; // ring: Ring head
-        iota tail; // ring: Ring tail
+        iota head; // ring: head
+        iota tail; // ring: back
 
         //ring(iota limit = -1)
-        ring(iota limit = 10000)
-            : peak{ limit },
-              size{ 0     },
-              head{ 0     },
-              tail{ 0     }
+        ring(iota peak = 30)
+            : peak{ peak     },
+              size{ 0        },
+              head{ 0        },
+              tail{ peak - 1 }
         {
-            buff.resize(limit);
+            buff.resize(peak);
         }
 
-        // ring: count()/size()/length()
-        auto length() const
-        {
-            return size;
-        }
-        // ring: begin()
-        auto begin()
-        {
-            return iter{ *this, 0 };
-        }
-        // ring: begin() const
-            //auto begin() const
-            //{
-            //
-            //}
-        // ring: end()
-        auto end()
-        {
-            return iter{ *this, size };
-        }
-        // ring: end() const
-            //auto end() const
-            //{
-            //
-            //}
-        // ring: operator[]
-        auto& operator[] (iota addr)
-        {
-            return buff[mod(head + addr)];
-        }
-        // ring: operator[] const
-            //auto& operator[] (iota n) const
-            //{
-            //
-            //}
-        // ring: back()
-        auto& back()
-        {
-            return buff[mod(tail - 1)];
-        }
-        // ring: back() const
-            //auto& back() const
-            //{
-            //
-            //}
-        // ring: front()
-        auto& front()
-        {
-            return buff[head];
-        }
-        // ring: front() const
-            //auto& front() const
-            //{
-            //
-            //}
-        // ring: push_back() move
-        void push_back(type&& a)
+        void inc(iota& a)         { if (++a == peak) a = 0;        }
+        void dec(iota& a)         { if (--a < 0)     a = peak - 1; }
+        auto mod(iota  a) const   { return a < 0 ? a % peak + peak
+                                                 : a % peak;       }
+        auto  begin()             { return iter{ *this, 0    };    }
+        auto  end()               { return iter{ *this, size };    }
+        auto& operator[] (iota i) { return buff[mod(head + i)];    }
+        //auto& back()              { return buff[mod(tail - 1)];    }
+        auto& back()              { return buff[tail];             }
+        auto& front()             { return buff[head];             }
+        auto& length() const      { return size;                   }
+        template<class ...Args>
+        auto& push(Args&&... args)
         {
             inc(tail);
             if (size != peak) ++size;
             else              inc(head);
-            back() = std::move(a);
+            auto& item = back();
+            item = type(std::forward<Args>(args)...);
+            return item;
         }
-        // ring: push_back() copy
-            //void push_back(type const& a)
-            //{
-            //
-            //}
-        // ring: push_front() move
-        void push_front(type&& a)
-        {
-            dec(head);
-            if (size != peak) ++size;
-            else              dec(tail);
-            front() = std::move(a);
-        }
-        // ring: push_front() copy
-            //void push_front(type const& a)
-            //{
-            //
-            //}
-        // ring: pop_back()
-        void pop_back()
+        void pop()
         {
             assert(size > 0);
             back() = type{};
             dec(tail);
             --size;
         }
-        // ring: pop_front()
-        void pop_front()
-        {
-            assert(size > 0);
-            front() = type{};
-            inc(head);
-            --size;
-        }
-        // ring: emplace_back()
-        template<class... Args>
-        void emplace_back(Args&&... args)
-        {
-            push_back(type(std::forward<Args>(args)...));
-        }
-        // ring: emplace_front()
-        template<class... Args>
-        void emplace_front(Args&&... args)
-        {
-            push_front(type(std::forward<Args>(args)...));
-        }
-        // ring: clear()
         void clear()
         {
-            while(size) pop_back();
+            while(size) pop();
             head = 0;
-            tail = 0;
+            tail = peak - 1;
         }
-        // ring: resize()
-            //void resize(size_t newsize)
-            //{
-            //    buff.resize(newsize);
-            //    peak = newsize;
-            //    //...
-            //    //head = std::clamp(head, ...);
-            //    //tail = std::clamp(tail, ...);
-            //}
-        // ring: erase()
-            //auto erase(iter const& pos)
-            //{
-            //
-            //}
-        // ring: erase()
-            //auto erase(iter const& first, iter const& last) // [first, last) -> last/end()
-            //{
-            //
-            //}
+        void resize(iota newsize)
+        {
+            heap temp;
+            temp.reserve(newsize);
+            if (size > newsize)
+            {
+                auto diff = size - newsize;
+                head = mod(head + diff);
+                size = newsize;
+            }
+            auto i = size;
+            while(i--)
+            {
+                temp.emplace_back(std::move(front()));
+                inc(head);
+            }
+            temp.resize(newsize);
+            std::swap(buff, temp);
+            peak = newsize;
+            head = 0;
+            tail = size ? size - 1 : peak - 1;
+        }
     };
 }
 
