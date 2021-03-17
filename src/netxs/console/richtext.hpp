@@ -707,6 +707,17 @@ namespace netxs::console
             caretpos = caretsav;
             pagerect.coor = pagecopy.coor;
         }
+        auto get_state()
+        {
+            return std::tuple<deco,twod,twod>{ *this, caretpos, pagerect.coor };
+        }
+        template<class S>
+        auto set_state(S const& state)
+        {
+            deco::set(      std::get<0>(state));
+            caretpos      = std::get<1>(state);
+            pagerect.coor = std::get<2>(state);
+        }
         void reset(twod const& offset = dot_00) // flow: Reset flow state
         {
             flow::zz(offset);
@@ -882,7 +893,8 @@ namespace netxs::console
             width = 0;
             caret = 0;
             brush.reset(c);
-            style.rst();
+            //todo revise
+            //style.rst();
             debug.clear();
             proto.clear();
             locus.kill();

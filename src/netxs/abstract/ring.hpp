@@ -108,7 +108,7 @@ namespace netxs::generics
         iota tail; // ring: Ring tail
 
         //ring(iota limit = -1)
-        ring(iota limit = 30)
+        ring(iota limit = 10000)
             : peak{ limit },
               size{ 0     },
               head{ 0     },

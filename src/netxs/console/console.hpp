@@ -2618,8 +2618,7 @@ namespace netxs::console
                 stress = cell{}.fgc(whitelt);
                 alerts = cell{}.fgc(rgba{ 0xFFd0d0FFu });
 
-                //status.end().locus.wrp(true).rlf(true).jet(bias::left).cup(dot_00).cnl(2);
-                status.current().style.wrp(wrap::on).jet(bias::left).rlf(feed::rev);
+                status.style.wrp(wrap::on).jet(bias::left).rlf(feed::rev);
                 status.current().locus.cup(dot_00).cnl(2);
 
                 auto maxlen = 0_sz;
@@ -2649,7 +2648,6 @@ namespace netxs::console
                         utf::format(track.totals) + " bytes";
 
                     track.number++;
-
                     canvas.output(status);
                 };
 
@@ -2689,10 +2687,7 @@ namespace netxs::console
                 {
                     if (bypass) return;
                     shadow();
-                    //auto& mouse = gear.mouse;
-                    hids::mouse& m = gear;
-                    auto& k = gear;
-
+                    auto& m = gear;
                     status[prop::last_event].set(stress) = "mouse";
                     status[prop::mouse_pos ].set(stress) =
                         (m.coord.x < 10000 ? std::to_string(m.coord.x) : "-") + " : " +
@@ -2704,21 +2699,17 @@ namespace netxs::console
 
                         state = m.button[btn].pressed ? "pressed" : "";
                         if (m.button[btn].flipped)
-                        {
                             state += state.length() ? " | flipped" : "flipped";
-                        }
+
                         if (m.button[btn].dragged)
-                        {
                             state += state.length() ? " | dragged" : "dragged";
-                        }
+
                         state += state.length() ? "" : "idle";
                     }
-
                     status[prop::mouse_wheeldt].set(stress) = std::to_string(m.whldt);
                     status[prop::mouse_hzwheel].set(stress) = m.hzwhl ? "active" : "idle";
                     status[prop::mouse_vtwheel].set(stress) = m.wheel ? "active" : "idle";
-
-                    status[prop::ctrl_state].set(stress) = "0x" + utf::to_hex(k.meta());
+                    status[prop::ctrl_state   ].set(stress) = "0x" + utf::to_hex(m.meta());
                 };
 
                 //boss.SUBMIT_T(e2::release, e2::term::menu, memo, iface)
@@ -2728,39 +2719,26 @@ namespace netxs::console
                 //	status[prop::menu_id].set(stress) = "UI:" + std::to_string(iface);
                 //};
 
-                //boss.SUBMIT_T(e2::preview, e2::hids::keybd::any, memo, gear)
                 boss.SUBMIT_T(e2::release, e2::term::key, memo, gear)
                 {
                     shadow();
-                    //hids::keybd& k = gear;
-                    //status[prop::last_event]   .set(stress) = "key";
-                    //status[prop::key_pressed]  .set(stress) = k.down ? "pressed" : "idle";
-                    //status[prop::key_repeat]   .set(stress) = std::to_string(k.repeatcount);
-                    //status[prop::ctrl_state]   .set(stress) = "0x" + utf::to_hex(k.ctlstate);
-                    //status[prop::key_code]     .set(stress) = "0x" + utf::to_hex(k.virtcode);
-                    //status[prop::key_scancode] .set(stress) = "0x" + utf::to_hex(k.scancode);
-                    //status[prop::key_character].set(stress) = "0x" + utf::to_hex(k.character);
-
                     auto& k = gear;
 #ifdef KEYLOG
                     log("debug fired ", k.character);
 #endif
-                    status[prop::last_event]   .set(stress) = "key";
-                    status[prop::key_pressed]  .set(stress) = k.down ? "pressed" : "idle";
-                    //status[prop::key_repeat]   .set(stress) = std::to_string(k.repeatcount);
-                    status[prop::ctrl_state]   .set(stress) = "0x" + utf::to_hex(k.ctlstate);
-                    status[prop::key_code]     .set(stress) = "0x" + utf::to_hex(k.virtcode);
-                    status[prop::key_scancode] .set(stress) = "0x" + utf::to_hex(k.scancode);
+                    status[prop::last_event   ].set(stress) = "key";
+                    status[prop::key_pressed  ].set(stress) = k.down ? "pressed" : "idle";
+                    status[prop::ctrl_state   ].set(stress) = "0x" + utf::to_hex(k.ctlstate );
+                    status[prop::key_code     ].set(stress) = "0x" + utf::to_hex(k.virtcode );
+                    status[prop::key_scancode ].set(stress) = "0x" + utf::to_hex(k.scancode );
                     status[prop::key_character].set(stress) = "0x" + utf::to_hex(k.character);
+                    //status[prop::key_repeat   ].set(stress) = std::to_string(k.repeatcount);
 
                     if (!k.character && k.textline.length())
                     {
-                        //status[prop::key_character].set(stress) = "0x" + utf::to_hex(k.textline.back());
-
                         auto t = k.textline;
                         for (auto i = 0; i < 0x20; i++)
                         {
-                            //utf::change(t, text{ (char)i }, utf::to_utf_from_code(i + 0x2420));
                             utf::change(t, text{ (char)i }, "^" + utf::to_utf_from_code(i + 0x40));
                         }
                         utf::change(t, text{ (char)0x7f }, "\\x7F");
