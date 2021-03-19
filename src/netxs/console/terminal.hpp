@@ -12,7 +12,7 @@
 
 namespace netxs::ui
 {
-    class rods // terminal: scrollback/altbuf internals v2
+    class rods // terminal: scrollback/altbuf internals
         : public flow
     {
     protected:
@@ -25,7 +25,6 @@ namespace netxs::ui
         side&       upset; // rods: Viewport oversize
         twod        coord; // rods: Actual caret position
         iota        basis; // rods: Index of O(0, 0)
-        //iota        caret; // rods: Active insertion point index (not id)
         iota        sctop; // rods: Scrolling region top;    1-based, "0" to use top of viewport
         iota        scend; // rods: Scrolling region bottom; 1-based, "0" to use bottom of viewport
 
@@ -37,16 +36,17 @@ namespace netxs::ui
 
         rods(side& oversize, twod const& viewport)
             : flow { viewport.x, batch.length() },
-              panel{ viewport                 },
-              upset{ oversize                 },
-              basis{ 0                        },
-              //caret{ 0                        },
-              sctop{ 0                        },
-              scend{ 0                        }
+              panel{ viewport                   },
+              upset{ oversize                   },
+              basis{ 0                          },
+              sctop{ 0                          },
+              scend{ 0                          }
         {
             style.glb();
             batch.push();
         }
+        auto& height() const      { return batch.length(); }
+        void  height(iota limits) { batch.resize(limits);  }
         auto line_height(para const& l)
         {
             if (l.style.wrapln == wrap::on)
@@ -106,15 +106,12 @@ namespace netxs::ui
             new_coord.y = std::max(new_coord.y, min_y);
             coord = new_coord;
             new_coord.y += basis; // set coord inside batch
-
-            //auto& cur_state = batch[caret];
-            auto& cur_state = *batch;
             if (new_coord.y > batch.length() - 1) // Add new lines
             {
                 auto add_count = new_coord.y - (batch.length() - 1);
                 add_lines(add_count);
             }
-            new_coord.y = std::min(new_coord.y, batch.length() - 1);
+            new_coord.y = std::min(new_coord.y, batch.length() - 1); // The batch can remain the same size (cuz ring)
             auto& new_line = batch[new_coord.y];
             auto index = get_line_index_by_id(new_line.selfid); // current index inside batch
             if (new_line.selfid != new_line.bossid) // bossid always less or eq selfid
@@ -124,11 +121,8 @@ namespace netxs::ui
                 new_coord.x += delta * panel.x;
                 //todo implement checking hit by x
             }
-            //caret = index;
             batch.set(index);
-            //auto& cur_line = batch[caret];
-            auto& cur_line = *batch;
-            cur_line.chx(new_coord.x);
+            batch->chx(new_coord.x);
             //todo implement the case when the coord is set to the outside viewport
             //     after the right side: disable wrapping (on overlapped line too)
             //     before the left side: disable wrapping + bias::right (on overlapped line too)
@@ -142,10 +136,8 @@ namespace netxs::ui
             if (from < upto) while(proc(*head) && head++ != tail);
             else             while(proc(*head) && head-- != tail);
         }
-
         void finalize()
         {
-            //auto& cur_line1 = batch[caret];
             auto& cur_line1 = *batch;
             auto myid = cur_line1.selfid;
             cur_line1.style = style;
@@ -196,7 +188,6 @@ namespace netxs::ui
                 });
             }
 
-            //auto& cur_line3 = batch[caret];
             auto& cur_line3 = *batch;
             auto pos = twod{ cur_line3.chx(), caret - basis };
             if (cur_line3.style.wrapln == wrap::on)
@@ -224,25 +215,22 @@ namespace netxs::ui
             if (!preserve_brush) brush.reset();
             style.glb();
             basis = 0;
-            //caret = 0;
             upset.set(0);
             batch.clear();
             batch.push(0);
             align_basis();
         }
-        void resize(iota newsize)
+        void resize(iota newsize, bool wipe = faux)
         {
+            if (wipe) clear(true);
             batch.resize(newsize);
             clear_regions();
             align_basis();
-            //todo revise caret positioning
-            //if (caret >= newsize) caret = newsize - 1;
         }
         auto cp()
         {
             auto pos = coord;
             pos.y += basis;
-            //if (pos.x == panel.x && batch[caret].style.wrapln == wrap::on)
             if (pos.x == panel.x && batch->style.wrapln == wrap::on)
             {
                 pos.x = 0;
@@ -294,18 +282,9 @@ namespace netxs::ui
             auto scroll_height = cover.height() + 1;
             return twod{ panel.x, scroll_height };
         }
-        //auto& height() const
-        //{
-        //    return batch.length();
-        //}
-        void height(iota limits)
-        {
-            //todo resize ring buffer
-        }
         void remove_empties()
         {
             auto head = batch.begin();
-            //auto tail = std::prev(batch.end()); // Exclude first line
             auto tail = batch.end() - 1; // Exclude first line
             auto iter = tail;
             while(head != iter && iter->length() == 0)
@@ -314,7 +293,6 @@ namespace netxs::ui
             }
             auto erase_count = static_cast<iota>(tail - iter);
             del_lines(erase_count);
-            //if (caret >= batch.length()) caret = batch.length() - 1;
         }
         // rods: Cut all lines above and current line
         void cut_above()
@@ -641,18 +619,14 @@ namespace netxs::ui
             void task(ansi::rule const& cmd)
             {
                 finalize();
-                //auto& cur_line = batch[caret];
                 auto& cur_line = *batch;
                 if (cur_line.busy())
                 {
                     add_lines(1);
-                    //caret = batch.length() - 1;
                     batch.set(batch.length() - 1);
                 } 
-                //batch[caret].locus.push(cmd);
                 batch->locus.push(cmd);
             }
-            //void post(utf::frag const& cluster) { batch[caret].post(cluster, rods::brush); }
             void post(utf::frag const& cluster) { batch->post(cluster, rods::brush); }
             void cook()                         { finalize(); }
 
@@ -677,7 +651,6 @@ namespace netxs::ui
                 }
                 log("CSI ", params, " ", (unsigned char)i, "(", std::to_string(i), ") is not implemented.");
             }
-            //void tab(iota n) { batch[caret].ins(n, rods::brush); }
             void tab(iota n) { batch->ins(n, rods::brush); }
             // wall: CSI n T/S  Scroll down/up, scrolled out lines are lost
             void scl(iota n)
@@ -806,9 +779,9 @@ namespace netxs::ui
                 finalize();
                 if (n > 0)
                 {
-                    auto size   = rods::batch->length();
-                    auto pos    = rods::batch->chx();
-                    auto brush  = rods::brush;
+                    auto size  = batch->length();
+                    auto pos   = batch->chx();
+                    auto brush = rods::brush;
                     brush.txt(whitespace);
                     //todo unify
                     if (pos < size)
@@ -1025,7 +998,6 @@ namespace netxs::ui
                 else
                 {
                     coord.y += n;
-                    log("coord = ", coord, " n=",n);
                     set_coord();
                 }
             }
@@ -1319,8 +1291,7 @@ namespace netxs::ui
                     case 1047: // Use alternate screen buffer
                     case 1049: // Save cursor and Use alternate screen buffer, clearing it first.  This control combines the effects of the 1047 and 1048  modes.
                         target->finalize();
-                        altbuf.clear();
-                        altbuf.resize(viewport.size.y);
+                        altbuf.resize(viewport.size.y, true);
                         target = &altbuf;
                         break;
                     case 2004: // Set bracketed paste mode.
@@ -1475,7 +1446,6 @@ namespace netxs::ui
                     viewport.size = new_size;
                     if (target == &altbuf)
                     {
-                        //altbuf.ed(commands::erase::display::scrollback);
                         altbuf.resize(new_size.y);
                     }
                     else

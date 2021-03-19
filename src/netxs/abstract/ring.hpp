@@ -4,7 +4,7 @@
 #ifndef NETXS_RING_HPP
 #define NETXS_RING_HPP
 
-#include <cassert> // ::assert(msg, 0)
+#include <cassert> // ::assert(bool)
 
 #ifndef faux
     #define faux (false)
@@ -15,7 +15,6 @@ namespace netxs::generics
     template<class T>
     struct ring
     {
-        using heap = T;
         using type = typename T::value_type;
         using iota = int32_t;
 
@@ -27,41 +26,37 @@ namespace netxs::generics
               : buff{ buff },
                 addr{ addr }
             { }
-            auto  operator -  (iter const& r) { return addr - r.addr;          }
-            auto  operator -  (int n)         { return iter{ buff, addr - n }; }
-            auto  operator +  (int n)         { return iter{ buff, addr + n }; }
-            auto  operator ++ (int)           { return iter{ buff, addr++   }; }
-            auto  operator -- (int)           { return iter{ buff, addr--   }; }
-            auto& operator ++ ()              { ++addr; return *this;          }
-            auto& operator -- ()              { --addr; return *this;          }
-            auto& operator *  ()              { return   buff[addr];           }
-            auto  operator -> ()              { return &(buff[addr]);          }
-            auto  operator != (iter const& m) const
-            {
-                assert(&buff == &m.buff);
-                return addr != m.addr;
-            }
-            auto operator == (iter const& m) const
-            {
-                assert(&buff == &m.buff);
-                return addr == m.addr;
-            }
+            auto  operator -  (iter const& r)       { return addr - r.addr;          }
+            auto  operator -  (int n)               { return iter{ buff, addr - n }; }
+            auto  operator +  (int n)               { return iter{ buff, addr + n }; }
+            auto  operator ++ (int)                 { return iter{ buff, addr++   }; }
+            auto  operator -- (int)                 { return iter{ buff, addr--   }; }
+            auto& operator ++ ()                    { ++addr; return *this;          }
+            auto& operator -- ()                    { --addr; return *this;          }
+            auto& operator *  ()                    { return   buff[addr];           }
+            auto  operator -> ()                    { return &(buff[addr]);          }
+            auto  operator != (iter const& m) const { return addr != m.addr;         } // assert(&buff == &m.buff);
+            auto  operator == (iter const& m) const { return addr == m.addr;         } // assert(&buff == &m.buff);
         };
 
-        heap buff; // ring: Inner container
-        iota peak; // ring: Limit of the ring buffer (-1: unlimited)
+        static constexpr iota step = 10000; // ring: Unlimited buffer increment step
+        static constexpr iota mxsz = std::numeric_limits<iota>::max() - step; // ring: Max unlimited buffer size
+
+        T    buff; // ring: Inner container
+        bool flex; // ring: True if unlimited
+        iota peak; // ring: Limit of the ring buffer
         iota size; // ring: Elements count
         iota cart; // ring: Active item position
         iota head; // ring: head
         iota tail; // ring: back
 
-        //ring(iota limit = -1)
-        ring(iota peak = 30)
-            : peak{ peak     },
-              size{ 0        },
-              cart{ 0        },
-              head{ 0        },
-              tail{ peak - 1 }
+        ring(iota limit = 0)
+            : flex{ !limit              },
+              peak{ flex ? step : limit },
+              size{ 0                   },
+              cart{ 0                   },
+              head{ 0                   },
+              tail{ peak - 1            }
         {
             buff.resize(peak);
         }
@@ -78,19 +73,25 @@ namespace netxs::generics
         auto& back()              { return buff[tail];             }
         auto& front()             { return buff[head];             }
         auto& length() const      { return size;                   }
+        auto  full()
+        {
+            if (size == peak)
+            {
+                if (flex && peak < mxsz) resize(peak + step, true);
+                else                     return true;
+            }
+            return faux;
+        }
         template<class ...Args>
         auto& push(Args&&... args)
         {
+            if (full())
+            {
+                if (cart == head) inc(head), cart = head;
+                else              inc(head);
+            }
+            else ++size;
             inc(tail);
-            if (size != peak)
-            {
-                ++size;
-            }
-            else
-            {
-                if (cart == head) inc(cart);
-                inc(head);
-            }
             auto& item = back();
             item = type(std::forward<Args>(args)...);
             return item;
@@ -99,27 +100,27 @@ namespace netxs::generics
         {
             assert(size > 0);
             back() = type{};
-            if (cart == tail) dec(cart);
-            dec(tail);
+            if (cart == tail) dec(tail), cart = tail;
+            else              dec(tail);
             --size;
         }
         void clear()
         {
             while(size) pop();
+            cart = 0;
             head = 0;
             tail = peak - 1;
-            cart = 0;
         }
-        void resize(iota newsize)
+        void resize(iota new_size, bool is_unlimited = faux)
         {
-            heap temp;
-            temp.reserve(newsize);
+            T temp;
+            temp.reserve(new_size);
             auto dist = dst(cart, tail);
-            if (size > newsize)
+            if (size > new_size)
             {
-                auto diff = size - newsize;
+                auto diff = size - new_size;
                 head = mod(head + diff);
-                size = newsize;
+                size = new_size;
             }
             auto i = size;
             while(i--)
@@ -127,10 +128,11 @@ namespace netxs::generics
                 temp.emplace_back(std::move(front()));
                 inc(head);
             }
-            temp.resize(newsize);
+            temp.resize(new_size);
             std::swap(buff, temp);
-            peak = newsize;
+            peak = new_size;
             head = 0;
+            flex = is_unlimited;
             tail = size ? size - 1 : peak - 1;
             cart = size ? std::max(0, tail - dist) : 0;
         }
