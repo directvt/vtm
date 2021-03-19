@@ -19,26 +19,14 @@ namespace netxs::generics
         using type = typename T::value_type;
         using iota = int32_t;
 
-        // []
-        // addr = addr < 0 ? addr % peak + peak
-        //                 : addr % peak;
-        // inc()
-        // addr = (addr + 1) % peak;
-        // dec()
-        // addr = (addr + peak - 1) % peak;
-
-        class iter
+        struct iter
         {
-            friend struct ring;
-        protected:
             ring& buff;
             iota  addr;
             iter(ring& buff, iota addr)
               : buff{ buff },
                 addr{ addr }
             { }
-
-        public:
             auto  operator -  (iter const& r) { return addr - r.addr;          }
             auto  operator -  (int n)         { return iter{ buff, addr - n }; }
             auto  operator +  (int n)         { return iter{ buff, addr + n }; }
@@ -63,6 +51,7 @@ namespace netxs::generics
         heap buff; // ring: Inner container
         iota peak; // ring: Limit of the ring buffer (-1: unlimited)
         iota size; // ring: Elements count
+        iota cart; // ring: Active item position
         iota head; // ring: head
         iota tail; // ring: back
 
@@ -70,20 +59,22 @@ namespace netxs::generics
         ring(iota peak = 30)
             : peak{ peak     },
               size{ 0        },
+              cart{ 0        },
               head{ 0        },
               tail{ peak - 1 }
         {
             buff.resize(peak);
         }
-
-        void inc(iota& a)         { if (++a == peak) a = 0;        }
-        void dec(iota& a)         { if (--a < 0)     a = peak - 1; }
+        void inc(iota& a) const   { if (++a == peak) a = 0;        }
+        void dec(iota& a) const   { if (--a < 0)     a = peak - 1; }
         auto mod(iota  a) const   { return a < 0 ? a % peak + peak
                                                  : a % peak;       }
+        auto dst(iota  a, iota b) const
+                                  { return b < a ? b - a + peak
+                                                 : b - a;          }
         auto  begin()             { return iter{ *this, 0    };    }
         auto  end()               { return iter{ *this, size };    }
         auto& operator[] (iota i) { return buff[mod(head + i)];    }
-        //auto& back()              { return buff[mod(tail - 1)];    }
         auto& back()              { return buff[tail];             }
         auto& front()             { return buff[head];             }
         auto& length() const      { return size;                   }
@@ -91,8 +82,15 @@ namespace netxs::generics
         auto& push(Args&&... args)
         {
             inc(tail);
-            if (size != peak) ++size;
-            else              inc(head);
+            if (size != peak)
+            {
+                ++size;
+            }
+            else
+            {
+                if (cart == head) inc(cart);
+                inc(head);
+            }
             auto& item = back();
             item = type(std::forward<Args>(args)...);
             return item;
@@ -101,6 +99,7 @@ namespace netxs::generics
         {
             assert(size > 0);
             back() = type{};
+            if (cart == tail) dec(cart);
             dec(tail);
             --size;
         }
@@ -109,11 +108,13 @@ namespace netxs::generics
             while(size) pop();
             head = 0;
             tail = peak - 1;
+            cart = 0;
         }
         void resize(iota newsize)
         {
             heap temp;
             temp.reserve(newsize);
+            auto dist = dst(cart, tail);
             if (size > newsize)
             {
                 auto diff = size - newsize;
@@ -131,7 +132,12 @@ namespace netxs::generics
             peak = newsize;
             head = 0;
             tail = size ? size - 1 : peak - 1;
+            cart = size ? std::max(0, tail - dist) : 0;
         }
+        auto& operator  * () { return buff[cart];           }
+        auto  operator -> () { return buff.data() + cart;   }
+        auto  set(iota i)    { return cart = mod(head + i); }
+        auto  get() const    { return dst(head, cart);      }
     };
 }
 
