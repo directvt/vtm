@@ -1291,8 +1291,8 @@ namespace netxs::ui
                     case 1047: // Use alternate screen buffer
                     case 1049: // Save cursor and Use alternate screen buffer, clearing it first.  This control combines the effects of the 1047 and 1048  modes.
                         target->finalize();
-                        altbuf.resize(viewport.size.y, true);
                         target = &altbuf;
+                        altbuf.resize(viewport.size.y, true);
                         break;
                     case 2004: // Set bracketed paste mode.
                         bracketed_paste_mode = true;

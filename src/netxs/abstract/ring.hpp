@@ -60,19 +60,19 @@ namespace netxs::generics
         {
             buff.resize(peak);
         }
-        void inc(iota& a) const   { if (++a == peak) a = 0;        }
-        void dec(iota& a) const   { if (--a < 0)     a = peak - 1; }
-        auto mod(iota  a) const   { return a < 0 ? a % peak + peak
-                                                 : a % peak;       }
+        void inc(iota& a) const   { if  (++a == peak) a = 0;        }
+        void dec(iota& a) const   { if  (--a < 0    ) a = peak - 1; }
+        auto mod(iota  a) const   { return a < 0  ? ++a % peak - 1 + peak
+                                                  :   a % peak;     }
         auto dst(iota  a, iota b) const
                                   { return b < a ? b - a + peak
-                                                 : b - a;          }
-        auto  begin()             { return iter{ *this, 0    };    }
-        auto  end()               { return iter{ *this, size };    }
-        auto& operator[] (iota i) { return buff[mod(head + i)];    }
-        auto& back()              { return buff[tail];             }
-        auto& front()             { return buff[head];             }
-        auto& length() const      { return size;                   }
+                                                 : b - a;           }
+        auto  begin()             { return iter{ *this, 0    };     }
+        auto  end()               { return iter{ *this, size };     }
+        auto& operator[] (iota i) { return buff[mod(head + i)];     }
+        auto& back()              { return buff[tail];              }
+        auto& front()             { return buff[head];              }
+        auto& length() const      { return size;                    }
         auto  full()
         {
             if (size == peak)
@@ -137,7 +137,7 @@ namespace netxs::generics
             cart = size ? std::max(0, tail - dist) : 0;
         }
         auto& operator  * () { return buff[cart];           }
-        auto  operator -> () { return buff.data() + cart;   }
+        auto  operator -> () { return buff.begin() + cart;  }
         auto  set(iota i)    { return cart = mod(head + i); }
         auto  get() const    { return dst(head, cart);      }
     };
