@@ -44,8 +44,8 @@ namespace netxs::ui
         {
             style.glb();
             //todo unify
-            auto max_scrollback_size = 20000;
-            auto grow_step = 0;
+            auto max_scrollback_size = 20000; // 0 - for unlimited (max_int32)
+            auto grow_step = 10000;
             batch.init(max_scrollback_size, grow_step);
             batch.push();
         }
