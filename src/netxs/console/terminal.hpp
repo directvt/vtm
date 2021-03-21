@@ -8,7 +8,7 @@
 #include "../os/system.hpp"
 #include "../abstract/ring.hpp"
 
-#include <cassert> // ::assert(bool)
+#include <cassert>
 
 namespace netxs::ui
 {
@@ -35,18 +35,20 @@ namespace netxs::ui
         bool caret_visible = faux;
 
         rods(side& oversize, twod const& viewport)
-            : flow { viewport.x, batch.length() },
-              panel{ viewport                   },
-              upset{ oversize                   },
-              basis{ 0                          },
-              sctop{ 0                          },
-              scend{ 0                          }
+            : flow { viewport.x, batch.size },
+              panel{ viewport               },
+              upset{ oversize               },
+              basis{ 0                      },
+              sctop{ 0                      },
+              scend{ 0                      }
         {
             style.glb();
+            //todo unify
+            auto max_scrollback_size = 20000;
+            auto grow_step = 0;
+            batch.init(max_scrollback_size, grow_step);
             batch.push();
         }
-        auto& height() const      { return batch.length(); }
-        void  height(iota limits) { batch.resize(limits);  }
         auto line_height(para const& l)
         {
             if (l.style.wrapln == wrap::on)

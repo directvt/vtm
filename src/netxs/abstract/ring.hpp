@@ -4,7 +4,7 @@
 #ifndef NETXS_RING_HPP
 #define NETXS_RING_HPP
 
-#include <cassert> // ::assert(bool)
+#include <cassert>
 
 #ifndef faux
     #define faux (false)
@@ -39,9 +39,6 @@ namespace netxs::generics
             auto  operator == (iter const& m) const { return addr == m.addr;         } // assert(&buff == &m.buff);
         };
 
-        static constexpr iota step = 10000; // ring: Unlimited buffer increment step
-        static constexpr iota mxsz = std::numeric_limits<iota>::max() - step; // ring: Max unlimited buffer size
-
         T    buff; // ring: Inner container
         bool flex; // ring: True if unlimited
         iota peak; // ring: Limit of the ring buffer
@@ -49,16 +46,21 @@ namespace netxs::generics
         iota cart; // ring: Active item position
         iota head; // ring: head
         iota tail; // ring: back
+        iota step; // ring: Unlimited buffer increment step
+        iota mxsz; // ring: Max unlimited buffer size
 
-        ring(iota limit = 0)
-            : flex{ !limit              },
-              peak{ flex ? step : limit },
-              size{ 0                   },
-              cart{ 0                   },
-              head{ 0                   },
-              tail{ peak - 1            }
+        void init(iota ring_size = 0, iota grow_by = 2)
         {
+            assert(ring_size >= 0 && grow_by >= 0);
+            flex = !ring_size;
+            step = grow_by;
+            peak = flex ? step : ring_size;
+            size = 0;
+            cart = 0;
+            head = 0;
+            tail = peak - 1;
             buff.resize(peak);
+            mxsz = std::numeric_limits<iota>::max() - step;
         }
         void inc(iota& a) const   { if  (++a == peak) a = 0;        }
         void dec(iota& a) const   { if  (--a < 0    ) a = peak - 1; }
@@ -113,28 +115,32 @@ namespace netxs::generics
         }
         void resize(iota new_size, bool is_unlimited = faux)
         {
-            T temp;
-            temp.reserve(new_size);
-            auto dist = dst(cart, tail);
-            if (size > new_size)
+            if (new_size > 0)
             {
-                auto diff = size - new_size;
-                head = mod(head + diff);
-                size = new_size;
+                T temp;
+                temp.reserve(new_size);
+                auto dist = dst(cart, tail);
+                if (size > new_size)
+                {
+                    auto diff = size - new_size;
+                    head = mod(head + diff);
+                    size = new_size;
+                }
+                auto i = size;
+                while(i--)
+                {
+                    temp.emplace_back(std::move(front()));
+                    inc(head);
+                }
+                temp.resize(new_size);
+                std::swap(buff, temp);
+                peak = new_size;
+                head = 0;
+                flex = is_unlimited;
+                tail = size ? size - 1 : peak - 1;
+                cart = size ? std::max(0, tail - dist) : 0;
             }
-            auto i = size;
-            while(i--)
-            {
-                temp.emplace_back(std::move(front()));
-                inc(head);
-            }
-            temp.resize(new_size);
-            std::swap(buff, temp);
-            peak = new_size;
-            head = 0;
-            flex = is_unlimited;
-            tail = size ? size - 1 : peak - 1;
-            cart = size ? std::max(0, tail - dist) : 0;
+            else flex = true;
         }
         auto& operator  * () { return buff[cart];           }
         auto  operator -> () { return buff.begin() + cart;  }

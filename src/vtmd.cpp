@@ -10,7 +10,7 @@
 //#define WRAPPING (wrap::off)
 
 // Enable to show debug overlay
-//#define DEBUG_OVERLAY
+#define DEBUG_OVERLAY
 
 // Enable to show all terminal input (keyboard/mouse etc)
 //#define KEYLOG
@@ -178,6 +178,9 @@ std::list<text> appstore_body =
 
     item("Clip", bluedk, "1", "Free ", "Get",
     "Clipboard manager. "),
+
+    item("Info", cyandk, "1", "Free ", "Get",
+    "Software documentation browser. "),
 };
 
 text qr = ""s//"\033[38;2;000;000;000m\033[48;2;000;000;000m"s
