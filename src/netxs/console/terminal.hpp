@@ -93,10 +93,10 @@ namespace netxs::ui
             while(amount-- > 0 ) batch.push(++newid, style);
             align_basis();
         }
-        void del_lines(iota erase_count)
+        void del_lines(iota amount)
         {
-            assert(erase_count >= 0 && erase_count < batch.length());
-            while(erase_count--) batch.pop();
+            assert(amount >= 0 && amount < batch.length());
+            while(amount--) batch.pop();
         }
         auto get_line_index_by_id(iota id)
         {

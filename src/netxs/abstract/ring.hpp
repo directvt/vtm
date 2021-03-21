@@ -35,8 +35,8 @@ namespace netxs::generics
             auto& operator -- ()                    { --addr; return *this;          }
             auto& operator *  ()                    { return   buff[addr];           }
             auto  operator -> ()                    { return &(buff[addr]);          }
-            auto  operator != (iter const& m) const { return addr != m.addr;         } // assert(&buff == &m.buff);
-            auto  operator == (iter const& m) const { return addr == m.addr;         } // assert(&buff == &m.buff);
+            auto  operator != (iter const& m) const { return addr != m.addr;         }
+            auto  operator == (iter const& m) const { return addr == m.addr;         }
         };
 
         T    buff; // ring: Inner container
