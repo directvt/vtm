@@ -181,6 +181,9 @@ std::list<text> appstore_body =
 
     item("Info", cyandk, "1", "Free ", "Get",
     "Software documentation browser. "),
+
+    item("Hood", reddk, "1", "Free ", "Get",
+    "Desktop environment settings. "),
 };
 
 text qr = ""s//"\033[38;2;000;000;000m\033[48;2;000;000;000m"s

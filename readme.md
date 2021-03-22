@@ -77,24 +77,25 @@ double `LeftClick`    | Window: Maximize/restore
 
 - `▀▄ Term` Terminal emulator
 - `▀▄ Logs` Debugging tool for monitoring applications' output in real time
+- `▀▄ Task` Task manager (desktopio) _(not ready)_
+- `▀▄ Hood` Desktop environment settings _(not ready)_
 - `▀▄ Info` Software documentation browser _(not ready)_
 - `▀▄ Shop` A digital distribution platform _(not ready)_
 - `▀▄ Text` A simple text editor _(not ready)_
 - `▀▄ Calc` A simple spreadsheet program like VisiCalc or Lotus 1-2-3 _(not ready)_
-- `▀▄ Clip` Clipboard manager _(not ready)_
 - `▀▄ Draw` ANSI-artworks application _(not ready)_
-- `▀▄ Task` Task manager (desktopio) _(not ready)_
-- `▀▄ Char` Unicode code points browser _(not ready)_
 - `▀▄ File` An orthodox file manager _(not ready)_
-- `▀▄ Time` A calendar application _(not ready)_
 - `▀▄ Goto` Internet/SSH browser _(not ready)_
+- `▀▄ Clip` Clipboard manager _(not ready)_
+- `▀▄ Char` Unicode code points browser _(not ready)_
+- `▀▄ Time` A calendar application _(not ready)_
 - `▀▄ Game` Doom-II _(not ready)_
 
 <details><summary>show details...</summary><p>
 
 - `▀▄ Term`
    - TrueColor/256-color support
-   - Auto-wrap mode `DECAWM`
+   - Auto-wrap mode `DECAWM` (horizontal scrolling)
    - Focus tracking `DECSET 1004`
    - Bracketed paste mode `DECSET 2004`
    - SGR attributes: overline, double underline, strikethrough
@@ -105,6 +106,9 @@ double `LeftClick`    | Window: Maximize/restore
 
 - `▀▄ Logs`
   - Reset by double `RightClick`
+
+- `▀▄ Hood`
+  - ...
 
 - `▀▄ Info`
   - ...
