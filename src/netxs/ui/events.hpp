@@ -450,7 +450,7 @@ namespace netxs::ui
                     any = form::_prop,
                     header      = any | (1 << _level1), // set the form caption header (arg: text)
                     footer      = any | (2 << _level1), // set the form caption footer (arg: text)
-                    params      = any | (3 << _level1), // set the form caption params (arg: text)
+                    //params      = any | (3 << _level1), // set the form caption params (arg: text)
             };};
             //struct mouse { enum : type {
             //		any = form::_mouse,
@@ -564,7 +564,7 @@ namespace netxs::ui
         };
 
         template <typename F>
-        using hndl = std::function<void(F&)>;
+        using hndl = std::function<void(F&&)>;
         using hook =             sptr<handler>;
         using list = std::list  <wptr<handler>>;
         using vect = std::vector<wptr<handler>>;
@@ -638,7 +638,7 @@ namespace netxs::ui
         // reactor: Thread-safe invoke an event handler.
         //          Return number of active handlers.
         template<class F>
-        auto notify(hint e, F& args)
+        auto notify(hint e, F&& args)
         {
             e2::sync lock;
 
@@ -677,9 +677,10 @@ namespace netxs::ui
                 {
                     if (auto proc_ptr = qcopy[iter].lock())
                     {
-                        if (auto compatible = dynamic_cast<wrapper<F>*>(proc_ptr.get()))
+                        //if (auto compatible = dynamic_cast<wrapper<F>*>(proc_ptr.get()))
+                        if (auto compatible = static_cast<wrapper<F>*>(proc_ptr.get()))
                         {
-                            compatible->proc(args);
+                            compatible->proc(std::forward<F>(args));
                         }
                     }
                 };
@@ -698,9 +699,9 @@ namespace netxs::ui
         // reactor: Thread-safe invoke an event handler.
         //          Return number of active handlers.
         template<class F>
-        auto operator()(hint e, F& args)
+        auto operator()(hint e, F&& args)
         {
-            return notify(e, args);
+            return notify(e, std::forward<F>(args));
         }
         // reactor: Interrupt current event branch.
         void discontinue()
@@ -761,17 +762,17 @@ namespace netxs::ui
         }
         // indexer: Create a new object of the specified subtype and return its shared_ptr.
         template<class TT, class ...Args>
-        static auto create(Args... args)
+        static auto create(Args&&... args)
         {
             struct make_shared_enabler : public TT
             {
-                make_shared_enabler(Args... args)
-                    : TT{ args... }
+                make_shared_enabler(Args&&... args)
+                    : TT{ std::forward<Args>(args)... }
                 { }
             };
 
             e2::sync lock;
-            sptr<TT> inst = std::make_shared<make_shared_enabler>(args...);
+            sptr<TT> inst = std::make_shared<make_shared_enabler>(std::forward<Args>(args)...);
             inst->_actuate(inst);
 
             //todo move to the bell
@@ -798,10 +799,10 @@ namespace netxs::ui
         {
             static reactor general; // bell: Ext link static.
         };
-        reactor& general;                   // bell: Global  events node relay.
-        reactor  preview{reactor::reverse}; // bell: Preview events node relay.
-        reactor  request{reactor::forward}; // bell: Request events node relay.
-        reactor  release{reactor::forward}; // bell: Release events node relay.
+        reactor& general;                     // bell: Global  events node relay.
+        reactor  preview{ reactor::reverse }; // bell: Preview events node relay.
+        reactor  request{ reactor::forward }; // bell: Request events node relay.
+        reactor  release{ reactor::forward }; // bell: Release events node relay.
 
         //todo simplify the request reactor. remove the map.
         struct
@@ -814,7 +815,7 @@ namespace netxs::ui
             }
 
             template<class REACTOR, class EVENTS, class F>
-            void operator()(REACTOR& r, EVENTS e, std::function<void(F&)> h)
+            void operator()(REACTOR& r, EVENTS e, std::function<void(F&&)> h)
             {
                 tokens.push_back(r.subscribe(e, h));
             }
@@ -868,7 +869,7 @@ namespace netxs::ui
             template<class F>
             void operator=(F h)
             {
-                auto handler = std::function<void(typename EVENT::param&)>{ h };
+                auto handler = std::function<void(typename EVENT::param &&)>{ h };
                 token = _globals<void>::general.subscribe(EVENT::cause, handler);
             }
         };
@@ -887,21 +888,21 @@ namespace netxs::ui
         // bell: Subscribe on a specified event
         //       of specified reaction node by defining an event
         //       handler. Return a lambda reference helper.
-        template<class EVENT>//, class F>
-        auto submit2(e2::tier level)//, F&)
+        template<class EVENT>
+        auto submit2(e2::tier level)
         {
             return submit_helper<EVENT>(*this, level);
         }
         //  bell: Subscribe on a specified event
         //        of specified reaction node by defining an event
         //        handler and token. Return a lambda reference helper.
-        template<class EVENT>//, class F>
-        auto submit2(e2::tier level, hook& token)//, F&)
+        template<class EVENT>
+        auto submit2(e2::tier level, hook& token)
         {
             return submit_helper_token<EVENT>(*this, level, token);
         }
-        template<class EVENT>//, class F>
-        auto submit2(e2::tier level, subs& tokens)//, F&)
+        template<class EVENT>
+        auto submit2(e2::tier level, subs& tokens)
         {
             return submit_helper_token<EVENT>(*this, level, tokens.extra());
         }
@@ -909,22 +910,14 @@ namespace netxs::ui
         // bell: Subscribe to an specified event on specified
         //       reaction node by defining an event handler.
         template<class EVENT>
-        void submit(e2::tier level, std::function<void(typename EVENT::param &)> handler)
+        void submit(e2::tier level, std::function<void(typename EVENT::param &&)> handler)
         {
             switch (level)
             {
-                case e2::tier::release:
-                    tracker(release, EVENT::cause, handler);
-                    break;
-                case e2::tier::preview:
-                    tracker(preview, EVENT::cause, handler);
-                    break;
-                case e2::tier::general:
-                    tracker(general, EVENT::cause, handler);
-                    break;
-                case e2::tier::request:
-                    tracker(request, EVENT::cause, handler);
-                    break;
+                case e2::tier::release: tracker(release, EVENT::cause, handler); break;
+                case e2::tier::preview: tracker(preview, EVENT::cause, handler); break;
+                case e2::tier::general: tracker(general, EVENT::cause, handler); break;
+                case e2::tier::request: tracker(request, EVENT::cause, handler); break;
                 default:
                     break;
             }
@@ -934,22 +927,14 @@ namespace netxs::ui
         //       an event handler, and store the subscription
         //       in the specified token.
         template<class EVENT>
-        void submit(e2::tier level, hook& token, std::function<void(typename EVENT::param &)> handler)
+        void submit(e2::tier level, hook& token, std::function<void(typename EVENT::param &&)> handler)
         {
             switch (level)
             {
-                case e2::tier::release:
-                    token = release.subscribe(EVENT::cause, handler);
-                    break;
-                case e2::tier::preview:
-                    token = preview.subscribe(EVENT::cause, handler);
-                    break;
-                case e2::tier::general:
-                    token = general.subscribe(EVENT::cause, handler);
-                    break;
-                case e2::tier::request:
-                    token = request.subscribe(EVENT::cause, handler);
-                    break;
+                case e2::tier::release: token = release.subscribe(EVENT::cause, handler); break;
+                case e2::tier::preview: token = preview.subscribe(EVENT::cause, handler); break;
+                case e2::tier::general: token = general.subscribe(EVENT::cause, handler); break;
+                case e2::tier::request: token = request.subscribe(EVENT::cause, handler); break;
                 default:
                     break;
             }
@@ -991,22 +976,14 @@ namespace netxs::ui
         //todo used only with indexer::create
         // bell: Rise specified evench execution branch on the specified relay node.
         template<class F>
-        void signal_direct(e2::tier level, e2::type action, F& data)
+        void signal_direct(e2::tier level, e2::type action, F&& data)
         {
             switch (level)
             {
-                case e2::tier::release:
-                    release(action, data);
-                    break;
-                case e2::tier::preview:
-                    preview(action, data);
-                    break;
-                case e2::tier::general:
-                    general(action, data);
-                    break;
-                case e2::tier::request:
-                    request(action, data);
-                    break;
+                case e2::tier::release: release(action, std::forward<F>(data)); break;
+                case e2::tier::preview: preview(action, std::forward<F>(data)); break;
+                case e2::tier::general: general(action, std::forward<F>(data)); break;
+                case e2::tier::request: request(action, std::forward<F>(data)); break;
                 default:
                     break;
             }
@@ -1014,27 +991,23 @@ namespace netxs::ui
         // bell: Rise specified event execution branch on the specified relay node.
         //       Return number of active handlers.
         template<e2::tier TIER, class F>
-        auto signal(e2::type action, F& data)
+        auto signal(e2::type action, F&& data)
         {
             switch (TIER)
             {
-                case e2::tier::release:
-                    return release(action, data);
-                case e2::tier::preview:
-                    return preview(action, data);
-                case e2::tier::general:
-                    return general(action, data);
-                case e2::tier::request:
-                    return request(action, data);
+                case e2::tier::release: return release(action, std::forward<F>(data));
+                case e2::tier::preview: return preview(action, std::forward<F>(data));
+                case e2::tier::general: return general(action, std::forward<F>(data));
+                case e2::tier::request: return request(action, std::forward<F>(data));
                 default:
                     return 0_sz;
             }
         }
         // bell: Rise specified event globally.
         template<class F>
-        static auto signal_global(e2::type action, F& data)
+        static auto signal_global(e2::type action, F&& data)
         {
-            return _globals<void>::general(action, data);
+            return _globals<void>::general(action, std::forward<F>(data));
         }
         // bell: Save up external subscription token.
         void saveup(hook& token)
@@ -1075,14 +1048,10 @@ namespace netxs::ui
         {
             switch (level)
             {
-                case e2::tier::release:
-                    return release;
-                case e2::tier::preview:
-                    return preview;
-                case e2::tier::general:
-                    return general;
-                case e2::tier::request:
-                    return request;
+                case e2::tier::release: return release;
+                case e2::tier::preview: return preview;
+                case e2::tier::general: return general;
+                case e2::tier::request: return request;
                 default:
                     break;
             }
@@ -1093,18 +1062,10 @@ namespace netxs::ui
         {
             switch (level)
             {
-                case e2::tier::release:
-                    release.discontinue();
-                    break;
-                case e2::tier::preview:
-                    preview.discontinue();
-                    break;
-                case e2::tier::general:
-                    general.discontinue();
-                    break;
-                case e2::tier::request:
-                    request.discontinue();
-                    break;
+                case e2::tier::release: release.discontinue(); break;
+                case e2::tier::preview: preview.discontinue(); break;
+                case e2::tier::general: general.discontinue(); break;
+                case e2::tier::request: request.discontinue(); break;
                 default:
                     break;
             }
@@ -1125,59 +1086,54 @@ namespace netxs::ui
     template<e2::type T> \
     struct type_clue {};
 
-    #define EVENT_BIND(event_item, param_type)        \
-    template<>                                        \
-    struct type_clue<event_item>                      \
-    {                                                 \
-        using                     param = param_type; \
-        static constexpr e2::type cause = event_item; \
+    #define EVENT_BIND(item, item_t)              \
+    template<>                                    \
+    struct type_clue<item>                        \
+    {                                             \
+        using                     param = item_t; \
+        static constexpr e2::type cause = item;   \
     };
 
-    #define EVENT_SAME(event_master, event_item)                          \
-    template<>                                                            \
-    struct type_clue<event_item>                                          \
-    {                                                                     \
-        using                     param = type_clue<event_master>::param; \
-        static constexpr e2::type cause = event_item;                     \
+    #define EVENT_SAME(master, item)                                \
+    template<>                                                      \
+    struct type_clue<item>                                          \
+    {                                                               \
+        using                     param = type_clue<master>::param; \
+        static constexpr e2::type cause = item;                     \
     };
 
-    #define ARGTYPE(event_item) typename type_clue<event_item>::param
+    #define ARGTYPE(item) typename type_clue<item>::param
 
     // Usage: SUBMIT(tier, item, arg) { ...expression; };
-    #define SUBMIT(event_level, event_item, event_arg) \
-        bell::template submit2<type_clue<event_item>>(event_level) \
-            = [&] (ARGTYPE(event_item)& event_arg)
+    #define SUBMIT(level, item, arg) \
+        bell::template submit2<type_clue<item>>(level) = [&] (ARGTYPE(item)&& arg)
 
     // Usage: SUBMIT_BYVAL(tier, item, arg) { ...expression; };
-    #define SUBMIT_BYVAL(event_level, event_item, event_arg) \
-        bell::template submit2<type_clue<event_item>>(event_level) \
-            = [=] (ARGTYPE(event_item)& event_arg)
+    #define SUBMIT_BYVAL(level, item, arg) \
+        bell::template submit2<type_clue<item>>(level) = [=] (ARGTYPE(item)&& arg)
 
-    // Usage: SUBMIT_BYVAL_T(tier, item, event_token, arg) { ...expression; };
-    #define SUBMIT_BYVAL_T(event_level, event_item, event_token, event_arg) \
-        bell::template submit2<type_clue<event_item>>(event_level, event_token) \
-            = [=] (ARGTYPE(event_item)& event_arg)
+    // Usage: SUBMIT_BYVAL_T(tier, item, token, arg) { ...expression; };
+    #define SUBMIT_BYVAL_T(level, item, token, arg) \
+        bell::template submit2<type_clue<item>>(level, token) = [=] (ARGTYPE(item)&& arg)
 
-    #define SUBMIT_V(event_level, event_item, event_hndl) \
-        bell::template submit<type_clue<event_item>>(event_level, event_hndl)
+    #define SUBMIT_V(level, item, hndl) \
+        bell::template submit<type_clue<item>>(level, hndl)
 
-    #define SUBMIT_TV(event_level, event_item, event_token, event_hndl) \
-        bell::template submit<type_clue<event_item>>(event_level, event_token, event_hndl)
+    #define SUBMIT_TV(level, item, token, hndl) \
+        bell::template submit<type_clue<item>>(level, token, hndl)
 
     // Usage: SUBMIT_BYVAL(tier, item, token/tokens, arg) { ...expression; };
-    #define SUBMIT_T(event_level, event_item, event_token, event_arg) \
-        bell::template submit2<type_clue<event_item>>(event_level, event_token) \
-            = [&] (ARGTYPE(event_item)& event_arg)
+    #define SUBMIT_T(level, item, token, arg) \
+        bell::template submit2<type_clue<item>>(level, token) = [&] (ARGTYPE(item)&& arg)
 
-    #define SIGNAL(event_level, event_item, event_arg) \
-        bell::template signal<event_level>(event_item, static_cast<ARGTYPE(event_item) &>(event_arg))
+    #define SIGNAL(level, item, arg) \
+        bell::template signal<level>(item, static_cast<ARGTYPE(item)&&>(arg))
 
-    #define SIGNAL_GLOBAL(event_item, event_arg) \
-        bell::template signal_global(event_item, static_cast<ARGTYPE(event_item) &>(event_arg))
+    #define SIGNAL_GLOBAL(item, arg) \
+        bell::template signal_global(item, static_cast<ARGTYPE(item)&&>(arg))
 
-    #define SUBMIT_GLOBAL(event_item, event_token, event_arg) \
-        bell::template submit_global<type_clue<event_item>>(event_token) \
-            = [&] (ARGTYPE(event_item)& event_arg)
+    #define SUBMIT_GLOBAL(item, token, arg) \
+        bell::template submit_global<type_clue<item>>(token) = [&] (ARGTYPE(item)&& arg)
 }
 
 #endif // NETXS_EVENTS_HPP

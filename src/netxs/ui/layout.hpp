@@ -5,9 +5,18 @@
 #define NETXS_LAYOUT_HPP
 
 #include "../abstract/duplet.hpp"
+#include "../abstract/hash.hpp"
+#include "../text/utf.hpp"
+#include "events.hpp"
+
+#include <cstring> // std::memcpy
 
 namespace netxs::ui
 {
+    using utf::text;
+    using utf::view;
+    using id_t = bell::id_t;
+
     static const char whitespace = 0x20;
     //static const char whitespace = '.';
 
@@ -100,14 +109,14 @@ namespace netxs::ui
         {
             token = 0;
         }
-        // rgba: Set the color to opaque black.
+        // rgba: Set color to opaque black.
         void rst()
         {
             static constexpr uint32_t colorblack = 0xFF000000;
 
             token = colorblack;
         }
-        // rgba: Are the colors alpha blenable? </summary>
+        // rgba: Are the colors alpha blenable?
         bool is_alpha_blendable() const
         {
             if (chan.a && chan.a != 0xFF)
@@ -116,12 +125,12 @@ namespace netxs::ui
             }
             return faux;
         }
-        // rgba: Set the alpha channel.
+        // rgba: Set alpha channel.
         void alpha(uint8_t k)
         {
             chan.a = k;
         }
-        // rgba: Return the alpha channel.
+        // rgba: Return alpha channel.
         uint8_t alpha() const
         {
             return chan.a;
@@ -268,12 +277,12 @@ namespace netxs::ui
                 chan.b = chan.b > 0xFF - k ? 0xFF : chan.b + k;
             }
         }
-        // rgba: Invert color.
+        // rgba: Invert the color.
         void invert()
         {
             token = (token & 0xFF000000) | ~(token & 0x00FFFFFF);
         }
-        // rgba: Serialize color.
+        // rgba: Serialize the color.
         auto str() const
         {
             return "{" + std::to_string(chan.r) + ","
@@ -424,10 +433,617 @@ namespace netxs::ui
         }
     };
 
-    enum bias
+    class cell // layout: Enriched grapheme cluster.
     {
-        left, right, center,
+    public:
+        using bitstate = unsigned char;
+
+    private:
+        template<class V = void> // Use template in order to define statics in the header file.
+        union glyf
+        {
+            struct mode
+            {
+                unsigned char count : CLUSTER_FIELD_SIZE; // grapheme cluster length (utf-8 encoded) (max GRAPHEME_CLUSTER_LIMIT)
+                //todo unify with CFA https://gitlab.freedesktop.org/terminal-wg/specifications/-/issues/23
+                unsigned char width : WCWIDTH_FIELD_SIZE; // 0: non-printing, 1: narrow, 2: wide:left_part, 3: wide:right_part  // 2: wide, 3: three-cell width
+                unsigned char jumbo : 1;                  // grapheme cluster length overflow bit
+            };
+
+            // there is no need to reset/clear/flush the map because
+            // count of different grapheme clusters is finite
+            static constexpr size_t         limit = sizeof(uint64_t);
+            static std::hash<view>          coder;
+            static text                     empty;
+            static std::map<uint64_t, text> jumbo;
+
+            uint64_t                        token;
+            mode                            state;
+            char                            glyph[limit];
+
+            constexpr glyf()
+                : token(0)
+            { }
+
+            constexpr glyf(glyf const& c)
+                : token(c.token)
+            { }
+
+            glyf (char c)
+                : token(0)
+            {
+                set(c);
+            }
+
+            glyf (glyf const& c, view const& utf8, size_t width)
+                : token(c.token)
+            {
+                set(utf8, width);
+            }
+
+            bool operator == (glyf const& c) const
+            {
+                return token == c.token;
+            }
+
+            // Check grapheme clusters equality.
+            bool same(glyf const& c) const
+            {
+                //auto mask = ~(decltype(token))0xFF;
+                //return (token >> sizeof(mode)) == c.token >> sizeof(mode);
+                return (token >> 8) == (c.token >> 8);
+            }
+
+            void wipe()
+            {
+                token = 0;
+            }
+
+            /*
+            *   Width property
+            *       W   Wide                    ┌-------------------------------┐
+            *       Na  Narrow                  |   Narrow      ┌-------------------------------┐
+            *       F   Fullwidth, Em wide      |┌-------------┐|               |   Wide        |
+            *       H   Halfwidth, 1/2 Em wide  ||  Halfwidth  ||   Ambiguous	|┌-------------┐|
+            *       A   Ambiguous               |└-------------┘|               ||  Fullwidth  ||
+            *       N   Neutral =Not East Asian └---------------|---------------┘└-------------┘|
+            *                                                   └-------------------------------┘
+            *   This width takes on either of 𝐭𝐰𝐨 𝐯𝐚𝐥𝐮𝐞𝐬: 𝐧𝐚𝐫𝐫𝐨𝐰 or 𝐰𝐢𝐝𝐞. (UAX TR11)
+            *   For any given operation, these six default property values resolve into
+            *   only two property values, narrow and wide, depending on context.
+            *
+            *   width := {0 - nonprintable | 1 - Halfwidth(Narrow) | 2 - Fullwidth(Wide) }
+            *
+            *   ! Unicode Variation Selector 16 (U+FE0F) makes the character it combines with double-width.
+            *
+            *   The 0xfe0f character is "variation selector 16" that says "show the emoji version of
+            *   the previous character" and 0xfe0e is "variation selector 15" to say "show the non-emoji
+            *   version of the previous character"
+            */
+
+            void set(char c)
+            {
+                token       = 0;
+                state.width = 1;
+                state.count = 1;
+                glyph[1]    = c;
+            }
+            void set(view const& utf8, size_t cwidth)
+            {
+                auto count = utf8.size();
+                if (count >= limit)
+                {
+                    token = coder(utf8);
+                    state.jumbo = true;
+                    state.width = cwidth;
+                    jumbo.insert(std::pair{ token, utf8 }); // silently ignore if it exists
+                }
+                else
+                {
+                    token = 0;
+                    state.count = count;
+                    state.width = cwidth;
+                    std::memcpy(glyph + 1, utf8.data(), count);
+                }
+            }
+            void set(view const& utf8)
+            {
+                auto cluster = utf::letter(utf8);
+                set(cluster.text, cluster.attr.wcwidth);
+            }
+            view get() const
+            {
+                if (state.jumbo)
+                {
+                    return netxs::get_or(jumbo, token, empty);
+                }
+                else
+                {
+                    return view{ glyph + 1, state.count };
+                }
+            }
+            void rst()
+            {
+                set(whitespace);
+            }
+        };
+        union body
+        {
+            // there are no applicable rich text formatting attributes due to their gradual nature
+            // e.g.: the degree of thickness or italiciety/oblique varies from 0 to 255, etc.,
+            // and should not be represented as a flag
+            //
+            // In Chinese, the underline/underscore is a punctuation mark for proper names
+            // and should never be used for emphasis
+            //
+            // weigth := 0..255
+            // italic := 0..255
+            //
+
+            uint32_t token;
+
+            struct
+            {
+                union
+                {
+                    bitstate token;
+                    struct
+                    {
+                        bitstate bolded : 1;
+                        bitstate italic : 1;
+                        bitstate unline : 2; // 0: no underline, 1 - single, 2 - double underline
+                        bitstate invert : 1;
+                        bitstate overln : 1;
+                        bitstate strike : 1;
+                        bitstate r_to_l : 1;
+                    } var;
+                } shared;
+
+                union
+                {
+                    bitstate token;
+                    struct
+                    {
+                        bitstate hyphen : 1;
+                        bitstate fnappl : 1;
+                        bitstate itimes : 1;
+                        bitstate isepar : 1;
+                        bitstate inplus : 1;
+                        bitstate zwnbsp : 1;
+                        //todo use these bits as a underline variator
+                        bitstate render : 2; // reserved
+                    } var;
+
+                } unique;
+            }
+            param;
+
+            constexpr body ()
+                : token(0)
+            { }
+
+            constexpr body (body const& b)
+                : token(b.token)
+            { }
+
+            bool operator == (body const& b) const
+            {
+                return token == b.token;
+                // sizeof(*this);
+                // sizeof(param.shared.var);
+                // sizeof(param.unique.var);
+            }
+            bool operator != (body const& b) const
+            {
+                return !operator == (b);
+            }
+            bool like(body const& b) const
+            {
+                return param.shared.token == b.param.shared.token;
+            }
+            template<class T>
+            void get(body& base, T& dest) const
+            {
+                if (!like(base))
+                {
+                    auto& cvar =      param.shared.var;
+                    auto& bvar = base.param.shared.var;
+                    if (cvar.bolded != bvar.bolded)
+                    {
+                        dest.bld(cvar.bolded);
+                    }
+                    if (cvar.italic != bvar.italic)
+                    {
+                        dest.itc(cvar.italic);
+                    }
+                    if (cvar.unline != bvar.unline)
+                    {
+                        dest.und(cvar.unline);
+                    }
+                    if (cvar.invert != bvar.invert)
+                    {
+                        dest.inv(cvar.invert);
+                    }
+                    if (cvar.strike != bvar.strike)
+                    {
+                        dest.stk(cvar.strike);
+                    }
+                    if (cvar.overln != bvar.overln)
+                    {
+                        dest.ovr(cvar.overln);
+                    }
+                    if (cvar.r_to_l != bvar.r_to_l)
+                    {
+                        //todo implement RTL
+                    }
+
+                    bvar = cvar;
+                }
+            }
+            void wipe()
+            {
+                token = 0;
+            }
+
+            void bld (bool b) { param.shared.var.bolded = b; }
+            void itc (bool b) { param.shared.var.italic = b; }
+            void und (iota n) { param.shared.var.unline = n; }
+            void inv (bool b) { param.shared.var.invert = b; }
+            void ovr (bool b) { param.shared.var.overln = b; }
+            void stk (bool b) { param.shared.var.strike = b; }
+            void rtl (bool b) { param.shared.var.r_to_l = b; }
+            void vis (iota l) { param.unique.var.render = l; }
+
+            bool bld () const { return param.shared.var.bolded; }
+            bool itc () const { return param.shared.var.italic; }
+            iota und () const { return param.shared.var.unline; }
+            bool inv () const { return param.shared.var.invert; }
+            bool ovr () const { return param.shared.var.overln; }
+            bool stk () const { return param.shared.var.strike; }
+            bool rtl () const { return param.shared.var.r_to_l; }
+            iota vis () const { return param.unique.var.render; }
+        };
+        struct clrs
+        {
+            // Concept of using default colors:
+            //  if alpha is set to zero, then underlaid color should be used
+
+            rgba bg;
+            rgba fg;
+
+            constexpr clrs ()
+                : bg{}, fg{}
+            { }
+
+            constexpr clrs (clrs const& c)
+                : bg{ c.bg }, fg{ c.fg }
+            { }
+
+            bool operator == (clrs const& c) const
+            {
+                return bg == c.bg && fg == c.fg;
+                //sizeof(*this);
+            }
+            bool operator != (clrs const& c) const
+            {
+                return !operator == (c);
+            }
+
+            template<class T>
+            void get(clrs& base, T& dest)	const
+            {
+                if (bg != base.bg)
+                {
+                    base.bg = bg;
+                    dest.bgc(bg);
+                }
+                if (fg != base.fg)
+                {
+                    base.fg = fg;
+                    dest.fgc(fg);
+                }
+            }
+            void wipe()
+            {
+                bg.wipe();
+                fg.wipe();
+            }
+        };
+
+        clrs       uv;     // 8U, cell: RGBA color
+        glyf<void> gc;     // 8U, cell: Grapheme cluster
+        body       st;     // 4U, cell: Style attributes
+        id_t       id = 0; // 4U, cell: Link ID
+        id_t       rsrvd0; // 4U, cell: pad, the size should be a power of 2
+        id_t       rsrvd1; // 4U, cell: pad, the size should be a power of 2
+
+    public:
+        cell() = default;
+
+        cell(char c)
+            : gc{ c }
+        {
+            // sizeof(glyf<void>);
+            // sizeof(clrs);
+            // sizeof(body);
+            // sizeof(id_t);
+            // sizeof(id_t);
+            // sizeof(cell);
+        }
+
+        cell(view chr)
+        {
+            gc.set(chr);
+        }
+
+        cell(cell const& base)
+            : uv{ base.uv },
+              gc{ base.gc },
+              st{ base.st },
+              id{ base.id }
+        { }
+
+        cell(cell const& base, view const& cluster, size_t wcwidth)
+            : uv{ base.uv },
+              st{ base.st },
+              id{ base.id },
+              gc{ base.gc, cluster, wcwidth }
+        { }
+
+        cell(cell const& base, char c)
+            : uv{ base.uv },
+              st{ base.st },
+              id{ base.id },
+              gc{ c }
+        { }
+
+        bool operator == (cell const& c) const
+        {
+            return uv == c.uv
+                && st == c.st
+                && gc == c.gc;
+        }
+        bool operator != (cell const& c) const
+        {
+            return !operator == (c);
+        }
+        auto& operator = (cell const& c)
+        {
+            uv = c.uv;
+            gc = c.gc;
+            st = c.st;
+            id = c.id;
+            return *this;
+        }
+
+        operator bool() const { return wdt(); } // cell: Is the cell not transparent?
+
+        bool like(cell const& c) const // cell: Precise comparisons of the two cells.
+        {
+            return uv == c.uv
+                && st.like(c.st);
+        }
+        void wipe() // cell: Set colors, attributes and grapheme cluster to zero.
+        {
+            uv.wipe();
+            gc.wipe();
+            st.wipe();
+        }
+        cell const&	data() const{ return *this;} // cell: Return the const reference of the base cell.
+
+        // cell: Merge the two cells according to visibility and other attributes.
+        inline void fuse(cell const& c)
+        {
+            //if (c.uv.fg.chan.a) uv.fg = c.uv.fg;
+            ////uv.param.fg.mix(c.uv.param.fg);
+
+            if (uv.fg.chan.a == 0xFF) uv.fg.mix_one(c.uv.fg);
+            else                      uv.fg.mix(c.uv.fg);
+
+            if (uv.bg.chan.a == 0xFF) uv.bg.mix_one(c.uv.bg);
+            else                      uv.bg.mix(c.uv.bg);
+
+            st = c.st;
+            if (c.wdt()) gc = c.gc;
+        }
+        // cell: Mix colors using alpha and copy grapheme cluster if it's exist.
+        //void mix_colors	(cell const& c)
+        //{
+        //	uv.param.fg.mix_alpha(c.fgc());
+        //	uv.param.bg.mix_alpha(c.bgc());
+        //	if (c.wdt())
+        //	{
+        //		gc = c.gc;
+        //	}
+        //}
+        // cell: Merge the two cells and update ID with COOR.
+        void fuse(cell const& c, id_t oid)//, twod const& pos)
+        {
+            fuse(c);
+            id = oid;
+        }
+        // cell: Merge the two cells and update ID with COOR.
+        void fusefull(cell const& c)
+        {
+            fuse(c);
+            if (c.id) id = c.id;
+            //pg = c.pg;
+
+            //mark paragraphs
+            //if (c.pg) uv.param.bg.channel.blue = 0xff;
+        }
+        void meta(cell const& c)
+        {
+            uv = c.uv;
+            st = c.st;
+        }
+        // cell: Get differences of the visual attributes only (ANSI CSI/SGR format).
+        template<class T>
+        void scan_attr(cell& base, T& dest) const
+        {
+            if (!like(base))
+            {
+                //todo additionally consider UNIQUE ATTRIBUTES
+                uv.get(base.uv, dest);
+                st.get(base.st, dest);
+            }
+        }
+        // cell: Get differences (ANSI CSI/SGR format) of "base" and add it to "dest" and update the "base".
+        template<class T>
+        void scan(cell& base, T& dest) const
+        {
+            if (!like(base))
+            {
+                //todo additionally consider UNIQUE ATTRIBUTES
+                uv.get(base.uv, dest);
+                st.get(base.st, dest);
+            }
+
+            if (wdt()) dest += gc.get();
+            else       dest += whitespace;
+        }
+        // cell: !!! Ensure that this.wdt == 2 and the next wdt == 3 and they are the same.
+        template<class T>
+        bool scan(cell& next, cell& base, T& dest) const
+        {
+            if (gc.same(next.gc) && like(next))
+            {
+                if (!like(base))
+                {
+                    //todo additionally consider UNIQUE ATTRIBUTES
+                    uv.get(base.uv, dest);
+                    st.get(base.st, dest);
+                }
+                dest += gc.get();
+                return true;
+            }
+            else
+            {
+                return faux;
+            }
+        }
+        // cell: Is the cell not transparent?
+        //bool is_unalterable() const
+        //{
+        //	return vis() == unalterable;
+        //}
+        // cell: Delight both foreground and background.
+        void xlight()
+        {
+            uv.fg.xlight();
+            uv.bg.xlight();
+        }
+        // cell: Darken both foreground and background.
+        void shadow(uint8_t fk, uint8_t bk) //void shadow(uint8_t k = 24)
+        {
+            uv.fg.shadow(fk);
+            uv.bg.shadow(bk);
+        }
+        //todo xlight conflict
+        // cell: Lighten both foreground and background.
+        void bright(uint8_t fk, uint8_t bk) //void bright(uint8_t k = 24)
+        {
+            uv.fg.bright(fk);
+            uv.bg.bright(bk);
+        }
+        // cell: Is the cell not transparent?
+        bool is_alpha_blendable() const
+        {
+            return uv.bg.is_alpha_blendable();//&& uv.param.fg.is_alpha_blendable();
+        }
+        // cell: Set Grapheme cluster and its width.
+        void set_gc (view c, size_t w) { gc.set(c, w); }
+        // cell: Set Grapheme cluster.
+        void set_gc (cell const& c) { gc = c.gc; }
+        // cell: Reset Grapheme cluster.
+        void set_gc () { gc.wipe(); }
+
+        // cell: Copy view of the cell (Preserve ID).
+        cell& set (cell const& c) { uv = c.uv;
+                                    st = c.st;
+                                    gc = c.gc;          return *this; }
+        cell& alpha (uint8_t k)   { bga(k); fga(k);     return *this; } // cell: Set alpha/transparency (background and foreground).
+        cell& bgc (rgba const& c) { uv.bg = c;          return *this; } // cell: Set Background color.
+        cell& fgc (rgba const& c) { uv.fg = c;          return *this; } // cell: Set Foreground color.
+        cell& bga (uint8_t k)     { uv.bg.chan.a = k;   return *this; } // cell: Set Background alpha/transparency.
+        cell& fga (uint8_t k)     { uv.fg.chan.a = k;   return *this; } // cell: Set Foreground alpha/transparency.
+        cell& bld (bool b)        { st.bld(b);          return *this; } // cell: Set Bold attribute.
+        cell& itc (bool b)        { st.itc(b);          return *this; } // cell: Set Italic attribute.
+        cell& und (bool b)        { st.und(b ? 1 : 0);  return *this; } // cell: Set Underline attribute.
+        cell& dnl (bool b)        { st.und(b ? 2 : 0);  return *this; } // cell: Set Double underline attribute.
+        cell& ovr (bool b)        { st.ovr(b);          return *this; } // cell: Set Overline attribute.
+        cell& inv (bool b)        { st.inv(b);          return *this; } // cell: Set Invert attribute.
+        cell& stk (bool b)        { st.stk(b);          return *this; } // cell: Set Strikethrough attribute.
+        cell& rtl (bool b)        { st.rtl(b);          return *this; } // cell: Set Right-To-Left attribute.
+        cell& link(id_t oid)      { id = oid;           return *this; } // cell: Set link object ID.
+        cell& txt (view c)        { c.size() ? gc.set(c) : gc.wipe(); return *this; } // cell: Set Grapheme cluster.
+        cell& txt (char c)        { gc.set(c);          return *this; } // cell: Set Grapheme cluster from char.
+        cell& clr (cell const& c) { uv = c.uv;          return *this; } // cell: Set the foreground and background colors only.
+        cell& wdt (iota w)        { gc.state.width = w; return *this; } // cell: Return Grapheme cluster screen width.
+        cell& rst () // cell: Reset view attributes of the cell to zero.
+        {
+            static cell empty{ whitespace };
+            uv = empty.uv;
+            st = empty.st;
+            gc = empty.gc;
+            return *this;
+        }
+
+        void hyphen (bool b) { st.param.unique.var.hyphen = b; } // cell: Set the presence of the SOFT HYPHEN (U+00AD).
+        void fnappl (bool b) { st.param.unique.var.fnappl = b; } // cell: Set the presence of the FUNCTION APPLICATION (U+2061).
+        void itimes (bool b) { st.param.unique.var.itimes = b; } // cell: Set the presence of the INVISIBLE TIMES (U+2062).
+        void isepar (bool b) { st.param.unique.var.isepar = b; } // cell: Set the presence of the INVISIBLE SEPARATOR (U+2063).
+        void inplus (bool b) { st.param.unique.var.inplus = b; } // cell: Set the presence of the INVISIBLE PLUS (U+2064).
+        void zwnbsp (bool b) { st.param.unique.var.zwnbsp = b; } // cell: Set the presence of the ZERO WIDTH NO-BREAK SPACE (U+FEFF).
+
+        uint8_t     bga () const { return uv.bg.chan.a;  } // cell: Return Background alpha/transparency.
+        uint8_t     fga () const { return uv.fg.chan.a;  } // cell: Return Foreground alpha/transparency.
+        rgba&       bgc ()       { return uv.bg;         } // cell: Return Background color.
+        rgba&       fgc ()       { return uv.fg;         } // cell: Return Foreground color.
+        rgba const& bgc () const { return uv.bg;         } // cell: Return Background color.
+        rgba const& fgc () const { return uv.fg;         } // cell: Return Foreground color.
+        bool        bld () const { return st.bld();      } // cell: Return Bold attribute.
+        bool        itc () const { return st.itc();      } // cell: Return Italic attribute.
+        bool        und () const { return st.und() == 1 ? true : faux; } // cell: Return Underline/Underscore attribute.
+        bool        dnl () const { return st.und() == 2 ? true : faux; } // cell: Return Underline/Underscore attribute.
+        bool        ovr () const { return st.ovr();      } // cell: Return Underline/Underscore attribute.
+        bool        inv () const { return st.inv();      } // cell: Return Negative attribute.
+        bool        stk () const { return st.stk();      } // cell: Return Strikethrough attribute.
+        id_t       link () const { return id;            } // cell: Return link object ID.
+        //id_t       para () const { return pg;            } // cell: Return paragraph ID.
+        view        txt () const { return gc.get();      } // cell: Return Grapheme cluster.
+        size_t      len () const { return gc.state.count;} // cell: Return Grapheme cluster utf-8 length.
+        size_t      wdt () const { return gc.state.width;} // cell: Return Grapheme cluster screen width.
+        bool     iswide () const { return wdt() > 1;     } // cell: Return true if char is wide.
+        bool     issame_visual (cell const& c) const // cell: Is the cell visually identical.
+        {
+            if (gc == c.gc)
+            {
+                if (uv.bg == c.uv.bg)
+                {
+                    if (wdt() == 0 || txt().front() == ' ')
+                    {
+                        return true;
+                    }
+                    else
+                    {
+                        return uv.fg == c.uv.fg;
+                    }
+                }
+            }
+            return faux;
+        }
     };
+
+    // Extern link statics
+    template<class T> std::hash<view>          cell::glyf<T>::coder;
+    template<class T> text                     cell::glyf<T>::empty;
+    template<class T> std::map<uint64_t, text> cell::glyf<T>::jumbo;
+
+    struct bias { enum : iota { none, left, right, center, }; };
+    struct wrap { enum : iota { none, on,  off,            }; };
+    struct rtol { enum : iota { none, rtl, ltr,            }; };
+    struct feed { enum : iota { none, rev, fwd,            }; };
 
     struct rect
     {
@@ -710,23 +1326,19 @@ namespace netxs::ui
 
     struct dent
     {
-        class edge
+        struct edge
         {
-            iota const& size;
-
-        public:
             iota step = 0;
             bool just = faux;
             bool flip = faux;
 
-            constexpr edge(iota const& size, bool just)
-                : size { size },
-                  just { just },
+            constexpr edge(bool just)
+                : just { just },
                   flip { faux },
                   step { 0    }
             { }
 
-            operator iota () const
+            auto get(iota size) const
             {
                 return (just != flip) ? step : size - step;
             }
@@ -747,12 +1359,11 @@ namespace netxs::ui
         edge head;
         edge foot;
 
-        constexpr
-        dent(iota const& size_x, iota const& size_y)
-            : west (size_x, true),
-              east (size_x, faux),
-              head (size_y, true),
-              foot (size_y, faux)
+        constexpr dent()
+            : west{ true },
+              east{ faux },
+              head{ true },
+              foot{ faux }
         { }
 
         dent& operator = (dent const& margin)
@@ -763,57 +1374,72 @@ namespace netxs::ui
             foot = margin.foot;
             return *this;
         }
+        dent& operator += (dent const& margin)
+        {
+            west.step += margin.west.step;
+            east.step += margin.east.step;
+            head.step += margin.head.step;
+            foot.step += margin.foot.step;
+            return *this;
+        }
         // dent: Return inner area rectangle.
-        operator rect () const
+        auto area(iota size_x, iota size_y) const
         {
             //todo RTL
-            iota w = west;
-            iota h = head;
-            iota e = east;
-            iota f = foot;
-            return { {w, h}, {std::max(e - w, 0), std::max(f - h, 0)} };
+            auto w = west.get(size_x);
+            auto h = head.get(size_y);
+            auto e = east.get(size_x);
+            auto f = foot.get(size_y);
+            return rect{ {w, h}, {std::max(e - w, 0), std::max(f - h, 0)} };
         }
         // dent: Return the coor of the area rectangle.
-        twod coor() const
+        auto corner(iota size_x, iota size_y) const
         {
-            return twod{ west,head };
+            return twod{ west.get(size_x),
+                         head.get(size_y) };
         }
         // dent: Return inner width.
-        iota width() const
+        auto width(iota size_x) const
         {
-            iota w = west;
-            iota e = east;
+            auto w = west.get(size_x);
+            auto e = east.get(size_x);
             return std::max(e - w, 0);
         }
         // dent: Return inner height.
-        iota height() const
+        auto height(iota size_y) const
         {
-            iota h = head;
-            iota f = foot;
+            auto h = head.get(size_y);
+            auto f = foot.get(size_y);
             return std::max(f - h, 0);
         }
         // dent: Return the horizontal coordinate using percentages.
-        iota h_ratio(iota px) const
+        auto h_ratio(iota px, iota size_x) const
         {
-            iota w = west;
-            iota e = east;
+            auto w = west.get(size_x);
+            auto e = east.get(size_x);
             return divround(px * (std::max(e - w, 1) - 1), 100);
         }
         // dent: Return the vertical coordinate using percentages.
-        iota v_ratio(iota py) const
+        auto v_ratio(iota py, iota size_y) const
         {
-            iota h = head;
-            iota f = foot;
+            auto h = head.get(size_y);
+            auto f = foot.get(size_y);
             return divround(py * (std::max(f - h, 1) - 1), 100);
         }
-
-        //void set_size(twod const& formsize)
-        //{
-        //	west.set(formsize.x, true);
-        //	east.set(formsize.x, faux);
-        //	head.set(formsize.y, true);
-        //	foot.set(formsize.y, faux);
-        //}
+        void reset()
+        {
+            west.step = 0;
+            east.step = 0;
+            head.step = 0;
+            foot.step = 0;
+        }
+        void set(fifo& q)
+        {
+            west = q(0);
+            east = q(0);
+            head = q(0);
+            foot = q(0);
+        }
     };
 
     struct rack // scroll info

@@ -1063,7 +1063,7 @@ namespace netxs::utf
         else return std::to_string(number);
     }
 
-    template <bool UCASE = faux, typename V, class = typename std::enable_if<std::is_integral<V>::value>::type>
+    template <bool UCASE = faux, class V, class = typename std::enable_if<std::is_integral<V>::value>::type>
     auto to_hex(V number, size_t width = sizeof(V) * 2, char filler = '0')
     {
         static constexpr auto nums = UCASE ? "0123456789ABCDEF"
@@ -1080,7 +1080,7 @@ namespace netxs::utf
         return crop;
     }
     // utf.h: to_hex without allocations (the crop should has a reserved capacity)
-    template <bool UCASE = faux, typename V, class = typename std::enable_if<std::is_integral<V>::value>::type>
+    template <bool UCASE = faux, class V, class = typename std::enable_if<std::is_integral<V>::value>::type>
     auto to_hex(text& crop, V number, size_t width = sizeof(V) * 2, char filler = '0')
     {
         static constexpr auto nums = UCASE ? "0123456789ABCDEF"
@@ -1151,7 +1151,7 @@ namespace netxs::utf
         }
     }
 
-    template<typename V1, typename V2>
+    template<class V1, class V2>
     auto divide(V1 const& utf8, V2 const& delimiter)
     {
         using list = std::vector<view>;
@@ -1233,22 +1233,22 @@ namespace netxs::utf
         }
     };
 
-    template <typename T>
+    template <class T>
     void concat(std::stringstream& s, T&& item)
     {
         s << item;
     }
-    template<typename T, typename... Args>
+    template<class T, class ...Args>
     void concat(std::stringstream& s, T&& item, Args&&... args)
     {
         s << item;
-        concat(s, args...);
+        concat(s, std::forward<Args>(args)...);
     }
-    template<typename... Args>
+    template<class ...Args>
     auto concat(Args&&... args)
     {
         std::stringstream s;
-        concat(s, args...);
+        concat(s, std::forward<Args>(args)...);
         return s.str();
     }
 

@@ -280,7 +280,7 @@ namespace netxs::os
 
         #endif
     }
-    template<class... Args>
+    template<class ...Args>
     void exit(int code, Args&&... args)
     {
         log(args...);
@@ -1061,7 +1061,6 @@ namespace netxs::os
 
     using xipc = std::shared_ptr<class ipc>;
 
-    //template<bool IS_TTY = faux>
     class ipc
     {
         const bool IS_TTY = faux;
@@ -1126,7 +1125,7 @@ namespace netxs::os
             template<class T>
             operator T () { return T{}; }
         };
-        template<typename... Args>
+        template<class ...Args>
         static auto fail(Args&&... msg)
         {
             log("xipc: ", msg..., " (", os::error(), ") ");
@@ -1158,10 +1157,9 @@ namespace netxs::os
             operator bool () { return r_handle != INVALID_FD && w_handle != INVALID_FD; }
         #elif defined(__linux__) || defined(__APPLE__)
             ipc(type socket = INVALID_FD, bool sealed = faux, bool IS_TTY = faux)
-            //ipc(type socket = INVALID_FD, bool sealed = faux)
-                :	handle{ socket },
-                    sealed{ sealed }
-                ,IS_TTY{ IS_TTY }
+                : handle{ socket },
+                  sealed{ sealed },
+                  IS_TTY{ IS_TTY }
             {
                 //todo ::signal(SIGPIPE, SIG_IGN) does not work
                 if (::signal(SIGPIPE, SIG_IGN) == SIG_ERR)
@@ -1188,7 +1186,6 @@ namespace netxs::os
             ~ipc()
             {
                 log("xipc: closing ", *this);
-                //alive = faux;
                 if (*this && sealed) ::close(handle);
                 ::close(charge);
                 ::close(charge_w);
@@ -1528,7 +1525,6 @@ namespace netxs::os
                     }
                     else
                     {
-                        //log ("handle ", handle);
                         fail("xipc: error write to socket=", *this);
                         return faux;
                     }
@@ -1560,11 +1556,6 @@ namespace netxs::os
         }
         auto shut() -> bool
         {
-            //std::lock_guard guard{ mutex };
-            //
-            //alive = faux;
-
-
             #if defined(_WIN32)
 
                 if (sealed)
@@ -2109,10 +2100,8 @@ namespace netxs::os
 
             #endif
         }
-        //bool alive = true;
         void stop()
         {
-            //alive = faux;
             #if defined(_WIN32)
 
                 auto& reset = _globals<void>::reset;
@@ -2170,7 +2159,6 @@ namespace netxs::os
                 if ((input = GetStdHandle(STD_INPUT_HANDLE)) == INVALID_HANDLE_VALUE)
                     defeat("GetStdHandle error (input)");
 
-                //ok(reset = CreateEvent(NULL, TRUE, TRUE, NULL), "CreateEvent error");
                 ok(reset = CreateEvent(NULL, TRUE, FALSE, NULL), "CreateEvent error");
 
                 ok(GetConsoleMode(board, &omode), "GetConsoleMode error (omode)");
@@ -2269,10 +2257,6 @@ namespace netxs::os
                 ok(SetConsoleMode(_globals<void>::input, _globals<void>::imode), "SetConsoleMode error (revert_i)");
 
             #elif defined(__linux__) || defined(__APPLE__)
-
-                //todo temporary
-                //for mc arrow keys
-                //output(ansi::appkey(faux)); // Set application key mode.
 
             #endif
         }
@@ -2411,8 +2395,6 @@ namespace netxs::os
                 auto rc2 = ::unlockpt    (fdm);          // unlock master pty
                 auto fds = ::open(ptsname(fdm), O_RDWR); // open slave pty via string ptsname(fdm)
 
-                //log("cons: pty pair ", fdm, "/", fds);
-
                 pid = ::fork();
                 if (pid == 0) // Child branch
                 {
@@ -2426,6 +2408,7 @@ namespace netxs::os
                     // a controlling terminal already.
                     // arg = 0: 1 - to stole fds from another process,
                     // it doesn't matter here
+                    //if (::ioctl(fds, TIOCSCTTY, 0) == -1)
                     if (::ioctl(fds, TIOCSCTTY, 0) == -1)
                         log("cons: assign controlling terminal error ", errno);
 

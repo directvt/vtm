@@ -6,8 +6,8 @@
 #define PROD
 
 // Terminal's default line wrapping mode
-#define WRAPPING true
-//#define WRAPPING faux
+#define WRAPPING (wrap::on)
+//#define WRAPPING (wrap::off)
 
 // Enable to show debug overlay
 //#define DEBUG_OVERLAY
@@ -34,34 +34,34 @@ using namespace netxs::console;
 using namespace netxs::ui;
 using namespace netxs;
 
-text edit_menu = ansi::nil().wrp(faux)
+text edit_menu = ansi::nil().wrp(wrap::off)
 + " ≡ "
 + " " + ansi::und(true) + "F" + ansi::nil() + "ile "
 + " " + ansi::und(true) + "E" + ansi::nil() + "dit "
 + " " + ansi::und(true) + "V" + ansi::nil() + "iew "
 + " " + ansi::und(true) + "D" + ansi::nil() + "ata "
-+ ansi::jet(bias::right).chx(0)
++ ansi::chx(0).jet(bias::right)
 + " " + ansi::und(true) + "H" + ansi::nil() + "elp "
 + "";
 
-text calc_menu = ansi::nil().wrp(faux)
+text calc_menu = ansi::nil().wrp(wrap::off)
 + " ≡ "
 + " " + ansi::und(true) + "F" + ansi::nil() + "ile "
 + " " + ansi::und(true) + "E" + ansi::nil() + "dit "
 + " " + ansi::und(true) + "V" + ansi::nil() + "iew "
 + " " + ansi::und(true) + "D" + ansi::nil() + "ata ";
 
-text calc_help = ansi::nil().wrp(faux)
+text calc_help = ansi::nil().wrp(wrap::off)
 + " " + ansi::und(true) + "H" + ansi::nil() + "elp "
 + "";
 
-text calc_line1 = ansi::nil().wrp(faux)
+text calc_line1 = ansi::nil().wrp(wrap::off)
 + ansi::bgc(whitedk).fgc(blackdk)
 + " Fx "
 + ansi::bgc(whitelt).fgc(blacklt)
 + " =SUM(B1:B10) ";
 
-text calc_line2 = ansi::nil().wrp(faux)
+text calc_line2 = ansi::nil().wrp(wrap::off)
 + ansi::bgc(whitedk).fgc(blackdk)
 + " ⋯ "
 + "";
@@ -79,7 +79,7 @@ text ansiplex_logo = ansi::bgc(reddk)     + "▀▄";
 text unicodex_logo = ansi::bgc(yellowdk)  + "▀▄";
 text appstore_logo = ansi::bgc(blacklt)   + "▀▄";
 
-text line = ansi::wrp(faux) + "──────────────────────────────────────────────────────────────────────────────────────" + ansi::wrp(true).eol();
+text line = ansi::wrp(wrap::off) + "──────────────────────────────────────────────────────────────────────────────────────" + ansi::wrp(wrap::on).eol();
 auto item = [](auto app, auto clr, auto rating, auto price, auto buy, auto desc)
 {
     auto clr_light = rgba{ clr };
@@ -88,18 +88,18 @@ auto item = [](auto app, auto clr, auto rating, auto price, auto buy, auto desc)
     text lot = ansi::nil()
         + ansi::jet(bias::left)
         + ansi::mgl(2).mgr(1).eol()
-        + ansi::fgc().jet(bias::left).wrp(faux)
+        + ansi::fgc().jet(bias::left).wrp(wrap::off)
         + ansi::bgc(clr).fgc(0xFFffffff) + "▀▄" + " "
         + ansi::fgc(0xFFffffff) + app + " " + ansi::nil().eol()
         + ansi::fgc(yellowlt) + "   ★★★★" + ansi::fgc(cyandk) + "★  " + ansi::fgc(yellowlt) + rating
 
-        + ansi::jet(bias::right).chx(0)
+        + ansi::chx(0).jet(bias::right)
         + ansi::fgc(yellowlt).bgc() + "   " + price + "  "
         + ansi::nil().eol().eol()
-        + ansi::fgc(bluedk).bgc(whitelt) + " "+ buy +" " + ansi::nil() + "  "
+        + ansi::fgc(bluedk).bgc(whitelt) + " " + buy + " " + ansi::nil() + "  "
 
-        + ansi::fgc().jet(bias::left).chx(0)
-        + ansi::mgr(11).wrp(true)
+        + ansi::fgc().chx(0).jet(bias::left)
+        + ansi::mgr(11).wrp(wrap::on)
         + desc
         + "\n\n"
         + ansi::nil();
@@ -108,7 +108,7 @@ auto item = [](auto app, auto clr, auto rating, auto price, auto buy, auto desc)
 };
 
 text appstore_head = ansi::nil().eol()
-+ ansi::mgl(2).mgr(2).wrp(faux)
++ ansi::mgl(2).mgr(2).wrp(wrap::off)
 //+ ansi::fgc(whitelt).jet(bias::left)
 + ansi::fgc(0xFFFFFFFF).jet(bias::left)
 //+ "▀▄ "
@@ -116,7 +116,7 @@ text appstore_head = ansi::nil().eol()
 //+ ansi::bgc(whitelt).fgc(bluedk)
 + "Desktopio App Store"
 + "\n\n"
-+ ansi::bld(faux).fgc(whitelt).jet(bias::left).wrp(true)
++ ansi::bld(faux).fgc(whitelt).jet(bias::left).wrp(wrap::on)
 //+ ansi::fgc(whitelt).bgc().jet(bias::left).wrp(true)
 + "A digital distribution platform, developed "
 "and maintained by NetXS Group, for terminal "
@@ -169,12 +169,18 @@ std::list<text> appstore_body =
     item("Goto", bluedk, "4", "Free ", "Get",
     "Internet/SSH browser."),
 
-    item(ansi::fgc(0xFF00FFFF)+"Game"+ansi::fgc(), bluedk, "4", "Free ", "Get",
+    item(ansi::fgc(0xFF00FFFF)+"Game"+ansi::fgc(), reddk, "4", "Free ", "Get",
     "Doom II."),
 
     item("Logs", blackdk, "4096", "Free ", "Get",
     "Application for displaying debug trace. "
     "This is more efficient than writing to STDOUT."),
+
+    item("Clip", bluedk, "1", "Free ", "Get",
+    "Clipboard manager. "),
+
+    item("Info", cyandk, "1", "Free ", "Get",
+    "Software documentation browser. "),
 };
 
 text qr = ""s//"\033[38;2;000;000;000m\033[48;2;000;000;000m"s
@@ -198,14 +204,14 @@ text qr = ""s//"\033[38;2;000;000;000m\033[48;2;000;000;000m"s
 + ansi::nil();
 
 text desktopio_body = ansi::nil().eol()
-+ ansi::mgl(2).mgr(2).wrp(faux)
++ ansi::mgl(2).mgr(2).wrp(wrap::off)
 //+ ansi::fgc(whitelt).bgc(bluedk).jet(bias::left)
 + ansi::fgc(bluedk).jet(bias::left)
 //+ "▀▄ "
 + ansi::bgc(bluedk).fgc(0xFFFFFFFF)
-+ " Monotty Desktop "
++ " Monotty Desktopio "
 + "\n\n"
-+ ansi::fgc().bgc().jet(bias::left).wrp(true)
++ ansi::fgc().bgc().jet(bias::left).wrp(wrap::on)
 + "Monotty Desktopio is a cross-platform, full-featured desktop environment."
 + " A user interface where by all output is presented in the form of text.\n"
 + "The first biggest advantage of this desktop environment concept that "
@@ -217,14 +223,14 @@ text desktopio_body = ansi::nil().eol()
 + "If you like the way we think and would like to support the project "
 + "in the spirit of Bitcoin, you can donate at the following public "
 + "bitcoin address:\n\n"
-+ ansi::jet(bias::center).wrp(faux).mgl(1).mgr(1) + qr
++ ansi::jet(bias::center).wrp(wrap::off).mgl(1).mgr(1) + qr
 + " bitcoin:1Euu4jcQ15LKijaDyZigZrnEoqwe1daTVZ\n"
 + "";
 
 text cellatix_head;
 text cellatix_text;
 text cellatix_foot = ansi::scp()
-+ ansi::jet(bias::left).rlf(true).mgl(1).chx(4).chy(0).wrp(faux)
++ ansi::chx(4).chy(0).jet(bias::left).rlf(feed::rev).mgl(1).wrp(wrap::off)
 + ansi::bgc(whitelt).fgc(blackdk) + " Sheet1 "
 + ansi::bgc(whitedk).fgc(blackdk) + "＋" + ansi::nil().rcp();
 
@@ -327,7 +333,7 @@ class post_logs
             auto wc = 5;
 
             yield.clear();
-            yield.wrp(faux);
+            yield.wrp(wrap::off);
             yield.bgc(ansi::yellowlt).add(utf::repeat(' ', max_col * (wc + 3))).eol().bgc();
             yield.add("STDOUT: plain text, ").add(shadow.size()).add(" bytes")
                                              .eol().bgc(ansi::whitedk).fgc(blackdk)
@@ -335,7 +341,7 @@ class post_logs
                                              .fgc().bgc().eol().eol();
             if (show_codepoints)
             {
-                yield.wrp(faux);
+                yield.wrp(wrap::off);
                 yield.add("STDOUT: codepoints").eol();
                 auto f = [&](unsigned cp, view utf8, iota wide)
                 {
@@ -443,12 +449,10 @@ int main(int argc, char* argv[])
             {
                 if (buff.size())
                 {
-                    view shadow{ buff };
-                    SIGNAL_GLOBAL(e2::debug::logs, shadow);
+                    SIGNAL_GLOBAL(e2::debug::logs, view{ buff });
                     buff.clear();
                 }
-                view shadow{ utf8 };
-                SIGNAL_GLOBAL(e2::debug::logs, shadow);
+                SIGNAL_GLOBAL(e2::debug::logs, view{ utf8 });
             }
             else buff += utf8;
         });
@@ -500,7 +504,7 @@ int main(int argc, char* argv[])
     {
     #pragma region images
         //todo put all ansi art into external files
-        text r_grut00 = ansi::wrp(faux).rlf(faux).jet(bias::center) + ""
+        text r_grut00 = ansi::wrp(wrap::off).rlf(feed::fwd).jet(bias::center) + ""
             "\033[0m\033[s"\
             "\033[0m\033[u\033[B\033[s\033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[0m"\
             "\033[0m\033[u\033[B\033[s\033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m\033[38;2;1;1;1m▄\033[48;2;0;0;0m\033[38;2;9;8;8m▄\033[48;2;0;0;0m\033[38;2;20;17;15m▄\033[48;2;0;0;0m\033[38;2;19;16;13m▄\033[48;2;0;0;0m\033[38;2;7;6;5m▄\033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[0m"\
@@ -557,10 +561,10 @@ int main(int argc, char* argv[])
             "\033[0m\033[u\033[B\033[s\033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m\033[38;2;1;0;0m▄\033[48;2;27;25;24m\033[38;2;33;30;28m▄\033[48;2;122;107;94m\033[38;2;131;115;101m▄\033[48;2;190;158;128m\033[38;2;192;161;134m▄\033[48;2;202;162;127m\033[38;2;202;168;135m▄\033[48;2;208;172;138m\033[38;2;210;183;158m▄\033[48;2;216;190;165m\033[38;2;218;202;186m▄\033[48;2;221;204;187m\033[38;2;221;209;197m▄\033[48;2;222;208;193m\033[38;2;222;209;196m▄\033[48;2;222;206;191m\033[38;2;220;204;190m▄\033[48;2;217;199;181m\033[38;2;219;203;186m▄\033[48;2;220;199;179m\033[38;2;219;200;180m▄\033[48;2;219;197;179m\033[38;2;223;205;189m▄\033[48;2;231;219;206m\033[38;2;230;218;206m▄\033[48;2;233;221;209m\033[38;2;229;216;205m▄\033[48;2;223;204;186m\033[38;2;222;201;184m▄\033[48;2;213;179;150m\033[38;2;216;188;163m▄\033[48;2;212;176;145m\033[38;2;213;185;160m▄\033[48;2;213;185;159m\033[38;2;214;189;165m▄\033[48;2;212;190;167m\033[38;2;210;186;163m▄\033[48;2;204;179;155m\033[38;2;212;188;164m▄\033[48;2;220;202;184m\033[38;2;227;212;196m▄\033[48;2;234;223;207m\033[38;2;234;224;211m▄\033[48;2;234;224;208m\033[38;2;233;224;208m▄\033[48;2;230;219;204m\033[38;2;230;218;201m▄\033[48;2;223;208;187m\033[38;2;227;212;192m▄\033[48;2;220;202;179m\033[38;2;225;210;191m▄\033[48;2;215;197;175m\033[38;2;216;201;183m▄\033[48;2;206;191;173m\033[38;2;210;198;181m▄\033[48;2;200;186;169m\033[38;2;203;191;174m▄\033[48;2;197;184;167m\033[38;2;200;187;170m▄\033[48;2;182;160;140m\033[38;2;184;162;143m▄\033[48;2;162;128;101m\033[38;2;164;133;109m▄\033[48;2;129;92;66m\033[38;2;130;93;67m▄\033[48;2;99;62;40m\033[38;2;103;65;40m▄\033[48;2;77;45;29m\033[38;2;81;49;31m▄\033[48;2;97;61;39m\033[38;2;112;73;48m▄\033[48;2;92;58;37m\033[38;2;105;68;43m▄\033[48;2;117;81;56m\033[38;2;126;89;63m▄\033[48;2;144;100;68m\033[38;2;159;117;83m▄\033[48;2;139;95;62m\033[38;2;153;109;75m▄\033[48;2;149;108;75m\033[38;2;152;111;78m▄\033[48;2;166;124;90m\033[38;2;174;135;100m▄\033[48;2;173;131;94m\033[38;2;178;137;100m▄\033[48;2;161;118;83m\033[38;2;165;123;86m▄\033[48;2;167;128;92m\033[38;2;169;129;93m▄\033[48;2;178;143;107m\033[38;2;179;142;107m▄\033[48;2;181;146;111m\033[38;2;180;145;109m▄\033[48;2;174;138;103m\033[38;2;167;129;94m▄\033[48;2;166;130;95m\033[38;2;162;125;91m▄\033[48;2;163;125;90m\033[38;2;160;121;87m▄\033[48;2;153;113;78m\033[38;2;150;110;75m▄\033[48;2;143;103;69m\033[38;2;133;95;64m▄\033[48;2;128;88;57m\033[38;2;113;75;50m▄\033[48;2;111;74;48m\033[38;2;99;64;42m▄\033[48;2;97;63;41m\033[38;2;88;57;38m▄\033[48;2;85;55;35m\033[38;2;88;60;40m▄\033[48;2;81;53;35m\033[38;2;86;58;39m▄\033[48;2;70;46;32m\033[38;2;73;49;34m▄\033[48;2;25;15;10m\033[38;2;32;21;14m▄\033[48;2;0;0;0m\033[38;2;1;0;0m▄\033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[0m"\
             "\033[0m\033[u\033[B\033[s\033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m\033[38;2;1;0;0m▄\033[48;2;30;28;27m\033[38;2;31;30;29m▄\033[48;2;131;121;110m\033[38;2;130;119;108m▄\033[48;2;194;168;144m\033[38;2;195;168;144m▄\033[48;2;202;170;142m\033[38;2;199;164;134m▄\033[48;2;208;184;165m\033[38;2;205;183;165m▄\033[48;2;220;209;199m\033[38;2;219;210;201m▄\033[48;2;222;212;201m\033[38;2;223;213;204m▄\033[48;2;222;211;199m\033[38;2;224;214;205m▄\033[48;2;221;208;195m\033[38;2;222;211;200m▄\033[48;2;220;205;190m\033[38;2;218;204;190m▄\033[48;2;220;201;182m\033[38;2;219;203;184m▄\033[48;2;226;209;193m\033[38;2;225;207;189m▄\033[48;2;227;213;199m\033[38;2;225;208;191m▄\033[48;2;227;211;196m\033[38;2;223;205;186m▄\033[48;2;224;205;188m\033[38;2;221;198;177m▄\033[48;2;218;194;173m\033[38;2;217;193;172m▄\033[48;2;218;197;177m\033[38;2;220;202;185m▄\033[48;2;216;196;175m\033[38;2;217;200;182m▄\033[48;2;214;192;170m\033[38;2;216;197;176m▄\033[48;2;218;198;177m\033[38;2;217;200;182m▄\033[48;2;231;218;205m\033[38;2;229;217;203m▄\033[48;2;235;225;211m\033[38;2;235;225;210m▄\033[48;2;232;223;208m\033[38;2;234;225;208m▄\033[48;2;230;217;199m\033[38;2;229;214;195m▄\033[48;2;229;215;195m\033[38;2;231;218;201m▄\033[48;2;231;220;205m\033[38;2;230;221;207m▄\033[48;2;221;211;196m\033[38;2;225;217;202m▄\033[48;2;215;205;190m\033[38;2;217;208;194m▄\033[48;2;210;200;184m\033[38;2;213;204;188m▄\033[48;2;202;190;174m\033[38;2;204;193;177m▄\033[48;2;189;173;155m\033[38;2;189;173;156m▄\033[48;2;171;149;128m\033[38;2;170;149;129m▄\033[48;2;143;109;84m\033[38;2;153;118;93m▄\033[48;2;112;71;46m\033[38;2;120;77;49m▄\033[48;2;101;65;42m\033[38;2;127;85;55m▄\033[48;2;116;77;51m\033[38;2;136;96;65m▄\033[48;2;134;92;62m\033[38;2;149;107;75m▄\033[48;2;146;108;78m\033[38;2;159;121;89m▄\033[48;2;175;134;99m\033[38;2;181;141;105m▄\033[48;2;173;129;91m\033[38;2;185;140;101m▄\033[48;2;171;129;91m\033[38;2;180;138;97m▄\033[48;2;173;133;97m\033[38;2;176;136;100m▄\033[48;2;181;140;104m\033[38;2;175;133;98m▄\033[48;2;175;134;97m\033[38;2;175;134;98m▄\033[48;2;167;126;92m\033[38;2;165;125;90m▄\033[48;2;174;137;103m\033[38;2;172;135;101m▄\033[48;2;175;140;106m\033[38;2;180;144;109m▄\033[48;2;167;128;94m\033[38;2;163;123;89m▄\033[48;2;160;122;89m\033[38;2;156;119;87m▄\033[48;2;156;118;85m\033[38;2;156;119;87m▄\033[48;2;142;103;71m\033[38;2;140;102;71m▄\033[48;2;124;86;58m\033[38;2;115;78;52m▄\033[48;2;98;64;42m\033[38;2;93;60;40m▄\033[48;2;88;57;37m\033[38;2;89;59;39m▄\033[48;2;88;59;40m\033[38;2;92;63;43m▄\033[48;2;91;62;42m\033[38;2;94;64;44m▄\033[48;2;90;62;42m\033[38;2;96;67;46m▄\033[48;2;79;53;37m\033[38;2;86;59;41m▄\033[48;2;48;32;21m\033[38;2;63;42;30m▄\033[48;2;8;5;3m\033[38;2;35;22;16m▄\033[48;2;0;0;0m\033[38;2;11;6;4m▄\033[48;2;0;0;0m\033[38;2;1;0;0m▄\033[48;2;0;0;0m \033[48;2;0;0;0m \033[48;2;0;0;0m\033[38;2;2;1;1m▄\033[0m"\
             "\033[0m\033[u\033[B\033[s\033[0m\033[48;2;0;0;0m \033[0m\033[48;2;0;0;0m \033[0m\033[48;2;0;0;0m \033[0m\033[48;2;0;0;0m \033[0m\033[48;2;0;0;0m \033[0m\033[48;2;0;0;0m \033[0m\033[48;2;0;0;0m \033[0m\033[48;2;0;0;0m \033[0m\033[48;2;0;0;0m \033[0m\033[48;2;0;0;0m \033[0m\033[48;2;0;0;0m \033[0m\033[48;2;0;0;0m \033[0m\033[48;2;0;0;0m \033[0m\033[48;2;0;0;0m \033[0m\033[48;2;2;2;2m \033[0m\033[48;2;49;47;44m \033[0m\033[48;2;147;133;120m \033[0m\033[48;2;192;164;138m \033[0m\033[48;2;197;158;122m \033[0m\033[48;2;203;174;150m \033[0m\033[48;2;213;200;190m \033[0m\033[48;2;223;214;206m \033[0m\033[48;2;226;217;209m \033[0m\033[48;2;220;207;197m \033[0m\033[48;2;217;203;189m \033[0m\033[48;2;222;207;192m \033[0m\033[48;2;225;207;190m \033[0m\033[48;2;222;203;185m \033[0m\033[48;2;220;199;179m \033[0m\033[48;2;217;190;167m \033[0m\033[48;2;213;189;168m \033[0m\033[48;2;217;198;180m \033[0m\033[48;2;216;198;180m \033[0m\033[48;2;216;198;181m \033[0m\033[48;2;217;202;186m \033[0m\033[48;2;230;219;204m \033[0m\033[48;2;233;222;205m \033[0m\033[48;2;234;219;199m \033[0m\033[48;2;231;214;194m \033[0m\033[48;2;233;222;205m \033[0m\033[48;2;229;220;206m \033[0m\033[48;2;224;215;201m \033[0m\033[48;2;217;208;194m \033[0m\033[48;2;210;200;184m \033[0m\033[48;2;202;189;172m \033[0m\033[48;2;182;162;141m \033[0m\033[48;2;163;134;108m \033[0m\033[48;2;152;111;81m \033[0m\033[48;2;147;98;63m \033[0m\033[48;2;156;109;72m \033[0m\033[48;2;164;120;83m \033[0m\033[48;2;167;127;94m \033[0m\033[48;2;175;139;108m \033[0m\033[48;2;182;145;113m \033[0m\033[48;2;194;156;119m \033[0m\033[48;2;184;142;103m \033[0m\033[48;2;176;136;100m \033[0m\033[48;2;171;130;95m \033[0m\033[48;2;174;134;98m \033[0m\033[48;2;172;131;96m \033[0m\033[48;2;164;124;89m \033[0m\033[48;2;172;134;99m \033[0m\033[48;2;160;118;85m \033[0m\033[48;2;146;109;78m \033[0m\033[48;2;145;108;76m \033[0m\033[48;2;128;90;62m \033[0m\033[48;2;105;70;48m \033[0m\033[48;2;96;64;44m \033[0m\033[48;2;96;65;45m \033[0m\033[48;2;96;65;44m \033[0m\033[48;2;101;70;48m \033[0m\033[48;2;103;72;51m \033[0m\033[48;2;92;63;44m \033[0m\033[48;2;68;45;34m \033[0m\033[48;2;55;38;28m \033[0m\033[48;2;41;27;19m \033[0m\033[48;2;26;16;11m \033[0m\033[48;2;13;8;6m \033[0m\033[48;2;12;10;8m \033[0m\033[48;2;32;28;24m \033[0m"\
-            "";
+            "" + ansi::nop();
 
         auto clr = 0xFFFFFFFF;
-        text wiki00 = ansi::wrp(true).jet(bias::left).fgc(clr) + "ANSI escape code\n\n"
+        text wiki00 = ansi::wrp(wrap::on).jet(bias::left).fgc(clr) + "ANSI escape code\n\n"
 
             + ansi::nil() + "From Wikipedia, the free encyclopedia\n"
             + "  (Redirected from ANSI CSI)\n\n"
@@ -580,7 +584,7 @@ int main(int argc, char* argv[])
             + ansi::fgc(clr) + "character codes" + ansi::nil() + ".\n"
             + "";
 
-        text wiki01 = ansi::wrp(true).jet(bias::left) + "\n\n\n"
+        text wiki01 = ansi::wrp(wrap::on).jet(bias::left) + "\n\n\n"
             + "ANSI sequences were introduced in the 1970s to replace vendor-specific sequences "
             + "and became widespread in the computer equipment market by the early 1980s. "
             + "They were used in development, scientific and commercial applications and later by "
@@ -601,11 +605,11 @@ int main(int argc, char* argv[])
         {
             auto clr = 0xFFFFFFFF;
             text msg = "The quick brown fox jumps over the lazy dog.";
-            text msg_rtl = ansi::rtl(true) + "RTL: " + msg + ansi::rtl(faux);
+            text msg_rtl = ansi::rtl(rtol::rtl) + "RTL: " + msg + ansi::rtl(rtol::ltr);
             text msg_ltr = "LTR: " + msg;
-            text testline = ansi::jet(bias::center).rtl(true)
+            text testline = ansi::jet(bias::center).rtl(rtol::rtl)
                 + "RTL: centered text.\n\n"
-                + ansi::rtl(faux)
+                + ansi::rtl(rtol::ltr)
                 + "centered text\n\n"
                 + "another " + ansi::nop().fgc(redlt) + "inlined" + ansi::nop().nil() + " segment"
                 + ansi::jet(bias::left).bgc(blackdk)
@@ -613,7 +617,7 @@ int main(int argc, char* argv[])
                 + ansi::nil()
                 + msg_ltr + "\n\n"
                 + msg_rtl + "\n\n"
-                + ansi::jet(bias::right).rtl(faux)
+                + ansi::jet(bias::right).rtl(rtol::ltr)
                 + msg_ltr + "\n\n"
                 + msg_rtl;
 
@@ -626,20 +630,20 @@ int main(int argc, char* argv[])
             text intro = ansi::mgl(0).mgr(0)
                 //+ ansi::jet(bias::right).mgl(1).mgr(1).wrp(true)
                 //+ "https://github.com/netxs-group/VTM\n\n"
-                + ansi::jet(bias::center).wrp(faux).fgc(whitelt).mgl(0).mgr(0).eol()
+                + ansi::jet(bias::center).wrp(wrap::off).fgc(whitelt).mgl(0).mgr(0).eol()
                 + ansi::fgc(c1).bgc(c2) + "▄"
                 + ansi::fgc(c2).bgc(c1) + "▄"
                 + ansi::fgc(clr).bgc() + "  Monotty Desktop\n"
                 + ansi::fgc().bgc() + "Usage Guide\n"
                 + "\n"
-                + ansi::nil().jet(bias::left).mgl(4).mgr(4).wrp(faux)
+                + ansi::nil().jet(bias::left).mgl(4).mgr(4).wrp(wrap::off)
                 + ansi::fgc(0xFFFFFF).bgc(0xFF) + " ! " + "\n"
-                + ansi::cuu(1).chx(0).mgl(9).fgc().bgc().wrp(true)
+                + ansi::cuu(1).chx(0).mgl(9).fgc().bgc().wrp(wrap::on)
                 + "Make sure your terminal supports mouse reporting.\n"
                 +"\n"
-                + ansi::nil().jet(bias::left).mgl(4).mgr(4).wrp(faux)
+                + ansi::nil().jet(bias::left).mgl(4).mgr(4).wrp(wrap::off)
                 + ansi::fgc(0xFFFFFF).bgc(0xFF) + " ! " + "\n"
-                + ansi::cuu(1).chx(0).mgl(9).fgc().bgc().wrp(true)
+                + ansi::cuu(1).chx(0).mgl(9).fgc().bgc().wrp(wrap::on)
                 + "At the moment terminal "
                 + "emulators are not able to display wide characters "
                 + "in parts, as well as independently color the left "
@@ -649,23 +653,23 @@ int main(int argc, char* argv[])
                 + "(U+FFFD).\n"
                 + "\n"
 
-                + ansi::wrp(faux).fgc(whitelt).mgl(1).mgr(0)
+                + ansi::wrp(wrap::off).fgc(whitelt).mgl(1).mgr(0)
                 + "Controls\n"
-                + ansi::jet(bias::left).mgl(1).mgr(0).wrp(faux) + "\n"
+                + ansi::jet(bias::left).mgl(1).mgr(0).wrp(wrap::off) + "\n"
                 + ansi::fgc(whitelt).bld(true)
                 + "Mouse:" + ansi::nil() + "\n"
-                + l1 + ansi::wrp(faux)
+                + l1 + ansi::wrp(wrap::off)
                 + "left" + ansi::nil() + "\n"
                     + l2 + ansi::fgc(blackdk).bgc(clr)
                     + "click" + ansi::nil() + "\n"
-                    + l2 + ansi::wrp(true)
+                    + l2 + ansi::wrp(wrap::on)
                     + "on the label in the upper left list of objects:\n"
                     + "on the connecting line of an object:\n"
                         + l3 + "- while holding down the Ctrl key, set/unset keyboard focus.\n"
                         + l3 + "- move the viewport to the center of the object.\n"
-                    + l2 + ansi::fgc(blackdk).bgc(clr).wrp(faux)
+                    + l2 + ansi::fgc(blackdk).bgc(clr).wrp(wrap::off)
                     + "drag " + ansi::nil() + "\n"
-                    + l2 + ansi::wrp(true)
+                    + l2 + ansi::wrp(wrap::on)
                     + "outside of any objects:\n"
                         + l3 + "- move all visible objects inside the viewport.\n"
                     + l2
@@ -675,90 +679,90 @@ int main(int argc, char* argv[])
                     + "the label in the top-left list of objects:\n"
                     + "the connecting line of an object:\n"
                         + l3 + "- move the object relativly to its place.\n"
-                + l1 + ansi::wrp(faux)
+                + l1 + ansi::wrp(wrap::off)
                 + "right" + ansi::nil() + "\n"
-                    + l2 + ansi::fgc(blackdk).bgc(clr).wrp(faux)
+                    + l2 + ansi::fgc(blackdk).bgc(clr).wrp(wrap::off)
                     + "click" + ansi::nil() + "\n"
-                    + l2 + ansi::wrp(true)
+                    + l2 + ansi::wrp(wrap::on)
                     + "on the label in the upper left list of objects:\n"
                     + "on the connecting line of an object:\n"
                         + l3 + "- move object to mouse cursor.\n"
                     + l2
                     + "outside of any objects:\n"
                         + l3 + "- move the menu window to mouse cursor.\n"
-                    + l2 + ansi::fgc(blackdk).bgc(clr).wrp(faux)
+                    + l2 + ansi::fgc(blackdk).bgc(clr).wrp(wrap::off)
                     + "drag " + ansi::nil() + "\n"
-                    + l2 + ansi::wrp(true)
+                    + l2 + ansi::wrp(wrap::on)
                     + "outside of any objects:\n"
                         + l3 + "- while holding down the Ctrl key, copies the selected area to the clipboard.\n"
                         + l3 + "- create a new object of the type selected in the menu (20 max).\n"
                     + l2
                     + "the scrollable content:\n"
                         + l3 + "- scrolling and kinetic scrolling on release, like a mouse wheel, but faster and more convenient.\n"
-                + l1 + ansi::wrp(faux)
+                + l1 + ansi::wrp(wrap::off)
                 + "middle" + ansi::nil() + "\n"
                     + l2 + ansi::fgc(blackdk).bgc(clr)
                     + "click" + ansi::nil() + "\n"
-                    + l2 + ansi::wrp(true)
+                    + l2 + ansi::wrp(wrap::on)
                     + "on the label in the upper left list of objects:\n"
                     + "on the connecting line of an object:\n"
                     + "on the object itself:\n"
                         + l3 + "- destroy the object (except menu window).\n"
-                    + l2 + ansi::fgc(blackdk).bgc(clr).wrp(faux)
+                    + l2 + ansi::fgc(blackdk).bgc(clr).wrp(wrap::off)
                     + "drag " + ansi::nil() + "\n"
-                    + l2 + ansi::wrp(true)
+                    + l2 + ansi::wrp(wrap::on)
                     + "inside the viewport:\n"
                         + l3 + "- while holding down the Ctrl key, copies the selected area to the clipboard.\n"
                         + l3 + "- create a new object of the type selected in the menu (20 max).\n"
-                + l1 + ansi::wrp(faux)
-                + "left + right" + ansi::nil().wrp(faux) + "\n"
-                    + l2 + ansi::fgc(blackdk).bgc(clr).wrp(faux)
-                    + "drag " + ansi::nil().wrp(true) + "\n"
+                + l1 + ansi::wrp(wrap::off)
+                + "left + right" + ansi::nil().wrp(wrap::off) + "\n"
+                    + l2 + ansi::fgc(blackdk).bgc(clr).wrp(wrap::off)
+                    + "drag " + ansi::nil().wrp(wrap::on) + "\n"
                     + "inside the viewport:\n"
                         + l3 + "- panoramic navigation.\n"
                     + l2 + ansi::fgc(blackdk).bgc(clr)
                     + "click" + ansi::nil() + "\n"
-                    + l2 + ansi::wrp(true)
+                    + l2 + ansi::wrp(wrap::on)
                     + "inside the object:\n"
                         + l3 + "- destroy the object (except menu window).\n"
                     + l2
 
                 + ansi::mgl(1).mgr(0)
-                + ansi::fgc(whitelt).bld(true) + "Keyboard:" + ansi::nil().wrp(faux) + "\n"
-                + "    " + ansi::fgc(whitelt).und(true) + "Esc" + ansi::nil().wrp(true) + " - Quit/disconnect.\n"
-                + "    " + ansi::fgc(whitelt).und(true) + "Ctrl" + ansi::nil().wrp(true) + " - Combine with the left mouse button to set/unset keyboard focus; combining with dragging right/middle mouse buttons copies the selected area to the clipboard.\n"
-                + "    " + ansi::fgc(whitelt).und(true) + "Ctrl + PgUp/PgDn" + ansi::nil().wrp(true) + " - Navigation between windows.\n\n"
+                + ansi::fgc(whitelt).bld(true) + "Keyboard:" + ansi::nil().wrp(wrap::off) + "\n"
+                + "    " + ansi::fgc(whitelt).und(true) + "Esc" + ansi::nil().wrp(wrap::on) + " - Quit/disconnect.\n"
+                + "    " + ansi::fgc(whitelt).und(true) + "Ctrl" + ansi::nil().wrp(wrap::on) + " - Combine with the left mouse button to set/unset keyboard focus; combining with dragging right/middle mouse buttons copies the selected area to the clipboard.\n"
+                + "    " + ansi::fgc(whitelt).und(true) + "Ctrl + PgUp/PgDn" + ansi::nil().wrp(wrap::on) + " - Navigation between windows.\n\n"
 
-                + ansi::fgc(whitelt).bld(true) + "Menu:" + ansi::nil().wrp(faux) + "\n"
-                + "    " + ansi::fgc(whitelt).und(true) + "Midnight Commander" + ansi::nil().wrp(faux) + " - live instance of Midnight Commander.\n"
-                + "       " + ansi::fgc(whitelt).und(true) + "Truecolor image" + ansi::nil().wrp(faux) + " - true color ANSI/ASCII image, ANSI art.\n"
-                + "          " + ansi::fgc(whitelt).und(true) + "Refresh Rate" + ansi::nil().wrp(faux) + " - terminal screen refresh rate selector, applies to\n"
+                + ansi::fgc(whitelt).bld(true) + "Menu:" + ansi::nil().wrp(wrap::off) + "\n"
+                + "    " + ansi::fgc(whitelt).und(true) + "Midnight Commander" + ansi::nil().wrp(wrap::off) + " - live instance of Midnight Commander.\n"
+                + "       " + ansi::fgc(whitelt).und(true) + "Truecolor image" + ansi::nil().wrp(wrap::off) + " - true color ANSI/ASCII image, ANSI art.\n"
+                + "          " + ansi::fgc(whitelt).und(true) + "Refresh Rate" + ansi::nil().wrp(wrap::off) + " - terminal screen refresh rate selector, applies to\n"
                 + "                      "                                                             + "   all connected users.\n"
                 //+ "        " + ansi::fgc(whitelt).und(true) + "BSU/ESU Toggle" + ansi::nil().wrp(faux) + " - a control sequence selector indicating the start\n"
                 //+ "                      "                                                             + "   and end of terminal screen update, applies to\n"
                 //+ "                      "                                                             + "   all connected users.\n"
-                + "                " + ansi::fgc(whitelt).und(true) + "Strobe" + ansi::nil().wrp(faux) + " - an empty resizable window that changes background color\n"
+                + "                " + ansi::fgc(whitelt).und(true) + "Strobe" + ansi::nil().wrp(wrap::off) + " - an empty resizable window that changes background color\n"
                 + "                      "                                                             + "   when drawing each new frame (stroboscopic object).\n"
-                + "  " + ansi::fgc(whitelt).und(true) + "Recursive connection" + ansi::nil().wrp(faux) + " - limited to 3 connections.\n"
+                + "  " + ansi::fgc(whitelt).und(true) + "Recursive connection" + ansi::nil().wrp(wrap::off) + " - limited to 3 connections.\n"
                 //+ "  " + ansi::fgc(whitelt).und(true) + "ssh vtm@netxs.online" + ansi::nil().wrp(faux) + " - a recursive connection.\n"
                 + "\n"
-                + "    " + ansi::fgc(whitelt).und(true) + "Disconnect" + ansi::nil().wrp(faux) + " - disconnects the current user.\n"
-                + "    " + ansi::fgc(whitelt).und(true) + "Shutdown" + ansi::nil().wrp(faux) + "   - disconnects all connected users and restarts\n"
+                + "    " + ansi::fgc(whitelt).und(true) + "Disconnect" + ansi::nil().wrp(wrap::off) + " - disconnects the current user.\n"
+                + "    " + ansi::fgc(whitelt).und(true) + "Shutdown" + ansi::nil().wrp(wrap::off) + "   - disconnects all connected users and restarts\n"
                 + "            "                                                             + "     the desktop environment (auto-fire if there are\n"
                 + "            "                                                             + "     no mouse clicks for 5 minutes).\n\n"
                 + "\n"
-                + ansi::wrp(true).mgl(0).mgr(0) + "\n"
+                + ansi::wrp(wrap::on).mgl(0).mgr(0) + "\n"
                 + "\n";
 
             text data = ansi::nil()
-                + ansi::jet(bias::center).wrp(faux).fgc(whitelt) + "Text layout examples\n\n"
-                + ansi::wrp(faux).jet(bias::left).und(true)
-                + "wrap OFF:\n\n" + ansi::nil().wrp(faux)
+                + ansi::jet(bias::center).wrp(wrap::off).fgc(whitelt) + "Text layout examples\n\n"
+                + ansi::wrp(wrap::off).jet(bias::left).und(true)
+                + "wrap OFF:\n\n" + ansi::nil().wrp(wrap::off)
                 + testline
                 + "\n\n"
 
-                + ansi::wrp(faux).jet(bias::left).und(true).fgc(whitelt)
-                + "wrap ON:\n\n" + ansi::nil().wrp(true)
+                + ansi::wrp(wrap::off).jet(bias::left).und(true).fgc(whitelt)
+                + "wrap ON:\n\n" + ansi::nil().wrp(wrap::on)
                 + testline
                 + "\n\n"
 
@@ -772,14 +776,14 @@ int main(int argc, char* argv[])
                 + "text: " + ansi::idx(topic_vars::object3).sav().fgc(whitelt).bgc(reddk)
                 + "some_text" + ansi::nop().nil() + " other text\n\n" // inline text object test
 
-                + ansi::jet(bias::left).wrp(true)
-                + "text text text " + ansi::idx(topic_vars::canvas1).wrp(true)
+                + ansi::jet(bias::left).wrp(wrap::on)
+                + "text text text " + ansi::idx(topic_vars::canvas1).wrp(wrap::on)
                 + ansi::nop().nil() + " text text text"
                 + "\n\n\n"
 
-                + ansi::jet(bias::center).wrp(faux).fgc(clr)
+                + ansi::jet(bias::center).wrp(wrap::off).fgc(clr)
                 + "Variable-width/-height characters\n\n"
-                + ansi::jet(bias::left).wrp(true).fgc()
+                + ansi::jet(bias::left).wrp(wrap::on).fgc()
                 + "left aligned\n" + ansi::ref(topic_vars::canvas2).nop()
                                           .ref(topic_vars::canvas2).nop()
                                           .ref(topic_vars::canvas2).nop()
@@ -787,7 +791,7 @@ int main(int argc, char* argv[])
                                           .ref(topic_vars::canvas2).nop()
                 + ansi::nop().nil()
                 + "\n\n"
-                + ansi::jet(bias::center).wrp(true)
+                + ansi::jet(bias::center).wrp(wrap::on)
                 + "centered\n" + ansi::ref(topic_vars::canvas2).nop()
                                       .ref(topic_vars::canvas2).nop()
                                       .ref(topic_vars::canvas2).nop()
@@ -795,7 +799,7 @@ int main(int argc, char* argv[])
                                       .ref(topic_vars::canvas2).nop()
                 + ansi::nop().nil()
                 + "\n\n"
-                + ansi::jet(bias::right).wrp(true)
+                + ansi::jet(bias::right).wrp(wrap::on)
                 + "right aligned\n" + ansi::ref(topic_vars::canvas2).nop()
                                            .ref(topic_vars::canvas2).nop()
                                            .ref(topic_vars::canvas2).nop()
@@ -804,9 +808,9 @@ int main(int argc, char* argv[])
                 + ansi::nop().nil()
                 + "\n\n"
 
-                + ansi::jet(bias::center).wrp(faux).fgc(clr)
+                + ansi::jet(bias::center).wrp(wrap::off).fgc(clr)
                 + "Embedded content\n\n"
-                + ansi::jet(bias::left).wrp(true)
+                + ansi::jet(bias::left).wrp(wrap::on)
                 + ansi::idx(topic_vars::dynamix1) + "<"+ ansi::fgc(reddk)+"create smth."+ ansi::fgc()+">"//.nop()
                 + ansi::idx(topic_vars::dynamix2) + "<"+ ansi::fgc(reddk)+"create smth."+ ansi::fgc()+">"//.nop()
                 + ansi::idx(topic_vars::dynamix3) + "<"+ ansi::fgc(reddk)+"create smth."+ ansi::fgc()+">"//.nop()
@@ -817,7 +821,7 @@ int main(int argc, char* argv[])
             // Wikipedia run
             text wiki = "\n\n"
 
-                + ansi::jet(bias::left).fgc(clr).wrp(true) + "ANSI escape code\n\n"
+                + ansi::jet(bias::left).fgc(clr).wrp(wrap::on) + "ANSI escape code\n\n"
 
                 + ansi::nil() + "From Wikipedia, the free encyclopedia\n"
                 + "  (Redirected from ANSI CSI)\n\n"
@@ -879,7 +883,7 @@ int main(int argc, char* argv[])
                 + "the resemblance to the English words emotion and emoticon is "
                 + "purely coincidental. The ISO 15924 script code for emoji is Zsye."
                 + "\n"
-            +ansi::fgc(clr).wrp(faux) + "\n" + "Smileys (wrap OFF)\n" + ansi::nil()
+            +ansi::fgc(clr).wrp(wrap::off) + "\n" + "Smileys (wrap OFF)\n" + ansi::nil()
                 + "😀😃😄😁😆😅😂🤣☺️😊😇🙂🙃😉😌😍\n"
                 + "😏😒😞😔😟😕🙁☹️😣😖😫😩🥺😢😭😤\n"
                 + "🥰😘😗😙😚😋😛😝😜🤪🤨🧐🤓😎🤩🥳\n"
@@ -887,7 +891,7 @@ int main(int argc, char* argv[])
                 + "😶😐😑😬🙄😯😦😧😮😲🥱😴🤤😪😵🤐\n"
                 + "🥴🤢🤮🤧😷🤒🤕🤑🤠😈👿👹👺🤡💩👻\n"
                 + "💀☠️👽👾🤖🎃😺😸😹😻😼😽🙀😿😾😠\n"
-            +ansi::fgc(clr).wrp(true) + "\n" + "Smileys (wrap ON)\n" + ansi::nil()
+            +ansi::fgc(clr).wrp(wrap::on) + "\n" + "Smileys (wrap ON)\n" + ansi::nil()
                 + "😀😃😄😁😆😅😂🤣☺️😊😇🙂🙃😉😌😍"
                 + "😏😒😞😔😟😕🙁☹️😣😖😫😩🥺😢😭😤😠"
                 + "🥰😘😗😙😚😋😛😝😜🤪🤨🧐🤓😎🤩🥳"
@@ -897,11 +901,11 @@ int main(int argc, char* argv[])
                 + "💀☠️👽👾🤖🎃😺😸😹😻😼😽🙀😿😾"
                 + "\n";
 
-                text wiki_cjk = ansi::wrp(faux).fgc(clr) + "\n\n"
+                text wiki_cjk = ansi::wrp(wrap::off).fgc(clr) + "\n\n"
                 + "端末エミュレータ\n" + ansi::nil()
                 + "出典: フリー百科事典『ウィキペディア（Wikipedia）』"
                 + "\n\n"
-                + ansi::wrp(true).fgc(clr) + "端末エミュレータ" + ansi::nil()
+                + ansi::wrp(wrap::on).fgc(clr) + "端末エミュレータ" + ansi::nil()
                 + "（たんまつエミュレータ）"
                 + ansi::fgc(clr) + "・端末模倣プログラム" + ansi::nil()
                 + "とは、端末として動作するソフトウェアである。端末エミュレータといった場合は、"
@@ -1002,10 +1006,10 @@ int main(int argc, char* argv[])
                 + ansi::bgc(clr - step * 0 /* 0xffffff */) + " "
                 + "";
 
-            cellatix_head = ansi::nil().wrp(faux)
+            cellatix_head = ansi::nil().wrp(wrap::off)
                 + cellatix_text_head;
 
-            cellatix_text = ansi::nil().wrp(faux);
+            cellatix_text = ansi::nil().wrp(wrap::off);
             auto base = topclr - 0x1f1f1f;// 0xe0e0e0;// 0xe4e4e4;
             auto c1 = ansi::bgc(base); //ansi::bgc(0xf0f0f0);
             auto c2 = ansi::bgc(base);
@@ -1062,7 +1066,7 @@ int main(int argc, char* argv[])
 
         auto x_with_tilde = "x᷉"s;
         auto mw_g_b = "👨\u200D👩\u200D👧\u200D👦"s; // "👨‍👩‍👧‍👦"s;
-        text br = ansi::wrp(faux)
+        text br = ansi::wrp(wrap::off)
             //+ "a\ufe0e"
             + "\t"s + mw_g_b
             + x_with_tilde
@@ -1260,7 +1264,7 @@ int main(int argc, char* argv[])
                     }
                     case PowerShell:
                     {
-                        frame->header(ansi::jet(center) + "PowerShell");
+                        frame->header(ansi::jet(bias::center) + "PowerShell");
 
                         auto layers = frame->attach<cake>();
                         auto scroll = layers->attach<rail>();
@@ -1273,7 +1277,7 @@ int main(int argc, char* argv[])
                     case CommandPrompt:
                     {
                         using fork = netxs::console::fork;
-                        frame->header(ansi::jet(center) + "Command Prompt");
+                        frame->header(ansi::jet(bias::center) + "Command Prompt");
 
                         auto layers = frame->attach<cake>();
                         auto scroll = layers->attach<rail>();
@@ -1454,7 +1458,8 @@ int main(int argc, char* argv[])
                         frame->limits({ -1,-1 }, { -1,105 });
                         frame->color(whitelt, 0x601A5f00);
                         frame->header(ansi::jet(bias::center) + "Spreadsheet");
-                        frame->SIGNAL(e2::preview, e2::form::prop::params, cellatix_foot);
+                        //frame->SIGNAL(e2::preview, e2::form::prop::params, cellatix_foot);
+                        frame->SIGNAL(e2::preview, e2::form::prop::footer, cellatix_foot);
 
                         auto block = frame->attach<fork>();
                         block->color(whitelt, 0);
@@ -1558,8 +1563,8 @@ int main(int argc, char* argv[])
                         {
                             auto block = scroll->attach<post>();
                             block->color(whitelt, blackdk);
-                            block->topic = ansi::fgc(yellowlt).mgl(4).mgr(4).wrp(faux) + "\n\nconnection rejected\n\n"
-                                + ansi::nil().wrp(true) + "Reached the limit of recursive connections, destroy existing recursive instances to create new ones.";
+                            block->topic = ansi::fgc(yellowlt).mgl(4).mgr(4).wrp(wrap::off) + "\n\nconnection rejected\n\n"
+                                + ansi::nil().wrp(wrap::on) + "Reached the limit of recursive connections, destroy existing recursive instances to create new ones.";
                         }
 
                         scroll_bars(layers, scroll);
@@ -1620,7 +1625,7 @@ int main(int argc, char* argv[])
                     case Bash:
                     case Term:
                     {
-                        frame->header(ansi::jet(center) + objs_desc[Bash]);
+                        frame->header(ansi::jet(bias::center) + objs_desc[Bash]);
 
                         auto layers = frame->attach<cake>();
                         auto scroll = layers->attach<rail>();
@@ -1653,8 +1658,8 @@ int main(int argc, char* argv[])
                         #ifdef DEMO
                             auto block = scroll->attach<post>();
                             block->color(whitelt, blackdk);
-                            block->topic = ansi::fgc(yellowlt).mgl(4).mgr(4).wrp(faux) + "\n\nLogs is not availabe in DEMO mode\n\n"
-                                + ansi::nil().wrp(true) + "Use the full version of VTM to run Logs.";
+                            block->topic = ansi::fgc(yellowlt).mgl(4).mgr(4).wrp(wrap::off) + "\n\nLogs is not availabe in DEMO mode\n\n"
+                                + ansi::nil().wrp(wrap::on) + "Use the full version of VTM to run Logs.";
                         #else
                             auto block = scroll->attach<post_logs>();
                             block->color(whitelt, blackdk);
@@ -1723,8 +1728,7 @@ int main(int argc, char* argv[])
                             auto data = canvas.meta(location);
                             if (data.length())
                             {
-                                auto str = ansi::setbuf(data);
-                                gate.SIGNAL(e2::release, e2::cout, str);
+                                gate.SIGNAL(e2::release, e2::cout, ansi::setbuf(data));
                             }
                         }
                     }
@@ -1752,6 +1756,11 @@ int main(int argc, char* argv[])
             creator(objs::Text, { { 30,20 },{ 59,26 } });
             creator(objs::MC,   { { 49,26 },{ 63,22 } });
             creator(objs::Term, { { 34,34 },{ 57,15 } });
+
+            auto sub_pos = twod{-120, 60};
+            creator(objs::Truecolor,   { twod{ 20,15 } + sub_pos,{ 70,30 } });
+            creator(objs::Logs,       { twod{ 52,33 } + sub_pos,{ 45,12 } });
+            creator(objs::RefreshRate, { twod{ 60,41 } + sub_pos,{ 35,10 } });
 #endif
 #ifndef DEMO
             creator(objs::CommandPrompt,   { { 10,5 },{ 80,25 } });
@@ -1812,8 +1821,7 @@ int main(int argc, char* argv[])
                     {
                         if (auto owner = base::getref(gear.id))
                         {
-                            text msg = "main logout by button";
-                            owner->SIGNAL(e2::release, e2::term::quit, msg);
+                            owner->SIGNAL(e2::release, e2::term::quit, "main logout by button");
                         }
                     };
 
@@ -1836,8 +1844,7 @@ int main(int argc, char* argv[])
 
                     //current_default = objs::Help;
                     current_default = objs::CommandPrompt;
-                    auto data = static_cast<iota>(current_default);
-                    block->SIGNAL(e2::release, e2::data::changed, data);
+                    block->SIGNAL(e2::release, e2::data::changed, current_default);
                 }
 
                 wptr<mold> weak = frame;
@@ -1850,8 +1857,7 @@ int main(int argc, char* argv[])
                 };
             }
 
-            iota fps = 60;
-            board->SIGNAL(e2::general, e2::timer::fps, fps);
+            board->SIGNAL(e2::general, e2::timer::fps, 60);
 
             iota usr_count = 0;
 
@@ -1926,8 +1932,7 @@ int main(int argc, char* argv[])
                     log("main: new thread is running on ", peer);
                 }
 
-                fps = 0;
-                board->SIGNAL(e2::general, e2::timer::fps, fps);
+                board->SIGNAL(e2::general, e2::timer::fps, 0);
             }
         }
         os::exit(0, "bye!");

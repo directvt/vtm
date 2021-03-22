@@ -14,26 +14,26 @@ namespace netxs
         std::mt19937       rng; // random=number engine used (Mersenne=Twister in this case)
 
     public:
-        template<typename T>
+        template<class T>
         T get_random_number(T start, T end)
         {
             std::uniform_int_distribution<T> uni(start, end);
             return uni(rng);
         }
-        template<typename T>
+        template<class T>
         T operator ()(T start, T end)
         {
             std::uniform_int_distribution<T> uni(start, end);
             return uni(rng);
         }
 
-        template<typename T>
+        template<class T>
         T expected_value(T start, T end)
         {
             std::uniform_int_distribution<T> uni(start, end);
             return (start + end) / 2 + uni(rng);
         }
-        template<typename T>
+        template<class T>
         static T max_expected_value(T start, T end)
         {
             return (start + end) / 2 + end; //end * 3;

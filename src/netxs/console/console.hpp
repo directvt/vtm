@@ -105,7 +105,7 @@ namespace netxs::console
         EVENT_BIND(e2::form::prop::any, text)
             EVENT_BIND(e2::form::prop::header, text)
             EVENT_BIND(e2::form::prop::footer, text)
-            EVENT_BIND(e2::form::prop::params, text)
+            //EVENT_BIND(e2::form::prop::params, text)
 
         // use e2::form::events instead
         //EVENT_BIND(e2::form::mouse::any, hids)
@@ -1438,8 +1438,7 @@ namespace netxs::console
             //status.invalid = true;
             if (auto parent_ptr = parent.lock())
             {
-                auto region = square();
-                parent_ptr->SIGNAL(e2::preview, e2::form::layout::strike, region);
+                parent_ptr->SIGNAL(e2::preview, e2::form::layout::strike, square());
             }
         }
         // base: Mark the form as invalid and going to be redrawn.
@@ -1988,8 +1987,7 @@ namespace netxs::console
                     }
                 };
                 boss.SUBMIT_TV(e2::general, e2::timer::any, token, handler);
-                auto id = ID;
-                boss.SIGNAL(e2::release, e2::form::animate::start, id);
+                boss.SIGNAL(e2::release, e2::form::animate::start, ID);
             }
             // animate: Optional proceed every timer tick,
             //          yield the delta from the flow and,
@@ -2620,9 +2618,8 @@ namespace netxs::console
                 stress = cell{}.fgc(whitelt);
                 alerts = cell{}.fgc(rgba{ 0xFFd0d0FFu });
 
-                //status.end().locus.wrp(true).rlf(true).jet(bias::left).cup(dot_00).cnl(2);
-                status.current().locus.wrp(true).rlf(true)
-                    .jet(bias::left).cup(dot_00).cnl(2);
+                status.style.wrp(wrap::on).jet(bias::left).rlf(feed::rev);
+                status.current().locus.cup(dot_00).cnl(2);
 
                 auto maxlen = 0_sz;
                 for (auto& desc : description)
@@ -2651,7 +2648,6 @@ namespace netxs::console
                         utf::format(track.totals) + " bytes";
 
                     track.number++;
-
                     canvas.output(status);
                 };
 
@@ -2691,12 +2687,9 @@ namespace netxs::console
                 {
                     if (bypass) return;
                     shadow();
-                    //auto& mouse = gear.mouse;
-                    hids::mouse& m = gear;
-                    auto& k = gear;
-
+                    auto& m = gear;
                     status[prop::last_event].set(stress) = "mouse";
-                    status[prop::mouse_pos] .set(stress) =
+                    status[prop::mouse_pos ].set(stress) =
                         (m.coord.x < 10000 ? std::to_string(m.coord.x) : "-") + " : " +
                         (m.coord.y < 10000 ? std::to_string(m.coord.y) : "-") ;
 
@@ -2706,21 +2699,17 @@ namespace netxs::console
 
                         state = m.button[btn].pressed ? "pressed" : "";
                         if (m.button[btn].flipped)
-                        {
                             state += state.length() ? " | flipped" : "flipped";
-                        }
+
                         if (m.button[btn].dragged)
-                        {
                             state += state.length() ? " | dragged" : "dragged";
-                        }
+
                         state += state.length() ? "" : "idle";
                     }
-
                     status[prop::mouse_wheeldt].set(stress) = std::to_string(m.whldt);
                     status[prop::mouse_hzwheel].set(stress) = m.hzwhl ? "active" : "idle";
                     status[prop::mouse_vtwheel].set(stress) = m.wheel ? "active" : "idle";
-
-                    status[prop::ctrl_state].set(stress) = "0x" + utf::to_hex(k.meta());
+                    status[prop::ctrl_state   ].set(stress) = "0x" + utf::to_hex(m.meta());
                 };
 
                 //boss.SUBMIT_T(e2::release, e2::term::menu, memo, iface)
@@ -2730,39 +2719,26 @@ namespace netxs::console
                 //	status[prop::menu_id].set(stress) = "UI:" + std::to_string(iface);
                 //};
 
-                //boss.SUBMIT_T(e2::preview, e2::hids::keybd::any, memo, gear)
                 boss.SUBMIT_T(e2::release, e2::term::key, memo, gear)
                 {
                     shadow();
-                    //hids::keybd& k = gear;
-                    //status[prop::last_event]   .set(stress) = "key";
-                    //status[prop::key_pressed]  .set(stress) = k.down ? "pressed" : "idle";
-                    //status[prop::key_repeat]   .set(stress) = std::to_string(k.repeatcount);
-                    //status[prop::ctrl_state]   .set(stress) = "0x" + utf::to_hex(k.ctlstate);
-                    //status[prop::key_code]     .set(stress) = "0x" + utf::to_hex(k.virtcode);
-                    //status[prop::key_scancode] .set(stress) = "0x" + utf::to_hex(k.scancode);
-                    //status[prop::key_character].set(stress) = "0x" + utf::to_hex(k.character);
-
                     auto& k = gear;
 #ifdef KEYLOG
                     log("debug fired ", k.character);
 #endif
-                    status[prop::last_event]   .set(stress) = "key";
-                    status[prop::key_pressed]  .set(stress) = k.down ? "pressed" : "idle";
-                    //status[prop::key_repeat]   .set(stress) = std::to_string(k.repeatcount);
-                    status[prop::ctrl_state]   .set(stress) = "0x" + utf::to_hex(k.ctlstate);
-                    status[prop::key_code]     .set(stress) = "0x" + utf::to_hex(k.virtcode);
-                    status[prop::key_scancode] .set(stress) = "0x" + utf::to_hex(k.scancode);
+                    status[prop::last_event   ].set(stress) = "key";
+                    status[prop::key_pressed  ].set(stress) = k.down ? "pressed" : "idle";
+                    status[prop::ctrl_state   ].set(stress) = "0x" + utf::to_hex(k.ctlstate );
+                    status[prop::key_code     ].set(stress) = "0x" + utf::to_hex(k.virtcode );
+                    status[prop::key_scancode ].set(stress) = "0x" + utf::to_hex(k.scancode );
                     status[prop::key_character].set(stress) = "0x" + utf::to_hex(k.character);
+                    //status[prop::key_repeat   ].set(stress) = std::to_string(k.repeatcount);
 
                     if (!k.character && k.textline.length())
                     {
-                        //status[prop::key_character].set(stress) = "0x" + utf::to_hex(k.textline.back());
-
                         auto t = k.textline;
                         for (auto i = 0; i < 0x20; i++)
                         {
-                            //utf::change(t, text{ (char)i }, utf::to_utf_from_code(i + 0x2420));
                             utf::change(t, text{ (char)i }, "^" + utf::to_utf_from_code(i + 0x40));
                         }
                         utf::change(t, text{ (char)0x7f }, "\\x7F");
@@ -2797,9 +2773,9 @@ namespace netxs::console
             text name; // title: Preserve original title
 
             #define PROP_LIST                    \
-            X(body, "Window title properties." ) \
             X(head, "Window title." )            \
             X(foot, "Window status.")
+            //X(body, "Window title properties." )
 
             #define X(a, b) a,
             enum prop { PROP_LIST count };
@@ -2816,24 +2792,19 @@ namespace netxs::console
             title(T&&) = delete;
             title(T& boss) : boss{ boss }
             {
-                //logo.current().brush.vis(cell::transparent);
-                //logo += ansi::idx(prop::head)
-                //      + ansi::wrp(faux).mgr(1).mgl(1)
-                //      + ansi::rlf(faux).jet(bias::left).cup(dot_00)
+                //logo += ansi::idx(prop::body).nop()
+                //      + ansi::wrp(wrap::off).mgr(1).mgl(1)
+                //      + ansi::rlf(feed::fwd).jet(bias::left).cup(dot_00)
                 //      + ansi::idx(prop::head) + ansi::nop()
-                //      + ansi::rlf(true).jet(bias::right).cup(dot_00)
-                //      + ansi::idx(prop::foot) + ansi::nop();
-
-                //logo.current().brush.vis(cell::unalterable);
-                logo += ansi::idx(prop::body).nop();
-
-                //logo.current().brush.vis(cell::transparent);
-                logo += ansi::wrp(faux).mgr(1).mgl(1)
-                      + ansi::rlf(faux).jet(bias::left).cup(dot_00)
+                //      + ansi::rlf(feed::rev).jet(bias::right).cup(dot_00)
+                //      + ansi::idx(prop::foot) + ansi::nop()
+                //      + ansi::rlf(feed::fwd).jet(bias::left).cup(dot_00).mgr(0).mgl(0);
+                logo += ansi::cup(dot_00)
+                      + ansi::wrp(wrap::off).rtl(rtol::ltr).rlf(feed::fwd).jet(bias::left).mgr(1).mgl(1)
                       + ansi::idx(prop::head) + ansi::nop()
-                      + ansi::rlf(true).jet(bias::right).cup(dot_00)
-                      + ansi::idx(prop::foot) + ansi::nop()
-                      + ansi::rlf(faux).jet(bias::left).cup(dot_00).mgr(0).mgl(0);
+                      + ansi::cup(dot_00).rlf(feed::rev).jet(bias::right)
+                      + ansi::idx(prop::foot);// + ansi::nop()
+                      //+ ansi::rlf(feed::fwd).jet(bias::left).cup(dot_00).mgr(0).mgl(0);
 
                 boss.SUBMIT_T(e2::release, e2::form::upon::redrawn, memo, canvas)
                 {
@@ -2847,10 +2818,10 @@ namespace netxs::console
                 {
                     footer(newtext);
                 };
-                boss.SUBMIT_T(e2::preview, e2::form::prop::params, memo, newtext)
-                {
-                    params(newtext);
-                };
+                //boss.SUBMIT_T(e2::preview, e2::form::prop::params, memo, newtext)
+                //{
+                //    params(newtext);
+                //};
 
                 boss.SUBMIT_T(e2::request, e2::form::prop::header, memo, curtext)
                 {
@@ -2865,10 +2836,10 @@ namespace netxs::console
                 {
                     caption = footer();
                 };
-                boss.SUBMIT_T(e2::request, e2::form::state::params, memo, caption)
-                {
-                    caption = params();
-                };
+                //boss.SUBMIT_T(e2::request, e2::form::state::params, memo, caption)
+                //{
+                //    caption = params();
+                //};
             }
 
             auto& titles() const
@@ -2883,15 +2854,19 @@ namespace netxs::console
             {
                 return logo[prop::foot];
             }
-            auto& params()
-            {
-                return logo[prop::body];
-            }
+            //auto& params()
+            //{
+            //    return logo[prop::body];
+            //}
             void header(view newtext)
             {
                 name = newtext;
                 auto& textline = header();
                 textline = newtext;
+                textline.style.rtl_or(rtol::ltr);
+                textline.style.rlf_or(feed::fwd);
+                textline.style.wrp_or(wrap::off);
+                textline.style.jet_or(bias::left);
                 textline.link(boss.id);
                 boss.SIGNAL(e2::release, e2::form::state::header, textline);
             }
@@ -2899,16 +2874,20 @@ namespace netxs::console
             {
                 auto& textline = footer();
                 textline = newtext;
+                textline.style.rtl_or(rtol::ltr);
+                textline.style.rlf_or(feed::rev);
+                textline.style.wrp_or(wrap::off);
+                textline.style.jet_or(bias::right);
                 textline.link(boss.id);
                 boss.SIGNAL(e2::release, e2::form::state::footer, textline);
             }
-            void params(view newtext)
-            {
-                auto& textline = params();
-                textline = newtext;
-                textline.link(boss.id);
-                boss.SIGNAL(e2::release, e2::form::state::params, textline);
-            }
+            //void params(view newtext)
+            //{
+            //    auto& textline = params();
+            //    textline = newtext;
+            //    textline.link(boss.id);
+            //    boss.SIGNAL(e2::release, e2::form::state::params, textline);
+            //}
         };
 
         // pro: Provides functionality for the scene objects manipulations.
@@ -2967,6 +2946,7 @@ namespace netxs::console
 
                             //todo unify clear formatting/aligning in header
                             label.locus.kill();
+                            label.style.rst();
                             label.lyric->each([&](auto& a) { a.meta(c); });
                         }
                     }
@@ -3010,7 +2990,7 @@ namespace netxs::console
 
                     inst.SIGNAL(e2::request, e2::form::layout::size,  region.size);
                     inst.SIGNAL(e2::request, e2::form::layout::move,  region.coor);
-                    inst.SIGNAL(e2::request, e2::form::state::mouse, header.active);
+                    inst.SIGNAL(e2::request, e2::form::state::mouse,  header.active);
                     inst.SIGNAL(e2::request, e2::form::state::header, header.basis);
                     inst.SIGNAL(e2::request, e2::form::state::color,  header.color);
 
@@ -3034,14 +3014,12 @@ namespace netxs::console
 
                     auto& grade = skin::grade(header.active ? header.color.active
                                                             : header.color.passive);
-
                     auto pset = [&](twod const& p, uint8_t k)
                     {
                         //canvas[p].fuse(grade[k], obj_id, p - offset);
                         //canvas[p].fuse(grade[k], obj_id);
                         canvas[p].link(obj_id).bgc().mix_one(grade[k].bgc());
                     };
-
                     window.coor = dot_00;
                     netxs::online(window, origin, center, pset);
                 }
@@ -3063,10 +3041,6 @@ namespace netxs::console
 
                 void postrender(face& canvas)
                 {
-                    //if (auto& postrender = object->base::postrender)
-                    //{
-                    //	postrender(canvas);
-                    //}
                     object->postrender(canvas);
                 }
             };
@@ -3208,18 +3182,13 @@ namespace netxs::console
                     {
                         canvas.wipe(boss.id);
                         canvas.output(titles);
-
                         //todo revise
-                        users.prerender (canvas); // Drawing backpane for spectators
-                        items.render    (canvas); // Drawing objects of the world
+                        users.prerender (canvas); // Draw backpane for spectators
+                        items.render    (canvas); // Draw objects of the world
                         users.postrender(canvas); // Draw spectator's mouse pointers
-
                         return true;
                     }
-                    else
-                    {
-                        return faux;
-                    }
+                    else return faux;
                 };
 
                 boss.SUBMIT_T(e2::preview, e2::form::proceed::detach, memo, item)
@@ -3227,8 +3196,7 @@ namespace netxs::console
                     auto& inst = *item;
                     denote(items.remove(inst.id));
                     denote(users.remove(inst.id));
-                    auto master = boss.This();
-                    inst.SIGNAL(e2::release, e2::form::upon::detached, master);
+                    inst.SIGNAL(e2::release, e2::form::upon::detached, boss.This());
                 };
                 boss.SUBMIT_T(e2::preview, e2::form::layout::strike, memo, region)
                 {
@@ -3285,24 +3253,22 @@ namespace netxs::console
             // scene: Create a new item of the specified subtype
             //        and attach it to the scene.
             template<class S, class ...Args>
-            auto attach(Args... args)
+            auto attach(Args&&... args)
             {
-                auto item = boss.indexer<bell>::create<S>(args...);
+                auto item = boss.indexer<bell>::create<S>(std::forward<Args>(args)...);
                 items.append(item);
-                auto creator = boss.base::This();
-                item->SIGNAL(e2::release, e2::form::upon::attached, creator);
+                item->SIGNAL(e2::release, e2::form::upon::attached, boss.base::This()); // Send creator
                 return item;
             }
             // scene: Create a new user of the specified subtype
             //        and invite him to the scene.
             template<class S, class ...Args>
-            auto invite(Args... args)
+            auto invite(Args&&... args)
             {
-                auto user = boss.indexer<bell>::create<S>(args...);
+                auto user = boss.indexer<bell>::create<S>(std::forward<Args>(args)...);
                 users.append(user);
 
-                auto creator = boss.base::This();
-                user->SIGNAL(e2::release, e2::form::upon::attached, creator);
+                user->SIGNAL(e2::release, e2::form::upon::attached, boss.base::This()); // Send creator
 
                 //todo unify
                 tone color{ tone::brighter, tone::shadow};
@@ -3442,8 +3408,8 @@ namespace netxs::console
                     {
                         if (!clients++)
                         {
-                            auto active = true;
-                            boss.SIGNAL(e2::release, e2::form::state::keybd, active);
+                            //auto active = true;
+                            boss.SIGNAL(e2::release, e2::form::state::keybd, true);
                         }
                     }
                 };
@@ -3454,8 +3420,8 @@ namespace netxs::console
                     {
                         if (!--clients)
                         {
-                            auto active = faux;
-                            boss.SIGNAL(e2::release, e2::form::state::keybd, active);
+                            //auto active = faux;
+                            boss.SIGNAL(e2::release, e2::form::state::keybd, faux);
                         }
                     }
                 };
@@ -3631,16 +3597,16 @@ namespace netxs::console
     public:
         // host: Create a new item of the specified subtype and attach it.
         template<class T, class ...Args>
-        auto attach(Args... args)
+        auto attach(Args&&... args)
         {
-            return scene.attach<T>(args...);
+            return scene.attach<T>(std::forward<Args>(args)...);
         }
 
         //todo unify
         template<class T, class ...Args>
-        auto invite(Args... args)
+        auto invite(Args&&... args)
         {
-            return scene.invite<T>(args...);
+            return scene.invite<T>(std::forward<Args>(args)...);
         }
 
     protected:

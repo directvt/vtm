@@ -9,7 +9,7 @@
 namespace netxs
 {
     // iterator.h: Search an item in the container for which the predicate(item) is true.
-    template <typename T, class P>
+    template <class T, class P>
     auto search(T&& iterable, P predicate)
     {
         using std::begin;
@@ -28,7 +28,7 @@ namespace netxs
     }
 
     // iterator.h: Execute the func(item) for each item in the iterable container if the predicate(item) is true.
-    template <typename T, class P, class F>
+    template <class T, class P, class F>
     void foreach(T&& iterable, P predicate, F func)
     {
         using std::begin;
@@ -46,19 +46,19 @@ namespace netxs
     }
 
     // iterator.h: Reversed iterable helper wrapper.
-    template <typename T>
+    template <class T>
     struct reversion_wrapper { T& iterable; };
 
     // iterator.h: Reversed iterable helper begin().
-    template <typename T>
+    template <class T>
     auto begin (reversion_wrapper<T> w) { return std::rbegin(w.iterable); }
 
     // iterator.h: Reversed iterable helper end().
-    template <typename T>
+    template <class T>
     auto end (reversion_wrapper<T> w) { return std::rend(w.iterable); }
 
     // iterator.h: Reverse iterable.
-    template <typename T>
+    template <class T>
     reversion_wrapper<T> reverse (T&& iterable) { return { iterable }; }
 
     //todo check traits of the T: T must implement operator bool() - the end sequence indicator

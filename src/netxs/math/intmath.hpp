@@ -10,6 +10,10 @@
 #include <cmath>
 #include <cfenv>
 
+#ifndef faux
+    #define faux (false)
+#endif
+
 namespace netxs
 {
     constexpr size_t operator "" _sz (unsigned long long i)	{ return i; }
@@ -23,7 +27,7 @@ namespace netxs
     {
         auto store = accum;
         accum += delta;
-        return accum <= store ? true : false;
+        return accum <= store ? true : faux;
     }
 
     // intmath.h: Clamp a value in case it exceeds its numerical limits.
@@ -44,7 +48,7 @@ namespace netxs
         }
     }
 
-    template<typename T1, typename T2, typename T3 = T2>
+    template<class T1, class T2, class T3 = T2>
     T3 divround(T1 n, T2 d)
     {
         static_assert(std::is_integral<T1>::value, "Integral type only");
@@ -62,7 +66,7 @@ namespace netxs
                       : 0;
     }
 
-    template<typename T1, typename T2, typename T3 = T2>
+    template<class T1, class T2, class T3 = T2>
     T3 divupper(T1 n, T2 d)
     {
         static_assert(std::is_integral<T1>::value, "Integral type only");
@@ -74,7 +78,7 @@ namespace netxs
             :	n / d;
     }
 
-    template<typename T1, typename T2, typename T3 = T2>
+    template<class T1, class T2, class T3 = T2>
     T3 divfloor(T1 n, T2 d)
     {
         static_assert(std::is_integral<T1>::value, "Integral type only");
@@ -86,14 +90,14 @@ namespace netxs
             :	n / d;
     }
 
-    template<bool B, typename T>
+    template<bool B, class T>
     struct _disintegrate { using type = T; };
 
-    template<typename T>
-    struct _disintegrate<false, T> { using type = typename T::type; };
+    template<class T>
+    struct _disintegrate<faux, T> { using type = typename T::type; };
 
     // intmath.h: Deduce a scalar type from the vector type.
-    template<typename T>
+    template<class T>
     using disintegrate = typename _disintegrate< std::is_integral<T>::value, T >::type;
 
     // intmath.h: Delta sequence generator.
@@ -362,7 +366,7 @@ namespace netxs
             auto basis = joint.coor - rect2.coor;
             joint.coor-= rect1.coor;
 
-            inbody<false>(canvas, bitmap, joint, basis, handle);
+            inbody<faux>(canvas, bitmap, joint, basis, handle);
         }
     }
 
@@ -404,7 +408,7 @@ namespace netxs
         auto top  = y1 - ymin;
 
         if ((dx == 0.0f && left < 0.0f) ||
-            (dy == 0.0f && top  < 0.0f)) return false; // the line is parallel to the rectangle
+            (dy == 0.0f && top  < 0.0f)) return faux; // the line is parallel to the rectangle
 
         auto max = 0.0f;
         auto min = 1.0f;
@@ -449,7 +453,7 @@ namespace netxs
         }
         else
         {
-            return false; // the line is outside
+            return faux; // the line is outside
         }
     }
 
@@ -580,7 +584,7 @@ namespace netxs
             }
             else
             {
-                return false;
+                return faux;
             }
         }
 
