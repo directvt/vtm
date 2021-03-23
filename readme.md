@@ -76,10 +76,10 @@ double `LeftClick`    | Window: Maximize/restore
 # Built-in Applications
 
 - `▀▄ Term` Terminal emulator
-- `▀▄ Logs` Debugging tool for monitoring applications' output in real time
+- `▀▄ Logs` VT monitoring tool
 - `▀▄ Task` Task manager (desktopio) _(not ready)_
-- `▀▄ Hood` Desktop environment settings _(not ready)_
-- `▀▄ Info` Software documentation browser _(not ready)_
+- `▀▄ Hood` Desktop environment setting configurator _(not ready)_
+- `▀▄ Info` Documentation browser _(not ready)_
 - `▀▄ Shop` A digital distribution platform _(not ready)_
 - `▀▄ Text` A simple text editor _(not ready)_
 - `▀▄ Calc` A simple spreadsheet program like VisiCalc or Lotus 1-2-3 _(not ready)_
@@ -94,11 +94,13 @@ double `LeftClick`    | Window: Maximize/restore
 <details><summary>show details...</summary><p>
 
 - `▀▄ Term`
+   - UTF-8 Everywhere
+   - Unicode clustering
    - TrueColor/256-color support
    - Auto-wrap mode `DECAWM` (horizontal scrolling)
    - Focus tracking `DECSET 1004`
    - Bracketed paste mode `DECSET 2004`
-   - SGR attributes: overline, double underline, strikethrough
+   - SGR attributes: overline, double underline, strikethrough, and others
    - Save/restore terminal window title `XTWINOPS 22/23`
    - Mouse Tracking `DECSET 1000/1002/1003/1006 SGR` mode
    - Mouse tracking `DECSET 10060 Extended SGR` mode, mouse reporting outside of the terminal viewport (outside + negative arguments) #62

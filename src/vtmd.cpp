@@ -177,13 +177,13 @@ std::list<text> appstore_body =
     "This is more efficient than writing to STDOUT."),
 
     item("Clip", bluedk, "1", "Free ", "Get",
-    "Clipboard manager. "),
+    "Clipboard manager."),
 
     item("Info", cyandk, "1", "Free ", "Get",
-    "Software documentation browser. "),
+    "Software documentation browser."),
 
     item("Hood", reddk, "1", "Free ", "Get",
-    "Desktop environment settings. "),
+    "Desktop environment setting configurator."),
 };
 
 text qr = ""s//"\033[38;2;000;000;000m\033[48;2;000;000;000m"s
