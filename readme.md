@@ -32,10 +32,10 @@ if   [[ "$OSTYPE" == "linux-gnu"* ]]; then release=vtm_linux_amd64
 elif [[ "$OSTYPE" == "darwin"*    ]]; then release=vtm_macos
 else exit 1; fi
 tmpdir=$(mktemp -d); cd $tmpdir
-wget "https://github.com/netxs-group/VTM/releases/download/latest/${release}.tar.gz"
-tar -zxvf "${release}.tar.gz"; cd "./${release}"
+wget https://github.com/netxs-group/VTM/releases/download/latest/${release}.tar.gz
+tar -zxvf ${release}.tar.gz; cd ./${release}
 cat ./install.sh
-echo "tmpdir=${tmpdir}"
+echo tmpdir=${tmpdir}
 sudo ./install.sh; rm -rf $tmpdir; cd ~
 ```
 
