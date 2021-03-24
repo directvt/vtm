@@ -1084,7 +1084,9 @@ namespace netxs::console
         {
             ins(n, brush);
         }
-        void ins(iota start, iota count, cell const& brush)
+        void fill(iota start, iota count, cell const& brush)
+        //template<class P>
+        //void fill(iota start, iota count, P fill_proc)
         {
             if (count > 0)
             {
@@ -1099,6 +1101,7 @@ namespace netxs::console
                     auto end = dst + size;
                     while (dst != end)
                     {
+                        //fill_proc(*dst++);
                         *dst++ = brush;
                     }
                 }

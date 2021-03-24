@@ -212,7 +212,7 @@ namespace netxs::ui
 
             //todo update flow::minmax and base::upset
         }
-        void clear(bool preserve_brush = faux)
+        void clear_all(bool preserve_brush = faux)
         {
             if (!preserve_brush) brush.reset();
             style.glb();
@@ -224,7 +224,7 @@ namespace netxs::ui
         }
         void resize(iota newsize, bool wipe = faux)
         {
-            if (wipe) clear(true);
+            if (wipe) clear_all(true);
             batch.resize(newsize);
             clear_regions();
             align_basis();
@@ -296,8 +296,8 @@ namespace netxs::ui
             auto erase_count = static_cast<iota>(tail - iter);
             del_lines(erase_count);
         }
-        // rods: Cut all lines above and current line
-        void cut_above()
+        // rods: Trim all lines above and current line
+        void trim_to_current()
         {
             auto caret = batch.get();
             auto cur_line_it = batch.begin() + caret;
@@ -311,6 +311,35 @@ namespace netxs::ui
                 auto& line = *head;
                 line.trim_to(required_len);
                 mas_index++;
+            }
+            while(head++ != tail);
+        }
+        // rods: // Remove all lines below except the current
+        void del_below()
+        {
+            auto cur_index = batch.get();
+            del_lines(batch.length() - (cur_index + 1));
+        }
+        void clear_above()
+        {
+            // Insert spaces on all lines above including the current line,
+            //   begining from bossid of the viewport top line
+            //   ending the current line
+            auto cur_index = batch.get();
+            auto master_id = batch[basis].bossid;
+            auto mas_index = get_line_index_by_id(master_id);
+            auto head = batch.begin() + mas_index;
+            auto tail = batch.begin() + cur_index;
+            auto count = coord.y * panel.x + coord.x;
+            auto start = (basis - mas_index) * panel.x;
+            //todo unify
+            do
+            {
+                auto& lyric = *head;
+                //lyric.fill(start, count, [&](cell& c){ c = brush.spare; });
+                lyric.fill(start, count, brush.spare);
+                lyric.trim(brush.spare);
+                start -= panel.x;
             }
             while(head++ != tail);
         }
@@ -1026,105 +1055,72 @@ namespace netxs::ui
             void ed(iota n)
             {
                 finalize();
-                //auto current_brush = batch[caret].brush;
-                auto current_brush = rods::brush;
-                auto caret = batch.get();
                 switch (n)
                 {
-                    case commands::erase::display::below: // n = 0(default)  Erase viewport after caret.
-                        cut_above(); // Cut all lines above and current line
-                        del_lines(batch.length() - (caret + 1)); // Remove all lines below
+                    case commands::erase::display::below: // n = 0 (default)  Erase viewport after caret.
+                        trim_to_current();
+                        del_below();
                         break;
                     case commands::erase::display::above: // n = 1  Erase viewport before caret.
-                    {
-                        // Insert spaces on all lines above including the current line,
-                        //   begining from bossid of viewport top line
-                        //   ending the current line
-                        auto master_id = batch[basis].bossid;
-                        auto mas_index = get_line_index_by_id(master_id);
-                        auto head = batch.begin() + mas_index;
-                        auto tail = batch.begin() + caret;
-                        auto count = coord.y * panel.x + coord.x;
-                        auto start = (basis - mas_index) * panel.x;
-                        //todo unify
-                        do
-                        {
-                            auto& lyric = *head;
-                            lyric.ins(start, count, rods::brush.spare);
-                            lyric.trim(rods::brush.spare);
-                            start -= panel.x;
-                        }
-                        while(head++ != tail);
+                        clear_above();
                         break;
-                    }
                     case commands::erase::display::viewport: // n = 2  Erase viewport.
                         set_coord(dot_00);
                         ed(commands::erase::display::below);
                     break;
                     case commands::erase::display::scrollback: // n = 3  Erase scrollback.
-                        rods::clear(true);
+                        clear_all(true);
                     break;
                     default:
                         break;
                 }
-                rods::brush = current_brush;
-                //todo preserve other attributes: wrp, jet
             }
             // wall: CSI n K  Erase line (don't move caret)
             void el(iota n)
             {
                 finalize();
                 auto& lyric = *(batch->lyric);
-
+                auto  caret = batch->chx();
+                auto  wraps = batch->style.wrapln == wrap::on;
                 switch (n)
                 {
                     default:
                     case commands::erase::line::right: // Ps = 0  ⇒  Erase to Right (default).
                     {
                         //todo optimize
-                        auto brush = rods::brush;
-                        brush.txt(' ');
-                        auto coor = batch->chx();
                         //if (batch[caret].wrapln)
                         {
-                            auto right = panel.x - (coor + panel.x) % panel.x;
-                            batch->ins(right, brush);
+                            auto right_edge = panel.x - (caret + panel.x) % panel.x;
+                            batch->ins(right_edge, brush);
                             batch->cook();
-                            batch->trim(rods::brush.spare);
-                            batch->chx(coor);
+                            batch->trim(brush.spare);
+                            batch->chx(caret);
                         }
-                        break;
                     }
+                        break;
                     case commands::erase::line::left: // Ps = 1  ⇒  Erase to Left.
                     {
-                        auto brush = rods::brush;
-                        brush.txt(' ');
-                        auto coor = batch->chx();
-                        auto width = boss.viewport.size.x;
-                        if (coor < width)
+                        if (caret < panel.x)
                         {
-                            lyric.each([&](cell& c) {if (coor > 0) { coor--; c.fuse(brush); } });
+                            lyric.each([&](cell& c) {if (caret > 0) { caret--; c.set(brush); } });
                         }
                         else
                         {
-                            auto left_edge = coor - coor % width;
+                            auto left_edge = caret - caret % panel.x;
                             lyric.crop({ left_edge,1 }, brush);
-                            lyric.crop({ left_edge + width,1 }, brush);
+                            lyric.crop({ left_edge + panel.x,1 }, brush);
                         }
-                        break;
                     }
+                        break;
                     case commands::erase::line::all: // Ps = 2  ⇒  Erase All.
                     {
                         //todo optimize
-                        auto coor  = batch->chx();
-                        auto brush = rods::brush;
-                        brush.txt(' ');
-                        auto width = boss.viewport.size.x;
-                        auto left_edge = coor - coor % width;
+                        auto left_edge = caret - caret % panel.x;
+                        //todo it's mistake: loosing right part of the line when height > 1
                         lyric.crop({ left_edge,1 }, brush);
-                        lyric.crop({ left_edge + width,1 }, brush);
-                        break;
+                        lyric.crop({ left_edge + panel.x,1 }, brush);
                     }
+                        break;
                 }
             }
         };
@@ -1234,8 +1230,8 @@ namespace netxs::ui
         void decstr()
         {
             target->finalize();
-            scroll.clear(true);
-            altbuf.clear(true);
+            scroll.clear_all(true);
+            altbuf.clear_all(true);
             target = &scroll;
         }
         void decset(wall*& p, fifo& queue)
