@@ -222,10 +222,11 @@ namespace netxs::ui
             batch.push(0);
             align_basis();
         }
+        template<bool BOTTOM_ANCHORED = true>
         void resize(iota newsize, bool wipe = faux)
         {
             if (wipe) clear_all(true);
-            batch.resize(newsize);
+            batch.resize<BOTTOM_ANCHORED>(newsize);
             clear_regions();
             align_basis();
         }
@@ -1426,7 +1427,7 @@ namespace netxs::ui
                     viewport.size = new_size;
                     if (target == &altbuf)
                     {
-                        altbuf.resize(new_size.y);
+                        altbuf.resize<faux>(new_size.y);
                     }
                     else
                     {

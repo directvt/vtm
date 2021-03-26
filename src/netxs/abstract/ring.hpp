@@ -113,18 +113,22 @@ namespace netxs::generics
             head = 0;
             tail = peak - 1;
         }
+        template<bool BOTTOM_ANCHORED = true>
         void resize(iota new_size, bool is_unlimited = faux)
         {
             if (new_size > 0)
             {
                 T temp;
                 temp.reserve(new_size);
-                auto dist = dst(cart, tail);
-                if (size > new_size)
+                if constexpr (BOTTOM_ANCHORED)
                 {
-                    auto diff = size - new_size;
-                    head = mod(head + diff);
-                    size = new_size;
+                    if (size > new_size) head = mod(tail - new_size), size = new_size;
+                    cart = std::max(0, size - 1 - dst(cart, tail));
+                }
+                else // TOP_ANCHORED
+                {
+                    if (size > new_size) tail = mod(head + new_size), size = new_size;
+                    cart = std::min(size - 1, dst(head, cart));
                 }
                 auto i = size;
                 while(i--)
@@ -136,9 +140,8 @@ namespace netxs::generics
                 std::swap(buff, temp);
                 peak = new_size;
                 head = 0;
+                tail = size - 1;
                 flex = is_unlimited;
-                tail = size ? size - 1 : peak - 1;
-                cart = size ? std::max(0, tail - dist) : 0;
             }
             else flex = true;
         }
