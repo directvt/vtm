@@ -64,13 +64,16 @@ namespace netxs::ui
                 //auto c = corner.less(dot_11, dot_00, length);
                 //todo revise
                 //auto c = master.base::coor.get() + corner.less(dot_11, dot_00, length);
-                auto c = master.base::coor.get()
+                auto area = master.base::square();
+                auto c = area.coor
                        - canvas.coor() + corner.less(dot_11, dot_00, length);
-
-                auto side_x = rect{ c, { levels.x, widths.y } }.normalize();
+                //todo bug: levels can be larger than form itself
+                // repro: comment .clip(area), create a recursive connection,
+                //        place the mouse cursor in the bottom right corner
+                //        quickly resize by dragging the top-left corner to the max and back
+                auto side_x = rect{ c, { levels.x, widths.y } }.normalize().clip(area);
                 c.y += levels.y > 0 ? 1 : -1;
-                auto side_y = rect{ c, { widths.x, levels.y } }.normalize();
-
+                auto side_y = rect{ c, { widths.x, levels.y } }.normalize().clip(area);
                 canvas.fill(side_x, fuse);
                 canvas.fill(side_y, fuse);
             }

@@ -10,7 +10,7 @@
 //#define WRAPPING (wrap::off)
 
 // Enable to show debug overlay
-#define DEBUG_OVERLAY
+//#define DEBUG_OVERLAY
 
 // Enable to show all terminal input (keyboard/mouse etc)
 //#define KEYLOG

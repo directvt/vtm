@@ -4762,30 +4762,30 @@ again:
     {
         using self = gate;
         FEATURE(pro::keybd, keybd); // gate: Keyboard controller
-        FEATURE(pro::robot, robot); // gate: Amination controller
+        FEATURE(pro::robot, robot); // gate: Animation controller
         FEATURE(pro::maker, maker); // gate: Form generator
         //FEATURE(pro::caret, caret); // gate: Cursor controller
-        FEATURE(pro::title, title); // gate: NetXS Group logo watermark
+        FEATURE(pro::title, title); // gate: Logo watermark
         FEATURE(pro::guard, guard); // gate: Watch dog against robots and single Esc detector
         FEATURE(pro::input, input); // gate: User input event handler
         #ifdef DEBUG_OVERLAY
-        FEATURE(pro::debug, debug); // gate: Debug telemetry controller.
+        FEATURE(pro::debug, debug); // gate: Debug telemetry controller
         #endif
 
         using pair = std::optional<std::pair<period, iota>>;
-        pair  yield; // gate: Indicator that the current frame has been successfully STDOUT.
+        pair  yield; // gate: Indicator that the current frame has been successfully STDOUT
 
         para uname;
 
     public:
-        // The client main loop.
+        // Client main loop
         void proceed(xipc media /*session socket*/, text title)
         {
             if (auto world = parent.lock())
             {
-                link conio{ *this, media };          // gate: Terminal IO.
-                diff paint{ conio, input.freeze() }; // gate: Rendering loop.
-                subs token;                          // gate: Subscription tokens array.
+                link conio{ *this, media };          // gate: Terminal IO
+                diff paint{ conio, input.freeze() }; // gate: Rendering loop
+                subs token;                          // gate: Subscription tokens array
 
                 // conio events
                 SUBMIT_T(e2::release, e2::term::size, token, newsize)
