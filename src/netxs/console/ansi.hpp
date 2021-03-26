@@ -215,13 +215,15 @@ namespace netxs::console::ansi
         esc& locate_wipe ()  { add("\033[r");                           return *this; } // esc: Enable scrolling for entire display (clear screen).
         esc& locate_call ()  { add("\033[6n");                          return *this; } // esc: Report cursor position.
         esc& screen_wipe ()  { add("\033[!p");                          return *this; } // esc: Reset certain terminal settings to their defaults. Also resets the mouse tracking mode in VTE.
+        esc& scroll_wipe ()  { add("\033[3J");                          return *this; } // esc: Erase scrollback.
         esc& tag (view t)    { add("\033]2;" + text(t) + "\07");        return *this; } // esc: Window title.
-        esc& setutf (bool b) { add(b ? "\033%G" : "\033%@");            return *this; } // esc: Select UTF-8 character set (true) or default (faux).
-        esc& altbuf (bool b) { add(b ? "\033[?1049h" : "\033[?1049l");  return *this; } // esc: Alternative buffer.
-        esc& cursor (bool b) { add(b ? "\033[?25h" : "\033[?25l");      return *this; } // esc: Cursor visibility.
-        esc& appkey (bool b) { add(b ? "\033[?1h" : "\033[?1l");        return *this; } // ansi: Application(=on)/ANSI(=off) Cursor Keys (DECCKM).
+        esc& setutf (bool b) { add(b ? "\033%G"      : "\033%@");       return *this; } // esc: Select UTF-8 character set (true) or default (faux).
         esc& setbuf (view t) { add("\033]52;;" + utf::base64(t) + C0_BEL);  return *this; } // esc: Set clipboard.
+        esc& altbuf (bool b) { add(b ? "\033[?1049h" : "\033[?1049l");  return *this; } // esc: Alternative buffer.
+        esc& cursor (bool b) { add(b ? "\033[?25h"   : "\033[?25l");    return *this; } // esc: Cursor visibility.
+        esc& appkey (bool b) { add(b ? "\033[?1h"    : "\033[?1l");     return *this; } // ansi: Application(=on)/ANSI(=off) Cursor Keys (DECCKM).
         esc& bpmode (bool b) { add(b ? "\033[?2004h" : "\033[?2004l");  return *this; } // esc: Set bracketed paste mode.
+        esc& autowr (bool b) { add(b ? "\033[?7h"    : "\033[?7l");     return *this; } // esc: Set autowrap mode.
         esc& save_title ()   { add("\033[22;0t");                       return *this; } // esc: Save terminal window title.
         esc& load_title ()   { add("\033[23;0t");                       return *this; } // esc: Restore terminal window title.
 
@@ -370,7 +372,7 @@ namespace netxs::console::ansi
                                 return *this; } // esc: OSC report.
     };
 
-    static esc screen_wipe ()        { return esc{}.screen_wipe(); } // esc: Reset certain terminal settings to their defaults. Also resets the mouse tracking mode in VTE.
+    //static esc screen_wipe ()        { return esc{}.screen_wipe(); } // esc: Reset certain terminal settings to their defaults. Also resets the mouse tracking mode in VTE.
     static esc vmouse (bool b)       { return esc{}.vmouse(b);     } // ansi: Mouse position reporting/tracking.
     static esc locate(twod const& n) { return esc{}.locate(n);     } // ansi: 1-Based cursor position.
     static esc locate_wipe ()        { return esc{}.locate_wipe(); } // ansi: Enable scrolling for entire display (clear screen).

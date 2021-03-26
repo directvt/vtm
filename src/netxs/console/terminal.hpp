@@ -322,26 +322,24 @@ namespace netxs::ui
         }
         void clear_above()
         {
-            // Insert spaces on all lines above including the current line,
-            //   begining from bossid of the viewport top line
-            //   ending the current line
+            //   Insert spaces on all lines above including the current line,
+            // begining from bossid of the viewport top line
+            // ending the current line
+            auto top_index = get_line_index_by_id(batch[basis].bossid);
             auto cur_index = batch.get();
-            auto master_id = batch[basis].bossid;
-            auto mas_index = get_line_index_by_id(master_id);
-            auto head = batch.begin() + mas_index;
-            auto tail = batch.begin() + cur_index;
+            auto begin = batch.begin();
+            auto upper = begin + top_index;
+            auto under = begin + cur_index;
             auto count = coord.y * panel.x + coord.x;
-            auto start = (basis - mas_index) * panel.x;
-            //todo unify
+            auto start = (basis - top_index) * panel.x;
             do
             {
-                auto& lyric = *head;
-                //lyric.fill(start, count, [&](cell& c){ c = brush.spare; });
-                lyric.fill(start, count, brush.spare);
+                auto& lyric = *upper;
+                lyric.ins(start, count, brush.spare);
                 lyric.trim(brush.spare);
                 start -= panel.x;
             }
-            while(head++ != tail);
+            while(upper++ != under);
         }
         // rods: Rebuild overlaps from bottom to line with selfid=top_id (inclusive)
         void rebuild_upto_id(iota top_id)
@@ -1079,49 +1077,33 @@ namespace netxs::ui
             void el(iota n)
             {
                 finalize();
-                auto& lyric = *(batch->lyric);
-                auto  caret = batch->chx();
-                auto  wraps = batch->style.wrapln == wrap::on;
+                iota start;
+                iota count;
+                auto caret = std::max(0, batch->chx());
+                auto wraps = batch->style.wrapln == wrap::on;
                 switch (n)
                 {
                     default:
                     case commands::erase::line::right: // Ps = 0  ⇒  Erase to Right (default).
-                    {
-                        //todo optimize
-                        //if (batch[caret].wrapln)
-                        {
-                            auto right_edge = panel.x - (caret + panel.x) % panel.x;
-                            batch->ins(right_edge, brush);
-                            batch->cook();
-                            batch->trim(brush.spare);
-                            batch->chx(caret);
-                        }
-                    }
+                        start = caret;
+                        count = wraps ? panel.x - (caret + panel.x) % panel.x
+                                      : std::max(0, std::max(panel.x, batch->length()) - caret);
                         break;
                     case commands::erase::line::left: // Ps = 1  ⇒  Erase to Left.
-                    {
-                        if (caret < panel.x)
-                        {
-                            lyric.each([&](cell& c) {if (caret > 0) { caret--; c.set(brush); } });
-                        }
-                        else
-                        {
-                            auto left_edge = caret - caret % panel.x;
-                            lyric.crop({ left_edge,1 }, brush);
-                            lyric.crop({ left_edge + panel.x,1 }, brush);
-                        }
-                    }
+                        start = wraps ? caret - caret % panel.x
+                                      : 0;
+                        count = caret - start;
                         break;
                     case commands::erase::line::all: // Ps = 2  ⇒  Erase All.
-                    {
-                        //todo optimize
-                        auto left_edge = caret - caret % panel.x;
-                        //todo it's mistake: loosing right part of the line when height > 1
-                        lyric.crop({ left_edge,1 }, brush);
-                        lyric.crop({ left_edge + panel.x,1 }, brush);
-                    }
+                        start = wraps ? caret - caret % panel.x
+                                      : 0;
+                        count = wraps ? panel.x
+                                      : std::max(panel.x, batch->length());
                         break;
                 }
+                auto blank = cell{ brush }.txt(' ');
+                batch->ins<true>(start, count, blank);
+                batch->trim(brush.spare);
             }
         };
 

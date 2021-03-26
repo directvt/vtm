@@ -4383,6 +4383,7 @@ again:
                     auto end = src + front.size();
                     auto row = 0;
 
+                    frame.scroll_wipe().autowr(faux); // Smooth resize
                     while (row++ < field.y)
                     {
                         frame.locate(1, row);
@@ -5026,6 +5027,14 @@ again:
                 header.move(area.coor);
                 parent_canvas.fill(header);
             }
+            // Regions ownership
+            //parent_canvas.each([](cell& c){
+            //    auto mark = rgba{ rgba::color256[c.link() % 256] };
+            //    auto bgc = c.bgc();
+            //    mark.alpha(64);
+            //    bgc.mix(mark);
+            //    c.bgc(bgc);
+            //});
         }
     };
 }

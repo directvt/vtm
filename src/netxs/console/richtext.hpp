@@ -1084,28 +1084,17 @@ namespace netxs::console
         {
             ins(n, brush);
         }
-        void fill(iota start, iota count, cell const& brush)
-        //template<class P>
-        //void fill(iota start, iota count, P fill_proc)
+        template<bool AUTOGROW = faux>
+        void ins(iota start, iota count, cell const& brush)
         {
-            if (count > 0)
+            auto region = rect{ { start, 0 }, { count, 1 } };
+            if constexpr (AUTOGROW)
             {
-                auto xmax = length();
-                auto head = std::clamp(start,         0, xmax);
-                auto tail = std::clamp(start + count, 0, xmax);
-                auto size = tail - head;
-                if (size)
-                {
-                    auto& lyric = *this->lyric;
-                    auto dst = lyric.data() + head;
-                    auto end = dst + size;
-                    while (dst != end)
-                    {
-                        //fill_proc(*dst++);
-                        *dst++ = brush;
-                    }
-                }
+                auto oldsize = rect{ dot_00, size() };
+                auto newsize = oldsize | region.trunc(dot_mx);
+                if (oldsize != newsize) lyric->crop(newsize.size, brush);
             }
+            lyric->each(region, [&](cell& c) { c = brush; });
         }
         // para: for bug testing
         auto get_utf8()
