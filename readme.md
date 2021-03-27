@@ -1,4 +1,4 @@
-# [Monotty Desktopio Preview](https://github.com/netxs-group/VTM/releases/tag/latest)
+# [Monotty Desktopio](https://github.com/netxs-group/VTM/releases/tag/latest)
 A text-based multi-user desktop environment, [/mʌˈnɒti ˈdesktɑːpioʊ/](http://ipa-reader.xyz/?text=m%CA%8C%CB%88n%C9%92ti%20%CB%88deskt%C9%91%CB%90pio%CA%8A&voice=Joanna)
 
 [![HitCount](https://views.whatilearened.today/views/github/netxs-group/VTM.svg)](https://github.com/netxs-group/VTM) [![Gitter](https://badges.gitter.im/netxs-group/VTM.svg)](https://gitter.im/netxs-group/VTM?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge) [![Twitter handle][]][twitter badge]
@@ -89,7 +89,7 @@ double `LeftClick`    | Window: Maximize/restore
 - `▀▄ Clip` Clipboard manager _(not ready)_
 - `▀▄ Char` Unicode code points browser _(not ready)_
 - `▀▄ Time` A calendar application _(not ready)_
-- `▀▄ Game` Doom-II _(not ready)_
+- `▀▄ Game` Doom source port _(not ready)_
 
 <details><summary>show details...</summary><p>
 

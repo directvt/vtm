@@ -10,7 +10,7 @@
 //#define WRAPPING (wrap::off)
 
 // Enable to show debug overlay
-//#define DEBUG_OVERLAY
+#define DEBUG_OVERLAY
 
 // Enable to show all terminal input (keyboard/mouse etc)
 //#define KEYLOG
@@ -170,7 +170,7 @@ std::list<text> appstore_body =
     "Internet/SSH browser."),
 
     item(ansi::fgc(0xFF00FFFF)+"Game"+ansi::fgc(), reddk, "4", "Free ", "Get",
-    "Doom II."),
+    "Doom source port."),
 
     item("Logs", blackdk, "4096", "Free ", "Get",
     "Application for displaying debug trace. "
@@ -631,13 +631,14 @@ int main(int argc, char* argv[])
             auto c1 = bluelt;// 0xffff00;
             auto c2 = whitedk;//0xffffff;
             text intro = ansi::mgl(0).mgr(0)
+                + " "
                 //+ ansi::jet(bias::right).mgl(1).mgr(1).wrp(true)
                 //+ "https://github.com/netxs-group/VTM\n\n"
                 + ansi::jet(bias::center).wrp(wrap::off).fgc(whitelt).mgl(0).mgr(0).eol()
                 + ansi::fgc(c1).bgc(c2) + "▄"
                 + ansi::fgc(c2).bgc(c1) + "▄"
-                + ansi::fgc(clr).bgc() + "  Monotty Desktop\n"
-                + ansi::fgc().bgc() + "Usage Guide\n"
+                + ansi::fgc(clr).bgc() + "  Monotty Desktopio\n"
+                + ansi::fgc().bgc() + "Test Page    \n"
                 + "\n"
                 + ansi::nil().jet(bias::left).mgl(4).mgr(4).wrp(wrap::off)
                 + ansi::fgc(0xFFFFFF).bgc(0xFF) + " ! " + "\n"
@@ -657,7 +658,7 @@ int main(int argc, char* argv[])
                 + "\n"
 
                 + ansi::wrp(wrap::off).fgc(whitelt).mgl(1).mgr(0)
-                + "Controls\n"
+                + "User Interface Commands\n"
                 + ansi::jet(bias::left).mgl(1).mgr(0).wrp(wrap::off) + "\n"
                 + ansi::fgc(whitelt).bld(true)
                 + "Mouse:" + ansi::nil() + "\n"
@@ -758,7 +759,7 @@ int main(int argc, char* argv[])
                 + "\n";
 
             text data = ansi::nil()
-                + ansi::jet(bias::center).wrp(wrap::off).fgc(whitelt) + "Text layout examples\n\n"
+                + ansi::jet(bias::center).wrp(wrap::off).fgc(whitelt) + "Text layouts\n\n"
                 + ansi::wrp(wrap::off).jet(bias::left).und(true)
                 + "wrap OFF:\n\n" + ansi::nil().wrp(wrap::off)
                 + testline
@@ -1151,7 +1152,7 @@ int main(int argc, char* argv[])
             X(Shop         , "▀▄ Shop"             ) \
             X(Logs         , "▀▄ Logs"             ) \
             X(Empty        , "Empty window"        ) \
-            X(Help         , "Help"                )
+            X(Test         , "Test"                )
 
             //X(Task         , "▀▄ Task"             )
             //X(Draw         , "▀▄ Draw"             )
@@ -1173,7 +1174,7 @@ int main(int argc, char* argv[])
             #undef X
             #undef TYPE_LIST
 
-            objs current_default = objs::Help;
+            objs current_default = objs::Test;
             static bool    stobe_state = true;
             static iota    max_count = 20;// 50;
             static iota    max_vtm = 3;
@@ -1215,9 +1216,8 @@ int main(int argc, char* argv[])
                 switch (type)
                 {
                     default:
-                    case Help:
+                    case Test:
                     {
-
                         auto layers = frame->attach<cake>();
                         auto scroll = layers->attach<rail>();
                         scroll->overscroll[axis::X] = true;
@@ -1804,7 +1804,7 @@ int main(int argc, char* argv[])
 
 
                 {
-                    auto block = frame->attach<stem_bsu>();
+                    auto block = frame->attach<stem_bsu>(); // stem_bsu == deprecated menu control
                     //block->color(0xFFFFFF, blackdk);
 
                     auto size = block->create_list(objs_desc, dot_00, 2, 3, 0);

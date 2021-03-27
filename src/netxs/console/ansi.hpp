@@ -997,33 +997,21 @@ namespace netxs::console::ansi
     //todo should we parse these controls as a C0-like?
     //     split paragraphs when flow direction changes, for example
     template<class CELL>
-    class marker
+    struct marker
     {
         using changer = std::array<void (*)(CELL &), ctrl::COUNT>;
-
-        static void set_r_to_l (CELL& p) { p.rtl(true);    } // cell RTL state
-        static void set_l_to_r (CELL& p) { p.rtl(faux);    } // cell RTL state
-        static void set_hyphen (CELL& p) { p.hyphen(true); }
-        static void set_fnappl (CELL& p) { p.fnappl(true); }
-        static void set_invtms (CELL& p) { p.itimes(true); }
-        static void set_invsep (CELL& p) { p.isepar(true); }
-        static void set_invpls (CELL& p) { p.inplus(true); }
-        static void set_zwnbsp (CELL& p) { p.zwnbsp(true); }
-
-    public:
         changer	setter = {};
-
         marker()
         {
-            setter[ctrl::SHY                 ] = set_hyphen;
-            setter[ctrl::ALM                 ] = set_r_to_l;
-            setter[ctrl::RLM                 ] = set_r_to_l;
-            setter[ctrl::LRM                 ] = set_l_to_r;
-            setter[ctrl::FUNCTION_APPLICATION] = set_fnappl;
-            setter[ctrl::INVISIBLE_TIMES     ] = set_invtms;
-            setter[ctrl::INVISIBLE_SEPARATOR ] = set_invsep;
-            setter[ctrl::INVISIBLE_PLUS      ] = set_invpls;
-            setter[ctrl::ZWNBSP              ] = set_zwnbsp;
+            setter[ctrl::ALM                 ] = [](CELL& p) { p.rtl(true);    };
+            setter[ctrl::RLM                 ] = [](CELL& p) { p.rtl(true);    };
+            setter[ctrl::LRM                 ] = [](CELL& p) { p.rtl(faux);    };
+            setter[ctrl::SHY                 ] = [](CELL& p) { p.hyphen(true); };
+            setter[ctrl::FUNCTION_APPLICATION] = [](CELL& p) { p.fnappl(true); };
+            setter[ctrl::INVISIBLE_TIMES     ] = [](CELL& p) { p.itimes(true); };
+            setter[ctrl::INVISIBLE_SEPARATOR ] = [](CELL& p) { p.isepar(true); };
+            setter[ctrl::INVISIBLE_PLUS      ] = [](CELL& p) { p.inplus(true); };
+            setter[ctrl::ZWNBSP              ] = [](CELL& p) { p.zwnbsp(true); };
         }
     };
 
@@ -1042,19 +1030,6 @@ namespace netxs::console::ansi
                                  push({ fn::py, p.y }); return *this; }
         writ& cpx (iota x)     { push({ fn::px, x   }); return *this; } // Cursor horizontal percent position.
         writ& cpy (iota y)     { push({ fn::py, y   }); return *this; } // Cursor vertical percent position.
-        //writ& tbs (iota t)     { push({ fn::ts, t   }); return *this; } // Tabulation step length.
-        //writ& mgn (side m)     { push({ fn::wl, m.l });                 // Margin (left, right, top, bottom).
-        //                         push({ fn::wr, m.r });
-        //                         push({ fn::wt, m.t });
-        //                         push({ fn::wb, m.b }); return *this; }
-        //writ& mgl (iota m)     { push({ fn::wl, m   }); return *this; } // Left margin.
-        //writ& mgr (iota m)     { push({ fn::wr, m   }); return *this; } // Right margin.
-        //writ& mgt (iota m)     { push({ fn::wt, m   }); return *this; } // Top margin.
-        //writ& mgb (iota m)     { push({ fn::wb, m   }); return *this; } // Bottom margin.
-        //writ& jet (bias j)     { push({ fn::hz, j   }); return *this; } // Text alignment.
-        //writ& wrp (bool b)     { push({ fn::br, b   }); return *this; } // Text wrapping.
-        //writ& rtl (bool b)     { push({ fn::yx, b   }); return *this; } // Text right-to-left.
-        //writ& rlf (iota b)     { push({ fn::rf, b   }); return *this; } // Reverse line feed.
         writ& cup (twod p)     { push({ fn::ay, p.y });                 // 0-Based cursor position.
                                  push({ fn::ax, p.x }); return *this; }
         writ& cuu (iota n = 1) { push({ fn::dy,-n   }); return *this; } // Cursor up.
@@ -1069,7 +1044,7 @@ namespace netxs::console::ansi
         writ& rcp ()           { push({ fn::rc, 0   }); return *this; } // Restore cursor position from memory.
     };
 
-    // check ANSI/UTF-8 integrity and return valid view
+    // ansi: Checking ANSI/UTF-8 integrity and return a valid view.
     template<class TEXT_OR_VIEW>
     auto purify(TEXT_OR_VIEW&& utf8)
     {

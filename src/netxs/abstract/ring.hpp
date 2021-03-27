@@ -39,29 +39,27 @@ namespace netxs::generics
             auto  operator == (iter const& m) const { return addr == m.addr;         }
         };
 
-        T    buff; // ring: Inner container
-        bool flex; // ring: True if unlimited
-        iota peak; // ring: Limit of the ring buffer
-        iota size; // ring: Elements count
-        iota cart; // ring: Active item position
-        iota head; // ring: head
-        iota tail; // ring: back
-        iota step; // ring: Unlimited buffer increment step
-        iota mxsz; // ring: Max unlimited buffer size
+        bool flex; // ring: True if unlimited.
+        iota step; // ring: Unlimited buffer increment step.
+        iota peak; // ring: Limit of the ring buffer.
+        T    buff; // ring: Inner container.
+        iota size; // ring: Elements count.
+        iota cart; // ring: Active item position.
+        iota head; // ring: Front index.
+        iota tail; // ring: Back index.
+        iota mxsz; // ring: Max unlimited buffer size.
 
-        void init(iota ring_size = 0, iota grow_by = 2)
-        {
-            assert(ring_size >= 0 && grow_by >= 0);
-            flex = !ring_size;
-            step = grow_by;
-            peak = flex ? step : ring_size;
-            size = 0;
-            cart = 0;
-            head = 0;
-            tail = peak - 1;
-            buff.resize(peak);
-            mxsz = std::numeric_limits<iota>::max() - step;
-        }
+        ring(iota ring_size = 0, iota grow_by = 2)
+            : flex{ !ring_size              },
+              step{ grow_by                 },
+              peak{ flex ? step : ring_size },
+              buff( peak                    ),
+              size{ 0                       },
+              cart{ 0                       },
+              head{ 0                       },
+              tail{ peak - 1                },
+              mxsz{ std::numeric_limits<iota>::max() - step }
+        { }
         void inc(iota& a) const   { if  (++a == peak) a = 0;        }
         void dec(iota& a) const   { if  (--a < 0    ) a = peak - 1; }
         auto mod(iota  a) const   { return a < 0  ? ++a % peak - 1 + peak
