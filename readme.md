@@ -104,7 +104,7 @@ double `LeftClick`    | Window: Maximize/restore
    - Save/restore terminal window title `XTWINOPS 22/23`
    - Mouse tracking `DECSET 1000/1002/1003/1006 SGR` mode
    - Mouse tracking `DECSET 10060 Extended SGR` mode, mouse reporting outside of the terminal viewport (outside + negative arguments) #62
-   - Scrollback buffer size is limited to 20000 lines (temporarily hardcoded value)
+   - Configurable scrollback size, max `int32_t` 2.147.483.647 lines in memory
 
 - `▀▄ Logs`
   - Reset by double `RightClick`
