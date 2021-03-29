@@ -93,7 +93,7 @@ double `LeftClick`    | Window: Maximize/restore
 
 <details><summary>show details...</summary><p>
 
-- `▀▄ Term`
+ - `▀▄ Term`
    - UTF-8 Everywhere
    - Unicode clustering
    - TrueColor/256-color support
@@ -106,46 +106,46 @@ double `LeftClick`    | Window: Maximize/restore
    - Mouse tracking `DECSET 10060 Extended SGR` mode, mouse reporting outside of the terminal viewport (outside + negative arguments) #62
    - Configurable scrollback size, max `int32_t` 2.147.483.647 lines in memory
 
-- `▀▄ Logs`
+ - `▀▄ Logs`
   - Reset by double `RightClick`
 
-- `▀▄ Hood`
+ - `▀▄ Hood`
   - ...
 
-- `▀▄ Info`
+ - `▀▄ Info`
   - ...
 
-- `▀▄ Shop`
+ - `▀▄ Shop`
   - Just a sketch
 
-- `▀▄ Text`
+ - `▀▄ Text`
   - Just a sketch
 
-- `▀▄ Calc`
+ - `▀▄ Calc`
   - Just a sketch
 
-- `▀▄ Clip`
+ - `▀▄ Clip`
   - ...
 
-- `▀▄ Draw`
+ - `▀▄ Draw`
   - ...
 
-- `▀▄ Task`
+ - `▀▄ Task`
   - ...
 
-- `▀▄ Char`
+ - `▀▄ Char`
   - ...
 
-- `▀▄ File`
+ - `▀▄ File`
   - ...
 
-- `▀▄ Time`
+ - `▀▄ Time`
   - ...
 
-- `▀▄ Goto`
+ - `▀▄ Goto`
   - ...
 
-- `▀▄ Game`
+ - `▀▄ Game`
   - ...
 
 </p></details>
