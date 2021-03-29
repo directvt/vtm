@@ -77,7 +77,7 @@ double `LeftClick`    | Window: Maximize/restore
 - `▀▄ Term` Terminal emulator
 - `▀▄ Logs` VT monitoring tool
 - `▀▄ Task` Task manager (desktopio) _(not ready)_
-- `▀▄ Hood` Desktop environment setting configurator _(not ready)_
+- `▀▄ Hood` Settings configurator _(not ready)_
 - `▀▄ Info` Documentation browser _(not ready)_
 - `▀▄ Shop` A digital distribution platform _(not ready)_
 - `▀▄ Text` A simple text editor _(not ready)_
@@ -86,7 +86,7 @@ double `LeftClick`    | Window: Maximize/restore
 - `▀▄ File` An orthodox file manager _(not ready)_
 - `▀▄ Goto` Internet/SSH browser _(not ready)_
 - `▀▄ Clip` Clipboard manager _(not ready)_
-- `▀▄ Char` Unicode code points browser _(not ready)_
+- `▀▄ Char` Unicode codepoints browser _(not ready)_
 - `▀▄ Time` A calendar application _(not ready)_
 - `▀▄ Doom` Doom source port _(not ready)_
 
