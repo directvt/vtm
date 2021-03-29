@@ -81,7 +81,7 @@ double `LeftClick`    | Window: Maximize/restore
 - `▀▄ Info` Documentation browser _(not ready)_
 - `▀▄ Shop` TUIs distribution platform _(not ready)_
 - `▀▄ Text` ANSI/VT Text editor _(not ready)_
-- `▀▄ Calc` A simple spreadsheet program like VisiCalc or Lotus 1-2-3 _(not ready)_
+- `▀▄ Calc` Spreadsheet calculator _(not ready)_
 - `▀▄ Draw` ANSI-artwork editor _(not ready)_
 - `▀▄ File` File manager _(not ready)_
 - `▀▄ Goto` Internet/SSH browser _(not ready)_
