@@ -77,7 +77,7 @@ double `LeftClick`    | Window: Maximize/restore
 - `▀▄ Term` Terminal emulator
 - `▀▄ Logs` VT monitoring tool
 - `▀▄ Task` Task manager (desktopio) _(not ready)_
-- `▀▄ Hood` Settings configurator _(not ready)_
+- `▀▄ Hood` Configuration utility _(not ready)_
 - `▀▄ Info` Documentation browser _(not ready)_
 - `▀▄ Shop` A digital distribution platform _(not ready)_
 - `▀▄ Text` A simple text editor _(not ready)_
