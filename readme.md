@@ -79,7 +79,7 @@ double `LeftClick`    | Window: Maximize/restore
 - `▀▄ Task` Task manager (desktopio) _(not ready)_
 - `▀▄ Hood` Configuration utility _(not ready)_
 - `▀▄ Info` Documentation browser _(not ready)_
-- `▀▄ Shop` A digital distribution platform _(not ready)_
+- `▀▄ Shop` TUIs distribution platform _(not ready)_
 - `▀▄ Text` A simple text editor _(not ready)_
 - `▀▄ Calc` A simple spreadsheet program like VisiCalc or Lotus 1-2-3 _(not ready)_
 - `▀▄ Draw` ANSI-artworks application _(not ready)_
