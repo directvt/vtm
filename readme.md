@@ -83,7 +83,7 @@ double `LeftClick`    | Window: Maximize/restore
 - `▀▄ Text` A simple text editor _(not ready)_
 - `▀▄ Calc` A simple spreadsheet program like VisiCalc or Lotus 1-2-3 _(not ready)_
 - `▀▄ Draw` ANSI-artworks application _(not ready)_
-- `▀▄ File` An orthodox file manager _(not ready)_
+- `▀▄ File` File manager _(not ready)_
 - `▀▄ Goto` Internet/SSH browser _(not ready)_
 - `▀▄ Clip` Clipboard manager _(not ready)_
 - `▀▄ Char` Unicode codepoints browser _(not ready)_
