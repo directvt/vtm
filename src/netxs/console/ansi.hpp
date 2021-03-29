@@ -102,11 +102,11 @@ namespace netxs::console::ansi
     static const iota W32_FOCUS_EVENT = 10004;
     static const iota W32_FINAL_EVENT = 10005; // for quick recognition
 
-    static const auto OSC_LABEL_TITLE  = "0" ; // set icon label and title
-    static const auto OSC_LABEL        = "1" ; // set icon label
-    static const auto OSC_TITLE        = "2" ; // set title
-    static const auto OSC_XPROP        = "3" ; // set xprop
-    static const auto OSC_CLIPBRD      = "52"; // set clipboard
+    static const auto OSC_LABEL_TITLE  = "0" ; // Set icon label and title
+    static const auto OSC_LABEL        = "1" ; // Set icon label
+    static const auto OSC_TITLE        = "2" ; // Set title
+    static const auto OSC_XPROP        = "3" ; // Set xprop
+    static const auto OSC_CLIPBRD      = "52"; // Set clipboard
     static const auto OSC_TITLE_REPORT = "l" ; // Get terminal window title
     static const auto OSC_LABEL_REPORT = "L" ; // Get terminal window icon label
 

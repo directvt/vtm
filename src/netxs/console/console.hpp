@@ -2426,7 +2426,7 @@ namespace netxs::console
                 : boss{ boss },
                   live{ faux },
                   done{ faux },
-                  body{ dot_00, dot_11 }, // Caret is always one cell size (see the term::wall definition)
+                  body{ dot_00, dot_11 }, // Caret is always one cell size (see the term::scrollback definition)
                   step{ BLINK_PERIOD }
             {
                 boss.SUBMIT_T(e2::request, e2::config::intervals::blink, conf, req_step)

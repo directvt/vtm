@@ -641,12 +641,19 @@ int main(int argc, char* argv[])
                 + ansi::fgc().bgc() + "Test Page    \n"
                 + "\n"
                 + ansi::nil().jet(bias::left).mgl(4).mgr(4).wrp(wrap::off)
-                + ansi::fgc(0xFFFFFF).bgc(0xFF) + " ! " + "\n"
+                + ansi::fgc(0xff000000).bgc(0xff00FF00) + " ! " + "\n"
+                + ansi::cuu(1).chx(0).mgl(9).fgc().bgc().wrp(wrap::on)
+                + "Test page for testing text formatting functionality. \n"
+                + "The following text doesn't make much sense, "
+                + "it's just a bunch of text samples.\n"
+                +"\n"
+                + ansi::nil().jet(bias::left).mgl(4).mgr(4).wrp(wrap::off)
+                + ansi::fgc(0xffFFFFFF).bgc(0xff0000FF) + " ! " + "\n"
                 + ansi::cuu(1).chx(0).mgl(9).fgc().bgc().wrp(wrap::on)
                 + "Make sure your terminal supports mouse reporting.\n"
                 +"\n"
                 + ansi::nil().jet(bias::left).mgl(4).mgr(4).wrp(wrap::off)
-                + ansi::fgc(0xFFFFFF).bgc(0xFF) + " ! " + "\n"
+                + ansi::fgc(0xffFFFFFF).bgc(0xff0000FF) + " ! " + "\n"
                 + ansi::cuu(1).chx(0).mgl(9).fgc().bgc().wrp(wrap::on)
                 + "At the moment terminal "
                 + "emulators are not able to display wide characters "
@@ -657,7 +664,9 @@ int main(int argc, char* argv[])
                 + "(U+FFFD).\n"
                 + "\n"
 
-                + ansi::wrp(wrap::off).fgc(whitelt).mgl(1).mgr(0)
+                + ansi::jet(bias::center).wrp(wrap::off).fgc(whitelt).mgl(1).mgr(0)
+                + "Test Samples\n\n"
+                + ansi::jet(bias::left).wrp(wrap::off).fgc(whitelt).mgl(1).mgr(0)
                 + "User Interface Commands\n"
                 + ansi::jet(bias::left).mgl(1).mgr(0).wrp(wrap::off) + "\n"
                 + ansi::fgc(whitelt).bld(true)
@@ -759,14 +768,14 @@ int main(int argc, char* argv[])
                 + "\n";
 
             text data = ansi::nil()
-                + ansi::jet(bias::center).wrp(wrap::off).fgc(whitelt) + "Text layouts\n\n"
+                + ansi::jet(bias::center).wrp(wrap::off).fgc(whitelt) + "Test Layouts\n\n"
                 + ansi::wrp(wrap::off).jet(bias::left).und(true)
-                + "wrap OFF:\n\n" + ansi::nil().wrp(wrap::off)
+                + "Text wrapping is OFF:\n\n" + ansi::nil().wrp(wrap::off)
                 + testline
                 + "\n\n"
 
                 + ansi::wrp(wrap::off).jet(bias::left).und(true).fgc(whitelt)
-                + "wrap ON:\n\n" + ansi::nil().wrp(wrap::on)
+                + "Text wrapping is ON:\n\n" + ansi::nil().wrp(wrap::on)
                 + testline
                 + "\n\n"
 
@@ -786,7 +795,7 @@ int main(int argc, char* argv[])
                 + "\n\n\n"
 
                 + ansi::jet(bias::center).wrp(wrap::off).fgc(clr)
-                + "Variable-width/-height characters\n\n"
+                + "Variable-width/-height Characters\n\n"
                 + ansi::jet(bias::left).wrp(wrap::on).fgc()
                 + "left aligned\n" + ansi::ref(topic_vars::canvas2).nop()
                                           .ref(topic_vars::canvas2).nop()
@@ -813,7 +822,7 @@ int main(int argc, char* argv[])
                 + "\n\n"
 
                 + ansi::jet(bias::center).wrp(wrap::off).fgc(clr)
-                + "Embedded content\n\n"
+                + "Embedded Content\n\n"
                 + ansi::jet(bias::left).wrp(wrap::on)
                 + ansi::idx(topic_vars::dynamix1) + "<"+ ansi::fgc(reddk)+"create smth."+ ansi::fgc()+">"//.nop()
                 + ansi::idx(topic_vars::dynamix2) + "<"+ ansi::fgc(reddk)+"create smth."+ ansi::fgc()+">"//.nop()
@@ -824,6 +833,8 @@ int main(int argc, char* argv[])
 
             // Wikipedia run
             text wiki = "\n\n"
+                + ansi::jet(bias::center).wrp(wrap::off).fgc(clr)
+                + "Sample Article\n\n"
 
                 + ansi::jet(bias::left).fgc(clr).wrp(wrap::on) + "ANSI escape code\n\n"
 

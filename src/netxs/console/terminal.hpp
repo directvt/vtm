@@ -221,9 +221,8 @@ namespace netxs::ui
             align_basis();
         }
         template<bool BOTTOM_ANCHORED = true>
-        void resize(iota newsize, bool wipe = faux)
+        void resize(iota newsize)
         {
-            if (wipe) clear_all(true);
             batch.resize<BOTTOM_ANCHORED>(newsize);
             clear_regions();
             align_basis();
@@ -412,7 +411,7 @@ namespace netxs::ui
             };
         };
 
-        // term: VT-mouse tracking object.
+        // term: VT-mouse tracking functionality.
         struct mtracking
         {
             enum mode
@@ -532,9 +531,9 @@ namespace netxs::ui
                 }
             }
         }
-        mtracker;
+        mtracker; // term: VT-mouse tracking object.
 
-        // term: Keyboard focus tracking object.
+        // term: Keyboard focus tracking functionality.
         struct ftracking
         {
             ftracking(term& owner)
@@ -569,10 +568,106 @@ namespace netxs::ui
             ansi::esc   queue; // ftracking: Buffer.
             bool        state = faux;
         }
-        ftracker;
+        ftracker; // term: Keyboard focus tracking object.
+
+        // term: Terminal window options control.
+        struct win_cntrl
+        {
+            term&                             owner;
+            std::map<text, text>              props;
+            std::map<text, std::vector<text>> stack;
+            ansi::esc                         queue;
+
+            win_cntrl(term& boss)
+                : owner{ boss }
+            { }
+            // win_cntrl: Get terminal window property.
+            auto& get(text const& property)
+            {
+                return props[property];
+            }
+            // win_cntrl: Set terminal window property.
+            void set(text const& property, view txt)
+            {
+                owner.target->finalize();
+                if (property == ansi::OSC_LABEL_TITLE)
+                {
+                                  props[ansi::OSC_LABEL] = txt;
+                    auto& utf8 = (props[ansi::OSC_TITLE] = txt);
+                    utf8 = ansi::mgr(1).mgl(1).jet(bias::left) + utf8;
+                    owner.base::riseup<e2::preview, e2::form::prop::header>(utf8);
+                }
+                else
+                {
+                    auto& utf8 = (props[property] = txt);
+                    if (property == ansi::OSC_TITLE)
+                    {
+                        utf8 = ansi::mgr(1).mgl(1).jet(bias::left) + utf8;
+                        owner.base::riseup<e2::preview, e2::form::prop::header>(utf8);
+                    }
+                }
+            }
+            // win_cntrl: Manage terminal window props (XTWINOPS).
+            void manage(fifo& q)
+            {
+                owner.target->finalize();
+                static constexpr iota get_label = 20; // Report icon   label. (Report as OSC L label ST)
+                static constexpr iota get_title = 21; // Report window title. (Report as OSC l title ST)
+                static constexpr iota put_stack = 22; // Push icon label and window title to   stack.
+                static constexpr iota pop_stack = 23; // Pop  icon label and window title from stack.
+                static constexpr iota all_title = 0;  // Sub commands.
+                static constexpr iota label     = 1;  // Sub commands.
+                static constexpr iota title     = 2;  // Sub commands.
+                switch(auto option = q(0))
+                {
+                    // Return an empty string for security reasons
+                    case get_label: owner.write(queue.osc(ansi::OSC_LABEL_REPORT, "")); break;
+                    case get_title: owner.write(queue.osc(ansi::OSC_TITLE_REPORT, "")); break;
+                    case put_stack:
+                    {
+                        auto push = [&](auto const& property){
+                            stack[property].push_back(props[property]);
+                        };
+                        switch(q(all_title))
+                        {
+                            case title:     push(ansi::OSC_TITLE); break;
+                            case label:     push(ansi::OSC_LABEL); break;
+                            case all_title: push(ansi::OSC_TITLE);
+                                            push(ansi::OSC_LABEL); break;
+                            default: break;
+                        }
+                        break;
+                    }
+                    case pop_stack:
+                    {
+                        auto pop = [&](auto const& property){
+                            auto& s = stack[property];
+                            if (s.size())
+                            {
+                                set(property, s.back());
+                                s.pop_back();
+                            }
+                        };
+                        switch(q(all_title))
+                        {
+                            case title:     pop(ansi::OSC_TITLE); break;
+                            case label:     pop(ansi::OSC_LABEL); break;
+                            case all_title: pop(ansi::OSC_TITLE);
+                                            pop(ansi::OSC_LABEL); break;
+                            default: break;
+                        }
+                        break;
+                    }
+                    default:
+                        log("CSI ", option, "... t (XTWINOPS) is not supported");
+                        break;
+                }
+            }
+        }
+        winprops; // term: Terminal window options repository.
 
         // term: VT-behavior of the rods.
-        struct wall
+        struct scrollback
             : public rods
         {
             template<class T>
@@ -607,7 +702,7 @@ namespace netxs::ui
 
                     vt::csier.table[DECSTBM] = VT_PROC{ p->scr( q   ); };  // CSI r; b r  Set scrolling region (t/b: top+bottom)
 
-                    vt::csier.table[CSI_WIN] = VT_PROC{ p->boss.winopt(q); };  // CSI n;m;k t  Terminal window options (XTWINOPT)
+                    vt::csier.table[CSI_WIN] = VT_PROC{ p->boss.winprops.manage(q); };  // CSI n;m;k t  Terminal window options (XTWINOPS)
 
                     vt::intro[ctrl::ESC]['M']= VT_PROC{ p->ri(); }; // ESC M  Reverse index
                     vt::intro[ctrl::ESC]['H']= VT_PROC{ p->na("ESC H  Place tabstop at the current caret posistion"); }; // ESC H  Place tabstop at the current caret posistion
@@ -619,14 +714,14 @@ namespace netxs::ui
                     vt::intro[ctrl::CR ]     = VT_PROC{ p->home(); };
                     vt::intro[ctrl::EOL]     = VT_PROC{ p->dn ( q.pop_all(ctrl::EOL)); };
 
-                    vt::csier.table_quest[DECSET] = VT_PROC{ p->boss.decset(p, q); };
-                    vt::csier.table_quest[DECRST] = VT_PROC{ p->boss.decrst(p, q); };
-                    vt::csier.table_excl [DECSTR] = VT_PROC{ p->boss.decstr(); }; // CSI ! p  Soft terminal reset (DECSTR)
+                    vt::csier.table_quest[DECSET] = VT_PROC{ p->boss.decset(q); };
+                    vt::csier.table_quest[DECRST] = VT_PROC{ p->boss.decrst(q); };
+                    vt::csier.table_excl [DECSTR] = VT_PROC{ p->boss.decstr( ); }; // CSI ! p  Soft terminal reset (DECSTR)
 
-                    vt::oscer[OSC_LABEL_TITLE] = VT_PROC{ p->boss.prop(OSC_LABEL_TITLE, q); };
-                    vt::oscer[OSC_LABEL]       = VT_PROC{ p->boss.prop(OSC_LABEL,       q); };
-                    vt::oscer[OSC_TITLE]       = VT_PROC{ p->boss.prop(OSC_TITLE,       q); };
-                    vt::oscer[OSC_XPROP]       = VT_PROC{ p->boss.prop(OSC_XPROP,       q); };
+                    vt::oscer[OSC_LABEL_TITLE] = VT_PROC{ p->boss.winprops.set(OSC_LABEL_TITLE, q); };
+                    vt::oscer[OSC_LABEL]       = VT_PROC{ p->boss.winprops.set(OSC_LABEL,       q); };
+                    vt::oscer[OSC_TITLE]       = VT_PROC{ p->boss.winprops.set(OSC_TITLE,       q); };
+                    vt::oscer[OSC_XPROP]       = VT_PROC{ p->boss.winprops.set(OSC_XPROP,       q); };
 
                     // Log all unimplemented CSI commands
                     for (auto i = 0; i < 0x100; ++i)
@@ -642,14 +737,14 @@ namespace netxs::ui
 
             term& boss;
 
-            wall(term& boss, iota max_scrollback_size, iota grow_step = 0)
+            scrollback(term& boss, iota max_scrollback_size, iota grow_step = 0)
                 : rods(boss.base::oversize, boss.viewport.size, max_scrollback_size, grow_step),
                   boss{ boss }
             { }
 
             // wall: Base-CSI contract (see ansi::csi_t)
             //       task(...), post(...), cook(...)
-            void task(ansi::rule const& cmd)
+            void task(ansi::rule const& property)
             {
                 finalize();
                 auto& cur_line = *batch;
@@ -658,7 +753,7 @@ namespace netxs::ui
                     add_lines(1);
                     batch.set(batch.length() - 1);
                 } 
-                batch->locus.push(cmd);
+                batch->locus.push(property);
             }
             void post(utf::frag const& cluster) { batch->post(cluster, rods::brush); }
             void cook()                         { finalize(); }
@@ -1069,21 +1164,17 @@ namespace netxs::ui
                 batch->ins<true>(start, count, blank);
                 batch->trim(brush.spare);
             }
-        };
+        }
+        normal, // term: Normal screen buffer.
+        altbuf, // term: Alternate screen buffer.
+       *target; // term: Current screen buffer pointer.
 
-        wall     scroll; // term: .
-        wall     altbuf; // term: .
-        wall*    target; // term: .
-        os::cons ptycon; // term: .
+        os::cons ptycon; // term: PTY device.
 
         rect      viewport = { dot_00, dot_11 }; // term: Viewport area.
 
         bool      mode_DECCKM = faux; // term: Cursor keys Application(true)/ANSI(faux) mode.
         bool      bracketed_paste_mode = faux; // term: .
-
-        std::map<text, text>              props;
-        std::map<text, std::vector<text>> props_stack;
-        ansi::esc                         output_queue;
 
         // term: Write tty data and flush the queue.
         void write(text& queue)
@@ -1095,95 +1186,15 @@ namespace netxs::ui
             }
         }
 
-        // term: Set terminal window props.
-        void prop(text const& cmd, view txt)
-        {
-            target->finalize();
-            if (cmd == ansi::OSC_LABEL_TITLE)
-            {
-                              props[ansi::OSC_LABEL] = txt;
-                auto& utf8 = (props[ansi::OSC_TITLE] = txt);
-                utf8 = ansi::mgr(1).mgl(1).jet(bias::left) + utf8;
-                base::riseup<e2::preview, e2::form::prop::header>(utf8);
-            }
-            else
-            {
-                auto& utf8 = (props[cmd] = txt);
-                if (cmd == ansi::OSC_TITLE)
-                {
-                    utf8 = ansi::mgr(1).mgl(1).jet(bias::left) + utf8;
-                    base::riseup<e2::preview, e2::form::prop::header>(utf8);
-                }
-            }
-        }
-        // term: Manage terminal window props (XTWINOPS).
-        void winopt(fifo& queue)
-        {
-            target->finalize();
-            static constexpr iota get_label = 20; // Report icon   label. (Report as OSC L label ST)
-            static constexpr iota get_title = 21; // Report window title. (Report as OSC l title ST)
-            static constexpr iota put_stack = 22; // Push icon label and window title to   stack.
-            static constexpr iota pop_stack = 23; // Pop  icon label and window title from stack.
-            static constexpr iota all_title = 0; // Sub commands
-            static constexpr iota label     = 1; // Sub commands
-            static constexpr iota title     = 2; // Sub commands
-
-            switch(auto option = queue(0))
-            {
-                // Return an empty string for security reasons
-                case get_label: write(output_queue.osc(ansi::OSC_LABEL_REPORT, "")); break;
-                case get_title: write(output_queue.osc(ansi::OSC_TITLE_REPORT, "")); break;
-                case put_stack:
-                {
-                    auto push = [&](auto const& cmd){
-                        auto& stack = props_stack[cmd];
-                        stack.push_back(props[cmd]);
-                    };
-                    switch(queue(all_title))
-                    {
-                        case title:     push(ansi::OSC_TITLE); break;
-                        case label:     push(ansi::OSC_LABEL); break;
-                        case all_title: push(ansi::OSC_TITLE);
-                                        push(ansi::OSC_LABEL); break;
-                        default: break;
-                    }
-                    break;
-                }
-                case pop_stack:
-                {
-                    auto pop = [&](auto const& cmd){
-                        auto& stack = props_stack[cmd];
-                        if (stack.size())
-                        {
-                            prop(cmd, stack.back());
-                            stack.pop_back();
-                        }
-                    };
-                    switch(queue(all_title))
-                    {
-                        case title:     pop(ansi::OSC_TITLE); break;
-                        case label:     pop(ansi::OSC_LABEL); break;
-                        case all_title: pop(ansi::OSC_TITLE);
-                                        pop(ansi::OSC_LABEL); break;
-                        default: break;
-                    }
-                    break;
-                }
-                default:
-                    log("CSI ", option, "... t (XTWINOPS) is not supported");
-                    break;
-            }
-        }
-
         // term: Soft terminal reset (DECSTR).
         void decstr()
         {
             target->finalize();
-            scroll.clear_all(true);
+            normal.clear_all(true);
             altbuf.clear_all(true);
-            target = &scroll;
+            target = &normal;
         }
-        void decset(wall*& p, fifo& queue)
+        void decset(fifo& queue)
         {
             target->finalize();
             while (auto q = queue(0))
@@ -1193,7 +1204,7 @@ namespace netxs::ui
                     case 1:    // Cursor keys application mode.
                         mode_DECCKM = true;
                         break;
-                    case 7:    // Enable auto-wrap
+                    case 7:    // Enable auto-wrap.
                         target->style.wrp(wrap::on);
                         break;
                     case 25:   // Caret on.
@@ -1215,7 +1226,7 @@ namespace netxs::ui
                     case 1003: // Enable all mouse events reporting mode.
                         mtracker.enable(mtracking::all_movements);
                         break;
-                    case 1004: // Enable focus tracking
+                    case 1004: // Enable focus tracking.
                         ftracker.set(true);
                         break;
                     case 1005: // Enable UTF-8 mouse reporting protocol.
@@ -1233,13 +1244,13 @@ namespace netxs::ui
                     case 1016: // Enable Pixels (subcell) mouse mode.
                         log("decset: CSI ? 1016 h  Pixels (subcell) mouse mode is not supported");
                         break;
-                    case 1048: // Save cursor
+                    case 1048: // Save cursor.
                         break;
-                    case 1047: // Use alternate screen buffer
+                    case 1047: // Use alternate screen buffer.
                     case 1049: // Save cursor and Use alternate screen buffer, clearing it first.  This control combines the effects of the 1047 and 1048  modes.
                         target->finalize();
                         target = &altbuf;
-                        altbuf.resize(viewport.size.y, true);
+                        altbuf.clear_all(true);
                         break;
                     case 2004: // Set bracketed paste mode.
                         bracketed_paste_mode = true;
@@ -1249,7 +1260,7 @@ namespace netxs::ui
                 }
             }
         }
-        void decrst(wall*& p, fifo& queue)
+        void decrst(fifo& queue)
         {
             target->finalize();
             while (auto q = queue(0))
@@ -1259,7 +1270,7 @@ namespace netxs::ui
                     case 1:    // Cursor keys ANSI mode.
                         mode_DECCKM = faux;
                         break;
-                    case 7:    // Disable auto-wrap
+                    case 7:    // Disable auto-wrap.
                         target->style.wrp(wrap::off);
                         break;
                     case 25:   // Caret off.
@@ -1299,12 +1310,12 @@ namespace netxs::ui
                     case 1016: // Disable Pixels (subcell) mouse mode.
                         log("decset: CSI ? 1016 l  Pixels (subcell) mouse mode is not supported");
                         break;
-                    case 1048: // Restore cursor
+                    case 1048: // Restore cursor.
                         break;
-                    case 1047: // Use normal screen buffer
-                    case 1049: // Use normal screen buffer and restore cursor
+                    case 1047: // Use normal screen buffer.
+                    case 1049: // Use normal screen buffer and restore cursor.
                         target->finalize();
-                        target = &scroll;
+                        target = &normal;
                         break;
                     case 2004: // Disable bracketed paste mode.
                         bracketed_paste_mode = faux;
@@ -1315,17 +1326,14 @@ namespace netxs::ui
             }
         }
 
-        //todo Make it configuable, GH#52
-        static constexpr iota max_scrollback_size = 20000; // 0 - for unlimited (max_int32)
-        static constexpr iota grow_step = 10000;
-
     public:
-        term(twod initial_window_size, text cmd_line)
+        term(twod initial_window_size, text cmd_line, iota max_scrollback_size = 0, iota grow_step = 10000)
             : mtracker{ *this },
               ftracker{ *this },
-              scroll  { *this, max_scrollback_size  , grow_step },
+              winprops{ *this },
+              normal  { *this, max_scrollback_size  , grow_step },
               altbuf  { *this, initial_window_size.y, 0         },
-              target  { &scroll }
+              target  { &normal }
         {
             caret.show();
 
@@ -1335,7 +1343,8 @@ namespace netxs::ui
 
             SUBMIT(e2::release, e2::form::upon::attached, parent)
             {
-                base::riseup<e2::request, e2::form::prop::header>(props[ansi::OSC_TITLE]);
+                //base::riseup<e2::request, e2::form::prop::header>(props[ansi::OSC_TITLE]);
+                base::riseup<e2::request, e2::form::prop::header>(winprops.get(ansi::OSC_TITLE));
             };
             SUBMIT(e2::release, e2::hids::keybd::any, gear)
             {
@@ -1389,11 +1398,9 @@ namespace netxs::ui
                 if (viewport.size != new_size)
                 {
                     viewport.size = new_size;
-                    if (target == &altbuf)
-                    {
-                        altbuf.resize<faux>(new_size.y);
-                    }
-                    else
+                    altbuf.resize<faux>(new_size.y);
+
+                    if (target == &normal)
                     {
                         target->remove_empties();
                     }
@@ -1403,7 +1410,7 @@ namespace netxs::ui
                 auto scrollback_size = target->reflow();
                 new_size = std::max(new_size, scrollback_size); // Use the max size
 
-                ptycon.resize(new_pty_size); // set viewport size
+                ptycon.resize(new_pty_size); // Set viewport size
             };
             SUBMIT(e2::release, e2::form::layout::move, new_coor)
             {
