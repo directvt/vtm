@@ -25,7 +25,7 @@
 
 # Installation
 
-[![](https://dice.netxs.online/cloud/vtm/status/macos)](https://github.com/netxs-group/VTM/releases)  [![](https://dice.netxs.online/cloud/vtm/status/linux)](https://github.com/netxs-group/VTM/releases)
+[![](https://dice.netxs.online/cloud/vtm/status/macos)](https://github.com/netxs-group/VTM/releases/download/latest/vtm_macos.tar.gz)  [![](https://dice.netxs.online/cloud/vtm/status/linux)](https://github.com/netxs-group/VTM/releases/download/latest/vtm_linux_amd64.tar.gz)
 ```bash
 if   [[ "$OSTYPE" == "linux-gnu"* ]]; then release=vtm_linux_amd64
 elif [[ "$OSTYPE" == "darwin"*    ]]; then release=vtm_macos
@@ -38,7 +38,7 @@ echo tmpdir=${tmpdir}
 sudo ./install.sh; rm -rf $tmpdir; cd ~
 ```
 
-[![](https://dice.netxs.online/cloud/vtm/status/windows)](https://github.com/netxs-group/VTM/releases)
+[![](https://dice.netxs.online/cloud/vtm/status/windows)](https://github.com/netxs-group/VTM/releases/download/latest/vtm_windows_64.zip)
 ```cmd
 cd %TEMP%
 set release=vtm_windows_64
