@@ -153,7 +153,3 @@ double `LeftClick`    | Window: Maximize/restore
 # Related Repositories
 
 [Desktopio Framework Documentation](https://github.com/netxs-group/Desktopio-Docs)
-
-[//]: # (LINKS)
-[twitter handle]: https://img.shields.io/twitter/follow/desktopio.svg?style=social&label=Follow
-[twitter badge]: https://twitter.com/desktopio
