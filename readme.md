@@ -97,14 +97,14 @@ double `LeftClick`    | Window: Maximize/restore
    - UTF-8 Everywhere
    - Unicode clustering
    - TrueColor/256-color support
-   - Auto-wrap mode `DECAWM` (horizontal scrolling)
+   - Auto-wrap mode `DECAWM` (with horizontal scrolling)
    - Focus tracking `DECSET 1004`
    - Bracketed paste mode `DECSET 2004`
    - SGR attributes: overline, double underline, strikethrough, and others
    - Save/restore terminal window title `XTWINOPS 22/23`
    - Mouse tracking `DECSET 1000/1002/1003/1006 SGR` mode
    - Mouse tracking `DECSET 10060 Extended SGR` mode, mouse reporting outside of the terminal viewport (outside + negative arguments) #62
-   - Configurable scrollback size, max `int32_t` 2.147.483.647 lines in memory
+   - Configurable scrollback buffer size, up to max `int32_t` 2.147.483.647 lines in memory
 
  - `▀▄ Logs`
   - Reset by double `RightClick`
