@@ -37,7 +37,7 @@ cat ./install.sh
 echo tmpdir=${tmpdir}
 sudo ./install.sh; rm -rf $tmpdir; cd ~
 ```
-
+---
 [![](https://dice.netxs.online/cloud/vtm/status/windows)](https://github.com/netxs-group/VTM/releases/download/latest/vtm_windows_64.zip)
 ```cmd
 cd %TEMP%
