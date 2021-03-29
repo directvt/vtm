@@ -39,8 +39,7 @@ namespace netxs::generics
             auto  operator == (iter const& m) const { return addr == m.addr;         }
         };
 
-        bool flex; // ring: True if unlimited.
-        iota step; // ring: Unlimited buffer increment step.
+        iota step; // ring: Unlimited buffer increment step (zero for fixed size buffer).
         iota peak; // ring: Limit of the ring buffer.
         T    buff; // ring: Inner container.
         iota size; // ring: Elements count.
@@ -50,9 +49,8 @@ namespace netxs::generics
         iota mxsz; // ring: Max unlimited buffer size.
 
         ring(iota ring_size = 0, iota grow_by = 2)
-            : flex{ !ring_size              },
-              step{ grow_by                 },
-              peak{ flex ? step : ring_size },
+            : step{ grow_by                 },
+              peak{ !ring_size ? step : ring_size },
               buff( peak                    ),
               size{ 0                       },
               cart{ 0                       },
@@ -77,7 +75,7 @@ namespace netxs::generics
         {
             if (size == peak)
             {
-                if (flex && peak < mxsz) resize(peak + step, true);
+                if (step && peak < mxsz) resize(peak + step, step);
                 else                     return true;
             }
             return faux;
@@ -112,7 +110,7 @@ namespace netxs::generics
             tail = peak - 1;
         }
         template<bool BOTTOM_ANCHORED = true>
-        void resize(iota new_size, bool is_unlimited = faux)
+        void resize(iota new_size, iota grow_by = 0)
         {
             if (new_size > 0)
             {
@@ -139,9 +137,9 @@ namespace netxs::generics
                 peak = new_size;
                 head = 0;
                 tail = size - 1;
-                flex = is_unlimited;
+                step = grow_by;
             }
-            else flex = true;
+            else step = grow_by;
         }
         auto& operator  * () { return buff[cart];           }
         auto  operator -> () { return buff.begin() + cart;  }

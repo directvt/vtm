@@ -1,9 +1,8 @@
 # [Monotty Desktopio](https://github.com/netxs-group/VTM/releases/tag/latest)
 A text-based multi-user desktop environment, [/mʌˈnɒti ˈdesktɑːpioʊ/](http://ipa-reader.xyz/?text=m%CA%8C%CB%88n%C9%92ti%20%CB%88deskt%C9%91%CB%90pio%CA%8A&voice=Joanna)
 
-[![HitCount](https://views.whatilearened.today/views/github/netxs-group/VTM.svg)](https://github.com/netxs-group/VTM) [![Gitter](https://badges.gitter.im/netxs-group/VTM.svg)](https://gitter.im/netxs-group/VTM?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge) [![Twitter handle][]][twitter badge]
-
 ![image](https://dice.netxs.online/cloud/vtm/mde_banner_v1.07.png)
+[![HitCount](https://views.whatilearened.today/views/github/netxs-group/VTM.svg)](https://github.com/netxs-group/VTM)
 
 # Demo
 
@@ -26,6 +25,7 @@ A text-based multi-user desktop environment, [/mʌˈnɒti ˈdesktɑːpioʊ/](htt
     - Catalina 10.15
 
 # Installation
+
 [![](https://dice.netxs.online/cloud/vtm/status/macos)](https://github.com/netxs-group/VTM/releases)  [![](https://dice.netxs.online/cloud/vtm/status/linux)](https://github.com/netxs-group/VTM/releases)
 ```bash
 if   [[ "$OSTYPE" == "linux-gnu"* ]]; then release=vtm_linux_amd64
@@ -102,9 +102,9 @@ double `LeftClick`    | Window: Maximize/restore
    - Bracketed paste mode `DECSET 2004`
    - SGR attributes: overline, double underline, strikethrough, and others
    - Save/restore terminal window title `XTWINOPS 22/23`
-   - Mouse Tracking `DECSET 1000/1002/1003/1006 SGR` mode
+   - Mouse tracking `DECSET 1000/1002/1003/1006 SGR` mode
    - Mouse tracking `DECSET 10060 Extended SGR` mode, mouse reporting outside of the terminal viewport (outside + negative arguments) #62
-   - Scrollback buffer size is limited to 20000 lines (temporarily hardcoded value)
+   - Configurable scrollback size, max `int32_t` 2.147.483.647 lines in memory
 
 - `▀▄ Logs`
   - Reset by double `RightClick`

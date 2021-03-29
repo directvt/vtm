@@ -221,9 +221,9 @@ namespace netxs::ui
             align_basis();
         }
         template<bool BOTTOM_ANCHORED = true>
-        void resize(iota newsize)
+        void resize(iota newsize, iota grow_by = 0)
         {
-            batch.resize<BOTTOM_ANCHORED>(newsize);
+            batch.resize<BOTTOM_ANCHORED>(newsize, grow_by);
             clear_regions();
             align_basis();
         }
@@ -384,32 +384,6 @@ namespace netxs::ui
         #endif
         FEATURE(pro::caret, caret); // term: Caret controller.
         FEATURE(pro::mouse, mouse); // term: Mouse controller.
-
-        struct commands
-        {
-            struct erase
-            {
-                struct line
-                {
-                    enum : int
-                    {
-                        right = 0,
-                        left  = 1,
-                        all   = 2,
-                    };
-                };
-                struct display
-                {
-                    enum : int
-                    {
-                        below      = 0,
-                        above      = 1,
-                        viewport   = 2,
-                        scrollback = 3,
-                    };
-                };
-            };
-        };
 
         // term: VT-mouse tracking functionality.
         struct mtracking
@@ -670,6 +644,32 @@ namespace netxs::ui
         struct scrollback
             : public rods
         {
+            struct commands
+            {
+                struct erase
+                {
+                    struct line
+                    {
+                        enum : int
+                        {
+                            right = 0,
+                            left  = 1,
+                            all   = 2,
+                        };
+                    };
+                    struct display
+                    {
+                        enum : int
+                        {
+                            below      = 0,
+                            above      = 1,
+                            viewport   = 2,
+                            scrollback = 3,
+                        };
+                    };
+                };
+            };
+
             template<class T>
             struct parser : public ansi::parser<T>
             {
@@ -703,6 +703,8 @@ namespace netxs::ui
                     vt::csier.table[DECSTBM] = VT_PROC{ p->scr( q   ); };  // CSI r; b r  Set scrolling region (t/b: top+bottom)
 
                     vt::csier.table[CSI_WIN] = VT_PROC{ p->boss.winprops.manage(q); };  // CSI n;m;k t  Terminal window options (XTWINOPS)
+
+                    vt::csier.table[CCC_SBS] = VT_PROC{ p->boss.resize(q(0), q(0)); };  // CCC_SBS: Set scrollback size
 
                     vt::intro[ctrl::ESC]['M']= VT_PROC{ p->ri(); }; // ESC M  Reverse index
                     vt::intro[ctrl::ESC]['H']= VT_PROC{ p->na("ESC H  Place tabstop at the current caret posistion"); }; // ESC H  Place tabstop at the current caret posistion
@@ -1171,20 +1173,10 @@ namespace netxs::ui
 
         os::cons ptycon; // term: PTY device.
 
-        rect      viewport = { dot_00, dot_11 }; // term: Viewport area.
+        rect viewport = { dot_00, dot_11 }; // term: Viewport area.
 
-        bool      mode_DECCKM = faux; // term: Cursor keys Application(true)/ANSI(faux) mode.
-        bool      bracketed_paste_mode = faux; // term: .
-
-        // term: Write tty data and flush the queue.
-        void write(text& queue)
-        {
-            if (queue.length())
-            {
-                ptycon.write(queue);
-                queue.clear();
-            }
-        }
+        bool mode_DECCKM = faux; // term: Cursor keys Application(true)/ANSI(faux) mode.
+        bool bracketed_paste_mode = faux; // term: .
 
         // term: Soft terminal reset (DECSTR).
         void decstr()
@@ -1326,6 +1318,61 @@ namespace netxs::ui
             }
         }
 
+        // term: Set scrollback buffer size and grow_by step.
+        void resize(iota max_scrollback_size = 0, iota grow_step = 10000)
+        {
+            normal.resize<faux>(max_scrollback_size, grow_step);
+        }
+        // term: Write tty data and flush the queue.
+        void write(text& queue)
+        {
+            if (queue.length())
+            {
+                ptycon.write(queue);
+                queue.clear();
+            }
+        }
+        void input_hndl(view shadow)
+        {
+            while (ptycon)
+            {
+                e2::try_sync guard;
+                if (guard)
+                {
+                    //log(" 1. target content: ", target->get_content());
+
+                    SIGNAL(e2::general, e2::debug::output, shadow); // For the Logs
+
+                    auto old_caret_pos = caret.coor();
+                    auto caret_is_visible = viewport.hittest(old_caret_pos);
+
+                    ansi::parse(shadow, target); // Append using current insertion point
+
+                    //todo remove rods::reflow(), take new_size only
+                    //     all calcs are made already in rods::finalize()
+                    auto new_size = target->reflow();
+                    auto caret_xy = target->cp();
+
+                    caret.coor(caret_xy);
+
+                    if (caret_is_visible && !viewport.hittest(caret_xy))
+                    {
+                        auto anchor_delta = caret_xy - old_caret_pos;
+                        auto new_coor = base::coor.get() - anchor_delta;
+                        SIGNAL(e2::release, base::move_event, new_coor);
+                    }
+
+                    SIGNAL(e2::release, base::size_event, new_size);
+
+                    base::deface();
+                    //log(" 2. target content: ", target->get_content());
+
+                    break;
+                }
+                else std::this_thread::yield();
+            }
+        }
+
     public:
         term(twod initial_window_size, text cmd_line, iota max_scrollback_size = 0, iota grow_step = 10000)
             : mtracker{ *this },
@@ -1343,7 +1390,6 @@ namespace netxs::ui
 
             SUBMIT(e2::release, e2::form::upon::attached, parent)
             {
-                //base::riseup<e2::request, e2::form::prop::header>(props[ansi::OSC_TITLE]);
                 base::riseup<e2::request, e2::form::prop::header>(winprops.get(ansi::OSC_TITLE));
             };
             SUBMIT(e2::release, e2::hids::keybd::any, gear)
@@ -1420,56 +1466,6 @@ namespace netxs::ui
             ptycon.start(cmd_line, initial_window_size, [&](auto d) { input_hndl(d); });
         }
 
-        ~term()
-        {
-            ptycon.close();
-        }
-
-        void input_hndl(view shadow)
-        {
-            while (ptycon)
-            {
-                e2::try_sync guard;
-                if (guard)
-                {
-                    //log(" 1. target content: ", target->get_content());
-
-                    SIGNAL(e2::general, e2::debug::output, shadow);
-
-                    auto old_caret_pos = caret.coor();
-                    auto caret_is_visible = viewport.hittest(old_caret_pos);
-
-                    ansi::parse(shadow, target); // Append using default insertion point
-
-                    //if (target == &altbuf)
-                    //{
-                    //	altbuf.hz_trim(viewport.size.x);
-                    //}
-
-                    //todo remove rods::reflow(), take new_size only
-                    //     all calcs are made already in rods::finalize()
-                    auto new_size = target->reflow();
-                    auto caret_xy = target->cp();
-
-                    caret.coor(caret_xy);
-
-                    if (caret_is_visible && !viewport.hittest(caret_xy))
-                    {
-                        auto anchor_delta = caret_xy - old_caret_pos;
-                        auto new_coor = base::coor.get() - anchor_delta;
-                        SIGNAL(e2::release, base::move_event, new_coor);
-                    }
-
-                    SIGNAL(e2::release, base::size_event, new_size);
-
-                    base::deface();
-                    //log(" 2. target content: ", target->get_content());
-
-                    break;
-                }
-                else std::this_thread::yield();
-            }
-        }
         // term/base: Output to the canvas.
         virtual void renderproc (face& parent_canvas)
         {
@@ -1477,6 +1473,7 @@ namespace netxs::ui
             target->output(parent_canvas);
             SIGNAL(e2::release, e2::form::upon::redrawn, parent_canvas); // in order to show cursor/caret
         }
+        // term/base: Set default fg/bg-colors.
         virtual void color(rgba const& fg_color, rgba const& bg_color)
         {
             base::color(fg_color, bg_color);

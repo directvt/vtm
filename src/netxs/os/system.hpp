@@ -2307,6 +2307,11 @@ namespace netxs::os
         std::function<void(view)> receiver;
 
     public:
+        ~cons()
+        {
+            close();
+        }
+        
         operator bool () { return alive; }
 
         void start(text cmdline, twod winsz, std::function<void(view)> input_hndl)

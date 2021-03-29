@@ -189,6 +189,7 @@ namespace netxs::console::ansi
     static const iota CCC_CHX    = 21 ; // CSI 21: x       p  - cursor H absolute position 0-based
     static const iota CCC_CHY    = 22 ; // CSI 22: y       p  - cursor V absolute position 0-based
     static const iota CCC_REF    = 23 ; // CSI 23: id      p  - create the reference to the existing paragraph
+    static const iota CCC_SBS    = 24 ; // CSI 24: n: m    p  - define scrollback size: n: max size, m: grow_by step
     //static const iota CCC_WIN = 20 ; // CSI 20: x: y    p    terminal window resize
 
     struct esc
@@ -689,6 +690,7 @@ namespace netxs::console::ansi
                     csi_ccc[CCC_NOP] = nullptr;
                     csi_ccc[CCC_IDX] = nullptr;
                     csi_ccc[CCC_REF] = nullptr;
+                    csi_ccc[CCC_SBS] = nullptr;
 
                 auto& csi_sgr = table[CSI_SGR].resize(0x100);
                 csi_sgr.enable_multi_arg();
