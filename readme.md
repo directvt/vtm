@@ -89,7 +89,7 @@ double `LeftClick`    | Window: Maximize/restore
 - `▀▄ Clip` Clipboard manager _(not ready)_
 - `▀▄ Char` Unicode codepoints browser _(not ready)_
 - `▀▄ Time` Calendar application _(not ready)_
-- `▀▄ Doom` Doom source port _(not ready)_
+- `▀▄ Doom` Doom-II source port _(not ready)_
 
 <details><summary>show details...</summary><p>
 
