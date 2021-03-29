@@ -1,5 +1,4 @@
 # [Monotty Desktopio](https://github.com/netxs-group/VTM/releases/tag/latest)
-A text-based multi-user desktop environment, [/mʌˈnɒti ˈdesktɑːpioʊ/](http://ipa-reader.xyz/?text=m%CA%8C%CB%88n%C9%92ti%20%CB%88deskt%C9%91%CB%90pio%CA%8A&voice=Joanna)
 
 ![image](https://dice.netxs.online/cloud/vtm/mde_banner_v1.07.png)
 [![HitCount](https://views.whatilearened.today/views/github/netxs-group/VTM.svg)](https://github.com/netxs-group/VTM)
@@ -26,7 +25,7 @@ A text-based multi-user desktop environment, [/mʌˈnɒti ˈdesktɑːpioʊ/](htt
 
 # Installation
 
-[![](https://dice.netxs.online/cloud/vtm/status/macos)](https://github.com/netxs-group/VTM/releases)  [![](https://dice.netxs.online/cloud/vtm/status/linux)](https://github.com/netxs-group/VTM/releases)
+[![](https://dice.netxs.online/cloud/vtm/status/macos)](https://github.com/netxs-group/VTM/releases/download/latest/vtm_macos.tar.gz)  [![](https://dice.netxs.online/cloud/vtm/status/linux)](https://github.com/netxs-group/VTM/releases/download/latest/vtm_linux_amd64.tar.gz)
 ```bash
 if   [[ "$OSTYPE" == "linux-gnu"* ]]; then release=vtm_linux_amd64
 elif [[ "$OSTYPE" == "darwin"*    ]]; then release=vtm_macos
@@ -38,8 +37,9 @@ cat ./install.sh
 echo tmpdir=${tmpdir}
 sudo ./install.sh; rm -rf $tmpdir; cd ~
 ```
+<br>
 
-[![](https://dice.netxs.online/cloud/vtm/status/windows)](https://github.com/netxs-group/VTM/releases)
+[![](https://dice.netxs.online/cloud/vtm/status/windows)](https://github.com/netxs-group/VTM/releases/download/latest/vtm_windows_64.zip)
 ```cmd
 cd %TEMP%
 set release=vtm_windows_64
@@ -78,74 +78,74 @@ double `LeftClick`    | Window: Maximize/restore
 - `▀▄ Term` Terminal emulator
 - `▀▄ Logs` VT monitoring tool
 - `▀▄ Task` Task manager (desktopio) _(not ready)_
-- `▀▄ Hood` Desktop environment setting configurator _(not ready)_
+- `▀▄ Hood` Configuration utility _(not ready)_
 - `▀▄ Info` Documentation browser _(not ready)_
-- `▀▄ Shop` A digital distribution platform _(not ready)_
-- `▀▄ Text` A simple text editor _(not ready)_
-- `▀▄ Calc` A simple spreadsheet program like VisiCalc or Lotus 1-2-3 _(not ready)_
-- `▀▄ Draw` ANSI-artworks application _(not ready)_
-- `▀▄ File` An orthodox file manager _(not ready)_
+- `▀▄ Shop` TUIs distribution platform _(not ready)_
+- `▀▄ Text` ANSI/VT Text editor _(not ready)_
+- `▀▄ Calc` Spreadsheet calculator _(not ready)_
+- `▀▄ Draw` ANSI-artwork editor _(not ready)_
+- `▀▄ File` File manager _(not ready)_
 - `▀▄ Goto` Internet/SSH browser _(not ready)_
 - `▀▄ Clip` Clipboard manager _(not ready)_
-- `▀▄ Char` Unicode code points browser _(not ready)_
-- `▀▄ Time` A calendar application _(not ready)_
-- `▀▄ Game` Doom source port _(not ready)_
+- `▀▄ Char` Unicode codepoints browser _(not ready)_
+- `▀▄ Time` Calendar application _(not ready)_
+- `▀▄ Doom` Doom Ⅱ source port _(not ready)_
 
 <details><summary>show details...</summary><p>
 
-- `▀▄ Term`
+ - `▀▄ Term`
    - UTF-8 Everywhere
    - Unicode clustering
    - TrueColor/256-color support
-   - Auto-wrap mode `DECAWM` (horizontal scrolling)
+   - Auto-wrap mode `DECAWM` (with horizontal scrolling)
    - Focus tracking `DECSET 1004`
    - Bracketed paste mode `DECSET 2004`
    - SGR attributes: overline, double underline, strikethrough, and others
    - Save/restore terminal window title `XTWINOPS 22/23`
    - Mouse tracking `DECSET 1000/1002/1003/1006 SGR` mode
    - Mouse tracking `DECSET 10060 Extended SGR` mode, mouse reporting outside of the terminal viewport (outside + negative arguments) #62
-   - Configurable scrollback size, max `int32_t` 2.147.483.647 lines in memory
+   - Configurable scrollback buffer size, up to 2.147.483.647 `int32_t` lines in memory
 
-- `▀▄ Logs`
+ - `▀▄ Logs`
   - Reset by double `RightClick`
 
-- `▀▄ Hood`
+ - `▀▄ Hood`
   - ...
 
-- `▀▄ Info`
+ - `▀▄ Info`
   - ...
 
-- `▀▄ Shop`
+ - `▀▄ Shop`
   - Just a sketch
 
-- `▀▄ Text`
+ - `▀▄ Text`
   - Just a sketch
 
-- `▀▄ Calc`
+ - `▀▄ Calc`
   - Just a sketch
 
-- `▀▄ Clip`
+ - `▀▄ Clip`
   - ...
 
-- `▀▄ Draw`
+ - `▀▄ Draw`
   - ...
 
-- `▀▄ Task`
+ - `▀▄ Task`
   - ...
 
-- `▀▄ Char`
+ - `▀▄ Char`
   - ...
 
-- `▀▄ File`
+ - `▀▄ File`
   - ...
 
-- `▀▄ Time`
+ - `▀▄ Time`
   - ...
 
-- `▀▄ Goto`
+ - `▀▄ Goto`
   - ...
 
-- `▀▄ Game`
+ - `▀▄ Doom`
   - ...
 
 </p></details>
@@ -153,7 +153,3 @@ double `LeftClick`    | Window: Maximize/restore
 # Related Repositories
 
 [Desktopio Framework Documentation](https://github.com/netxs-group/Desktopio-Docs)
-
-[//]: # (LINKS)
-[twitter handle]: https://img.shields.io/twitter/follow/desktopio.svg?style=social&label=Follow
-[twitter badge]: https://twitter.com/desktopio

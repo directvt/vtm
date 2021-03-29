@@ -119,7 +119,7 @@ text appstore_head = ansi::nil().eol()
 + ansi::bld(faux).fgc(whitelt).jet(bias::left).wrp(wrap::on)
 //+ ansi::fgc(whitelt).bgc().jet(bias::left).wrp(true)
 + "A digital distribution platform, developed "
-"and maintained by NetXS Group, for terminal "
+"and maintained by NetXS Group, for TUI/terminal "
 "apps on its desktop environment. "
 "The store allows users to browse and download "
 "apps developed with Desktopio software "
@@ -145,7 +145,7 @@ std::list<text> appstore_body =
     "contain ANSI-formatted text."),
 
     item("Calc", greendk, "30", "Free ", "Get",
-    "A simple spreadsheet program like VisiCalc or Lotus 1-2-3."),
+    "A simple spreadsheet calculator application."),
 
     item("Task", magentadk, "311", "Free ", "Get",
     "A task manager program that displays "
@@ -158,7 +158,7 @@ std::list<text> appstore_body =
 
     item("Char", yellowdk, "161", "Free ", "Get",
     "An utility that allows browsing all Unicode "
-    "code points and inspecting their metadata."),
+    "codepoints and inspecting their metadata."),
 
     item(ansi::fgc(0xff0000) + "File", cyanlt, "4", "Free ", "Get",
     "An orthodox file manager for Monotty environment."),
@@ -169,8 +169,8 @@ std::list<text> appstore_body =
     item("Goto", bluedk, "4", "Free ", "Get",
     "Internet/SSH browser."),
 
-    item(ansi::fgc(0xFF00FFFF)+"Game"+ansi::fgc(), reddk, "4", "Free ", "Get",
-    "Doom source port."),
+    item(ansi::fgc(0xFF00FFFF)+"Doom"+ansi::fgc(), reddk, "4", "Free ", "Get",
+    "Doom Ⅱ source port."),
 
     item("Logs", blackdk, "4096", "Free ", "Get",
     "Application for displaying debug trace. "
@@ -183,7 +183,7 @@ std::list<text> appstore_body =
     "Software documentation browser."),
 
     item("Hood", reddk, "1", "Free ", "Get",
-    "Desktop environment setting configurator."),
+    "Desktop environment settings configurator."),
 };
 
 text qr = ""s//"\033[38;2;000;000;000m\033[48;2;000;000;000m"s
