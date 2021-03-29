@@ -1,5 +1,5 @@
 # [Monotty Desktopio](https://github.com/netxs-group/VTM/releases/tag/latest)
-[/mʌˈnɒti ˈdesktɑːpioʊ/](http://ipa-reader.xyz/?text=m%CA%8C%CB%88n%C9%92ti%20%CB%88deskt%C9%91%CB%90pio%CA%8A&voice=Joanna)
+
 ![image](https://dice.netxs.online/cloud/vtm/mde_banner_v1.07.png)
 [![HitCount](https://views.whatilearened.today/views/github/netxs-group/VTM.svg)](https://github.com/netxs-group/VTM)
 
