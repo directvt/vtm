@@ -1,9 +1,8 @@
-# [Monotty Desktopio Preview](https://github.com/netxs-group/VTM/releases/tag/latest)
+# [Monotty Desktopio](https://github.com/netxs-group/VTM/releases/tag/latest)
 A text-based multi-user desktop environment, [/mʌˈnɒti ˈdesktɑːpioʊ/](http://ipa-reader.xyz/?text=m%CA%8C%CB%88n%C9%92ti%20%CB%88deskt%C9%91%CB%90pio%CA%8A&voice=Joanna)
 
-[![HitCount](https://views.whatilearened.today/views/github/netxs-group/VTM.svg)](https://github.com/netxs-group/VTM) [![Gitter](https://badges.gitter.im/netxs-group/VTM.svg)](https://gitter.im/netxs-group/VTM?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge) [![Twitter handle][]][twitter badge]
-
 ![image](https://dice.netxs.online/cloud/vtm/mde_banner_v1.07.png)
+[![HitCount](https://views.whatilearened.today/views/github/netxs-group/VTM.svg)](https://github.com/netxs-group/VTM)
 
 # Demo
 
@@ -26,16 +25,17 @@ A text-based multi-user desktop environment, [/mʌˈnɒti ˈdesktɑːpioʊ/](htt
     - Catalina 10.15
 
 # Installation
+
 [![](https://dice.netxs.online/cloud/vtm/status/macos)](https://github.com/netxs-group/VTM/releases)  [![](https://dice.netxs.online/cloud/vtm/status/linux)](https://github.com/netxs-group/VTM/releases)
 ```bash
 if   [[ "$OSTYPE" == "linux-gnu"* ]]; then release=vtm_linux_amd64
 elif [[ "$OSTYPE" == "darwin"*    ]]; then release=vtm_macos
 else exit 1; fi
 tmpdir=$(mktemp -d); cd $tmpdir
-wget "https://github.com/netxs-group/VTM/releases/download/latest/${release}.tar.gz"
-tar -zxvf "${release}.tar.gz"; cd "./${release}"
+wget https://github.com/netxs-group/VTM/releases/download/latest/${release}.tar.gz
+tar -zxvf ${release}.tar.gz; cd ./${release}
 cat ./install.sh
-echo "tmpdir=${tmpdir}"
+echo tmpdir=${tmpdir}
 sudo ./install.sh; rm -rf $tmpdir; cd ~
 ```
 
@@ -76,35 +76,41 @@ double `LeftClick`    | Window: Maximize/restore
 # Built-in Applications
 
 - `▀▄ Term` Terminal emulator
-- `▀▄ Logs` Debugging tool for monitoring applications' output in real time
-- `▀▄ Info` Software documentation browser _(not ready)_
+- `▀▄ Logs` VT monitoring tool
+- `▀▄ Task` Task manager (desktopio) _(not ready)_
+- `▀▄ Hood` Desktop environment setting configurator _(not ready)_
+- `▀▄ Info` Documentation browser _(not ready)_
 - `▀▄ Shop` A digital distribution platform _(not ready)_
 - `▀▄ Text` A simple text editor _(not ready)_
 - `▀▄ Calc` A simple spreadsheet program like VisiCalc or Lotus 1-2-3 _(not ready)_
-- `▀▄ Clip` Clipboard manager _(not ready)_
 - `▀▄ Draw` ANSI-artworks application _(not ready)_
-- `▀▄ Task` Task manager (desktopio) _(not ready)_
-- `▀▄ Char` Unicode code points browser _(not ready)_
 - `▀▄ File` An orthodox file manager _(not ready)_
-- `▀▄ Time` A calendar application _(not ready)_
 - `▀▄ Goto` Internet/SSH browser _(not ready)_
-- `▀▄ Game` Doom-II _(not ready)_
+- `▀▄ Clip` Clipboard manager _(not ready)_
+- `▀▄ Char` Unicode code points browser _(not ready)_
+- `▀▄ Time` A calendar application _(not ready)_
+- `▀▄ Game` Doom source port _(not ready)_
 
 <details><summary>show details...</summary><p>
 
 - `▀▄ Term`
+   - UTF-8 Everywhere
+   - Unicode clustering
    - TrueColor/256-color support
-   - Auto-wrap mode `DECAWM`
+   - Auto-wrap mode `DECAWM` (horizontal scrolling)
    - Focus tracking `DECSET 1004`
    - Bracketed paste mode `DECSET 2004`
-   - SGR attributes: overline, double underline, strikethrough
+   - SGR attributes: overline, double underline, strikethrough, and others
    - Save/restore terminal window title `XTWINOPS 22/23`
-   - Mouse Tracking `DECSET 1000/1002/1003/1006 SGR` mode
+   - Mouse tracking `DECSET 1000/1002/1003/1006 SGR` mode
    - Mouse tracking `DECSET 10060 Extended SGR` mode, mouse reporting outside of the terminal viewport (outside + negative arguments) #62
    - Scrollback buffer size is limited to 20000 lines (temporarily hardcoded value)
 
 - `▀▄ Logs`
   - Reset by double `RightClick`
+
+- `▀▄ Hood`
+  - ...
 
 - `▀▄ Info`
   - ...
