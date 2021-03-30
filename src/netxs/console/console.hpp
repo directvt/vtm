@@ -1220,7 +1220,7 @@ namespace netxs::console
         tone colors;
         bool linked = faux; // Whether the size is tied to the size of the clients.
         wptr parent; // base: Parental visual tree weak-pointer.
-        side oversize; // base: Oversize, margin.
+        side oversize; // base: Oversize, margin. Used by scroll/rail only.
 
         twod anchor; // base: Object balance point. Center point for any transform (on preview).
 

@@ -16,14 +16,94 @@ namespace netxs::ui
     class rods
         : public flow
     {
+        struct xpara
+            : public para
+        {
+            enum type
+            {
+                centered,
+                leftside,
+                rgthside,
+                autowrap,
+                count,
+            };
+            iota cur_size{ 0        };
+            type cur_type{ leftside };
+
+            xpara()                         = default;
+            xpara(deco const& style)
+                : para{ style }
+            { }
+            xpara(iota newid, deco const& style = {})
+                : para{ newid, style }
+            { }
+            auto get_type()
+            {
+                return style.wrapln == wrap::on    ? xpara::autowrap :
+                       style.adjust == bias::left  ? xpara::leftside :
+                       style.adjust == bias::right ? xpara::rgthside :
+                                                     xpara::centered ;
+            }
+            template<class T, class D>
+            void update(T& lengths, D& maximus)
+            {
+                auto new_size = length();
+                auto new_type = get_type();
+                if (cur_size != new_size || cur_type != new_type)
+                {
+                    auto& cur_lens = lengths[cur_type];
+                    auto& new_lens = lengths[new_type];
+                    auto& new_maxv = maximus[new_type];
+                    if (new_lens.size() <= new_size) new_lens.resize(new_size * 2 + 1);
+                    
+                    if (new_size < cur_size) reset(lengths, maximus);
+                    else                     --cur_lens[cur_size];
+                    ++new_lens[new_size];
+                    cur_size = new_size;
+                    cur_type = new_type;
+                    if (new_maxv < new_size) new_maxv = new_size;
+                }
+            }
+            template<class T, class D>
+            void reset(T& lengths, D& maximus) const
+            {
+                auto& cur_lens = lengths[cur_type];
+                auto& cur_maxv = maximus[cur_type];
+                auto cur_value = --cur_lens[cur_size];
+                if (cur_maxv == cur_size)
+                {
+                    if (cur_value == 0) // Search new maxvalue for cur_type
+                    {
+                        maximus[cur_type] = 0;
+                        for(auto i = cur_size - 1; i > 0; i--)
+                        {
+                            if (cur_lens[i])
+                            {
+                                cur_maxv = i; 
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        };
+
+        public:
+        using hhhh = std::vector<iota>;
+        using lens = std::array<hhhh, xpara::count>;
+        using maxs = std::array<iota, xpara::count>;
+        lens lengths = { hhhh{1}, hhhh{1}, hhhh{1}, hhhh{1} };
+        maxs maximus = { 0, 0, 0, 0 };
+        private:
+
     protected:
-        using buff = netxs::generics::ring<std::vector<para>>;
+        using buff = netxs::generics::ring<std::vector<xpara>>;
         using mark = ansi::mark;
         using deco = ansi::deco;
 
         buff        batch; // rods: Rods inner container.
-        twod const& panel; // rods: Viewport.
-        side&       upset; // rods: Viewport oversize.
+        twod const& panel; // rods: Viewport size.
+        side&       upset; // rods: Viewport oversize (write only property).
         twod        coord; // rods: Actual caret position.
         iota        basis; // rods: Index of O(0, 0).
         iota        sctop; // rods: Scrolling region top;    1-based, "0" to use top of viewport.
@@ -36,7 +116,7 @@ namespace netxs::ui
 
         rods(side& oversize, twod const& viewport, iota buffer_size, iota grow_step)
             : flow { viewport.x, batch.size },
-              batch{ buffer_size, grow_step },
+              batch{ buffer_size, grow_step, [&](auto const& line){ line.reset(lengths, maximus); } },
               panel{ viewport               },
               upset{ oversize               },
               basis{ 0                      },
@@ -208,7 +288,7 @@ namespace netxs::ui
                 coord = pos;
             }
 
-            //todo update flow::minmax and base::upset
+            cur_line3.update(lengths, maximus);
         }
         void clear_all(bool preserve_brush = faux)
         {
@@ -258,7 +338,9 @@ namespace netxs::ui
         auto reflow()
         {
             output();
-            if (caret) flow::minmax(cp()); // Register current caret position
+
+            if (caret) flow::minmax(cp()); // Register current caret position if it is visible
+            flow::minmax(rect{{ 0, basis }, panel}); // Register viewport
 
             auto& cover = flow::minmax();
             upset.set(-std::min(0, cover.l),
@@ -266,14 +348,13 @@ namespace netxs::ui
                       -std::min(0, cover.t),
                        0);
 
-            if (cover.height() >= batch.length()) // All visible lines must exist (including blank lines under wrapped lines)
-            {
-                auto delta = cover.height() - (batch.length() - 1);
-                add_lines(delta);
-            }
+            // All visible lines must exist (including blank lines under wrapped lines)
+            //if (cover.height() >= batch.length())
+            //{
+            //    auto delta = cover.height() - (batch.length() - 1);
+            //    add_lines(delta);
+            //}
             
-            auto viewport = rect{{ 0, basis }, panel};
-            flow::minmax(viewport); // Register viewport
 
             //todo merge with the vizualisation loop here
             //todo recalc overlapping bossid id's over selfid's on resize
@@ -641,7 +722,7 @@ namespace netxs::ui
         winprops; // term: Terminal window options repository.
 
         // term: VT-behavior of the rods.
-        struct scrollback
+        struct scrollbuff
             : public rods
         {
             struct commands
@@ -742,7 +823,7 @@ namespace netxs::ui
 
             term& boss;
 
-            scrollback(term& boss, iota max_scrollback_size, iota grow_step = 0)
+            scrollbuff(term& boss, iota max_scrollback_size, iota grow_step = 0)
                 : rods(boss.base::oversize, boss.viewport.size, max_scrollback_size, grow_step),
                   boss{ boss }
             { }
@@ -1174,9 +1255,17 @@ namespace netxs::ui
         altbuf, // term: Alternate screen buffer.
        *target; // term: Current screen buffer pointer.
 
+        //struct viewport_cntrl
+        //    : public rect
+        //{
+        //    viewport_cntrl()
+        //        : rect{ dot_00, dot_11 }
+        //    { }
+        //}
+        //viewport; // term: Viewport controller.
+        rect viewport = { dot_00, dot_11 }; // term: Viewport.
+        
         os::cons ptycon; // term: PTY device.
-
-        rect viewport = { dot_00, dot_11 }; // term: Viewport area.
 
         bool mode_DECCKM = faux; // term: Cursor keys Application(true)/ANSI(faux) mode.
         bool bracketed_paste_mode = faux; // term: .
@@ -1354,6 +1443,7 @@ namespace netxs::ui
                     //todo remove rods::reflow(), take new_size only
                     //     all calcs are made already in rods::finalize()
                     auto new_size = target->reflow();
+
                     auto caret_xy = target->cp();
 
                     caret.coor(caret_xy);
@@ -1369,6 +1459,11 @@ namespace netxs::ui
 
                     base::deface();
                     //log(" 2. target content: ", target->get_content());
+                    log(" maximus: ", target->maximus[0],
+                                ", ", target->maximus[1],
+                                ", ", target->maximus[2],
+                                ", ", target->maximus[3]
+                                 );
 
                     break;
                 }
@@ -1377,7 +1472,7 @@ namespace netxs::ui
         }
 
     public:
-        term(twod initial_window_size, text cmd_line, iota max_scrollback_size = scrollback::default_size, iota grow_step = scrollback::default_step)
+        term(twod initial_window_size, text cmd_line, iota max_scrollback_size = scrollbuff::default_size, iota grow_step = scrollbuff::default_step)
             : mtracker{ *this },
               ftracker{ *this },
               winprops{ *this },

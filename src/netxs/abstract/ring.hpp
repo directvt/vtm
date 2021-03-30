@@ -48,7 +48,10 @@ namespace netxs::generics
         iota tail; // ring: Back index.
         iota mxsz; // ring: Max unlimited buffer size.
 
-        ring(iota ring_size = 0, iota grow_by = 2)
+        std::function<void(type const&)> unregister;
+
+        //ring(iota ring_size = 0, iota grow_by = 2)
+        ring(iota ring_size, iota grow_by, std::function<void(type const&)> unregister)
             : step{ grow_by                 },
               peak{ !ring_size ? step : ring_size },
               buff( peak                    ),
@@ -56,7 +59,8 @@ namespace netxs::generics
               cart{ 0                       },
               head{ 0                       },
               tail{ peak - 1                },
-              mxsz{ std::numeric_limits<iota>::max() - step }
+              mxsz{ std::numeric_limits<iota>::max() - step },
+              unregister{ unregister }
         { }
         void inc(iota& a) const   { if  (++a == peak) a = 0;        }
         void dec(iota& a) const   { if  (--a < 0    ) a = peak - 1; }
@@ -85,6 +89,8 @@ namespace netxs::generics
         {
             if (full())
             {
+                unregister(front()); // Unregister destructed
+
                 if (cart == head) inc(head), cart = head;
                 else              inc(head);
             }
@@ -97,6 +103,8 @@ namespace netxs::generics
         void pop()
         {
             assert(size > 0);
+            unregister(back()); // Unregister destructed
+
             back() = type{};
             if (cart == tail) dec(tail), cart = tail;
             else              dec(tail);
@@ -118,12 +126,32 @@ namespace netxs::generics
                 temp.reserve(new_size);
                 if constexpr (BOTTOM_ANCHORED)
                 {
-                    if (size > new_size) head = mod(tail - new_size), size = new_size;
+                    if (size > new_size)
+                    {
+                        do // Unregister destructed
+                        {
+                            unregister(front());
+                            inc(head);
+                        }
+                        while(--size != new_size);
+                        //head = mod(tail - new_size);
+                        //size = new_size;
+                    }
                     cart = std::max(0, size - 1 - dst(cart, tail));
                 }
                 else // TOP_ANCHORED
                 {
-                    if (size > new_size) tail = mod(head + new_size), size = new_size;
+                    if (size > new_size)
+                    {
+                        do // Unregister destructed
+                        {
+                            unregister(back());
+                            dec(tail);
+                        }
+                        while(--size != new_size);
+                        //tail = mod(head + new_size);
+                        //size = new_size;
+                    }
                     cart = std::min(size - 1, dst(head, cart));
                 }
                 auto i = size;

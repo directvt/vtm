@@ -114,9 +114,6 @@ double `LeftClick`    | Window: Maximize/restore
       `CCC_JET`    | `CSI` 11 \[ : n \] `p`           | Set text alignment, _default is Left_<br>`n = 0` default<br>`n = 1` Left<br>`n = 2` Right<br>`n = 3` Center
       `CCC_WRP`    | `CSI` 12 \[ : n \] `p`           | Set text autowrap mode, _default is On_<br>`n = 0` default<br>`n = 1` On<br>`n = 2` Off
       `CCC_RTL`    | `CSI` 13 \[ : n \] `p`           | Set text right-to-left mode, _default is Off_<br>`n = 0` default<br>`n = 1` On<br>`n = 2` Off
-      `CCC_JET_or` | `CSI` 15 \[ : n \] `p`           | Set text alignment if it is not set, _default is not set_<br>`n = 0` default<br>`n = 1` Left<br>`n = 2` Right<br>`n = 3` Center
-      `CCC_WRP_or` | `CSI` 16 \[ : n \] `p`           | Set text autowrap mode if it is not set, _default is not set_<br>`n = 0` default<br>`n = 1` On<br>`n = 2` Off
-      `CCC_RTL_or` | `CSI` 17 \[ : n \] `p`           | Set text right-to-left mode if it is not set, _default is not set_<br>`n = 0` default<br>`n = 1` On<br>`n = 2` Off
 
  - `▀▄ Logs`
   - Reset by double `RightClick`
