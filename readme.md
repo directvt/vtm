@@ -104,7 +104,19 @@ double `LeftClick`    | Window: Maximize/restore
    - Save/restore terminal window title `XTWINOPS 22/23`
    - Mouse tracking `DECSET 1000/1002/1003/1006 SGR` mode
    - Mouse tracking `DECSET 10060 Extended SGR` mode, mouse reporting outside of the terminal viewport (outside + negative arguments) #62
-   - Configurable scrollback buffer size, up to 2.147.483.647 `int32_t` lines in memory
+   - Configurable using VT-sequences
+   
+      Name         | Sequence                         | Description
+      -------------|----------------------------------|-------------
+      `CCC_SBS`    | `CSI` 24 \[ : n \[ : m \] \] `p` | Set scrollback buffer size, `int32_t`<br>`n` Buffer limit in lines, 0 is unlimited, _default is 20.000_<br>`m` Grow step for unlimited buffer, _default is 0_
+      `CCC_RST`    | `CSI`  1           `p`           | Reset all parameters to default
+      `CCC_TBS`    | `CSI`  5 \[ : n \] `p`           | Set tabulation length<br>`n` Length in chars, _max = 256, default is 8_
+      `CCC_JET`    | `CSI` 11 \[ : n \] `p`           | Set text alignment, _default is Left_<br>`n = 0` default<br>`n = 1` Left<br>`n = 2` Right<br>`n = 3` Center
+      `CCC_WRP`    | `CSI` 12 \[ : n \] `p`           | Set text autowrap mode, _default is On_<br>`n = 0` default<br>`n = 1` On<br>`n = 2` Off
+      `CCC_RTL`    | `CSI` 13 \[ : n \] `p`           | Set text right-to-left mode, _default is Off_<br>`n = 0` default<br>`n = 1` On<br>`n = 2` Off
+      `CCC_JET_or` | `CSI` 15 \[ : n \] `p`           | Set text alignment if it is not set, _default is not set_<br>`n = 0` default<br>`n = 1` Left<br>`n = 2` Right<br>`n = 3` Center
+      `CCC_WRP_or` | `CSI` 16 \[ : n \] `p`           | Set text autowrap mode if it is not set, _default is not set_<br>`n = 0` default<br>`n = 1` On<br>`n = 2` Off
+      `CCC_RTL_or` | `CSI` 17 \[ : n \] `p`           | Set text right-to-left mode if it is not set, _default is not set_<br>`n = 0` default<br>`n = 1` On<br>`n = 2` Off
 
  - `▀▄ Logs`
   - Reset by double `RightClick`

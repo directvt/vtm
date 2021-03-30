@@ -174,7 +174,7 @@ namespace netxs::console::ansi
     static const iota CCC_MGT    = 9  ; // CSI 9 : n       p  - margin top    │ negative - oppisite binding
     static const iota CCC_MGB    = 10 ; // CSI 10: n       p  - margin bottom ╯
 
-    static const iota CCC_JET    = 11 ; // CSI 6 : n       p  - text alignment (bias)
+    static const iota CCC_JET    = 11 ; // CSI 11: n       p  - text alignment (bias)
     static const iota CCC_WRP    = 12 ; // CSI 12: n       p  - text wrapping none/on/off
     static const iota CCC_RTL    = 13 ; // CSI 13: n       p  - text right-to-left none/on/off
     static const iota CCC_RLF    = 14 ; // CSI 14: n       p  - reverse line feed none/on/off
@@ -528,6 +528,7 @@ namespace netxs::console::ansi
     };
     struct deco
     {
+        static constexpr iota maxtab = 256; // deco: Tab length limit.
         iota adjust = bias::none; // deco: Horizontal alignment
         iota wrapln = wrap::none; // deco: Auto wrapping
         iota r_to_l = rtol::none; // deco: RTL
@@ -546,7 +547,7 @@ namespace netxs::console::ansi
         auto& wrp_or(iota  n)     { if (!wrapln) wrapln = n;      return *this; } // deco: Auto wrapping
         auto& rtl_or(iota  n)     { if (!r_to_l) r_to_l = n;      return *this; } // deco: RTL
         auto& rlf_or(iota  n)     { if (!rlfeed) rlfeed = n;      return *this; } // deco: Reverse line feed
-        auto& tbs(iota  n = 0)                 { tablen = n;      return *this; } // deco: fx_ccc_tbs
+        auto& tbs(iota  n = 0)                 { tablen = std::min(n, maxtab); return *this; } // deco: fx_ccc_tbs
         auto& mgl(iota  n = 0)                 { margin.west = n; return *this; } // deco: fx_ccc_mgl
         auto& mgr(iota  n = 0)                 { margin.east = n; return *this; } // deco: fx_ccc_mgr
         auto& mgt(iota  n = 0)                 { margin.head = n; return *this; } // deco: fx_ccc_mgt

@@ -670,6 +670,9 @@ namespace netxs::ui
                 };
             };
 
+            static constexpr iota default_size = 20000;
+            static constexpr iota default_step = 0;
+
             template<class T>
             struct parser : public ansi::parser<T>
             {
@@ -704,7 +707,7 @@ namespace netxs::ui
 
                     vt::csier.table[CSI_WIN] = VT_PROC{ p->boss.winprops.manage(q); };  // CSI n;m;k t  Terminal window options (XTWINOPS)
 
-                    vt::csier.table[CCC_SBS] = VT_PROC{ p->boss.resize(q(0), q(0)); };  // CCC_SBS: Set scrollback size
+                    vt::csier.table[CCC_SBS] = VT_PROC{ p->boss.resize(q(default_size), q(default_step)); };  // CCC_SBS: Set scrollback size
 
                     vt::intro[ctrl::ESC]['M']= VT_PROC{ p->ri(); }; // ESC M  Reverse index
                     vt::intro[ctrl::ESC]['H']= VT_PROC{ p->na("ESC H  Place tabstop at the current caret posistion"); }; // ESC H  Place tabstop at the current caret posistion
@@ -1374,7 +1377,7 @@ namespace netxs::ui
         }
 
     public:
-        term(twod initial_window_size, text cmd_line, iota max_scrollback_size = 0, iota grow_step = 10000)
+        term(twod initial_window_size, text cmd_line, iota max_scrollback_size = scrollback::default_size, iota grow_step = scrollback::default_step)
             : mtracker{ *this },
               ftracker{ *this },
               winprops{ *this },
