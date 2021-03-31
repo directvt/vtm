@@ -23,7 +23,7 @@ namespace netxs::ui
             {
                 centered,
                 leftside,
-                rgthside,
+                rghtside,
                 autowrap,
                 count,
             };
@@ -45,7 +45,7 @@ namespace netxs::ui
             {
                 return style.wrapln == wrap::on    ? type::autowrap :
                        style.adjust == bias::left  ? type::leftside :
-                       style.adjust == bias::right ? type::rgthside :
+                       style.adjust == bias::right ? type::rghtside :
                                                      type::centered ;
             }
         };
@@ -55,7 +55,7 @@ namespace netxs::ui
             struct maxs : public std::vector<iota>
             {
                 iota max = 0;
-                maxs() : std::vector<iota>{ 1 } { }
+                maxs() : std::vector<iota>(1) { }
                 void prev_max() { while(max > 0 && !at(--max)); }
             };
 
@@ -70,7 +70,7 @@ namespace netxs::ui
                     if (new_lens.size() <= new_size) new_lens.resize(new_size * 2 + 1);
 
                     if (new_size < cur_size) drop(cur_type, cur_size);
-                    else                     --lens[cur_type][cur_size];
+                    else                   --lens[cur_type][cur_size];
 
                     ++new_lens[new_size];
                     if (new_lens.max < new_size) new_lens.max = new_size;
@@ -88,8 +88,9 @@ namespace netxs::ui
                     cur_lens.prev_max();
                 }
             }
-            void take(line& line) { take(line.get_type(), line.length(), line.cur_type, line.cur_size); }
-            void drop(line& line) { drop(line.cur_type, line.cur_size); }
+            void take(line& l) { take(l.get_type(), l.length(), l.cur_type, l.cur_size); }
+            void drop(line& l) { drop(l.cur_type, l.cur_size); }
+            auto max (type  t) { return lens[t].max;           }
         };
 
         // For debugging
@@ -135,21 +136,17 @@ namespace netxs::ui
         }
         auto frame_size()
         {
+            auto over_left = std::max(0, xsize.max(line::rghtside) - panel.x);
+            auto over_rght = std::max(0, xsize.max(line::leftside) - panel.x);
+            auto over_cntr = std::max(0, xsize.max(line::centered) - panel.x);
+            auto over_both = over_cntr >> 1;
+            over_left = std::max(over_left, over_both);
+            over_rght = std::max(over_rght, over_both + (over_cntr & 1));
+            upset.set(over_left, over_rght);
+
             twod size;
-
-            //todo update upset
-            auto cover_l = 0;
-            auto cover_r = 0;
-            auto cover_t = 0;
-            upset.set(-std::min(0, cover_l),
-                       std::max(0, cover_r - panel.x + 1),
-                      -std::min(0, cover_t),
-                       0);
-
-            //todo calc current frame size
-            size.x = 0;
-            size.y = 0;
-
+            size.x = panel.x;
+            size.y = basis + panel.y;
             return size;
         }
         auto line_height(para const& l)
@@ -360,7 +357,7 @@ namespace netxs::ui
                 flow::go(line, canvas...);
             }
         }
-        auto reflow()
+        /*auto reflow()
         {
             output();
 
@@ -387,7 +384,7 @@ namespace netxs::ui
 
             auto scroll_height = cover.height() + 1;
             return twod{ panel.x, scroll_height };
-        }
+        }*/
         void remove_empties()
         {
             auto head = batch.begin();
@@ -813,7 +810,8 @@ namespace netxs::ui
 
                     vt::csier.table[CSI_WIN] = VT_PROC{ p->boss.winprops.manage(q); };  // CSI n;m;k t  Terminal window options (XTWINOPS)
 
-                    vt::csier.table[CCC_SBS] = VT_PROC{ p->boss.resize(q(default_size), q(default_step)); };  // CCC_SBS: Set scrollback size
+                    vt::csier.table[CSI_CCC][CCC_RST] = VT_PROC{ p->style.glb(); }; // fx_ccc_rst
+                    vt::csier.table[CSI_CCC][CCC_SBS] = VT_PROC{ p->boss.resize(q(default_size), q(default_step)); };  // CCC_SBS: Set scrollback size
 
                     vt::intro[ctrl::ESC]['M']= VT_PROC{ p->ri(); }; // ESC M  Reverse index
                     vt::intro[ctrl::ESC]['H']= VT_PROC{ p->na("ESC H  Place tabstop at the current caret posistion"); }; // ESC H  Place tabstop at the current caret posistion
@@ -1467,9 +1465,8 @@ namespace netxs::ui
 
                     //todo remove rods::reflow(), take new_size only
                     //     all calcs are made already in rods::finalize()
-                    auto new_size = target->reflow();
-                    //auto new_size = target->frame_size();
-
+                    //auto new_size = target->reflow();
+                    auto new_size = target->frame_size();
                     auto caret_xy = target->cp();
 
                     caret.coor(caret_xy);
@@ -1485,8 +1482,6 @@ namespace netxs::ui
 
                     base::deface();
                     //log(" 2. target content: ", target->get_content());
-                    log(" xsize: ", *target);
-
                     break;
                 }
                 else std::this_thread::yield();
@@ -1573,7 +1568,11 @@ namespace netxs::ui
                 }
 
                 auto new_pty_size = new_size;
-                auto scrollback_size = target->reflow();
+                //auto scrollback_size = target->reflow();
+                //todo recalc height
+                auto scrollback_size = target->frame_size();
+                //log("RESIZE: scrollback_size: ", scrollback_size, " new_size2: ", new_size2, " upset:", oversize);
+
                 new_size = std::max(new_size, scrollback_size); // Use the max size
 
                 ptycon.resize(new_pty_size); // Set viewport size

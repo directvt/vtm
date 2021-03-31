@@ -671,7 +671,7 @@ namespace netxs::console::ansi
                     csi_ccc[CCC_CHY] = VT_PROC{ F(ay, q(0)); }; // fx_ccc_chy
                     csi_ccc[CCC_CPX] = VT_PROC{ F(px, q(0)); }; // fx_ccc_cpx
                     csi_ccc[CCC_CPY] = VT_PROC{ F(py, q(0)); }; // fx_ccc_cpy
-                    csi_ccc[CCC_RST] = VT_PROC{ F(zz,   0);  }; // fx_ccc_rst
+                    csi_ccc[CCC_RST] = VT_PROC{ F(zz,   0 ); }; // fx_ccc_rst
 
                     csi_ccc[CCC_MGN   ] = VT_PROC{ p->style.mgn   (q   ); }; // fx_ccc_mgn
                     csi_ccc[CCC_MGL   ] = VT_PROC{ p->style.mgl   (q(0)); }; // fx_ccc_mgl

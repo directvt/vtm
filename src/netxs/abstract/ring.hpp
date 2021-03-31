@@ -52,7 +52,7 @@ namespace netxs::generics
         ring(iota ring_size, iota grow_by, DTOR unregister_proc)
             : step{ grow_by                                 },
               peak{ !ring_size ? step : ring_size           },
-              buff{ peak                                    },
+              buff( peak                                    ), // Rounded brackets! Not curly! In oreder to call T::ctor().
               size{ 0                                       },
               cart{ 0                                       },
               head{ 0                                       },
