@@ -16,10 +16,10 @@ namespace netxs::ui
     class rods
         : public flow
     {
-        struct xpara
+        struct line
             : public para
         {
-            enum type
+            enum type : iota
             {
                 centered,
                 leftside,
@@ -27,80 +27,86 @@ namespace netxs::ui
                 autowrap,
                 count,
             };
-            iota cur_size{ 0        };
-            type cur_type{ leftside };
+            iota cur_size{ 0              };
+            type cur_type{ type::leftside };
 
-            xpara()                         = default;
-            xpara(deco const& style)
+            line()                         = default;
+            line(line&&)                   = default;
+            line(line const&)              = default;
+            line& operator = (line&&)      = default;
+            line& operator = (line const&) = default;
+            line(deco const& style)
                 : para{ style }
             { }
-            xpara(iota newid, deco const& style = {})
+            line(iota newid, deco const& style = {})
                 : para{ newid, style }
             { }
             auto get_type()
             {
-                return style.wrapln == wrap::on    ? xpara::autowrap :
-                       style.adjust == bias::left  ? xpara::leftside :
-                       style.adjust == bias::right ? xpara::rgthside :
-                                                     xpara::centered ;
-            }
-            template<class T, class D>
-            void update(T& lengths, D& maximus)
-            {
-                auto new_size = length();
-                auto new_type = get_type();
-                if (cur_size != new_size || cur_type != new_type)
-                {
-                    auto& cur_lens = lengths[cur_type];
-                    auto& new_lens = lengths[new_type];
-                    auto& new_maxv = maximus[new_type];
-                    if (new_lens.size() <= new_size) new_lens.resize(new_size * 2 + 1);
-                    
-                    if (new_size < cur_size) reset(lengths, maximus);
-                    else                     --cur_lens[cur_size];
-                    ++new_lens[new_size];
-                    cur_size = new_size;
-                    cur_type = new_type;
-                    if (new_maxv < new_size) new_maxv = new_size;
-                }
-            }
-            template<class T, class D>
-            void reset(T& lengths, D& maximus) const
-            {
-                auto& cur_lens = lengths[cur_type];
-                auto& cur_maxv = maximus[cur_type];
-                auto cur_value = --cur_lens[cur_size];
-                if (cur_maxv == cur_size)
-                {
-                    if (cur_value == 0) // Search new maxvalue for cur_type
-                    {
-                        maximus[cur_type] = 0;
-                        for(auto i = cur_size - 1; i > 0; i--)
-                        {
-                            if (cur_lens[i])
-                            {
-                                cur_maxv = i; 
-                                break;
-                            }
-                        }
-                    }
-                }
+                return style.wrapln == wrap::on    ? type::autowrap :
+                       style.adjust == bias::left  ? type::leftside :
+                       style.adjust == bias::right ? type::rgthside :
+                                                     type::centered ;
             }
         };
 
-        public:
-        using hhhh = std::vector<iota>;
-        using lens = std::array<hhhh, xpara::count>;
-        using maxs = std::array<iota, xpara::count>;
-        lens lengths = { hhhh{1}, hhhh{1}, hhhh{1}, hhhh{1} };
-        maxs maximus = { 0, 0, 0, 0 };
-        private:
+        struct rama
+        {
+            struct maxs : public std::vector<iota>
+            {
+                iota max = 0;
+                maxs() : std::vector<iota>{ 1 } { }
+                void prev_max() { while(max > 0 && !at(--max)); }
+            };
+
+            using type = line::type;
+            std::array<maxs, type::count> lens;
+
+            void take(type new_type, iota new_size, type& cur_type, iota& cur_size)
+            {
+                if (cur_size != new_size || cur_type != new_type)
+                {
+                    auto& new_lens = lens[new_type];
+                    if (new_lens.size() <= new_size) new_lens.resize(new_size * 2 + 1);
+
+                    if (new_size < cur_size) drop(cur_type, cur_size);
+                    else                     --lens[cur_type][cur_size];
+
+                    ++new_lens[new_size];
+                    if (new_lens.max < new_size) new_lens.max = new_size;
+
+                    cur_size = new_size;
+                    cur_type = new_type;
+                }
+            }
+            void drop(type cur_type, iota cur_size)
+            {
+                auto& cur_lens =       lens[cur_type];
+                auto cur_count = --cur_lens[cur_size];
+                if (cur_size == cur_lens.max && cur_count == 0)
+                {
+                    cur_lens.prev_max();
+                }
+            }
+            void take(line& line) { take(line.get_type(), line.length(), line.cur_type, line.cur_size); }
+            void drop(line& line) { drop(line.cur_type, line.cur_size); }
+        };
+
+        // For debugging
+        friend std::ostream& operator << (std::ostream& s, rods& c)
+        {
+            return s << "{ " << c.xsize.lens[0].max << ","
+                             << c.xsize.lens[1].max << ","
+                             << c.xsize.lens[2].max << ","
+                             << c.xsize.lens[3].max << " }";
+        }
 
     protected:
-        using buff = netxs::generics::ring<std::vector<xpara>>;
+        using buff = netxs::generics::ring<std::vector<line>, std::function<void(line&)>>;
         using mark = ansi::mark;
         using deco = ansi::deco;
 
+        rama        xsize; // rods: Oversize manager.
         buff        batch; // rods: Rods inner container.
         twod const& panel; // rods: Viewport size.
         side&       upset; // rods: Viewport oversize (write only property).
@@ -116,7 +122,7 @@ namespace netxs::ui
 
         rods(side& oversize, twod const& viewport, iota buffer_size, iota grow_step)
             : flow { viewport.x, batch.size },
-              batch{ buffer_size, grow_step, [&](auto const& line){ line.reset(lengths, maximus); } },
+              batch{ buffer_size, grow_step, [&](auto& line){ xsize.drop(line); } },
               panel{ viewport               },
               upset{ oversize               },
               basis{ 0                      },
@@ -126,6 +132,25 @@ namespace netxs::ui
         {
             style.glb();
             batch.push(style); // At least one row must exist.
+        }
+        auto frame_size()
+        {
+            twod size;
+
+            //todo update upset
+            auto cover_l = 0;
+            auto cover_r = 0;
+            auto cover_t = 0;
+            upset.set(-std::min(0, cover_l),
+                       std::max(0, cover_r - panel.x + 1),
+                      -std::min(0, cover_t),
+                       0);
+
+            //todo calc current frame size
+            size.x = 0;
+            size.y = 0;
+
+            return size;
         }
         auto line_height(para const& l)
         {
@@ -288,7 +313,7 @@ namespace netxs::ui
                 coord = pos;
             }
 
-            cur_line3.update(lengths, maximus);
+            xsize.take(cur_line3);
         }
         void clear_all(bool preserve_brush = faux)
         {
@@ -1443,6 +1468,7 @@ namespace netxs::ui
                     //todo remove rods::reflow(), take new_size only
                     //     all calcs are made already in rods::finalize()
                     auto new_size = target->reflow();
+                    //auto new_size = target->frame_size();
 
                     auto caret_xy = target->cp();
 
@@ -1459,11 +1485,7 @@ namespace netxs::ui
 
                     base::deface();
                     //log(" 2. target content: ", target->get_content());
-                    log(" maximus: ", target->maximus[0],
-                                ", ", target->maximus[1],
-                                ", ", target->maximus[2],
-                                ", ", target->maximus[3]
-                                 );
+                    log(" xsize: ", *target);
 
                     break;
                 }

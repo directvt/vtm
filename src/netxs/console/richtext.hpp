@@ -833,7 +833,7 @@ namespace netxs::console
         deco style; // para: Style for parser
 
         para()                         = default;
-        para(para&&) noexcept          = default;
+        para(para&&)                   = default;
         para(para const&)              = default;
         para& operator = (para&&)      = default;
         para& operator = (para const&) = default;

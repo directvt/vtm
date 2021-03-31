@@ -12,7 +12,7 @@
 
 namespace netxs::generics
 {
-    template<class T>
+    template<class T, class DTOR>
     struct ring
     {
         using type = typename T::value_type;
@@ -47,20 +47,18 @@ namespace netxs::generics
         iota head; // ring: Front index.
         iota tail; // ring: Back index.
         iota mxsz; // ring: Max unlimited buffer size.
+        DTOR wipe; // ring: Item invalidation functor.
 
-        std::function<void(type const&)> unregister;
-
-        //ring(iota ring_size = 0, iota grow_by = 2)
-        ring(iota ring_size, iota grow_by, std::function<void(type const&)> unregister)
-            : step{ grow_by                 },
-              peak{ !ring_size ? step : ring_size },
-              buff( peak                    ),
-              size{ 0                       },
-              cart{ 0                       },
-              head{ 0                       },
-              tail{ peak - 1                },
+        ring(iota ring_size, iota grow_by, DTOR unregister_proc)
+            : step{ grow_by                                 },
+              peak{ !ring_size ? step : ring_size           },
+              buff{ peak                                    },
+              size{ 0                                       },
+              cart{ 0                                       },
+              head{ 0                                       },
+              tail{ peak - 1                                },
               mxsz{ std::numeric_limits<iota>::max() - step },
-              unregister{ unregister }
+              wipe{ unregister_proc                         }
         { }
         void inc(iota& a) const   { if  (++a == peak) a = 0;        }
         void dec(iota& a) const   { if  (--a < 0    ) a = peak - 1; }
@@ -89,8 +87,7 @@ namespace netxs::generics
         {
             if (full())
             {
-                unregister(front()); // Unregister destructed
-
+                wipe(front()); // Cleanup destructed item
                 if (cart == head) inc(head), cart = head;
                 else              inc(head);
             }
@@ -103,8 +100,7 @@ namespace netxs::generics
         void pop()
         {
             assert(size > 0);
-            unregister(back()); // Unregister destructed
-
+            wipe(back()); // Cleanup destructed item
             back() = type{};
             if (cart == tail) dec(tail), cart = tail;
             else              dec(tail);
@@ -128,14 +124,12 @@ namespace netxs::generics
                 {
                     if (size > new_size)
                     {
-                        do // Unregister destructed
+                        do // Cleanup destructed items
                         {
-                            unregister(front());
+                            wipe(front());
                             inc(head);
                         }
                         while(--size != new_size);
-                        //head = mod(tail - new_size);
-                        //size = new_size;
                     }
                     cart = std::max(0, size - 1 - dst(cart, tail));
                 }
@@ -143,14 +137,12 @@ namespace netxs::generics
                 {
                     if (size > new_size)
                     {
-                        do // Unregister destructed
+                        do // Cleanup destructed items
                         {
-                            unregister(back());
+                            wipe(back());
                             dec(tail);
                         }
                         while(--size != new_size);
-                        //tail = mod(head + new_size);
-                        //size = new_size;
                     }
                     cart = std::min(size - 1, dst(head, cart));
                 }
