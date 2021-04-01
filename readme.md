@@ -29,6 +29,8 @@ Virtual Terminal Multiplexer
 [![](https://dice.netxs.online/cloud/vtm/status/linux)](https://github.com/netxs-group/VTM/releases/download/latest/vtm_linux_amd64.tar.gz)  
 [![](https://dice.netxs.online/cloud/vtm/status/windows)](https://github.com/netxs-group/VTM/releases/download/latest/vtm_windows_64.zip)  
 
+---
+
 # Command Line Options
 
 Module               | Options
