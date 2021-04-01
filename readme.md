@@ -1,4 +1,6 @@
-# [Monotty Desktopio](https://github.com/netxs-group/VTM/releases/tag/latest)
+# VTM
+
+Virtual Terminal Multiplexer
 
 ![image](https://dice.netxs.online/cloud/vtm/mde_banner_v1.07.png)
 [![HitCount](https://views.whatilearened.today/views/github/netxs-group/VTM.svg)](https://github.com/netxs-group/VTM)
@@ -23,31 +25,11 @@
  - macOS
     - Catalina 10.15
 
-# Installation
+# Releases
 
-[![](https://dice.netxs.online/cloud/vtm/status/macos)](https://github.com/netxs-group/VTM/releases/download/latest/vtm_macos.tar.gz)  [![](https://dice.netxs.online/cloud/vtm/status/linux)](https://github.com/netxs-group/VTM/releases/download/latest/vtm_linux_amd64.tar.gz)
-```bash
-if   [[ "$OSTYPE" == "linux-gnu"* ]]; then release=vtm_linux_amd64
-elif [[ "$OSTYPE" == "darwin"*    ]]; then release=vtm_macos
-else exit 1; fi
-tmpdir=$(mktemp -d); cd $tmpdir
-wget https://github.com/netxs-group/VTM/releases/download/latest/${release}.tar.gz
-tar -zxvf ${release}.tar.gz; cd ./${release}
-cat ./install.sh
-echo tmpdir=${tmpdir}
-sudo ./install.sh; rm -rf $tmpdir; cd ~
-```
-<br>
-
-[![](https://dice.netxs.online/cloud/vtm/status/windows)](https://github.com/netxs-group/VTM/releases/download/latest/vtm_windows_64.zip)
-```cmd
-cd %TEMP%
-set release=vtm_windows_64
-curl -LJO https://github.com/netxs-group/VTM/releases/download/latest/%release%.zip
-tar -zxvf %release%.zip & cd ./%release%
-notepad ./install.ps1
-powershell ./install.ps1
-```
+[![](https://dice.netxs.online/cloud/vtm/status/macos)](https://github.com/netxs-group/VTM/releases/download/latest/vtm_macos.tar.gz)  
+[![](https://dice.netxs.online/cloud/vtm/status/linux)](https://github.com/netxs-group/VTM/releases/download/latest/vtm_linux_amd64.tar.gz)  
+[![](https://dice.netxs.online/cloud/vtm/status/windows)](https://github.com/netxs-group/VTM/releases/download/latest/vtm_windows_64.zip)  
 
 # Command Line Options
 
