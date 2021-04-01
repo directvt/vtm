@@ -143,4 +143,6 @@ double `LeftClick`    | Window: Maximize/restore
 
 [Desktopio Framework Documentation](https://github.com/netxs-group/Desktopio-Docs)
 
+---
+
 [![HitCount](https://views.whatilearened.today/views/github/netxs-group/VTM.svg)](https://github.com/netxs-group/VTM)
