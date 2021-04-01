@@ -33,10 +33,10 @@ Virtual Terminal Multiplexer
 
 # Command Line Options
 
-Module                         | Options
--------------------------------|--------------------------------------
-`vtm(.exe)` desktopio client   | No arguments
-`vtmd(.exe)` desktopio server  | `[ -d ]` run in background
+Module               | Options
+---------------------|--------------------------------------
+`vtm(.exe)` client   | No arguments
+`vtmd(.exe)` server  | `[ -d ]` run in background
 
 # User Interface Commands
 
