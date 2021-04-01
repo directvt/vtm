@@ -1,8 +1,9 @@
 # VTM
 
-Virtual Terminal Multiplexer [![HitCount](https://views.whatilearened.today/views/github/netxs-group/VTM.svg)](https://github.com/netxs-group/VTM)
+Virtual Terminal Multiplexer  
+[![HitCount](https://views.whatilearened.today/views/github/netxs-group/VTM.svg)](https://github.com/netxs-group/VTM)
 
-![image](https://dice.netxs.online/cloud/vtm/mde_banner_v1.08.png)
+![image](https://dice.netxs.online/cloud/vtm/mde_banner_v1.09.png)
 
 # Demo
 
