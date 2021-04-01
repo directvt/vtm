@@ -5,9 +5,9 @@ Virtual Terminal Multiplexer
 
 # Demo
 
-- Live SSH Demo  
+- Live SSH Demo
 
-  `ssh vtm@netxs.online`  
+  `ssh vtm@netxs.online`
 
 - Video
   - [Desktop environment](https://youtu.be/fLumnSctakY)
