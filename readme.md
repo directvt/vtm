@@ -16,12 +16,12 @@ Virtual Terminal Multiplexer
 
 # Supported Platforms
 
- - GNU/Linux amd64
- - Windows
-    - Windows 10 (32/64)
-    - Windows Server 2019 (32/64)
- - macOS
-    - Catalina 10.15
+- GNU/Linux amd64
+- Windows
+  - Windows 10 (32/64)
+  - Windows Server 2019 (32/64)
+- macOS
+  - Catalina 10.15
 
 # Releases
 
