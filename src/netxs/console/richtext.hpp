@@ -1047,7 +1047,7 @@ namespace netxs::console
                 lyric.crop(max_width);
             }
         }
-        void trim(cell const& default_cell)
+        void trim(cell const& default_cell, iota maxs = 0)
         {
             auto& lyric = *this->lyric;
 
@@ -1062,7 +1062,8 @@ namespace netxs::console
                 ++head;
             }
 
-            auto size = static_cast<iota>(tail - head);
+            auto size = maxs ? std::min(maxs, static_cast<iota>(tail - head))
+                                            : static_cast<iota>(tail - head);
             if (size != lyric.size().x)
             {
                 lyric.crop({ size, 1 });

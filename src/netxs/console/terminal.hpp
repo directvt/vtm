@@ -106,6 +106,9 @@ namespace netxs::ui
         using mark = ansi::mark;
         using deco = ansi::deco;
 
+        //todo unify
+        static constexpr iota max_line_len = 65536;
+
         rama        xsize; // rods: Oversize manager.
         buff        batch; // rods: Rods inner container.
         twod const& panel; // rods: Viewport size.
@@ -133,9 +136,9 @@ namespace netxs::ui
         }
         auto status()
         {
-            return std::to_string(batch.size) + '/'
-                 + std::to_string(batch.peak) + '/'
-                 + (batch.step ? "unlimited, grow by " + std::to_string(batch.step) : "fixed buffer size");
+            return "Scroll: size=" + std::to_string(batch.size) + ' '
+                         + "peak=" + std::to_string(batch.peak) + ' '
+                         + "type=" + (batch.step ? "unlimited, grow by " + std::to_string(batch.step) : "fixed");
         }
         auto recalc_pads()
         {
@@ -272,7 +275,7 @@ namespace netxs::ui
             cur_line1.style = style;
             auto old_height = line_height(cur_line1);
                               cur_line1.cook();
-                              cur_line1.trim(brush.spare);
+                              cur_line1.trim(brush.spare, max_line_len);
             auto new_height = line_height(cur_line1);
             auto caret = batch.get();
             if (new_height > old_height)
@@ -355,7 +358,7 @@ namespace netxs::ui
             clear_regions();
             align_basis();
         }
-        void output(face& canvas) // The canvas is an optional argument.
+        void output(face& canvas)
         {
             flow::reset(canvas);
             auto head = canvas.view().coor.y - canvas.full().coor.y;
@@ -375,7 +378,10 @@ namespace netxs::ui
         {
             auto head = batch.begin();
             auto tail = batch.end();
-            while(head != --tail && tail->length() == 0) batch.pop();
+            //while(head != --tail && tail->length() == 0) batch.pop();
+            while(head != --tail
+               && tail->length() == 0
+               && tail->selfid == tail->bossid) batch.pop();
         }
         // rods: Trim all lines above and current line.
         void trim_to_current()
@@ -403,9 +409,9 @@ namespace netxs::ui
         }
         void clear_above()
         {
-            //   Insert spaces on all lines above including the current line,
-            // begining from bossid of the viewport top line
-            // ending the current line
+            // Insert spaces on all lines above including the current line,
+            //   begining from bossid of the viewport top line
+            //   ending the current line
             auto top_index = get_line_index_by_id(batch[basis].bossid);
             auto cur_index = batch.get();
             auto begin = batch.begin();
@@ -425,22 +431,28 @@ namespace netxs::ui
         // rods: Rebuild overlaps from bottom to line with selfid=top_id (inclusive).
         void rebuild_upto_id(iota top_id)
         {
-            //todo revise (bug)
             auto tail = batch.end();
             auto head = tail - (batch.length() - get_line_index_by_id(top_id));
             do
             {
                 auto& line =*--tail;
                 auto below = tail + (line_height(line) - 1);
+                auto over = below - batch.end();
+                if (over >= 0) add_lines(++over);
                 do  // Assign iff line isn't overlapped by somaething higher
                 {   // Comparing the difference with zero In order to support id incrementing overflow
                     below->bossid = line.selfid;
-                    //if (below->bossid - top_id > 0) below->bossid = line.selfid;
-                    //else                            break; // overlapped by a higher line
                 }
                 while(tail != below--);
             }
             while(tail != head);
+        }
+        // rods: Rebuild overlaps from bottom to the top visible line.
+        void rebuild_viewport()
+        {
+            auto maxy = xsize.max(line::autowrap) / panel.x;
+            auto head = std::max(0, basis - maxy);
+            rebuild_upto_id(batch[head].selfid);
         }
         // rods: For bug testing purposes.
         auto get_content()
@@ -920,8 +932,7 @@ namespace netxs::ui
                         (*head--).trim_to(0);
                     }
                 }
-                // Rebuild overlaps from bottom to id
-                rods::rebuild_upto_id(bossid);
+                rebuild_upto_id(bossid);
                 set_coord();
             }
             // wall: CSI n L  Insert n lines. Place caret to the begining of the current.
@@ -1422,7 +1433,6 @@ namespace netxs::ui
         {
             iota max_scrollback_size = q(default_size);
             iota grow_step =           q(default_step);
-            log (" max_scrollback_size = ", max_scrollback_size, " grow_step = ", grow_step);
             normal.resize<faux>(max_scrollback_size, grow_step);
         }
         // term: Write tty data and flush the queue.
@@ -1552,13 +1562,16 @@ namespace netxs::ui
 
                 viewport.size = new_size;
                 altbuf.resize<faux>(new_size.y);
+
                 if (target == &normal) target->remove_empties();
 
                 oversize.set(target->recalc_pads());
                 caret.set(target->get_caret());
-                //todo rebuild viewport lines overlapping
+
+
                 auto scrollback_size = target->frame_size();
                 new_size.y = std::max(new_size.y, scrollback_size.y);
+                target->rebuild_viewport();
 
                 //viewport.set(...);
                 if (caret_seeable)// && !viewport.hittest(caret_xy))

@@ -37,6 +37,7 @@ namespace netxs::generics
             auto  operator -> ()                    { return &(buff[addr]);          }
             auto  operator != (iter const& m) const { return addr != m.addr;         }
             auto  operator == (iter const& m) const { return addr == m.addr;         }
+            friend auto operator - (iter const& n, iter const& m) { return n.addr - m.addr; }
         };
 
         iota step; // ring: Unlimited buffer increment step (zero for fixed size buffer).
