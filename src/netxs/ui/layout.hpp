@@ -1067,16 +1067,21 @@ namespace netxs::ui
 
             return block;
         }
-
-        operator bool     ()              const { return size.x != 0 && size.y != 0;       }
-        auto   area       ()              const { return size.x * size.y;                  }
-        twod   map        (twod const& p) const { return p - coor;                         }
-        rect   operator & (rect const& r) const { return clip(r);                          }
-        rect   operator + (rect const& r) const { return { coor + r.coor, size + r.size }; }
-        rect   operator - (rect const& r) const { return { coor - r.coor, size - r.size }; }
-        rect   operator | (rect const& r) const { return unite(r);                         }
-        bool   operator!= (rect const& r) const { return coor != r.coor || size != r.size; }
-        bool   operator== (rect const& r) const { return coor == r.coor && size == r.size; }
+        twod clip (twod point) const
+        {
+            return std::clamp(point, coor, coor + std::max(dot_00, size - dot_11));
+        }
+        operator bool      ()              const { return size.x != 0 && size.y != 0;       }
+        auto   area        ()              const { return size.x * size.y;                  }
+        twod   map         (twod const& p) const { return p - coor;                         }
+        rect   operator &  (rect const& r) const { return clip(r);                          }
+        rect   operator +  (rect const& r) const { return { coor + r.coor, size + r.size }; }
+        rect   operator -  (rect const& r) const { return { coor - r.coor, size - r.size }; }
+        rect   operator |  (rect const& r) const { return unite(r);                         }
+        bool   operator != (rect const& r) const { return coor != r.coor || size != r.size; }
+        bool   operator == (rect const& r) const { return coor == r.coor && size == r.size; }
+        void   operator += (rect const& r)       { coor += r.coor, size += r.size;          }
+        void   operator -= (rect const& r)       { coor -= r.coor, size -= r.size;          }
 
         // rect: Is the point inside the rect.
         bool hittest (twod const& p) const
@@ -1282,26 +1287,18 @@ namespace netxs::ui
             t -= p.y;
             b -= p.y;
         }
-        // side: Set and return true if changed.
+        // side: Set paddings.
         void set(iota new_l, iota new_r = 0, iota new_t = 0, iota new_b = 0)
         {
             l = new_l;
             r = new_r;
             t = new_t;
             b = new_b;
-
-            //if (l != new_l ||
-            //	r != new_r ||
-            //	t != new_t ||
-            //	b != new_b)
-            //{
-            //	l = new_l;
-            //	r = new_r;
-            //	t = new_t;
-            //	b = new_b;
-            //	return true;
-            //}
-            //else return faux;
+        }
+        // side: Set left and right pads.
+        void set(std::pair<iota, iota> left_right)
+        {
+            set(left_right.first, left_right.second);
         }
         // side: Return top left corner.
         auto topleft() const { return twod{ l, t }; }

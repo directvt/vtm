@@ -929,7 +929,7 @@ namespace netxs::ui
     {
         using self = cake;
         FEATURE(pro::mouse, mouse); // cake: Mouse controller
-        FEATURE(pro::align, align); // cake: Size linking controller
+        FEATURE(pro::align, align); // cake: Size binding controller
 
         using sptr = netxs::sptr<base>;
         std::list<sptr> clients;

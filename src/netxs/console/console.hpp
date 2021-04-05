@@ -1149,7 +1149,7 @@ namespace netxs::console
                 : owner{ master }
             {
                 owner.SUBMIT(e2::release, EVENT, new_value) { value = new_value; };
-                owner.SUBMIT(e2::request, EVENT, empty) { empty = value; };
+                owner.SUBMIT(e2::request, EVENT, empty_var) { empty_var = value; };
             }
 
             //bind: Get the const reference of the current value.
@@ -2454,10 +2454,17 @@ namespace netxs::console
                     body.coor = coor;
                 }
             }
-            // caret: Set caret position.
-            auto coor() const
+            // caret: Get caret position.
+            auto& coor() const
             {
                 return body.coor;
+            }
+            // caret: Set caret visibility and position.
+            void set(std::pair<bool, twod const&> data)
+            {
+                data.first ? show()
+                           : hide();
+                coor(data.second);
             }
             // caret: Force to show the caret.
             void reset()

@@ -27,10 +27,10 @@ namespace netxs::generics
                 addr{ addr }
             { }
             auto  operator -  (iter const& r)       { return addr - r.addr;          }
-            auto  operator -  (int n)               { return iter{ buff, addr - n }; }
-            auto  operator +  (int n)               { return iter{ buff, addr + n }; }
-            auto  operator ++ (int)                 { return iter{ buff, addr++   }; }
-            auto  operator -- (int)                 { return iter{ buff, addr--   }; }
+            auto  operator -  (iota n)              { return iter{ buff, addr - n }; }
+            auto  operator +  (iota n)              { return iter{ buff, addr + n }; }
+            auto  operator ++ (iota)                { return iter{ buff, addr++   }; }
+            auto  operator -- (iota)                { return iter{ buff, addr--   }; }
             auto& operator ++ ()                    { ++addr; return *this;          }
             auto& operator -- ()                    { --addr; return *this;          }
             auto& operator *  ()                    { return   buff[addr];           }
