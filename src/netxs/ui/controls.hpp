@@ -1631,6 +1631,7 @@ namespace netxs::ui
         iota init; // grip: Handle base width.
         math calc; // grip: Scrollbar calculator.
         bool wide; // grip: Is the scrollbar active.
+        iota mult; // grip: Vertical bar width multiplier.
 
         bool on_pager = faux;
 
@@ -1662,11 +1663,12 @@ namespace netxs::ui
             return on_pager;
         }
     public:
-        grip(sptr boss, iota thin = 1)
-            : boss{ boss },
-              thin{ thin },
-              wide{ faux },
-              init{ thin }
+        grip(sptr boss, iota thickness = 1, iota multiplier = 2)
+            : boss{ boss       },
+              thin{ thickness  },
+              wide{ faux       },
+              init{ thickness  },
+              mult{ multiplier }
         {
             mouse.highlightable = true;
 
@@ -1819,8 +1821,8 @@ namespace netxs::ui
                 auto apply = [&](auto active)
                 {
                     wide = active;
-                    if (AXIS == axis::Y) config(active ? init * 2 // Make vertical scrollbar
-                                                       : init);   //          wider on hover.
+                    if (AXIS == axis::Y && mult) config(active ? init * mult // Make vertical scrollbar
+                                                               : init);      //          wider on hover.
                     base::reflow();
                     return faux; // One shot call.
                 };

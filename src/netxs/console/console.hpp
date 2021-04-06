@@ -1735,8 +1735,6 @@ namespace netxs::console
                     gate.SIGNAL(e2::request, e2::form::layout::size, area.size);
                     gate.SIGNAL(e2::request, e2::form::layout::move, area.coor);
                     last = boss.base::square();
-                    //area.coor -= dot_11;
-                    //area.size += dot_22;
                     auto pads = boss.get_border();
                     area.coor -= pads;
                     area.size += pads * 2;

@@ -1513,7 +1513,6 @@ int main(int argc, char* argv[])
                         frame->color(whitelt, 0x601A5f00);
                         frame->header(ansi::jet(bias::center) + "Spreadsheet");
                         frame->blurred = true;
-                        //frame->SIGNAL(e2::preview, e2::form::prop::params, cellatix_foot);
                         frame->SIGNAL(e2::preview, e2::form::prop::footer, cellatix_foot);
 
                         auto block = frame->attach<fork>();
@@ -1591,22 +1590,67 @@ int main(int argc, char* argv[])
                     {
                         using fork = netxs::console::fork;
                         frame->color(whitelt, 0x605f1A00);
-                        frame->header(ansi::jet(bias::center) + "Text Editor 2");
+                        frame->header(ansi::jet(bias::center) + "Text Editor");
                         frame->blurred = true;
                         frame->set_border(dot_00);
 
-                        auto block = frame->attach<fork>();
-                        block->color(whitelt, 0);
-                        block->config(fork::vertical, 1, 50);
+                        auto window = frame->attach<fork>();
+                        window->color(whitelt, 0);
+                        window->config(fork::vertical, 0, 50);
                         {
-                            auto menu = block->attach<post>(fork::_1);
-                            menu->topic = edit_menu;
+                            auto menu_area = window->attach<fork>(fork::_1);
+                            menu_area->config(fork::horizontal, 0, 50);
+                            {
+                                //auto file = menu_area->attach<list>(fork::_1);
+                                auto file = menu_area->attach<post>(fork::_1);
+                                file->topic = "\n  ≡  File  Edit  View  Data  \n";
+                                {
 
-                            auto body = block->attach<chat>(fork::_2);
-                            body->limits({ -1,1 }, { -1,-1 });
-                            body->color(blackdk, whitelt);
-                            body->topic = textancy_text;
-                            //body.caret.show();
+                                }
+                                auto help = menu_area->attach<post>(fork::_2);
+                                help->topic = ansi::jet(bias::right) + "\n  Help  \n";
+                                {
+
+                                }
+
+                            }
+
+                            auto body_area = window->attach<fork>(fork::_2);
+                            body_area->config(fork::vertical, 0, 50);
+                            {
+                                auto body_vscroll = body_area->attach<fork>(fork::_1);
+                                body_vscroll->config(fork::horizontal, 0, 50);
+
+                                    auto layers = body_vscroll->attach<cake>(fork::_1);
+                                        auto scroll = layers->attach<rail>();
+                                        scroll->overscroll[axis::X] = true;
+                                        scroll->overscroll[axis::Y] = true;
+                                        //scroll->limits({ 4,10 }, { -1,-1 });
+                                            auto body = scroll->attach<post>();
+                                            body->color(blackdk, whitelt);
+                                            body->topic = wiki00;
+
+                                    auto vscroll = body_vscroll->template attach<grip<axis::Y>>(fork::_2, body, 2, 0);
+                                    vscroll->limits({ 2,1 }, { 2,-1 });
+                                    {
+
+                                    }
+
+                                auto hscroll_grip = body_area->attach<fork>(fork::_2);
+                                hscroll_grip->config(fork::horizontal, 0, 50);
+                                {
+                                    auto hscroll = hscroll_grip->template attach<grip<axis::X>>(fork::_1, body);
+                                    hscroll->limits({ 1,2 }, { -1,2 });
+                                    {
+
+                                    }
+                                    auto grip = hscroll_grip->attach<post>(fork::_2);
+                                    grip->topic = "grip";
+                                    {
+
+                                    }
+                                }
+                            }
                         }
                         break;
                     }
