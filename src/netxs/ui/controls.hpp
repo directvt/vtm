@@ -64,13 +64,15 @@ namespace netxs::ui
                 //auto c = corner.less(dot_11, dot_00, length);
                 //todo revise
                 //auto c = master.base::coor.get() + corner.less(dot_11, dot_00, length);
-                auto area = master.base::square();
-                auto c = area.coor
+                //auto area = master.base::square();
+                //auto c = area.coor
+                auto c = master.base::coor.get()
                        - canvas.coor() + corner.less(dot_11, dot_00, length);
                 //todo bug: levels can be larger than form itself
                 // repro: comment .clip(area), create a recursive connection,
                 //        place the mouse cursor in the bottom right corner
                 //        quickly resize by dragging the top-left corner to the max and back
+                auto area = canvas.view();
                 auto side_x = rect{ c, { levels.x, widths.y } }.normalize().clip(area);
                 c.y += levels.y > 0 ? 1 : -1;
                 auto side_y = rect{ c, { widths.x, levels.y } }.normalize().clip(area);
@@ -163,12 +165,15 @@ namespace netxs::ui
 
     public:
         //todo make it private (used in vtmd::creator)
-        sptr client; // mold: Client object
+        sptr client; // mold: Client object.
 
 
-        bool locked; // mold: Whether the control resizable
-        iota acryl = 0; // mold: Blur radius
+        bool locked; // mold: Whether the control resizable.
+        bool blurred = faux; // mold: Use acryllic background.
+        iota acryl = 0; // mold: Blur radius.
         bool nosize = faux;
+        rgba title_fg_color = 0xFFffffff;
+        bool highlight_center = true;
 
         ~mold()
         {
@@ -395,7 +400,7 @@ namespace netxs::ui
         // mold: Draw client window
         virtual void renderproc (face& parent_canvas)
         {
-            auto const& normal = base::brush;
+            auto normal = base::brush;
             auto fuse_normal = [&](cell& c) { c.fuse(normal); };
             //todo unify - make pro::theme
             acryl = 5;// 100;
@@ -405,15 +410,19 @@ namespace netxs::ui
             //if (states.empty()) //if (loosen)
             if (locked || (states.empty() && !active)) //if (loosen)
             {
-                if (base::brush.bga() == 0xFF) parent_canvas.fill(fuse_normal);
-                else if (base::brush.wdt())    parent_canvas.blur(acryl, fuse_normal);
-                else                           parent_canvas.blur(acryl);
+                if (!blurred || base::brush.bga() == 0xFF) parent_canvas.fill(fuse_normal);
+                else if (base::brush.wdt())                parent_canvas.blur(acryl, fuse_normal);
+                else                                       parent_canvas.blur(acryl);
             }
             else
             {
                 auto bright = skin::color(tone::brighter);
                 auto shadow = skin::color(tone::shadower);
-                shadow.alpha(bright.bga());
+
+                //todo unify, make it more contrast
+                shadow.alpha(0x80);
+                bright.fgc(title_fg_color);
+                shadow.fgc(title_fg_color);
 
                 bool isnorm =
                     !active && states.end() == std::find_if(states.begin(), states.end(),
@@ -435,7 +444,7 @@ namespace netxs::ui
                 auto only_bright = [&](cell& c) { c.fuse(bright); };
                 auto only_shadow = [&](cell& c) { c.fuse(shadow); };
 
-                if (!isnorm) bright.alpha(bright.bga() >> 1); // too bright when selected
+                if (blurred && !isnorm) bright.alpha(highlight_center ? bright.bga() >> 1 : 0); // too bright when selected
                 if (normal.bgc().alpha())
                 {
                     if (isnorm) fillup(fuse_bright, fuse_normal);
@@ -453,12 +462,13 @@ namespace netxs::ui
                     // Draw the border around
                     auto area = parent_canvas.full();
                     auto mark = skin::color(tone::kb_focus);
+                    mark.fgc(title_fg_color); //todo unify, make it more contrast
                     auto fill = [&](cell& c) { c.fuse(mark); };
                     parent_canvas.cage(area, gripsz, fill);
                 }
 
-                //todo make it selectable
                 //if (base::brush.bga() != 0xFF)
+                if (blurred)
                 {
                     parent_canvas.blur(acryl);
                 }
@@ -1058,14 +1068,19 @@ namespace netxs::ui
           public flow
     {
         using self = post;
-        FEATURE(pro::mouse, mouse); // post: Mouse controller
+        FEATURE(pro::mouse, mouse); // post: Mouse controller.
 
-        twod width; // post: Page dimensions
+        twod width; // post: Page dimensions.
         page_layout layout;
 
     public:
+        FEATURE(pro::robot, robot); // post: Animationcontroller.
         page topic; // post: Text content
 
+        void highlightable(bool b)
+        {
+            mouse.highlightable = b;
+        }
         // post: Print page
         void output(face& canvas)
         {

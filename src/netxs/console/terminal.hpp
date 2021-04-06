@@ -1432,7 +1432,7 @@ namespace netxs::ui
         void resize(fifo& q)
         {
             iota max_scrollback_size = q(default_size);
-            iota grow_step =           q(default_step);
+            iota grow_step           = q(default_step);
             normal.resize<faux>(max_scrollback_size, grow_step);
         }
         // term: Write tty data and flush the queue.
@@ -1594,7 +1594,7 @@ namespace netxs::ui
             SUBMIT(e2::release, e2::form::upon::redrawn, parent_canvas)
             {
                 //todo unify
-                status = ansi::fgc(tint::greenlt) + target->status();
+                status = target->status();
                 auto coor = parent_canvas.area().coor;
                 coor.y += parent_canvas.area().size.y - 1;
                 status.lyric->move(coor);

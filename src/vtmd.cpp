@@ -2,7 +2,7 @@
 // Licensed under the MIT license.
 
 //#define DEMO
-#define MONOTTY_VER "Monotty Desktopio Preview v0.3.2"
+#define MONOTTY_VER "Monotty Desktopio Preview v0.3.3"
 #define PROD
 
 // Terminal's default line wrapping mode
@@ -10,10 +10,13 @@
 //#define WRAPPING (wrap::off)
 
 // Enable to show debug overlay
-#define DEBUG_OVERLAY
+//#define DEBUG_OVERLAY
 
 // Enable to show all terminal input (keyboard/mouse etc)
 //#define KEYLOG
+
+// Highlight region ownership
+//#define REGIONS
 
 // Show codepoint by the "logs"
 #define SHOW_CPOINTS faux
@@ -170,7 +173,7 @@ std::list<text> appstore_body =
     "Internet/SSH browser."),
 
     item(ansi::fgc(0xFF00FFFF)+"Doom"+ansi::fgc(), reddk, "4", "Free ", "Get",
-    "Doom Ⅱ source port."),
+    "Doom II source port."),
 
     item("Logs", blackdk, "4096", "Free ", "Get",
     "Application for displaying debug trace. "
@@ -1106,7 +1109,7 @@ int main(int argc, char* argv[])
             skin::setup(tone::kb_focus, 60);
             skin::setup(tone::brighter, 120);
             //skin::setup(tone::shadower, 0);
-            skin::setup(tone::shadower, 40);// 20);
+            skin::setup(tone::shadower, 60);//40);// 20);
             skin::setup(tone::shadow, 5);
             //skin::setup(tone::lucidity, 192);
             skin::setup(tone::lucidity, 255);
@@ -1392,6 +1395,7 @@ int main(int argc, char* argv[])
                     case Truecolor:
                     {
                         frame->header(ansi::jet(bias::right) + "True color ANSI/ASCII image test");
+                        frame->blurred = true;
 
                         auto layers = frame->attach<cake>();
                         auto scroll = layers->attach<rail>();
@@ -1424,6 +1428,8 @@ int main(int argc, char* argv[])
                         using fork = netxs::console::fork;
                         frame->header(ansi::jet(bias::right) + objs_desc[Shop]);
                         frame->color(whitelt, 0x60000000);
+                        frame->blurred = true;
+                        frame->highlight_center = faux;
                         //frame->color(whitelt, 0xff1A7f00);
 
                         auto block = frame->attach<fork>();
@@ -1440,7 +1446,7 @@ int main(int argc, char* argv[])
                             auto layers = block->attach<cake>(fork::_2);
                             auto scroll = layers->attach<rail>();
                             //scroll->color(whitelt, 0x20171710);
-                            scroll->color(whitedk, 0xFF0A0a0a);
+                            scroll->color(whitedk, 0xFF0f0f0f);
                             scroll->limits({ -1,2 }, { -1,-1 });
                             scroll->overscroll[axis::X] = true;
                             scroll->overscroll[axis::Y] = true;
@@ -1452,6 +1458,37 @@ int main(int argc, char* argv[])
                                         auto c0 = items->attach<post>();
                                         c0->topic = body;
                                         c0->glow = true;
+
+                                        // Highlight on hover and fade out
+                                        c0->color(whitelt, tint::bluelt);
+                                        c0->color().alpha(0x00);
+                                        wptr<post> weak = c0;
+                                        c0->SUBMIT_BYVAL(e2::release, e2::form::state::mouse, active)
+                                        {
+                                            if (auto b = weak.lock())
+                                            {
+                                                if (active)
+                                                {
+                                                    b->color().alpha(0xFF);
+                                                    b->base::deface();
+                                                }
+                                                else
+                                                {
+                                                    auto range = b->color().bga();
+                                                    auto limit = datetime::round<iota>(250ms);
+                                                    auto start = datetime::now<iota>();
+                                                    b->robot.actify(constlinearAtoB<iota>(range, limit, start), [&](auto step)
+                                                        {
+                                                            if (auto b = weak.lock())
+                                                            {
+                                                                auto alpha = std::max(0, b->color().bga() - step);
+                                                                b->color().alpha(alpha);
+                                                                b->base::deface();
+                                                            }
+                                                        });
+                                                }
+                                            }
+                                        };
                                     }
 
                                     auto c1 = items->attach<post>();
@@ -1472,6 +1509,7 @@ int main(int argc, char* argv[])
                         frame->limits({ -1,-1 }, { -1,105 });
                         frame->color(whitelt, 0x601A5f00);
                         frame->header(ansi::jet(bias::center) + "Spreadsheet");
+                        frame->blurred = true;
                         //frame->SIGNAL(e2::preview, e2::form::prop::params, cellatix_foot);
                         frame->SIGNAL(e2::preview, e2::form::prop::footer, cellatix_foot);
 
@@ -1529,6 +1567,7 @@ int main(int argc, char* argv[])
                         using fork = netxs::console::fork;
                         frame->color(whitelt, 0x605f1A00);
                         frame->header(ansi::jet(bias::center) + "Text Editor");
+                        frame->blurred = true;
 
                         auto block = frame->attach<fork>();
                         block->color(whitelt, 0);

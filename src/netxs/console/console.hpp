@@ -1019,9 +1019,8 @@ namespace netxs::console
             switch (parameter)
             {
                 case tone::prop::kb_focus:
-                    //todo is it necessary to .bga(value)?
-                    global.kb_colors.bgc(rgba(0, 0xff, 0xff, value)).bga(value)
-                                    .fgc(rgba(0, 0xff, 0xff, value)).fga(value);
+                    global.kb_colors.bgc(tint::bluelt).bga(value)
+                                    .fgc(tint::bluelt).fga(value);
                     global.kb_grades.recalc(global.kb_colors);
                     break;
                 case tone::prop::brighter:
@@ -2799,19 +2798,11 @@ namespace netxs::console
             title(T&&) = delete;
             title(T& boss) : boss{ boss }
             {
-                //logo += ansi::idx(prop::body).nop()
-                //      + ansi::wrp(wrap::off).mgr(1).mgl(1)
-                //      + ansi::rlf(feed::fwd).jet(bias::left).cup(dot_00)
-                //      + ansi::idx(prop::head) + ansi::nop()
-                //      + ansi::rlf(feed::rev).jet(bias::right).cup(dot_00)
-                //      + ansi::idx(prop::foot) + ansi::nop()
-                //      + ansi::rlf(feed::fwd).jet(bias::left).cup(dot_00).mgr(0).mgl(0);
                 logo += ansi::cup(dot_00)
                       + ansi::wrp(wrap::off).rtl(rtol::ltr).rlf(feed::fwd).jet(bias::left).mgr(1).mgl(1)
                       + ansi::idx(prop::head) + ansi::nop()
                       + ansi::cup(dot_00).rlf(feed::rev).jet(bias::right)
-                      + ansi::idx(prop::foot);// + ansi::nop()
-                      //+ ansi::rlf(feed::fwd).jet(bias::left).cup(dot_00).mgr(0).mgl(0);
+                      + ansi::idx(prop::foot);
 
                 boss.SUBMIT_T(e2::release, e2::form::upon::redrawn, memo, canvas)
                 {
@@ -5034,14 +5025,16 @@ again:
                 header.move(area.coor);
                 parent_canvas.fill(header);
             }
-            // Regions ownership
-            //parent_canvas.each([](cell& c){
-            //    auto mark = rgba{ rgba::color256[c.link() % 256] };
-            //    auto bgc = c.bgc();
-            //    mark.alpha(64);
-            //    bgc.mix(mark);
-            //    c.bgc(bgc);
-            //});
+
+            #ifdef REGIONS
+            parent_canvas.each([](cell& c){
+                auto mark = rgba{ rgba::color256[c.link() % 256] };
+                auto bgc = c.bgc();
+                mark.alpha(64);
+                bgc.mix(mark);
+                c.bgc(bgc);
+            });
+            #endif
         }
     };
 }
