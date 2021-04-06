@@ -1166,6 +1166,7 @@ int main(int argc, char* argv[])
             X(Shop         , "▀▄ Shop"             ) \
             X(Logs         , "▀▄ Logs"             ) \
             X(Empty        , "Empty window"        ) \
+            X(Text2        , "Text2"               ) \
             X(Test         , "Test"                )
 
             //X(Task         , "▀▄ Task"             )
@@ -1411,6 +1412,7 @@ int main(int argc, char* argv[])
                     }
                     case Empty:
                     {
+                        frame->blurred = true;
                         auto block = frame->attach<pane>();
                         block->canvas.mark().txt(whitespace);
                         //block->color(whitelt, 0x0);
@@ -1467,6 +1469,7 @@ int main(int argc, char* argv[])
                                         {
                                             if (auto b = weak.lock())
                                             {
+                                                b->robot.pacify();
                                                 if (active)
                                                 {
                                                     b->color().alpha(0xFF);
@@ -1568,6 +1571,29 @@ int main(int argc, char* argv[])
                         frame->color(whitelt, 0x605f1A00);
                         frame->header(ansi::jet(bias::center) + "Text Editor");
                         frame->blurred = true;
+
+                        auto block = frame->attach<fork>();
+                        block->color(whitelt, 0);
+                        block->config(fork::vertical, 1, 50);
+                        {
+                            auto menu = block->attach<post>(fork::_1);
+                            menu->topic = edit_menu;
+
+                            auto body = block->attach<chat>(fork::_2);
+                            body->limits({ -1,1 }, { -1,-1 });
+                            body->color(blackdk, whitelt);
+                            body->topic = textancy_text;
+                            //body.caret.show();
+                        }
+                        break;
+                    }
+                    case Text2:
+                    {
+                        using fork = netxs::console::fork;
+                        frame->color(whitelt, 0x605f1A00);
+                        frame->header(ansi::jet(bias::center) + "Text Editor 2");
+                        frame->blurred = true;
+                        frame->set_border(dot_00);
 
                         auto block = frame->attach<fork>();
                         block->color(whitelt, 0);
@@ -1802,8 +1828,8 @@ int main(int argc, char* argv[])
             };
 
 #ifndef PROD
-            creator(objs::Help, { { 22,1  },{ 70,21 } })
-                ->header(ansi::jet(center) + "Welcome");
+            creator(objs::Test, { { 22,1  },{ 70,21 } })
+                ->header(ansi::jet(bias::center) + "Welcome");
             creator(objs::Shop, { { 4 ,6  },{ 80,38 } });
             creator(objs::Calc, { { 15,13 },{ 65,23 } });
             creator(objs::Text, { { 30,20 },{ 59,26 } });
@@ -1812,7 +1838,7 @@ int main(int argc, char* argv[])
 
             auto sub_pos = twod{-120, 60};
             creator(objs::Truecolor,   { twod{ 20,15 } + sub_pos,{ 70,30 } });
-            creator(objs::Logs,       { twod{ 52,33 } + sub_pos,{ 45,12 } });
+            creator(objs::Logs,        { twod{ 52,33 } + sub_pos,{ 45,12 } });
             creator(objs::RefreshRate, { twod{ 60,41 } + sub_pos,{ 35,10 } });
 #endif
 #ifndef DEMO

@@ -593,8 +593,8 @@ namespace netxs::ui
                     case b::up::middle   :   release(gear); proceed<PROT>(gear, up_mddl); break;
                     case b::up::right    :   release(gear); proceed<PROT>(gear, up_rght); break;
                     // Wheel
-                    case m::scroll::up  : proceed<PROT>(gear, wheel_up); break;
-                    case m::scroll::down: proceed<PROT>(gear, wheel_dn); break;
+                    case m::scroll::up  : proceed<PROT>(gear, wheel_up, true); break;
+                    case m::scroll::down: proceed<PROT>(gear, wheel_dn, true); break;
                     default:
                         break;
                 }
