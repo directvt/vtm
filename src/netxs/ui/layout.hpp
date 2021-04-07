@@ -1323,16 +1323,20 @@ namespace netxs::ui
 
     struct dent
     {
-        struct edge
+        /*struct edge
         {
-            iota step = 0;
             bool just = faux;
             bool flip = faux;
-
+            iota step = 0;
             constexpr edge(bool just)
                 : just { just },
                   flip { faux },
                   step { 0    }
+            { }
+            constexpr edge(bool just, iota n)
+                : just { just          },
+                  flip { n < 0         },
+                  step { flip ? -n : n }
             { }
 
             auto get(iota size) const
@@ -1342,6 +1346,39 @@ namespace netxs::ui
             edge& operator = (iota n)
             {
                 step = (flip = n < 0) ? -n : n;
+                return *this;
+            }
+            edge& operator = (edge const& e)
+            {
+                step = e.step;
+                just = e.just;
+                return *this;
+            }
+        };*/
+        struct edge
+        {
+            bool just = faux;
+            //bool flip = faux;
+            iota step = 0;
+
+            constexpr edge(bool just)
+                : just { just },
+                  //flip { faux },
+                  step { 0    }
+            { }
+            constexpr edge(bool just, iota n)
+                : just { just          },
+                  //flip { n < 0         },
+                  step { n }
+            { }
+
+            auto get(iota size) const
+            {
+                return just ? step : size - step;
+            }
+            edge& operator = (iota n)
+            {
+                step = n;
                 return *this;
             }
             edge& operator = (edge const& e)
@@ -1361,6 +1398,12 @@ namespace netxs::ui
               east{ faux },
               head{ true },
               foot{ faux }
+        { }
+        constexpr dent(iota w, iota e, iota h, iota f)
+            : west{ true, w},
+              east{ faux, e},
+              head{ true, h},
+              foot{ faux, f}
         { }
 
         dent& operator = (dent const& margin)
@@ -1389,6 +1432,11 @@ namespace netxs::ui
             auto f = foot.get(size_y);
             return rect{ {w, h}, {std::max(e - w, 0), std::max(f - h, 0)} };
         }
+        // dent: Return inner area rectangle.
+        auto area(twod const& size) const
+        {
+            return area(size.x, size.y);
+        }
         // dent: Return the coor of the area rectangle.
         auto corner(iota size_x, iota size_y) const
         {
@@ -1408,6 +1456,11 @@ namespace netxs::ui
             auto h = head.get(size_y);
             auto f = foot.get(size_y);
             return std::max(f - h, 0);
+        }
+        // dent: Return size of the inner rectangle.
+        auto size(twod const& size)
+        {
+            return twod{ width(size.x), height(size.y) };
         }
         // dent: Return the horizontal coordinate using percentages.
         auto h_ratio(iota px, iota size_x) const

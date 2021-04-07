@@ -103,7 +103,7 @@ namespace netxs::ui
                     dtcoor = curpos.less(center + (length & 1), dot_11, dot_00);
                     dtsize = dtcoor.less(dot_11, dot_11,-dot_11);
                     sector = dtcoor.less(dot_11,-dot_11, dot_11);
-                    widths = sector * gripsz;
+                    widths = sector * (master.blurred ? dot_11 : gripsz);
                 }
 
                 corner = dtcoor.less(dot_11, length - dot_11, dot_00);
@@ -293,17 +293,17 @@ namespace netxs::ui
                 if (client)
                     client->SIGNAL(e2::release, e2::form::layout::size, region.size);
 
-                if (!nosize && client)
-                {
-                    auto& size = client->base::size.get();
-                    legend.footer(ansi::mgl(1).mgr(1) + "client " + std::to_string(size.x) + ":"
-                        + std::to_string(size.y));
-                }
-                else
-                {
-                    legend.footer(ansi::mgl(1).mgr(1) + "window " + std::to_string(size.x) + ":"
-                        + std::to_string(size.y));
-                }
+                //if (!nosize && client)
+                //{
+                //    auto& size = client->base::size.get();
+                //    legend.footer(ansi::mgl(1).mgr(1) + "client " + std::to_string(size.x) + ":"
+                //        + std::to_string(size.y));
+                //}
+                //else
+                //{
+                //    legend.footer(ansi::mgl(1).mgr(1) + "window " + std::to_string(size.x) + ":"
+                //        + std::to_string(size.y));
+                //}
             };
 
             SUBMIT(e2::release, bttn::drag::start::left, gear)
@@ -464,7 +464,7 @@ namespace netxs::ui
                     auto mark = skin::color(tone::kb_focus);
                     mark.fgc(title_fg_color); //todo unify, make it more contrast
                     auto fill = [&](cell& c) { c.fuse(mark); };
-                    parent_canvas.cage(area, gripsz, fill);
+                    parent_canvas.cage(area, blurred ? dot_11 : gripsz, fill);
                 }
 
                 //if (base::brush.bga() != 0xFF)
@@ -847,7 +847,7 @@ namespace netxs::ui
         using roll = std::list<std::pair<sptr, iota>>;
 
         roll clients;
-        bool up_down = true;
+        bool up_down; // list: List orientation, true: vertical, faux: horizontal.
 
     public:
         ~list()
@@ -858,7 +858,8 @@ namespace netxs::ui
                 clients.pop_back();
             }
         }
-        list()
+        list(bool vertical = true)
+            : up_down{ vertical }
         {
             SUBMIT(e2::preview, e2::form::layout::size, new_sz)
             {
@@ -1018,8 +1019,6 @@ namespace netxs::ui
         }
     };
 
-
-
     struct page_layout
     {
         struct item
@@ -1085,7 +1084,9 @@ namespace netxs::ui
 
     public:
         FEATURE(pro::robot, robot); // post: Animationcontroller.
+        FEATURE(pro::caret, caret); // post: Caret controller. (todo unify: only rext editor)
         page topic; // post: Text content.
+        bool beyond{}; // post: Allow vertical scrolling beyond last line.
 
         void highlightable(bool b)
         {
@@ -1132,11 +1133,11 @@ namespace netxs::ui
                                 std::max(0, cover.r - width.x + 1),
                                -std::min(0, cover.t),
                                 0);
-            width.y = cover.height() + 1;
+            width.y = cover.height() + (beyond ? width.y : 1); //todo unify (text editor)
         }
         void recalc(twod const& size)
         {
-            width.x = size.x;
+            width = size;
             recalc();
         }
 
@@ -1186,30 +1187,26 @@ namespace netxs::ui
                                            e2::form::upon::scroll::y,
                                            e2::form::upon::scroll::resetx,
                                            e2::form::upon::scroll::resety };
-        bool locked = faux; // rail: Client is under resizing.
-        sptr client; // rail: Client instance.
-        subs tokens; // rail: Subscriptions on client moveto and resize.
-        rack scinfo; // rail: Scroll info.
         bool strict[2] = { true, true }; // rail: Don't allow overscroll.
         bool manual[2] = { true, true }; // rail: Manaul scrolling (no auto align).
-        axes permit; // rail: Allowed axes to scroll.
-        axes siezed; // rail: Allowed axes to capture.
+        bool locked{}; // rail: Client is under resizing.
+        sptr client{}; // rail: Client instance.
+        subs tokens{}; // rail: Subscriptions on client moveto and resize.
+        rack scinfo{}; // rail: Scroll info.
+        axes permit{}; // rail: Allowed axes to scroll.
+        axes siezed{}; // rail: Allowed axes to capture.
 
-        iota speed; // rail: Text auto-scroll initial speed component ΔR.
-        iota pulse; // rail: Text auto-scroll initial speed component ΔT.
-        iota cycle; // rail: Text auto-scroll duration in ms.
-        bool steer; // rail: Text scroll vertical direction.
+        iota speed{ SPD  }; // rail: Text auto-scroll initial speed component ΔR.
+        iota pulse{ PLS  }; // rail: Text auto-scroll initial speed component ΔT.
+        iota cycle{ CCL  }; // rail: Text auto-scroll duration in ms.
+        bool steer{ faux }; // rail: Text scroll vertical direction.
 
     public:
         bool overscroll[2] = { true, true }; // rail: Allow overscroll with auto correct.
 
         rail(axes allow_to_scroll = axes::ALL, axes allow_to_capture = axes::ALL)
-            : speed{ SPD  },
-              pulse{ PLS  },
-              cycle{ CCL  },
-              steer{ faux },
-            permit{ allow_to_scroll },
-            siezed{ allow_to_capture }
+            : permit{ allow_to_scroll  },
+              siezed{ allow_to_capture }
         {
             // Receive scroll parameters from external source.
             SUBMIT(e2::preview, e2::form::upon::scroll::any, info)
@@ -1670,7 +1667,7 @@ namespace netxs::ui
               init{ thickness  },
               mult{ multiplier }
         {
-            mouse.highlightable = true;
+            //mouse.highlightable = true;
 
             config(thin);
 
@@ -1878,6 +1875,72 @@ namespace netxs::ui
                 parent_canvas.fill(handle, [&](cell& c) { c.link(bell::id).xlight(); });
             }
         }
+    };
+
+    class menu // controls.h: Menu controller.
+        : public base
+    {
+    public:
+        struct item
+            : public base
+        {
+            using self = item;
+            FEATURE(pro::mouse, mouse);   // item: Mouse controller.
+            FEATURE(pro::robot, robot);   // item: Animation controller.
+            //FEATURE(pro::align, adjust);  // item: Size linking controller.
+
+            para   name;
+            dent   pads;
+            period fade;
+
+            void recalc()
+            {
+                auto size = name.size();
+                auto area = pads.area(size);
+                name.locus.clear();
+                name.locus.cup(-area.coor);
+                base::limits(area.size, area.size);
+                base::resize(area.size);
+            }
+            //todo unify colors: cell.c1 -> c2
+            item(text const& label_text, dent const& padding, tint clr, period fade_out = 250ms)
+                : name{ label_text },
+                  pads{ padding    },
+                  fade{ fade_out   }
+            {
+                recalc();
+                base::color(tint::whitelt, clr);
+                base::color().alpha(0x00);
+
+                SUBMIT_BYVAL(e2::release, e2::form::state::mouse, active)
+                {
+                    robot.pacify();
+                    if (active)
+                    {
+                        base::color().alpha(0xFF);
+                        base::deface();
+                    }
+                    else
+                    {
+                        auto range = base::color().bga();
+                        auto limit = datetime::round<iota>(fade_out);
+                        auto start = datetime::now<iota>();
+                        robot.actify(constlinearAtoB<iota>(range, limit, start), [&](auto step)
+                        {
+                            auto alpha = std::max(0, base::color().bga() - step);
+                            base::color().alpha(alpha);
+                            base::deface();
+                        });
+                    }
+                };
+            }
+            // item: Render base and output topic content.
+            virtual void renderproc (face& parent_canvas)
+            {
+                base::renderproc(parent_canvas);
+                parent_canvas.output(name);
+            }
+        };
     };
 
     // DEPRECATED STUFF
@@ -2508,7 +2571,7 @@ namespace netxs::ui
             iota on_item)
         {
             auto size = twod{ 0, height };
-            ///  Get max width
+            //  Get max width
             for (auto& item_text : objs_desc)
             {
                 auto len = static_cast<iota>(item_text.size());

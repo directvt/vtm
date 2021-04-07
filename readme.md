@@ -147,4 +147,8 @@ double `LeftClick`    | Window: Maximize/restore
 
 ---
 
-[![HitCount](https://views.whatilearened.today/views/github/netxs-group/VTM.svg)](https://github.com/netxs-group/VTM)
+[![HitCount](https://views.whatilearened.today/views/github/netxs-group/VTM.svg)](https://github.com/netxs-group/VTM) [![Gitter](https://badges.gitter.im/netxs-group/VTM.svg)](https://gitter.im/netxs-group/VTM?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge) [![Twitter handle][]][twitter badge]
+
+[//]: # (LINKS)
+[twitter handle]: https://img.shields.io/twitter/follow/desktopio.svg?style=social&label=Follow
+[twitter badge]: https://twitter.com/desktopio
