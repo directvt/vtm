@@ -1755,20 +1755,21 @@ utility like ctags is used to locate the definitions.
                                 auto menu_list_area = menu_area->attach<fork>(fork::_1);
                                 menu_list_area->config(fork::horizontal, 0, 50);
                                     auto menu_list = menu_list_area->attach<list>(fork::_1, faux);
+                                    auto inner_pads = dent{ -1, -2, -1, -1};
                                     auto menu_items =  { 
-                                        " ≡ "s,
-                                        ansi::und(true) + "F" + ansi::nil() + "ile",
-                                        ansi::und(true) + "E" + ansi::nil() + "dit",
-                                        ansi::und(true) + "V" + ansi::nil() + "iew",
-                                        ansi::und(true) + "D" + ansi::nil() + "ata",
+                                        std::pair<text, dent>{ " ≡"s,                                       dent{  0 } },
+                                        std::pair<text, dent>{ ansi::und(true) + "F" + ansi::nil() + "ile", dent{ -1 } },
+                                        std::pair<text, dent>{ ansi::und(true) + "E" + ansi::nil() + "dit", dent{ -1 } },
+                                        std::pair<text, dent>{ ansi::und(true) + "V" + ansi::nil() + "iew", dent{ -1 } },
+                                        std::pair<text, dent>{ ansi::und(true) + "D" + ansi::nil() + "ata", dent{ -1 } },
                                         };
-                                    auto pads = dent{ -1, -1, -1, -1};
                                     for (auto& body : menu_items)
                                     {
-                                        auto c0 = menu_list->attach<menu::item>(body, pads, tint::bluelt);
+                                        auto c0 = menu_list->
+                                            attach<menu::item>(body.first, inner_pads, body.second, tint::bluelt);
                                     }
                                 auto menu_help = menu_area->attach<menu::item>(fork::_2, 
-                                    " " + ansi::und(true) + "H" + ansi::nil() + "elp ", pads, tint::bluelt);
+                                    ansi::und(true) + "H" + ansi::nil() + "elp", dent{-2,-2,-1,-1}, dent{}, tint::bluelt);
                             }
                             menu_area->base::reflow();
 
@@ -1777,6 +1778,8 @@ utility like ctags is used to locate the definitions.
                             body_area->config(fork::vertical, 0, 50);
                             {
                                 auto layers = body_area->attach<cake>(fork::_1);
+                                //layers->padding.west = 1;
+                                //layers->padding.east = 1;
                                     auto scroll = layers->attach<rail>();
                                     scroll->limits({ 4,3 }, { -1,-1 });
                                         auto body = scroll->attach<post>();

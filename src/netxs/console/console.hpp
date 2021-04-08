@@ -1220,7 +1220,8 @@ namespace netxs::console
         bool linked = faux; // Whether the size is tied to the size of the clients.
         wptr parent; // base: Parental visual tree weak-pointer.
         side oversize; // base: Oversize, margin. Used by scroll/rail only.
-
+        dent padding; // base: Space around an element's content, outside of any defined borders. It does not affect the size, only affects the fill. Used in base::renderproc only.
+        dent margins; // base: Space around an element's content, inside of any defined borders. Containers take this parameter into account when calculating sizes. Used in all conainers.
         twod anchor; // base: Object balance point. Center point for any transform (on preview).
 
         hook kb_offer;
@@ -1241,7 +1242,12 @@ namespace netxs::console
         virtual void renderproc (face& parent_canvas)
         {
             if (base::brush.wdt())
-                parent_canvas.fill([&](cell& c) { c.fusefull(base::brush); });
+                //parent_canvas.fill([&](cell& c) { c.fusefull(base::brush); });
+                //todo fill TIA padding
+            {
+                auto area = margins.area(parent_canvas.view());
+                parent_canvas.fill(area, [&](cell& c) { c.fusefull(base::brush); });
+            }
             //else
             //	parent_canvas.fill([&](cell& c) { c.link(bell::id); });
         }
@@ -1259,7 +1265,8 @@ namespace netxs::console
                 auto bright = rgba{0xFFffffff};
 
                 //todo optimize - don't fill the head and foot twice
-                auto area = parent_canvas.view();
+                auto area = margins.area(parent_canvas.view());
+                //auto area = parent_canvas.view();
                 auto n = std::clamp(size, 0, area.size.y / 2) + 1;
                 //auto n = std::clamp(size, 0, boss.base::size.get().y / 2) + 1;
 
@@ -1407,22 +1414,28 @@ namespace netxs::console
                 }
             }
         }
+        
         // base: Return the rectangle of the canvas.
-        rect square ()
+        auto square () const
         {
             auto& s = base::size.get();
             auto& c = base::coor.get();
-            return { c, s };
+            return rect{ c, s };
         }
+        //// base: Return object rectangle with padding.
+        //auto square_pads() const
+        //{
+        //    return padding.area(square());
+        //}
         // base: Check that point hits the canvas.
-        bool inside (twod const& p)
+        auto inside (twod const& p)
         {
             auto& s = base::size.get();
             auto& c = base::coor.get();
             return s.inside(p - c);
         }
         // base: Check that point hits the only size (coor = zero).
-        bool within (twod const& p)
+        auto within (twod const& p)
         {
             auto& s = base::size.get();
             return s.inside(p);
@@ -1448,7 +1461,7 @@ namespace netxs::console
             strike();
         }
         // base: Move the form to the new place, and return delta.
-        twod moveto (twod newcoor)
+        auto moveto (twod newcoor)
         {
             auto delta = base::coor.set(newcoor);
             if (delta)
@@ -1460,13 +1473,13 @@ namespace netxs::console
         }
         // base: Move the canvas by the specified step.
         //       Return the coor delta.
-        twod moveby(twod const& step)
+        auto moveby(twod const& step)
         {
             auto delta = moveto(base::coor.get() + step);
             return delta;
         }
         // base: Resize the form, and return the size delta.
-        twod resize (twod newsize)
+        auto resize (twod newsize)
         {
             auto delta = base::size.set(newsize);
             if (delta)
@@ -1480,7 +1493,7 @@ namespace netxs::console
         //       Return the offset of the center point.
         //       The object is responsible for correcting
         //       the center point during resizing.
-        twod resize (twod newsize, twod point)
+        auto resize (twod newsize, twod point)
         {
             point -= base::coor.get();
             base::anchor = point;
@@ -1504,15 +1517,15 @@ namespace netxs::console
             }
         }
         // base: Resize the form by step, and return delta.
-        twod sizeby (twod const& step)
+        auto sizeby (twod const& step)
         {
             auto delta = resize(base::size.get() + step);
             return delta;
         }
         // base: Resize and move the form, and return delta.
-        rect extend (rect newloc)
+        auto extend (rect newloc)
         {
-            return { moveto(newloc.coor), resize(newloc.size) };
+            return rect{ moveto(newloc.coor), resize(newloc.size) };
         }
         // base: Remove the form from the visual tree.
         void detach ()
@@ -1714,11 +1727,11 @@ namespace netxs::console
             using gptr = wptr<bell>;
 
             T&   boss;
-            rect last; // pro::align: Window size before the fullscreen has applied
-            text head; // pro::align: Main window title the fullscreen has applied
-            subs memo; // pro::align: Subscriptions on master activity
-            id_t weak; // pro::align: Master id
-            rect body; // pro::align: For current coor/size tracking
+            rect last; // pro::align: Window size before the fullscreen has applied.
+            text head; // pro::align: Main window title the fullscreen has applied.
+            subs memo; // pro::align: Subscriptions on master activity.
+            id_t weak; // pro::align: Master id.
+            rect body; // pro::align: For current coor/size tracking.
 
         public:
             auto seized(id_t master)
@@ -1749,7 +1762,8 @@ namespace netxs::console
 
                     gate.SUBMIT_T(e2::release, e2::form::layout::size, memo, size)
                     {
-                        body.size = size + dot_22;
+                        auto pads = boss.get_border();
+                        body.size = size + pads * 2;
                         boss.base::resize(body.size);
                     };
                     gate.SUBMIT_T(e2::release, e2::form::layout::move, memo, coor)
@@ -1805,52 +1819,6 @@ namespace netxs::console
                   weak{      }
             {
                 boss.base::linked = true;
-
-                //boss.SUBMIT_T(e2::release, e2::form::client::rect, memo, area)
-                //{
-                //	boss.base::coor.set(area.coor);
-                //	boss.base::size.set(area.size);
-                //};
-                //boss.SUBMIT_T(e2::release, e2::form::client::size, memo, size)
-                //{
-                //	boss.base::size.set(size);
-                //};
-                //boss.SUBMIT_T(e2::release, e2::form::client::coor, memo, coor)
-                //{
-                //	boss.base::coor.set(coor);
-                //};
-                //
-                //boss.SUBMIT_T(e2::request, e2::form::client::rect, memo, area)
-                //{
-                //	area.coor = boss.base::coor.get();
-                //	area.size = boss.base::size.get();
-                //};
-                //boss.SUBMIT_T(e2::request, e2::form::client::size, memo, size)
-                //{
-                //	size = boss.base::size.get();
-                //};
-                //boss.SUBMIT_T(e2::request, e2::form::client::coor, memo, coor)
-                //{
-                //	coor = boss.base::coor.get();
-                //};
-
-                //boss.SUBMIT_T(e2::release, e2::form::upon::attached, memo, parent_ptr)
-                //{
-                //	auto& gode = *parent_ptr;
-                //	gode.SUBMIT_T(e2::release, e2::form::client::rect, lock, client_area)
-                //	{
-                //		boss.base::coor.set(client_area.coor);
-                //		boss.base::size.set(client_area.size);
-                //	});
-                //
-                //	rect client_area;
-                //	gode.SIGNAL(e2::request, e2::form::client::rect, client_area);
-                //	boss.base::extend(client_area);
-                //});
-                //boss.SUBMIT_T(e2::release, e2::form::upon::detached, memo, parent)
-                //{
-                //	lock.reset();
-                //});
             }
             /// Ask the client about the new size (the client can override the size) and return delta
             //auto accord(twod& newsize)

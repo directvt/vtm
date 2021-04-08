@@ -1890,27 +1890,33 @@ namespace netxs::ui
             //FEATURE(pro::align, adjust);  // item: Size linking controller.
 
             para   name;
-            dent   pads;
             period fade;
 
             void recalc()
             {
                 auto size = name.size();
-                auto area = pads.area(size);
+                auto area = base::padding.area(size);
                 name.locus.clear();
                 name.locus.cup(-area.coor);
                 base::limits(area.size, area.size);
                 base::resize(area.size);
+
+                //auto size = name.size();
+                //name.locus.clear();
+                //name.locus.cup(dot_00);
+                //base::limits(size, size);
+                //base::resize(size);
             }
             //todo unify colors: cell.c1 -> c2
-            item(text const& label_text, dent const& padding, tint clr, period fade_out = 250ms)
+            item(text const& label_text, dent const& inner_pads, dent const& outer_pads, tint clr, period fade_out = 250ms)
                 : name{ label_text },
-                  pads{ padding    },
                   fade{ fade_out   }
             {
-                recalc();
+                base::padding = inner_pads;
+                base::margins = outer_pads;
                 base::color(tint::whitelt, clr);
                 base::color().alpha(0x00);
+                recalc();
 
                 SUBMIT_BYVAL(e2::release, e2::form::state::mouse, active)
                 {
