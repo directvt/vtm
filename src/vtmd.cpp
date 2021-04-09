@@ -1763,16 +1763,24 @@ utility like ctags is used to locate the definitions.
                                         std::pair{ ansi::und(true) + "V" + ansi::nil() + "iew", dent{ -1 } },
                                         std::pair{ ansi::und(true) + "D" + ansi::nil() + "ata", dent{ -1 } },
                                         };
+                                    auto c2 = cell{ whitespace }.bgc(tint::bluelt);
+                                    auto c1 = c2; c1.alpha(0x00);
                                     for (auto& body : menu_items)
                                     {
                                         auto c0 = menu_list->
-                                            attach<pads>(inner_pads, body.second, tint::bluelt);
-                                        auto c1 = c0->
-                                            attach<menu::item>(body.first);
+                                            attach<pads>(inner_pads, body.second)
+                                                ->plugin<pro::mouse>()
+                                                ->plugin<pro::fader>(c1, c2)
+                                                ->attach<menu::item>(body.first);
                                     }
-                                auto c0 = menu_area->attach<pads>(fork::_2, dent{-2,-2,-1,-1}, dent{}, tint::bluelt);
-                                auto c1 = c0->
-                                    attach<menu::item>(ansi::und(true) + "H" + ansi::nil() + "elp");
+                                //auto c0 = menu_area->attach<pads>(fork::_2, dent{-2,-2,-1,-1}, dent{}, tint::bluelt);
+                                //auto c1 = c0->
+                                //    attach<menu::item>(ansi::und(true) + "H" + ansi::nil() + "elp");
+                                auto c0 = menu_area->
+                                    attach<pads>(fork::_2, dent{-2,-2,-1,-1}, dent{})
+                                        ->plugin<pro::mouse>()
+                                        ->plugin<pro::fader>(c1, c2)
+                                        ->attach<menu::item>(ansi::und(true) + "H" + ansi::nil() + "elp");
                             }
                             menu_area->base::reflow();
 

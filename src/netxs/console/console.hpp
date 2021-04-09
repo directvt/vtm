@@ -1224,7 +1224,8 @@ namespace netxs::console
 
         hook kb_offer;
 
-        auto This () { return shared_from_this(); }
+        template<class T = base>
+        auto This() { return std::static_pointer_cast<T>(shared_from_this()); }
 
         virtual void color(rgba const& fg_color, rgba const& bg_color)
         {
@@ -1664,18 +1665,26 @@ namespace netxs::console
         // pro: Assign `using self = _class_name_;` in order to use FEATURE() marco.
         #define FEATURE(feature, object) feature<self> object{ *this }
 
+        template<class T>
+        struct skill
+        {
+            T&   boss;
+            subs memo;
+            skill(T&&) = delete;
+            skill(T& boss) : boss{ boss }
+            { }
+        };
         // pro: Provides shared storage for the states of type T::state_t.
         template<class T>
         class share
+            : public skill<T>
         {
             using list = std::list<typename T::sock>;
-
-            T&   boss;
             list depo;
 
         public:
             share(T&&) = delete;
-            share(T& boss) : boss{ boss }
+            share(T& boss) : skill{ boss }
             { }
 
             auto& operator [](bell::id_t hids_id)
@@ -1717,13 +1726,11 @@ namespace netxs::console
         //      after attaching to the parent.
         template<class T>
         class align
+            : public skill<T>
         {
             using gptr = wptr<bell>;
-
-            T&   boss;
             rect last; // pro::align: Window size before the fullscreen has applied.
             text head; // pro::align: Main window title the fullscreen has applied.
-            subs memo; // pro::align: Subscriptions on master activity.
             id_t weak; // pro::align: Master id.
             rect body; // pro::align: For current coor/size tracking.
 
@@ -1808,9 +1815,8 @@ namespace netxs::console
                 unbind(faux);
             }
             align(T&&) = delete;
-            align(T& boss)
-                : boss{ boss },
-                  weak{      }
+            align(T& boss) : skill{ boss },
+                weak{}
             {
                 boss.base::linked = true;
             }
@@ -1915,15 +1921,14 @@ namespace netxs::console
         // pro: Provides functionality for runtime animation (time-based).
         template<class T>
         class robot
+            : public skill<T>
         {
             using subs = std::map<id_t, hook>;
-
-            T&   boss;
             subs memo;
 
         public:
             robot(T&&) = delete;
-            robot(T& boss) : boss{ boss }
+            robot(T& boss) : skill{ boss }
             { }
 
             // pro::robot: Every timer tick, yield the
@@ -1994,16 +1999,15 @@ namespace netxs::console
         // pro: Invokes specified proc after timeout.
         template<class T>
         class timer
+            : public skill<T>
         {
-            using subs = std::map<id_t, hook>;
             static constexpr id_t noid = std::numeric_limits<id_t>::max();
-
-            T&   boss;
+            using subs = std::map<id_t, hook>;
             subs memo;
 
         public:
             timer(T&&) = delete;
-            timer(T& boss) : boss{ boss }
+            timer(T& boss) : skill{ boss }
             { }
 
             // pro::timer: Start countdown
@@ -2046,17 +2050,15 @@ namespace netxs::console
         //      with a frame structure.
         template<class T>
         class frame
+            : public skill<T>
         {
-            T&       boss;
-            subs     memo;
             subs     link;
             robot<T> robo;
 
         public:
             frame(T&&) = delete;
-            frame(T& boss)
-                :	boss { boss },
-                    robo { boss }
+            frame(T& boss) : skill{ boss },
+                robo{ boss }
             {
                 boss.SUBMIT_T(e2::release, e2::form::upon::attached, memo, parent)
                 {
@@ -2193,9 +2195,8 @@ namespace netxs::console
         // pro: Form generator functionality.
         template<class T>
         class maker
+            : public skill<T>
         {
-            T&   boss;
-            subs memo;
             cell mark;
 
             struct slot_t
@@ -2278,9 +2279,8 @@ namespace netxs::console
 
         public:
             maker(T&&) = delete;
-            maker(T& boss)
-                :	boss { boss },
-                    mark { skin::color(tone::selector) }
+            maker(T& boss) : skill{ boss },
+                mark{ skin::color(tone::selector) }
             {
                 using drag = e2::hids::mouse::button::drag;
 
@@ -2380,9 +2380,8 @@ namespace netxs::console
         // pro: The text caret controller.
         template<class T>
         class caret
+            : public skill<T>
         {
-            T&     boss;
-            subs   memo;
             subs   conf; // caret: Configuration subscriptions.
             bool   live; // caret: Should the caret be drawn.
             bool   done; // caret: Is the caret already drawn.
@@ -2393,12 +2392,11 @@ namespace netxs::console
 
         public:
             caret(T&&) = delete;
-            caret(T& boss)
-                : boss{ boss },
-                  live{ faux },
-                  done{ faux },
-                  body{ dot_00, dot_11 }, // Caret is always one cell size (see the term::scrollback definition)
-                  step{ BLINK_PERIOD }
+            caret(T& boss) : skill{ boss },
+                live{ faux },
+                done{ faux },
+                body{ dot_00, dot_11 }, // Caret is always one cell size (see the term::scrollback definition)
+                step{ BLINK_PERIOD }
             {
                 boss.SUBMIT_T(e2::request, e2::config::intervals::blink, conf, req_step)
                 {
@@ -2498,10 +2496,8 @@ namespace netxs::console
         // pro: Textify the telemetry data for debugging purpose.
         template<class T>
         class debug
+            : public skill<T>
         {
-            T&   boss;
-            subs memo;
-
             #define PROP_LIST                     \
             X(total_size   , "total sent"       ) \
             X(proceed_ns   , "rendering time"   ) \
@@ -2590,7 +2586,7 @@ namespace netxs::console
             }
 
             debug(T&&) = delete;
-            debug(T& boss) : boss{ boss }
+            debug(T& boss) : skill{ boss }
             {
                 //todo use skin
                 stress = cell{}.fgc(whitelt);
@@ -2744,9 +2740,8 @@ namespace netxs::console
         // pro: Provides functionality for the title support.
         template<class T>
         class title
+            : public skill<T>
         {
-            T&   boss;
-            subs memo;
             page logo; // title: Owner's caption
             text name; // title: Preserve original title
 
@@ -2768,7 +2763,7 @@ namespace netxs::console
             bool live = true;
 
             title(T&&) = delete;
-            title(T& boss) : boss{ boss }
+            title(T& boss) : skill{ boss }
             {
                 logo += ansi::cup(dot_00)
                       + ansi::wrp(wrap::off).rtl(rtol::ltr).rlf(feed::fwd).jet(bias::left).mgr(1).mgl(1)
@@ -2863,6 +2858,7 @@ namespace netxs::console
         // pro: Provides functionality for the scene objects manipulations.
         template<class T>
         class scene
+            : public skill<T>
         {
             class node // console: Helper-class for the pro::scene. Adapter for the object that going to be attached to the scene.
             {
@@ -3134,8 +3130,6 @@ namespace netxs::console
             using time = moment;
             using area = std::vector<rect>;
 
-            T&   boss;
-            subs memo;
             area edges; // scene: wrecked regions history
             proc paint; // scene: Render all child items to the specified canvas
             list items; // scene: Child visual tree
@@ -3143,8 +3137,7 @@ namespace netxs::console
 
         public:
             scene(T&&) = delete;
-            scene(T& boss)
-                : boss { boss }
+            scene(T& boss) : skill{ boss }
             {
                 paint = [&](face& canvas, page const& titles) -> bool
                 {
@@ -3251,21 +3244,19 @@ namespace netxs::console
         // pro: Perform graceful shutdown functionality. LIMIT in seconds, ESC_THRESHOLD in milliseconds.
         template<class T>
         class guard
+            : public skill<T>
         {
             constexpr static e2::type QUIT_MSG = e2::term::quit;
             constexpr static int ESC_THRESHOLD = 500; // Double escape threshold in ms
 
-            T&     boss;
-            subs   memo;
             bool   wait; // Ready to close
             moment stop; // Timeout for single Esc
             text   desc = "exit after preclose";
 
         public:
             guard(T&&) = delete;
-            guard(T& boss)
-                : boss { boss },
-                  wait { faux }
+            guard(T& boss) : skill{ boss },
+                wait{ faux }
             {
                 // Suspected early completion
                 boss.SUBMIT_T(e2::release, e2::term::preclose, memo, pre_close)
@@ -3293,14 +3284,13 @@ namespace netxs::console
         // pro: Perform graceful shutdown functionality. LIMIT in seconds, ESC_THRESHOLD in milliseconds.
         template<class T>
         class watch
+            : public skill<T>
         {
             constexpr static e2::type EXCUSE_MSG = e2::hids::mouse::button::down::any;
             constexpr static e2::type QUIT_MSG   = e2::quit;
             //todo unify
             constexpr static int LIMIT = 60 * 5; // Idle timeout in seconds
 
-            T&     boss;
-            subs   memo;
             hook   pong; // Alibi subsciption token
             hook   ping; // Zombie check countdown token
             moment stop; // Timeout for zombies
@@ -3308,8 +3298,7 @@ namespace netxs::console
 
         public:
             watch(T&&) = delete;
-            watch(T& boss)
-                : boss { boss }
+            watch(T& boss) : skill{ boss }
             {
                 stop = tempus::now() + std::chrono::seconds(LIMIT);
 
@@ -3338,19 +3327,17 @@ namespace netxs::console
         // pro: Provides functionality related to keyboard input.
         template<class T>
         class keybd
+            : public skill<T>
         {
-            subs memo;
             hook accept_kbd;
             iota clients = 0;
             //bool active = faux;
-            T& boss;
 
         public:
             bool focusable = true;
 
             keybd(T&&) = delete;
-            keybd(T& boss)
-                : boss{ boss }
+            keybd(T& boss) : skill{ boss }
             {
                 using bttn = e2::hids::mouse::button;
 
@@ -3435,8 +3422,8 @@ namespace netxs::console
         // pro: Provides functionality related to mouse interaction.
         template<class T>
         class mouse
+            : public skill<T>
         {
-            subs memo;
             iota clients = 0;
             bool active = faux;
 
@@ -3444,7 +3431,7 @@ namespace netxs::console
             bool highlightable = faux;
 
             mouse(T&&) = delete;
-            mouse(T& boss)
+            mouse(T& boss) : skill{ boss }
             {
                 // pro::mouse: Forward preview to all parents.
                 boss.SUBMIT_T(e2::preview, e2::hids::mouse::any, memo, gear)
@@ -3503,17 +3490,16 @@ namespace netxs::console
 
         // pro: Provides functionality related to keyboard interaction.
         template<class T>
-        class input : public hids
+        class input
+            : public skill<T>, public hids
         {
-            subs memo;
             face xmap;
 
         public:
             iota push = 0; // Mouse pressed buttons bits (Used only for foreign mouse pointer in the gate)
 
             input(T&&) = delete;
-            input(T& boss)
-                : hids{ boss, xmap }
+            input(T& boss) : skill{ boss }, hids{ boss, xmap }
             {
                 boss.SUBMIT_T(e2::release, e2::form::layout::size, memo, newsize)
                 {
@@ -3539,6 +3525,52 @@ namespace netxs::console
             auto& freeze()
             {
                 return xmap.pick();
+            }
+        };
+
+        // pro: Fader animation.
+        template<class T>
+        class fader
+            : public skill<T>
+        {
+            robot<T> robo;   // fader: .
+            period fade;
+            iota transit;
+            cell c1;
+            cell c2;
+
+        public:
+            fader(T&&) = delete;
+            fader(T& boss, cell default_state, cell highlighted_state, period fade_out = 250ms) : skill{ boss },
+                robo{ boss },
+                fade{ fade_out },
+                c1 { default_state     },
+                c2 { highlighted_state },
+                transit{ 0 }
+            {
+                boss.base::color(c1.fgc(), c1.bgc());
+                boss.SUBMIT_T(e2::release, e2::form::state::mouse, memo, active)
+                {
+                    robo.pacify();
+                    if (active)
+                    {
+                        transit = 256;
+                        boss.base::color().avg(c1, c2, transit);
+                        boss.base::deface();
+                    }
+                    else
+                    {
+                        auto range = transit;
+                        auto limit = datetime::round<iota>(fade);
+                        auto start = datetime::now<iota>();
+                        robo.actify(constlinearAtoB<iota>(range, limit, start), [&](auto step)
+                        {
+                            transit -= step;
+                            boss.base::color().avg(c1, c2, transit);
+                            boss.base::deface();
+                        });
+                    }
+                };
             }
         };
     }

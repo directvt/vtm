@@ -24,6 +24,24 @@ namespace netxs::ui
         ALL    = (ONLY_X | ONLY_Y),
     };
 
+    template<class T>
+    struct pluggable
+    {
+        std::list<uptr<pro::skill<T>>> plugins;
+        T& boss;
+
+        pluggable(T& boss) : boss{ boss }
+        { }
+
+        template<template<class> class S, class ...Args>
+        auto plugin(Args&&... args)
+        {
+            plugins.emplace_back(std::make_unique<S<T>>(boss, std::forward<Args>(args)...));
+            return boss.This<T>();
+        }
+    };
+
+
     class mold // controls.h: Flexible window frame.
         : public form
     {
@@ -1885,29 +1903,21 @@ namespace netxs::ui
     // controls.h: Container with margins (outer space) and padding (inner space).
     class pads
         : public base
+        , public pluggable<pads>
     {
         using sptr = netxs::sptr<base>;
-        using self = pads;
-        FEATURE(pro::mouse, mouse); // pads: Mouse controller.
-
         dent padding; // pads: Space around an element's content, outside of any defined borders. It does not affect the size, only affects the fill. Used in base::renderproc only.
         dent margins; // pads: Space around an element's content, inside of any defined borders. Containers take this parameter into account when calculating sizes. Used in all conainers.
         subs tokens{}; // pads: Subscriptions on client moveto and resize.
         bool locked{}; // pads: Client is under resizing.
 
-            FEATURE(pro::robot, robot);   // item: Animation controller.
-            period fade;
-            iota transit;
-            cell c1;
-            cell c2;
 public:
         sptr client;
 
-        pads(dent const& padding_value, dent const& margins_value, tint clr, period fade_out = 250ms)
-            : padding{ padding_value },
-              margins{ margins_value },
-                  fade{ fade_out   },
-                  transit{ 0   }
+        pads(dent const& padding_value, dent const& margins_value)
+            : pluggable{*this},
+              padding{ padding_value },
+              margins{ margins_value }
         {
             SUBMIT(e2::preview, e2::form::layout::size, new_size)
             {
@@ -1923,36 +1933,6 @@ public:
                     if (client) client->SIGNAL(e2::release, e2::form::layout::size, client_size);
                 }
             };
-
-
-                base::color(tint::whitelt, clr);
-                c2 = base::color();
-
-                base::color().alpha(0x00);
-                c1 = base::color();
-
-                SUBMIT(e2::release, e2::form::state::mouse, active)
-                {
-                    robot.pacify();
-                    if (active)
-                    {
-                        transit = 256;
-                        base::color().avg(c1, c2, transit);
-                        base::deface();
-                    }
-                    else
-                    {
-                        auto range = transit;
-                        auto limit = datetime::round<iota>(fade);
-                        auto start = datetime::now<iota>();
-                        robot.actify(constlinearAtoB<iota>(range, limit, start), [&](auto step)
-                        {
-                            transit -= step;
-                            base::color().avg(c1, c2, transit);
-                            base::deface();
-                        });
-                    }
-                };
         }
         // pads: Create a new item of the specified subtype and attach it.
         template<class T, class ...Args>
