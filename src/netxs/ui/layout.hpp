@@ -189,6 +189,15 @@ namespace netxs::ui
                 chan.a = a >> 8;
             }
         }
+        // rgba: RGBA transitional blending. Level = 0: equals c1, level = 256: equals c2.
+        static auto transit(rgba const& c1, rgba const& c2, iota level)
+        {
+            auto inverse = 256 - level;
+            return rgba{ (c2.chan.r * level + c1.chan.r * inverse) >> 8,
+                         (c2.chan.g * level + c1.chan.g * inverse) >> 8,
+                         (c2.chan.b * level + c1.chan.b * inverse) >> 8,
+                         (c2.chan.a * level + c1.chan.a * inverse) >> 8 };
+        }
         // rgba: Rough alpha blending RGBA colors.
         //void mix_alpha(rgba const& c)
         //{
@@ -954,6 +963,12 @@ namespace netxs::ui
         {
             return uv.bg.is_alpha_blendable();//&& uv.param.fg.is_alpha_blendable();
         }
+        // cell: Cell transitional color blending (fg/bg only).
+        void avg(cell const& c1, cell const& c2, iota level)
+        {
+            uv.fg = rgba::transit(c1.uv.fg, c2.uv.fg, level);
+            uv.bg = rgba::transit(c1.uv.bg, c2.uv.bg, level);
+        }
         // cell: Set Grapheme cluster and its width.
         void set_gc (view c, size_t w) { gc.set(c, w); }
         // cell: Set Grapheme cluster.
@@ -1414,10 +1429,10 @@ namespace netxs::ui
             return field;
         }
         // dent: Return the coor of the area rectangle.
-        auto corner(iota size_x, iota size_y) const
+        auto corner() const
         {
-            return twod{ west.get(size_x),
-                         head.get(size_y) };
+            return twod{ west.step,
+                         head.step };
         }
         // dent: Return inner width.
         auto width(iota size_x) const
@@ -1434,7 +1449,7 @@ namespace netxs::ui
             return std::max(f - h, 0);
         }
         // dent: Return size of the inner rectangle.
-        auto size(twod const& size)
+        auto size(twod const& size) const
         {
             return twod{ width(size.x), height(size.y) };
         }
@@ -1465,6 +1480,34 @@ namespace netxs::ui
             east = q(0);
             head = q(0);
             foot = q(0);
+        }
+        // dent: Return size without padding.
+        friend auto operator + (twod const& size, dent const& pad)
+        {
+            return twod{ std::max(0, size.x - (pad.west.step + pad.east.step)),
+                         std::max(0, size.y - (pad.head.step + pad.foot.step)) };
+        }
+        // dent: Return size with padding.
+        friend auto operator - (twod const& size, dent const& pad)
+        {
+            return twod{ std::max(0, size.x + (pad.west.step + pad.east.step)),
+                         std::max(0, size.y + (pad.head.step + pad.foot.step)) };
+        }
+        // dent: Return area without padding.
+        friend auto operator + (rect const& area, dent const& pad)
+        {
+            return rect{{ area.coor.x + pad.west.step,
+                          area.coor.y + pad.head.step },
+                        { std::max(0, area.size.x - (pad.west.step + pad.east.step)),
+                          std::max(0, area.size.y - (pad.head.step + pad.foot.step)) }};
+        }
+        // dent: Return area with padding.
+        friend auto operator - (rect const& area, dent const& pad)
+        {
+            return rect{ { area.coor.x - pad.west.step,
+                           area.coor.y - pad.head.step },
+                         { std::max(0, area.size.x + (pad.west.step + pad.east.step)),
+                           std::max(0, area.size.y + (pad.head.step + pad.foot.step)) }};
         }
     };
 

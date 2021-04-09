@@ -1757,19 +1757,22 @@ utility like ctags is used to locate the definitions.
                                     auto menu_list = menu_list_area->attach<list>(fork::_1, faux);
                                     auto inner_pads = dent{ -1, -2, -1, -1};
                                     auto menu_items =  { 
-                                        std::pair<text, dent>{ " ≡"s,                                       dent{  0 } },
-                                        std::pair<text, dent>{ ansi::und(true) + "F" + ansi::nil() + "ile", dent{ -1 } },
-                                        std::pair<text, dent>{ ansi::und(true) + "E" + ansi::nil() + "dit", dent{ -1 } },
-                                        std::pair<text, dent>{ ansi::und(true) + "V" + ansi::nil() + "iew", dent{ -1 } },
-                                        std::pair<text, dent>{ ansi::und(true) + "D" + ansi::nil() + "ata", dent{ -1 } },
+                                        std::pair{ " ≡"s,                                       dent{  0 } },
+                                        std::pair{ ansi::und(true) + "F" + ansi::nil() + "ile", dent{ -1 } },
+                                        std::pair{ ansi::und(true) + "E" + ansi::nil() + "dit", dent{ -1 } },
+                                        std::pair{ ansi::und(true) + "V" + ansi::nil() + "iew", dent{ -1 } },
+                                        std::pair{ ansi::und(true) + "D" + ansi::nil() + "ata", dent{ -1 } },
                                         };
                                     for (auto& body : menu_items)
                                     {
                                         auto c0 = menu_list->
-                                            attach<menu::item>(body.first, inner_pads, body.second, tint::bluelt);
+                                            attach<pads>(inner_pads, body.second, tint::bluelt);
+                                        auto c1 = c0->
+                                            attach<menu::item>(body.first);
                                     }
-                                auto menu_help = menu_area->attach<menu::item>(fork::_2, 
-                                    ansi::und(true) + "H" + ansi::nil() + "elp", dent{-2,-2,-1,-1}, dent{}, tint::bluelt);
+                                auto c0 = menu_area->attach<pads>(fork::_2, dent{-2,-2,-1,-1}, dent{}, tint::bluelt);
+                                auto c1 = c0->
+                                    attach<menu::item>(ansi::und(true) + "H" + ansi::nil() + "elp");
                             }
                             menu_area->base::reflow();
 

@@ -680,7 +680,7 @@ namespace netxs::console
             if (adjust == bias::right) coor.x = textpads.width (size_x) - 1 - coor.x;
             if (rlfeed == feed::rev  ) coor.y = textpads.height(size_y) - 1 - coor.y;
 
-            coor += textpads.corner(size_x, size_y);
+            coor += textpads.corner();
             return coor;
         }
         twod up () // flow: Register cursor position

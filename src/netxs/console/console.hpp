@@ -1220,8 +1220,6 @@ namespace netxs::console
         bool linked = faux; // Whether the size is tied to the size of the clients.
         wptr parent; // base: Parental visual tree weak-pointer.
         side oversize; // base: Oversize, margin. Used by scroll/rail only.
-        dent padding; // base: Space around an element's content, outside of any defined borders. It does not affect the size, only affects the fill. Used in base::renderproc only.
-        dent margins; // base: Space around an element's content, inside of any defined borders. Containers take this parameter into account when calculating sizes. Used in all conainers.
         twod anchor; // base: Object balance point. Center point for any transform (on preview).
 
         hook kb_offer;
@@ -1234,6 +1232,10 @@ namespace netxs::console
                        .fgc(fg_color)
                        .txt(whitespace);
         }
+        void color(cell const& c)
+        {
+            base::brush = c;
+        }
         auto& color()
         {
             return base::brush;
@@ -1242,14 +1244,7 @@ namespace netxs::console
         virtual void renderproc (face& parent_canvas)
         {
             if (base::brush.wdt())
-                //parent_canvas.fill([&](cell& c) { c.fusefull(base::brush); });
-                //todo fill TIA padding
-            {
-                auto area = margins.area(parent_canvas.view());
-                parent_canvas.fill(area, [&](cell& c) { c.fusefull(base::brush); });
-            }
-            //else
-            //	parent_canvas.fill([&](cell& c) { c.link(bell::id); });
+                parent_canvas.fill([&](cell& c) { c.fusefull(base::brush); });
         }
         // base: Draw the glow over the form.
         virtual void postrender (face& parent_canvas)
@@ -1265,8 +1260,7 @@ namespace netxs::console
                 auto bright = rgba{0xFFffffff};
 
                 //todo optimize - don't fill the head and foot twice
-                auto area = margins.area(parent_canvas.view());
-                //auto area = parent_canvas.view();
+                auto area = parent_canvas.view();
                 auto n = std::clamp(size, 0, area.size.y / 2) + 1;
                 //auto n = std::clamp(size, 0, boss.base::size.get().y / 2) + 1;
 
@@ -1923,7 +1917,6 @@ namespace netxs::console
         class robot
         {
             using subs = std::map<id_t, hook>;
-            static constexpr id_t noid = std::numeric_limits<id_t>::max();
 
             T&   boss;
             subs memo;
@@ -1933,13 +1926,11 @@ namespace netxs::console
             robot(T& boss) : boss{ boss }
             { }
 
-            // aminate: Every timer tick, yield the
-            //          delta from the flow and, if delta,
-            //          Call the proc (millisecond precision).
-            template<id_t ID = noid, class P, class S>
-            //todo revise ref and val - (S& flow, P proc)
-            //void actify (S& flow, P proc)
-            void actify (S flow, P proc)
+            // pro::robot: Every timer tick, yield the
+            //             delta from the flow and, if delta,
+            //             Call the proc (millisecond precision).
+            template<class P, class S>
+            void actify(id_t ID, S flow, P proc)
             {
                 auto& token = memo[ID];
                 auto handler = [&, proc, flow](auto p)
@@ -1957,31 +1948,43 @@ namespace netxs::console
                 boss.SUBMIT_TV(e2::general, e2::timer::any, token, handler);
                 boss.SIGNAL(e2::release, e2::form::animate::start, ID);
             }
-            // animate: Optional proceed every timer tick,
-            //          yield the delta from the flow and,
-            //          if delta, Call the proc (millisecond precision).
-            template<id_t ID = noid, class P, class S>
-            void actify (std::optional<S> flow, P proc)
-            //void actify (std::optional<S>& flow, P proc)
+            // pro::robot: Optional proceed every timer tick,
+            //             yield the delta from the flow and,
+            //             if delta, Call the proc (millisecond precision).
+            template<class P, class S>
+            void actify(id_t ID, std::optional<S> flow, P proc)
             {
                 if (flow)
                 {
-                    actify<ID>(flow.value(), proc);
+                    actify(ID, flow.value(), proc);
                 }
             }
-            // aminate: Cancel tick activity.
-            void pacify (id_t id = noid)
+            template<class P, class S>
+            void actify (S flow, P proc)
             {
-                if (id == noid) memo.clear();   // Stop all animations
-                else            memo.erase(id);
+                actify(bell::noid, flow, proc);
+            }
+            template<class P, class S>
+            void actify(std::optional<S> flow, P proc)
+            {
+                if (flow)
+                {
+                    actify(bell::noid, flow.value(), proc);
+                }
+            }
+            // pro::robot: Cancel tick activity.
+            void pacify(id_t id = bell::noid)
+            {
+                if (id == bell::noid) memo.clear();   // Stop all animations
+                else                  memo.erase(id);
                 boss.SIGNAL(e2::release, e2::form::animate::stop, id);
             }
-            // aminate: Check activity by id.
-            bool active (id_t id)
+            // pro::robot: Check activity by id.
+            bool active(id_t id)
             {
                 return memo.find(id) != memo.end(); //todo use ::contains (C++20)
             }
-            // aminate: Check any activity.
+            // pro::robot: Check any activity.
             operator bool ()
             {
                 return !memo.empty();

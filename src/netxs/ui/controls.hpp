@@ -842,6 +842,7 @@ namespace netxs::ui
         using self = list;
         FEATURE(pro::mouse, mouse); // list: Mouse controller.
         FEATURE(pro::align, align); // list: Size linking controller.
+        //FEATURE(pro::robot, robot); // list: Animation controller (Faders).
 
         using sptr = netxs::sptr<base>;
         using roll = std::list<std::pair<sptr, iota>>;
@@ -948,11 +949,11 @@ namespace netxs::ui
     class cake // controls.h: (puff) Layered cake of forms on top of each other.
         : public base
     {
+        using sptr = netxs::sptr<base>;
         using self = cake;
         FEATURE(pro::mouse, mouse); // cake: Mouse controller.
         FEATURE(pro::align, align); // cake: Size binding controller.
 
-        using sptr = netxs::sptr<base>;
         std::list<sptr> clients;
 
     public:
@@ -1204,6 +1205,9 @@ namespace netxs::ui
     public:
         bool overscroll[2] = { true, true }; // rail: Allow overscroll with auto correct.
 
+        //todo should we detach client in dtor?
+        //~rail...
+
         rail(axes allow_to_scroll = axes::ALL, axes allow_to_capture = axes::ALL)
             : permit{ allow_to_scroll  },
               siezed{ allow_to_capture }
@@ -1373,7 +1377,7 @@ namespace netxs::ui
         void keepon(FX&& func)
         {
             strict[AXIS] = true;
-            robot.actify<AXIS>(func, [&](auto& p)
+            robot.actify(AXIS, func, [&](auto& p)
                 {
                     scroll<AXIS>(p);
                 });
@@ -1500,8 +1504,9 @@ namespace netxs::ui
         }
     };
 
+    // controls.h: Scroll bar.
     template<axis AXIS>
-    class grip // controls.h: Scroll bar.
+    class grip
         : public base
     {
         using wptr = netxs::wptr<bell>;
@@ -1877,73 +1882,152 @@ namespace netxs::ui
         }
     };
 
-    class menu // controls.h: Menu controller.
+    // controls.h: Container with margins (outer space) and padding (inner space).
+    class pads
         : public base
     {
-    public:
-        struct item
-            : public base
-        {
-            using self = item;
-            FEATURE(pro::mouse, mouse);   // item: Mouse controller.
+        using sptr = netxs::sptr<base>;
+        using self = pads;
+        FEATURE(pro::mouse, mouse); // pads: Mouse controller.
+
+        dent padding; // pads: Space around an element's content, outside of any defined borders. It does not affect the size, only affects the fill. Used in base::renderproc only.
+        dent margins; // pads: Space around an element's content, inside of any defined borders. Containers take this parameter into account when calculating sizes. Used in all conainers.
+        subs tokens{}; // pads: Subscriptions on client moveto and resize.
+        bool locked{}; // pads: Client is under resizing.
+
             FEATURE(pro::robot, robot);   // item: Animation controller.
-            //FEATURE(pro::align, adjust);  // item: Size linking controller.
-
-            para   name;
             period fade;
+            iota transit;
+            cell c1;
+            cell c2;
+public:
+        sptr client;
 
-            void recalc()
+        pads(dent const& padding_value, dent const& margins_value, tint clr, period fade_out = 250ms)
+            : padding{ padding_value },
+              margins{ margins_value },
+                  fade{ fade_out   },
+                  transit{ 0   }
+        {
+            SUBMIT(e2::preview, e2::form::layout::size, new_size)
             {
-                auto size = name.size();
-                auto area = base::padding.area(size);
-                name.locus.clear();
-                name.locus.cup(-area.coor);
-                base::limits(area.size, area.size);
-                base::resize(area.size);
+                auto client_size = new_size - padding;
+                if (client) client->SIGNAL(e2::preview, e2::form::layout::size, client_size);
+                new_size = client_size + padding;
+            };
+            SUBMIT(e2::release, e2::form::layout::size, new_size)
+            {
+                if (!locked)
+                {
+                    auto client_size = new_size - padding;
+                    if (client) client->SIGNAL(e2::release, e2::form::layout::size, client_size);
+                }
+            };
 
-                //auto size = name.size();
-                //name.locus.clear();
-                //name.locus.cup(dot_00);
-                //base::limits(size, size);
-                //base::resize(size);
-            }
-            //todo unify colors: cell.c1 -> c2
-            item(text const& label_text, dent const& inner_pads, dent const& outer_pads, tint clr, period fade_out = 250ms)
-                : name{ label_text },
-                  fade{ fade_out   }
-            {
-                base::padding = inner_pads;
-                base::margins = outer_pads;
+
                 base::color(tint::whitelt, clr);
-                base::color().alpha(0x00);
-                recalc();
+                c2 = base::color();
 
-                SUBMIT_BYVAL(e2::release, e2::form::state::mouse, active)
+                base::color().alpha(0x00);
+                c1 = base::color();
+
+                SUBMIT(e2::release, e2::form::state::mouse, active)
                 {
                     robot.pacify();
                     if (active)
                     {
-                        base::color().alpha(0xFF);
+                        transit = 256;
+                        base::color().avg(c1, c2, transit);
                         base::deface();
                     }
                     else
                     {
-                        auto range = base::color().bga();
-                        auto limit = datetime::round<iota>(fade_out);
+                        auto range = transit;
+                        auto limit = datetime::round<iota>(fade);
                         auto start = datetime::now<iota>();
                         robot.actify(constlinearAtoB<iota>(range, limit, start), [&](auto step)
                         {
-                            auto alpha = std::max(0, base::color().bga() - step);
-                            base::color().alpha(alpha);
+                            transit -= step;
+                            base::color().avg(c1, c2, transit);
                             base::deface();
                         });
                     }
                 };
+        }
+        // pads: Create a new item of the specified subtype and attach it.
+        template<class T, class ...Args>
+        auto attach(Args&&... args)
+        {
+            static_assert(std::is_base_of<base, T>::value,
+                "The only a derivative of the «base» class can be attached to the «mold».");
+
+            auto item = create<T>(std::forward<Args>(args)...);
+            client = item;
+
+            tokens.clear();
+            item->SUBMIT_T(e2::release, e2::form::layout::size, tokens.extra(), size)
+            {
+                locked = true;
+                SIGNAL(e2::release, e2::form::layout::size, size + padding);
+                locked = faux;
+            };
+            item->SUBMIT_T(e2::release, e2::form::upon::detached, tokens.extra(), p)
+            {
+                tokens.clear();
+            };
+
+            item->SIGNAL(e2::release, e2::form::upon::attached, This()); // Send creator
+            base::reflow(); // Ask the client about the new size (the client can override the size)
+            return item;
+        }
+        // pads: Draw the form composition on the specified canvas.
+        virtual void renderproc(face& parent_canvas)
+        {
+            auto full = parent_canvas.full();
+            parent_canvas.full(full + margins);
+            //base::renderproc(parent_canvas);
+            if (base::brush.wdt())
+            {
+                auto area = margins.area(full);
+                parent_canvas.fill(area, [&](cell& c) { c.fusefull(base::brush); });
             }
-            // item: Render base and output topic content.
+            parent_canvas.full(full - padding);
+            if (client) parent_canvas.render<true>(client, base::coor.get());
+            parent_canvas.full(full);
+        }
+    };
+
+    // controls.h: Menu controller.
+    class menu
+        : public base
+    {
+    public:
+        class item
+            : public base
+        {
+            para   name;
+            void recalc()
+            {
+                auto size = name.size();
+                base::limits(size, size);
+                base::resize(size);
+            }
+        public:
+            item(text const& label_text)
+                : name{ label_text }
+            {
+                recalc();
+            }
+            void set(text const& label_text)
+            {
+                name = label_text;
+                recalc();
+            }
+            // item: Render base and output content.
             virtual void renderproc (face& parent_canvas)
             {
                 base::renderproc(parent_canvas);
+                parent_canvas.cup(dot_00);
                 parent_canvas.output(name);
             }
         };

@@ -792,6 +792,7 @@ namespace netxs::ui
     struct bell : public indexer<bell>
     {
         using hook = reactor::hook;
+        static constexpr id_t noid = std::numeric_limits<id_t>::max();
 
     private:
         template<class V>
