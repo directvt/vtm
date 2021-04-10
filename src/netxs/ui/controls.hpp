@@ -24,23 +24,6 @@ namespace netxs::ui
         ALL    = (ONLY_X | ONLY_Y),
     };
 
-    template<class T>
-    struct pluggable
-    {
-        std::list<uptr<pro::skill<T>>> plugins;
-        T& boss;
-
-        pluggable(T& boss) : boss{ boss }
-        { }
-
-        template<template<class> class S, class ...Args>
-        auto plugin(Args&&... args)
-        {
-            plugins.emplace_back(std::make_unique<S<T>>(boss, std::forward<Args>(args)...));
-            return boss.template This<T>();
-        }
-    };
-
     // controls: Flexible window frame.
     class mold
         : public form
@@ -1096,26 +1079,30 @@ namespace netxs::ui
 
     // controls: Rigid text page.
     class post
-        : public base,
-          public flow
+        : public base, public flow, public pro::boost<post>
     {
         using self = post;
+
+        //todo make all objects transparent for mouse
         FEATURE(pro::mouse, mouse); // post: Mouse controller.
 
         twod width; // post: Page dimensions.
         page_layout layout;
 
     public:
-        FEATURE(pro::robot, robot); // post: Animationcontroller.
+        //FEATURE(pro::robot, robot); // post: Animation controller.
+
         FEATURE(pro::caret, caret); // post: Caret controller. (todo unify: only rext editor)
         page topic; // post: Text content.
         bool beyond{}; // post: Allow vertical scrolling beyond last line.
 
-        void highlightable(bool b)
+        // post: Set content.
+        template<class TEXT>
+        auto upload(TEXT utf8)
         {
-            mouse.highlightable = b;
+            topic = utf8;
+            return This<post>();
         }
-        // post: Print page.
         void output(face& canvas)
         {
             flow::reset(canvas);
@@ -1164,8 +1151,7 @@ namespace netxs::ui
             recalc();
         }
 
-        post()
-            : flow{ width }
+        post() : flow{ width }, boost{*this }
         {
             SUBMIT(e2::preview, e2::form::layout::size, size)
             {
@@ -1907,8 +1893,7 @@ namespace netxs::ui
 
     // controls: Container with margins (outer space) and padding (inner space).
     class pads
-        : public base
-        , public pluggable<pads>
+        : public base, public pro::boost<pads>
     {
         using sptr = netxs::sptr<base>;
         dent padding; // pads: Space around an element's content, outside of any defined borders. It does not affect the size, only affects the fill. Used in base::renderproc only.
@@ -1919,8 +1904,7 @@ namespace netxs::ui
 public:
         sptr client;
 
-        pads(dent const& padding_value, dent const& margins_value)
-            : pluggable{*this},
+        pads(dent const& padding_value, dent const& margins_value) : boost{*this },
               padding{ padding_value },
               margins{ margins_value }
         {
@@ -1965,20 +1949,20 @@ public:
             base::reflow(); // Ask the client about the new size (the client can override the size)
             return item;
         }
-        // pads: Draw the form composition on the specified canvas.
+        // pads: Draw background and client.
         virtual void renderproc(face& parent_canvas)
         {
-            auto full = parent_canvas.full();
-            parent_canvas.full(full + margins);
-            //base::renderproc(parent_canvas);
-            if (base::brush.wdt())
+            auto view = parent_canvas.view();
+            parent_canvas.view(view + margins);
+            base::renderproc(parent_canvas);
+            parent_canvas.view(view);
+            if (client)
             {
-                auto area = margins.area(full);
-                parent_canvas.fill(area, [&](cell& c) { c.fusefull(base::brush); });
+                auto full = parent_canvas.full();
+                parent_canvas.full(full - padding);
+                parent_canvas.render<true>(client, base::coor.get());
+                parent_canvas.full(full);
             }
-            parent_canvas.full(full - padding);
-            if (client) parent_canvas.render<true>(client, base::coor.get());
-            parent_canvas.full(full);
         }
     };
 
@@ -1990,7 +1974,7 @@ public:
         class item
             : public base
         {
-            para   name;
+            para name;
             void recalc()
             {
                 auto size = name.size();

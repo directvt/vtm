@@ -1604,51 +1604,22 @@ utility like ctags is used to locate the definitions.
                             scroll->overscroll[axis::X] = true;
                             scroll->overscroll[axis::Y] = true;
                             {
+                                auto c2 = cell{ whitespace }.bgc(tint::bluelt).fgc(tint::whitelt);
+                                auto c1 = c2; c1.alpha(0x00);
+
                                 auto items = scroll->attach<list>();
+                                for (auto& body : appstore_body)
                                 {
-                                    for (auto& body : appstore_body)
-                                    {
-                                        auto c0 = items->attach<post>();
-                                        c0->topic = body;
-                                        c0->glow = true;
-
-                                        // Highlight on hover and fade out
-                                        c0->color(whitelt, tint::bluelt);
-                                        c0->color().alpha(0x00);
-                                        wptr<post> weak = c0;
-                                        c0->SUBMIT_BYVAL(e2::release, e2::form::state::mouse, active)
-                                        {
-                                            if (auto b = weak.lock())
-                                            {
-                                                b->robot.pacify();
-                                                if (active)
-                                                {
-                                                    b->color().alpha(0xFF);
-                                                    b->base::deface();
-                                                }
-                                                else
-                                                {
-                                                    auto range = b->color().bga();
-                                                    auto limit = datetime::round<iota>(250ms);
-                                                    auto start = datetime::now<iota>();
-                                                    b->robot.actify(constlinearAtoB<iota>(range, limit, start), [&](auto step)
-                                                        {
-                                                            if (auto b = weak.lock())
-                                                            {
-                                                                auto alpha = std::max(0, b->color().bga() - step);
-                                                                b->color().alpha(alpha);
-                                                                b->base::deface();
-                                                            }
-                                                        });
-                                                }
-                                            }
-                                        };
-                                    }
-
-                                    auto c1 = items->attach<post>();
-                                    c1->topic = desktopio_body;
-                                    c1->glow = true;
+                                    items->attach<post>()
+                                         ->upload(body)
+                                         ->plugin<pro::grade>()
+                                         ->plugin<pro::mouse>()
+                                         ->plugin<pro::fader>(c1, c2, 250ms);
                                 }
+                                items->attach<post>()
+                                     ->upload(desktopio_body)
+                                     ->plugin<pro::grade>()
+                                     ->plugin<pro::mouse>();
                                 items->base::reflow();
                             }
 
@@ -1767,20 +1738,17 @@ utility like ctags is used to locate the definitions.
                                     auto c1 = c2; c1.alpha(0x00);
                                     for (auto& body : menu_items)
                                     {
-                                        auto c0 = menu_list->
-                                            attach<pads>(inner_pads, body.second)
+                                        auto c0 = menu_list
+                                            ->attach<pads>(inner_pads, body.second)
                                                 ->plugin<pro::mouse>()
-                                                ->plugin<pro::fader>(c1, c2)
+                                                ->plugin<pro::fader>(c1, c2, 150ms)
                                                 ->attach<menu::item>(body.first);
                                     }
-                                //auto c0 = menu_area->attach<pads>(fork::_2, dent{-2,-2,-1,-1}, dent{}, tint::bluelt);
-                                //auto c1 = c0->
-                                //    attach<menu::item>(ansi::und(true) + "H" + ansi::nil() + "elp");
-                                auto c0 = menu_area->
-                                    attach<pads>(fork::_2, dent{-2,-2,-1,-1}, dent{})
-                                        ->plugin<pro::mouse>()
-                                        ->plugin<pro::fader>(c1, c2)
-                                        ->attach<menu::item>(ansi::und(true) + "H" + ansi::nil() + "elp");
+                                auto c0 = menu_area
+                                        ->attach<pads>(fork::_2, dent{-2,-2,-1,-1}, dent{})
+                                            ->plugin<pro::mouse>()
+                                            ->plugin<pro::fader>(c1, c2, 150ms)
+                                            ->attach<menu::item>(ansi::und(true) + "H" + ansi::nil() + "elp");
                             }
                             menu_area->base::reflow();
 
@@ -1794,6 +1762,7 @@ utility like ctags is used to locate the definitions.
                                     auto scroll = layers->attach<rail>();
                                     scroll->limits({ 4,3 }, { -1,-1 });
                                         auto body = scroll->attach<post>();
+                                                          //->plugin<pro::mouse>();
                                         body->color(blackdk, whitelt);
                                         body->beyond = true;
                                         body->caret.show();

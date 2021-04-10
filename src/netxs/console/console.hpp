@@ -1221,7 +1221,6 @@ namespace netxs::console
         limit;
 
         cell brush;
-        bool glow = faux;
         tone colors;
         bool linked = faux; // Whether the size is tied to the size of the clients.
         wptr parent; // base: Parental visual tree weak-pointer.
@@ -1255,45 +1254,10 @@ namespace netxs::console
         }
         // base: Draw the glow over the form.
         virtual void postrender (face& parent_canvas)
-        {
-            //todo apply glow to the parent_canvas
-            if (glow)
-            {
-                iota size = 5; // pro::panel: vertical gradient size
-                iota step = 2; // pro::panel: vertical gradient step
-                //cell shadow{ cell{}.vis(cell::highlighter) };
-                //cell bright{ cell{}.vis(cell::darklighter) };
-                auto shadow = rgba{0xFF000000};
-                auto bright = rgba{0xFFffffff};
-
-                //todo optimize - don't fill the head and foot twice
-                auto area = parent_canvas.view();
-                auto n = std::clamp(size, 0, area.size.y / 2) + 1;
-                //auto n = std::clamp(size, 0, boss.base::size.get().y / 2) + 1;
-
-                auto head = area;
-                head.size.y = 1;
-                auto foot = head;
-                head.coor.y = area.coor.y + n - 2;
-                foot.coor.y = area.coor.y + area.size.y - n + 1;
-
-                for (int i = 1; i < n; i++)
-                {
-                    bright.alpha(i * step);
-                    shadow.alpha(i * step);
-
-                    parent_canvas.core::fill(head, [&](cell& c) { c.bgc().mix(bright); });
-                    parent_canvas.core::fill(foot, [&](cell& c) { c.bgc().mix(shadow); });
-
-                    head.coor.y--;
-                    foot.coor.y++;
-                }
-            }
-
-            //SIGNAL(e2::release, e2::form::upon::redrawn, parent_canvas); /// to draw the title and footer
-        }
+        { }
 
     protected:
+        virtual ~base() = default;
         base()
         {
             base::brush.link(bell::id);
@@ -1675,8 +1639,22 @@ namespace netxs::console
             subs memo;
             skill(T&&) = delete;
             skill(T& boss) : boss{ boss } { }
+            virtual ~skill() = default; // In order to allow man derived class via base ptr.
         };
-
+        template<class T>
+        struct boost
+        {
+            std::list<uptr<skill<T>>> plugins;
+            T& boss;
+            boost(T& boss) : boss{ boss }
+            { }
+            template<template<class> class S, class ...Args>
+            auto plugin(Args&&... args)
+            {
+                plugins.emplace_back(std::make_unique<S<T>>(boss, std::forward<Args>(args)...));
+                return boss.template This<T>();
+            }
+        };
         // pro: Provides shared storage for the states of type T::state_t.
         template<class T>
         class share
@@ -1939,8 +1917,7 @@ namespace netxs::console
             template<class P, class S>
             void actify(id_t ID, S flow, P proc)
             {
-                auto& token = memo[ID];
-                auto handler = [&, proc, flow](auto p)
+                auto handler = [&, ID, proc, flow](auto p)
                 {
                     auto now = datetime::round<iota>(p);
                     if (auto data = flow(now))
@@ -1952,7 +1929,7 @@ namespace netxs::console
                         pacify(ID);
                     }
                 };
-                boss.SUBMIT_TV(e2::general, e2::timer::any, token, handler);
+                boss.SUBMIT_TV(e2::general, e2::timer::any, memo[ID], handler);
                 boss.SIGNAL(e2::release, e2::form::animate::start, ID);
             }
             // pro::robot: Optional proceed every timer tick,
@@ -2014,18 +1991,16 @@ namespace netxs::console
             template<class P>
             void actify(id_t ID, period timeout, P lambda)
             {
-                auto  alarm = tempus::now() + timeout;
-                auto& token = memo[ID];
-                auto handler = [&, timeout, lambda, alarm](auto now)
+                auto alarm = tempus::now() + timeout;
+                auto handler = [&, ID, timeout, lambda, alarm](auto now)
                 {
                     if (now > alarm)
                     {
                         if (!lambda(ID)) pacify(ID);
                     }
                 };
-                boss.SUBMIT_TV(e2::general, e2::timer::any, token, handler);
-                //auto id = ID;
-                //boss.SIGNAL(e2::release, e2::form::animate::start, id);
+                boss.SUBMIT_TV(e2::general, e2::timer::any, memo[ID], handler);
+                //boss.SIGNAL(e2::release, e2::form::animate::start, ID);
             }
             template<class P>
             void actify(period timeout, P lambda)
@@ -3552,6 +3527,52 @@ namespace netxs::console
             }
         };
 
+        // pro: Glow gradient filter.
+        template<class T>
+        class grade
+            : public skill<T>
+        {
+            using skill<T>::boss,
+                  skill<T>::memo;
+        public:
+            grade(T&&) = delete;
+            grade(T& boss) : skill<T>{ boss }
+            {
+                boss.SUBMIT_T(e2::release, e2::form::upon::redrawn, memo, parent_canvas)
+                {
+                    iota size = 5; // pro::panel: vertical gradient size
+                    iota step = 2; // pro::panel: vertical gradient step
+                    //cell shadow{ cell{}.vis(cell::highlighter) };
+                    //cell bright{ cell{}.vis(cell::darklighter) };
+                    auto shadow = rgba{0xFF000000};
+                    auto bright = rgba{0xFFffffff};
+
+                    //todo optimize - don't fill the head and foot twice
+                    auto area = parent_canvas.view();
+                    auto n = std::clamp(size, 0, area.size.y / 2) + 1;
+                    //auto n = std::clamp(size, 0, boss.base::size.get().y / 2) + 1;
+
+                    auto head = area;
+                    head.size.y = 1;
+                    auto foot = head;
+                    head.coor.y = area.coor.y + n - 2;
+                    foot.coor.y = area.coor.y + area.size.y - n + 1;
+
+                    for (int i = 1; i < n; i++)
+                    {
+                        bright.alpha(i * step);
+                        shadow.alpha(i * step);
+
+                        parent_canvas.core::fill(head, [&](cell& c) { c.bgc().mix(bright); });
+                        parent_canvas.core::fill(foot, [&](cell& c) { c.bgc().mix(shadow); });
+
+                        head.coor.y--;
+                        foot.coor.y++;
+                    }
+                };
+            }
+        };
+
         // pro: Fader animation.
         template<class T>
         class fader
@@ -3564,6 +3585,13 @@ namespace netxs::console
             iota transit;
             cell c1;
             cell c2;
+
+            //todo use lambda
+            void work(iota transit)
+            {
+                boss.base::color().avg(c1, c2, transit);
+                boss.base::deface();
+            }
 
         public:
             fader(T&&) = delete;
@@ -3582,8 +3610,7 @@ namespace netxs::console
                     if (active)
                     {
                         transit = 256;
-                        boss.base::color().avg(c1, c2, transit);
-                        boss.base::deface();
+                        work(transit);
                     }
                     else
                     {
@@ -3593,8 +3620,7 @@ namespace netxs::console
                         robo.actify(constlinearAtoB<iota>(range, limit, start), [&](auto step)
                         {
                             transit -= step;
-                            boss.base::color().avg(c1, c2, transit);
-                            boss.base::deface();
+                            work(transit);
                         });
                     }
                 };
