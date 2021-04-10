@@ -1234,6 +1234,9 @@ namespace netxs::console
 
         virtual void color(rgba const& fg_color, rgba const& bg_color)
         {
+            // To make an object transparent to mouse events,
+            // no id (cell::id = 0) is used by default in the brush.
+            // The bell::id is configurable only with pro::mouse.
             base::brush.bgc(bg_color)
                        .fgc(fg_color)
                        .txt(whitespace);
@@ -1260,7 +1263,7 @@ namespace netxs::console
         virtual ~base() = default;
         base()
         {
-            base::brush.link(bell::id);
+            //base::brush.link(bell::id);
 
             SUBMIT(e2::release, e2::form::upon::attached, boss)
             {
@@ -2375,10 +2378,10 @@ namespace netxs::console
 
         public:
             caret(T&&) = delete;
-            caret(T& boss) : skill<T>{ boss },
+            caret(T& boss, bool visible = faux, twod position = dot_00) : skill<T>{ boss },
                 live{ faux },
                 done{ faux },
-                body{ dot_00, dot_11 }, // Caret is always one cell size (see the term::scrollback definition)
+                body{ position, dot_11 }, // Caret is always one cell size (see the term::scrollback definition)
                 step{ BLINK_PERIOD }
             {
                 boss.SUBMIT_T(e2::request, e2::config::intervals::blink, conf, req_step)
@@ -2393,6 +2396,7 @@ namespace netxs::console
                 {
                     step = new_step;
                 };
+                if (visible) show();
             }
 
             operator bool() const { return memo.count(); }
@@ -3430,6 +3434,8 @@ namespace netxs::console
             mouse(T&&) = delete;
             mouse(T& boss) : skill<T>{ boss }
             {
+                boss.base::color().link(boss.bell::id);
+
                 // pro::mouse: Forward preview to all parents.
                 boss.SUBMIT_T(e2::preview, e2::hids::mouse::any, memo, gear)
                 {
@@ -3624,6 +3630,36 @@ namespace netxs::console
                         });
                     }
                 };
+            }
+        };
+
+        // pro: Color manager.
+        template<class T>
+        class color
+            : public skill<T>
+        {
+            using skill<T>::boss,
+                  skill<T>::memo;
+        public:
+            color(T&&) = delete;
+            color(T& boss, rgba fg_color, rgba bg_color) : skill<T>{ boss }
+            {
+                boss.base::color(fg_color, bg_color);
+            }
+        };
+
+        // pro: Limits manager.
+        template<class T>
+        class limit
+            : public skill<T>
+        {
+            using skill<T>::boss,
+                  skill<T>::memo;
+        public:
+            limit(T&&) = delete;
+            limit(T& boss, twod const& min_size, twod const& max_size = -dot_11) : skill<T>{ boss }
+            {
+                boss.base::limits(min_size, max_size);
             }
         };
     }

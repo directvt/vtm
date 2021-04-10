@@ -256,6 +256,9 @@ enum topic_vars
 class stem_welcome
     : public post
 {
+    using self = stem_welcome;
+    FEATURE(pro::mouse, mouse);
+
 public:
     iota iteration = 0;
     side scroll_info;
@@ -290,6 +293,7 @@ class post_logs
 {
     using self = post_logs;
     FEATURE(pro::caret, caret); // post: Text caret controller.
+    FEATURE(pro::mouse, mouse); // post: .
 
     text label;
     hook token;
@@ -1350,25 +1354,19 @@ utility like ctags is used to locate the definitions.
             auto scroll_bars = [](auto layers, auto master)
             {
                 using fork = netxs::console::fork;
-
                 auto scroll_bars = layers->template attach<fork>();
-                    scroll_bars->config(fork::horizontal, 0, 50);
-                        auto scroll_hz = scroll_bars->template attach<fork>(fork::_1);
-                        scroll_hz->config(fork::vertical, 0, 50);
-                            auto vt = scroll_hz->template attach<grip<axis::X>>(fork::_2, master);
-                auto scroll_vt = scroll_bars->template attach<grip<axis::Y>>(fork::_2, master);
+                    auto scroll_hz = scroll_bars->template attach<fork>(fork::_1, fork::vertical);
+                        auto vt = scroll_hz->template attach<grip<axis::X>>(fork::_2, master);
+                    auto scroll_vt = scroll_bars->template attach<grip<axis::Y>>(fork::_2, master);
             };
 
             auto scroll_bars_term = [](auto layers, auto master)
             {
                 using fork = netxs::console::fork;
-
                 auto scroll_bars = layers->template attach<fork>();
-                    scroll_bars->config(fork::horizontal, 0, 50);
-                        auto scroll_hz = scroll_bars->template attach<fork>(fork::_1);
-                        scroll_hz->config(fork::vertical, 0, 50);
-                            auto vt = scroll_hz->template attach<grip<axis::X>>(fork::_1, master);
-                auto scroll_vt = scroll_bars->template attach<grip<axis::Y>>(fork::_2, master);
+                    auto scroll_hz = scroll_bars->template attach<fork>(fork::_1, fork::vertical);
+                        auto vt = scroll_hz->template attach<grip<axis::X>>(fork::_1, master);
+                    auto scroll_vt = scroll_bars->template attach<grip<axis::Y>>(fork::_2, master);
             };
 
             //todo use XAML for that
@@ -1716,69 +1714,64 @@ utility like ctags is used to locate the definitions.
                         frame->highlight_center = faux;
                         frame->set_border(dot_00);
 
-                        auto window = frame->attach<fork>();
-                        window->color(whitelt, 0);
-                        window->config(fork::vertical, 0, 50);
-                        {
-                            auto menu_area = window->attach<fork>(fork::_1);
-                            menu_area->config(fork::horizontal, 0, 50);
-                            {
-                                auto menu_list_area = menu_area->attach<fork>(fork::_1);
-                                menu_list_area->config(fork::horizontal, 0, 50);
-                                    auto menu_list = menu_list_area->attach<list>(fork::_1, faux);
-                                    auto inner_pads = dent{ -1, -2, -1, -1};
-                                    auto menu_items =  { 
-                                        std::pair{ " ≡"s,                                       dent{  0 } },
-                                        std::pair{ ansi::und(true) + "F" + ansi::nil() + "ile", dent{ -1 } },
-                                        std::pair{ ansi::und(true) + "E" + ansi::nil() + "dit", dent{ -1 } },
-                                        std::pair{ ansi::und(true) + "V" + ansi::nil() + "iew", dent{ -1 } },
-                                        std::pair{ ansi::und(true) + "D" + ansi::nil() + "ata", dent{ -1 } },
-                                        };
-                                    auto c2 = cell{ whitespace }.bgc(tint::bluelt);
-                                    auto c1 = c2; c1.alpha(0x00);
+                        auto window = frame->
+                            attach<fork>(fork::vertical)
+                                ->plugin<pro::color>(whitelt, 0);
+                            auto menu_area = window->
+                                attach<fork>(fork::_1);
+                                auto inner_pads = dent{ -1, -2, -1, -1};
+                                auto menu_items = {
+                                    std::pair{ " ≡"s,                                       dent{  0 } },
+                                    std::pair{ ansi::und(true) + "F" + ansi::nil() + "ile", dent{ -1 } },
+                                    std::pair{ ansi::und(true) + "E" + ansi::nil() + "dit", dent{ -1 } },
+                                    std::pair{ ansi::und(true) + "V" + ansi::nil() + "iew", dent{ -1 } },
+                                    std::pair{ ansi::und(true) + "D" + ansi::nil() + "ata", dent{ -1 } },
+                                    };
+                                auto c2 = cell{ whitespace }.bgc(tint::bluelt);
+                                auto c1 = c2; c1.alpha(0x00);
+                                auto menu_list = menu_area->
+                                    attach<fork>(fork::_1)->
+                                        attach<list>(fork::_1, faux);
                                     for (auto& body : menu_items)
                                     {
-                                        auto c0 = menu_list
-                                            ->attach<pads>(inner_pads, body.second)
+                                        menu_list->
+                                            attach<pads>(inner_pads, body.second)
                                                 ->plugin<pro::mouse>()
                                                 ->plugin<pro::fader>(c1, c2, 150ms)
                                                 ->attach<menu::item>(body.first);
                                     }
-                                auto c0 = menu_area
-                                        ->attach<pads>(fork::_2, dent{-2,-2,-1,-1}, dent{})
+                                    menu_area->
+                                        attach<pads>(fork::_2, dent{-2,-2,-1,-1}, dent{})
                                             ->plugin<pro::mouse>()
                                             ->plugin<pro::fader>(c1, c2, 150ms)
                                             ->attach<menu::item>(ansi::und(true) + "H" + ansi::nil() + "elp");
-                            }
                             menu_area->base::reflow();
 
-
-                            auto body_area = window->attach<fork>(fork::_2); //fork: body + status line
-                            body_area->config(fork::vertical, 0, 50);
-                            {
-                                auto layers = body_area->attach<cake>(fork::_1);
-                                //layers->padding.west = 1;
-                                //layers->padding.east = 1;
-                                    auto scroll = layers->attach<rail>();
-                                    scroll->limits({ 4,3 }, { -1,-1 });
-                                        auto body = scroll->attach<post>();
-                                                          //->plugin<pro::mouse>();
-                                        body->color(blackdk, whitelt);
-                                        body->beyond = true;
-                                        body->caret.show();
-                                        body->caret.coor({25,1});
-                                        body->topic = ansi::wrp(wrap::off).mgl(1)
-                                            + topic3
-                                            + ansi::fgc(bluedk)
-                                            + "From Wikipedia, the free encyclopedia";
-
-                                auto status = body_area->template attach<post>(fork::_2);
-                                status->limits({ 1,1 }, { -1,1 });
-                                status->topic = ansi::wrp(wrap::off).jet(bias::right).fgc(whitedk)
-                                     + "INS  Sel: 0:0  Col: 26  Ln: 2/148" + ansi::nil();
-                                scroll_bars(layers, scroll);
-                            }
-                        }
+                            auto body_area = window->
+                                attach<fork>(fork::_2, fork::vertical);
+                            auto fields = body_area->
+                                attach<pads>(fork::_1, dent{ -1,-1 })
+                                    ->plugin<pro::mouse>(); //todo why? it's not mouse transparent w/o
+                            auto layers = fields->
+                                attach<cake>();
+                            auto scroll = layers->
+                                attach<rail>()
+                                    ->plugin<pro::limit>(twod{ 4,3 }, twod{ -1,-1 });
+                            auto edit_box = scroll->
+                                attach<post>(true)
+                                    ->plugin<pro::mouse>()
+                                    ->plugin<pro::caret>(true, twod{25,1})
+                                    ->plugin<pro::color>(blackdk, whitelt)
+                                    ->upload(ansi::wrp(wrap::off).mgl(1)
+                                        + topic3
+                                        + ansi::fgc(bluedk)
+                                        + "From Wikipedia, the free encyclopedia");
+                            auto status_line = body_area->
+                                attach<post>(fork::_2)
+                                    ->plugin<pro::limit>(twod{ 1,1 }, twod{ -1,1 })
+                                    ->upload(ansi::wrp(wrap::off).mgl(1).mgr(1).jet(bias::right).fgc(whitedk)
+                                        + "INS  Sel: 0:0  Col: 26  Ln: 2/148" + ansi::nil());
+                        scroll_bars(layers, scroll);
                         break;
                     }
                     //case Top:

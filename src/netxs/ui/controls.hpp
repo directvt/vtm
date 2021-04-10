@@ -537,7 +537,7 @@ namespace netxs::ui
 
     // controls: Splitter control.
     class fork
-        : public base
+        : public base, public pro::boost<fork>
     {
         using sptr = netxs::sptr<base>;
     public:
@@ -580,8 +580,9 @@ namespace netxs::ui
             if (client_1) client_1->base::detach();
             if (client_2) client_2->base::detach();
         }
-        fork()
-            : maxpos{ 0 },
+        fork(orientation alignment = horizontal, iota thickness = 0, iota scale = 50)
+        : boost{*this },
+            maxpos{ 0 },
             start{ 0 },
             width{ 0 },
             movable{ true },
@@ -610,7 +611,8 @@ namespace netxs::ui
                     client_2->SIGNAL(e2::release, e2::form::layout::size, size2);
                 }
             };
-
+            
+            config(alignment, thickness, scale);
             //  case WM_SIZE:
             //  	entity->resize({ GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) });
             //  	return 0;
@@ -1081,20 +1083,12 @@ namespace netxs::ui
     class post
         : public base, public flow, public pro::boost<post>
     {
-        using self = post;
-
-        //todo make all objects transparent for mouse
-        FEATURE(pro::mouse, mouse); // post: Mouse controller.
-
         twod width; // post: Page dimensions.
         page_layout layout;
+        bool beyond; // post: Allow vertical scrolling beyond last line.
 
     public:
-        //FEATURE(pro::robot, robot); // post: Animation controller.
-
-        FEATURE(pro::caret, caret); // post: Caret controller. (todo unify: only rext editor)
         page topic; // post: Text content.
-        bool beyond{}; // post: Allow vertical scrolling beyond last line.
 
         // post: Set content.
         template<class TEXT>
@@ -1151,7 +1145,8 @@ namespace netxs::ui
             recalc();
         }
 
-        post() : flow{ width }, boost{*this }
+        post(bool scroll_beyond = faux) : flow{ width }, boost{*this },
+            beyond{ scroll_beyond }
         {
             SUBMIT(e2::preview, e2::form::layout::size, size)
             {
@@ -1185,7 +1180,7 @@ namespace netxs::ui
 
     // controls: Scroller.
     class rail
-        : public base
+        : public base, public pro::boost<rail>
     {
         using sptr = netxs::sptr<base>;
         using self = rail;
@@ -1217,9 +1212,9 @@ namespace netxs::ui
         //todo should we detach client in dtor?
         //~rail...
 
-        rail(axes allow_to_scroll = axes::ALL, axes allow_to_capture = axes::ALL)
-            : permit{ allow_to_scroll  },
-              siezed{ allow_to_capture }
+        rail(axes allow_to_scroll = axes::ALL, axes allow_to_capture = axes::ALL) : boost{*this },
+            permit{ allow_to_scroll  },
+            siezed{ allow_to_capture }
         {
             // Receive scroll parameters from external source.
             SUBMIT(e2::preview, e2::form::upon::scroll::any, info)
@@ -1904,7 +1899,7 @@ namespace netxs::ui
 public:
         sptr client;
 
-        pads(dent const& padding_value, dent const& margins_value) : boost{*this },
+        pads(dent const& padding_value = {}, dent const& margins_value = {}) : boost{*this },
               padding{ padding_value },
               margins{ margins_value }
         {
