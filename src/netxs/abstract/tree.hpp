@@ -103,7 +103,7 @@ namespace netxs::generics
                 }
             }
         }
-        // Exec without parameters
+        // Exec without parameters.
         void execute(size_t alonecmd, OUT& story) const
         {
             auto& queue = IN::fake();

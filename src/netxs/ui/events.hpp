@@ -33,7 +33,7 @@ namespace netxs::ui
         template<class V>
         struct _globals
         {
-            static std::recursive_mutex mutex; // e2: shared mutex
+            static std::recursive_mutex mutex; // e2: shared mutex.
         };
 
     public:
@@ -41,8 +41,8 @@ namespace netxs::ui
         {
             std::lock_guard<std::recursive_mutex> lock;
 
-            sync            (sync const&) = delete; // deleted copy constructor
-            sync& operator= (sync const&) = delete; // deleted copy assignment operator
+            sync            (sync const&) = delete; // deleted copy constructor.
+            sync& operator= (sync const&) = delete; // deleted copy assignment operator.
 
              sync() : lock(_globals<void>::mutex) { }
             ~sync() { }
@@ -51,8 +51,8 @@ namespace netxs::ui
         {
             std::unique_lock<std::recursive_mutex> lock;
 
-            try_sync            (try_sync const&) = delete; // deleted copy constructor
-            try_sync& operator= (try_sync const&) = delete; // deleted copy assignment operator
+            try_sync            (try_sync const&) = delete; // deleted copy constructor.
+            try_sync& operator= (try_sync const&) = delete; // deleted copy assignment operator.
 
             operator bool() { return lock.owns_lock(); }
 
@@ -582,15 +582,15 @@ namespace netxs::ui
 
         enum exec
         {
-            forward, // Execute concrete event first
-            reverse, // Execute global events first
+            forward, // Execute concrete event first.
+            reverse, // Execute global events first.
         };
 
-        std::map<hint, list> stock; // reactor: handlers repository
-        std::vector<hint>    queue; // reactor: event queue
-        vect                 qcopy; // reactor: copy of the current pretenders to exec on current event
-        bool                 alive; // reactor: current exec branch interruptor
-        exec                 order; // reactor: Execution oreder
+        std::map<hint, list> stock; // reactor: handlers repository.
+        std::vector<hint>    queue; // reactor: event queue.
+        vect                 qcopy; // reactor: copy of the current pretenders to exec on current event.
+        bool                 alive; // reactor: current exec branch interruptor.
+        exec                 order; // reactor: Execution oreder.
 
         reactor(exec order)
             : alive{ true },
@@ -783,12 +783,12 @@ namespace netxs::ui
         }
     };
 
-    // utils::ui: Ext link statics, unique ONLY for concrete T.
+    // events: Ext link statics, unique ONLY for concrete T.
     template<class T> typename indexer<T>::id_t indexer<T>::newid = 0;
     template<class T> typename indexer<T>::imap indexer<T>::store;
     template<class T> typename indexer<T>::wptr indexer<T>::empty;
 
-    // utils::ui: Event x-mitter.
+    // events: Event x-mitter.
     struct bell : public indexer<bell>
     {
         using hook = reactor::hook;

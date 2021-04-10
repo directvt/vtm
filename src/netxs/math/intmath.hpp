@@ -20,8 +20,8 @@ namespace netxs
 
     struct noop { template<class ...T> void operator()(T...) {}; };
 
-    // intmath.h: Summ and return TRUE in case of
-    //            unsigned integer overflow and store result in accum.
+    // intmath: Summ and return TRUE in case of
+    //          unsigned integer overflow and store result in accum.
     template<class T1, class T2>
     bool sum_overflow(T1& accum, T2 delta)
     {
@@ -30,7 +30,7 @@ namespace netxs
         return accum <= store ? true : faux;
     }
 
-    // intmath.h: Clamp a value in case it exceeds its numerical limits.
+    // intmath: Clamp a value in case it exceeds its numerical limits.
     template<class T, class L>
     T clamp(L value)
     {
@@ -96,13 +96,13 @@ namespace netxs
     template<class T>
     struct _disintegrate<faux, T> { using type = typename T::type; };
 
-    // intmath.h: Deduce a scalar type from the vector type.
+    // intmath: Deduce a scalar type from the vector type.
     template<class T>
     using disintegrate = typename _disintegrate< std::is_integral<T>::value, T >::type;
 
-    // intmath.h: Delta sequence generator.
-    //            The QUADRATIC-LAW fader from the initial velocity
-    //            to stop for a given period of time.
+    // intmath: Delta sequence generator.
+    //          The QUADRATIC-LAW fader from the initial velocity
+    //          to stop for a given period of time.
     template<class T>
     class quadratic
     {
@@ -157,9 +157,9 @@ namespace netxs
         }
     };
 
-    // intmath.h: Delta sequence generator.
-    //            The LINEAR-LAW fader from the initial velocity
-    //            to stop for a given period of time with constant speed.
+    // intmath: Delta sequence generator.
+    //          The LINEAR-LAW fader from the initial velocity
+    //          to stop for a given period of time with constant speed.
     template<class T>
     class constlinear
     {
@@ -214,9 +214,9 @@ namespace netxs
         }
     };
 
-    // intmath.h: Delta sequence generator.
-    //            The LINEAR-LAW fader from the initial coord to the destination
-    //            coord for a given period of time with constant speed.
+    // intmath: Delta sequence generator.
+    //          The LINEAR-LAW fader from the initial coord to the destination
+    //          coord for a given period of time with constant speed.
     template<class T>
     class constlinearAtoB
     {
@@ -270,9 +270,9 @@ namespace netxs
         }
     };
 
-    // intmath.h: Forward/Reverse (bool template arg) copy the specified
-    //            sequence of cells onto the canvas at the specified offset
-    //            and return count of copied cells.
+    // intmath: Forward/Reverse (bool template arg) copy the specified
+    //          sequence of cells onto the canvas at the specified offset
+    //          and return count of copied cells.
     template<bool RtoL, class T1, class T2, class P>
     auto xerox (T1*& frame, T2 const& source, P handle)
     {
@@ -291,8 +291,8 @@ namespace netxs
         return width;
     }
 
-    // intmath.h: Copy the bitmap to the bitmap by invoking
-    //            handle(sprite1_element, sprite2_element) for each elem.
+    // intmath: Copy the bitmap to the bitmap by invoking
+    //          handle(sprite1_element, sprite2_element) for each elem.
     template<class T, class P>
     void oncopy(T& bitmap1, T const& bitmap2, P handle)
     {
@@ -312,9 +312,9 @@ namespace netxs
         }
     }
 
-    // intmath.h: Intersect two sprites and
-    //            invoking handle(sprite1_element, sprite2_element)
-    //            for each elem in the intersection.
+    // intmath: Intersect two sprites and
+    //          invoking handle(sprite1_element, sprite2_element)
+    //          for each elem in the intersection.
     template<bool RtoL, class T, class R, class C, class P>
     void inbody(T& canvas, T const& bitmap, R const& region, C const& base2, P handle)
     {
@@ -352,9 +352,9 @@ namespace netxs
         }
     }
 
-    // intmath.h: Intersect two sprites and invoking
-    //            handle(sprite1_element, sprite2_element)
-    //            for each elem in the intersection.
+    // intmath: Intersect two sprites and invoking
+    //          handle(sprite1_element, sprite2_element)
+    //          for each elem in the intersection.
     template<class T, class P>
     void onbody(T& canvas, T const& bitmap, P handle)
     {
@@ -370,9 +370,9 @@ namespace netxs
         }
     }
 
-    // intmath.h: Draw the rectangle region inside the canvas by
-    //            invoking handle(canvas_element)
-    //            (without boundary checking).
+    // intmath: Draw the rectangle region inside the canvas by
+    //          invoking handle(canvas_element)
+    //          (without boundary checking).
     template<class T, class RECT, class P, class NEWLINEFX = noop>
     void onrect(T& canvas, RECT const& region, P handle, NEWLINEFX online = NEWLINEFX())
     {
@@ -408,7 +408,7 @@ namespace netxs
         auto top  = y1 - ymin;
 
         if ((dx == 0.0f && left < 0.0f) ||
-            (dy == 0.0f && top  < 0.0f)) return faux; // the line is parallel to the rectangle
+            (dy == 0.0f && top  < 0.0f)) return faux; // Line is parallel to rectangle.
 
         auto max = 0.0f;
         auto min = 1.0f;
@@ -453,13 +453,13 @@ namespace netxs
         }
         else
         {
-            return faux; // the line is outside
+            return faux; // Line is outside.
         }
     }
 
-    // intmath.h: Draw an antialiased line inside the specified rect
-    //            between p1 and p2 by invoking pset(x, y, k).
-    //            Return TRUE if line is visible.
+    // intmath: Draw an antialiased line inside the specified rect
+    //          between p1 and p2 by invoking pset(x, y, k).
+    //          Return TRUE if line is visible.
     template<class R, class T, class P>
     bool online(R rect, T p0, T p1, P pset)
     {
@@ -543,8 +543,8 @@ namespace netxs
         {
             float x1 = static_cast<float>(p0.x); float y1 = static_cast<float>(p0.y);
             float x2 = static_cast<float>(p1.x); float y2 = static_cast<float>(p1.y);
-            float minx = -1.0f;/// one element wide margin for antialiasing
-            float miny = -1.0f;
+            float minx = -1.0f;// One element wide margin for antialiasing.
+            float miny = -1.0f;//
             float maxx = size.x + 1.0f;
             float maxy = size.y + 1.0f;
 
@@ -595,26 +595,26 @@ namespace netxs
 
     namespace _private
     {
-        ///<summary> intmath.h:
-        ///		Bitmap 1D box-blurring.
-        ///		To achieve a 2D blur, it needs to apply it again and swap the X with Y,
-        ///		and source with destination.
+        ///<summary> intmath:
+        ///          Bitmap 1D box-blurring.
+        ///          To achieve a 2D blur, it needs to apply it again and swap the X with Y,
+        ///          and source with destination.
         /// </summary>
-        /// <typeparam name="RGB_T">Point value accumulator type.					</typeparam>
-        /// <typeparam name="CALC">	Whether do the division in the current round. Performance burst by 40% !	</typeparam>
-        /// <param name="s_ptr"> Source bitmap array pointer.		</param>
-        /// <param name="d_ptr"> Destination bitmap array pointer.	</param>
-        /// <param name="w"> Bitmap width.	</param>
-        /// <param name="h"> Bitmap height.</param>
-        /// <param name="rad_0"> Horizontal blur radius.						</param>
-        /// <param name="rad_x"> Vertical blur radius (for the second round).	</param>
-        /// <param name="s_dtx"> Index step along X in the source.	</param>
-        /// <param name="s_dty"> Index step along Y in the source.	</param>
-        /// <param name="d_dtx"> Index step along X in the destination.	</param>
-        /// <param name="d_dty"> Index step along Y in the destination.	</param>
-        /// <param name="P_BASE s_ref"> Lambda to convert source pointer to the reference.		</param>
-        /// <param name="P_DEST d_ref"> Lambda to convert destination pointer to the reference.	</param>
-        /// <param name="POSTFX shade"> Lambda for further processing.	</param>
+        /// <typeparam name="RGB_T"> Point value accumulator type. </typeparam>
+        /// <typeparam name="CALC" > Whether do the division in the current round. Performance burst by 40% ! </typeparam>
+        /// <param name="s_ptr"> Source bitmap array pointer. </param>
+        /// <param name="d_ptr"> Destination bitmap array pointer. </param>
+        /// <param name="w"    > Bitmap width. </param>
+        /// <param name="h"    > Bitmap height. </param>
+        /// <param name="rad_0"> Horizontal blur radius. </param>
+        /// <param name="rad_x"> Vertical blur radius (for the second round). </param>
+        /// <param name="s_dtx"> Index step along X in the source. </param>
+        /// <param name="s_dty"> Index step along Y in the source. </param>
+        /// <param name="d_dtx"> Index step along X in the destination. </param>
+        /// <param name="d_dty"> Index step along Y in the destination. </param>
+        /// <param name="P_BASE s_ref"> Lambda to convert source pointer to the reference. </param>
+        /// <param name="P_DEST d_ref"> Lambda to convert destination pointer to the reference. </param>
+        /// <param name="POSTFX shade"> Lambda for further processing. </param>
         template<class RGB_T, bool CALC,
             class SRC_T,
             class DST_T, class INT_T,
@@ -694,23 +694,23 @@ namespace netxs
         }
     }
 
-    /// <summary> intmath.h:
-    ///		Bokeh (acryllic, blur) approximation.
-    ///		Edge points are multiplied by r in order to form inner glow.
+    /// <summary> intmath:
+    ///           Bokeh (acryllic, blur) approximation.
+    ///           Edge points are multiplied by r in order to form inner glow.
     /// </summary>
-    /// <typeparam name="RGB_T">Point accumulator type.</typeparam>
-    /// <param name="s_ptr">Source bitmap array pointer.</param>
-    /// <param name="d_ptr">Destination bitmap array pointer.</param>
-    /// <param name="w">Bitmap width.</param>
-    /// <param name="h">Bitmap height.</param>
-    /// <param name="r">Bokeh radius.</param>
-    /// <param name="s_dty">Index step along Y in the source.</param>
-    /// <param name="d_dty">Index step along Y in the destination.</param>
-    /// <param name="P_BASE s_ref"> Lambda to convert source pointer to the reference.</param>
-    /// <param name="P_DEST d_ref"> Lambda to convert destination pointer to the reference.</param>
-    /// <param name="POSTFX shade"> Lambda for further processing.	</param>
+    /// <typeparam name="RGB_T"> Point accumulator type. </typeparam>
+    /// <param name="s_ptr"> Source bitmap array pointer. </param>
+    /// <param name="d_ptr"> Destination bitmap array pointer. </param>
+    /// <param name="w"> Bitmap width. </param>
+    /// <param name="h"> Bitmap height. </param>
+    /// <param name="r"> Bokeh radius. </param>
+    /// <param name="s_dty"> Index step along Y in the source. </param>
+    /// <param name="d_dty"> Index step along Y in the destination. </param>
+    /// <param name="P_BASE s_ref"> Lambda to convert source pointer to the reference. </param>
+    /// <param name="P_DEST d_ref"> Lambda to convert destination pointer to the reference. </param>
+    /// <param name="POSTFX shade"> Lambda for further processing. </param>
     /// <exmpla>
-    ///		see console.h:pro::panel::blur()
+    ///		see console:pro::panel::blur()
     /// </exmpla>
     template<class RGB_T,
         class SRC_T,

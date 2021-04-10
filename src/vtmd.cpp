@@ -5,20 +5,20 @@
 #define MONOTTY_VER "Monotty Desktopio Preview v0.3.3"
 //#define PROD
 
-// Terminal's default line wrapping mode
+// Terminal's default line wrapping mode.
 #define WRAPPING (wrap::on)
 //#define WRAPPING (wrap::off)
 
-// Enable to show debug overlay
+// Enable to show debug overlay.
 //#define DEBUG_OVERLAY
 
-// Enable to show all terminal input (keyboard/mouse etc)
+// Enable to show all terminal input (keyboard/mouse etc).
 //#define KEYLOG
 
-// Highlight region ownership
+// Highlight region ownership.
 //#define REGIONS
 
-// Show codepoint by the "logs"
+// Show codepoint by the "logs".
 #define SHOW_CPOINTS faux
 //#define SHOW_CPOINTS true
 

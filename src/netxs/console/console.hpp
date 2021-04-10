@@ -11,21 +11,21 @@
 
 #include <iostream>
 
-#define SPD 10               // console.h: Auto-scroll initial speed component ΔR.
-#define PLS 167              // console.h: Auto-scroll initial speed component ΔT.
-#define CCL 120              // console.h: Auto-scroll duration in ms.
-#define SPD_ACCEL 3          // console.h: Auto-scroll speed accelation.
-#define CCL_ACCEL 30         // console.h: Auto-scroll additional duration in ms.
-#define SPD_MAX 100          // console.h: Auto-scroll max speed.
-#define CCL_MAX 1000         // console.h: Auto-scroll max duration in ms.
+#define SPD 10               // console: Auto-scroll initial speed component ΔR.
+#define PLS 167              // console: Auto-scroll initial speed component ΔT.
+#define CCL 120              // console: Auto-scroll duration in ms.
+#define SPD_ACCEL 3          // console: Auto-scroll speed accelation.
+#define CCL_ACCEL 30         // console: Auto-scroll additional duration in ms.
+#define SPD_MAX 100          // console: Auto-scroll max speed.
+#define CCL_MAX 1000         // console: Auto-scroll max duration in ms.
 
-#define STOPPING_TIME  2s    // console.h: Object state stopping duration in s.
-#define SWITCHING_TIME 200   // console.h: Object state switching duration in ms.
-#define BLINK_PERIOD   400ms // console.h: Period in ms between the blink states of the cursor.
+#define STOPPING_TIME  2s    // console: Object state stopping duration in s.
+#define SWITCHING_TIME 200   // console: Object state switching duration in ms.
+#define BLINK_PERIOD   400ms // console: Period in ms between the blink states of the cursor.
 
-#define ACTIVE_TIMEOUT  1s   // console.h: Timeout off the active object.
-#define REPEAT_DELAY  500ms  // console.h: Repeat delay.
-#define REPEAT_RATE    30ms  // console.h: Repeat rate.
+#define ACTIVE_TIMEOUT  1s   // console: Timeout off the active object.
+#define REPEAT_DELAY  500ms  // console: Repeat delay.
+#define REPEAT_RATE    30ms  // console: Repeat rate.
 
 namespace netxs::console
 {
@@ -292,6 +292,7 @@ namespace netxs::console
                         EVENT_SAME(e2::hids::any, e2::hids::keybd::state::off::scrolllock)
                         EVENT_SAME(e2::hids::any, e2::hids::keybd::state::off::insert)
 
+    // console: Base mouse class.
     class sysmouse
     {
         using usable = e2::hids::mouse::button::click;
@@ -337,6 +338,7 @@ namespace netxs::console
         }
     };
 
+    // console: Base keybd class.
     class syskeybd
     {
     public:
@@ -385,6 +387,7 @@ namespace netxs::console
         text     textline;
     };
 
+    // console: Mouse tracking.
     class mouse
     {
         using tail = netxs::datetime::tail<twod>;
@@ -413,7 +416,7 @@ namespace netxs::console
         constexpr static auto scrolldn = mouse_event::scroll::down;
 
     public:
-        static constexpr iota none = -1; // mouse: No active buttons
+        static constexpr iota none = -1; // mouse: No active buttons.
 
         struct knob
         {
@@ -430,29 +433,29 @@ namespace netxs::console
             return delta.fader<LAW>(spell);
         }
 
-        twod   prime = dot_mx;  // mouse: System mouse cursor coordinates
-        twod   coord = dot_mx;  // mouse: Relative mouse cursor coordinates
+        twod   prime = dot_mx;  // mouse: System mouse cursor coordinates.
+        twod   coord = dot_mx;  // mouse: Relative mouse cursor coordinates.
         //todo unify the mint=1/fps
-        tail   delta = { 75ms, 4ms }; // mouse: History of mouse movements for a specified period of time
+        tail   delta = { 75ms, 4ms }; // mouse: History of mouse movements for a specified period of time.
         bool   wheel = faux;
         bool   hzwhl = faux;
         iota   whldt = 0;
-        bool   reach = faux;    // mouse: Has the event tree relay reached the mouse event target
-        hint   cause = e2::any; // mouse: Current event id
-        iota   index = none;    // mouse: Index of the active button. -1 if the buttons are not involed
-        bool   nodbl = faux;    // mouse: Whether single click event processed (to prevent double clicks)
+        bool   reach = faux;    // mouse: Has the event tree relay reached the mouse event target.
+        hint   cause = e2::any; // mouse: Current event id.
+        iota   index = none;    // mouse: Index of the active button. -1 if the buttons are not involed.
+        bool   nodbl = faux;    // mouse: Whether single click event processed (to prevent double clicks).
         iota   locks = 0;       // mouse: State of the captured buttons (bit field).
-        id_t   swift = 0;       // mouse: Delegate's ID of the current mouse owner
-        id_t   hover = 0;       // mouse: Hover control ID
-        id_t   start = 0;       // mouse: Initiator control ID
+        id_t   swift = 0;       // mouse: Delegate's ID of the current mouse owner.
+        id_t   hover = 0;       // mouse: Hover control ID.
+        id_t   start = 0;       // mouse: Initiator control ID.
 
         struct
         {
             moment fired;
             twod   coord;
         }
-        stamp[sysmouse::numofbutton] = {}; // mouse: Recorded intervals between successive button presses to track double-clicks
-        static constexpr period delay = 500ms;   // mouse: Double-click threshold
+        stamp[sysmouse::numofbutton] = {}; // mouse: Recorded intervals between successive button presses to track double-clicks.
+        static constexpr period delay = 500ms;   // mouse: Double-click threshold.
 
         knob   button[sysmouse::numofbutton];
 
@@ -599,13 +602,13 @@ namespace netxs::console
                                 if (!nodbl)
                                 {
                                     // Fire double-click if delay is not expired
-                                    // and the same mouseposition
+                                    // and the same mouseposition.
                                     auto& s = stamp[i];
                                     auto fired = tempus::now();
                                     if (fired - s.fired < delay
                                         && s.coord == coord)
                                     {
-                                        s.fired = {}; // To avoid successive double-clicks if triple-click
+                                        s.fired = {}; // To avoid successive double-clicks if triple-click.
                                         if (b.succeed) action(dblclick, i);
                                     }
                                     else
@@ -637,7 +640,7 @@ namespace netxs::console
 
         virtual void fire(e2::type cause) = 0;
 
-        // mouse: Initiator of visual tree informing about mouse enters/leaves
+        // mouse: Initiator of visual tree informing about mouse enters/leaves.
         template<bool ENTERED>
         bool direct(id_t asker)
         {
@@ -665,7 +668,7 @@ namespace netxs::console
         {
             return swift == asker;
         }
-        // mouse: Seize specified mouse control
+        // mouse: Seize specified mouse control.
         bool capture (id_t asker)
         {
             if (!swift || swift == asker)
@@ -676,7 +679,7 @@ namespace netxs::console
             }
             return faux;
         }
-        // mouse: Release specified mouse control
+        // mouse: Release specified mouse control.
         void release (bool force = true)
         {
             force = force || index == mouse::none;
@@ -685,7 +688,7 @@ namespace netxs::console
             if (!locks) swift = {};
         }
         //todo revise
-        // mouse: Bit buttons. Used only for foreign mouse pointer in the gate (pro::input)
+        // mouse: Bit buttons. Used only for foreign mouse pointer in the gate (pro::input).
         iota buttons ()
         {
             iota bitfield = 0;
@@ -697,6 +700,7 @@ namespace netxs::console
         }
     };
 
+    // console: Keybd tracking.
     class keybd
     {
     public:
@@ -725,6 +729,7 @@ namespace netxs::console
         virtual void fire_keybd() = 0;
     };
 
+    // console: Human interface device controller.
     class hids
         : public mouse,
           public keybd
@@ -732,18 +737,18 @@ namespace netxs::console
         using list = std::list<wptr<bell>>;
 
         bell&       owner;
-        id_t        relay; // hids: Mouse routing call stack initiator
-        core const& idmap; // hids: Area of the main form. Primary or relative region of the mouse coverage
-        list        kb_focus; // hids: keyboard subscribers
-        bool        alive; // hids: Whether event processing is complete
+        id_t        relay; // hids: Mouse routing call stack initiator.
+        core const& idmap; // hids: Area of the main form. Primary or relative region of the mouse coverage.
+        list        kb_focus; // hids: keyboard subscribers.
+        bool        alive; // hids: Whether event processing is complete.
         //todo revise
         uint32_t ctlstate = 0;
 
     public:
-        id_t const& id;    // hids: Owner/gear ID
+        id_t const& id;    // hids: Owner/gear ID.
 
         //todo unify
-        rect slot; // slot for pro::maker and e2::createby
+        rect slot; // slot for pro::maker and e2::createby.
 
         bool kb_focus_taken = faux;
 
@@ -967,7 +972,7 @@ namespace netxs::console
         }
     };
 
-    //todo OMG!, make it in another way
+    //todo OMG!, make it in another way.
     class skin
     {
         //todo revise
@@ -1061,7 +1066,7 @@ namespace netxs::console
             }
         }
 
-        // skin:: Return global brighter/shadower color (cell)
+        // skin:: Return global brighter/shadower color (cell).
         static cell const& color(iota property)
         {
             auto& global = _globals<void>::global;
@@ -1086,7 +1091,7 @@ namespace netxs::console
                     return global.hi_colors;
             }
         }
-        // skin:: Return global gradient for brighter/shadower
+        // skin:: Return global gradient for brighter/shadower.
         static poly const& grade(iota property)
         {
             auto& global = _globals<void>::global;
@@ -1111,13 +1116,13 @@ namespace netxs::console
                     return global.hi_grades;
             }
         }
-        // skin:: Return global border size
+        // skin:: Return global border size.
         static twod const& border_size()
         {
             auto& global = _globals<void>::global;
             return global.border;
         }
-        // skin:: Return global transparency
+        // skin:: Return global transparency.
         static iota const& shady()
         {
             auto& global = _globals<void>::global;
@@ -1128,6 +1133,7 @@ namespace netxs::console
     template<class V>
     skin skin::_globals<V>::global;
 
+    // console: Base visual.
     class base
         : public bell, public std::enable_shared_from_this<base>
     {
@@ -1409,7 +1415,6 @@ namespace netxs::console
                 }
             }
         }
-        
         // base: Return the rectangle of the canvas.
         auto square () const
         {
@@ -1417,11 +1422,6 @@ namespace netxs::console
             auto& c = base::coor.get();
             return rect{ c, s };
         }
-        //// base: Return object rectangle with padding.
-        //auto square_pads() const
-        //{
-        //    return padding.area(square());
-        //}
         // base: Check that point hits the canvas.
         auto inside (twod const& p)
         {
@@ -1606,7 +1606,8 @@ namespace netxs::console
         //}
     };
 
-    class form // console: Form with cached canvas.
+    // console: Visual form with cached canvas.
+    class form
         : public base
     {
         sptr<face> coreface;
@@ -1660,32 +1661,34 @@ namespace netxs::console
         }
     };
 
-    namespace pro // console: Template modules for the base class behavior extension.
+    // console: Template modules for the base class behavior extension.
+    namespace pro
     {
         // pro: Assign `using self = _class_name_;` in order to use FEATURE() marco.
         #define FEATURE(feature, object) feature<self> object{ *this }
 
+        // pro:: Base class for plugins.
         template<class T>
         struct skill
         {
             T&   boss;
             subs memo;
             skill(T&&) = delete;
-            skill(T& boss) : boss{ boss }
-            { }
+            skill(T& boss) : boss{ boss } { }
         };
+
         // pro: Provides shared storage for the states of type T::state_t.
         template<class T>
         class share
             : public skill<T>
         {
+            using skill<T>::boss,
+                  skill<T>::memo;
             using list = std::list<typename T::sock>;
             list depo;
 
         public:
-            share(T&&) = delete;
-            share(T& boss) : skill{ boss }
-            { }
+            using skill<T>::skill; // Inherits ctors.
 
             auto& operator [](bell::id_t hids_id)
             {
@@ -1728,6 +1731,8 @@ namespace netxs::console
         class align
             : public skill<T>
         {
+            using skill<T>::boss,
+                  skill<T>::memo;
             using gptr = wptr<bell>;
             rect last; // pro::align: Window size before the fullscreen has applied.
             text head; // pro::align: Main window title the fullscreen has applied.
@@ -1810,16 +1815,14 @@ namespace netxs::console
                 weak = {};
             }
 
-            ~align()
-            {
-                unbind(faux);
-            }
             align(T&&) = delete;
-            align(T& boss) : skill{ boss },
+            align(T& boss) : skill<T>{ boss },
                 weak{}
             {
                 boss.base::linked = true;
             }
+            ~align() { unbind(faux); }
+
             /// Ask the client about the new size (the client can override the size) and return delta
             //auto accord(twod& newsize)
             //{
@@ -1923,13 +1926,12 @@ namespace netxs::console
         class robot
             : public skill<T>
         {
+            using skill<T>::boss;
             using subs = std::map<id_t, hook>;
             subs memo;
 
         public:
-            robot(T&&) = delete;
-            robot(T& boss) : skill{ boss }
-            { }
+            using skill<T>::skill; // Inherits ctors.
 
             // pro::robot: Every timer tick, yield the
             //             delta from the flow and, if delta,
@@ -1965,7 +1967,7 @@ namespace netxs::console
                 }
             }
             template<class P, class S>
-            void actify (S flow, P proc)
+            void actify(S flow, P proc)
             {
                 actify(bell::noid, flow, proc);
             }
@@ -2001,18 +2003,16 @@ namespace netxs::console
         class timer
             : public skill<T>
         {
-            static constexpr id_t noid = std::numeric_limits<id_t>::max();
+            using skill<T>::boss;
             using subs = std::map<id_t, hook>;
             subs memo;
 
         public:
-            timer(T&&) = delete;
-            timer(T& boss) : skill{ boss }
-            { }
+            using skill<T>::skill; // Inherits ctors.
 
             // pro::timer: Start countdown
-            template<id_t ID = noid, class P>
-            void actify (period timeout, P lambda)
+            template<class P>
+            void actify(id_t ID, period timeout, P lambda)
             {
                 auto  alarm = tempus::now() + timeout;
                 auto& token = memo[ID];
@@ -2027,15 +2027,20 @@ namespace netxs::console
                 //auto id = ID;
                 //boss.SIGNAL(e2::release, e2::form::animate::start, id);
             }
-            // pro::timer: Cancel timer ('id=noid' for all).
-            void pacify (id_t id = noid)
+            template<class P>
+            void actify(period timeout, P lambda)
             {
-                if (id == noid) memo.clear();   // Stop all timers
-                else            memo.erase(id);
+                actify(bell::noid, timeout, lambda);
+            }
+            // pro::timer: Cancel timer ('id=noid' for all).
+            void pacify(id_t id = bell::noid)
+            {
+                if (id == bell::noid) memo.clear();   // Stop all timers
+                else                  memo.erase(id);
                 //boss.SIGNAL(e2::release, e2::form::animate::stop, id);
             }
             // aminate: Check activity by id.
-            bool active (id_t id)
+            bool active(id_t id)
             {
                 return memo.find(id) != memo.end(); //todo use ::contains (C++20)
             }
@@ -2052,12 +2057,14 @@ namespace netxs::console
         class frame
             : public skill<T>
         {
+            using skill<T>::boss,
+                  skill<T>::memo;
             subs     link;
             robot<T> robo;
 
         public:
             frame(T&&) = delete;
-            frame(T& boss) : skill{ boss },
+            frame(T& boss) : skill<T>{ boss },
                 robo{ boss }
             {
                 boss.SUBMIT_T(e2::release, e2::form::upon::attached, memo, parent)
@@ -2105,10 +2112,7 @@ namespace netxs::console
                 auto func = constlinearAtoB<twod>(path, time, now<iota>());
 
                 robo.pacify();
-                robo.actify(func, [&](twod& x)
-                    {
-                        boss.base::moveby(x);
-                    });
+                robo.actify(func, [&](twod& x) { boss.base::moveby(x); });
             }
 
             // frame: Search for a non-overlapping form position in
@@ -2197,6 +2201,8 @@ namespace netxs::console
         class maker
             : public skill<T>
         {
+            using skill<T>::boss,
+                  skill<T>::memo;
             cell mark;
 
             struct slot_t
@@ -2279,7 +2285,7 @@ namespace netxs::console
 
         public:
             maker(T&&) = delete;
-            maker(T& boss) : skill{ boss },
+            maker(T& boss) : skill<T>{ boss },
                 mark{ skin::color(tone::selector) }
             {
                 using drag = e2::hids::mouse::button::drag;
@@ -2382,6 +2388,8 @@ namespace netxs::console
         class caret
             : public skill<T>
         {
+            using skill<T>::boss,
+                  skill<T>::memo;
             subs   conf; // caret: Configuration subscriptions.
             bool   live; // caret: Should the caret be drawn.
             bool   done; // caret: Is the caret already drawn.
@@ -2392,7 +2400,7 @@ namespace netxs::console
 
         public:
             caret(T&&) = delete;
-            caret(T& boss) : skill{ boss },
+            caret(T& boss) : skill<T>{ boss },
                 live{ faux },
                 done{ faux },
                 body{ dot_00, dot_11 }, // Caret is always one cell size (see the term::scrollback definition)
@@ -2498,6 +2506,8 @@ namespace netxs::console
         class debug
             : public skill<T>
         {
+            using skill<T>::boss,
+                  skill<T>::memo;
             #define PROP_LIST                     \
             X(total_size   , "total sent"       ) \
             X(proceed_ns   , "rendering time"   ) \
@@ -2586,7 +2596,7 @@ namespace netxs::console
             }
 
             debug(T&&) = delete;
-            debug(T& boss) : skill{ boss }
+            debug(T& boss) : skill<T>{ boss }
             {
                 //todo use skin
                 stress = cell{}.fgc(whitelt);
@@ -2742,6 +2752,8 @@ namespace netxs::console
         class title
             : public skill<T>
         {
+            using skill<T>::boss,
+                  skill<T>::memo;
             page logo; // title: Owner's caption
             text name; // title: Preserve original title
 
@@ -2763,7 +2775,7 @@ namespace netxs::console
             bool live = true;
 
             title(T&&) = delete;
-            title(T& boss) : skill{ boss }
+            title(T& boss) : skill<T>{ boss }
             {
                 logo += ansi::cup(dot_00)
                       + ansi::wrp(wrap::off).rtl(rtol::ltr).rlf(feed::fwd).jet(bias::left).mgr(1).mgl(1)
@@ -3126,6 +3138,8 @@ namespace netxs::console
                 }
             };
 
+            using skill<T>::boss,
+                  skill<T>::memo;
             using proc = drawfx;
             using time = moment;
             using area = std::vector<rect>;
@@ -3137,7 +3151,7 @@ namespace netxs::console
 
         public:
             scene(T&&) = delete;
-            scene(T& boss) : skill{ boss }
+            scene(T& boss) : skill<T>{ boss }
             {
                 paint = [&](face& canvas, page const& titles) -> bool
                 {
@@ -3246,6 +3260,8 @@ namespace netxs::console
         class guard
             : public skill<T>
         {
+            using skill<T>::boss,
+                  skill<T>::memo;
             constexpr static e2::type QUIT_MSG = e2::term::quit;
             constexpr static int ESC_THRESHOLD = 500; // Double escape threshold in ms
 
@@ -3255,7 +3271,7 @@ namespace netxs::console
 
         public:
             guard(T&&) = delete;
-            guard(T& boss) : skill{ boss },
+            guard(T& boss) : skill<T>{ boss },
                 wait{ faux }
             {
                 // Suspected early completion
@@ -3286,6 +3302,8 @@ namespace netxs::console
         class watch
             : public skill<T>
         {
+            using skill<T>::boss,
+                  skill<T>::memo;
             constexpr static e2::type EXCUSE_MSG = e2::hids::mouse::button::down::any;
             constexpr static e2::type QUIT_MSG   = e2::quit;
             //todo unify
@@ -3298,7 +3316,7 @@ namespace netxs::console
 
         public:
             watch(T&&) = delete;
-            watch(T& boss) : skill{ boss }
+            watch(T& boss) : skill<T>{ boss }
             {
                 stop = tempus::now() + std::chrono::seconds(LIMIT);
 
@@ -3329,6 +3347,8 @@ namespace netxs::console
         class keybd
             : public skill<T>
         {
+            using skill<T>::boss,
+                  skill<T>::memo;
             hook accept_kbd;
             iota clients = 0;
             //bool active = faux;
@@ -3337,7 +3357,7 @@ namespace netxs::console
             bool focusable = true;
 
             keybd(T&&) = delete;
-            keybd(T& boss) : skill{ boss }
+            keybd(T& boss) : skill<T>{ boss }
             {
                 using bttn = e2::hids::mouse::button;
 
@@ -3424,6 +3444,8 @@ namespace netxs::console
         class mouse
             : public skill<T>
         {
+            using skill<T>::boss,
+                  skill<T>::memo;
             iota clients = 0;
             bool active = faux;
 
@@ -3431,7 +3453,7 @@ namespace netxs::console
             bool highlightable = faux;
 
             mouse(T&&) = delete;
-            mouse(T& boss) : skill{ boss }
+            mouse(T& boss) : skill<T>{ boss }
             {
                 // pro::mouse: Forward preview to all parents.
                 boss.SUBMIT_T(e2::preview, e2::hids::mouse::any, memo, gear)
@@ -3493,13 +3515,15 @@ namespace netxs::console
         class input
             : public skill<T>, public hids
         {
+            using skill<T>::boss,
+                  skill<T>::memo;
             face xmap;
 
         public:
             iota push = 0; // Mouse pressed buttons bits (Used only for foreign mouse pointer in the gate)
 
             input(T&&) = delete;
-            input(T& boss) : skill{ boss }, hids{ boss, xmap }
+            input(T& boss) : skill<T>{ boss }, hids{ boss, xmap }
             {
                 boss.SUBMIT_T(e2::release, e2::form::layout::size, memo, newsize)
                 {
@@ -3533,6 +3557,8 @@ namespace netxs::console
         class fader
             : public skill<T>
         {
+            using skill<T>::boss,
+                  skill<T>::memo;
             robot<T> robo;   // fader: .
             period fade;
             iota transit;
@@ -3541,7 +3567,8 @@ namespace netxs::console
 
         public:
             fader(T&&) = delete;
-            fader(T& boss, cell default_state, cell highlighted_state, period fade_out = 250ms) : skill{ boss },
+            fader(T& boss, cell default_state, cell highlighted_state, period fade_out = 250ms)
+                : skill<T>{ boss },
                 robo{ boss },
                 fade{ fade_out },
                 c1 { default_state     },
@@ -3575,26 +3602,27 @@ namespace netxs::console
         };
     }
 
-    class host // console: World internals.
+    // console: World internals.
+    class host
         : public base
     {
         using self = host;
 #ifdef DEMO
-        FEATURE(pro::watch, zombi); // host: Zombie protection
-#endif /// DEMO
-        FEATURE(pro::robot, robot); // host: Amination controller
-        FEATURE(pro::keybd, keybd); // host: Keyboard controller
-        FEATURE(pro::mouse, mouse); // host: Mouse controller
-        //FEATURE(pro::focus, focus); // host: Focus controller
-        FEATURE(pro::scene, scene); // host: Scene controller
-        //FEATURE(pro::caret, caret); // host: Cursor controller
+        FEATURE(pro::watch, zombi); // host: Zombie protection.
+#endif // DEMO
+        FEATURE(pro::robot, robot); // host: Amination controller.
+        FEATURE(pro::keybd, keybd); // host: Keyboard controller.
+        FEATURE(pro::mouse, mouse); // host: Mouse controller.
+        //FEATURE(pro::focus, focus); // host: Focus controller.
+        FEATURE(pro::scene, scene); // host: Scene controller.
+        //FEATURE(pro::caret, caret); // host: Cursor controller.
 
         using tick = quartz<reactor, e2::type>;
         using hndl = std::function<void(view)>;
 
-        tick synch; // host: Frame rate synchronizator
-        iota frate; // host: Frame rate value
-        hndl close; // host: Quit procedure
+        tick synch; // host: Frame rate synchronizator.
+        iota frate; // host: Frame rate value.
+        hndl close; // host: Quit procedure.
 
     public:
         // host: Create a new item of the specified subtype and attach it.
@@ -3729,6 +3757,7 @@ namespace netxs::console
         }
     };
 
+    // console: TTY session class.
     class link
     {
         using work = std::thread;
@@ -4309,6 +4338,7 @@ again:
         }
     };
 
+    // console: Bitmap changes analyzer.
     class diff
     {
         using work = std::thread;
@@ -4759,23 +4789,24 @@ again:
         }
     };
 
-    class gate // console: VTM client viewport.
+    // console: VTM client viewport.
+    class gate
         : public form
     {
         using self = gate;
-        FEATURE(pro::keybd, keybd); // gate: Keyboard controller
-        FEATURE(pro::robot, robot); // gate: Animation controller
-        FEATURE(pro::maker, maker); // gate: Form generator
-        //FEATURE(pro::caret, caret); // gate: Cursor controller
-        FEATURE(pro::title, title); // gate: Logo watermark
-        FEATURE(pro::guard, guard); // gate: Watch dog against robots and single Esc detector
-        FEATURE(pro::input, input); // gate: User input event handler
+        FEATURE(pro::keybd, keybd); // gate: Keyboard controller.
+        FEATURE(pro::robot, robot); // gate: Animation controller.
+        FEATURE(pro::maker, maker); // gate: Form generator.
+        //FEATURE(pro::caret, caret); // gate: Cursor controller.
+        FEATURE(pro::title, title); // gate: Logo watermark.
+        FEATURE(pro::guard, guard); // gate: Watch dog against robots and single Esc detector.
+        FEATURE(pro::input, input); // gate: User input event handler.
         #ifdef DEBUG_OVERLAY
-        FEATURE(pro::debug, debug); // gate: Debug telemetry controller
+        FEATURE(pro::debug, debug); // gate: Debug telemetry controller.
         #endif
 
         using pair = std::optional<std::pair<period, iota>>;
-        pair  yield; // gate: Indicator that the current frame has been successfully STDOUT
+        pair  yield; // gate: Indicator that the current frame has been successfully STDOUT.
 
         para uname;
 
@@ -4785,9 +4816,9 @@ again:
         {
             if (auto world = parent.lock())
             {
-                link conio{ *this, media };          // gate: Terminal IO
-                diff paint{ conio, input.freeze() }; // gate: Rendering loop
-                subs token;                          // gate: Subscription tokens array
+                link conio{ *this, media };          // gate: Terminal IO.
+                diff paint{ conio, input.freeze() }; // gate: Rendering loop.
+                subs token;                          // gate: Subscription tokens array.
 
                 // conio events
                 SUBMIT_T(e2::release, e2::term::size, token, newsize)
@@ -4986,7 +5017,7 @@ again:
             //base::renderproc(parent_canvas);
 
             // Draw a shadow of user's terminal window for other users (spectators)
-            // see pro::scene
+            // see pro::scene.
             if (&parent != &canvas)
             {
                 auto area = canvas.area();

@@ -37,12 +37,12 @@ namespace netxs::ui
         auto plugin(Args&&... args)
         {
             plugins.emplace_back(std::make_unique<S<T>>(boss, std::forward<Args>(args)...));
-            return boss.This<T>();
+            return boss.template This<T>();
         }
     };
 
-
-    class mold // controls.h: Flexible window frame.
+    // controls: Flexible window frame.
+    class mold
         : public form
     {
     public:
@@ -552,7 +552,8 @@ namespace netxs::ui
         }
     };
 
-    class fork // controls.h: Splitter control.
+    // controls: Splitter control.
+    class fork
         : public base
     {
         using sptr = netxs::sptr<base>;
@@ -854,7 +855,8 @@ namespace netxs::ui
         }
     };
 
-    class list // controls.h: Vertical/horizontal list control.
+    // controls: Vertical/horizontal list control.
+    class list
         : public base
     {
         using self = list;
@@ -964,7 +966,8 @@ namespace netxs::ui
         }
     };
 
-    class cake // controls.h: (puff) Layered cake of forms on top of each other.
+    // controls: (puff) Layered cake of forms on top of each other.
+    class cake
         : public base
     {
         using sptr = netxs::sptr<base>;
@@ -1091,7 +1094,8 @@ namespace netxs::ui
         void clear() { layout.clear(); }
     };
 
-    class post // controls.h: Rigid text page.
+    // controls: Rigid text page.
+    class post
         : public base,
           public flow
     {
@@ -1193,7 +1197,8 @@ namespace netxs::ui
         }
     };
 
-    class rail // controls.h: Scroller.
+    // controls: Scroller.
+    class rail
         : public base
     {
         using sptr = netxs::sptr<base>;
@@ -1522,7 +1527,7 @@ namespace netxs::ui
         }
     };
 
-    // controls.h: Scroll bar.
+    // controls: Scroll bar.
     template<axis AXIS>
     class grip
         : public base
@@ -1737,11 +1742,11 @@ namespace netxs::ui
                         pager_repeat();
                         gear.dismiss();
 
-                        timer.template actify<activity::pager_first>(REPEAT_DELAY, [&](auto p)
+                        timer.actify(activity::pager_first, REPEAT_DELAY, [&](auto p)
                         {
                             if (pager_repeat())
                             {
-                                timer.template actify<activity::pager_next>(REPEAT_RATE, [&](auto d)
+                                timer.actify(activity::pager_next, REPEAT_RATE, [&](auto d)
                                 {
                                     return pager_repeat(); // Repeat until on_pager
                                 });
@@ -1849,8 +1854,8 @@ namespace netxs::ui
 
                 timer.pacify(activity::mouse_leave);
 
-                if (active)          apply(activity::mouse_hover);
-                else timer.template actify<activity::mouse_leave>(ACTIVE_TIMEOUT, apply);
+                if (active) apply(activity::mouse_hover);
+                else timer.actify(activity::mouse_leave, ACTIVE_TIMEOUT, apply);
             };
             //SUBMIT(e2::release, e2::hids::mouse::move, gear)
             //{
@@ -1900,7 +1905,7 @@ namespace netxs::ui
         }
     };
 
-    // controls.h: Container with margins (outer space) and padding (inner space).
+    // controls: Container with margins (outer space) and padding (inner space).
     class pads
         : public base
         , public pluggable<pads>
@@ -1977,7 +1982,7 @@ public:
         }
     };
 
-    // controls.h: Menu controller.
+    // controls: Menu controller.
     class menu
         : public base
     {

@@ -30,37 +30,37 @@ namespace netxs::console::ansi
     static const char G0SET = '('; // ESC (
     static const char DELIM = ';'; // ESC ;
 
-    static const char CSI_CUU = 'A'; // CSI n      A  — Cursor Up
-    static const char CSI_CUD = 'B'; // CSI n      B  — Cursor Down
-    static const char CSI_CUF = 'C'; // CSI n      C  — Cursor Forward
-    static const char CSI_CUB = 'D'; // CSI n      D  — Cursor Back
-    static const char CSI_CNL = 'E'; // CSI n      E  — Cursor Next Line
-    static const char CSI_CPL = 'F'; // CSI n      F  — Cursor Previous Line
-    static const char CSI_CHX = 'G'; // CSI n      G  — Cursor Horizontal Absolute
-    static const char CSI_CHY = 'd'; // CSI n      d  — Cursor Vertical Absolute
-    static const char CSI_CUP = 'H'; // CSI n ; m  H  — Cursor Position
-    static const char CSI_HVP = 'f'; // CSI n ; m  f  — Horizontal and Vertical Position
-    static const char CSI_SGR = 'm'; // CSI n [;k] m  — Select Graphic Rendition
-    static const char DECSTBM = 'r'; // CSI t ; b  r  — Set scrolling region (t/b: top + bottom)
-    static const char CSI_SCP = 's'; // CSI        s  — Save Cursor Position
-    static const char CSI_RCP = 'u'; // CSI        u  — Restore Cursor Position
-    static const char CSI__EL = 'K'; // CSI n      K  — Erase 0: from cursor to end, 1: from begin to cursor, 2: all line
-    static const char CSI__IL = 'L'; // CSI n      L  — Insert n blank lines
-    static const char CSI__ED = 'J'; // CSI n      J  — Erase 0: from cursor to end of screen, 1: from begin to cursor, 2: all screen
-    static const char CSI__DL = 'M'; // CSI n      M  — Delete n lines
-    static const char CSI_DCH = 'P'; // CSI n      P  — Delete n character(s)
-    static const char CSI__SD = 'T'; // CSI n      T  — Scroll down by n lines, scrolled out lines are lost
-    static const char CSI_WIN = 't'; // CSI n;m;k  t  — XTWINOPS, Terminal window props
-    static const char CSI__SU = 'S'; // CSI n      S  — Scroll   up by n lines, scrolled out lines are lost
+    static const char CSI_CUU = 'A'; // CSI n      A  — Cursor Up.
+    static const char CSI_CUD = 'B'; // CSI n      B  — Cursor Down.
+    static const char CSI_CUF = 'C'; // CSI n      C  — Cursor Forward.
+    static const char CSI_CUB = 'D'; // CSI n      D  — Cursor Back.
+    static const char CSI_CNL = 'E'; // CSI n      E  — Cursor Next Line.
+    static const char CSI_CPL = 'F'; // CSI n      F  — Cursor Previous Line.
+    static const char CSI_CHX = 'G'; // CSI n      G  — Cursor Horizontal Absolute.
+    static const char CSI_CHY = 'd'; // CSI n      d  — Cursor Vertical Absolute.
+    static const char CSI_CUP = 'H'; // CSI n ; m  H  — Cursor Position.
+    static const char CSI_HVP = 'f'; // CSI n ; m  f  — Horizontal and Vertical Position.
+    static const char CSI_SGR = 'm'; // CSI n [;k] m  — Select Graphic Rendition.
+    static const char DECSTBM = 'r'; // CSI t ; b  r  — Set scrolling region (t/b: top + bottom).
+    static const char CSI_SCP = 's'; // CSI        s  — Save Cursor Position.
+    static const char CSI_RCP = 'u'; // CSI        u  — Restore Cursor Position.
+    static const char CSI__EL = 'K'; // CSI n      K  — Erase 0: from cursor to end, 1: from begin to cursor, 2: all line.
+    static const char CSI__IL = 'L'; // CSI n      L  — Insert n blank lines.
+    static const char CSI__ED = 'J'; // CSI n      J  — Erase 0: from cursor to end of screen, 1: from begin to cursor, 2: all screen.
+    static const char CSI__DL = 'M'; // CSI n      M  — Delete n lines.
+    static const char CSI_DCH = 'P'; // CSI n      P  — Delete n character(s).
+    static const char CSI__SD = 'T'; // CSI n      T  — Scroll down by n lines, scrolled out lines are lost.
+    static const char CSI_WIN = 't'; // CSI n;m;k  t  — XTWINOPS, Terminal window props.
+    static const char CSI__SU = 'S'; // CSI n      S  — Scroll   up by n lines, scrolled out lines are lost.
     static const char CSI_ECH = 'X'; // CSI n      X  — Erase n character(s) ? difference with delete ?
-    static const char CSI_ICH = '@'; // CSI n      @  — Insert/wedge n character(s)
-    static const char DECSET  = 'h'; // CSI ? n    h  — DECSET
-    static const char DECRST  = 'l'; // CSI ? n    l  — DECRST
-    static const char CSI_hRM = 'h'; // CSI n      h  — Reset mode (always Replace mode n=4)
-    static const char CSI_lRM = 'l'; // CSI n      l  — Reset mode (always Replace mode n=4)
-    static const char DECSTR  = 'p'; // CSI !      p  — Reset terminal to initial state
-    static const char CSI_CCC = 'p'; // CSI n [; x1; x2; ...; xn ] p — Custom Cursor Command
-    static const char W32_INP = '_'; // CSI EVENT_TYPEn [; x1; x2; ...; xn ] _ — win32-input-mode
+    static const char CSI_ICH = '@'; // CSI n      @  — Insert/wedge n character(s).
+    static const char DECSET  = 'h'; // CSI ? n    h  — DECSET.
+    static const char DECRST  = 'l'; // CSI ? n    l  — DECRST.
+    static const char CSI_hRM = 'h'; // CSI n      h  — Reset mode (always Replace mode n=4).
+    static const char CSI_lRM = 'l'; // CSI n      l  — Reset mode (always Replace mode n=4).
+    static const char DECSTR  = 'p'; // CSI !      p  — Reset terminal to initial state.
+    static const char CSI_CCC = 'p'; // CSI n [; x1; x2; ...; xn ] p — Custom Cursor Command.
+    static const char W32_INP = '_'; // CSI EVENT_TYPEn [; x1; x2; ...; xn ] _ — win32-input-mode.
 
     static const char C0_NUL = '\x00'; // Null                - Originally used to allow gaps to be left on paper tape for edits. Later used for padding after a code that might take a terminal some time to process (e.g. a carriage return or line feed on a printing terminal). Now often used as a string terminator, especially in the programming language C.
     static const char C0_SOH = '\x01'; // Start of Heading    - First character of a message header. In Hadoop, it is often used as a field separator.
@@ -91,24 +91,24 @@ namespace netxs::console::ansi
     static const char C0_SUB = '\x1A'; // Substitute          - Originally intended for use as a transmission control character to indicate that garbled or invalid characters had been received. It has often been put to use for other purposes when the in-band signaling of errors it provides is unneeded, especially where robust methods of error detection and correction are used, or where errors are expected to be rare enough to make using the character for other purposes advisable. In DOS, Windows and other CP/M derivatives, it is used to indicate the end of file, both when typing on the terminal, and sometimes in text files stored on disk.
     static const char C0_ESC = '\x1B'; // Escape          \e  - The Esc key on the keyboard will cause this character to be sent on most systems. It can be used in software user interfaces to exit from a screen, menu, or mode, or in device-control protocols (e.g., printers and terminals) to signal that what follows is a special command sequence rather than normal text. In systems based on ISO/IEC 2022, even if another set of C0 control codes are used, this octet is required to always represent the escape character.
     static const char C0_FS  = '\x1C'; // File Separator      - Can be used as delimiters to mark fields of data structures. If used for hierarchical levels, US is the lowest level (dividing plain-text data items), while RS, GS, and FS are of increasing level to divide groups made up of items of the level beneath it.
-    static const char C0_GS  = '\x1D'; // Group Separator
-    static const char C0_RS  = '\x1E'; // Record Separator
-    static const char C0_US  = '\x1F'; // Unit Separator
+    static const char C0_GS  = '\x1D'; // Group Separator.
+    static const char C0_RS  = '\x1E'; // Record Separator.
+    static const char C0_US  = '\x1F'; // Unit Separator.
 
-    static const iota W32_START_EVENT = 10000; // for quick recognition
+    static const iota W32_START_EVENT = 10000; // for quick recognition.
     static const iota W32_KEYBD_EVENT = 10001;
     static const iota W32_MOUSE_EVENT = 10002;
     static const iota W32_WINSZ_EVENT = 10003;
     static const iota W32_FOCUS_EVENT = 10004;
-    static const iota W32_FINAL_EVENT = 10005; // for quick recognition
+    static const iota W32_FINAL_EVENT = 10005; // for quick recognition.
 
-    static const auto OSC_LABEL_TITLE  = "0" ; // Set icon label and title
-    static const auto OSC_LABEL        = "1" ; // Set icon label
-    static const auto OSC_TITLE        = "2" ; // Set title
-    static const auto OSC_XPROP        = "3" ; // Set xprop
-    static const auto OSC_CLIPBRD      = "52"; // Set clipboard
-    static const auto OSC_TITLE_REPORT = "l" ; // Get terminal window title
-    static const auto OSC_LABEL_REPORT = "L" ; // Get terminal window icon label
+    static const auto OSC_LABEL_TITLE  = "0" ; // Set icon label and title.
+    static const auto OSC_LABEL        = "1" ; // Set icon label.
+    static const auto OSC_TITLE        = "2" ; // Set title.
+    static const auto OSC_XPROP        = "3" ; // Set xprop.
+    static const auto OSC_CLIPBRD      = "52"; // Set clipboard.
+    static const auto OSC_TITLE_REPORT = "l" ; // Get terminal window title.
+    static const auto OSC_LABEL_REPORT = "L" ; // Get terminal window icon label.
 
     static const iota SGR_RST       = 0;
     static const iota SGR_SAV       = 10;
@@ -162,38 +162,39 @@ namespace netxs::console::ansi
     static const iota SGR_BG_CYN_LT = 106;
     static const iota SGR_BG_WHT_LT = 107;
 
-    static const iota CCC_NOP    = 0  ; // CSI             p  - no operation
-    static const iota CCC_RST    = 1  ; // CSI 1           p  - reset to zero all params (zz)
-    static const iota CCC_CPP    = 2  ; // CSI 2 : x [: y] p  - cursor percent position
-    static const iota CCC_CPX    = 3  ; // CSI 3 : x       p  - cursor H percent position
-    static const iota CCC_CPY    = 4  ; // CSI 4 : y       p  - cursor V percent position
-    static const iota CCC_TBS    = 5  ; // CSI 5 : n       p  - tab step length
-    static const iota CCC_MGN    = 6  ; // CSI 6 : l:r:t:b p  - margin left, right, top, bottom
+    static const iota CCC_NOP    = 0  ; // CSI             p  - no operation.
+    static const iota CCC_RST    = 1  ; // CSI 1           p  - reset to zero all params (zz).
+    static const iota CCC_CPP    = 2  ; // CSI 2 : x [: y] p  - cursor percent position.
+    static const iota CCC_CPX    = 3  ; // CSI 3 : x       p  - cursor H percent position.
+    static const iota CCC_CPY    = 4  ; // CSI 4 : y       p  - cursor V percent position.
+    static const iota CCC_TBS    = 5  ; // CSI 5 : n       p  - tab step length.
+    static const iota CCC_MGN    = 6  ; // CSI 6 : l:r:t:b p  - margin left, right, top, bottom.
     static const iota CCC_MGL    = 7  ; // CSI 7 : n       p  - margin left   ╮
-    static const iota CCC_MGR    = 8  ; // CSI 8 : n       p  - margin right  │ positive - native binding
-    static const iota CCC_MGT    = 9  ; // CSI 9 : n       p  - margin top    │ negative - oppisite binding
+    static const iota CCC_MGR    = 8  ; // CSI 8 : n       p  - margin right  │ positive - native binding.
+    static const iota CCC_MGT    = 9  ; // CSI 9 : n       p  - margin top    │ negative - oppisite binding.
     static const iota CCC_MGB    = 10 ; // CSI 10: n       p  - margin bottom ╯
 
-    static const iota CCC_JET    = 11 ; // CSI 11: n       p  - text alignment (bias)
-    static const iota CCC_WRP    = 12 ; // CSI 12: n       p  - text wrapping none/on/off
-    static const iota CCC_RTL    = 13 ; // CSI 13: n       p  - text right-to-left none/on/off
-    static const iota CCC_RLF    = 14 ; // CSI 14: n       p  - reverse line feed none/on/off
+    static const iota CCC_JET    = 11 ; // CSI 11: n       p  - text alignment (bias).
+    static const iota CCC_WRP    = 12 ; // CSI 12: n       p  - text wrapping none/on/off.
+    static const iota CCC_RTL    = 13 ; // CSI 13: n       p  - text right-to-left none/on/off.
+    static const iota CCC_RLF    = 14 ; // CSI 14: n       p  - reverse line feed none/on/off.
 
-    static const iota CCC_JET_or = 15 ; // CSI 15: n       p  - set text alignment (bias) if it is not set
-    static const iota CCC_WRP_or = 16 ; // CSI 16: n       p  - set text wrapping none/on/off if it is not set
-    static const iota CCC_RTL_or = 17 ; // CSI 17: n       p  - set text right-to-left none/on/off if it is not set
-    static const iota CCC_RLF_or = 18 ; // CSI 18: n       p  - set reverse line feed none/on/off if it is not set
+    static const iota CCC_JET_or = 15 ; // CSI 15: n       p  - set text alignment (bias) if it is not set.
+    static const iota CCC_WRP_or = 16 ; // CSI 16: n       p  - set text wrapping none/on/off if it is not set.
+    static const iota CCC_RTL_or = 17 ; // CSI 17: n       p  - set text right-to-left none/on/off if it is not set.
+    static const iota CCC_RLF_or = 18 ; // CSI 18: n       p  - set reverse line feed none/on/off if it is not set.
 
-    static const iota CCC_IDX    = 19 ; // CSI 19: id      p  - Split the text run and associate the fragment with an id
-    static const iota CCC_CUP    = 20 ; // CSI 20: x [: y] p  - cursor absolute position 0-based
-    static const iota CCC_CHX    = 21 ; // CSI 21: x       p  - cursor H absolute position 0-based
-    static const iota CCC_CHY    = 22 ; // CSI 22: y       p  - cursor V absolute position 0-based
-    static const iota CCC_REF    = 23 ; // CSI 23: id      p  - create the reference to the existing paragraph
-    static const iota CCC_SBS    = 24 ; // CSI 24: n: m    p  - define scrollback size: n: max size, m: grow_by step
-    //static const iota CCC_WIN = 20 ; // CSI 20: x: y    p    terminal window resize
+    static const iota CCC_IDX    = 19 ; // CSI 19: id      p  - Split the text run and associate the fragment with an id.
+    static const iota CCC_CUP    = 20 ; // CSI 20: x [: y] p  - cursor absolute position 0-based.
+    static const iota CCC_CHX    = 21 ; // CSI 21: x       p  - cursor H absolute position 0-based.
+    static const iota CCC_CHY    = 22 ; // CSI 22: y       p  - cursor V absolute position 0-based.
+    static const iota CCC_REF    = 23 ; // CSI 23: id      p  - create the reference to the existing paragraph.
+    static const iota CCC_SBS    = 24 ; // CSI 24: n: m    p  - define scrollback size: n: max size, m: grow_by step.
+    //static const iota CCC_WIN = 20 ; // CSI 20: x: y    p    terminal window resize.
 
+    // ansi: Escaped sequences accumulator.
     struct esc
-        : public text // ansi: Escaped sequences accumulator.
+        : public text
     {
         inline text str(iota n) { return std::to_string(n); }
         inline text str(char n) { return text(1, n); }
@@ -236,7 +237,7 @@ namespace netxs::console::ansi
             else push_back(W32_INP);
             return *this;
         }
-        // ansi: win32-input-mode sequence (keyboard)
+        // ansi: win32-input-mode sequence (keyboard).
         esc& w32keybd (iota id, iota kc, iota sc, iota kd, iota ks, iota rc, iota uc)
         {
             add(str(ansi::W32_KEYBD_EVENT) + ":"
@@ -249,7 +250,7 @@ namespace netxs::console::ansi
               + str(uc) + ";");
             return *this;
         }
-        // ansi: win32-input-mode sequence (mouse)
+        // ansi: win32-input-mode sequence (mouse).
         esc& w32mouse (iota id, iota bttns, iota ctrls, iota flags, iota wheel, iota xcoor, iota ycoor)
         {
             add(str(ansi::W32_MOUSE_EVENT) + ":"
@@ -262,7 +263,7 @@ namespace netxs::console::ansi
               + str(ycoor) + ";");
             return *this;
         }
-        // ansi: win32-input-mode sequence (focus)
+        // ansi: win32-input-mode sequence (focus).
         esc& w32focus (iota id, iota focus)
         {
             add(str(ansi::W32_FOCUS_EVENT) + ":"
@@ -270,7 +271,7 @@ namespace netxs::console::ansi
               + str(focus) + ";");
             return *this;
         }
-        // ansi: win32-input-mode sequence (window resize)
+        // ansi: win32-input-mode sequence (window resize).
         esc& w32winsz (twod size)
         {
             add(str(ansi::W32_WINSZ_EVENT) + ":"
@@ -462,30 +463,30 @@ namespace netxs::console::ansi
     // todo tie with richtext::flow::exec
     enum fn : iota
     {
-        dx, // horizontal delta
-        dy, // vertical delta
-        ax, // x absolute (0-based)
-        ay, // y absolute (0-based)
-        ox, // old format x absolute (1-based)
-        oy, // old format y absolute (1-based)
-        px, // x percent
-        py, // y percent
-        //ts, // set tab size
-        tb, // tab forward
-        nl, // next line and reset x to west (carriage return)
-        //br, // text wrap mode (DECSET: CSI ? 7 h/l Auto-wrap Mode (DECAWM) or CSI ? 45 h/l reverse wrap around mode)
-        //yx, // bidi
-        //hz, // text horizontal alignment
-        //rf, // reverse (line) feed
+        dx, // horizontal delta.
+        dy, // vertical delta.
+        ax, // x absolute (0-based).
+        ay, // y absolute (0-based).
+        ox, // old format x absolute (1-based).
+        oy, // old format y absolute (1-based).
+        px, // x percent.
+        py, // y percent.
+        //ts, // set tab size.
+        tb, // tab forward.
+        nl, // next line and reset x to west (carriage return).
+        //br, // text wrap mode (DECSET: CSI ? 7 h/l Auto-wrap Mode (DECAWM) or CSI ? 45 h/l reverse wrap around mode).
+        //yx, // bidi.
+        //hz, // text horizontal alignment.
+        //rf, // reverse (line) feed.
 
-        //wl, // set left	horizontal wrapping field
-        //wr, // set right	horizontal wrapping field
-        //wt, // set top		vertical wrapping field
-        //wb, // set bottom	vertical wrapping field
+        //wl, // set left	horizontal wrapping field.
+        //wr, // set right	horizontal wrapping field.
+        //wt, // set top		vertical wrapping field.
+        //wb, // set bottom	vertical wrapping field.
 
-        sc, // save cursor position
-        rc, // load cursor position
-        zz, // all params reset to zero
+        sc, // save cursor position.
+        rc, // load cursor position.
+        zz, // all params reset to zero.
 
         // ansi: Paint instructions. The order is important (see the mill).
         // CSI Ps J  Erase in Display (ED), VT100.
@@ -502,7 +503,8 @@ namespace netxs::console::ansi
         fn_count
     };
 
-    struct rule	// ansi: Cursor control sequence: one command with one argument.
+    // ansi: Cursor control sequence: one command with one argument.
+    struct rule
     {
         iota cmd;
         iota arg;
@@ -510,8 +512,8 @@ namespace netxs::console::ansi
     struct mark
         : public cell
     {
-        cell spare; // mark: Stored  brush
-        cell fresh; // mark: Initial brush
+        cell spare; // mark: Stored  brush.
+        cell fresh; // mark: Initial brush.
         mark() = default;
         mark(cell const& brush)
             : cell { brush },
@@ -520,40 +522,40 @@ namespace netxs::console::ansi
         { }
         void reset()              { *this = fresh; }
         void reset(cell const& c) { *this = fresh = c; }
-        auto busy() const         { return  fresh != *this; } // mark: Is the marker modified
-        void  sav()               { spare.set(*this);       } // mark: Save current SGR attributes
-        void  nil()               { this->set(spare);       } // mark: Restore saved SGR attributes
-        void  rfg()               { this->fgc(spare.fgc()); } // mark: Reset SGR Foreground color
-        void  rbg()               { this->bgc(spare.bgc()); } // mark: Reset SGR Background color
+        auto busy() const         { return  fresh != *this; } // mark: Is the marker modified.
+        void  sav()               { spare.set(*this);       } // mark: Save current SGR attributes.
+        void  nil()               { this->set(spare);       } // mark: Restore saved SGR attributes.
+        void  rfg()               { this->fgc(spare.fgc()); } // mark: Reset SGR Foreground color.
+        void  rbg()               { this->bgc(spare.bgc()); } // mark: Reset SGR Background color.
     };
     struct deco
     {
         static constexpr iota maxtab = 256; // deco: Tab length limit.
-        iota adjust = bias::none; // deco: Horizontal alignment
-        iota wrapln = wrap::none; // deco: Auto wrapping
-        iota r_to_l = rtol::none; // deco: RTL
-        iota rlfeed = feed::none; // deco: Reverse line feed
-        iota tablen = 0;          // deco: Tab length
-        dent margin;              // deco: Page margins
+        iota adjust = bias::none; // deco: Horizontal alignment.
+        iota wrapln = wrap::none; // deco: Auto wrapping.
+        iota r_to_l = rtol::none; // deco: RTL.
+        iota rlfeed = feed::none; // deco: Reverse line feed.
+        iota tablen = 0;          // deco: Tab length.
+        dent margin;              // deco: Page margins.
 
-        auto& wrp(bool  b) { wrapln = b ? wrap::on  : wrap::off;  return *this; } // deco: Set auto wrapping
-        auto& rtl(bool  b) { r_to_l = b ? rtol::rtl : rtol::ltr;  return *this; } // deco: Set RTL
-        auto& rlf(bool  b) { rlfeed = b ? feed::rev : feed::fwd;  return *this; } // deco: Set revverse line feed
-        auto& jet(iota  n = bias::none)        { adjust = n;      return *this; } // deco: Paragraph adjustment
-        auto& wrp(iota  n = wrap::none)        { wrapln = n;      return *this; } // deco: Auto wrapping
-        auto& rtl(iota  n = rtol::none)        { r_to_l = n;      return *this; } // deco: RTL
-        auto& rlf(iota  n = feed::none)        { rlfeed = n;      return *this; } // deco: Reverse line feed
-        auto& jet_or(iota  n)     { if (!adjust) adjust = n;      return *this; } // deco: Paragraph adjustment
-        auto& wrp_or(iota  n)     { if (!wrapln) wrapln = n;      return *this; } // deco: Auto wrapping
-        auto& rtl_or(iota  n)     { if (!r_to_l) r_to_l = n;      return *this; } // deco: RTL
-        auto& rlf_or(iota  n)     { if (!rlfeed) rlfeed = n;      return *this; } // deco: Reverse line feed
-        auto& tbs(iota  n = 0)                 { tablen = std::min(n, maxtab); return *this; } // deco: fx_ccc_tbs
-        auto& mgl(iota  n = 0)                 { margin.west = n; return *this; } // deco: fx_ccc_mgl
-        auto& mgr(iota  n = 0)                 { margin.east = n; return *this; } // deco: fx_ccc_mgr
-        auto& mgt(iota  n = 0)                 { margin.head = n; return *this; } // deco: fx_ccc_mgt
-        auto& mgb(iota  n = 0)                 { margin.foot = n; return *this; } // deco: fx_ccc_mgb
-        auto& mgn(fifo& q)                     { margin.set(q);   return *this; } // deco: fx_ccc_mgn
-        auto& rst()  // deco: Reset to none
+        auto& wrp(bool  b) { wrapln = b ? wrap::on  : wrap::off;  return *this; } // deco: Set auto wrapping.
+        auto& rtl(bool  b) { r_to_l = b ? rtol::rtl : rtol::ltr;  return *this; } // deco: Set RTL.
+        auto& rlf(bool  b) { rlfeed = b ? feed::rev : feed::fwd;  return *this; } // deco: Set revverse line feed.
+        auto& jet(iota  n = bias::none)        { adjust = n;      return *this; } // deco: Paragraph adjustment.
+        auto& wrp(iota  n = wrap::none)        { wrapln = n;      return *this; } // deco: Auto wrapping.
+        auto& rtl(iota  n = rtol::none)        { r_to_l = n;      return *this; } // deco: RTL.
+        auto& rlf(iota  n = feed::none)        { rlfeed = n;      return *this; } // deco: Reverse line feed.
+        auto& jet_or(iota  n)     { if (!adjust) adjust = n;      return *this; } // deco: Paragraph adjustment.
+        auto& wrp_or(iota  n)     { if (!wrapln) wrapln = n;      return *this; } // deco: Auto wrapping.
+        auto& rtl_or(iota  n)     { if (!r_to_l) r_to_l = n;      return *this; } // deco: RTL.
+        auto& rlf_or(iota  n)     { if (!rlfeed) rlfeed = n;      return *this; } // deco: Reverse line feed.
+        auto& tbs(iota  n = 0)                 { tablen = std::min(n, maxtab); return *this; } // deco: fx_ccc_tbs.
+        auto& mgl(iota  n = 0)                 { margin.west = n; return *this; } // deco: fx_ccc_mgl.
+        auto& mgr(iota  n = 0)                 { margin.east = n; return *this; } // deco: fx_ccc_mgr.
+        auto& mgt(iota  n = 0)                 { margin.head = n; return *this; } // deco: fx_ccc_mgt.
+        auto& mgb(iota  n = 0)                 { margin.foot = n; return *this; } // deco: fx_ccc_mgb.
+        auto& mgn(fifo& q)                     { margin.set(q);   return *this; } // deco: fx_ccc_mgn.
+        auto& rst()  // deco: Reset to none.
         {
             adjust = bias::none;
             wrapln = wrap::none;
@@ -563,7 +565,7 @@ namespace netxs::console::ansi
             margin.reset();
             return *this;
         }
-        auto& glb()  // deco: Reset to default
+        auto& glb()  // deco: Reset to default.
         {
             adjust = bias::left;
             wrapln = wrap::on;
@@ -573,7 +575,7 @@ namespace netxs::console::ansi
             margin.reset();
             return *this;
         }
-        auto& set(deco const& l)  // deco: Copy
+        auto& set(deco const& l)  // deco: Copy.
         {
             adjust = l.adjust;
             wrapln = l.wrapln;
@@ -604,26 +606,26 @@ namespace netxs::console::ansi
         {
            /* Contract for client p
             * Unicode
-            * - void post(utf::frag const& cluster); // Proceed grapheme cluster
-            * - void task(ansi::rule const& cmd);    // Proceed curses command
-            * - void cook();                         // Finalize paragraph
+            * - void post(utf::frag const& cluster); // Proceed grapheme cluster.
+            * - void task(ansi::rule const& cmd);    // Proceed curses command.
+            * - void cook();                         // Finalize paragraph.
             * SGR:
-            * - void nil();                          // Reset all SGR to default
-            * - void sav();                          // Set current SGR as default
-            * - void rfg();                          // Reset foreground color to default
-            * - void rbg();                          // Reset background color to default
-            * - void fgc(rgba const& c);             // Set foreground color
-            * - void bgc(rgba const& c);             // Set background color
-            * - void bld(bool b);                    // Set bold attribute
-            * - void itc(bool b);                    // Set italic attribute
-            * - void inv(bool b);                    // Set inverse attribute
-            * - void stk(bool b);                    // Set strikethgh attribute
-            * - void und(bool b);                    // Set underline attribute
-            * - void dnl(bool b);                    // Set double underline attribute
-            * - void ovr(bool b);                    // Set overline attribute
-            * - void wrp(bool b);                    // Set auto wrap
-            * - void jet(iota b);                    // Set adjustment
-            * - void rtl(bool b);                    // Set reverse line feed
+            * - void nil();                          // Reset all SGR to default.
+            * - void sav();                          // Set current SGR as default.
+            * - void rfg();                          // Reset foreground color to default.
+            * - void rbg();                          // Reset background color to default.
+            * - void fgc(rgba const& c);             // Set foreground color.
+            * - void bgc(rgba const& c);             // Set background color.
+            * - void bld(bool b);                    // Set bold attribute.
+            * - void itc(bool b);                    // Set italic attribute.
+            * - void inv(bool b);                    // Set inverse attribute.
+            * - void stk(bool b);                    // Set strikethgh attribute.
+            * - void und(bool b);                    // Set underline attribute.
+            * - void dnl(bool b);                    // Set double underline attribute.
+            * - void ovr(bool b);                    // Set overline attribute.
+            * - void wrp(bool b);                    // Set auto wrap.
+            * - void jet(iota b);                    // Set adjustment.
+            * - void rtl(bool b);                    // Set reverse line feed.
             */
             #define F(t, q) p->task(rule{ fn::t, q })
 
@@ -799,7 +801,7 @@ namespace netxs::console::ansi
             auto s = [&](auto& traits, auto& utf8)
             {
                 qiew queue{ utf8 };
-                intro.execute(traits.control, queue, client); // Make one iteration using firstcmd and return
+                intro.execute(traits.control, queue, client); // Make one iteration using firstcmd and return.
                 return queue;
             };
             auto y = [&](auto& cluster) { client->post(cluster); };
@@ -815,7 +817,7 @@ namespace netxs::console::ansi
         }
 
     private:
-        // Control Sequence Introducer (CSI) parser
+        // Control Sequence Introducer (CSI) parser.
         static void xcsi (qiew& ascii, T*& client)
         {
             // Take the control sequence from the string until CSI (cmd >= 0x40 && cmd <= 0x7E) command occured
@@ -845,7 +847,7 @@ namespace netxs::console::ansi
                             push(param.value());
                             if  (ascii.empty()) break;
                         }
-                        else push(0); // default zero parameter expressed by the standalone delimiter/semicolon
+                        else push(0); // default zero parameter expressed by the standalone delimiter/semicolon.
 
                         a = ascii.front(); // delimiter or cmd after number
                         ascii.pop_front();
@@ -863,7 +865,7 @@ namespace netxs::console::ansi
 
                 if (nums(c))
                 {
-                    fifo queue{ CCC_NOP }; // Reserve for the command type
+                    fifo queue{ CCC_NOP }; // Reserve for the command type.
                     fill(queue);
                     csier.proceed(queue, client);
                 }
@@ -873,7 +875,7 @@ namespace netxs::console::ansi
                     if (cmds(c)) { csier.proceed(c, client); }
                     else
                     {	// Intermediate characters (?>#=!) should always come first (before params).
-                        fifo queue{ CCC_NOP }; // Placeholder for the command type
+                        fifo queue{ CCC_NOP }; // Placeholder for the command type.
                         fill(queue);
                         if      (c == '?') csier.proceed_quest (queue, client);
                         else if (c == '>') csier.proceed_gt    (queue, client);
@@ -885,7 +887,7 @@ namespace netxs::console::ansi
             }
         }
 
-        // Operating System Command (OSC) parser
+        // Operating System Command (OSC) parser.
         static void xosc (qiew& ascii, T*& client)
         {
             // Take the string until ST (='\e\\'='ESC\' aka String Terminator) or BEL (='\x07')
@@ -923,7 +925,7 @@ namespace netxs::console::ansi
                         auto proc = (*it).second;
                         proc(data, client);
                     }
-                    ascii.remove_prefix(head - base + pad); // Take the text and BEL or ST too
+                    ascii.remove_prefix(head - base + pad); // Take the text and BEL or ST too.
                 };
 
                 while (head != tail)
@@ -935,7 +937,7 @@ namespace netxs::console::ansi
                         while (head != tail)
                         {
                             unsigned char c = *head;
-                            if (c <= C0_ESC) // To avoid double comparing
+                            if (c <= C0_ESC) // To avoid double comparing.
                             {
                                 if (c == C0_BEL)
                                 {
@@ -954,15 +956,15 @@ namespace netxs::console::ansi
                             }
                             ++head;
                         }
-                        return; // Drop bcuz no ST in the sequence
+                        return; // Drop bcuz no ST in the sequence.
                     }
-                    else if (c == C0_BEL) return; // Drop bcuz no ';' in the sequence
+                    else if (c == C0_BEL) return; // Drop bcuz no ';' in the sequence.
                     else if (c == C0_ESC)
                     {
                         auto next = std::next(head);
                         if (next != tail && *next == '\\')
                         {
-                            return; // Drop bcuz no ';' in the sequence
+                            return; // Drop bcuz no ';' in the sequence.
                         }
                     }
                     ++head;
@@ -970,7 +972,7 @@ namespace netxs::console::ansi
             }
         }
 
-        // Set keypad mode
+        // Set keypad mode.
         static void keym (qiew& ascii, T*& p)
         {
             // Keypad mode	Application ESC =
@@ -983,7 +985,7 @@ namespace netxs::console::ansi
             //}
         }
 
-        // Designate G0 Character Set
+        // Designate G0 Character Set.
         static void g0__ (qiew& ascii, T*& p)
         {
             // ESC ( C
@@ -998,7 +1000,7 @@ namespace netxs::console::ansi
     };
 
     //todo should we parse these controls as a C0-like?
-    //     split paragraphs when flow direction changes, for example
+    //     split paragraphs when flow direction changes, for example.
     template<class CELL>
     struct marker
     {
@@ -1018,7 +1020,8 @@ namespace netxs::console::ansi
         }
     };
 
-    struct writ // ansi: Cursor manipulation command list.
+    // ansi: Cursor manipulation command list.
+    struct writ
         : public std::list<ansi::rule>
     {
         using list = std::list<ansi::rule>;

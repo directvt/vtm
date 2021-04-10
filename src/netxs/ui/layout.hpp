@@ -462,8 +462,8 @@ namespace netxs::ui
                 unsigned char jumbo : 1;                  // grapheme cluster length overflow bit
             };
 
-            // there is no need to reset/clear/flush the map because
-            // count of different grapheme clusters is finite
+            // There is no need to reset/clear/flush the map because
+            // count of different grapheme clusters is finite.
             static constexpr size_t         limit = sizeof(uint64_t);
             static std::hash<view>          coder;
             static text                     empty;
@@ -581,12 +581,12 @@ namespace netxs::ui
         };
         union body
         {
-            // there are no applicable rich text formatting attributes due to their gradual nature
+            // There are no applicable rich text formatting attributes due to their gradual nature
             // e.g.: the degree of thickness or italiciety/oblique varies from 0 to 255, etc.,
-            // and should not be represented as a flag
+            // and should not be represented as a flag.
             //
             // In Chinese, the underline/underscore is a punctuation mark for proper names
-            // and should never be used for emphasis
+            // and should never be used for emphasis.
             //
             // weigth := 0..255
             // italic := 0..255
@@ -718,7 +718,7 @@ namespace netxs::ui
         struct clrs
         {
             // Concept of using default colors:
-            //  if alpha is set to zero, then underlaid color should be used
+            //  if alpha is set to zero, then underlaid color should be used.
 
             rgba bg;
             rgba fg;
@@ -762,12 +762,12 @@ namespace netxs::ui
             }
         };
 
-        clrs       uv;     // 8U, cell: RGBA color
-        glyf<void> gc;     // 8U, cell: Grapheme cluster
-        body       st;     // 4U, cell: Style attributes
-        id_t       id = 0; // 4U, cell: Link ID
-        id_t       rsrvd0; // 4U, cell: pad, the size should be a power of 2
-        id_t       rsrvd1; // 4U, cell: pad, the size should be a power of 2
+        clrs       uv;     // 8U, cell: RGBA color.
+        glyf<void> gc;     // 8U, cell: Grapheme cluster.
+        body       st;     // 4U, cell: Style attributes.
+        id_t       id = 0; // 4U, cell: Link ID.
+        id_t       rsrvd0; // 4U, cell: pad, the size should be a power of 2.
+        id_t       rsrvd1; // 4U, cell: pad, the size should be a power of 2.
 
     public:
         cell() = default;
@@ -1053,7 +1053,7 @@ namespace netxs::ui
         }
     };
 
-    // Extern link statics
+    // Extern link statics.
     template<class T> std::hash<view>          cell::glyf<T>::coder;
     template<class T> text                     cell::glyf<T>::empty;
     template<class T> std::map<uint64_t, text> cell::glyf<T>::jumbo;
@@ -1327,7 +1327,7 @@ namespace netxs::ui
         auto height() const { return b - t; }
         // side: Return width.
         auto width() const { return r - l; }
-        // side: Textify
+        // side: Textify.
         auto str() const
         {
             return "{ l:" + std::to_string(l) + " r: " + std::to_string(r) +

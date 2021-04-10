@@ -10,8 +10,8 @@ namespace netxs
 {
     class random
     {
-        std::random_device rd;  // only used once to initialize (seed) engine
-        std::mt19937       rng; // random=number engine used (Mersenne=Twister in this case)
+        std::random_device rd;  // Only used once to initialize (seed) engine.
+        std::mt19937       rng; // random=number engine used (Mersenne=Twister in this case).
 
     public:
         template<class T>

@@ -15,9 +15,9 @@ namespace netxs::os
     inline bool same_path (view path, view same);
     inline bool make_link (view path, view link);
     inline bool copy_file (view file, view copy);
-    // It's the same as a path in case of c++17
-    // Rename overites always
-    // Rename fails if new_p names a non - existing directory ending with a directory separator
+    // It's the same as a path in case of c++17.
+    // Rename overites always.
+    // Rename fails if new_p names a non - existing directory ending with a directory separator.
     inline bool move_file (view file, view move);
     inline bool kill_path (view path);
     inline bool test_path (view path);

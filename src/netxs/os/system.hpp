@@ -5,7 +5,7 @@
 #define NETXS_SYSTEM_HPP
 
 #ifndef VTM_USE_CLASSICAL_WIN32_INPUT
-#define VTM_USE_CLASSICAL_WIN32_INPUT // Turns on classical console win32 input mode
+#define VTM_USE_CLASSICAL_WIN32_INPUT // Turns on classical console win32 input mode.
 #endif
 
 #if defined(_WIN32)
@@ -458,7 +458,7 @@ namespace netxs::os
 
         if (pid == 0)
         { // CHILD
-            ::setsid(); // Make this process the session leader of a new session
+            ::setsid(); // Make this process the session leader of a new session.
 
             pid = ::fork();
             if (pid < 0)
@@ -471,7 +471,7 @@ namespace netxs::os
 
                 umask(0);
 
-                // Open system logs for the child process
+                // Open system logs for the child process.
                 start_log(srv_name);
                 //::openlog(srv_name.data(), LOG_NOWAIT | LOG_PID, LOG_USER);
 
@@ -483,15 +483,15 @@ namespace netxs::os
                 return true;
             }
 
-            os::exit(0); // SUCCESS (This child is reaped below with waitpid())
+            os::exit(0); // SUCCESS (This child is reaped below with waitpid()).
         }
 
-        // Reap the child, leaving the grandchild to be inherited by init
+        // Reap the child, leaving the grandchild to be inherited by init.
         int Stat;
         ::waitpid(pid, &Stat, 0);
         if (WIFEXITED(Stat) && (WEXITSTATUS(Stat) == 0))
         {
-            os::exit(0); // Child forked and exited successfully
+            os::exit(0); // Child forked and exited successfully.
         }
         else
         {
@@ -1742,11 +1742,11 @@ namespace netxs::os
                 if constexpr (ROLE == role::server)
                 {
                     #if defined(__APPLE__)
-                    // cleanup file system socket
+                    // cleanup file system socket.
                     ::unlink(path.c_str());
                     #endif
 
-                    // For unlink on exit (file system socket)
+                    // For unlink on exit (file system socket).
                     sock_ptr->path = path;
 
                     if (::bind(sock, (struct sockaddr*)&addr, sizeof(addr)) == -1)
@@ -1940,7 +1940,7 @@ namespace netxs::os
             // the input codepage to UTF-8 is severely
             //          broken in all Windows versions
             //          ReadFile and ReadConsoleA either replace
-            //          non-ASCII characters with NUL or return 0 bytes read
+            //          non-ASCII characters with NUL or return 0 bytes read.
             std::vector<INPUT_RECORD> reply(1);
             DWORD                     count;
             HANDLE                    waits[2] = { input, reset };
@@ -2055,7 +2055,7 @@ namespace netxs::os
                                     break;
                                 case MOUSE_EVENT:
                                     break;
-                                case WINDOW_BUFFER_SIZE_EVENT: // Valid only for alt buffer
+                                case WINDOW_BUFFER_SIZE_EVENT: // Valid only for alt buffer.
                                     yield += console::ansi::win({
                                         reply.Event.WindowBufferSizeEvent.dwSize.X,
                                         reply.Event.WindowBufferSizeEvent.dwSize.Y });
@@ -2073,7 +2073,7 @@ namespace netxs::os
                         {
                             CONSOLE_READCONSOLE_CONTROL state = { sizeof(state) };
 
-                            ReadConsoleW( // Auto flushed after reading
+                            ReadConsoleW( // Auto flushed after reading.
                                 input,
                                 slide.data(),
                                 (DWORD)slide.size(),
@@ -2109,7 +2109,7 @@ namespace netxs::os
 
             #elif defined(__linux__) || defined(__APPLE__)
 
-                in_fd.fire(); // Unblock reading thread
+                in_fd.fire(); // Unblock reading thread.
 
             #endif
         }
@@ -2209,7 +2209,7 @@ namespace netxs::os
                 };
                 SetConsoleCtrlHandler(ctrlHandler, TRUE);
 
-                // Get current terminal window size
+                // Get current terminal window size.
                 ansi::esc yield;
                 winsz(get_size());
                 yield.w32begin();
@@ -2223,16 +2223,16 @@ namespace netxs::os
                 auto& sig_hndl = _globals<void>::signal_handler;
                 auto& def_mode = _globals<void>::default_mode;
 
-                if (ok(::tcgetattr(0, &cur_mode))) // Set stdin raw mode
+                if (ok(::tcgetattr(0, &cur_mode))) // Set stdin raw mode.
                 {
                     ::termios raw_mode = cur_mode;
                     ::cfmakeraw(&raw_mode);
                     if (ok(::tcsetattr(0, TCSANOW, &raw_mode)))
                         ok(::atexit(def_mode));
                 }
-                ok(::signal(SIGPIPE,  SIG_IGN )); // Disable sigpipe
-                ok(::signal(SIGWINCH, sig_hndl)); // Set resize handler
-                ok(::raise (SIGWINCH));           // Get current terminal window size
+                ok(::signal(SIGPIPE,  SIG_IGN )); // Disable sigpipe.
+                ok(::signal(SIGWINCH, sig_hndl)); // Set resize handler.
+                ok(::raise (SIGWINCH));           // Get current terminal window size.
 
             #endif
         }
@@ -2244,7 +2244,7 @@ namespace netxs::os
             while (output(sock.recv()))
             { }
 
-            stop(); // Unblock reading thread
+            stop(); // Unblock reading thread.
 
             if (input.joinable())
                 input.join();
@@ -2301,7 +2301,7 @@ namespace netxs::os
         text        stdin_text;
         text        ready_text;
         std::thread std_input;
-        bool        alive; // cons: read input loop state.
+        bool        alive; // cons: Read input loop state.
 
         //todo may be a list of functions?
         std::function<void(view)> receiver;
@@ -2424,7 +2424,7 @@ namespace netxs::os
                     if (::ioctl(fds, TIOCSWINSZ, &wsize) == -1) // Preset slave tty size
                         log("cons: ioctl set winsize error ", errno);
 
-                    ::signal(SIGINT,  SIG_DFL); // Reset control signals to the default
+                    ::signal(SIGINT,  SIG_DFL); // Reset control signals to the default.
                     ::signal(SIGQUIT, SIG_DFL); //
                     ::signal(SIGTSTP, SIG_DFL); //
                     ::signal(SIGTTIN, SIG_DFL); //
@@ -2473,7 +2473,7 @@ namespace netxs::os
                 auto shadow = ansi::purify(content);
                 receiver(shadow);
 
-                content.erase(0, shadow.size()); // Delete processed data
+                content.erase(0, shadow.size()); // Delete processed data.
             }
             //log("cons: read_socket_thread ended");
         }
@@ -2492,7 +2492,7 @@ namespace netxs::os
 
                 socket.shut();
                 ::kill(pid, SIGKILL);
-                ::waitpid (pid, 0, 0); // wait for the child to avoid zombies
+                ::waitpid (pid, 0, 0); // Wait for the child to avoid zombies.
 
             #endif
 

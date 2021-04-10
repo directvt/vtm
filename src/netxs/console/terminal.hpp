@@ -680,8 +680,8 @@ namespace netxs::ui
             void manage(fifo& q)
             {
                 owner.target->finalize();
-                static constexpr iota get_label = 20; // Report icon   label. (Report as OSC L label ST)
-                static constexpr iota get_title = 21; // Report window title. (Report as OSC l title ST)
+                static constexpr iota get_label = 20; // Report icon   label. (Report as OSC L label ST).
+                static constexpr iota get_title = 21; // Report window title. (Report as OSC l title ST).
                 static constexpr iota put_stack = 22; // Push icon label and window title to   stack.
                 static constexpr iota pop_stack = 23; // Pop  icon label and window title from stack.
                 static constexpr iota all_title = 0;  // Sub commands.
@@ -821,7 +821,7 @@ namespace netxs::ui
                     vt::oscer[OSC_TITLE]       = VT_PROC{ p->boss.winprops.set(OSC_TITLE,       q); };
                     vt::oscer[OSC_XPROP]       = VT_PROC{ p->boss.winprops.set(OSC_XPROP,       q); };
 
-                    // Log all unimplemented CSI commands
+                    // Log all unimplemented CSI commands.
                     for (auto i = 0; i < 0x100; ++i)
                     {
                         auto& proc = vt::csier.table[i];
@@ -840,7 +840,7 @@ namespace netxs::ui
                   boss{ boss }
             { }
 
-            // wall: Base-CSI contract (see ansi::csi_t)
+            // wall: Base-CSI contract (see ansi::csi_t).
             //       task(...), post(...), cook(...)
             void task(ansi::rule const& property)
             {
@@ -891,11 +891,11 @@ namespace netxs::ui
                     auto delta = scroll_end_index - (batch.length() - 1);
                     rods::add_lines(delta);
                 }
-                if (n > 0) // Scroll down (move text down)
+                if (n > 0) // Scroll down (move text down).
                 {
                     n = std::min(n, height);
                     // Move down by n all below the current
-                    // one by one from the bottom
+                    // one by one from the bottom.
                     auto dst = batch.begin() + scroll_end_index;
                     auto src = dst - n;
                     auto s = height - n;
@@ -903,7 +903,7 @@ namespace netxs::ui
                     {
                         (*dst--).move(std::move(*src--));
                     }
-                    // Clear n first lines
+                    // Clear n first lines.
                     auto head = batch.begin() + scroll_top_index;
                     auto tail = head + n;
                     while(head != tail)
@@ -911,12 +911,12 @@ namespace netxs::ui
                         (*head++).trim_to(0);
                     }
                 }
-                else if (n < 0) // Scroll up (move text up)
+                else if (n < 0) // Scroll up (move text up).
                 {
                     n = -n;
                     n = std::min(n, height);
                     // Move up by n=-n all below the current
-                    // one by one from the top
+                    // one by one from the top.
                     auto dst = batch.begin() + scroll_top_index;
                     auto src = dst + n;
                     auto s = height - n;
@@ -924,7 +924,7 @@ namespace netxs::ui
                     {
                         (*dst++).move(std::move(*src++));
                     }
-                    // Clear n last lines
+                    // Clear n last lines.
                     auto head = batch.begin() + scroll_end_index;
                     auto tail = head - n;
                     while(head != tail)
@@ -1010,7 +1010,7 @@ namespace netxs::ui
                     //todo unify
                     if (pos < size)
                     {
-                        // Move existing chars to right (backward decrement)
+                        // Move existing chars to right (backward decrement).
                         auto& lyric = *(batch->lyric);
                         lyric.crop(size + n);
                         auto dst = lyric.data() + size + n;
@@ -1020,7 +1020,7 @@ namespace netxs::ui
                         {
                             *--dst = *--src;
                         }
-                        // Fill blanks
+                        // Fill blanks.
                         dst = lyric.data() + pos;
                         end = dst + n;
                         while (dst != end)
@@ -1032,7 +1032,7 @@ namespace netxs::ui
                     {
                         auto& lyric = *(batch->lyric);
                         lyric.crop(pos + n);
-                        // Fill blanks
+                        // Fill blanks.
                         auto dst = lyric.data() + size;
                         auto end = lyric.data() + pos + n;
                         while (dst != end)
@@ -1155,7 +1155,7 @@ namespace netxs::ui
                 finalize();
                 if (batch->style.wrapln == wrap::on)
                 {
-                    // Deffered wrap
+                    // Deffered wrap.
                     if (coord.x && (coord.x % panel.x == 0))
                     {
                         coord.x -= panel.x;
@@ -1171,7 +1171,7 @@ namespace netxs::ui
                 finalize();
                 if (batch->style.wrapln == wrap::on
                     && coord.x == panel.x) coord.x = 0;
-                // Scroll regions up if coord.y == scend and scroll region are defined
+                // Scroll regions up if coord.y == scend and scroll region are defined.
                 auto[top, end] = get_scroll_limits();
                 if (n > 0 && using_regions() && coord.y <= end
                                              && coord.y + n > end)
@@ -1453,12 +1453,12 @@ namespace netxs::ui
                 {
                     //log(" 1. target content: ", target->get_content());
 
-                    SIGNAL(e2::general, e2::debug::output, shadow); // For the Logs
+                    SIGNAL(e2::general, e2::debug::output, shadow); // For the Logs.
 
                     auto old_caret_pos = caret.coor();
                     auto caret_seeable = caret && viewport.hittest(old_caret_pos);
 
-                    ansi::parse(shadow, target); // Append target using current insertion point
+                    ansi::parse(shadow, target); // Append target using current insertion point.
 
                     oversize.set(target->recalc_pads());
                     caret.set(target->get_caret());
@@ -1503,7 +1503,7 @@ namespace netxs::ui
             caret.show();
 
             #ifndef DEMO
-            keybd.accept(true); // Subscribe to keybd offers
+            keybd.accept(true); // Subscribe to keybd offers.
             #endif
 
             SUBMIT(e2::release, e2::form::upon::attached, parent)
