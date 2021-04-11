@@ -1230,7 +1230,7 @@ namespace netxs::console
         hook kb_offer;
 
         template<class T = base>
-        auto This() { return std::static_pointer_cast<T>(shared_from_this()); }
+        auto This() { return std::static_pointer_cast<typename std::remove_reference<T>::type>(shared_from_this()); }
 
         virtual void color(rgba const& fg_color, rgba const& bg_color)
         {
@@ -1655,6 +1655,12 @@ namespace netxs::console
             auto plugin(Args&&... args)
             {
                 plugins.emplace_back(std::make_unique<S<T>>(boss, std::forward<Args>(args)...));
+                return boss.template This<T>();
+            }
+            template<class P>
+            auto invoke(P functor)
+            {
+                functor(boss);
                 return boss.template This<T>();
             }
         };

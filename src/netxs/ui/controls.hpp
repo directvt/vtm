@@ -574,7 +574,33 @@ namespace netxs::ui
         iota get_x(twod const& pt) { return updown ? pt.y : pt.x; }
         iota get_y(twod const& pt) { return updown ? pt.x : pt.y; }
 
+        //todo use axis:X/Y
+        void _config(orientation alignment, iota thickness, iota scale)
+        {
+            switch (alignment)
+            {
+                case orientation::horizontal:
+                    updown = faux;
+                    break;
+                case orientation::vertical:
+                    updown = true;
+                    break;
+                default:
+                    updown = faux;
+                    break;
+            }
+            width = std::max(thickness, 0);
+            ratio = MAX_RATIO * std::clamp(scale, 0, 100) / 100;
+            base::reflow();
+        }
+
     public:
+        auto config(orientation alignment, iota thickness, iota scale)
+        {
+            _config(alignment, thickness, scale);
+            return This<fork>();
+        }
+
         ~fork()
         {
             if (client_1) client_1->base::detach();
@@ -612,7 +638,7 @@ namespace netxs::ui
                 }
             };
             
-            config(alignment, thickness, scale);
+            _config(alignment, thickness, scale);
             //  case WM_SIZE:
             //  	entity->resize({ GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) });
             //  	return 0;
@@ -676,25 +702,6 @@ namespace netxs::ui
 
             //fork::resize(size);
             //takecursor();
-        }
-        //todo use axis:X/Y
-        void config(orientation alignment, iota thickness, iota scale)
-        {
-            switch (alignment)
-            {
-                case orientation::horizontal:
-                    updown = faux;
-                    break;
-                case orientation::vertical:
-                    updown = true;
-                    break;
-                default:
-                    updown = faux;
-                    break;
-            }
-            width = std::max(thickness, 0);
-            ratio = MAX_RATIO * std::clamp(scale, 0, 100) / 100;
-            base::reflow();
         }
 
         void toggle()
@@ -1090,6 +1097,11 @@ namespace netxs::ui
     public:
         page topic; // post: Text content.
 
+        template<class T>
+        auto& lyric(T paraid) { return *topic[paraid].lyric; }
+        template<class T>
+        auto& content(T paraid) { return topic[paraid]; }
+
         // post: Set content.
         template<class TEXT>
         auto upload(TEXT utf8)
@@ -1208,7 +1220,12 @@ namespace netxs::ui
 
     public:
         bool overscroll[2] = { true, true }; // rail: Allow overscroll with auto correct.
-
+        auto config(bool allow_x_overscroll = true, bool allow_y_overscroll = true)
+        {
+            overscroll[axis::X] = allow_x_overscroll;
+            overscroll[axis::Y] = allow_y_overscroll;
+            return This<rail>();
+        }
         //todo should we detach client in dtor?
         //~rail...
 

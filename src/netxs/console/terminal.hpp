@@ -470,7 +470,7 @@ namespace netxs::ui
 
     // terminal: Built-in terminal app.
     class term
-        : public base
+        : public base, public pro::boost<term>
     {
         using self = term;
 
@@ -1493,7 +1493,8 @@ namespace netxs::ui
 
     public:
         term(twod initial_window_size, text cmd_line, iota max_scrollback_size = default_size, iota grow_step = default_step)
-            : mtracker{ *this },
+            : boost   { *this },
+              mtracker{ *this },
               ftracker{ *this },
               winprops{ *this },
               normal  { *this, max_scrollback_size  , grow_step },

@@ -1517,6 +1517,16 @@ namespace netxs::ui
         twod region; // rack: Available scroll area.
         rect window; // rack: Scrolling viewport.
         side beyond; // rack: Scroll margins outside of the scroll region.
+        // rack: Textify.
+        auto str() const
+        {
+            return "{ reg:" + region.str() + " win:" + window.str() +
+                    " ovr:" + beyond.str() + " }";
+        }
+        friend std::ostream& operator << (std::ostream& s, rack const& p)
+        {
+            return s << p.str();
+        }
     };
 }
 

@@ -253,40 +253,6 @@ enum topic_vars
     dynamix2,
     dynamix3,
 };
-class stem_welcome
-    : public post
-{
-    using self = stem_welcome;
-    FEATURE(pro::mouse, mouse);
-
-public:
-    iota iteration = 0;
-    side scroll_info;
-
-    template<class T>
-    auto& lyric(T paraid) { return *topic[paraid].lyric; }
-
-    stem_welcome()
-    {
-        SUBMIT(e2::release, e2::form::upon::redrawn, canvas)
-        {
-            canvas.each([&](auto& c) { c.link(bell::id); });
-        };
-        SUBMIT(e2::release, e2::form::upon::wiped, canvas)
-        {
-            iteration++;
-            auto p = canvas.area().size;
-            topic[topic_vars::object1] = " " + ansi::und(true) + "mutable" + ansi::und(faux) + " inlined text #1: "
-                + std::to_string(iteration) + " change" + (iteration > 1 ? "s " : " ");
-
-            topic[topic_vars::object2] = " " + ansi::und(true) + "mutable" + ansi::und(faux) + " inlined text #2: "
-                + std::to_string(p.x) + " x " + std::to_string(p.y) + " ";
-
-            topic[topic_vars::object3] = std::to_string(scroll_info.t) + " : "
-                + std::to_string(scroll_info.b);
-        };
-    }
-};
 
 class post_logs
     : public post
@@ -789,13 +755,13 @@ int main(int argc, char* argv[])
 
                 + ansi::jet(bias::left)
                 + "text: " + ansi::idx(topic_vars::object1).sav().fgc(whitelt).bgc(reddk)
-                + "some_text" + ansi::nop().nil() + " other text\n\n" // inline text object test
+                + "some_text" + ansi::nop().nil() + " some text\n\n" // inline text object test
                 + ansi::jet(bias::center)
                 + "text: " + ansi::idx(topic_vars::object2).sav().fgc(whitelt).bgc(reddk)
-                + "some_text" + ansi::nop().nil() + " other text\n\n" // inline text object test
+                + "some_text" + ansi::nop().nil() + " some text\n\n" // inline text object test
                 + ansi::jet(bias::right)
                 + "text: " + ansi::idx(topic_vars::object3).sav().fgc(whitelt).bgc(reddk)
-                + "some_text" + ansi::nop().nil() + " other text\n\n" // inline text object test
+                + "some_text" + ansi::nop().nil() + " some text\n\n" // inline text object test
 
                 + ansi::jet(bias::left).wrp(wrap::on)
                 + "text text text " + ansi::idx(topic_vars::canvas1).wrp(wrap::on)
@@ -1327,7 +1293,6 @@ utility like ctags is used to locate the definitions.
             //X(Task         , "▀▄ Task"             )
             //X(Draw         , "▀▄ Draw"             )
             //X(Char         , "▀▄ Char"             )
-
             //X(BSU_Toggle   , "BSU/ESU toggle"      )
             //X(Bash         , "Bash"                )
             //X(Transparency , "Transparency"        )
@@ -1351,168 +1316,136 @@ utility like ctags is used to locate the definitions.
             static iota    vtm_count = 0;
             constexpr auto del_timeout = 1s;
 
+            using fork = netxs::console::fork;
             auto scroll_bars = [](auto layers, auto master)
             {
-                using fork = netxs::console::fork;
                 auto scroll_bars = layers->template attach<fork>();
                     auto scroll_hz = scroll_bars->template attach<fork>(fork::_1, fork::vertical);
                         auto vt = scroll_hz->template attach<grip<axis::X>>(fork::_2, master);
                     auto scroll_vt = scroll_bars->template attach<grip<axis::Y>>(fork::_2, master);
             };
-
             auto scroll_bars_term = [](auto layers, auto master)
             {
-                using fork = netxs::console::fork;
                 auto scroll_bars = layers->template attach<fork>();
                     auto scroll_hz = scroll_bars->template attach<fork>(fork::_1, fork::vertical);
                         auto vt = scroll_hz->template attach<grip<axis::X>>(fork::_1, master);
                     auto scroll_vt = scroll_bars->template attach<grip<axis::Y>>(fork::_2, master);
             };
+            auto main_menu = [](auto master)
+            {
+                auto menu_area = master->template attach<fork>(fork::_1);
+                    auto inner_pads = dent{ -1,-2,-1,-1 };
+                    auto menu_items = {
+                        std::pair{ " ≡"s,                                       dent{  0 } },
+                        std::pair{ ansi::und(true) + "F" + ansi::nil() + "ile", dent{ -1 } },
+                        std::pair{ ansi::und(true) + "E" + ansi::nil() + "dit", dent{ -1 } },
+                        std::pair{ ansi::und(true) + "V" + ansi::nil() + "iew", dent{ -1 } },
+                        std::pair{ ansi::und(true) + "D" + ansi::nil() + "ata", dent{ -1 } } };
+                    auto c2 = cell{ whitespace }.bgc(tint::bluelt);
+                    auto c1 = c2; c1.alpha(0x00);
+                    auto menu_list = menu_area->template attach<fork>(fork::_1)
+                                              ->template attach<list>(fork::_1, faux);
+                    for (auto& body : menu_items) menu_list->template attach<pads>(inner_pads, body.second)
+                                                           ->template plugin<pro::mouse>()
+                                                           ->template plugin<pro::fader>(c1, c2, 150ms)
+                                                           ->template attach<menu::item>(body.first);
+                    menu_area->template attach<pads>(fork::_2, dent{ -2,-2,-1,-1 }, dent{})
+                             ->template plugin<pro::mouse>()
+                             ->template plugin<pro::fader>(c1, c2, 150ms)
+                             ->template attach<menu::item>(ansi::und(true) + "H" + ansi::nil() + "elp");
+                menu_area->base::reflow();
+            };
 
             //todo use XAML for that
             auto create = [&](objs type, auto location) -> auto
             {
-                auto frame = board->attach<mold>();
-                frame->extend(location);
+                auto window = board->attach<mold>();
+                window->extend(location);
 
-                auto winsz = frame->get_region().size;
+                auto winsz = window->get_region().size;
 
                 switch (type)
                 {
                     default:
                     case Test:
                     {
-                        auto layers = frame->attach<cake>();
-                        auto scroll = layers->attach<rail>();
-                        scroll->overscroll[axis::X] = true;
-                        scroll->overscroll[axis::Y] = true;
-                        scroll->color(cyanlt, bluedk);
-
-                        auto block = scroll->attach<stem_welcome>();
-                        //block->color(cyanlt, bluedk);
-                        block->topic = topic;
-
-                        {
-                            rect r{ dot_00, { 40, 9 } };
-                            auto& b = block->lyric(topic_vars::canvas1);
-                            b.mark().fgc(0xFF000000);
-                            b.size(r.size);
-                            b.grad(rgba{ 0xFFFFFF00 }, rgba{ 0x40FFFFFF });
-
-                            para t{ "ARBITRARY SIZE BLOCK" };
-                            b.text((b.size() - twod{ t.length(), 0 }) / 2, t.shadow());
-                        }
-
-                        {
-                            rect r{ dot_00, { 6, 2 } };
-                            auto& b = block->lyric(topic_vars::canvas2);
-                            b.mark().fgc(0xFF000000);
-                            b.size(r.size);
-                            b.grad(rgba{ 0xFFFFFF00 }, rgba{ 0x40FFFFFF });
-                            b[{5, 0}].alpha(0);
-                            b[{5, 1}].alpha(0);
-
-                            wptr<stem_welcome> weak = block;
-                            block->SUBMIT_BYVAL(e2::general, e2::form::canvas, canvas_ptr)
-                            {
-                                if (auto bb = weak.lock())
-                                {
-                                    bb->topic[topic_vars::dynamix1].lyric =
-                                        bb->topic[topic_vars::dynamix2].lyric;
-                                    bb->topic[topic_vars::dynamix2].lyric =
-                                        bb->topic[topic_vars::dynamix3].lyric;
-                                    bb->topic[topic_vars::dynamix3].lyric = canvas_ptr;
-                                }
-                            };
-                        }
-
+                        auto layers = window->attach<cake>();
+                        auto scroll = layers->attach<rail>()
+                                            ->plugin<pro::color>(cyanlt, bluedk)
+                                            ->config(true, true);
+                        auto object = scroll->attach<post>()
+                                            ->upload(topic)
+                                            ->plugin<pro::mouse>()
+                                            ->invoke([&](auto& self) {
+                                                self.SUBMIT(e2::release, e2::form::upon::redrawn, canvas)
+                                                {
+                                                    static auto counter = 0; counter++;
+                                                    static auto textclr =  ansi::bgc(reddk).fgc(whitelt);
+                                                    self.content(topic_vars::object1) = textclr + " inlined #1: " + std::to_string(counter) + " hits ";
+                                                    self.content(topic_vars::object2) = textclr + " inlined #2: " + canvas.area().size.str() + " ";
+                                                    self.content(topic_vars::object3) = textclr + " inlined #3: " + canvas.full().coor.str() + " ";
+                                                };
+                                                self.SUBMIT(e2::general, e2::form::canvas, canvas_ptr)
+                                                {
+                                                    self.content(topic_vars::dynamix1).lyric = self.content(topic_vars::dynamix2).lyric;
+                                                    self.content(topic_vars::dynamix2).lyric = self.content(topic_vars::dynamix3).lyric;
+                                                    self.content(topic_vars::dynamix3).lyric = canvas_ptr;
+                                                }; });
+                            auto& a = object->lyric(topic_vars::canvas1);
+                                a.mark().fgc(0xFF000000);
+                                a.size({ 40, 9 });
+                                a.grad(rgba{ 0xFFFFFF00 }, rgba{ 0x40FFFFFF });
+                                para t{ "ARBITRARY SIZE BLOCK" };
+                                a.text((a.size() - twod{ t.length(), 0 }) / 2, t.shadow());
+                            auto& b = object->lyric(topic_vars::canvas2);
+                                b.mark().fgc(0xFF000000);
+                                b.size({ 6, 2 });
+                                b.grad(rgba{ 0xFFFFFF00 }, rgba{ 0x40FFFFFF });
+                                b[{5, 0}].alpha(0);
+                                b[{5, 1}].alpha(0);
                         scroll_bars(layers, scroll);
                         break;
                     }
                     case PowerShell:
                     {
-                        frame->header(ansi::jet(bias::center) + "PowerShell");
-
-                        auto layers = frame->attach<cake>();
-                        auto scroll = layers->attach<rail>();
-                            scroll->color(whitelt, 0xFF560000);
-                            auto block = scroll->attach<term>(winsz, "powershell");
-                            block->color(whitelt, 0xFF562401);
+                        window->header(ansi::jet(bias::center) + "PowerShell");
+                        auto layers = window->attach<cake>();
+                        auto scroll = layers->attach<rail>()
+                                            ->plugin<pro::color>(whitelt, 0xFF560000);
+                            scroll->attach<term>(winsz, "powershell")
+                                  ->plugin<pro::color>(whitelt, 0xFF562401);
                         scroll_bars_term(layers, scroll);
                         break;
                     }
                     case CommandPrompt:
                     {
                         using fork = netxs::console::fork;
-                        frame->header(ansi::jet(bias::center) + "Command Prompt");
-
-                        auto layers = frame->attach<cake>();
+                        window->header(ansi::jet(bias::center) + "Command Prompt");
+                        auto layers = window->attach<cake>();
                         auto scroll = layers->attach<rail>();
 
-                        {
                             #if defined(_WIN32)
-                            auto block = scroll->attach<term>(winsz, "cmd");
+                                auto object = scroll->attach<term>(winsz, "cmd");
                             #elif defined(__linux__)
-                            auto block = scroll->attach<term>(winsz, "bash");
+                                auto object = scroll->attach<term>(winsz, "bash");
                             #elif defined(__APPLE__)
-                            auto block = scroll->attach<term>(winsz, "zsh");
+                                auto object = scroll->attach<term>(winsz, "zsh");
                             #endif
 
-                            block->color(whitelt, blackdk);
                             #ifdef DEMO
                                 twod minsz = { 20,1 }; // mc crashes when window is too small
                                 winsz = std::max(winsz, minsz);
-                                block->limits(minsz);
+                                object->limits(minsz);
                             #endif
+                            object->color(whitelt, blackdk);
 
-                        }
-                            //scroll->color(whitelt, 0xFF121212);
-                            //auto block = scroll->attach<term>(winsz, "cmd");
-                            //block->color(whitelt, 0xFF000000);
                         scroll_bars_term(layers, scroll);
                         break;
                     }
-                    //case BSU_Toggle:
-                    //	frame->header("BSU/ESU Toggle");
-                    //	{
-                    //		auto block = frame->attach<stem_bsu>();
-                    //		block->color(0xFFFFFFFF, blackdk);
-                    //		block->topic = ansi::wrp(faux).cup({ 3,1 }) + "Select the appropriate synchronous update mode\n\n";
-                    //		{
-                    //			std::vector<text> objs_desc{
-                    //				"Don't use synched updates",
-                    //				"Use `ESC P = 1|2 s ESC \\`",
-                    //				"Use `CSI ? 2026 h/l`",
-                    //				"...another kind of control sequence" };
-                    //
-                    //			//todo e2::radio -> e2::form::bsu_mode
-                    //			iota current_mode = -1;
-                    //			block->SIGNAL(e2::general, e2::radio, current_mode);
-                    //			block->create_list(objs_desc, { 5,3 }, 2, 3, current_mode);
-                    //
-                    //			block->SUBMIT_BYVAL(e2::release, e2::data::changed, data)
-                    //			{
-                    //				board->SIGNAL(e2::general, e2::radio, data);
-                    //			};
-                    //
-                    //			wptr<stem_bsu> weak = block;
-                    //			block->SUBMIT_BYVAL(e2::general, e2::radio, data)
-                    //			{
-                    //				if (data >= 0)
-                    //				{
-                    //					if (auto b = weak.lock())
-                    //					{
-                    //						b->SIGNAL(e2::preview, e2::data::changed, data);
-                    //					}
-                    //				}
-                    //			};
-                    //		}
-                    //		break;
-                    //	}
                     case Strobe:
                     {
-                        frame->header(ansi::jet(bias::center) + "Strobe");
-                        auto strob = frame->attach<pane>();
+                        window->header(ansi::jet(bias::center) + "Strobe");
+                        auto strob = window->attach<pane>();
                         strob->color(0x0, 0x0);
                         strob->SUBMIT_BYVAL(e2::general, e2::timer::tick, now)  //gcc: use SUBMIT_BYVAL to capture in lambda by value
                         {
@@ -1523,13 +1456,9 @@ utility like ctags is used to locate the definitions.
                     }
                     case RefreshRate:
                     {
-                        frame->header("Frame rate adjustment");
-
-                        auto block = frame->attach<
-                            stem_rate<e2::general, e2::timer::fps>>
-                            ("Set frame rate", 1, 200, "fps");
-
-                        block->color(0xFFFFFFFF, bluedk);
+                        window->header("Frame rate adjustment");
+                        window->attach<stem_rate<e2::general, e2::timer::fps>>("Set frame rate", 1, 200, "fps")
+                             ->color(0xFFFFFFFF, bluedk);
                         break;
                     }
                     //case Transparency:
@@ -1544,348 +1473,258 @@ utility like ctags is used to locate the definitions.
                         // }
                     case Truecolor:
                     {
-                        frame->header(ansi::jet(bias::right) + "True color ANSI/ASCII image test");
-                        frame->blurred = true;
-
-                        auto layers = frame->attach<cake>();
-                        auto scroll = layers->attach<rail>();
-                        scroll->overscroll[axis::X] = true;
-                        scroll->overscroll[axis::Y] = true;
-                        scroll->color(whitelt, reddk);
-
-                        auto block = scroll->attach<post>();
-                        block->topic = truecolor;
-
+                        window->header(ansi::jet(bias::right) + "True color ANSI/ASCII image test");
+                        window->blurred = true;
+                        auto layers = window->attach<cake>();
+                        auto scroll = layers->attach<rail>()
+                                            ->config(true, true)
+                                            ->plugin<pro::color>(whitelt, reddk);
+                        auto object = scroll->attach<post>()
+                                            ->upload(truecolor);
                         scroll_bars(layers, scroll);
                         break;
                     }
                     case Empty:
                     {
-                        frame->blurred = true;
-                        auto block = frame->attach<pane>();
-                        block->canvas.mark().txt(whitespace);
-                        //block->color(whitelt, 0x0);
-                        //block->topic = "\e[46m12345\e[0K67890\n12345\e[1K67890\nHong Kong: 全形\nEmoji: 😋\nIndic: क्ष क्क्क्क्क\nFamily: 👨‍👩‍👧‍👦\e[3;2H\e[0J";
-
-                        //auto block = frame->attach<post>();
-                        //block->color(whitelt, blackdk);
-                        //block->topic = ansi::fgc(greenlt)+"\e[12:1pTEST_STRING_TEST_STRINGTEST_STRINGTEST_STRING\n"+
-                        //    ansi::fgc(yellowlt) + "\e[12:0pTEST_STRING_TEST_STRINGTEST_STRINGTEST_STRING\n";
-                        //block->base::reflow();
+                        window->blurred = true;
+                        auto object = window->attach<pane>();
+                        object->canvas.mark().txt(whitespace);
                         break;
                     }
                     case Shop:
                     {
-                        using fork = netxs::console::fork;
-                        frame->header(ansi::jet(bias::right) + objs_desc[Shop]);
-                        frame->color(whitelt, 0x60000000);
-                        frame->blurred = true;
-                        frame->highlight_center = faux;
-                        //frame->color(whitelt, 0xff1A7f00);
+                        window->header(ansi::jet(bias::right) + objs_desc[Shop]);
+                        window->color(whitelt, 0x60000000);
+                        window->blurred = true;
+                        window->highlight_center = faux;
 
-                        auto block = frame->attach<fork>();
-                        block->color(whitelt, 0);
-                        block->config(fork::vertical, 0, 50);
-                        {
-                            auto c0 = block->attach<cake>(fork::_1);
-                            {
-                                auto c1 = c0->attach<post>();
-                                c1->topic = appstore_head;
-                                c1->limits({ 37,-1 }, { -1,-1 });
-                            }
+                        auto object = window
+                            ->attach<fork>(fork::vertical)
+                            ->plugin<pro::color>(whitelt, 0);
+                            object->attach<post>(fork::_1)
+                                  ->plugin<pro::limit>(twod{ 37,-1 }, twod{ -1,-1 })
+                                  ->upload(appstore_head);
 
-                            auto layers = block->attach<cake>(fork::_2);
-                            auto scroll = layers->attach<rail>();
-                            //scroll->color(whitelt, 0x20171710);
-                            scroll->color(whitedk, 0xFF0f0f0f);
-                            scroll->limits({ -1,2 }, { -1,-1 });
-                            scroll->overscroll[axis::X] = true;
-                            scroll->overscroll[axis::Y] = true;
-                            {
-                                auto c2 = cell{ whitespace }.bgc(tint::bluelt).fgc(tint::whitelt);
+                            auto layers = object->attach<cake>(fork::_2);
+                            auto scroll = layers
+                                ->attach<rail>()
+                                ->plugin<pro::color>(whitedk, 0xFF0f0f0f)
+                                ->plugin<pro::limit>(twod{ -1,2 }, twod{ -1,-1 })
+                                ->config(true, true);
+
+                                auto c2 = cell{ whitespace }.fgc(tint::whitelt)
+                                                            .bgc(tint::bluelt);
                                 auto c1 = c2; c1.alpha(0x00);
 
                                 auto items = scroll->attach<list>();
-                                for (auto& body : appstore_body)
-                                {
-                                    items->attach<post>()
-                                         ->upload(body)
-                                         ->plugin<pro::grade>()
-                                         ->plugin<pro::mouse>()
-                                         ->plugin<pro::fader>(c1, c2, 250ms);
-                                }
+                                for (auto& body : appstore_body) items->attach<post>()
+                                                                      ->upload(body)
+                                                                      ->plugin<pro::grade>()
+                                                                      ->plugin<pro::mouse>()
+                                                                      ->plugin<pro::fader>(c1, c2, 250ms);
                                 items->attach<post>()
                                      ->upload(desktopio_body)
                                      ->plugin<pro::grade>()
                                      ->plugin<pro::mouse>();
                                 items->base::reflow();
-                            }
 
                             scroll_bars(layers, scroll);
-                        }
                         break;
                     }
                     case Cellatix:
                     case Calc:
                     {
-                        using fork = netxs::console::fork;
-                        frame->limits({ -1,-1 }, { -1,105 });
-                        frame->color(whitelt, 0x601A5f00);
-                        frame->header(ansi::jet(bias::center) + "Spreadsheet");
-                        frame->blurred = true;
-                        frame->highlight_center = faux;
-                        frame->SIGNAL(e2::preview, e2::form::prop::footer, cellatix_foot);
-
-                        auto block = frame->attach<fork>();
-                        block->color(whitelt, 0);
-                        block->config(fork::vertical, 0, 50);
-                        {
-                            auto menu_block = block->attach<fork>(fork::_1);
-                            menu_block->config(fork::vertical, 1, 50);
-                            {
-                                auto menu = menu_block->attach<fork>(fork::_1);
-                                menu->config(fork::horizontal, 0, 50);
-                                {
-                                    auto menu_l = menu->attach<post>(fork::_1);
-                                    menu_l->topic = calc_menu;
-                                    auto menu_r = menu->attach<post>(fork::_2);
-                                    menu_r->limits({ 4,1 }, { 6,-1 });
-                                    menu_r->topic = calc_help;
-                                }
-                                auto fx = menu_block->attach<fork>(fork::_2);
-                                fx->config(fork::horizontal, 0, 50);
-                                {
-                                    auto menu_l = fx->attach<post>(fork::_1);
-                                    menu_l->color(0, whitelt);
-                                    menu_l->topic = calc_line1;
-                                    auto menu_r = fx->attach<post>(fork::_2);
-                                    menu_r->topic = calc_line2;
-                                    menu_r->limits({ -1,1 }, { 3,-1 });
-                                }
-                            }
-
-                            auto body = block->attach<fork>(fork::_2);
-                            body->config(fork::vertical, 0, 50);
-                            {
-                                auto head = body->attach<post>(fork::_1);
-                                head->topic = cellatix_head;
-
-                                auto layers = body->attach<cake>(fork::_2);
-                                    auto scroll = layers->attach<rail>(axes::ONLY_Y);
-                                    scroll->overscroll[axis::Y] = true;
-                                    scroll->limits({ 4,1 }, { -1,-1 });
-                                        auto grid = scroll->attach<post>();
-                                        grid->color(0xFF000000, 0xFFffffff);
-                                        grid->topic = cellatix_text;
+                        /* Calc interface markup
+                        *
+                        *   window:mold
+                        *      object:fork_v
+                        *         object_1: menu:..lambda
+                        *         object_2: all_stat:fork_v
+                        *            all_stat_1: func_body_pad:pads   { -1,-1 }
+                        *               func_body_pad: func_body:fork_v
+                        *                  func_body_1: func_line:fork_h
+                        *                     func_line_1: Fx:post   Fx SUM(...)
+                        *                     func_line_2: Ellipsis:post   [...]
+                        *                  func_body_2: head_body:fork_v
+                        *                     head_body_1: head:post   A B C D E....
+                        *                     head_body_2: layers:cake
+                        *                        scroll:rail
+                        *                           grid:post
+                        *            all_stat_2: status_area:post   Sheet1 [+]
+                        */
+                        window->header(ansi::jet(bias::center) + "Spreadsheet");
+                        window->color(whitelt, 0x601A5f00);
+                        window->blurred = true;
+                        window->highlight_center = faux;
+                        window->set_border(dot_00);
+                        auto object = window
+                            ->attach<fork>(fork::vertical)
+                            ->plugin<pro::color>(whitelt, 0);
+                            main_menu(object);
+                            auto all_stat = object->attach<fork>(fork::_2, fork::vertical);
+                                auto func_body_pad = all_stat->attach<pads>(fork::_1, dent { -1,-1 });
+                                    auto func_body = func_body_pad->attach<fork>(fork::vertical);
+                                        auto func_line = func_body->attach<fork>(fork::_1);
+                                            auto Fx = func_line->attach<post>(fork::_1)
+                                                               ->plugin<pro::color>(0, whitelt)
+                                                               ->upload(ansi::bgc(whitedk).fgc(blackdk)
+                                                                 + " Fx "
+                                                                 + ansi::bgc(whitelt).fgc(blacklt)
+                                                                 + " =SUM(B1:B10) ");
+                                            auto ellipsis = func_line->attach<post>(fork::_2)
+                                                                     ->plugin<pro::limit>(twod{ -1,1 }, twod{ 3,-1 })
+                                                                     ->upload(ansi::bgc(whitedk).fgc(blackdk)
+                                                                       + " ⋯ ");
+                                        auto head_body = func_body->attach<fork>(fork::_2, fork::vertical);
+                                            auto head = head_body->attach<post>(fork::_1)
+                                                                 ->upload(cellatix_head);
+                                            auto layers = head_body->attach<cake>(fork::_2);
+                                            auto scroll = layers->attach<rail>(axes::ONLY_Y)
+                                                                ->plugin<pro::limit>(twod{ 4,1 }, twod{ -1,-1 })
+                                                                ->config(true, true);
+                                                auto grid = scroll->attach<post>()
+                                                                  ->plugin<pro::color>(0xFF000000, 0xFFffffff)
+                                                                  ->upload(cellatix_text);
+                                auto stat_area = all_stat->attach<post>(fork::_2)
+                                                          ->upload(ansi::wrp(wrap::off) 
+                                                            + ansi::mgl(5).mgr(1).bgc(whitelt).fgc(blackdk)
+                                                            + " Sheet1 "
+                                                            + ansi::bgc(whitedk).fgc(blackdk) + "＋");
                                 scroll_bars(layers, scroll);
-
                                 scroll->base::reflow();
-                            }
-                        }
                         break;
                     }
                     case Textancy:
-                    //case Text:
-                    //{
-                    //    using fork = netxs::console::fork;
-                    //    frame->color(whitelt, 0x605f1A00);
-                    //    frame->header(ansi::jet(bias::center) + "Text Editor");
-                    //    frame->blurred = true;
-                    //    auto block = frame->attach<fork>();
-                    //    block->color(whitelt, 0);
-                    //    block->config(fork::vertical, 1, 50);
-                    //    {
-                    //        auto menu = block->attach<post>(fork::_1);
-                    //        menu->topic = edit_menu;
-                    //        auto body = block->attach<chat>(fork::_2);
-                    //        body->limits({ -1,1 }, { -1,-1 });
-                    //        body->color(blackdk, whitelt);
-                    //        body->topic = textancy_text;
-                    //        // body.caret.show();
-                    //    }
-                    //    break;
-                    //}
                     case Text:
                     {
-                        using fork = netxs::console::fork;
-                        frame->color(whitelt, 0x605f1A00);
-                        frame->header(ansi::jet(bias::center) + "Text Editor");
-                        frame->blurred = true;
-                        frame->highlight_center = faux;
-                        frame->set_border(dot_00);
+                        window->color(whitelt, 0x605f1A00);
+                        window->header(ansi::jet(bias::center) + "Text Editor");
+                        window->blurred = true;
+                        window->highlight_center = faux;
+                        window->set_border(dot_00);
 
-                        auto window = frame->
-                            attach<fork>(fork::vertical)
-                                ->plugin<pro::color>(whitelt, 0);
-                            auto menu_area = window->
-                                attach<fork>(fork::_1);
-                                auto inner_pads = dent{ -1, -2, -1, -1};
-                                auto menu_items = {
-                                    std::pair{ " ≡"s,                                       dent{  0 } },
-                                    std::pair{ ansi::und(true) + "F" + ansi::nil() + "ile", dent{ -1 } },
-                                    std::pair{ ansi::und(true) + "E" + ansi::nil() + "dit", dent{ -1 } },
-                                    std::pair{ ansi::und(true) + "V" + ansi::nil() + "iew", dent{ -1 } },
-                                    std::pair{ ansi::und(true) + "D" + ansi::nil() + "ata", dent{ -1 } },
-                                    };
-                                auto c2 = cell{ whitespace }.bgc(tint::bluelt);
-                                auto c1 = c2; c1.alpha(0x00);
-                                auto menu_list = menu_area->
-                                    attach<fork>(fork::_1)->
-                                        attach<list>(fork::_1, faux);
-                                    for (auto& body : menu_items)
-                                    {
-                                        menu_list->
-                                            attach<pads>(inner_pads, body.second)
-                                                ->plugin<pro::mouse>()
-                                                ->plugin<pro::fader>(c1, c2, 150ms)
-                                                ->attach<menu::item>(body.first);
-                                    }
-                                    menu_area->
-                                        attach<pads>(fork::_2, dent{-2,-2,-1,-1}, dent{})
-                                            ->plugin<pro::mouse>()
-                                            ->plugin<pro::fader>(c1, c2, 150ms)
-                                            ->attach<menu::item>(ansi::und(true) + "H" + ansi::nil() + "elp");
-                            menu_area->base::reflow();
-
-                            auto body_area = window->
-                                attach<fork>(fork::_2, fork::vertical);
-                            auto fields = body_area->
-                                attach<pads>(fork::_1, dent{ -1,-1 })
-                                    ->plugin<pro::mouse>(); //todo why? it's not mouse transparent w/o
-                            auto layers = fields->
-                                attach<cake>();
-                            auto scroll = layers->
-                                attach<rail>()
-                                    ->plugin<pro::limit>(twod{ 4,3 }, twod{ -1,-1 });
-                            auto edit_box = scroll->
-                                attach<post>(true)
-                                    ->plugin<pro::mouse>()
-                                    ->plugin<pro::caret>(true, twod{25,1})
-                                    ->plugin<pro::color>(blackdk, whitelt)
-                                    ->upload(ansi::wrp(wrap::off).mgl(1)
-                                        + topic3
-                                        + ansi::fgc(bluedk)
-                                        + "From Wikipedia, the free encyclopedia");
-                            auto status_line = body_area->
-                                attach<post>(fork::_2)
-                                    ->plugin<pro::limit>(twod{ 1,1 }, twod{ -1,1 })
-                                    ->upload(ansi::wrp(wrap::off).mgl(1).mgr(1).jet(bias::right).fgc(whitedk)
-                                        + "INS  Sel: 0:0  Col: 26  Ln: 2/148" + ansi::nil());
+                        auto object = window
+                            ->attach<fork>(fork::vertical)
+                            ->plugin<pro::color>(whitelt, 0);
+                            main_menu(object);
+                            auto body_area = object
+                                ->attach<fork>(fork::_2, fork::vertical);
+                            auto fields = body_area
+                                ->attach<pads>(fork::_1, dent{ -1,-1 })
+                                ->plugin<pro::mouse>();
+                            auto layers = fields
+                                ->attach<cake>();
+                            auto scroll = layers
+                                ->attach<rail>()
+                                ->plugin<pro::limit>(twod{ 4,3 }, twod{ -1,-1 });
+                            auto edit_box = scroll
+                                ->attach<post>(true)
+                                ->plugin<pro::mouse>()
+                                ->plugin<pro::caret>(true, twod{ 25,1 })
+                                ->plugin<pro::color>(blackdk, whitelt)
+                                ->upload(ansi::wrp(wrap::off).mgl(1)
+                                    + topic3
+                                    + ansi::fgc(bluedk)
+                                    + "From Wikipedia, the free encyclopedia");
+                            auto status_line = body_area
+                                ->attach<post>(fork::_2)
+                                ->plugin<pro::limit>(twod{ 1,1 }, twod{ -1,1 })
+                                ->upload(ansi::wrp(wrap::off).mgl(1).mgr(1).jet(bias::right).fgc(whitedk)
+                                    + "INS  Sel: 0:0  Col: 26  Ln: 2/148" + ansi::nil());
                         scroll_bars(layers, scroll);
                         break;
                     }
-                    //case Top:
-                        // {
-                        //     frame->header(ansi::jet(bias::left) + "Process list (not ready yet)");
-                        //     //auto block = frame->attach<pane>();
-                        //     auto block = frame->attach<term>("top");
-                        //     block->color(whitelt, blackdk);
-                        //     block->canvas.wipe();
-                        //     break;
-                        // }
                     case VTM:
                     {
-                        frame->header(ansi::jet(bias::center) + objs_desc[VTM]);
-
-                        auto layers = frame->attach<cake>();
+                        window->header(ansi::jet(bias::center) + objs_desc[VTM]);
+                        auto layers = window->attach<cake>();
                         auto scroll = layers->attach<rail>();
-
                         if (vtm_count < max_vtm)
                         {
-                            vtm_count++;
-                            auto block = scroll->attach<term>(winsz, "vtm");
-                            block->color(whitelt, blackdk);
-                            auto c = &vtm_count;
-                            block->SUBMIT_BYVAL(e2::release, e2::dtor, dummy)
-                            {
-                                log ("main: vtm destoyed");
-                                (*c)--;
-                            };
+                            auto c = &vtm_count; (*c)++;
+                            scroll->attach<term>(winsz, "vtm")
+                                  ->plugin<pro::color>(whitelt, blackdk)
+                                  ->SUBMIT_BYVAL(e2::release, e2::dtor, dummy)
+                                    {
+                                        (*c)--;
+                                        log ("main: vtm recursive conn destoyed");
+                                    };
                         }
                         else
                         {
-                            auto block = scroll->attach<post>();
-                            block->color(whitelt, blackdk);
-                            block->topic = ansi::fgc(yellowlt).mgl(4).mgr(4).wrp(wrap::off) + "\n\nconnection rejected\n\n"
-                                + ansi::nil().wrp(wrap::on) + "Reached the limit of recursive connections, destroy existing recursive instances to create new ones.";
+                            scroll->attach<post>()
+                                  ->plugin<pro::mouse>()
+                                  ->plugin<pro::color>(whitelt, blackdk)
+                                  ->upload(ansi::fgc(yellowlt).mgl(4).mgr(4).wrp(wrap::off)
+                                         + "\n\nconnection rejected\n\n"
+                                         + ansi::nil().wrp(wrap::on)
+                                         + "Reached the limit of recursive connections, destroy existing recursive instances to create new ones.");
                         }
-
                         scroll_bars(layers, scroll);
                         break;
                     }
                     case Far:
                     {
-                        frame->header(ansi::jet(bias::center) + objs_desc[Far]);
-
-                        auto layers = frame->attach<cake>();
+                        window->header(ansi::jet(bias::center) + objs_desc[Far]);
+                        auto layers = window->attach<cake>();
                         auto scroll = layers->attach<rail>();
-                        {
-                            auto block = scroll->attach<term>(winsz, "far");
-                            block->color(whitelt, blackdk);
-                        }
+                        scroll->attach<term>(winsz, "far")
+                              ->plugin<pro::color>(whitelt, blackdk);
                         scroll_bars_term(layers, scroll);
                         break;
                     }
                     case MC:
                     {
-                        frame->header(ansi::jet(bias::center) + objs_desc[MC]);
-
+                        window->header(ansi::jet(bias::center) + objs_desc[MC]);
                         twod minsz = { 10,1 }; // mc crashes when window is too small
                         winsz = std::max(winsz, minsz);
-
+                        auto layers = window->attach<cake>();
+                        auto scroll = layers->attach<rail>();
                         // -c -- force color support
                         // -x -- force xtrem functionality
 
-                        auto layers = frame->attach<cake>();
-                        auto scroll = layers->attach<rail>();
-                        {
+                        #if defined(_WIN32)
 
-                            #if defined(_WIN32)
+                            auto object = scroll->attach<term>(winsz, "wsl mc");
 
-                            auto block = scroll->attach<term>(winsz, "wsl mc");
-
-                            #elif defined(__linux__)
-#ifdef DEMO
-                            auto block = scroll->attach<term>(winsz, "bash -c 'LC_ALL=en_US.UTF-8 mc -c -x -d'");
-#else
-                            auto block = scroll->attach<term>(winsz, "bash -c 'LC_ALL=en_US.UTF-8 mc -c -x'");
-#endif
-                            #elif defined(__APPLE__)
-
-                            auto block = scroll->attach<term>(winsz, "zsh -c 'LC_ALL=en_US.UTF-8 mc -c -x'");
-                            //auto block = scroll->attach<term>("mc");
-                            //auto block = scroll->attach<term>("LC_ALL=en_US.UTF-8 mc -c -x");
-                            //auto block = scroll->attach<term>("mc");
-
+                        #elif defined(__linux__)
+                            #ifdef DEMO
+                                auto object = scroll->attach<term>(winsz, "bash -c 'LC_ALL=en_US.UTF-8 mc -c -x -d'");
+                            #else
+                                auto object = scroll->attach<term>(winsz, "bash -c 'LC_ALL=en_US.UTF-8 mc -c -x'");
                             #endif
+                        #elif defined(__APPLE__)
 
-                            block->color(whitelt, blackdk);
-                            block->limits(minsz);
-                        }
+                            auto object = scroll->attach<term>(winsz, "zsh -c 'LC_ALL=en_US.UTF-8 mc -c -x'");
+
+                        #endif
+
+                        object->color(whitelt, blackdk);
+                        object->limits(minsz);
+
                         scroll_bars(layers, scroll);
                         break;
                     }
                     case Bash:
                     case Term:
                     {
-                        frame->header(ansi::jet(bias::center) + objs_desc[Bash]);
-
-                        auto layers = frame->attach<cake>();
+                        window->header(ansi::jet(bias::center) + objs_desc[Bash]);
+                        auto layers = window->attach<cake>();
                         auto scroll = layers->attach<rail>();
                         {
                             #if defined(_WIN32)
-                            auto block = scroll->attach<term>(winsz, "bash");
+                                auto object = scroll->attach<term>(winsz, "bash");
                             #elif defined(__linux__)
-                            auto block = scroll->attach<term>(winsz, "bash");
+                                auto object = scroll->attach<term>(winsz, "bash");
                             #elif defined(__APPLE__)
-                            auto block = scroll->attach<term>(winsz, "zsh");
+                                auto object = scroll->attach<term>(winsz, "zsh");
                             #endif
 
-                            block->color(whitelt, blackdk);
+                            object->color(whitelt, blackdk);
                             #ifdef DEMO
                                 twod minsz = { 20,1 }; // mc crashes when window is too small
                                 winsz = std::max(winsz, minsz);
-                                block->limits(minsz);
+                                object->limits(minsz);
                             #endif
                         }
                         scroll_bars_term(layers, scroll);
@@ -1893,28 +1732,28 @@ utility like ctags is used to locate the definitions.
                     }
                     case Logs:
                     {
-                        frame->header(objs_desc[Logs]);
-
-                        auto layers = frame->attach<cake>();
+                        window->header(objs_desc[Logs]);
+                        auto layers = window->attach<cake>();
                         auto scroll = layers->attach<rail>();
-                        {
+
                         #ifdef DEMO
-                            auto block = scroll->attach<post>();
-                            block->color(whitelt, blackdk);
-                            block->topic = ansi::fgc(yellowlt).mgl(4).mgr(4).wrp(wrap::off) + "\n\nLogs is not availabe in DEMO mode\n\n"
-                                + ansi::nil().wrp(wrap::on) + "Use the full version of VTM to run Logs.";
+                            scroll->attach<post>()
+                                  ->plugin<pro::color>(whitelt, blackdk)
+                                  ->upload(ansi::fgc(yellowlt).mgl(4).mgr(4).wrp(wrap::off)
+                                    + "\n\nLogs is not availabe in DEMO mode\n\n"
+                                    + ansi::nil().wrp(wrap::on)
+                                    + "Use the full version of VTM to run Logs.");
                         #else
-                            auto block = scroll->attach<post_logs>();
-                            block->color(whitelt, blackdk);
+                            scroll->attach<post_logs>()
+                                  ->plugin<pro::color>(whitelt, blackdk);
                         #endif
-                        }
 
                         scroll_bars(layers, scroll);
                         break;
                     }
                 }
 
-                return frame;
+                return window;
             };
 
             auto creator = [&, insts_count = 0]
@@ -1923,7 +1762,7 @@ utility like ctags is used to locate the definitions.
                 insts_count++;
                 auto frame = create(obj_type, area);
 
-#ifdef DEMO
+                #ifdef DEMO
                 if (insts_count > max_count)
                 {
                     log("inst: max count reached");
@@ -1942,15 +1781,13 @@ utility like ctags is used to locate the definitions.
                         }
                     };
                 }
-#endif
+                #endif
+
                 frame->SUBMIT(e2::release, e2::form::upon::detached, master)
                 {
                     insts_count--;
                     log("inst: detached: ", insts_count);
                 };
-
-                //log("creator exit");
-
                 return frame;
             };
 
