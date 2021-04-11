@@ -1209,6 +1209,7 @@ namespace netxs::ui
         bool locked{}; // rail: Client is under resizing.
         sptr client{}; // rail: Client instance.
         subs tokens{}; // rail: Subscriptions on client moveto and resize.
+        subs fasten{}; // rail: Subscriptions on masters to follow they state.
         rack scinfo{}; // rail: Scroll info.
         axes permit{}; // rail: Allowed axes to scroll.
         axes siezed{}; // rail: Allowed axes to capture.
@@ -1224,6 +1225,18 @@ namespace netxs::ui
         {
             overscroll[axis::X] = allow_x_overscroll;
             overscroll[axis::Y] = allow_y_overscroll;
+            return This<rail>();
+        }
+        template<axis AXIS>
+        auto follow(sptr master = {})
+        {
+            if (master) master->SUBMIT_T(e2::release, events[AXIS], fasten, master_scinfo)
+            {
+                AXIS == axis::X ? scroll<X>(scinfo.window.coor.x - master_scinfo.window.coor.x)
+                                : scroll<Y>(scinfo.window.coor.y - master_scinfo.window.coor.y);
+            };
+            else fasten.clear();
+
             return This<rail>();
         }
         //todo should we detach client in dtor?
@@ -1517,6 +1530,7 @@ namespace netxs::ui
                 SIGNAL(e2::release, events[axis::X], scinfo);
                 SIGNAL(e2::release, events[axis::Y], scinfo);
                 tokens.clear();
+                fasten.clear();
             };
 
             item->SIGNAL(e2::release, e2::form::upon::attached, This()); // Send creator

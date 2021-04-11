@@ -233,12 +233,14 @@ text desktopio_body = ansi::nil().eol()
 + " bitcoin:1Euu4jcQ15LKijaDyZigZrnEoqwe1daTVZ\n"
 + "";
 
-text cellatix_head;
+text cellatix_rows;
+text cellatix_cols;
+
 text cellatix_text;
-text cellatix_foot = ansi::scp()
-+ ansi::chx(4).chy(0).jet(bias::left).rlf(feed::rev).mgl(1).wrp(wrap::off)
-+ ansi::bgc(whitelt).fgc(blackdk) + " Sheet1 "
-+ ansi::bgc(whitedk).fgc(blackdk) + "＋" + ansi::nil().rcp();
+//text cellatix_foot = ansi::scp()
+//+ ansi::chx(4).chy(0).jet(bias::left).rlf(feed::rev).mgl(1).wrp(wrap::off)
+//+ ansi::bgc(whitelt).fgc(blackdk) + " Sheet1 "
+//+ ansi::bgc(whitedk).fgc(blackdk) + "＋" + ansi::nil().rcp();
 
 enum topic_vars
 {
@@ -1115,7 +1117,8 @@ utility like ctags is used to locate the definitions.
             auto topclr = 0xffffff;
 
             auto corner = topclr - 0x1f1f1f;
-            text cellatix_text_head = ansi::bgc(corner).fgc(0) + "    ";
+            //text cellatix_text_head = ansi::bgc(0xffffff - 0x1f1f1f).fgc(0) + "    ";
+            text cellatix_text_head = ansi::bgc(corner).fgc(0);
             for (auto c = 'A'; c <= 'Z'; c++)
             {
                 auto clr = topclr - 0x0f0f0f;
@@ -1145,10 +1148,11 @@ utility like ctags is used to locate the definitions.
                 + ansi::bgc(clr - step * 0 /* 0xffffff */) + " "
                 + "";
 
-            cellatix_head = ansi::nil().wrp(wrap::off)
+            cellatix_cols = ansi::nil().wrp(wrap::off)
                 + cellatix_text_head;
 
             cellatix_text = ansi::nil().wrp(wrap::off);
+            cellatix_rows = ansi::fgc(blackdk);
             auto base = topclr - 0x1f1f1f;// 0xe0e0e0;// 0xe4e4e4;
             auto c1 = ansi::bgc(base); //ansi::bgc(0xf0f0f0);
             auto c2 = ansi::bgc(base);
@@ -1160,9 +1164,11 @@ utility like ctags is used to locate the definitions.
                     auto c0 = base;
                     for (auto i = 0; i < label.length(); i++)
                     {
-                        cellatix_text += ansi::bgc(c0) + label[i];
+                        cellatix_rows += ansi::bgc(c0) + label[i];
+                        //cellatix_text += ansi::bgc(c0) + label[i];
                         c0 += step;
                     }
+                    cellatix_rows += (i == 99 ? ""s : ansi::eol());
                     cellatix_text +=
                         utf::repeat(cellatix_text_01, 26)
                         + (i == 99 ? ""s : ansi::eol());
@@ -1172,9 +1178,11 @@ utility like ctags is used to locate the definitions.
                     auto c0 = base + step * (iota)label.length();
                     for (auto i = 0; i < label.length(); i++)
                     {
-                        cellatix_text += ansi::bgc(c0) + label[i];
+                        cellatix_rows += ansi::bgc(c0) + label[i];
+                        //cellatix_text += ansi::bgc(c0) + label[i];
                         c0 -= step;
                     }
+                    cellatix_rows += (i == 99 ? ""s : ansi::eol());
                     cellatix_text +=
                         utf::repeat(cellatix_text_00, 26)
                         + (i == 99 ? ""s : ansi::eol());
@@ -1320,16 +1328,16 @@ utility like ctags is used to locate the definitions.
             auto scroll_bars = [](auto layers, auto master)
             {
                 auto scroll_bars = layers->template attach<fork>();
-                    auto scroll_hz = scroll_bars->template attach<fork>(fork::_1, fork::vertical);
-                        auto vt = scroll_hz->template attach<grip<axis::X>>(fork::_2, master);
-                    auto scroll_vt = scroll_bars->template attach<grip<axis::Y>>(fork::_2, master);
+                    auto scroll_down = scroll_bars->template attach<fork>(fork::_1, fork::vertical);
+                        auto hz = scroll_down->template attach<grip<axis::X>>(fork::_2, master);
+                        auto vt = scroll_bars->template attach<grip<axis::Y>>(fork::_2, master);
             };
             auto scroll_bars_term = [](auto layers, auto master)
             {
                 auto scroll_bars = layers->template attach<fork>();
-                    auto scroll_hz = scroll_bars->template attach<fork>(fork::_1, fork::vertical);
-                        auto vt = scroll_hz->template attach<grip<axis::X>>(fork::_1, master);
-                    auto scroll_vt = scroll_bars->template attach<grip<axis::Y>>(fork::_2, master);
+                    auto scroll_head = scroll_bars->template attach<fork>(fork::_1, fork::vertical);
+                        auto hz = scroll_head->template attach<grip<axis::X>>(fork::_1, master);
+                        auto vt = scroll_bars->template attach<grip<axis::Y>>(fork::_2, master);
             };
             auto main_menu = [](auto master)
             {
@@ -1545,15 +1553,22 @@ utility like ctags is used to locate the definitions.
                         *                  func_body_1: func_line:fork_h
                         *                     func_line_1: Fx:post   Fx SUM(...)
                         *                     func_line_2: Ellipsis:post   [...]
-                        *                  func_body_2: head_body:fork_v
-                        *                     head_body_1: head:post   A B C D E....
-                        *                     head_body_2: layers:cake
-                        *                        scroll:rail
-                        *                           grid:post
+                        *                  func_body_2: body_area:fork_v
+                        *                     body_area_1: corner_cols:fork_h
+                        *                        corner_cols_1: corner:post   [   ]
+                        *                        corner_cols_2: cols_area:rail
+                        *                           cols_area: cols:post   A B C D E...
+                        *                     body_area_2:  rows_body:fork_h
+                        *                        rows_body_1: rows_area:rail
+                        *                           rows_area: rows:post   1 \n2 \n3 \n4...
+                        *                        rows_body_2: layers:cake
+                        *                           layers: scroll:rail
+                        *                              scroll: grid:post
                         *            all_stat_2: status_area:post   Sheet1 [+]
                         */
                         window->header(ansi::jet(bias::center) + "Spreadsheet");
                         window->color(whitelt, 0x601A5f00);
+                        window->limits({ -1,-1 },{ 136,105 });
                         window->blurred = true;
                         window->highlight_center = faux;
                         window->set_border(dot_00);
@@ -1562,7 +1577,8 @@ utility like ctags is used to locate the definitions.
                             ->plugin<pro::color>(whitelt, 0);
                             main_menu(object);
                             auto all_stat = object->attach<fork>(fork::_2, fork::vertical);
-                                auto func_body_pad = all_stat->attach<pads>(fork::_1, dent { -1,-1 });
+                                auto func_body_pad = all_stat->attach<pads>(fork::_1, dent { -1,-1 })
+                                                             ->plugin<pro::mouse>();
                                     auto func_body = func_body_pad->attach<fork>(fork::vertical);
                                         auto func_line = func_body->attach<fork>(fork::_1);
                                             auto Fx = func_line->attach<post>(fork::_1)
@@ -1575,21 +1591,36 @@ utility like ctags is used to locate the definitions.
                                                                      ->plugin<pro::limit>(twod{ -1,1 }, twod{ 3,-1 })
                                                                      ->upload(ansi::bgc(whitedk).fgc(blackdk)
                                                                        + " ⋯ ");
-                                        auto head_body = func_body->attach<fork>(fork::_2, fork::vertical);
-                                            auto head = head_body->attach<post>(fork::_1)
-                                                                 ->upload(cellatix_head);
-                                            auto layers = head_body->attach<cake>(fork::_2);
-                                            auto scroll = layers->attach<rail>(axes::ONLY_Y)
-                                                                ->plugin<pro::limit>(twod{ 4,1 }, twod{ -1,-1 })
-                                                                ->config(true, true);
-                                                auto grid = scroll->attach<post>()
-                                                                  ->plugin<pro::color>(0xFF000000, 0xFFffffff)
-                                                                  ->upload(cellatix_text);
+                                        auto body_area = func_body->attach<fork>(fork::_2, fork::vertical);
+                                            auto corner_cols = body_area->attach<fork>(fork::_1);
+                                                auto corner = corner_cols->attach<post>(fork::_1)
+                                                                         ->plugin<pro::limit>(twod{ 4,1 }, twod{ 4,1 })
+                                                                         ->upload(ansi::bgc(0xffffff - 0x1f1f1f).fgc(0)
+                                                                           + "    ");
+                                                auto cols_area = corner_cols->attach<rail>(fork::_2, axes::ONLY_X, axes::ONLY_X);
+                                                    auto cols = cols_area->attach<post>()
+                                                                         ->plugin<pro::limit>(twod{ -1,1 }, twod{ -1,1 })
+                                                                         ->upload(cellatix_cols); // A  B  C ...
+                                            auto rows_body = body_area->attach<fork>(fork::_2);
+                                                auto rows_area = rows_body->attach<rail>(fork::_1, axes::ONLY_Y, axes::ONLY_Y)
+                                                                         ->plugin<pro::limit>(twod{ 4,-1 }, twod{ 4,-1 });
+                                                    auto rows = rows_area->attach<post>()
+                                                                         ->upload(cellatix_rows); // "  1 \n  2 \n  3 \n"
+                                                auto layers = rows_body->attach<cake>(fork::_2);
+                                                auto scroll = layers->attach<rail>(axes::ONLY_Y)
+                                                                    ->plugin<pro::limit>(twod{ 4,1 }, twod{ -1,-1 })
+                                                                    ->config(true, true);
+                                                    auto grid = scroll->attach<post>()
+                                                                      ->plugin<pro::mouse>()
+                                                                      ->plugin<pro::color>(0xFF000000, 0xFFffffff)
+                                                                      ->upload(cellatix_text);
                                 auto stat_area = all_stat->attach<post>(fork::_2)
-                                                          ->upload(ansi::wrp(wrap::off) 
+                                                         ->upload(ansi::wrp(wrap::off) 
                                                             + ansi::mgl(5).mgr(1).bgc(whitelt).fgc(blackdk)
                                                             + " Sheet1 "
                                                             + ansi::bgc(whitedk).fgc(blackdk) + "＋");
+                                cols_area->follow<axis::X>(scroll);
+                                rows_area->follow<axis::Y>(scroll);
                                 scroll_bars(layers, scroll);
                                 scroll->base::reflow();
                         break;
