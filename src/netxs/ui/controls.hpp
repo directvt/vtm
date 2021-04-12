@@ -1107,6 +1107,7 @@ namespace netxs::ui
         auto upload(TEXT utf8)
         {
             topic = utf8;
+            base::reflow();
             return This<post>();
         }
         void output(face& canvas)
@@ -1225,6 +1226,13 @@ namespace netxs::ui
         {
             overscroll[axis::X] = allow_x_overscroll;
             overscroll[axis::Y] = allow_y_overscroll;
+            return This<rail>();
+        }
+        template<axis AXIS>
+        auto locate(iota coor)
+        {
+            AXIS == axis::X ? scroll<X>(coor)
+                            : scroll<Y>(coor);
             return This<rail>();
         }
         template<axis AXIS>

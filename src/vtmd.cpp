@@ -1152,7 +1152,7 @@ utility like ctags is used to locate the definitions.
                 + cellatix_text_head;
 
             cellatix_text = ansi::nil().wrp(wrap::off);
-            cellatix_rows = ansi::fgc(blackdk);
+            cellatix_rows = ansi::nil().wrp(wrap::off).fgc(blackdk);
             auto base = topclr - 0x1f1f1f;// 0xe0e0e0;// 0xe4e4e4;
             auto c1 = ansi::bgc(base); //ansi::bgc(0xf0f0f0);
             auto c2 = ansi::bgc(base);
@@ -1542,7 +1542,7 @@ utility like ctags is used to locate the definitions.
                     case Cellatix:
                     case Calc:
                     {
-                        /* Calc interface markup
+                        /* Calc Interface Layout
                         *
                         *   window:mold
                         *      object:fork_v
@@ -1551,7 +1551,9 @@ utility like ctags is used to locate the definitions.
                         *            all_stat_1: func_body_pad:pads   { -1,-1 }
                         *               func_body_pad: func_body:fork_v
                         *                  func_body_1: func_line:fork_h
-                        *                     func_line_1: Fx:post   Fx SUM(...)
+                        *                     func_line_1: fx_sum:fork_h
+                        *                        fx_sum_1: fx:post   Fx
+                        *                        fx_sum_2: sum:post     SUM ...
                         *                     func_line_2: Ellipsis:post   [...]
                         *                  func_body_2: body_area:fork_v
                         *                     body_area_1: corner_cols:fork_h
@@ -1576,21 +1578,31 @@ utility like ctags is used to locate the definitions.
                             ->attach<fork>(fork::vertical)
                             ->plugin<pro::color>(whitelt, 0);
                             main_menu(object);
+
+                            auto c2 = cell{ whitespace }.fgc(whitelt).bgc(tint::bluelt);
+                            auto c1 = cell{ whitespace }.fgc(blackdk).bgc(whitedk);
+                            auto c0 = c2; c0.alpha(0x00);
                             auto all_stat = object->attach<fork>(fork::_2, fork::vertical);
                                 auto func_body_pad = all_stat->attach<pads>(fork::_1, dent { -1,-1 })
                                                              ->plugin<pro::mouse>();
                                     auto func_body = func_body_pad->attach<fork>(fork::vertical);
                                         auto func_line = func_body->attach<fork>(fork::_1);
-                                            auto Fx = func_line->attach<post>(fork::_1)
-                                                               ->plugin<pro::color>(0, whitelt)
-                                                               ->upload(ansi::bgc(whitedk).fgc(blackdk)
-                                                                 + " Fx "
-                                                                 + ansi::bgc(whitelt).fgc(blacklt)
-                                                                 + " =SUM(B1:B10) ");
+                                            auto fx_sum = func_line->attach<fork>(fork::_1);
+                                                auto fx = fx_sum->attach<post>(fork::_1)
+                                                                ->plugin<pro::mouse>()
+                                                                ->plugin<pro::fader>(c1, c2, 150ms)
+                                                                ->plugin<pro::limit>(twod{ 3,-1 }, twod{ 4,-1 })
+                                                                ->upload(ansi::wrp(wrap::off)
+                                                                  + " Fx ");
+                                                auto sum = fx_sum->attach<post>(fork::_2)
+                                                                 ->plugin<pro::color>(0, whitelt)
+                                                                 ->upload(ansi::bgc(whitelt).fgc(blacklt)
+                                                                   + " =SUM(B1:B10) ");
                                             auto ellipsis = func_line->attach<post>(fork::_2)
+                                                                     ->plugin<pro::mouse>()
+                                                                     ->plugin<pro::fader>(c1, c2, 150ms)
                                                                      ->plugin<pro::limit>(twod{ -1,1 }, twod{ 3,-1 })
-                                                                     ->upload(ansi::bgc(whitedk).fgc(blackdk)
-                                                                       + " ⋯ ");
+                                                                     ->upload(ansi::wrp(wrap::off) + " ⋯ ");
                                         auto body_area = func_body->attach<fork>(fork::_2, fork::vertical);
                                             auto corner_cols = body_area->attach<fork>(fork::_1);
                                                 auto corner = corner_cols->attach<post>(fork::_1)
@@ -1603,26 +1615,41 @@ utility like ctags is used to locate the definitions.
                                                                          ->upload(cellatix_cols); // A  B  C ...
                                             auto rows_body = body_area->attach<fork>(fork::_2);
                                                 auto rows_area = rows_body->attach<rail>(fork::_1, axes::ONLY_Y, axes::ONLY_Y)
-                                                                         ->plugin<pro::limit>(twod{ 4,-1 }, twod{ 4,-1 });
+                                                                          ->plugin<pro::limit>(twod{ 4,-1 }, twod{ 4,-1 });
                                                     auto rows = rows_area->attach<post>()
                                                                          ->upload(cellatix_rows); // "  1 \n  2 \n  3 \n"
                                                 auto layers = rows_body->attach<cake>(fork::_2);
-                                                auto scroll = layers->attach<rail>(axes::ONLY_Y)
-                                                                    ->plugin<pro::limit>(twod{ 4,1 }, twod{ -1,-1 })
+                                                auto scroll = layers->attach<rail>()
+                                                                    ->plugin<pro::limit>(twod{ -1,1 }, twod{ -1,-1 })
                                                                     ->config(true, true);
                                                     auto grid = scroll->attach<post>()
                                                                       ->plugin<pro::mouse>()
                                                                       ->plugin<pro::color>(0xFF000000, 0xFFffffff)
                                                                       ->upload(cellatix_text);
-                                auto stat_area = all_stat->attach<post>(fork::_2)
-                                                         ->upload(ansi::wrp(wrap::off) 
-                                                            + ansi::mgl(5).mgr(1).bgc(whitelt).fgc(blackdk)
-                                                            + " Sheet1 "
-                                                            + ansi::bgc(whitedk).fgc(blackdk) + "＋");
+                                auto stat_area = all_stat->attach<rail>(fork::_2)
+                                                         ->plugin<pro::limit>(twod{ -1,1 }, twod{ -1,1 })
+                                                         ->locate<axis::X>(-5);
+                                    auto sheet_plus = stat_area->attach<fork>();
+                                        auto sheet = sheet_plus->attach<post>(fork::_1)
+                                                               ->plugin<pro::limit>(twod{ -1,-1 }, twod{ 13,-1 })
+                                                               ->upload(ansi::wrp(wrap::off)
+                                                                 + "     "
+                                                                 + ansi::bgc(whitelt).fgc(blackdk)
+                                                                 + " Sheet1 ");
+                                        auto plus_pad = sheet_plus->attach<fork>(fork::_2);
+                                            auto plus = plus_pad->attach<post>(fork::_1)
+                                                                ->plugin<pro::mouse>()
+                                                                ->plugin<pro::fader>(c1, c2, 150ms)
+                                                                ->plugin<pro::limit>(twod{ 2,-1 }, twod{ 2,-1 })
+                                                                ->upload(ansi::wrp(wrap::off)
+                                                                  + "＋");
+                                            auto pad = plus_pad->attach<post>(fork::_2) //todo use dummy instead of post
+                                                               ->plugin<pro::limit>(twod{ 1,1 }, twod{ 1,1 })
+                                                               ->upload(ansi::wrp(wrap::off)
+                                                                 + " ");
                                 cols_area->follow<axis::X>(scroll);
                                 rows_area->follow<axis::Y>(scroll);
                                 scroll_bars(layers, scroll);
-                                scroll->base::reflow();
                         break;
                     }
                     case Textancy:
