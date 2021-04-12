@@ -831,15 +831,15 @@ namespace netxs::ui
             }
         }
         // fork: Create a new item of the specified subtype and attach it to a specified slot.
-        template<class T, class ...Args>
-        auto attach(slot client_slot, Args&&... args)
+        template<slot SLOT, class T, class ...Args>
+        auto attach(Args&&... args)
         {
             static_assert(std::is_base_of<base, T>::value,
                 "The only a derivative of the «base» class can be attached to the «mold».");
 
             auto item = create<T>(std::forward<Args>(args)...);
-            if (client_slot == slot::_1) client_1 = item;
-            else                         client_2 = item;
+            if (SLOT == slot::_1) client_1 = item;
+            else                  client_2 = item;
 
             item->SIGNAL(e2::release, e2::form::upon::attached, This()); // Send creator
             base::reflow(); // Ask the client about the new size (the client can override the size)
@@ -1935,7 +1935,7 @@ namespace netxs::ui
         subs tokens{}; // pads: Subscriptions on client moveto and resize.
         bool locked{}; // pads: Client is under resizing.
 
-public:
+    public:
         sptr client;
 
         pads(dent const& padding_value = {}, dent const& margins_value = {}) : boost{*this },
@@ -1998,6 +1998,14 @@ public:
                 parent_canvas.full(full);
             }
         }
+    };
+
+    // controls: Pluggable dummy object.
+    class mock
+        : public base, public pro::boost<mock>
+    {
+    public:
+        mock() : boost{*this } { };
     };
 
     // controls: Menu controller.

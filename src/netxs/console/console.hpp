@@ -1655,6 +1655,7 @@ namespace netxs::console
             auto plugin(Args&&... args)
             {
                 plugins.emplace_back(std::make_unique<S<T>>(boss, std::forward<Args>(args)...));
+                boss.base::reflow();
                 return boss.template This<T>();
             }
             template<class P>

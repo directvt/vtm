@@ -1,9 +1,9 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#define DEMO
+//#define DEMO
 #define MONOTTY_VER "Monotty Desktopio Preview v0.3.3"
-//#define PROD
+#define PROD
 
 // Terminal's default line wrapping mode.
 #define WRAPPING (wrap::on)
@@ -1328,20 +1328,20 @@ utility like ctags is used to locate the definitions.
             auto scroll_bars = [](auto layers, auto master)
             {
                 auto scroll_bars = layers->template attach<fork>();
-                    auto scroll_down = scroll_bars->template attach<fork>(fork::_1, fork::vertical);
-                        auto hz = scroll_down->template attach<grip<axis::X>>(fork::_2, master);
-                        auto vt = scroll_bars->template attach<grip<axis::Y>>(fork::_2, master);
+                    auto scroll_down = scroll_bars->template attach<fork::_1, fork>(fork::vertical);
+                        auto hz = scroll_down->template attach<fork::_2, grip<axis::X>>(master);
+                        auto vt = scroll_bars->template attach<fork::_2, grip<axis::Y>>(master);
             };
             auto scroll_bars_term = [](auto layers, auto master)
             {
                 auto scroll_bars = layers->template attach<fork>();
-                    auto scroll_head = scroll_bars->template attach<fork>(fork::_1, fork::vertical);
-                        auto hz = scroll_head->template attach<grip<axis::X>>(fork::_1, master);
-                        auto vt = scroll_bars->template attach<grip<axis::Y>>(fork::_2, master);
+                    auto scroll_head = scroll_bars->template attach<fork::_1, fork>(fork::vertical);
+                        auto hz = scroll_head->template attach<fork::_1, grip<axis::X>>(master);
+                        auto vt = scroll_bars->template attach<fork::_2, grip<axis::Y>>(master);
             };
             auto main_menu = [](auto master)
             {
-                auto menu_area = master->template attach<fork>(fork::_1);
+                auto menu_area = master->template attach<fork::_1, fork>();
                     auto inner_pads = dent{ -1,-2,-1,-1 };
                     auto menu_items = {
                         std::pair{ " ≡"s,                                       dent{  0 } },
@@ -1351,13 +1351,13 @@ utility like ctags is used to locate the definitions.
                         std::pair{ ansi::und(true) + "D" + ansi::nil() + "ata", dent{ -1 } } };
                     auto c2 = cell{ whitespace }.bgc(tint::bluelt);
                     auto c1 = c2; c1.alpha(0x00);
-                    auto menu_list = menu_area->template attach<fork>(fork::_1)
-                                              ->template attach<list>(fork::_1, faux);
+                    auto menu_list = menu_area->template attach<fork::_1, fork>()
+                                              ->template attach<fork::_1, list>(faux);
                     for (auto& body : menu_items) menu_list->template attach<pads>(inner_pads, body.second)
                                                            ->template plugin<pro::mouse>()
                                                            ->template plugin<pro::fader>(c1, c2, 150ms)
                                                            ->template attach<menu::item>(body.first);
-                    menu_area->template attach<pads>(fork::_2, dent{ -2,-2,-1,-1 }, dent{})
+                    menu_area->template attach<fork::_2, pads>(dent{ -2,-2,-1,-1 }, dent{})
                              ->template plugin<pro::mouse>()
                              ->template plugin<pro::fader>(c1, c2, 150ms)
                              ->template attach<menu::item>(ansi::und(true) + "H" + ansi::nil() + "elp");
@@ -1509,11 +1509,11 @@ utility like ctags is used to locate the definitions.
                         auto object = window
                             ->attach<fork>(fork::vertical)
                             ->plugin<pro::color>(whitelt, 0);
-                            object->attach<post>(fork::_1)
+                            object->attach<fork::_1, post>()
                                   ->plugin<pro::limit>(twod{ 37,-1 }, twod{ -1,-1 })
                                   ->upload(appstore_head);
 
-                            auto layers = object->attach<cake>(fork::_2);
+                            auto layers = object->attach<fork::_2, cake>();
                             auto scroll = layers
                                 ->attach<rail>()
                                 ->plugin<pro::color>(whitedk, 0xFF0f0f0f)
@@ -1542,7 +1542,8 @@ utility like ctags is used to locate the definitions.
                     case Cellatix:
                     case Calc:
                     {
-                        /* Calc Interface Layout
+                        //todo XAML converter
+                        /* Calc Interface Layout (a bit outdated)
                         *
                         *   window:mold
                         *      object:fork_v
@@ -1578,47 +1579,38 @@ utility like ctags is used to locate the definitions.
                             ->attach<fork>(fork::vertical)
                             ->plugin<pro::color>(whitelt, 0);
                             main_menu(object);
-
                             auto c2 = cell{ whitespace }.fgc(whitelt).bgc(tint::bluelt);
                             auto c1 = cell{ whitespace }.fgc(blackdk).bgc(whitedk);
                             auto c0 = c2; c0.alpha(0x00);
-                            auto all_stat = object->attach<fork>(fork::_2, fork::vertical);
-                                auto func_body_pad = all_stat->attach<pads>(fork::_1, dent { -1,-1 })
+                            auto all_stat = object->attach<fork::_2, fork>(fork::vertical);
+                                auto func_body_pad = all_stat->attach<fork::_1, pads>(dent { -1,-1 })
                                                              ->plugin<pro::mouse>();
                                     auto func_body = func_body_pad->attach<fork>(fork::vertical);
-                                        auto func_line = func_body->attach<fork>(fork::_1);
-                                            auto fx_sum = func_line->attach<fork>(fork::_1);
-                                                auto fx = fx_sum->attach<post>(fork::_1)
+                                        auto func_line = func_body->attach<fork::_1, fork>();
+                                            auto fx_sum = func_line->attach<fork::_1, fork>();
+                                                auto fx = fx_sum->attach<fork::_1, post>()
                                                                 ->plugin<pro::mouse>()
                                                                 ->plugin<pro::fader>(c1, c2, 150ms)
                                                                 ->plugin<pro::limit>(twod{ 3,-1 }, twod{ 4,-1 })
                                                                 ->upload(ansi::wrp(wrap::off)
                                                                   + " Fx ");
-                                                auto sum = fx_sum->attach<post>(fork::_2)
+                                                auto sum = fx_sum->attach<fork::_2, post>()
                                                                  ->plugin<pro::color>(0, whitelt)
                                                                  ->upload(ansi::bgc(whitelt).fgc(blacklt)
                                                                    + " =SUM(B1:B10) ");
-                                            auto ellipsis = func_line->attach<post>(fork::_2)
+                                            auto ellipsis = func_line->attach<fork::_2, post>()
                                                                      ->plugin<pro::mouse>()
                                                                      ->plugin<pro::fader>(c1, c2, 150ms)
                                                                      ->plugin<pro::limit>(twod{ -1,1 }, twod{ 3,-1 })
                                                                      ->upload(ansi::wrp(wrap::off) + " ⋯ ");
-                                        auto body_area = func_body->attach<fork>(fork::_2, fork::vertical);
-                                            auto corner_cols = body_area->attach<fork>(fork::_1);
-                                                auto corner = corner_cols->attach<post>(fork::_1)
+                                        auto body_area = func_body->attach<fork::_2, fork>(fork::vertical);
+                                            auto corner_cols = body_area->attach<fork::_1, fork>();
+                                                auto corner = corner_cols->attach<fork::_1, post>()
                                                                          ->plugin<pro::limit>(twod{ 4,1 }, twod{ 4,1 })
                                                                          ->upload(ansi::bgc(0xffffff - 0x1f1f1f).fgc(0)
                                                                            + "    ");
-                                                auto cols_area = corner_cols->attach<rail>(fork::_2, axes::ONLY_X, axes::ONLY_X);
-                                                    auto cols = cols_area->attach<post>()
-                                                                         ->plugin<pro::limit>(twod{ -1,1 }, twod{ -1,1 })
-                                                                         ->upload(cellatix_cols); // A  B  C ...
-                                            auto rows_body = body_area->attach<fork>(fork::_2);
-                                                auto rows_area = rows_body->attach<rail>(fork::_1, axes::ONLY_Y, axes::ONLY_Y)
-                                                                          ->plugin<pro::limit>(twod{ 4,-1 }, twod{ 4,-1 });
-                                                    auto rows = rows_area->attach<post>()
-                                                                         ->upload(cellatix_rows); // "  1 \n  2 \n  3 \n"
-                                                auto layers = rows_body->attach<cake>(fork::_2);
+                                            auto rows_body = body_area->attach<fork::_2, fork>();
+                                                auto layers = rows_body->attach<fork::_2, cake>();
                                                 auto scroll = layers->attach<rail>()
                                                                     ->plugin<pro::limit>(twod{ -1,1 }, twod{ -1,-1 })
                                                                     ->config(true, true);
@@ -1626,29 +1618,35 @@ utility like ctags is used to locate the definitions.
                                                                       ->plugin<pro::mouse>()
                                                                       ->plugin<pro::color>(0xFF000000, 0xFFffffff)
                                                                       ->upload(cellatix_text);
-                                auto stat_area = all_stat->attach<rail>(fork::_2)
+                                                auto cols_area = corner_cols->attach<fork::_2, rail>(axes::ONLY_X, axes::ONLY_X)
+                                                                            ->follow<axis::X>(scroll);
+                                                    auto cols = cols_area->attach<post>()
+                                                                         ->plugin<pro::limit>(twod{ -1,1 }, twod{ -1,1 })
+                                                                         ->upload(cellatix_cols); //todo grid  A  B  C ...
+                                                auto rows_area = rows_body->attach<fork::_1, rail>(axes::ONLY_Y, axes::ONLY_Y)
+                                                                          ->follow<axis::Y>(scroll)
+                                                                          ->plugin<pro::limit>(twod{ 4,-1 }, twod{ 4,-1 });
+                                                    auto rows = rows_area->attach<post>()
+                                                                         ->upload(cellatix_rows); //todo grid  1 \n 2 \n 3 \n ...
+                                auto stat_area = all_stat->attach<fork::_2, rail>()
                                                          ->plugin<pro::limit>(twod{ -1,1 }, twod{ -1,1 })
                                                          ->locate<axis::X>(-5);
                                     auto sheet_plus = stat_area->attach<fork>();
-                                        auto sheet = sheet_plus->attach<post>(fork::_1)
+                                        auto sheet = sheet_plus->attach<fork::_1, post>()
                                                                ->plugin<pro::limit>(twod{ -1,-1 }, twod{ 13,-1 })
                                                                ->upload(ansi::wrp(wrap::off)
                                                                  + "     "
                                                                  + ansi::bgc(whitelt).fgc(blackdk)
                                                                  + " Sheet1 ");
-                                        auto plus_pad = sheet_plus->attach<fork>(fork::_2);
-                                            auto plus = plus_pad->attach<post>(fork::_1)
+                                        auto plus_pad = sheet_plus->attach<fork::_2, fork>();
+                                            auto plus = plus_pad->attach<fork::_1, post>()
                                                                 ->plugin<pro::mouse>()
                                                                 ->plugin<pro::fader>(c1, c2, 150ms)
                                                                 ->plugin<pro::limit>(twod{ 2,-1 }, twod{ 2,-1 })
                                                                 ->upload(ansi::wrp(wrap::off)
                                                                   + "＋");
-                                            auto pad = plus_pad->attach<post>(fork::_2) //todo use dummy instead of post
-                                                               ->plugin<pro::limit>(twod{ 1,1 }, twod{ 1,1 })
-                                                               ->upload(ansi::wrp(wrap::off)
-                                                                 + " ");
-                                cols_area->follow<axis::X>(scroll);
-                                rows_area->follow<axis::Y>(scroll);
+                                            auto pad = plus_pad->attach<fork::_2, mock>()
+                                                               ->plugin<pro::limit>(twod{ 1,1 }, twod{ 1,1 });
                                 scroll_bars(layers, scroll);
                         break;
                     }
@@ -1660,15 +1658,14 @@ utility like ctags is used to locate the definitions.
                         window->blurred = true;
                         window->highlight_center = faux;
                         window->set_border(dot_00);
-
                         auto object = window
                             ->attach<fork>(fork::vertical)
                             ->plugin<pro::color>(whitelt, 0);
                             main_menu(object);
                             auto body_area = object
-                                ->attach<fork>(fork::_2, fork::vertical);
+                                ->attach<fork::_2, fork>(fork::vertical);
                             auto fields = body_area
-                                ->attach<pads>(fork::_1, dent{ -1,-1 })
+                                ->attach<fork::_1, pads>(dent{ -1,-1 })
                                 ->plugin<pro::mouse>();
                             auto layers = fields
                                 ->attach<cake>();
@@ -1685,7 +1682,7 @@ utility like ctags is used to locate the definitions.
                                     + ansi::fgc(bluedk)
                                     + "From Wikipedia, the free encyclopedia");
                             auto status_line = body_area
-                                ->attach<post>(fork::_2)
+                                ->attach<fork::_2, post>()
                                 ->plugin<pro::limit>(twod{ 1,1 }, twod{ -1,1 })
                                 ->upload(ansi::wrp(wrap::off).mgl(1).mgr(1).jet(bias::right).fgc(whitedk)
                                     + "INS  Sel: 0:0  Col: 26  Ln: 2/148" + ansi::nil());
