@@ -303,14 +303,14 @@ namespace netxs::ui
 
         static constexpr uint32_t color256[] =
         {
-            0xFF000000,	// black
-            0xFF1F0FC4,	// red
-            0xFF0EA112,	// green
-            0xFF009CC0,	// yellow
-            0xFFDB3700,	// blue
-            0xFF981787,	// magenta
-            0xFFDD963B,	// cyan
-            0xFFBBBBBB,	// white
+            0xFF101010,	// blackdk
+            0xFF1F0FC4,	// reddk
+            0xFF0EA112,	// greendk
+            0xFF009CC0,	// yellowdk
+            0xFFDB3700,	// bluedk
+            0xFF981787,	// magentadk
+            0xFFDD963B,	// cyandk
+            0xFFBBBBBB,	// whitedk
             0xFF757575,	// blacklt
             0xFF5648E6,	// redlt
             0xFF0CC615,	// greenlt
@@ -1098,8 +1098,8 @@ namespace netxs::ui
         rect   operator |  (rect const& r) const { return unite(r);                         }
         bool   operator != (rect const& r) const { return coor != r.coor || size != r.size; }
         bool   operator == (rect const& r) const { return coor == r.coor && size == r.size; }
-        void   operator += (rect const& r)       { coor += r.coor, size += r.size;          }
-        void   operator -= (rect const& r)       { coor -= r.coor, size -= r.size;          }
+        void   operator += (rect const& r)       { coor += r.coor; size += r.size;          }
+        void   operator -= (rect const& r)       { coor -= r.coor; size -= r.size;          }
 
         // rect: Is the point inside the rect.
         bool hittest (twod const& p) const

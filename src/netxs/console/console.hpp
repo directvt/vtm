@@ -1034,11 +1034,11 @@ namespace netxs::console
                     global.hi_grades.recalc(global.hi_colors);
                     break;
                 case tone::prop::shadower:
-                    global.lo_colors.bgc(rgba(0, 0, 0, value)).bga(value);
+                    global.lo_colors.bgc(rgba(0x20, 0x20, 0x20, value)).bga(value);
                     global.lo_grades.recalc(global.lo_colors);
                     break;
                 case tone::prop::shadow:
-                    global.sh_colors.bgc(rgba(0, 0, 0, value)).bga(value);
+                    global.sh_colors.bgc(rgba(0x20, 0x20, 0x20, value)).bga(value);
                     global.sh_grades.recalc(global.sh_colors);
                     break;
                 case tone::prop::selector:
@@ -3676,15 +3676,13 @@ namespace netxs::console
         : public base
     {
         using self = host;
-#ifdef DEMO
+        #ifdef DEMO
         FEATURE(pro::watch, zombi); // host: Zombie protection.
-#endif // DEMO
+        #endif // DEMO
         FEATURE(pro::robot, robot); // host: Amination controller.
         FEATURE(pro::keybd, keybd); // host: Keyboard controller.
         FEATURE(pro::mouse, mouse); // host: Mouse controller.
-        //FEATURE(pro::focus, focus); // host: Focus controller.
         FEATURE(pro::scene, scene); // host: Scene controller.
-        //FEATURE(pro::caret, caret); // host: Cursor controller.
 
         using tick = quartz<reactor, e2::type>;
         using hndl = std::function<void(view)>;
@@ -3717,7 +3715,6 @@ namespace netxs::console
             using bttn = e2::hids::mouse::button;
 
             keybd.accept(true); // Subscribe on keybd offers
-            //focus.seize();
 
             SUBMIT(e2::general, e2::timer::tick, timestamp)
             {
@@ -3800,23 +3797,7 @@ namespace netxs::console
                     close(reason);
                 }
             };
-
-            //SUBMIT(e2::release, bttn::click::left, p)
-            //{
-            //	focus.seize();
-            //});
-
-            //SUBMIT(e2::release, e2::hids::keybd::any, gear)
-            //{
-            //	//if (gear.keybd.scancode == 1 || gear.keybd.scancode == 68)
-            //	//{
-            //	//	//SIGNAL(e2::general, e2::quit, exit_codes::nocode);
-            //	//	SIGNAL(e2::general, e2::quit, "Escape pressed.");
-            //	//	bell::expire(e2::release);
-            //	//}
-            //});
         }
-
         ~host()
         {
             synch.cancel();
@@ -3853,11 +3834,6 @@ namespace netxs::console
             log("link: std_input thread started");
             while (auto yield = canal->recv())
             {
-                //text tmp;
-                //tmp += yield;
-                //utf::change(tmp, "\033", "^");
-                //log("link: receive\n", tmp);
-
                 std::lock_guard guard{ mutex };
 
                 chunk.resize(yield.length());
@@ -3870,8 +3846,6 @@ namespace netxs::console
             if (alive)
             {
                 log("link: signaling to close read channel ", canal);
-                //alive = faux;
-                //canal->shut(); // Terminate all blocking calls.
                 owner.SIGNAL(e2::release, e2::term::quit, "link: read channel is closed");
                 log("link: sig to close read channel complete", canal);
             }
@@ -3888,7 +3862,6 @@ namespace netxs::console
               close { faux },
               iface { 0    }
         { }
-
         ~link()
         {
             canal->shut(); // Terminate all blocking calls.
@@ -3903,7 +3876,6 @@ namespace netxs::console
         {
             canal->send(buffer);
         }
-
         void session(text title)
         {
             auto is_digit = [](auto c) { return c >= '0' && c <= '9'; };
@@ -4402,7 +4374,7 @@ again:
 
             alive = faux;
             ready = true;
-            synch.notify_one(); //to interrupt session
+            synch.notify_one(); // Interrupt reading session.
             mutex.unlock();
         }
     };
@@ -4858,18 +4830,19 @@ again:
         }
     };
 
-    // console: VTM client viewport.
+    // console: Client gate.
     class gate
         : public form
     {
+        using sptr = netxs::sptr<base>;
         using self = gate;
         FEATURE(pro::keybd, keybd); // gate: Keyboard controller.
         FEATURE(pro::robot, robot); // gate: Animation controller.
         FEATURE(pro::maker, maker); // gate: Form generator.
-        //FEATURE(pro::caret, caret); // gate: Cursor controller.
         FEATURE(pro::title, title); // gate: Logo watermark.
         FEATURE(pro::guard, guard); // gate: Watch dog against robots and single Esc detector.
         FEATURE(pro::input, input); // gate: User input event handler.
+        FEATURE(pro::align, align); // gate: Size binding controller.
         #ifdef DEBUG_OVERLAY
         FEATURE(pro::debug, debug); // gate: Debug telemetry controller.
         #endif
@@ -4880,7 +4853,9 @@ again:
         para uname;
 
     public:
-        // Client main loop
+        sptr uibar; // gate: Local UI overlay, UI bar/taskbar/sidebar.
+
+        // Client's main loop.
         void proceed(xipc media /*session socket*/, text title)
         {
             if (auto world = parent.lock())
@@ -4889,7 +4864,7 @@ again:
                 diff paint{ conio, input.freeze() }; // gate: Rendering loop.
                 subs token;                          // gate: Subscription tokens array.
 
-                // conio events
+                // conio events.
                 SUBMIT_T(e2::release, e2::term::size, token, newsize)
                 {
                     base::resize(newsize);
@@ -4934,14 +4909,14 @@ again:
                     {
                         // Update objects under mouse cursor
                         //input.fire(e2::hids::mouse::hover);
-#ifdef DEBUG_OVERLAY
-                        debug.bypass = true;
-                        //input.fire(e2::hids::mouse::hover);
-                        input.fire(e2::hids::mouse::move);
-                        debug.bypass = faux;
-#else
-                        input.fire(e2::hids::mouse::move);
-#endif // DEBUG_OVERLAY
+                        #ifdef DEBUG_OVERLAY
+                            debug.bypass = true;
+                            //input.fire(e2::hids::mouse::hover);
+                            input.fire(e2::hids::mouse::move);
+                            debug.bypass = faux;
+                        #else
+                            input.fire(e2::hids::mouse::move);
+                        #endif // DEBUG_OVERLAY
 
                         // in order to draw debug overlay, maker, titles, etc
                         SIGNAL(e2::release, e2::form::upon::redrawn, form::canvas);
@@ -4954,7 +4929,7 @@ again:
                             }
                             debug.update(stamp);
                         #else
-                            yield = paint.commit(form::canvas); // Try to output my canvas to my console
+                            yield = paint.commit(form::canvas); // Try output my canvas to the my console.
                         #endif // DEBUG_OVERLAY
                     }
                 };
@@ -5004,7 +4979,7 @@ again:
                     {
                         if (auto world = parent.lock())
                         {
-                            sptr<base> item_ptr;
+                            sptr item_ptr;
                             if (pgdn) world->SIGNAL(e2::request, e2::form::proceed::detach, item_ptr); // Take prev item
                             else      world->SIGNAL(e2::request, e2::form::proceed::attach, item_ptr); // Take next item
 
@@ -5078,20 +5053,29 @@ again:
                                      moveby(-x);
                                  });
             };
+
+            SUBMIT(e2::preview, e2::form::layout::size, newsz)
+            {
+                if (uibar) uibar->SIGNAL(e2::preview, e2::form::layout::size, newsz);
+            };
+            SUBMIT(e2::release, e2::form::layout::size, newsz)
+            {
+                if (uibar) uibar->SIGNAL(e2::release, e2::form::layout::size, newsz);
+            };
         }
 
         // gate: Draw the form composition on the specified canvas.
-        virtual void renderproc (face& parent)
+        virtual void renderproc (face& parent_canvas)
         {
             //base::renderproc(parent_canvas);
 
             // Draw a shadow of user's terminal window for other users (spectators)
             // see pro::scene.
-            if (&parent != &canvas)
+            if (&parent_canvas != &canvas)
             {
                 auto area = canvas.area();
-                area.coor-= parent.area().coor;
-                parent.fill(area, skin::color(tone::shadow));
+                area.coor-= parent_canvas.area().coor;
+                parent_canvas.fill(area, skin::color(tone::shadow));
             }
         }
         // gate: .
@@ -5129,6 +5113,10 @@ again:
                 header.move(area.coor);
                 parent_canvas.fill(header);
             }
+            else
+            {
+                if (uibar) parent_canvas.render(uibar, base::coor.get());
+            }
 
             #ifdef REGIONS
             parent_canvas.each([](cell& c){
@@ -5139,6 +5127,20 @@ again:
                 c.bgc(bgc);
             });
             #endif
+        }
+    public:
+        // gate: Create a new item of the specified subtype and attach it.
+        template<class T, class ...Args>
+        auto attach(Args&&... args)
+        {
+            static_assert(std::is_base_of<base, T>::value,
+                "The only a derivative of the «base» class can be attached to the «gate».");
+
+            auto item = base::create<T>(std::forward<Args>(args)...);
+            uibar = item;
+            item->SIGNAL(e2::release, e2::form::upon::attached, This()); // Send creator
+            base::reflow(); // Ask client about the new size (the client can override the size)
+            return item;
         }
     };
 }

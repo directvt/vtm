@@ -110,10 +110,10 @@ double `LeftClick`    | Window: Maximize/restore
   - Just a sketch
 
  - `▀▄ Text`
-  - Just a sketch
+  - A user interface only
 
  - `▀▄ Calc`
-  - Just a sketch
+  - A user interface only
 
  - `▀▄ Clip`
   - ...
