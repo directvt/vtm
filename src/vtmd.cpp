@@ -1264,19 +1264,35 @@ utility like ctags is used to locate the definitions.
                     std::pair{ ansi::und(true) + "F" + ansi::nil() + "ile", dent{ -1 } },
                     std::pair{ ansi::und(true) + "E" + ansi::nil() + "dit", dent{ -1 } },
                     std::pair{ ansi::und(true) + "V" + ansi::nil() + "iew", dent{ -1 } },
-                    std::pair{ ansi::und(true) + "D" + ansi::nil() + "ata", dent{ -1 } } };
+                    std::pair{ ansi::und(true) + "D" + ansi::nil() + "ata", dent{ -1 } },
+                    std::pair{ ansi::und(true) + "H" + ansi::nil() + "elp", dent{ -1 } } };
+                auto c3 = cell{ whitespace }.bgc(tint::redlt);
+                auto x3 = c3; x3.alpha(0x00);
                 auto c2 = cell{ whitespace }.bgc(tint::bluelt);
-                auto c1 = c2; c1.alpha(0x00);
+                auto x2 = c2; x2.alpha(0x00);
                 auto menu_list = menu_area->template attach<fork::_1, fork>()
                                           ->template attach<fork::_1, list>(faux);
                 for (auto& body : menu_items) menu_list->template attach<pads>(inner_pads, body.second)
                                                        ->template plugin<pro::mouse>()
-                                                       ->template plugin<pro::fader>(c1, c2, 150ms)
+                                                       ->template plugin<pro::fader>(x2, c2, 150ms)
                                                        ->template attach<menu::item>(body.first);
                 menu_area->template attach<fork::_2, pads>(dent{ -2,-2,-1,-1 }, dent{})
                          ->template plugin<pro::mouse>()
-                         ->template plugin<pro::fader>(c1, c2, 150ms)
-                         ->template attach<menu::item>(ansi::und(true) + "H" + ansi::nil() + "elp");
+                         ->template plugin<pro::fader>(x3, c3, 150ms)
+                         ->invoke([&](auto& boss)
+                         {
+                             wptr<base> link = boss.This();
+                             boss.SUBMIT_BYVAL(e2::release, e2::hids::mouse::button::click::left, gear)
+                             {
+                                 log(" CLOSE clicked!");
+                                 //boss.base::template riseup<e2::release, e2::form::proceed::detach>(boss.This());  // MSVC don't get it 
+                                 if (auto boss = link.lock())
+                                 {
+                                     boss->base::template riseup<e2::release, e2::form::proceed::detach>(boss->This());
+                                 }
+                             };
+                         })
+                         ->template attach<menu::item>("✕");
             menu_area->base::reflow();
         };
 

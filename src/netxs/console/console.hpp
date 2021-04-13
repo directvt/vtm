@@ -1542,12 +1542,12 @@ namespace netxs::console
         // Usage example:
         //          base::riseup<e2::preview, e2::form::prop::header>(txt);
         template<e2::tier TIER, e2::type EVENT, class T>
-        void riseup(T& data)
+        void riseup(T&& data)
         {
             if (!SIGNAL(TIER, EVENT, data))
             {
                 base::toboss([&](auto& boss) {
-                    boss.base::template riseup<TIER, EVENT>(data);
+                    boss.base::template riseup<TIER, EVENT>(std::forward<T>(data));
                     });
             }
         }

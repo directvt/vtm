@@ -387,7 +387,10 @@ namespace netxs::ui
                     gear.dismiss();
                 }
             };
-
+            SUBMIT(e2::release, e2::form::proceed::detach, shadow)
+            {
+                base::detach(); // Kill myself.
+            };
             //todo revise/what is this? history?
             SUBMIT(e2::preview, e2::form::proceed::detach, shadow)
             {
