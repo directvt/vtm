@@ -1,9 +1,9 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#define DEMO
+//#define DEMO
 #define MONOTTY_VER "Monotty Desktopio Preview v0.3.3"
-//#define PROD
+#define PROD
 
 // Terminal's default line wrapping mode.
 #define WRAPPING (wrap::on)
