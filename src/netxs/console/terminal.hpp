@@ -1596,9 +1596,11 @@ namespace netxs::ui
             {
                 //todo unify
                 status = target->status();
-                auto coor = parent_canvas.area().coor;
-                coor.y += parent_canvas.area().size.y - 1;
-                status.lyric->move(coor);
+                auto size = status.size();
+                auto area = parent_canvas.area();
+                area.coor.x += area.size.x - size.x - 1;
+                area.coor.y += area.size.y - 1;
+                status.lyric->move(area.coor);
                 parent_canvas.fill(*status.lyric);
             };
 

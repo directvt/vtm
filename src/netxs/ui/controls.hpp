@@ -389,7 +389,7 @@ namespace netxs::ui
             };
             SUBMIT(e2::release, e2::form::proceed::detach, shadow)
             {
-                base::detach(); // Kill myself.
+                base::detach(); // The object kills itself.
             };
             //todo revise/what is this? history?
             SUBMIT(e2::preview, e2::form::proceed::detach, shadow)
@@ -852,7 +852,7 @@ namespace netxs::ui
 
     // controls: Vertical/horizontal list control.
     class list
-        : public base
+        : public base, public pro::boost<list>
     {
         using self = list;
         FEATURE(pro::mouse, mouse); // list: Mouse controller.
@@ -863,7 +863,8 @@ namespace netxs::ui
         using roll = std::list<std::pair<sptr, iota>>;
 
         roll clients;
-        bool up_down; // list: List orientation, true: vertical, faux: horizontal.
+        bool updown; // list: List orientation, true: vertical(default), faux: horizontal.
+        bool greedy; // list: Greedy and lazy vertical area occupation.
 
     public:
         ~list()
@@ -874,21 +875,23 @@ namespace netxs::ui
                 clients.pop_back();
             }
         }
-        list(bool vertical = true)
-            : up_down{ vertical }
+        list(bool vertical = true, bool bubble = faux) : boost{*this },
+            updown{ vertical },
+            greedy{ bubble   }
         {
             SUBMIT(e2::preview, e2::form::layout::size, new_sz)
             {
                 iota  height;
-                auto& y_size = up_down ? new_sz.y : new_sz.x;
-                auto& x_size = up_down ? new_sz.x : new_sz.y;
+                auto& y_size = updown ? new_sz.y : new_sz.x;
+                auto& x_size = updown ? new_sz.x : new_sz.y;
                 auto  x_temp = x_size;
+                auto  y_temp = y_size;
 
                 auto meter = [&]() {
                     height = 0;
                     for (auto& client : clients)
                     {
-                        y_size = 0;
+                        y_size = greedy ? std::max(0, y_temp - height) : 0;
                         client.first->SIGNAL(e2::preview, e2::form::layout::size, new_sz);
                         client.second = y_size;
                         height += y_size;
@@ -901,11 +904,11 @@ namespace netxs::ui
             SUBMIT(e2::release, e2::form::layout::size, new_sz)
             {
                 //todo optimize avoid SIGNAL if size/coor is unchanged
-                auto& y_size = up_down ? new_sz.y : new_sz.x;
-                auto& x_size = up_down ? new_sz.x : new_sz.y;
+                auto& y_size = updown ? new_sz.y : new_sz.x;
+                auto& x_size = updown ? new_sz.x : new_sz.y;
                 twod  new_xy;
-                auto& y_coor = up_down ? new_xy.y : new_xy.x;
-                auto& x_coor = up_down ? new_xy.x : new_xy.y;
+                auto& y_coor = updown ? new_xy.y : new_xy.x;
+                auto& x_coor = updown ? new_xy.x : new_xy.y;
 
                 auto  found = faux;
                 for (auto& client : clients)
@@ -963,7 +966,7 @@ namespace netxs::ui
 
     // controls: (puff) Layered cake of forms on top of each other.
     class cake
-        : public base
+        : public base, public pro::boost<cake>
     {
         using sptr = netxs::sptr<base>;
         using self = cake;
@@ -981,7 +984,7 @@ namespace netxs::ui
                 clients.pop_back();
             }
         }
-        cake()
+        cake() : boost{*this }
         {
             SUBMIT(e2::preview, e2::form::layout::size, newsz)
             {
@@ -2020,15 +2023,19 @@ namespace netxs::ui
             : public base
         {
             para name;
+            bool flex; // item: Violate or not the label size, default is faux.
+
             void recalc()
             {
                 auto size = name.size();
-                base::limits(size, size);
+                auto lims = flex ? twod{ -1,size.y } : size;
+                base::limits(lims, lims);
                 base::resize(size);
             }
         public:
-            item(text const& label_text)
-                : name{ label_text }
+            item(text const& label_text, bool flexible = faux)
+                : name{ label_text },
+                  flex{ flexible   }
             {
                 recalc();
             }

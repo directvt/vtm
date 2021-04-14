@@ -304,20 +304,22 @@ namespace netxs::console::ansi
         esc& fgc ()              { add("\033[39m");                    return *this; } // esc: Set default foreground color.
         esc& bgc ()              { add("\033[49m");                    return *this; } // esc: Set default background color.
 
-        // Colon-separated variant
-        //esc& fgc (rgba const& c) { add("\033[38:2:" + str(c.channel.red  ) + ":"// esc: SGR Foreground color. RGB: red, green, blue.
-        //                                            + str(c.channel.green) + ":"
-        //                                            + str(c.channel.blue ) + "m"); return *this; }
-        //esc& bgc (rgba const& c) { add("\033[48:2:" + str(c.channel.red  ) + ":"// esc: SGR Background color. RGB: red, green, blue and alpha.
-        //                                            + str(c.channel.green) + ":"
-        //                                            + str(c.channel.blue ) + "m"); return *this; }
+        // Colon-separated variant.
+        esc& fgc4(rgba const& c) { add("\033[38:2:" + str(c.chan.r) + ":"// esc: SGR Foreground color. RGB: red, green, blue and alpha.
+                                                    + str(c.chan.g) + ":"
+                                                    + str(c.chan.b) + ":"
+                                                    + str(c.chan.a) + "m"); return *this; }
+        esc& bgc4(rgba const& c) { add("\033[48:2:" + str(c.chan.r) + ":"// esc: SGR Background color. RGB: red, green, blue and alpha.
+                                                    + str(c.chan.g) + ":"
+                                                    + str(c.chan.b) + ":"
+                                                    + str(c.chan.a) + "m"); return *this; }
 
-        esc& fgc (rgba const& c) { add("\033[38;2;" + str(c.chan.r  ) + ";" // esc: SGR Foreground color. RGB: red, green, blue.
+        esc& fgc (rgba const& c) { add("\033[38;2;" + str(c.chan.r) + ";" // esc: SGR Foreground color. RGB: red, green, blue.
                                                     + str(c.chan.g) + ";"
-                                                    + str(c.chan.b ) + "m"); return *this; }
-        esc& bgc (rgba const& c) { add("\033[48;2;" + str(c.chan.r  ) + ";" // esc: SGR Background color. RGB: red, green, blue and alpha.
+                                                    + str(c.chan.b) + "m"); return *this; }
+        esc& bgc (rgba const& c) { add("\033[48;2;" + str(c.chan.r) + ";" // esc: SGR Background color. RGB: red, green, blue and alpha.
                                                     + str(c.chan.g) + ";"
-                                                    + str(c.chan.b ) + "m"); return *this; }
+                                                    + str(c.chan.b) + "m"); return *this; }
 
         esc& sav ()              { add("\033[10m");                     return *this; } // esc: Save SGR attributes.
         esc& nil ()              { add("\033[m");                       return *this; } // esc: Reset SGR attributes to zero.
@@ -422,6 +424,8 @@ namespace netxs::console::ansi
     static esc bgc ()                { return esc{}.bgc ( ); } // ansi: Set default background color.
     static esc fgc (rgba const& n)   { return esc{}.fgc (n); } // ansi: SGR Foreground color.
     static esc bgc (rgba const& n)   { return esc{}.bgc (n); } // ansi: SGR Background color.
+    static esc fgc4(rgba const& n)   { return esc{}.fgc4(n); } // ansi: SGR Foreground color with alpha.
+    static esc bgc4(rgba const& n)   { return esc{}.bgc4(n); } // ansi: SGR Background color with alpha.
     static esc sav ()                { return esc{}.sav ( ); } // ansi: Save SGR attributes.
     static esc nil ()                { return esc{}.nil ( ); } // ansi: Reset (restore) SGR attributes.
     static esc scp ()                { return esc{}.scp ( ); } // ansi: Save cursor position in memory.

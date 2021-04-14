@@ -1,9 +1,9 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-//#define DEMO
+#define DEMO
 #define MONOTTY_VER "Monotty Desktopio Preview v0.3.3"
-#define PROD
+//#define PROD
 
 // Terminal's default line wrapping mode.
 #define WRAPPING (wrap::on)
@@ -1160,11 +1160,14 @@ utility like ctags is used to locate the definitions.
         truecolor += r_grut03;
         truecolor += wiki01;
 
+        auto const highlight_color  = tint::bluelt  ;
+        auto const warning_color    = tint::yellowdk;
+        auto const danger_color     = tint::redlt   ;
         auto background_color = cell{}.fgc(whitedk).bgc(0xFF000000 /* blackdk */);
         skin::setup(tone::kb_focus, 60);
         skin::setup(tone::brighter, 120);
         //skin::setup(tone::shadower, 0);
-        skin::setup(tone::shadower, 120);//60);//40);// 20);
+        skin::setup(tone::shadower, 180);//60);//40);// 20);
         skin::setup(tone::shadow, 5);
         //skin::setup(tone::lucidity, 192);
         skin::setup(tone::lucidity, 255);
@@ -1255,7 +1258,7 @@ utility like ctags is used to locate the definitions.
                     auto hz = scroll_head->template attach<fork::_1, grip<axis::X>>(master);
                     auto vt = scroll_bars->template attach<fork::_2, grip<axis::Y>>(master);
         };
-        auto main_menu = [](auto master)
+        auto main_menu = [&](auto master)
         {
             auto menu_area = master->template attach<fork::_1, fork>();
                 auto inner_pads = dent{ -1,-2,-1,-1 };
@@ -1266,9 +1269,9 @@ utility like ctags is used to locate the definitions.
                     std::pair{ ansi::und(true) + "V" + ansi::nil() + "iew", dent{ -1 } },
                     std::pair{ ansi::und(true) + "D" + ansi::nil() + "ata", dent{ -1 } },
                     std::pair{ ansi::und(true) + "H" + ansi::nil() + "elp", dent{ -1 } } };
-                auto c3 = cell{ whitespace }.bgc(tint::redlt);
+                auto c3 = cell{ whitespace }.bgc(danger_color);
                 auto x3 = c3; x3.alpha(0x00);
-                auto c2 = cell{ whitespace }.bgc(tint::bluelt);
+                auto c2 = cell{ whitespace }.bgc(highlight_color);
                 auto x2 = c2; x2.alpha(0x00);
                 auto menu_list = menu_area->template attach<fork::_1, fork>()
                                           ->template attach<fork::_1, list>(faux);
@@ -1281,11 +1284,16 @@ utility like ctags is used to locate the definitions.
                          ->template plugin<pro::fader>(x3, c3, 150ms)
                          ->invoke([&](auto& boss)
                          {
+                             // MSVC don't get it (todo investigate)
+                             //boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
+                             //{
+                             //    log(" CLOSE clicked!");
+                             //    boss.base::template riseup<e2::release, e2::form::proceed::detach>(boss.This());
+                             //};
                              wptr<base> link = boss.This();
                              boss.SUBMIT_BYVAL(e2::release, e2::hids::mouse::button::click::left, gear)
                              {
                                  log(" CLOSE clicked!");
-                                 //boss.base::template riseup<e2::release, e2::form::proceed::detach>(boss.This());  // MSVC don't get it 
                                  if (auto boss = link.lock())
                                  {
                                      boss->base::template riseup<e2::release, e2::form::proceed::detach>(boss->This());
@@ -1452,7 +1460,7 @@ utility like ctags is used to locate the definitions.
                             ->config(true, true);
 
                             auto c2 = cell{ whitespace }.fgc(tint::whitelt)
-                                                        .bgc(tint::bluelt);
+                                                        .bgc(highlight_color);
                             auto c1 = c2; c1.alpha(0x00);
 
                             auto items = scroll->attach<list>();
@@ -1509,7 +1517,7 @@ utility like ctags is used to locate the definitions.
                         ->attach<fork>(fork::vertical)
                         ->plugin<pro::color>(whitelt, 0);
                         main_menu(object);
-                        auto c2 = cell{ whitespace }.fgc(whitelt).bgc(tint::bluelt);
+                        auto c2 = cell{ whitespace }.fgc(whitelt).bgc(highlight_color);
                         auto c1 = cell{ whitespace }.fgc(blackdk).bgc(whitedk);
                         auto c0 = c2; c0.alpha(0x00);
                         auto all_stat = object->attach<fork::_2, fork>(fork::vertical);
@@ -1609,7 +1617,7 @@ utility like ctags is used to locate the definitions.
                             ->plugin<pro::color>(blackdk, whitelt)
                             ->upload(ansi::wrp(wrap::off).mgl(1)
                                 + topic3
-                                + ansi::fgc(bluedk)
+                                + ansi::fgc(highlight_color)
                                 + "From Wikipedia, the free encyclopedia");
                         auto status_line = body_area
                             ->attach<fork::_2, post>()
@@ -1965,32 +1973,134 @@ utility like ctags is used to locate the definitions.
                     #else
                         auto username = _name;
                     #endif
-                    /* Task Panel Layout pseudocode:
-                    * 
-                    * board<gate>
-                    *     board: window<cake>
-                    *         window: session<gate>
-                    *         window: menu<fork(v)>
-                    *             menu(1): title<post> - centered, allow hz_stretching
-                    *             menu(2): tasks_bttns<fork(v)>
-                    *                 tasks_bttns(1): tasks<rail>
-                    *                     tasks: tasklist<list>
-                    *                         tasklist: item_1<item>
-                    *                         ...
-                    *                         tasklist: item_n<item>
-                    *                 tasks_bttns(2): bttns<fork_h>
-                    *                     bttns(1): disonnect_area<pads>
-                    *                         disonnect_area: disconnect<post>
-                    *                     bttns(2): shutdown_area<pads>
-                    *                         shutdown_area: shutdown<post>
+                   /* Task Panel Layout pseudocode:
+                    *
+                    * world<host>
+                    *    world: client<gate(username)>
+                    *       client: window<cake>
+                    *          window: menu_area<fork(h)>
+                    *             menu_area: menu<fork(v)>
+                    *                menu(1): items<list>
+                    *                   items: app_title<post> = "Apps"
+                    *                   items: apps_area<rail>
+                    *                      apps_area: apps<list>
+                    *                         apps: app_1<item>
+                    *                            ...
+                    *                         apps: app_n<item>
+                    *                   items: hr<mock> = "----"
+                    *                   items: usr_title<post> = "TTYs"
+                    *                   items: users_area<rail>
+                    *                      users_area: users<list>
+                    *                         users: user_1<item>
+                    *                            ...
+                    *                         users: user_n<item>
+                    *                menu(2): items_bttns<fork(h)>
+                    *                   items_bttns(1): bttns<fork(h)>
+                    *                      bttns(1): disonnect_area<pads>
+                    *                         disonnect_area: disconnect<item>
+                    *                      bttns(2): shutdown_area<pads>
+                    *                         shutdown_area: shutdown<item>
                     *
                     */
+                    auto c3 = cell{}.bgc(highlight_color);
+                    auto x3 = c3; x3.bga(0x00);
+                    auto c2 = cell{}.bgc(warning_color);
+                    auto x2 = c2; x2.bga(0x00);
+                    auto c1 = cell{}.bgc(danger_color);
+                    auto x1 = c1; x1.bga(0x00);
+                    auto head_item = [&](auto container, auto utf8){
+                        auto item_area = container->template attach<pads>(dent{ -1,0,-1,-1 })
+                                                  ->template plugin<pro::mouse>()
+                                                  ->template plugin<pro::fader>(x3, c3, 0ms);//150ms);
+                        auto item = item_area->template attach<menu::item>(ansi::bgc4(0xFF00FF00) + "  " + ansi::nil() + "  " + utf8, true);
+                    };
+                    auto next_item = [&](auto container, auto utf8){
+                        auto item_area = container->template attach<pads>(dent{ -1,0,0,-1 }, dent{ 0,0,-1,0 })
+                                                  ->template plugin<pro::mouse>()
+                                                  ->template plugin<pro::fader>(x3, c3, 0ms);//150ms);
+                        auto item = item_area->template attach<menu::item>(ansi::bgc4(0x7F000000) + "  " + ansi::nil() + "  " + utf8, true);
+                    };
                     auto client = world->invite<gate>(username);
-                        //client->attach<fork>()
-                        //      ->attach<fork::_1, rail>()
-                        //      ->attach<post>()
-                        //      ->plugin<pro::color>(whitelt, 0xA0202020)
-                        //      ->upload(" Menu / UI Bar ");
+                        auto window = client->attach<cake>();
+                            auto menu_area = window->attach<fork>(fork::horizontal);
+                                auto menu = menu_area->attach<fork::_1, fork>(fork::vertical)
+                                                     ->plugin<pro::mouse>()
+                                                     ->plugin<pro::color>(whitelt, 0xA0202020)
+                                                               ->plugin<pro::limit>(twod{ 4,-1 }, twod{ 4,-1 })
+                                                     ->invoke([&](auto& boss)
+                                                        {
+                                                            boss.SUBMIT(e2::release, e2::form::state::mouse, active)
+                                                                {
+                                                                    if (active) 
+                                                                    {
+                                                                        boss.base::limits(twod{ 32,-1 }, twod{ 32,-1 });
+                                                                        boss.base::reflow();
+                                                                    }
+                                                                    else
+                                                                    {
+                                                                        boss.base::limits(twod{ 4,-1 }, twod{ 4,-1 });
+                                                                        boss.base::reflow();
+                                                                    }
+                                                                };
+                                                        });
+                                    auto items = menu->attach<fork::_1, list>(true, true);
+                                        auto apps_title = items->attach<post>()
+                                                               ->upload("Apps");
+                                        //auto apps_area = items->attach<rail>();
+                                        //auto apps = apps_area->attach<list>();
+                                        auto apps = items->attach<list>();
+                                            head_item(apps, "Application1 app name");
+                                            next_item(apps, "Application2 app name");
+                                            next_item(apps, "Application3 app name");
+                                            next_item(apps, "Application4 app name");
+                                            next_item(apps, "Application5 app name");
+
+                                        auto users_title = items->attach<post>()
+                                                                ->upload("TTYs");
+                                        //auto users_area = items->attach<rail>();
+                                        //auto users = users_area->attach<list>();
+                                        auto users = items->attach<list>();
+                                            head_item(users, "User_1 name");
+                                            next_item(users, "User_2 name");
+                                            next_item(users, "User_3 name");
+
+                                        auto empty_space = items->attach<mock>();
+
+                                    auto bttns_area = menu->attach<fork::_2, fork>(fork::horizontal, 0, 100);
+                                        auto bttns = bttns_area->attach<fork::_1, fork>(fork::horizontal);
+                                            auto disconnect_area = bttns->attach<fork::_1, pads>(dent{ -2,-3,-1,-1 })
+                                                                                 ->plugin<pro::mouse>()
+                                                                                 ->plugin<pro::fader>(x2, c2, 150ms)
+                                                                                 ->invoke([&](auto& boss)
+                                                                                    {
+                                                                                        boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
+                                                                                        {
+                                                                                            if (auto owner = base::getref(gear.id))
+                                                                                            {
+                                                                                                owner->SIGNAL(e2::release, e2::term::quit, "sidebar: logout by button");
+                                                                                            }
+                                                                                        };
+                                                                                    }
+                                                                                 );
+                                                auto disconnect = disconnect_area->attach<menu::item>("✕ Disconnect");
+                                            auto shutdown_area = bttns->attach<fork::_2, pads>(dent{ -2,-3,-1,-1 })
+                                                                             ->plugin<pro::mouse>()
+                                                                             ->plugin<pro::fader>(x1, c1, 150ms)
+                                                                             ->invoke([&](auto& boss)
+                                                                                {
+                                                                                    boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
+                                                                                    {
+                                                                                        //todo unify, see system.h:1614
+                                                                                        #if defined(__APPLE__)
+                                                                                        path = "/tmp/" + path + ".sock";
+                                                                                        ::unlink(path.c_str());
+                                                                                        #endif
+                                                                                        os::exit(0, "sidebar: shutdown by button");
+                                                                                    };
+                                                                                }
+                                                                             );
+                                                auto shutdown = shutdown_area->attach<menu::item>("✕ Shutdown");
+
                     client->color(background_color.fgc(), background_color.bgc());
                     text header = ansi::jet(bias::center).mgr(0).mgl(0)
                         + username;
