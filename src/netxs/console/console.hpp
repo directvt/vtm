@@ -1664,6 +1664,18 @@ namespace netxs::console
                 functor(boss);
                 return boss.template This<T>();
             }
+            template<class C, class ...Args>
+            auto brunch(C root, Args&&... args)
+            {
+                if (root) boss.T::attach(root, std::forward<Args>(args)...);
+                return boss.template This<T>();
+            }
+            /*// pro::boost: Create a new item of the specified subtype and attach it.
+            template<class C, class ...Args>
+            auto attach(Args&&... args)
+            {
+                return boss.T::attach(create<C>(std::forward<Args>(args)...));
+            }*/
         };
         // pro: Provides shared storage for the states of type T::state_t.
         template<class T>
@@ -3290,10 +3302,10 @@ namespace netxs::console
         {
             using skill<T>::boss,
                   skill<T>::memo;
-            constexpr static e2::type EXCUSE_MSG = e2::hids::mouse::button::down::any;
+            constexpr static e2::type EXCUSE_MSG = e2::hids::mouse::any;
             constexpr static e2::type QUIT_MSG   = e2::quit;
             //todo unify
-            constexpr static int LIMIT = 60 * 5; // Idle timeout in seconds
+            constexpr static int LIMIT = 60 * 10; // Idle timeout in seconds
 
             hook   pong; // Alibi subsciption token
             hook   ping; // Zombie check countdown token
@@ -3307,7 +3319,7 @@ namespace netxs::console
                 stop = tempus::now() + std::chrono::seconds(LIMIT);
 
                 // No mouse events watchdog
-                boss.SUBMIT_T(e2::preview, EXCUSE_MSG, pong, timestamp)
+                boss.SUBMIT_T(e2::preview, EXCUSE_MSG, pong, something)
                 {
                     stop = tempus::now() + std::chrono::seconds(LIMIT);
 
@@ -3315,7 +3327,7 @@ namespace netxs::console
                     //alibi.reset();
                 };
 
-                boss.SUBMIT_T(e2::general, e2::timer::tick, ping, timestamp)
+                boss.SUBMIT_T(e2::general, e2::timer::tick, ping, something)
                 {
                     if (tempus::now() > stop)
                     {
@@ -3439,7 +3451,8 @@ namespace netxs::console
             bool highlightable = faux;
 
             mouse(T&&) = delete;
-            mouse(T& boss) : skill<T>{ boss }
+            mouse(T& boss, bool take_all_focus = faux) : skill<T>{ boss },
+                highlightable{ take_all_focus }
             {
                 boss.base::color().link(boss.bell::id);
 
@@ -3627,14 +3640,18 @@ namespace netxs::console
                     }
                     else
                     {
-                        auto range = transit;
-                        auto limit = datetime::round<iota>(fade);
-                        auto start = datetime::now<iota>();
-                        robo.actify(constlinearAtoB<iota>(range, limit, start), [&](auto step)
+                        if (fade != fade.zero())
                         {
-                            transit -= step;
-                            work(transit);
-                        });
+                            auto range = transit;
+                            auto limit = datetime::round<iota>(fade);
+                            auto start = datetime::now<iota>();
+                            robo.actify(constlinearAtoB<iota>(range, limit, start), [&](auto step)
+                            {
+                                transit -= step;
+                                work(transit);
+                            });
+                        }
+                        else work(transit = 0);
                     }
                 };
             }

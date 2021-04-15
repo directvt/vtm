@@ -1160,6 +1160,7 @@ utility like ctags is used to locate the definitions.
         truecolor += r_grut03;
         truecolor += wiki01;
 
+        //auto const highlight_color2 = tint::blackdk ;
         auto const highlight_color  = tint::bluelt  ;
         auto const warning_color    = tint::yellowdk;
         auto const danger_color     = tint::redlt   ;
@@ -1247,59 +1248,51 @@ utility like ctags is used to locate the definitions.
         auto scroll_bars = [](auto layers, auto master)
         {
             auto scroll_bars = layers->template attach<fork>();
-                auto scroll_down = scroll_bars->template attach<fork::_1, fork>(fork::vertical);
-                    auto hz = scroll_down->template attach<fork::_2, grip<axis::X>>(master);
-                    auto vt = scroll_bars->template attach<fork::_2, grip<axis::Y>>(master);
+                auto scroll_down = scroll_bars->template attach<slot::_1, fork>(axis::Y);
+                    auto hz = scroll_down->template attach<slot::_2, grip<axis::X>>(master);
+                    auto vt = scroll_bars->template attach<slot::_2, grip<axis::Y>>(master);
         };
         auto scroll_bars_term = [](auto layers, auto master)
         {
             auto scroll_bars = layers->template attach<fork>();
-                auto scroll_head = scroll_bars->template attach<fork::_1, fork>(fork::vertical);
-                    auto hz = scroll_head->template attach<fork::_1, grip<axis::X>>(master);
-                    auto vt = scroll_bars->template attach<fork::_2, grip<axis::Y>>(master);
+                auto scroll_head = scroll_bars->template attach<slot::_1, fork>(axis::Y);
+                    auto hz = scroll_head->template attach<slot::_1, grip<axis::X>>(master);
+                    auto vt = scroll_bars->template attach<slot::_2, grip<axis::Y>>(master);
         };
         auto main_menu = [&](auto master)
         {
-            auto menu_area = master->template attach<fork::_1, fork>();
-                auto inner_pads = dent{ -1,-2,-1,-1 };
+            auto menu_area = master->template attach<slot::_1, fork>();
+                auto inner_pads = dent{ 1,2,1,1 };
                 auto menu_items = {
-                    std::pair{ " ≡"s,                                       dent{  0 } },
-                    std::pair{ ansi::und(true) + "F" + ansi::nil() + "ile", dent{ -1 } },
-                    std::pair{ ansi::und(true) + "E" + ansi::nil() + "dit", dent{ -1 } },
-                    std::pair{ ansi::und(true) + "V" + ansi::nil() + "iew", dent{ -1 } },
-                    std::pair{ ansi::und(true) + "D" + ansi::nil() + "ata", dent{ -1 } },
-                    std::pair{ ansi::und(true) + "H" + ansi::nil() + "elp", dent{ -1 } } };
+                    std::pair{ " ≡"s,                                       dent{ 0 } },
+                    std::pair{ ansi::und(true) + "F" + ansi::nil() + "ile", dent{ 1 } },
+                    std::pair{ ansi::und(true) + "E" + ansi::nil() + "dit", dent{ 1 } },
+                    std::pair{ ansi::und(true) + "V" + ansi::nil() + "iew", dent{ 1 } },
+                    std::pair{ ansi::und(true) + "D" + ansi::nil() + "ata", dent{ 1 } },
+                    std::pair{ ansi::und(true) + "H" + ansi::nil() + "elp", dent{ 1 } } };
                 auto c3 = cell{ whitespace }.bgc(danger_color);
                 auto x3 = c3; x3.alpha(0x00);
                 auto c2 = cell{ whitespace }.bgc(highlight_color);
                 auto x2 = c2; x2.alpha(0x00);
-                auto menu_list = menu_area->template attach<fork::_1, fork>()
-                                          ->template attach<fork::_1, list>(faux);
+                auto menu_list = menu_area->template attach<slot::_1, fork>()
+                                          ->template attach<slot::_1, list>(axis::X);
                 for (auto& body : menu_items) menu_list->template attach<pads>(inner_pads, body.second)
                                                        ->template plugin<pro::mouse>()
                                                        ->template plugin<pro::fader>(x2, c2, 150ms)
                                                        ->template attach<menu::item>(body.first);
-                menu_area->template attach<fork::_2, pads>(dent{ -2,-2,-1,-1 }, dent{})
-                         ->template plugin<pro::mouse>()
-                         ->template plugin<pro::fader>(x3, c3, 150ms)
-                         ->invoke([&](auto& boss)
-                         {
-                             // MSVC don't get it (todo investigate)
-                             //boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
-                             //{
-                             //    log(" CLOSE clicked!");
-                             //    boss.base::template riseup<e2::release, e2::form::proceed::detach>(boss.This());
-                             //};
-                             wptr<base> link = boss.This();
-                             boss.SUBMIT_BYVAL(e2::release, e2::hids::mouse::button::click::left, gear)
+                auto close_hndl = [&](auto& boss)
+                        {
+                             // MSVC 16.9.4 don't get it inline, use close_hndl (possible compiler bug, todo investigate)
+                             boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
                              {
                                  log(" CLOSE clicked!");
-                                 if (auto boss = link.lock())
-                                 {
-                                     boss->base::template riseup<e2::release, e2::form::proceed::detach>(boss->This());
-                                 }
+                                 boss.base::template riseup<e2::release, e2::form::proceed::detach>(boss.This());
                              };
-                         })
+                        };
+                menu_area->template attach<slot::_2, pads>(dent{ 2,2,1,1 }, dent{})
+                         ->template plugin<pro::mouse>()
+                         ->template plugin<pro::fader>(x3, c3, 150ms)
+                         ->invoke(close_hndl)
                          ->template attach<menu::item>("✕");
             menu_area->base::reflow();
         };
@@ -1446,13 +1439,13 @@ utility like ctags is used to locate the definitions.
                     window->highlight_center = faux;
 
                     auto object = window
-                        ->attach<fork>(fork::vertical)
+                        ->attach<fork>(axis::Y)
                         ->plugin<pro::color>(whitelt, 0);
-                        object->attach<fork::_1, post>()
+                        object->attach<slot::_1, post>()
                               ->plugin<pro::limit>(twod{ 37,-1 }, twod{ -1,-1 })
                               ->upload(appstore_head);
 
-                        auto layers = object->attach<fork::_2, cake>();
+                        auto layers = object->attach<slot::_2, cake>();
                         auto scroll = layers
                             ->attach<rail>()
                             ->plugin<pro::color>(whitedk, 0xFF0f0f0f)
@@ -1514,41 +1507,41 @@ utility like ctags is used to locate the definitions.
                     window->highlight_center = faux;
                     window->set_border(dot_00);
                     auto object = window
-                        ->attach<fork>(fork::vertical)
+                        ->attach<fork>(axis::Y)
                         ->plugin<pro::color>(whitelt, 0);
                         main_menu(object);
                         auto c2 = cell{ whitespace }.fgc(whitelt).bgc(highlight_color);
                         auto c1 = cell{ whitespace }.fgc(blackdk).bgc(whitedk);
                         auto c0 = c2; c0.alpha(0x00);
-                        auto all_stat = object->attach<fork::_2, fork>(fork::vertical);
-                            auto func_body_pad = all_stat->attach<fork::_1, pads>(dent { -1,-1 })
+                        auto all_stat = object->attach<slot::_2, fork>(axis::Y);
+                            auto func_body_pad = all_stat->attach<slot::_1, pads>(dent{ 1,1 })
                                                          ->plugin<pro::mouse>();
-                                auto func_body = func_body_pad->attach<fork>(fork::vertical);
-                                    auto func_line = func_body->attach<fork::_1, fork>();
-                                        auto fx_sum = func_line->attach<fork::_1, fork>();
-                                            auto fx = fx_sum->attach<fork::_1, post>()
+                                auto func_body = func_body_pad->attach<fork>(axis::Y);
+                                    auto func_line = func_body->attach<slot::_1, fork>();
+                                        auto fx_sum = func_line->attach<slot::_1, fork>();
+                                            auto fx = fx_sum->attach<slot::_1, post>()
                                                             ->plugin<pro::mouse>()
                                                             ->plugin<pro::fader>(c1, c2, 150ms)
                                                             ->plugin<pro::limit>(twod{ 3,-1 }, twod{ 4,-1 })
                                                             ->upload(ansi::wrp(wrap::off)
                                                               + " Fx ");
-                                            auto sum = fx_sum->attach<fork::_2, post>()
+                                            auto sum = fx_sum->attach<slot::_2, post>()
                                                              ->plugin<pro::color>(0, whitelt)
                                                              ->upload(ansi::bgc(whitelt).fgc(blacklt)
                                                                + " =SUM(B1:B10) ");
-                                        auto ellipsis = func_line->attach<fork::_2, post>()
+                                        auto ellipsis = func_line->attach<slot::_2, post>()
                                                                  ->plugin<pro::mouse>()
                                                                  ->plugin<pro::fader>(c1, c2, 150ms)
                                                                  ->plugin<pro::limit>(twod{ -1,1 }, twod{ 3,-1 })
                                                                  ->upload(ansi::wrp(wrap::off) + " ⋯ ");
-                                    auto body_area = func_body->attach<fork::_2, fork>(fork::vertical);
-                                        auto corner_cols = body_area->attach<fork::_1, fork>();
-                                            auto corner = corner_cols->attach<fork::_1, post>()
+                                    auto body_area = func_body->attach<slot::_2, fork>(axis::Y);
+                                        auto corner_cols = body_area->attach<slot::_1, fork>();
+                                            auto corner = corner_cols->attach<slot::_1, post>()
                                                                      ->plugin<pro::limit>(twod{ 4,1 }, twod{ 4,1 })
                                                                      ->upload(ansi::bgc(0xffffff - 0x1f1f1f).fgc(0)
                                                                        + "    ");
-                                        auto rows_body = body_area->attach<fork::_2, fork>();
-                                            auto layers = rows_body->attach<fork::_2, cake>();
+                                        auto rows_body = body_area->attach<slot::_2, fork>();
+                                            auto layers = rows_body->attach<slot::_2, cake>();
                                             auto scroll = layers->attach<rail>()
                                                                 ->plugin<pro::limit>(twod{ -1,1 }, twod{ -1,-1 })
                                                                 ->config(true, true);
@@ -1556,34 +1549,34 @@ utility like ctags is used to locate the definitions.
                                                                   ->plugin<pro::mouse>()
                                                                   ->plugin<pro::color>(0xFF000000, 0xFFffffff)
                                                                   ->upload(cellatix_text);
-                                            auto cols_area = corner_cols->attach<fork::_2, rail>(axes::ONLY_X, axes::ONLY_X)
+                                            auto cols_area = corner_cols->attach<slot::_2, rail>(axes::ONLY_X, axes::ONLY_X)
                                                                         ->follow<axis::X>(scroll);
                                                 auto cols = cols_area->attach<post>()
                                                                      ->plugin<pro::limit>(twod{ -1,1 }, twod{ -1,1 })
                                                                      ->upload(cellatix_cols); //todo grid  A  B  C ...
-                                            auto rows_area = rows_body->attach<fork::_1, rail>(axes::ONLY_Y, axes::ONLY_Y)
+                                            auto rows_area = rows_body->attach<slot::_1, rail>(axes::ONLY_Y, axes::ONLY_Y)
                                                                       ->follow<axis::Y>(scroll)
                                                                       ->plugin<pro::limit>(twod{ 4,-1 }, twod{ 4,-1 });
                                                 auto rows = rows_area->attach<post>()
                                                                      ->upload(cellatix_rows); //todo grid  1 \n 2 \n 3 \n ...
-                            auto stat_area = all_stat->attach<fork::_2, rail>()
+                            auto stat_area = all_stat->attach<slot::_2, rail>()
                                                      ->plugin<pro::limit>(twod{ -1,1 }, twod{ -1,1 })
-                                                     ->locate<axis::X>(-5);
+                                                     ->moveby<axis::X>(-5);
                                 auto sheet_plus = stat_area->attach<fork>();
-                                    auto sheet = sheet_plus->attach<fork::_1, post>()
+                                    auto sheet = sheet_plus->attach<slot::_1, post>()
                                                            ->plugin<pro::limit>(twod{ -1,-1 }, twod{ 13,-1 })
                                                            ->upload(ansi::wrp(wrap::off)
                                                              + "     "
                                                              + ansi::bgc(whitelt).fgc(blackdk)
                                                              + " Sheet1 ");
-                                    auto plus_pad = sheet_plus->attach<fork::_2, fork>();
-                                        auto plus = plus_pad->attach<fork::_1, post>()
+                                    auto plus_pad = sheet_plus->attach<slot::_2, fork>();
+                                        auto plus = plus_pad->attach<slot::_1, post>()
                                                             ->plugin<pro::mouse>()
                                                             ->plugin<pro::fader>(c1, c2, 150ms)
                                                             ->plugin<pro::limit>(twod{ 2,-1 }, twod{ 2,-1 })
                                                             ->upload(ansi::wrp(wrap::off)
                                                               + "＋");
-                                        auto pad = plus_pad->attach<fork::_2, mock>()
+                                        auto pad = plus_pad->attach<slot::_2, mock>()
                                                            ->plugin<pro::limit>(twod{ 1,1 }, twod{ 1,1 });
                             scroll_bars(layers, scroll);
                     break;
@@ -1597,13 +1590,13 @@ utility like ctags is used to locate the definitions.
                     window->highlight_center = faux;
                     window->set_border(dot_00);
                     auto object = window
-                        ->attach<fork>(fork::vertical)
+                        ->attach<fork>(axis::Y)
                         ->plugin<pro::color>(whitelt, 0);
                         main_menu(object);
                         auto body_area = object
-                            ->attach<fork::_2, fork>(fork::vertical);
+                            ->attach<slot::_2, fork>(axis::Y);
                         auto fields = body_area
-                            ->attach<fork::_1, pads>(dent{ -1,-1 })
+                            ->attach<slot::_1, pads>(dent{ 1,1 })
                             ->plugin<pro::mouse>();
                         auto layers = fields
                             ->attach<cake>();
@@ -1620,7 +1613,7 @@ utility like ctags is used to locate the definitions.
                                 + ansi::fgc(highlight_color)
                                 + "From Wikipedia, the free encyclopedia");
                         auto status_line = body_area
-                            ->attach<fork::_2, post>()
+                            ->attach<slot::_2, post>()
                             ->plugin<pro::limit>(twod{ 1,1 }, twod{ -1,1 })
                             ->upload(ansi::wrp(wrap::off).mgl(1).mgr(1).jet(bias::right).fgc(whitedk)
                                 + "INS  Sel: 0:0  Col: 26  Ln: 2/148" + ansi::nil());
@@ -1980,20 +1973,21 @@ utility like ctags is used to locate the definitions.
                     *       client: window<cake>
                     *          window: menu_area<fork(h)>
                     *             menu_area: menu<fork(v)>
-                    *                menu(1): items<list>
-                    *                   items: app_title<post> = "Apps"
-                    *                   items: apps_area<rail>
-                    *                      apps_area: apps<list>
-                    *                         apps: app_1<item>
-                    *                            ...
-                    *                         apps: app_n<item>
-                    *                   items: hr<mock> = "----"
-                    *                   items: usr_title<post> = "TTYs"
-                    *                   items: users_area<rail>
-                    *                      users_area: users<list>
-                    *                         users: user_1<item>
-                    *                            ...
-                    *                         users: user_n<item>
+                    *                menu(1): items_area<rail>
+                    *                   items_area: items<list>
+                    *                      items: app_title<post> = "Apps"
+                    *                      items: apps_area<rail>
+                    *                         apps_area: apps<list>
+                    *                            apps: app_1<item>
+                    *                               ...
+                    *                            apps: app_n<item>
+                    *                      items: hr<mock> = "----"
+                    *                      items: usr_title<post> = "TTYs"
+                    *                      items: users_area<rail>
+                    *                         users_area: users<list>
+                    *                            users: user_1<item>
+                    *                               ...
+                    *                            users: user_n<item>
                     *                menu(2): items_bttns<fork(h)>
                     *                   items_bttns(1): bttns<fork(h)>
                     *                      bttns(1): disonnect_area<pads>
@@ -2002,103 +1996,134 @@ utility like ctags is used to locate the definitions.
                     *                         shutdown_area: shutdown<item>
                     *
                     */
+                    //todo MSVC 16.9.4 don't capture x3,c3 by & (possible compiler bug)
+                    //auto c4 = cell{}.bgc(highlight_color2);
+                    //auto x4 = c4; x4.bga(0x00);
                     auto c3 = cell{}.bgc(highlight_color);
                     auto x3 = c3; x3.bga(0x00);
                     auto c2 = cell{}.bgc(warning_color);
                     auto x2 = c2; x2.bga(0x00);
                     auto c1 = cell{}.bgc(danger_color);
                     auto x1 = c1; x1.bga(0x00);
-                    auto head_item = [&](auto container, auto utf8){
-                        auto item_area = container->template attach<pads>(dent{ -1,0,-1,-1 })
+                    auto next_item = [&, x3, c3](auto container, bool b, auto utf8){
+                        auto item_area = container->template attach<pads>(dent{ 1,0,0,1 }, dent{ 0,0,1,0 })
                                                   ->template plugin<pro::mouse>()
                                                   ->template plugin<pro::fader>(x3, c3, 0ms);//150ms);
-                        auto item = item_area->template attach<menu::item>(ansi::bgc4(0xFF00FF00) + "  " + ansi::nil() + "  " + utf8, true);
+                        auto item = item_area->template attach<menu::item>(ansi::bgc4(b ? 0xFF00FF00 : 0x7F000000) + "  " + ansi::nil() + "  " + utf8, true);
                     };
-                    auto next_item = [&](auto container, auto utf8){
-                        auto item_area = container->template attach<pads>(dent{ -1,0,0,-1 }, dent{ 0,0,-1,0 })
+                    auto next_item2 = [&, x3, c3](bool b, auto utf8){
+                        auto item_area = base::template create<pads>(dent{ 1,0,0,1 }, dent{ 0,0,1,0 })
                                                   ->template plugin<pro::mouse>()
                                                   ->template plugin<pro::fader>(x3, c3, 0ms);//150ms);
-                        auto item = item_area->template attach<menu::item>(ansi::bgc4(0x7F000000) + "  " + ansi::nil() + "  " + utf8, true);
+                        auto item = item_area->template attach<menu::item>(ansi::bgc4(b ? 0xFF00FF00 : 0x7F000000) + "  " + ansi::nil() + "  " + utf8, true);
+                        return item_area;
+                    };
+                    auto instance = [&, x3, c3](auto container, auto utf8){
+                        auto item_area = container->template attach<pads>(dent{ 2,0,0,0 }, dent{ 2,0,0,0 })
+                                                  ->template plugin<pro::mouse>()
+                                                  ->template plugin<pro::fader>(x3, c3, 0ms);//150ms);
+                        auto item = item_area->template attach<menu::item>(ansi::fgc4(0xFF00FF00) + "‣" + ansi::nil() + "    " + utf8, true);
+                        //auto item = item_area->template attach<menu::item>(ansi::fgc4(0x7F00FF00) + "▄" + ansi::nil() + "    " + utf8, true);
+                    };
+                    auto instance2 = [&, x3, c3](auto utf8){
+                        auto item = base::template create<pads>(dent{ 1,0,0,0 }, dent{ 0,-1,0,0 })
+                                        ->template plugin<pro::mouse>()
+                                        ->template plugin<pro::fader>(x3, c3, 0ms);
+                        //auto data = item->template attach<menu::item>(ansi::fgc4(0xFF00FF00) + "▀ " + ansi::nil() + "  " + utf8, true);
+                        auto data = item->template attach<menu::item>(ansi::fgc4(0xFF00FF00) + "‣" + ansi::nil() + "   " + utf8, true);
+                        return item;
+                    };
+                    auto next_item3 = [x3, c3, &instance2](bool b, auto utf8){
+                        auto item_area = base::template create<pads>(dent{ 1,0,0,1 }, dent{ 0,0,1,0 })
+                                                  ->template plugin<pro::mouse>();
+                        auto block = item_area->template attach<fork>(axis::Y);
+                            auto head_area = block->template attach<slot::_1, pads>(dent{ 0,0,0,1 }, dent{ 1,0,1,0 })
+                                                  ->template plugin<pro::mouse>()
+                                                  ->template plugin<pro::fader>(x3, c3, 0ms);
+                                auto head = head_area->template attach<menu::item>(ansi::bgc4(b ? 0xFF00FF00 : 0x7F000000) + "  " + ansi::nil() + "  " + utf8, true);
+                            auto data = block->template attach<slot::_2, list>()
+                                    ->brunch(instance2("App instance 1"))
+                                    ->brunch(instance2("App instance 2"))
+                                    ->brunch(instance2("App instance 3"))
+                                    ->brunch(instance2("App instance 4"));
+                                    data->attach(instance2("App instance 5"));
+                        return item_area;
                     };
                     auto client = world->invite<gate>(username);
                         auto window = client->attach<cake>();
-                            auto menu_area = window->attach<fork>(fork::horizontal);
-                                auto menu = menu_area->attach<fork::_1, fork>(fork::vertical)
-                                                     ->plugin<pro::mouse>()
+                            auto menu_area = window->attach<fork>(axis::X);
+                                auto menu = menu_area->attach<slot::_1, fork>(axis::Y)
+                                                     //->plugin<pro::mouse>()
                                                      ->plugin<pro::color>(whitelt, 0xA0202020)
-                                                               ->plugin<pro::limit>(twod{ 4,-1 }, twod{ 4,-1 })
-                                                     ->invoke([&](auto& boss)
-                                                        {
+                                                     ->plugin<pro::limit>(twod{ 4,-1 }, twod{ 4,-1 })
+                                                     ->invoke([&](auto& boss) {
                                                             boss.SUBMIT(e2::release, e2::form::state::mouse, active)
+                                                            {
+                                                                if (active) 
                                                                 {
-                                                                    if (active) 
-                                                                    {
-                                                                        boss.base::limits(twod{ 32,-1 }, twod{ 32,-1 });
-                                                                        boss.base::reflow();
-                                                                    }
-                                                                    else
-                                                                    {
-                                                                        boss.base::limits(twod{ 4,-1 }, twod{ 4,-1 });
-                                                                        boss.base::reflow();
-                                                                    }
-                                                                };
+                                                                    boss.base::limits(twod{ 32,-1 }, twod{ 32,-1 });
+                                                                    boss.base::reflow();
+                                                                }
+                                                                else
+                                                                {
+                                                                    boss.base::limits(twod{ 4,-1 }, twod{ 4,-1 });
+                                                                    boss.base::reflow();
+                                                                }
+                                                            };
                                                         });
-                                    auto items = menu->attach<fork::_1, list>(true, true);
-                                        auto apps_title = items->attach<post>()
-                                                               ->upload("Apps");
-                                        //auto apps_area = items->attach<rail>();
-                                        //auto apps = apps_area->attach<list>();
-                                        auto apps = items->attach<list>();
-                                            head_item(apps, "Application1 app name");
-                                            next_item(apps, "Application2 app name");
-                                            next_item(apps, "Application3 app name");
-                                            next_item(apps, "Application4 app name");
-                                            next_item(apps, "Application5 app name");
-
-                                        auto users_title = items->attach<post>()
-                                                                ->upload("TTYs");
-                                        //auto users_area = items->attach<rail>();
-                                        //auto users = users_area->attach<list>();
-                                        auto users = items->attach<list>();
-                                            head_item(users, "User_1 name");
-                                            next_item(users, "User_2 name");
-                                            next_item(users, "User_3 name");
-
-                                        auto empty_space = items->attach<mock>();
-
-                                    auto bttns_area = menu->attach<fork::_2, fork>(fork::horizontal, 0, 100);
-                                        auto bttns = bttns_area->attach<fork::_1, fork>(fork::horizontal);
-                                            auto disconnect_area = bttns->attach<fork::_1, pads>(dent{ -2,-3,-1,-1 })
-                                                                                 ->plugin<pro::mouse>()
-                                                                                 ->plugin<pro::fader>(x2, c2, 150ms)
-                                                                                 ->invoke([&](auto& boss)
-                                                                                    {
-                                                                                        boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
-                                                                                        {
-                                                                                            if (auto owner = base::getref(gear.id))
-                                                                                            {
-                                                                                                owner->SIGNAL(e2::release, e2::term::quit, "sidebar: logout by button");
-                                                                                            }
-                                                                                        };
-                                                                                    }
-                                                                                 );
-                                                auto disconnect = disconnect_area->attach<menu::item>("✕ Disconnect");
-                                            auto shutdown_area = bttns->attach<fork::_2, pads>(dent{ -2,-3,-1,-1 })
-                                                                             ->plugin<pro::mouse>()
-                                                                             ->plugin<pro::fader>(x1, c1, 150ms)
-                                                                             ->invoke([&](auto& boss)
+                                    auto items_area = menu->attach<slot::_1, cake>();
+                                        auto items_scrl = items_area->attach<rail>(axes::ONLY_Y)
+                                                                    ->plugin<pro::color>(0x00, 0x00); //todo mouse events passthrough
+                                            auto items = items_scrl->attach<list>();
+                                                auto apps_title = items->attach<post>()
+                                                                       ->upload("Apps\n");
+                                                auto apps = items->attach<list>()
+                                                    ->brunch(next_item3(true, "Application 0 app name"))
+                                                    ->brunch(next_item3(faux, "Application 1 app name"))
+                                                    ->brunch(next_item3(faux, "Application 2 app name"));
+                                                        //instance(apps, "App1 instance 1");
+                                                        //instance(apps, "App1 instance 2");
+                                                        //instance(apps, "App1 instance 3");
+                                                    //next_item(apps, faux, "Application 2 app name");
+                                                    //next_item(apps, faux, "Application 3 app name");
+                                                    //next_item(apps, faux, "Application 4 app name");
+                                                    //next_item(apps, faux, "Application 5 app name");
+                                                auto users_title = items->attach<post>()
+                                                                        ->upload("TTYs\n");
+                                                auto users = items->attach<list>();
+                                                    next_item(users, true, "User_1 name");
+                                                    next_item(users, faux, "User_2 name");
+                                                    next_item(users, faux, "User_3 name");
+                                    scroll_bars(items_area, items_scrl);
+                                    auto bttns_area = menu->attach<slot::_2, fork>(axis::X, 0, 100);
+                                        auto bttns = bttns_area->attach<slot::_1, fork>(axis::X);
+                                            auto disconnect_area = bttns->attach<slot::_1, pads>(dent{ 2,3,1,1 })
+                                                                        ->plugin<pro::mouse>()
+                                                                        ->plugin<pro::fader>(x2, c2, 150ms)
+                                                                        ->invoke([&](auto& boss) {
+                                                                            boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
+                                                                            {
+                                                                                if (auto owner = base::getref(gear.id))
                                                                                 {
-                                                                                    boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
-                                                                                    {
-                                                                                        //todo unify, see system.h:1614
-                                                                                        #if defined(__APPLE__)
-                                                                                        path = "/tmp/" + path + ".sock";
-                                                                                        ::unlink(path.c_str());
-                                                                                        #endif
-                                                                                        os::exit(0, "sidebar: shutdown by button");
-                                                                                    };
+                                                                                    owner->SIGNAL(e2::release, e2::term::quit, "sidebar: logout by button");
                                                                                 }
-                                                                             );
+                                                                            };
+                                                                        });
+                                                auto disconnect = disconnect_area->attach<menu::item>("✕ Disconnect");
+                                            auto shutdown_area = bttns->attach<slot::_2, pads>(dent{ 2,3,1,1 })
+                                                                      ->plugin<pro::mouse>()
+                                                                      ->plugin<pro::fader>(x1, c1, 150ms)
+                                                                      ->invoke([&](auto& boss) {
+                                                                          boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
+                                                                          {
+                                                                              //todo unify, see system.h:1614
+                                                                              #if defined(__APPLE__)
+                                                                              path = "/tmp/" + path + ".sock";
+                                                                              ::unlink(path.c_str());
+                                                                              #endif
+                                                                              os::exit(0, "sidebar: shutdown by button");
+                                                                          };
+                                                                      });
                                                 auto shutdown = shutdown_area->attach<menu::item>("✕ Shutdown");
 
                     client->color(background_color.fgc(), background_color.bgc());

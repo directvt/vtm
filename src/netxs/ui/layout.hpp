@@ -1484,30 +1484,30 @@ namespace netxs::ui
         // dent: Return size without padding.
         friend auto operator + (twod const& size, dent const& pad)
         {
-            return twod{ std::max(0, size.x - (pad.west.step + pad.east.step)),
-                         std::max(0, size.y - (pad.head.step + pad.foot.step)) };
+            return twod{ std::max(0, size.x + (pad.west.step + pad.east.step)),
+                         std::max(0, size.y + (pad.head.step + pad.foot.step)) };
         }
         // dent: Return size with padding.
         friend auto operator - (twod const& size, dent const& pad)
         {
-            return twod{ std::max(0, size.x + (pad.west.step + pad.east.step)),
-                         std::max(0, size.y + (pad.head.step + pad.foot.step)) };
+            return twod{ std::max(0, size.x - (pad.west.step + pad.east.step)),
+                         std::max(0, size.y - (pad.head.step + pad.foot.step)) };
         }
         // dent: Return area without padding.
         friend auto operator + (rect const& area, dent const& pad)
         {
-            return rect{{ area.coor.x + pad.west.step,
-                          area.coor.y + pad.head.step },
-                        { std::max(0, area.size.x - (pad.west.step + pad.east.step)),
-                          std::max(0, area.size.y - (pad.head.step + pad.foot.step)) }};
+            return rect{{ area.coor.x - pad.west.step,
+                          area.coor.y - pad.head.step },
+                        { std::max(0, area.size.x + (pad.west.step + pad.east.step)),
+                          std::max(0, area.size.y + (pad.head.step + pad.foot.step)) }};
         }
         // dent: Return area with padding.
         friend auto operator - (rect const& area, dent const& pad)
         {
-            return rect{ { area.coor.x - pad.west.step,
-                           area.coor.y - pad.head.step },
-                         { std::max(0, area.size.x + (pad.west.step + pad.east.step)),
-                           std::max(0, area.size.y + (pad.head.step + pad.foot.step)) }};
+            return rect{ { area.coor.x + pad.west.step,
+                           area.coor.y + pad.head.step },
+                         { std::max(0, area.size.x - (pad.west.step + pad.east.step)),
+                           std::max(0, area.size.y - (pad.head.step + pad.foot.step)) }};
         }
     };
 

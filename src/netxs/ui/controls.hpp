@@ -15,6 +15,7 @@ namespace netxs::ui
     using namespace netxs;
     using namespace netxs::console;
 
+    enum slot : id_t { _1, _2 };
     enum axis : id_t { X, Y };
     enum axes
     {
@@ -151,9 +152,6 @@ namespace netxs::ui
         FEATURE(pro::align, adjust); // mold: Size linking controller.
         FEATURE(pro::title, legend); // mold: Window caption and footer.
         FEATURE(pro::share, shared); // mold: The shared border states.
-        //pro::focus<mold> xfocus{*this };	// mold: Focus controller.
-
-        using sptr = netxs::sptr<base>;
 
         rect region; // mold: Client area.
         bool active; // mold: Keyboard focus.
@@ -165,9 +163,7 @@ namespace netxs::ui
         //rect lastsz; // mold: Last window position before fullscreen.
 
     public:
-        //todo make it private (used in vtmd::creator)
-        sptr client; // mold: Client object.
-
+        sptr<base> client; // mold: Client object.
 
         bool locked; // mold: Whether the control resizable.
         bool blurred = faux; // mold: Use acryllic background.
@@ -518,23 +514,23 @@ namespace netxs::ui
         {
             locked = !resizeble;
         }
+        // mold: Attach specified item.
+        template<class T>
+        auto attach(sptr<T> item)
+        {
+            client = item;
+            item->SIGNAL(e2::release, e2::form::upon::attached, This()); // Send creator
+            region.coor = gripsz;
+            item->SIGNAL(e2::release, e2::form::layout::move, region.coor);
+            base::reflow(); // Ask client about the new size (the client can override the size)
+            SIGNAL(e2::general, e2::form::canvas, canvas.shared_from_this());
+            return item;
+        }
         // mold: Create a new item of the specified subtype and attach it.
         template<class T, class ...Args>
         auto attach(Args&&... args)
         {
-            static_assert(std::is_base_of<base, T>::value,
-                "The only a derivative of the «base» class can be attached to the «mold».");
-
-            auto item = base::create<T>(std::forward<Args>(args)...);
-            client = item;
-            item->SIGNAL(e2::release, e2::form::upon::attached, This()); // Send creator
-
-            region.coor = gripsz;
-            item->SIGNAL(e2::release, e2::form::layout::move, region.coor);
-            base::reflow(); // Ask client about the new size (the client can override the size)
-
-            SIGNAL(e2::general, e2::form::canvas, canvas.shared_from_this());
-            return item;
+            return attach(base::create<T>(std::forward<Args>(args)...));
         }
     };
 
@@ -542,22 +538,17 @@ namespace netxs::ui
     class fork
         : public base, public pro::boost<fork>
     {
-        using sptr = netxs::sptr<base>;
-    public:
         using self = fork;
         FEATURE(pro::align, align); // fork: Size linking controller.
         FEATURE(pro::mouse, mouse); // fork: Mouse controller.
 
-        enum slot { _1, _2 };
-        enum orientation { horizontal, vertical };
-    private:
         enum action { seize, drag, release };
 
         static constexpr iota MAX_RATIO = 0xFFFF;
         static constexpr iota HALF_RATIO = 0xFFFF >> 1;
 
-        sptr client_1; // fork: Client 1 object.
-        sptr client_2; // fork: Client 2 object.
+        sptr<base> client_1; // fork: 1st object.
+        sptr<base> client_2; // fork: 2nd object.
 
         twod size1;
         twod size2;
@@ -577,15 +568,14 @@ namespace netxs::ui
         iota get_x(twod const& pt) { return updown ? pt.y : pt.x; }
         iota get_y(twod const& pt) { return updown ? pt.x : pt.y; }
 
-        //todo use axis:X/Y
-        void _config(orientation alignment, iota thickness, iota scale)
+        void _config(axis alignment, iota thickness, iota scale)
         {
             switch (alignment)
             {
-                case orientation::horizontal:
+                case axis::X:
                     updown = faux;
                     break;
-                case orientation::vertical:
+                case axis::Y:
                     updown = true;
                     break;
                 default:
@@ -598,7 +588,7 @@ namespace netxs::ui
         }
 
     public:
-        auto config(orientation alignment, iota thickness, iota scale)
+        auto config(axis alignment, iota thickness, iota scale)
         {
             _config(alignment, thickness, scale);
             return This<fork>();
@@ -609,7 +599,7 @@ namespace netxs::ui
             if (client_1) client_1->base::detach();
             if (client_2) client_2->base::detach();
         }
-        fork(orientation alignment = horizontal, iota thickness = 0, iota scale = 50)
+        fork(axis alignment = axis::X, iota thickness = 0, iota scale = 50)
         : boost{*this },
             maxpos{ 0 },
             start{ 0 },
@@ -834,19 +824,19 @@ namespace netxs::ui
             }
         }
         // fork: Create a new item of the specified subtype and attach it to a specified slot.
-        template<slot SLOT, class T, class ...Args>
-        auto attach(Args&&... args)
+        template<slot SLOT, class T>
+        auto attach(sptr<T> item)
         {
-            static_assert(std::is_base_of<base, T>::value,
-                "The only a derivative of the «base» class can be attached to the «mold».");
-
-            auto item = create<T>(std::forward<Args>(args)...);
             if (SLOT == slot::_1) client_1 = item;
             else                  client_2 = item;
-
             item->SIGNAL(e2::release, e2::form::upon::attached, This()); // Send creator
             base::reflow(); // Ask the client about the new size (the client can override the size)
             return item;
+        }
+        template<slot SLOT, class T, class ...Args>
+        auto attach(Args&&... args)
+        {
+            return attach<SLOT>(create<T>(std::forward<Args>(args)...));
         }
     };
 
@@ -854,30 +844,25 @@ namespace netxs::ui
     class list
         : public base, public pro::boost<list>
     {
+        using roll = std::list<std::pair<sptr<base>, iota>>;
         using self = list;
         FEATURE(pro::mouse, mouse); // list: Mouse controller.
         FEATURE(pro::align, align); // list: Size linking controller.
-        //FEATURE(pro::robot, robot); // list: Animation controller (Faders).
 
-        using sptr = netxs::sptr<base>;
-        using roll = std::list<std::pair<sptr, iota>>;
-
-        roll clients;
+        roll subset;
         bool updown; // list: List orientation, true: vertical(default), faux: horizontal.
-        bool greedy; // list: Greedy and lazy vertical area occupation.
 
     public:
         ~list()
         {
-            while (clients.size())
+            while (subset.size())
             {
-                clients.back().first->base::detach();
-                clients.pop_back();
+                subset.back().first->base::detach();
+                subset.pop_back();
             }
         }
-        list(bool vertical = true, bool bubble = faux) : boost{*this },
-            updown{ vertical },
-            greedy{ bubble   }
+        list(axis orientation = axis::Y) : boost{*this },
+            updown{ orientation == axis::Y }
         {
             SUBMIT(e2::preview, e2::form::layout::size, new_sz)
             {
@@ -889,16 +874,15 @@ namespace netxs::ui
 
                 auto meter = [&]() {
                     height = 0;
-                    for (auto& client : clients)
+                    for (auto& client : subset)
                     {
-                        y_size = greedy ? std::max(0, y_temp - height) : 0;
+                        y_size = 0;
                         client.first->SIGNAL(e2::preview, e2::form::layout::size, new_sz);
                         client.second = y_size;
                         height += y_size;
                     }
                 };
                 meter(); if (x_temp != x_size) meter();
-
                 y_size = height;
             };
             SUBMIT(e2::release, e2::form::layout::size, new_sz)
@@ -911,7 +895,7 @@ namespace netxs::ui
                 auto& x_coor = updown ? new_xy.x : new_xy.y;
 
                 auto  found = faux;
-                for (auto& client : clients)
+                for (auto& client : subset)
                 {
                     y_size = client.second;
                     if (client.first)
@@ -942,25 +926,25 @@ namespace netxs::ui
             base::renderproc(parent_canvas);
 
             auto basis = base::coor.get();
-            for (auto& client : clients)
+            for (auto& client : subset)
             {
                 parent_canvas.render(client.first, basis);
             }
+        }
+        // list: Attach specified item.
+        template<class T>
+        auto attach(sptr<T> item)
+        {
+            subset.push_back({ item, 0 });
+            item->SIGNAL(e2::release, e2::form::upon::attached, This()); // Send creator
+            base::reflow(); // Ask the client about the new size (the client can override the size)
+            return item;
         }
         // list: Create a new item of the specified subtype and attach it.
         template<class T, class ...Args>
         auto attach(Args&&... args)
         {
-            static_assert(std::is_base_of<base, T>::value,
-                "The only a derivative of the «base» class can be attached to the «mold».");
-
-            auto item = create<T>(std::forward<Args>(args)...);
-            clients.push_back({ item, 0 });
-            //heights.push_back(0);
-
-            item->SIGNAL(e2::release, e2::form::upon::attached, This()); // Send creator
-            base::reflow(); // Ask the client about the new size (the client can override the size)
-            return item;
+            return attach(create<T>(std::forward<Args>(args)...));
         }
     };
 
@@ -968,27 +952,26 @@ namespace netxs::ui
     class cake
         : public base, public pro::boost<cake>
     {
-        using sptr = netxs::sptr<base>;
         using self = cake;
         FEATURE(pro::mouse, mouse); // cake: Mouse controller.
         FEATURE(pro::align, align); // cake: Size binding controller.
 
-        std::list<sptr> clients;
+        std::list<sptr<base>> subset;
 
     public:
         ~cake()
         {
-            while (clients.size())
+            while (subset.size())
             {
-                clients.back()->base::detach();
-                clients.pop_back();
+                subset.back()->base::detach();
+                subset.pop_back();
             }
         }
         cake() : boost{*this }
         {
             SUBMIT(e2::preview, e2::form::layout::size, newsz)
             {
-                for (auto& client : clients)
+                for (auto& client : subset)
                 {
                     if (client)
                     {
@@ -1001,7 +984,7 @@ namespace netxs::ui
             };
             SUBMIT(e2::release, e2::form::layout::size, newsz)
             {
-                for (auto& client : clients)
+                for (auto& client : subset)
                 {
                     if (client)
                     {
@@ -1015,27 +998,27 @@ namespace netxs::ui
         virtual void renderproc (face& parent_canvas)
         {
             base::renderproc(parent_canvas);
-
             auto basis = base::coor.get();
-            for (auto& client : clients)
+            for (auto& client : subset)
             {
                 parent_canvas.render(client, basis);
             }
         }
 
         // cake: Create a new item of the specified subtype and attach it.
-        template<class T, class ...Args>
-        auto attach(Args&&... args)
+        template<class T>
+        auto attach(sptr<T> item)
         {
-            static_assert(std::is_base_of<base, T>::value,
-                "The only a derivative of the «base» class can be attached to the «mold».");
-
-            auto item = create<T>(std::forward<Args>(args)...);
-            clients.push_back(item);
-
+            subset.push_back(item);
             item->SIGNAL(e2::release, e2::form::upon::attached, This()); // Send creator
             base::reflow(); // Ask the client about the new size (the client can override the size)
             return item;
+        }
+        // cake: Create a new item of the specified subtype and attach it.
+        template<class T, class ...Args>
+        auto attach(Args&&... args)
+        {
+            return attach(create<T>(std::forward<Args>(args)...));
         }
     };
 
@@ -1201,7 +1184,6 @@ namespace netxs::ui
     class rail
         : public base, public pro::boost<rail>
     {
-        using sptr = netxs::sptr<base>;
         using self = rail;
         FEATURE(pro::mouse, mouse); // rail: Mouse controller.
         FEATURE(pro::robot, robot); // rail: Animation controller.
@@ -1214,7 +1196,6 @@ namespace netxs::ui
         bool strict[2] = { true, true }; // rail: Don't allow overscroll.
         bool manual[2] = { true, true }; // rail: Manaul scrolling (no auto align).
         bool locked{}; // rail: Client is under resizing.
-        sptr client{}; // rail: Client instance.
         subs tokens{}; // rail: Subscriptions on client moveto and resize.
         subs fasten{}; // rail: Subscriptions on masters to follow they state.
         rack scinfo{}; // rail: Scroll info.
@@ -1226,6 +1207,8 @@ namespace netxs::ui
         iota cycle{ CCL  }; // rail: Text auto-scroll duration in ms.
         bool steer{ faux }; // rail: Text scroll vertical direction.
 
+        sptr<base> client; // rail: Client instance.
+
     public:
         bool overscroll[2] = { true, true }; // rail: Allow overscroll with auto correct.
         auto config(bool allow_x_overscroll = true, bool allow_y_overscroll = true)
@@ -1235,14 +1218,14 @@ namespace netxs::ui
             return This<rail>();
         }
         template<axis AXIS>
-        auto locate(iota coor)
+        auto moveby(iota coor)
         {
             AXIS == axis::X ? scroll<X>(coor)
                             : scroll<Y>(coor);
             return This<rail>();
         }
         template<axis AXIS>
-        auto follow(sptr master = {})
+        auto follow(sptr<base> master = {})
         {
             if (master) master->SUBMIT_T(e2::release, events[AXIS], fasten, master_scinfo)
             {
@@ -1518,16 +1501,11 @@ namespace netxs::ui
             base::renderproc(parent_canvas);
             if (client) parent_canvas.render<faux>(client, base::coor.get());
         }
-        // rail: Create a new item of the specified subtype and attach it.
-        template<class T, class ...Args>
-        auto attach(Args&&... args)
+        // rail: Attach specified item.
+        template<class T>
+        auto attach(sptr<T> item)
         {
-            static_assert(std::is_base_of<base, T>::value,
-                "The only a derivative of the «base» class can be attached to the «mold».");
-
-            auto item = create<T>(std::forward<Args>(args)...);
             client = item;
-
             tokens.clear();
             item->SUBMIT_T(e2::release, e2::form::layout::size, tokens.extra(), size)
             {
@@ -1546,10 +1524,15 @@ namespace netxs::ui
                 tokens.clear();
                 fasten.clear();
             };
-
             item->SIGNAL(e2::release, e2::form::upon::attached, This()); // Send creator
             base::reflow(); // Ask the client about the new size (the client can override the size)
             return item;
+        }
+        // rail: Create a new item of the specified subtype and attach it.
+        template<class T, class ...Args>
+        auto attach(Args&&... args)
+        {
+            return attach(create<T>(std::forward<Args>(args)...));
         }
     };
 
@@ -1560,11 +1543,10 @@ namespace netxs::ui
     {
         using wptr = netxs::wptr<bell>;
         using sptr = netxs::sptr<bell>;
-
         using self = grip;
         FEATURE(pro::mouse, mouse); // grip: Mouse events controller.
-        FEATURE(pro::align, align); // grip: Size linking controller.
         FEATURE(pro::timer, timer); // grip: Minimize by timeout.
+        FEATURE(pro::align, align); // grip: Size linking controller.
 
         enum activity
         {
@@ -1935,14 +1917,16 @@ namespace netxs::ui
     class pads
         : public base, public pro::boost<pads>
     {
-        using sptr = netxs::sptr<base>;
+        //using self = pads;
+        //FEATURE(pro::mouse, mouse); // pads: Mouse controller.
+
         dent padding; // pads: Space around an element's content, outside of any defined borders. It does not affect the size, only affects the fill. Used in base::renderproc only.
         dent margins; // pads: Space around an element's content, inside of any defined borders. Containers take this parameter into account when calculating sizes. Used in all conainers.
         subs tokens{}; // pads: Subscriptions on client moveto and resize.
         bool locked{}; // pads: Client is under resizing.
 
     public:
-        sptr client;
+        sptr<base> client;
 
         pads(dent const& padding_value = {}, dent const& margins_value = {}) : boost{*this },
               padding{ padding_value },
@@ -1963,32 +1947,6 @@ namespace netxs::ui
                 }
             };
         }
-        // pads: Create a new item of the specified subtype and attach it.
-        template<class T, class ...Args>
-        auto attach(Args&&... args)
-        {
-            static_assert(std::is_base_of<base, T>::value,
-                "The only a derivative of the «base» class can be attached to the «mold».");
-
-            auto item = create<T>(std::forward<Args>(args)...);
-            client = item;
-
-            tokens.clear();
-            item->SUBMIT_T(e2::release, e2::form::layout::size, tokens.extra(), size)
-            {
-                locked = true;
-                SIGNAL(e2::release, e2::form::layout::size, size + padding);
-                locked = faux;
-            };
-            item->SUBMIT_T(e2::release, e2::form::upon::detached, tokens.extra(), p)
-            {
-                tokens.clear();
-            };
-
-            item->SIGNAL(e2::release, e2::form::upon::attached, This()); // Send creator
-            base::reflow(); // Ask the client about the new size (the client can override the size)
-            return item;
-        }
         // pads: Draw background and client.
         virtual void renderproc(face& parent_canvas)
         {
@@ -2003,6 +1961,32 @@ namespace netxs::ui
                 parent_canvas.render<true>(client, base::coor.get());
                 parent_canvas.full(full);
             }
+        }
+        // pads: Attach specified item.
+        template<class T>
+        auto attach(sptr<T> item)
+        {
+            client = item;
+            tokens.clear();
+            item->SUBMIT_T(e2::release, e2::form::layout::size, tokens.extra(), size)
+            {
+                locked = true;
+                SIGNAL(e2::release, e2::form::layout::size, size + padding);
+                locked = faux;
+            };
+            item->SUBMIT_T(e2::release, e2::form::upon::detached, tokens.extra(), p)
+            {
+                tokens.clear();
+            };
+            item->SIGNAL(e2::release, e2::form::upon::attached, This()); // Send creator
+            base::reflow(); // Ask the client about the new size (the client can override the size)
+            return item;
+        }
+        // pads: Create a new item of the specified subtype and attach it.
+        template<class T, class ...Args>
+        auto attach(Args&&... args)
+        {
+            return attach(create<T>(std::forward<Args>(args)...));
         }
     };
 
