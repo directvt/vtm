@@ -1,4 +1,4 @@
-# VTM
+# Monotty Desktopio
 
 A text-based desktop environment in your terminal
 ![image](https://dice.netxs.online/cloud/vtm/mde_banner_v1.11.png)
