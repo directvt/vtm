@@ -64,6 +64,9 @@ namespace netxs::console
         EVENT_BIND(e2::debug::output , const view)
         EVENT_BIND(e2::debug::parsed , const page)
 
+    EVENT_BIND(e2::bindings::any, sptr<base>)
+        EVENT_BIND(e2::bindings::list::users, std::list<sptr<base>>)
+
     EVENT_BIND(e2::term::any, iota)
         EVENT_BIND(e2::term::unknown , iota)
         EVENT_BIND(e2::term::error   , iota)
@@ -93,6 +96,12 @@ namespace netxs::console
         EVENT_BIND(e2::form::global::any, twod)
             EVENT_BIND(e2::form::global::ctxmenu , twod)
             EVENT_BIND(e2::form::global::lucidity, iota)
+            //EVENT_BIND(e2::form::global::object::any, sptr<base>)
+            //    EVENT_BIND(e2::form::global::object::attached, sptr<base>)
+            //    EVENT_BIND(e2::form::global::object::detached, sptr<base>)
+            //EVENT_BIND(e2::form::global::user::any, sptr<base>)
+            //    EVENT_BIND(e2::form::global::user::attached, sptr<base>)
+            //    EVENT_BIND(e2::form::global::user::detached, sptr<base>)
 
         EVENT_BIND(e2::form::notify::any                 , hids)
             EVENT_BIND(e2::form::notify::mouse::any      , hids)
@@ -1644,13 +1653,22 @@ namespace netxs::console
             skill(T& boss) : boss{ boss } { }
             virtual ~skill() = default; // In order to allow man derived class via base ptr.
         };
-        template<class T>
+        template<class T, bool ISPARENT = faux>
         struct boost
         {
             std::list<uptr<skill<T>>> plugins;
-            T& boss;
+            T&   boss;
+            std::map<id_t, subs> memo; // pro::boost: Token set for depend submissions.
             boost(T& boss) : boss{ boss }
-            { }
+            {
+                if constexpr (ISPARENT)
+                {
+                    boss.SUBMIT(e2::preview, e2::form::proceed::detach, shadow)
+                    {
+                        boss.remove(shadow);
+                    };
+                }
+             }
             template<template<class> class S, class ...Args>
             auto plugin(Args&&... args)
             {
@@ -1669,6 +1687,46 @@ namespace netxs::console
             {
                 if (root) boss.T::attach(root, std::forward<Args>(args)...);
                 return boss.template This<T>();
+            }
+            // pro::boost: Boss will be detached when the master is dtor'ed.
+            template<class C>
+            auto depend(C master)
+            {
+                master->SUBMIT_T(e2::release, e2::dtor, memo[master->id], master_id)
+                {
+                    memo[master_id].clear();
+                    boss.base::detach();
+                };
+                return boss.template This<T>();
+            }
+            //template<class P, class C, class ...Args>
+            //auto source(P item_template, C master, Args&&... args)
+            template<e2::type PROPERTY, class P, class C>
+            auto source(C data_src, P item_template)
+            {
+                ARGTYPE(PROPERTY) arg;
+                data_src->SIGNAL(e2::request, PROPERTY, arg);
+                auto new_item = item_template(arg)
+                                    ->depend(data_src);
+
+                auto shadow = std::weak_ptr{ new_item };
+                auto data_src_shadow = std::weak_ptr{ data_src };
+                auto boss_shadow = std::weak_ptr{ boss.This() };
+                //data_src->SUBMIT_BYVAL_T(e2::release, PROPERTY, memo[data_src->id], new_arg_value)
+                data_src->bell::template submit2<type_clue<PROPERTY>>(e2::release, memo[data_src->id]) = 
+                [&, shadow, data_src_shadow] (ARGTYPE(PROPERTY)&& new_arg_value) mutable
+                {
+                    if (auto data_src = data_src_shadow.lock())
+                    if (auto old_item = shadow.lock())
+                    {
+                        auto new_item = item_template(new_arg_value)
+                                           ->depend(data_src);
+                        shadow = std::weak_ptr{ new_item };
+
+                        boss.update(old_item, new_item);
+                    }
+                };
+                return boss.brunch(new_item);
             }
             /*// pro::boost: Create a new item of the specified subtype and attach it.
             template<class C, class ...Args>
@@ -2843,6 +2901,7 @@ namespace netxs::console
                 textline.style.wrp_or(wrap::off);
                 textline.style.jet_or(bias::left);
                 textline.link(boss.id);
+                boss.SIGNAL(e2::release, e2::form::prop::header, name);
                 boss.SIGNAL(e2::release, e2::form::state::header, textline);
             }
             void footer(view newtext)
@@ -3048,15 +3107,17 @@ namespace netxs::console
                 {
                     for (auto& item : items)          item->fasten(canvas); // Draw strings
                     for (auto& item : items)          item->render(canvas); // Draw shadows
-                    canvas.cup(dot_00).jet(bias::right);
-                    for (auto& item : items)          item->enlist(canvas); // Draw a list of objects
+                    //todo deprecated: enlisted in taskbar
+                    //canvas.cup(dot_00).jet(bias::right);
+                    //for (auto& item : items)          item->enlist(canvas); // Draw a list of objects
                 }
                 // Draw windows.
                 void render(face& canvas)
                 {
                     for (auto& item : items)          item->fasten(canvas);
-                    canvas.cup(dot_00).jet(bias::left);
-                    for (auto& item : reverse(items)) item->enlist(canvas);
+                    //todo deprecated: enlisted in taskbar
+                    //canvas.cup(dot_00).jet(bias::left);
+                    //for (auto& item : reverse(items)) item->enlist(canvas);
                     for (auto& item : items)          item->render(canvas);
                 }
                 // Draw spectator's mouse pointers.
@@ -3071,13 +3132,11 @@ namespace netxs::console
                     auto head = items.begin();
                     auto tail = items.end();
                     auto item = search(head, tail, id);
-
                     if (item != tail)
                     {
                         area = (**item).region;
                         items.erase(item);
                     }
-
                     return area;
                 }
                 rect bubble(id_t id)
@@ -3134,6 +3193,15 @@ namespace netxs::console
                     items.pop_back();
                     return items.back();
                 }
+                auto get_list()
+                {
+                    std::list<sptr<base>> item_ptrs;
+                    for(auto& i : items)
+                    {
+                        item_ptrs.push_back(i->object);
+                    }
+                    return item_ptrs;
+                }
             };
 
             using skill<T>::boss,
@@ -3188,6 +3256,10 @@ namespace netxs::console
                     denote(region);
                     inst.status.exposed = region;
                 };
+                boss.SUBMIT_T(e2::request, e2::bindings::list::users, memo, usr_list)
+                {
+                    usr_list = users.get_list();
+                };
 
                 ///// Pass the paint procedure to custom client drawing
                 //boss.SUBMIT_T(e2::request, e2::form::proceed::render, owner::memo, empty_fx)
@@ -3233,6 +3305,7 @@ namespace netxs::console
                 auto item = boss.indexer<bell>::create<S>(std::forward<Args>(args)...);
                 items.append(item);
                 item->SIGNAL(e2::release, e2::form::upon::attached, boss.base::This()); // Send creator
+                //SIGNAL_GLOBAL(e2::form::global::object::attached, item);
                 return item;
             }
             // scene: Create a new user of the specified subtype
@@ -3248,7 +3321,9 @@ namespace netxs::console
                 //todo unify
                 tone color{ tone::brighter, tone::shadow};
                 user->SIGNAL(e2::preview, e2::form::state::color, color);
+                //SIGNAL_GLOBAL(e2::form::global::user::attached, user);
 
+                boss.SIGNAL(e2::release, e2::bindings::list::users, users.get_list());
                 return user;
             }
         };

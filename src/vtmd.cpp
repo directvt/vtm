@@ -2011,11 +2011,14 @@ utility like ctags is used to locate the definitions.
                                                   ->template plugin<pro::fader>(x3, c3, 0ms);//150ms);
                         auto item = item_area->template attach<menu::item>(ansi::bgc4(b ? 0xFF00FF00 : 0x7F000000) + "  " + ansi::nil() + "  " + utf8, true);
                     };
-                    auto next_item2 = [&, x3, c3](bool b, auto utf8){
+                    auto next_item2 = [&, x3, c3](bool b, auto const& para_data){
                         auto item_area = base::template create<pads>(dent{ 1,0,0,1 }, dent{ 0,0,1,0 })
                                                   ->template plugin<pro::mouse>()
                                                   ->template plugin<pro::fader>(x3, c3, 0ms);//150ms);
-                        auto item = item_area->template attach<menu::item>(ansi::bgc4(b ? 0xFF00FF00 : 0x7F000000) + "  " + ansi::nil() + "  " + utf8, true);
+                            //auto title = para{ ansi::bgc4(b ? 0xFF00FF00 : 0x7F000000)
+                            //            + "  " + ansi::nil() + "  " } +  para_data;
+                        //auto item = item_area->template attach<menu::item>(title, true);
+                        auto item = item_area->template attach<menu::item>(para_data, true);
                         return item_area;
                     };
                     auto instance = [&, x3, c3](auto container, auto utf8){
@@ -2049,6 +2052,8 @@ utility like ctags is used to locate the definitions.
                                     data->attach(instance2("App instance 5"));
                         return item_area;
                     };
+
+
                     auto client = world->invite<gate>(username);
                         auto window = client->attach<cake>();
                             auto menu_area = window->attach<fork>(axis::X);
@@ -2088,12 +2093,47 @@ utility like ctags is used to locate the definitions.
                                                     //next_item(apps, faux, "Application 3 app name");
                                                     //next_item(apps, faux, "Application 4 app name");
                                                     //next_item(apps, faux, "Application 5 app name");
+
                                                 auto users_title = items->attach<post>()
                                                                         ->upload("TTYs\n");
-                                                auto users = items->attach<list>();
-                                                    next_item(users, true, "User_1 name");
-                                                    next_item(users, faux, "User_2 name");
-                                                    next_item(users, faux, "User_3 name");
+
+                                                const auto user_template = [=](auto const& utf8){
+                                                    auto c3 = cell{}.bgc(tint::bluelt);
+                                                    auto x3 = c3; x3.bga(0x00);
+                                                    auto item_area = base::template create<pads>(dent{ 1,0,0,1 }, dent{ 0,0,1,0 })
+                                                                              ->template plugin<pro::mouse>()
+                                                                              ->template plugin<pro::fader>(x3, c3, 0ms);//150ms);
+                                                    auto item = item_area->template attach<menu::item>(utf8, true);
+                                                    return item_area;
+                                                };
+                                                auto brunch_template = [=](auto& usr_list){
+                                                    auto users = base::create<list>();
+                                                    for(auto& usr : usr_list)
+                                                    {
+                                                        users->source<e2::form::prop::header>(usr, user_template);
+                                                    }
+                                                    return users;
+                                                    //static iota n = 0;
+                                                    //for(auto& u : usr_list) log("its a user ! ", u);
+                                                    //return next_item2(faux, "New user " + std::to_string(++n));
+                                                };
+                                                auto users = items->source<e2::bindings::list::users>(world, brunch_template);
+                                                /*auto users = items->attach<list>()
+                                                    ->invoke([&](auto& boss){
+                                                        boss.SUBMIT(e2::general, e2::form::global::user::attached, user_ptr)
+                                                        {
+                                                            static iota n = 0;
+                                                            para caption;
+                                                            user_ptr->SIGNAL(e2::request, e2::form::state::header, caption);
+                                                            //boss.brunch(next_item2(faux, caption));
+                                                            boss.brunch(next_item2(faux, "New user " + std::to_string(++n))
+                                                                            ->depend(user_ptr));
+                                                        };
+                                                    });
+                                                    //next_item(users, true, "User_1 name");
+                                                    //next_item(users, faux, "User_2 name");
+                                                    //next_item(users, faux, "User_3 name");
+                                                    */
                                     scroll_bars(items_area, items_scrl);
                                     auto bttns_area = menu->attach<slot::_2, fork>(axis::X, 0, 100);
                                         auto bttns = bttns_area->attach<slot::_1, fork>(axis::X);
@@ -2127,8 +2167,9 @@ utility like ctags is used to locate the definitions.
                                                 auto shutdown = shutdown_area->attach<menu::item>("✕ Shutdown");
 
                     client->color(background_color.fgc(), background_color.bgc());
-                    text header = ansi::jet(bias::center).mgr(0).mgl(0)
-                        + username;
+                    //text header = ansi::jet(bias::center).mgr(0).mgl(0)
+                    //    + username;
+                    text header = username;
                     text footer = ansi::mgr(1).mgl(1)
                         + MONOTTY_VER;
                     client->SIGNAL(e2::preview, e2::form::prop::header, header);

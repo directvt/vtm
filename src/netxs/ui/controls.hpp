@@ -387,7 +387,6 @@ namespace netxs::ui
             {
                 base::detach(); // The object kills itself.
             };
-            //todo revise/what is this? history?
             SUBMIT(e2::preview, e2::form::proceed::detach, shadow)
             {
                 if (client == shadow)
@@ -536,7 +535,7 @@ namespace netxs::ui
 
     // controls: Splitter control.
     class fork
-        : public base, public pro::boost<fork>
+        : public base, public pro::boost<fork, true>
     {
         using self = fork;
         FEATURE(pro::align, align); // fork: Size linking controller.
@@ -608,7 +607,6 @@ namespace netxs::ui
             updown{ faux },
             ratio{ 0xFFFF >> 1 }
         {
-
             //mouse.highlightable = true;
 
             SUBMIT(e2::preview, e2::form::layout::size, new_size)
@@ -823,7 +821,6 @@ namespace netxs::ui
                 base::deface();
             }
         }
-        // fork: Create a new item of the specified subtype and attach it to a specified slot.
         template<slot SLOT, class T>
         auto attach(sptr<T> item)
         {
@@ -834,15 +831,37 @@ namespace netxs::ui
             return item;
         }
         template<slot SLOT, class T, class ...Args>
+        // fork: Create a new item of the specified subtype and attach it to a specified slot.
         auto attach(Args&&... args)
         {
             return attach<SLOT>(create<T>(std::forward<Args>(args)...));
+        }
+        // fork: Remove nested object by it's ptr.
+        //template<class T>
+        //auto remove(T shadow)
+        //{
+        //    return client_1 == shadow ? (client_1.reset(), true) :
+        //           client_2 == shadow ? (client_2.reset(), true) : faux;
+        //}
+        template<class T>
+        void remove(T item_ptr)
+        {
+            if (client_1 == item_ptr)
+            {
+                client_1.reset();
+                item_ptr->SIGNAL(e2::release, e2::form::upon::detached, This()); // Send parent
+            }
+            else if (client_2 == item_ptr)
+            {
+                client_2.reset();
+                item_ptr->SIGNAL(e2::release, e2::form::upon::detached, This()); // Send parent
+            }
         }
     };
 
     // controls: Vertical/horizontal list control.
     class list
-        : public base, public pro::boost<list>
+        : public base, public pro::boost<list, true>
     {
         using roll = std::list<std::pair<sptr<base>, iota>>;
         using self = list;
@@ -946,11 +965,40 @@ namespace netxs::ui
         {
             return attach(create<T>(std::forward<Args>(args)...));
         }
+        // list: Remove nested object.
+        template<class T>
+        void remove(T item_ptr)
+        {
+            auto head = subset.begin();
+            auto tail = subset.end();
+            auto item = std::find_if(head, tail, [&](auto& c){ return c.first == item_ptr; });
+            if (item != tail)
+            {
+                subset.erase(item);
+                item_ptr->SIGNAL(e2::release, e2::form::upon::detached, This()); // Send parent
+            }
+        }
+        // list: Update nested object.
+        template<class T, class S>
+        void update(T old_item_ptr, S new_item_ptr)
+        {
+            auto head = subset.begin();
+            auto tail = subset.end();
+            auto item = std::find_if(head, tail, [&](auto& c){ return c.first == old_item_ptr; });
+            if (item != tail)
+            {
+                auto pos = subset.erase(item);
+                old_item_ptr->SIGNAL(e2::release, e2::form::upon::detached, This()); // Send parent
+                subset.insert(pos, std::pair{ new_item_ptr, 0 });
+                new_item_ptr->SIGNAL(e2::release, e2::form::upon::attached, This()); // Send creator
+                base::reflow(); // Ask the client about the new size (the client can override the size)
+            }
+        }
     };
 
     // controls: (puff) Layered cake of forms on top of each other.
     class cake
-        : public base, public pro::boost<cake>
+        : public base, public pro::boost<cake, true>
     {
         using self = cake;
         FEATURE(pro::mouse, mouse); // cake: Mouse controller.
@@ -1019,6 +1067,20 @@ namespace netxs::ui
         auto attach(Args&&... args)
         {
             return attach(create<T>(std::forward<Args>(args)...));
+        }
+        // cake: Remove nested object.
+        template<class T>
+        auto remove(T item_ptr)
+        {
+            auto head = subset.begin();
+            auto tail = subset.end();
+            auto item = std::find_if(head, tail, [&](auto& c){ return c == item_ptr; });
+            //return item != tail ? (subset.erase(item), true) : faux;
+            if (item != tail)
+            {
+                subset.erase(item);
+                item_ptr->SIGNAL(e2::release, e2::form::upon::detached, This()); // Send parent
+            }
         }
     };
 
@@ -1182,7 +1244,7 @@ namespace netxs::ui
 
     // controls: Scroller.
     class rail
-        : public base, public pro::boost<rail>
+        : public base, public pro::boost<rail, true>
     {
         using self = rail;
         FEATURE(pro::mouse, mouse); // rail: Mouse controller.
@@ -1533,6 +1595,20 @@ namespace netxs::ui
         auto attach(Args&&... args)
         {
             return attach(create<T>(std::forward<Args>(args)...));
+        }
+        //template<class T>
+        //auto remove(T shadow)
+        //{
+        //    return client == shadow ? (client.reset(), true) : faux;
+        //}
+        template<class T>
+        void remove(T item_ptr)
+        {
+            if (client == item_ptr)
+            {
+                client.reset();
+                item_ptr->SIGNAL(e2::release, e2::form::upon::detached, This()); // Send parent
+            }
         }
     };
 
@@ -1915,7 +1991,7 @@ namespace netxs::ui
 
     // controls: Container with margins (outer space) and padding (inner space).
     class pads
-        : public base, public pro::boost<pads>
+        : public base, public pro::boost<pads, true>
     {
         //using self = pads;
         //FEATURE(pro::mouse, mouse); // pads: Mouse controller.
@@ -1988,6 +2064,20 @@ namespace netxs::ui
         {
             return attach(create<T>(std::forward<Args>(args)...));
         }
+        //template<class T>
+        //auto remove(T shadow)
+        //{
+        //    return client == shadow ? (client.reset(), true) : faux;
+        //}
+        template<class T>
+        void remove(T item_ptr)
+        {
+            if (client == item_ptr)
+            {
+                client.reset();
+                item_ptr->SIGNAL(e2::release, e2::form::upon::detached, This()); // Send parent
+            }
+        }
     };
 
     // controls: Pluggable dummy object.
@@ -2019,6 +2109,12 @@ namespace netxs::ui
         public:
             item(text const& label_text, bool flexible = faux)
                 : name{ label_text },
+                  flex{ flexible   }
+            {
+                recalc();
+            }
+            item(para const& label_para, bool flexible = faux)
+                : name{ label_para },
                   flex{ flexible   }
             {
                 recalc();
