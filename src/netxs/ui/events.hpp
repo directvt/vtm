@@ -1139,12 +1139,14 @@ namespace netxs::ui
         bell::template submit2<type_clue<item>>(level) = [&] (ARGTYPE(item)&& arg)
 
     // Usage: SUBMIT_BYVAL(tier, item, arg) { ...expression; };
+    //        Note: It is a mutable closure!
     #define SUBMIT_BYVAL(level, item, arg) \
-        bell::template submit2<type_clue<item>>(level) = [=] (ARGTYPE(item)&& arg)
+        bell::template submit2<type_clue<item>>(level) = [=] (ARGTYPE(item)&& arg) mutable
 
     // Usage: SUBMIT_BYVAL_T(tier, item, token, arg) { ...expression; };
+    //        Note: It is a mutable closure!
     #define SUBMIT_BYVAL_T(level, item, token, arg) \
-        bell::template submit2<type_clue<item>>(level, token) = [=] (ARGTYPE(item)&& arg)
+        bell::template submit2<type_clue<item>>(level, token) = [=] (ARGTYPE(item)&& arg) mutable
 
     #define SUBMIT_V(level, item, hndl) \
         bell::template submit<type_clue<item>>(level, hndl)

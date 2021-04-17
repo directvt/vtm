@@ -1683,9 +1683,10 @@ namespace netxs::console
                 return boss.template This<T>();
             }
             template<class C, class ...Args>
-            auto brunch(C root, Args&&... args)
+            auto brunch(C child, Args&&... args)
             {
-                if (root) boss.T::attach(root, std::forward<Args>(args)...);
+                if (child)
+                    boss.T::attach(child, std::forward<Args>(args)...);
                 return boss.template This<T>();
             }
             // pro::boost: Boss will be detached when the master is dtor'ed.
@@ -1701,32 +1702,41 @@ namespace netxs::console
             }
             //template<class P, class C, class ...Args>
             //auto source(P item_template, C master, Args&&... args)
-            template<e2::type PROPERTY, class P, class C>
-            auto source(C data_src, P item_template)
+            // pro::boost: Create and attach a new item using a template and dynamic datasource.
+            template<e2::type PROPERTY, class C, class P>
+            auto attach_element(C data_src, P item_template)
             {
                 ARGTYPE(PROPERTY) arg;
                 data_src->SIGNAL(e2::request, PROPERTY, arg);
-                auto new_item = item_template(arg)
+                auto new_item = item_template(data_src, arg)
                                     ->depend(data_src);
-
                 auto shadow = std::weak_ptr{ new_item };
                 auto data_src_shadow = std::weak_ptr{ data_src };
-                auto boss_shadow = std::weak_ptr{ boss.This() };
-                //data_src->SUBMIT_BYVAL_T(e2::release, PROPERTY, memo[data_src->id], new_arg_value)
-                data_src->bell::template submit2<type_clue<PROPERTY>>(e2::release, memo[data_src->id]) = 
-                [&, shadow, data_src_shadow] (ARGTYPE(PROPERTY)&& new_arg_value) mutable
+                auto boss_shadow = std::weak_ptr{ boss.template This<T>() };
+                data_src->SUBMIT_BYVAL_T(e2::release, PROPERTY, memo[data_src->id], new_arg_value)
                 {
+                    if (auto boss_ptr = boss_shadow.lock())
                     if (auto data_src = data_src_shadow.lock())
                     if (auto old_item = shadow.lock())
                     {
-                        auto new_item = item_template(new_arg_value)
+                        auto new_item = item_template(data_src, new_arg_value)
                                            ->depend(data_src);
                         shadow = std::weak_ptr{ new_item };
 
-                        boss.update(old_item, new_item);
+                        boss_ptr->update(old_item, new_item);
                     }
                 };
                 return boss.brunch(new_item);
+            }
+            // pro::boost: Create and attach a new item using a template and dynamic datasource.
+            template<e2::type PROPERTY, class C, class P>
+            auto attach_collection(C data_collection_src, P item_template)
+            {
+                for(auto& data_src : data_collection_src)
+                {
+                    attach_element<PROPERTY>(data_src, item_template);
+                }
+                return boss.template This<T>();
             }
             /*// pro::boost: Create a new item of the specified subtype and attach it.
             template<class C, class ...Args>
@@ -5146,14 +5156,19 @@ again:
                                  });
             };
 
-            SUBMIT(e2::preview, e2::form::layout::size, newsz)
-            {
-                if (uibar) uibar->SIGNAL(e2::preview, e2::form::layout::size, newsz);
-            };
+            //SUBMIT(e2::preview, e2::form::layout::size, newsz)
+            //{
+            //    if (uibar) uibar->SIGNAL(e2::preview, e2::form::layout::size, newsz);
+            //};
+            //SUBMIT(e2::release, e2::form::layout::size, newsz)
+            //{
+            //    if (uibar) uibar->SIGNAL(e2::release, e2::form::layout::size, newsz);
+            //};
             SUBMIT(e2::release, e2::form::layout::size, newsz)
             {
-                if (uibar) uibar->SIGNAL(e2::release, e2::form::layout::size, newsz);
+                if (uibar) uibar->base::resize(newsz);
             };
+
         }
 
         // gate: Draw the form composition on the specified canvas.

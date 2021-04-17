@@ -2060,21 +2060,21 @@ utility like ctags is used to locate the definitions.
                                 auto menu = menu_area->attach<slot::_1, fork>(axis::Y)
                                                      //->plugin<pro::mouse>()
                                                      ->plugin<pro::color>(whitelt, 0xA0202020)
-                                                     ->plugin<pro::limit>(twod{ 4,-1 }, twod{ 4,-1 })
+                                                     ->plugin<pro::limit>(twod{ 32,-1 }, twod{ 32,-1 })
                                                      ->invoke([&](auto& boss) {
-                                                            boss.SUBMIT(e2::release, e2::form::state::mouse, active)
-                                                            {
-                                                                if (active) 
-                                                                {
-                                                                    boss.base::limits(twod{ 32,-1 }, twod{ 32,-1 });
-                                                                    boss.base::reflow();
-                                                                }
-                                                                else
-                                                                {
-                                                                    boss.base::limits(twod{ 4,-1 }, twod{ 4,-1 });
-                                                                    boss.base::reflow();
-                                                                }
-                                                            };
+                                                            //boss.SUBMIT(e2::release, e2::form::state::mouse, active)
+                                                            //{
+                                                            //    if (active) 
+                                                            //    {
+                                                            //        boss.base::limits(twod{ 32,-1 }, twod{ 32,-1 });
+                                                            //        boss.base::reflow();
+                                                            //    }
+                                                            //    else
+                                                            //    {
+                                                            //        boss.base::limits(twod{ 4,-1 }, twod{ 4,-1 });
+                                                            //        boss.base::reflow();
+                                                            //    }
+                                                            //};
                                                         });
                                     auto items_area = menu->attach<slot::_1, cake>();
                                         auto items_scrl = items_area->attach<rail>(axes::ONLY_Y)
@@ -2085,39 +2085,35 @@ utility like ctags is used to locate the definitions.
                                                 auto apps = items->attach<list>()
                                                     ->brunch(next_item3(true, "Application 0 app name"))
                                                     ->brunch(next_item3(faux, "Application 1 app name"))
-                                                    ->brunch(next_item3(faux, "Application 2 app name"));
-                                                        //instance(apps, "App1 instance 1");
-                                                        //instance(apps, "App1 instance 2");
-                                                        //instance(apps, "App1 instance 3");
-                                                    //next_item(apps, faux, "Application 2 app name");
-                                                    //next_item(apps, faux, "Application 3 app name");
-                                                    //next_item(apps, faux, "Application 4 app name");
-                                                    //next_item(apps, faux, "Application 5 app name");
+                                                    ->brunch(next_item3(faux, "Application 2 app name"))
+                                                    ;
 
                                                 auto users_title = items->attach<post>()
                                                                         ->upload("TTYs\n");
 
-                                                const auto user_template = [=](auto const& utf8){
+                                                auto user_template = [=, my_id = client->id](auto& data_src, auto const& utf8){
                                                     auto c3 = cell{}.bgc(tint::bluelt);
                                                     auto x3 = c3; x3.bga(0x00);
                                                     auto item_area = base::template create<pads>(dent{ 1,0,0,1 }, dent{ 0,0,1,0 })
                                                                               ->template plugin<pro::mouse>()
-                                                                              ->template plugin<pro::fader>(x3, c3, 0ms);//150ms);
-                                                    auto item = item_area->template attach<menu::item>(utf8, true);
+                                                                              ->template plugin<pro::fader>(x3, c3, 0ms);
+                                                        auto user = item_area->template attach<menu::item>(
+                                                        ansi::fgc4(data_src->id == my_id ? 0xFFffff00 : 0xFFff0000)
+                                                        + " ‣" + ansi::nil() + "  " + utf8, true);
+                                                        //auto user = base::template create<post>()->upload("dddd");
+                                                        log("NEW USER ", utf8);
                                                     return item_area;
+                                                    //return user;
                                                 };
-                                                auto brunch_template = [=](auto& usr_list){
-                                                    auto users = base::create<list>();
-                                                    for(auto& usr : usr_list)
-                                                    {
-                                                        users->source<e2::form::prop::header>(usr, user_template);
-                                                    }
+                                                auto brunch_template = [=](auto& data_src, auto& usr_list){
+                                                    auto users = base::create<list>()
+                                                        ->attach_collection<e2::form::prop::header>(usr_list, user_template);
+                                                         log("NEW USER LIST ", usr_list.size());
                                                     return users;
-                                                    //static iota n = 0;
-                                                    //for(auto& u : usr_list) log("its a user ! ", u);
-                                                    //return next_item2(faux, "New user " + std::to_string(++n));
                                                 };
-                                                auto users = items->source<e2::bindings::list::users>(world, brunch_template);
+                                                auto users = items->attach_element<e2::bindings::list::users>(world, brunch_template);
+                                                log(" ITEMS SIZE:", items->square());
+                                                //users->reflow();
                                                 /*auto users = items->attach<list>()
                                                     ->invoke([&](auto& boss){
                                                         boss.SUBMIT(e2::general, e2::form::global::user::attached, user_ptr)

@@ -827,6 +827,7 @@ namespace netxs::ui
             if (SLOT == slot::_1) client_1 = item;
             else                  client_2 = item;
             item->SIGNAL(e2::release, e2::form::upon::attached, This()); // Send creator
+            base::size.dry();
             base::reflow(); // Ask the client about the new size (the client can override the size)
             return item;
         }
@@ -943,7 +944,6 @@ namespace netxs::ui
         virtual void renderproc (face& parent_canvas)
         {
             base::renderproc(parent_canvas);
-
             auto basis = base::coor.get();
             for (auto& client : subset)
             {
@@ -956,6 +956,7 @@ namespace netxs::ui
         {
             subset.push_back({ item, 0 });
             item->SIGNAL(e2::release, e2::form::upon::attached, This()); // Send creator
+            base::size.dry();
             base::reflow(); // Ask the client about the new size (the client can override the size)
             return item;
         }
@@ -976,6 +977,8 @@ namespace netxs::ui
             {
                 subset.erase(item);
                 item_ptr->SIGNAL(e2::release, e2::form::upon::detached, This()); // Send parent
+                base::size.dry();
+                base::reflow();
             }
         }
         // list: Update nested object.
@@ -991,6 +994,8 @@ namespace netxs::ui
                 old_item_ptr->SIGNAL(e2::release, e2::form::upon::detached, This()); // Send parent
                 subset.insert(pos, std::pair{ new_item_ptr, 0 });
                 new_item_ptr->SIGNAL(e2::release, e2::form::upon::attached, This()); // Send creator
+                //SIGNAL(e2::preview, e2::form::layout::size, new_sz)
+                base::size.dry();
                 base::reflow(); // Ask the client about the new size (the client can override the size)
             }
         }
@@ -1059,6 +1064,7 @@ namespace netxs::ui
         {
             subset.push_back(item);
             item->SIGNAL(e2::release, e2::form::upon::attached, This()); // Send creator
+            base::size.dry();
             base::reflow(); // Ask the client about the new size (the client can override the size)
             return item;
         }
@@ -1587,6 +1593,7 @@ namespace netxs::ui
                 fasten.clear();
             };
             item->SIGNAL(e2::release, e2::form::upon::attached, This()); // Send creator
+            base::size.dry();
             base::reflow(); // Ask the client about the new size (the client can override the size)
             return item;
         }
@@ -1993,7 +2000,8 @@ namespace netxs::ui
     class pads
         : public base, public pro::boost<pads, true>
     {
-        //using self = pads;
+        using self = pads;
+        FEATURE(pro::align, align); // list: Size linking controller.
         //FEATURE(pro::mouse, mouse); // pads: Mouse controller.
 
         dent padding; // pads: Space around an element's content, outside of any defined borders. It does not affect the size, only affects the fill. Used in base::renderproc only.
@@ -2016,10 +2024,17 @@ namespace netxs::ui
             };
             SUBMIT(e2::release, e2::form::layout::size, new_size)
             {
-                if (!locked)
+                //if (!locked)
+                //{
+                //    auto client_size = new_size - padding;
+                //    if (client) client->SIGNAL(e2::release, e2::form::layout::size, client_size);
+                //}
+                if (client && !locked) 
                 {
+                    locked = true;
                     auto client_size = new_size - padding;
-                    if (client) client->SIGNAL(e2::release, e2::form::layout::size, client_size);
+                    client->base::resize(client_size);
+                    locked = faux;
                 }
             };
         }
@@ -2046,9 +2061,15 @@ namespace netxs::ui
             tokens.clear();
             item->SUBMIT_T(e2::release, e2::form::layout::size, tokens.extra(), size)
             {
-                locked = true;
-                SIGNAL(e2::release, e2::form::layout::size, size + padding);
-                locked = faux;
+                //locked = true;
+                //SIGNAL(e2::release, e2::form::layout::size, size + padding);
+                //locked = faux;
+                if (!locked)
+                {
+                    locked = true;
+                    SIGNAL(e2::release, e2::form::layout::size, size + padding);
+                    locked = faux;
+                }
             };
             item->SUBMIT_T(e2::release, e2::form::upon::detached, tokens.extra(), p)
             {
