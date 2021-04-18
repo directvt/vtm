@@ -1589,34 +1589,27 @@ utility like ctags is used to locate the definitions.
                     window->blurred = true;
                     window->highlight_center = faux;
                     window->set_border(dot_00);
-                    auto object = window
-                        ->attach<fork>(axis::Y)
-                        ->plugin<pro::color>(whitelt, 0);
+                    auto object = window->attach<fork>(axis::Y)
+                                        ->plugin<pro::color>(whitelt, 0);
                         main_menu(object);
-                        auto body_area = object
-                            ->attach<slot::_2, fork>(axis::Y);
-                        auto fields = body_area
-                            ->attach<slot::_1, pads>(dent{ 1,1 })
-                            ->plugin<pro::mouse>();
-                        auto layers = fields
-                            ->attach<cake>();
-                        auto scroll = layers
-                            ->attach<rail>()
-                            ->plugin<pro::limit>(twod{ 4,3 }, twod{ -1,-1 });
-                        auto edit_box = scroll
-                            ->attach<post>(true)
-                            ->plugin<pro::mouse>()
-                            ->plugin<pro::caret>(true, twod{ 25,1 })
-                            ->plugin<pro::color>(blackdk, whitelt)
-                            ->upload(ansi::wrp(wrap::off).mgl(1)
-                                + topic3
-                                + ansi::fgc(highlight_color)
-                                + "From Wikipedia, the free encyclopedia");
-                        auto status_line = body_area
-                            ->attach<slot::_2, post>()
-                            ->plugin<pro::limit>(twod{ 1,1 }, twod{ -1,1 })
-                            ->upload(ansi::wrp(wrap::off).mgl(1).mgr(1).jet(bias::right).fgc(whitedk)
-                                + "INS  Sel: 0:0  Col: 26  Ln: 2/148" + ansi::nil());
+                        auto body_area = object->attach<slot::_2, fork>(axis::Y);
+                        auto fields = body_area->attach<slot::_1, pads>(dent{ 1,1 })
+                                               ->plugin<pro::mouse>();
+                        auto layers = fields->attach<cake>();
+                        auto scroll = layers->attach<rail>()
+                                            ->plugin<pro::limit>(twod{ 4,3 }, twod{ -1,-1 });
+                        auto edit_box = scroll->attach<post>(true)
+                                              ->plugin<pro::mouse>()
+                                              ->plugin<pro::caret>(true, twod{ 25,1 })
+                                              ->plugin<pro::color>(blackdk, whitelt)
+                                              ->upload(ansi::wrp(wrap::off).mgl(1)
+                                                  + topic3
+                                                  + ansi::fgc(highlight_color)
+                                                  + "From Wikipedia, the free encyclopedia");
+                        auto status_line = body_area->attach<slot::_2, post>()
+                                                    ->plugin<pro::limit>(twod{ 1,1 }, twod{ -1,1 })
+                                                    ->upload(ansi::wrp(wrap::off).mgl(1).mgr(1).jet(bias::right).fgc(whitedk)
+                                                        + "INS  Sel: 0:0  Col: 26  Ln: 2/148" + ansi::nil());
                     scroll_bars(layers, scroll);
                     break;
                 }

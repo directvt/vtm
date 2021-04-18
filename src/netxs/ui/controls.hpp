@@ -521,6 +521,7 @@ namespace netxs::ui
             item->SIGNAL(e2::release, e2::form::upon::attached, This()); // Send creator
             region.coor = gripsz;
             item->SIGNAL(e2::release, e2::form::layout::move, region.coor);
+            //base::size.dry();
             base::reflow(); // Ask client about the new size (the client can override the size)
             SIGNAL(e2::general, e2::form::canvas, canvas.shared_from_this());
             return item;
@@ -2076,6 +2077,7 @@ namespace netxs::ui
                 tokens.clear();
             };
             item->SIGNAL(e2::release, e2::form::upon::attached, This()); // Send creator
+            base::size.dry();
             base::reflow(); // Ask the client about the new size (the client can override the size)
             return item;
         }
