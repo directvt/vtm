@@ -29,8 +29,10 @@
 
 namespace netxs::console
 {
-    using namespace netxs::datetime;
     using namespace netxs;
+    using namespace netxs::events;
+    using namespace netxs::datetime;
+    using namespace netxs::ui::atoms;
 
     class syskeybd;
     class sysmouse;

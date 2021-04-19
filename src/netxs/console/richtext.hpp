@@ -11,12 +11,12 @@
 namespace netxs::console
 {
     using namespace std::literals;
-    using namespace netxs::ui;
-
+    using namespace netxs::ui::atoms;
+    
     using ansi::qiew;
     using ansi::writ;
     using grid = std::vector<cell>;
-    using irgb = netxs::ui::irgb<uint32_t>;
+    using irgb = netxs::ui::atoms::irgb<uint32_t>;
 
     class poly
     {

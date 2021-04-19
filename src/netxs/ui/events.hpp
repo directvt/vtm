@@ -21,7 +21,7 @@
     #define faux (false)
 #endif
 
-namespace netxs::ui
+namespace netxs::events
 {
     //todo unify/automate structure replenishment
     struct e2

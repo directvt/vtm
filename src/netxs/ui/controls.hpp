@@ -13,7 +13,9 @@
 namespace netxs::ui
 {
     using namespace netxs;
+    using namespace netxs::events;
     using namespace netxs::console;
+    using namespace netxs::ui::atoms;
 
     enum slot : id_t { _1, _2 };
     enum axis : id_t { X, Y };
@@ -2017,48 +2019,50 @@ namespace netxs::ui
         mock() : boost{*this } { };
     };
 
-    // controls: Menu controller.
-    class menu
+    // controls: Menu label.
+    class item
         : public base
     {
-    public:
-        class item
-            : public base
-        {
-            para name;
-            bool flex; // item: Violate or not the label size, default is faux.
+        para name;
+        bool flex; // item: Violate or not the label size, default is faux.
 
-            void recalc()
-            {
-                auto size = name.size();
-                auto lims = flex ? twod{ -1,size.y } : size;
-                base::limits(lims, lims);
-                base::resize(size);
-            }
-        public:
-            item(para const& label_para, bool flexible = faux)
-                : name{ label_para },
-                  flex{ flexible   }
-            {
-                recalc();
-            }
-            item(text const& label_text, bool flexible = faux)
-                : item(para{ label_text }, flexible)
-            { }
-            void set(text const& label_text)
-            {
-                name = label_text;
-                recalc();
-            }
-            // item: Render base and output content.
-            virtual void renderproc (face& parent_canvas)
-            {
-                base::renderproc(parent_canvas);
-                parent_canvas.cup(dot_00);
-                parent_canvas.output(name);
-            }
-        };
+        void recalc()
+        {
+            auto size = name.size();
+            auto lims = flex ? twod{ -1,size.y } : size;
+            base::limits(lims, lims);
+            base::resize(size);
+        }
+    public:
+        item(para const& label_para, bool flexible = faux)
+            : name{ label_para },
+              flex{ flexible   }
+        {
+            recalc();
+        }
+        item(text const& label_text, bool flexible = faux)
+            : item(para{ label_text }, flexible)
+        { }
+        void set(text const& label_text)
+        {
+            name = label_text;
+            recalc();
+        }
+        // item: Render base and output content.
+        virtual void renderproc (face& parent_canvas)
+        {
+            base::renderproc(parent_canvas);
+            parent_canvas.cup(dot_00);
+            parent_canvas.output(name);
+        }
     };
+
+    // controls: Menu controller.
+    //class menu
+    //    : public base
+    //{
+    //public:
+    //};
 
     // DEPRECATED STUFF
 
