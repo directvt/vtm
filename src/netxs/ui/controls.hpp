@@ -188,7 +188,6 @@ namespace netxs::ui
             base::limits(gripsz * 2 + dot_11, { 400,200 });
             xmouse.highlightable = true;
             base::brush.txt(whitespace);
-            //base::linked = true;
 
             using bttn = e2::hids::mouse::button;
 
@@ -289,18 +288,6 @@ namespace netxs::ui
                 middle.size = size - (middle.coor * 2);
                 if (client)
                     client->SIGNAL(e2::release, e2::form::layout::size, region.size);
-
-                //if (!nosize && client)
-                //{
-                //    auto& size = client->base::size.get();
-                //    legend.footer(ansi::mgl(1).mgr(1) + "client " + std::to_string(size.x) + ":"
-                //        + std::to_string(size.y));
-                //}
-                //else
-                //{
-                //    legend.footer(ansi::mgl(1).mgr(1) + "window " + std::to_string(size.x) + ":"
-                //        + std::to_string(size.y));
-                //}
             };
 
             SUBMIT(e2::release, bttn::drag::start::left, gear)
@@ -392,7 +379,7 @@ namespace netxs::ui
                 if (client == shadow)
                 {
                     client.reset();
-                    shadow->SIGNAL(e2::release, e2::form::upon::detached, This()); // Send parent
+                    shadow->SIGNAL(e2::release, e2::form::upon::vtree::detached, This());
                 }
             };
         }
@@ -518,11 +505,10 @@ namespace netxs::ui
         auto attach(sptr<T> item)
         {
             client = item;
-            item->SIGNAL(e2::release, e2::form::upon::attached, This()); // Send creator
             region.coor = gripsz;
             item->SIGNAL(e2::release, e2::form::layout::move, region.coor);
-            //base::size.dry();
-            base::reflow(); // Ask client about the new size (the client can override the size)
+            item->SIGNAL(e2::release, e2::form::upon::vtree::attached, This());
+
             SIGNAL(e2::general, e2::form::canvas, canvas.shared_from_this());
             return item;
         }
@@ -539,7 +525,6 @@ namespace netxs::ui
         : public base, public pro::boost<fork, true>
     {
         using self = fork;
-        FEATURE(pro::align, align); // fork: Size linking controller.
         FEATURE(pro::mouse, mouse); // fork: Mouse controller.
 
         enum action { seize, drag, release };
@@ -608,23 +593,19 @@ namespace netxs::ui
             updown{ faux },
             ratio{ 0xFFFF >> 1 }
         {
-            //mouse.highlightable = true;
-
             SUBMIT(e2::preview, e2::form::layout::size, new_size)
             {
-                fork::resize(new_size);
+                fork::size_preview(new_size);
             };
             SUBMIT(e2::release, e2::form::layout::size, new_size)
             {
                 size = new_size;
-
                 if (client_1)
                 {
                     client_1->SIGNAL(e2::release, e2::form::layout::size, size1);
                 }
                 if (client_2)
                 {
-                    //todo use e2::form::layout::rect to minimize invocation overhead
                     client_2->SIGNAL(e2::release, e2::form::layout::move, coor2);
                     client_2->SIGNAL(e2::release, e2::form::layout::size, size2);
                 }
@@ -695,7 +676,6 @@ namespace netxs::ui
             //fork::resize(size);
             //takecursor();
         }
-
         void toggle()
         {
             if (movable)
@@ -715,8 +695,8 @@ namespace netxs::ui
                 base::reflow();
             }
         }
-
-        void resize(twod& new_size)
+        // fork: .
+        void size_preview(twod& new_size)
         {
             //todo revise/unify
             auto new_size0 = xpose(new_size);
@@ -827,9 +807,7 @@ namespace netxs::ui
         {
             if (SLOT == slot::_1) client_1 = item;
             else                  client_2 = item;
-            item->SIGNAL(e2::release, e2::form::upon::attached, This()); // Send creator
-            base::size.dry();
-            base::reflow(); // Ask the client about the new size (the client can override the size)
+            item->SIGNAL(e2::release, e2::form::upon::vtree::attached, This());
             return item;
         }
         template<slot SLOT, class T, class ...Args>
@@ -839,24 +817,13 @@ namespace netxs::ui
             return attach<SLOT>(create<T>(std::forward<Args>(args)...));
         }
         // fork: Remove nested object by it's ptr.
-        //template<class T>
-        //auto remove(T shadow)
-        //{
-        //    return client_1 == shadow ? (client_1.reset(), true) :
-        //           client_2 == shadow ? (client_2.reset(), true) : faux;
-        //}
         template<class T>
         void remove(T item_ptr)
         {
-            if (client_1 == item_ptr)
+            if (client_1 == item_ptr ? (client_1.reset(), true) :
+                client_2 == item_ptr ? (client_2.reset(), true) : faux)
             {
-                client_1.reset();
-                item_ptr->SIGNAL(e2::release, e2::form::upon::detached, This()); // Send parent
-            }
-            else if (client_2 == item_ptr)
-            {
-                client_2.reset();
-                item_ptr->SIGNAL(e2::release, e2::form::upon::detached, This()); // Send parent
+                item_ptr->SIGNAL(e2::release, e2::form::upon::vtree::detached, This());
             }
         }
     };
@@ -868,7 +835,6 @@ namespace netxs::ui
         using roll = std::list<std::pair<sptr<base>, iota>>;
         using self = list;
         FEATURE(pro::mouse, mouse); // list: Mouse controller.
-        FEATURE(pro::align, align); // list: Size linking controller.
 
         roll subset;
         bool updown; // list: List orientation, true: vertical(default), faux: horizontal.
@@ -924,8 +890,8 @@ namespace netxs::ui
                         auto& entry = *client.first;
                         if (!found)
                         {
-                            //todo optimize: use the only one axis to hittest
-                            //todo detect client during preview, use wptr
+                            // todo optimize: use the only one axis to hittest
+                            // todo detect client during preview, use wptr
                             auto anker = entry.base::square();
                             if (anker.hittest(base::anchor))
                             {
@@ -956,9 +922,7 @@ namespace netxs::ui
         auto attach(sptr<T> item)
         {
             subset.push_back({ item, 0 });
-            item->SIGNAL(e2::release, e2::form::upon::attached, This()); // Send creator
-            base::size.dry();
-            base::reflow(); // Ask the client about the new size (the client can override the size)
+            item->SIGNAL(e2::release, e2::form::upon::vtree::attached, This());
             return item;
         }
         // list: Create a new item of the specified subtype and attach it.
@@ -977,9 +941,7 @@ namespace netxs::ui
             if (item != tail)
             {
                 subset.erase(item);
-                item_ptr->SIGNAL(e2::release, e2::form::upon::detached, This()); // Send parent
-                base::size.dry();
-                base::reflow();
+                item_ptr->SIGNAL(e2::release, e2::form::upon::vtree::detached, This());
             }
         }
         // list: Update nested object.
@@ -992,12 +954,9 @@ namespace netxs::ui
             if (item != tail)
             {
                 auto pos = subset.erase(item);
-                old_item_ptr->SIGNAL(e2::release, e2::form::upon::detached, This()); // Send parent
+                old_item_ptr->SIGNAL(e2::release, e2::form::upon::vtree::detached, This());
                 subset.insert(pos, std::pair{ new_item_ptr, 0 });
-                new_item_ptr->SIGNAL(e2::release, e2::form::upon::attached, This()); // Send creator
-                //SIGNAL(e2::preview, e2::form::layout::size, new_sz)
-                base::size.dry();
-                base::reflow(); // Ask the client about the new size (the client can override the size)
+                new_item_ptr->SIGNAL(e2::release, e2::form::upon::vtree::attached, This());
             }
         }
     };
@@ -1008,7 +967,6 @@ namespace netxs::ui
     {
         using self = cake;
         FEATURE(pro::mouse, mouse); // cake: Mouse controller.
-        FEATURE(pro::align, align); // cake: Size binding controller.
 
         std::list<sptr<base>> subset;
 
@@ -1028,12 +986,7 @@ namespace netxs::ui
                 for (auto& client : subset)
                 {
                     if (client)
-                    {
-                        auto& object = *client;
-                        //object.base::anchor = base::anchor;
-                        object.SIGNAL(e2::preview, e2::form::layout::size, newsz);
-                        //base::anchor = object.base::anchor;
-                    }
+                        client->SIGNAL(e2::preview, e2::form::layout::size, newsz);
                 }
             };
             SUBMIT(e2::release, e2::form::layout::size, newsz)
@@ -1041,10 +994,7 @@ namespace netxs::ui
                 for (auto& client : subset)
                 {
                     if (client)
-                    {
-                        auto& object = *client;
-                        object.SIGNAL(e2::release, e2::form::layout::size, newsz);
-                    }
+                        client->SIGNAL(e2::release, e2::form::layout::size, newsz);
                 }
             };
         }
@@ -1064,9 +1014,7 @@ namespace netxs::ui
         auto attach(sptr<T> item)
         {
             subset.push_back(item);
-            item->SIGNAL(e2::release, e2::form::upon::attached, This()); // Send creator
-            base::size.dry();
-            base::reflow(); // Ask the client about the new size (the client can override the size)
+            item->SIGNAL(e2::release, e2::form::upon::vtree::attached, This());
             return item;
         }
         // cake: Create a new item of the specified subtype and attach it.
@@ -1077,16 +1025,15 @@ namespace netxs::ui
         }
         // cake: Remove nested object.
         template<class T>
-        auto remove(T item_ptr)
+        void remove(T item_ptr)
         {
             auto head = subset.begin();
             auto tail = subset.end();
             auto item = std::find_if(head, tail, [&](auto& c){ return c == item_ptr; });
-            //return item != tail ? (subset.erase(item), true) : faux;
             if (item != tail)
             {
                 subset.erase(item);
-                item_ptr->SIGNAL(e2::release, e2::form::upon::detached, This()); // Send parent
+                item_ptr->SIGNAL(e2::release, e2::form::upon::vtree::detached, This());
             }
         }
     };
@@ -1256,7 +1203,6 @@ namespace netxs::ui
         using self = rail;
         FEATURE(pro::mouse, mouse); // rail: Mouse controller.
         FEATURE(pro::robot, robot); // rail: Animation controller.
-        FEATURE(pro::align, align); // rail: Size linking controller.
 
         static constexpr hint events[] = { e2::form::upon::scroll::x,
                                            e2::form::upon::scroll::y,
@@ -1339,14 +1285,14 @@ namespace netxs::ui
             {
                 req_scinfo = scinfo;
             };
+
             SUBMIT(e2::release, e2::form::layout::size, new_size)
             {
                 if (client)
                 {
-                    locked = true; // see subscription in the attach()
+                    locked = true; // See the details in subscription at the attach().
                     auto delta = client->base::resize(new_size, base::anchor);
                     locked = faux;
-
                     scroll<X>(delta.x);
                     scroll<Y>(delta.y);
                 }
@@ -1529,7 +1475,7 @@ namespace netxs::ui
                 auto& thing = *client;
                 auto  block = thing.base::square();
                 auto  basis = thing.oversize.topleft();
-                block.coor -= basis; // Scroll origin basis
+                block.coor -= basis; // Scroll origin basis.
                 block.size += thing.oversize.summ();
                 auto& frame = base::size.get();
                 auto  level = AXIS == X;
@@ -1539,23 +1485,23 @@ namespace netxs::ui
                                     : block.coor.y;
                 coord += delta;
 
-                if (manual[AXIS]) // check overscroll if no auto correction
+                if (manual[AXIS]) // Check overscroll if no auto correction.
                 {
                     auto clamp = std::clamp(coord, bound, 0);
                     inside = clamp == coord;
-                    if (!inside && strict[AXIS]) // if outside the scroll limits
-                    {                            // and overscroll is not allowed
+                    if (!inside && strict[AXIS]) // If outside the scroll limits
+                    {                            // and overscroll is not allowed.
                             coord = clamp;
                     }
                 }
 
-                scinfo.beyond = thing.oversize;  // Oversize value
+                scinfo.beyond = thing.oversize;  // Oversize value.
                 scinfo.region = block.size;
-                scinfo.window.coor =-block.coor; // Viewport
+                scinfo.window.coor =-block.coor; // Viewport.
                 scinfo.window.size = frame;      //
                 SIGNAL(e2::release, events[AXIS], scinfo);
 
-                block.coor += basis; // Client origin basis
+                block.coor += basis; // Client origin basis.
                 locked = true;
                 thing.base::moveto(block.coor);
                 locked = faux;
@@ -1584,7 +1530,7 @@ namespace netxs::ui
                     scroll<Y>();
                 }
             };
-            item->SUBMIT_T(e2::release, e2::form::upon::detached, tokens.extra(), p)
+            item->SUBMIT_T(e2::release, e2::form::upon::vtree::detached, tokens.extra(), p)
             {
                 scinfo.region = {};
                 scinfo.window.coor = {};
@@ -1593,9 +1539,7 @@ namespace netxs::ui
                 tokens.clear();
                 fasten.clear();
             };
-            item->SIGNAL(e2::release, e2::form::upon::attached, This()); // Send creator
-            base::size.dry();
-            base::reflow(); // Ask the client about the new size (the client can override the size)
+            item->SIGNAL(e2::release, e2::form::upon::vtree::attached, This());
             return item;
         }
         // rail: Create a new item of the specified subtype and attach it.
@@ -1604,18 +1548,13 @@ namespace netxs::ui
         {
             return attach(create<T>(std::forward<Args>(args)...));
         }
-        //template<class T>
-        //auto remove(T shadow)
-        //{
-        //    return client == shadow ? (client.reset(), true) : faux;
-        //}
         template<class T>
         void remove(T item_ptr)
         {
             if (client == item_ptr)
             {
                 client.reset();
-                item_ptr->SIGNAL(e2::release, e2::form::upon::detached, This()); // Send parent
+                item_ptr->SIGNAL(e2::release, e2::form::upon::vtree::detached, This());
             }
         }
     };
@@ -1630,7 +1569,6 @@ namespace netxs::ui
         using self = grip;
         FEATURE(pro::mouse, mouse); // grip: Mouse events controller.
         FEATURE(pro::timer, timer); // grip: Minimize by timeout.
-        FEATURE(pro::align, align); // grip: Size linking controller.
 
         enum activity
         {
@@ -1787,8 +1725,6 @@ namespace netxs::ui
               init{ thickness  },
               mult{ multiplier }
         {
-            //mouse.highlightable = true;
-
             config(thin);
 
             boss->SUBMIT_T(e2::release, events[AXIS], memo, scinfo)
@@ -1819,7 +1755,7 @@ namespace netxs::ui
             };
             SUBMIT(e2::release, bttn::dblclick::left, gear)
             {
-                gear.dismiss(); // Do not pass double clicks outside
+                gear.dismiss(); // Do not pass double clicks outside.
             };
             SUBMIT(e2::release, bttn::down::any, gear)
             {
@@ -1840,10 +1776,10 @@ namespace netxs::ui
                             {
                                 timer.actify(activity::pager_next, REPEAT_RATE, [&](auto d)
                                 {
-                                    return pager_repeat(); // Repeat until on_pager
+                                    return pager_repeat(); // Repeat until on_pager.
                                 });
                             }
-                            return faux; // One shot call (first)
+                            return faux; // One shot call (first).
                         });
                     }
                 }
@@ -1939,7 +1875,7 @@ namespace netxs::ui
                 {
                     wide = active;
                     if (AXIS == axis::Y && mult) config(active ? init * mult // Make vertical scrollbar
-                                                               : init);      //          wider on hover.
+                                                               : init);      // wider on hover.
                     base::reflow();
                     return faux; // One shot call.
                 };
@@ -2002,13 +1938,10 @@ namespace netxs::ui
         : public base, public pro::boost<pads, true>
     {
         using self = pads;
-        FEATURE(pro::align, align); // list: Size linking controller.
         //FEATURE(pro::mouse, mouse); // pads: Mouse controller.
 
         dent padding; // pads: Space around an element's content, outside of any defined borders. It does not affect the size, only affects the fill. Used in base::renderproc only.
         dent margins; // pads: Space around an element's content, inside of any defined borders. Containers take this parameter into account when calculating sizes. Used in all conainers.
-        subs tokens{}; // pads: Subscriptions on client moveto and resize.
-        bool locked{}; // pads: Client is under resizing.
 
     public:
         sptr<base> client;
@@ -2019,23 +1952,19 @@ namespace netxs::ui
         {
             SUBMIT(e2::preview, e2::form::layout::size, new_size)
             {
-                auto client_size = new_size - padding;
-                if (client) client->SIGNAL(e2::preview, e2::form::layout::size, client_size);
-                new_size = client_size + padding;
+                if (client)
+                {
+                    auto client_size = new_size - padding;
+                    client->SIGNAL(e2::preview, e2::form::layout::size, client_size);
+                    new_size = client_size + padding;
+                }
             };
             SUBMIT(e2::release, e2::form::layout::size, new_size)
             {
-                //if (!locked)
-                //{
-                //    auto client_size = new_size - padding;
-                //    if (client) client->SIGNAL(e2::release, e2::form::layout::size, client_size);
-                //}
-                if (client && !locked) 
+                if (client)
                 {
-                    locked = true;
                     auto client_size = new_size - padding;
-                    client->base::resize(client_size);
-                    locked = faux;
+                    client->SIGNAL(e2::release, e2::form::layout::size, client_size);
                 }
             };
         }
@@ -2059,26 +1988,7 @@ namespace netxs::ui
         auto attach(sptr<T> item)
         {
             client = item;
-            tokens.clear();
-            item->SUBMIT_T(e2::release, e2::form::layout::size, tokens.extra(), size)
-            {
-                //locked = true;
-                //SIGNAL(e2::release, e2::form::layout::size, size + padding);
-                //locked = faux;
-                if (!locked)
-                {
-                    locked = true;
-                    SIGNAL(e2::release, e2::form::layout::size, size + padding);
-                    locked = faux;
-                }
-            };
-            item->SUBMIT_T(e2::release, e2::form::upon::detached, tokens.extra(), p)
-            {
-                tokens.clear();
-            };
-            item->SIGNAL(e2::release, e2::form::upon::attached, This()); // Send creator
-            base::size.dry();
-            base::reflow(); // Ask the client about the new size (the client can override the size)
+            item->SIGNAL(e2::release, e2::form::upon::vtree::attached, This());
             return item;
         }
         // pads: Create a new item of the specified subtype and attach it.
@@ -2087,18 +1997,14 @@ namespace netxs::ui
         {
             return attach(create<T>(std::forward<Args>(args)...));
         }
-        //template<class T>
-        //auto remove(T shadow)
-        //{
-        //    return client == shadow ? (client.reset(), true) : faux;
-        //}
+        // pads: Remove item.
         template<class T>
         void remove(T item_ptr)
         {
             if (client == item_ptr)
             {
                 client.reset();
-                item_ptr->SIGNAL(e2::release, e2::form::upon::detached, This()); // Send parent
+                item_ptr->SIGNAL(e2::release, e2::form::upon::vtree::detached, This());
             }
         }
     };
@@ -2130,18 +2036,15 @@ namespace netxs::ui
                 base::resize(size);
             }
         public:
-            item(text const& label_text, bool flexible = faux)
-                : name{ label_text },
-                  flex{ flexible   }
-            {
-                recalc();
-            }
             item(para const& label_para, bool flexible = faux)
                 : name{ label_para },
                   flex{ flexible   }
             {
                 recalc();
             }
+            item(text const& label_text, bool flexible = faux)
+                : item(para{ label_text }, flexible)
+            { }
             void set(text const& label_text)
             {
                 name = label_text;
@@ -2220,7 +2123,7 @@ namespace netxs::ui
 
             using bttn = e2::hids::mouse::button;
 
-            SUBMIT(e2::release, e2::form::upon::attached, p)
+            SUBMIT(e2::release, e2::form::upon::vtree::attached, p)
             {
                 p->SUBMIT(e2::preview, e2::form::global::lucidity, alpha)
                 {
@@ -2667,7 +2570,7 @@ namespace netxs::ui
             //mouse.skipall(true);
 
             using bttn = e2::hids::mouse::button;
-            SUBMIT(e2::release, e2::form::upon::attached, p)
+            SUBMIT(e2::release, e2::form::upon::vtree::attached, p)
             {
                 //todo unify
                 p->SUBMIT(e2::release, e2::data::changed, data)
@@ -2774,7 +2677,7 @@ namespace netxs::ui
 
             auto item = base::create<T>(std::forward<Args>(args)...);
             clients.push_back(item);
-            item->SIGNAL(e2::release, e2::form::upon::attached, This()); // Send root
+            item->SIGNAL(e2::release, e2::form::upon::vtree::attached, This());
             return item;
         }
 
@@ -3035,11 +2938,11 @@ namespace netxs::ui
                 }
             };
 
-            SUBMIT(e2::release, e2::form::upon::attached, parent)
+            SUBMIT(e2::release, e2::form::upon::vtree::attached, parent)
             {
                 grip_ctl = create<stem_rate_grip>(grip_suffix);
-                grip_ctl->SIGNAL(e2::release, e2::form::upon::attached, This()); // Send root
-                //grip->SIGNAL(e2::release, e2::form::upon::attached, This());
+                grip_ctl->SIGNAL(e2::release, e2::form::upon::vtree::attached, This());
+                //grip->SIGNAL(e2::release, e2::form::upon::vtree::attached, This());
 
                 grip_ctl->SUBMIT(e2::release, bttn::drag::start::left, gear)
                     //grip->SUBMIT(e2::preview, bttn::drag::start::left, gear)
@@ -3232,7 +3135,7 @@ namespace netxs::ui
                 status.wrecked = true;
             };
 
-            SUBMIT(e2::release, e2::form::upon::attached, parent)
+            SUBMIT(e2::release, e2::form::upon::vtree::attached, parent)
             {
                 //todo via align behavior
                 parent->SUBMIT(e2::release, e2::form::layout::size, basesize)

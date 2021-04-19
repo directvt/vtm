@@ -66,6 +66,7 @@ namespace netxs::console
 
     EVENT_BIND(e2::bindings::any, sptr<base>)
         EVENT_BIND(e2::bindings::list::users, std::list<sptr<base>>)
+        EVENT_BIND(e2::bindings::list::apps,  std::list<sptr<base>>)
 
     EVENT_BIND(e2::term::any, iota)
         EVENT_BIND(e2::term::unknown , iota)
@@ -96,12 +97,6 @@ namespace netxs::console
         EVENT_BIND(e2::form::global::any, twod)
             EVENT_BIND(e2::form::global::ctxmenu , twod)
             EVENT_BIND(e2::form::global::lucidity, iota)
-            //EVENT_BIND(e2::form::global::object::any, sptr<base>)
-            //    EVENT_BIND(e2::form::global::object::attached, sptr<base>)
-            //    EVENT_BIND(e2::form::global::object::detached, sptr<base>)
-            //EVENT_BIND(e2::form::global::user::any, sptr<base>)
-            //    EVENT_BIND(e2::form::global::user::attached, sptr<base>)
-            //    EVENT_BIND(e2::form::global::user::detached, sptr<base>)
 
         EVENT_BIND(e2::form::notify::any                 , hids)
             EVENT_BIND(e2::form::notify::mouse::any      , hids)
@@ -115,20 +110,6 @@ namespace netxs::console
             EVENT_BIND(e2::form::prop::header, text)
             EVENT_BIND(e2::form::prop::footer, text)
             //EVENT_BIND(e2::form::prop::params, text)
-
-        // use e2::form::events instead
-        //EVENT_BIND(e2::form::mouse::any, hids)
-        //	EVENT_BIND(e2::form::mouse::enter, hids)
-        //	EVENT_BIND(e2::form::mouse::leave, hids)
-        //	//EVENT_BIND(e2::form::mouse::capture, iota)
-        //	//EVENT_BIND(e2::form::mouse::release, iota)
-        //
-        //EVENT_BIND(e2::form::focus::any			, hook)
-        //	EVENT_BIND(e2::form::focus::got		, hook)
-        //	EVENT_BIND(e2::form::focus::lost	, hook)
-        //EVENT_BIND(e2::form::focus::any			, bool)
-        //	EVENT_BIND(e2::form::focus::got		, hids)
-        //	EVENT_BIND(e2::form::focus::lost	, hids)
 
         EVENT_BIND(e2::form::layout::any, const twod)
             EVENT_BIND(e2::form::layout::move  , twod)
@@ -156,8 +137,6 @@ namespace netxs::console
             EVENT_BIND(e2::form::highlight::off, bool)
 
         EVENT_BIND(e2::form::upon::any, bool)
-            EVENT_BIND(e2::form::upon::attached   , sptr<base>)
-            EVENT_BIND(e2::form::upon::detached   , sptr<base>)
             EVENT_BIND(e2::form::upon::redrawn    , face)
             EVENT_BIND(e2::form::upon::invalidated, bool)
             EVENT_BIND(e2::form::upon::cached     , face)
@@ -171,6 +150,10 @@ namespace netxs::console
                 EVENT_BIND(e2::form::upon::scroll::y     , rack)
                 EVENT_BIND(e2::form::upon::scroll::resetx, rack)
                 EVENT_BIND(e2::form::upon::scroll::resety, rack)
+
+            EVENT_BIND(e2::form::upon::vtree::any, sptr<base>)
+                EVENT_BIND(e2::form::upon::vtree::attached, sptr<base>)
+                EVENT_BIND(e2::form::upon::vtree::detached, sptr<base>)
 
         EVENT_BIND(e2::form::proceed::any, bool)
             EVENT_BIND(e2::form::proceed::create  , rect)
@@ -1177,12 +1160,14 @@ namespace netxs::console
             type set(type& new_value)
             {
                 auto oldval = value;
-
                 owner.SIGNAL(e2::preview, EVENT, new_value);
-                if (value != new_value)
-                {
-                    owner.SIGNAL(e2::release, EVENT, new_value);
-                }
+                owner.SIGNAL(e2::release, EVENT, new_value);
+
+                //owner.SIGNAL(e2::preview, EVENT, new_value);
+                //if (value != new_value)
+                //{
+                //    owner.SIGNAL(e2::release, EVENT, new_value);
+                //}
                 return value - oldval;
             }
             // bind: Dry run (preview then release) current value.
@@ -1231,7 +1216,7 @@ namespace netxs::console
 
         cell brush;
         tone colors;
-        bool linked = faux; // Whether the size is tied to the size of the clients.
+        bool visual_root = faux; // Whether the size is tied to the size of the clients.
         wptr parent; // base: Parental visual tree weak-pointer.
         side oversize; // base: Oversize, margin. Used by scroll/rail only.
         twod anchor; // base: Object balance point. Center point for any transform (on preview).
@@ -1272,13 +1257,11 @@ namespace netxs::console
         virtual ~base() = default;
         base()
         {
-            //base::brush.link(bell::id);
-
-            SUBMIT(e2::release, e2::form::upon::attached, boss)
+            SUBMIT(e2::release, e2::form::upon::vtree::attached, boss)
             {
                 parent = boss;
 
-                // Propagate form events up to the visual branch
+                // Propagate form events up to the visual branch.
                 // Exec after all subscriptions.
                 boss->SUBMIT_T(e2::release, e2::form::upevent::any, kb_offer, gear)
                 {
@@ -1300,12 +1283,16 @@ namespace netxs::console
                 };
 
             };
-            SUBMIT(e2::release, e2::form::upon::detached, boss)
+            SUBMIT(e2::release, e2::form::upon::vtree::any, boss)
             {
-                kb_offer.reset();
+                if (bell::protos<e2::release>() == e2::form::upon::vtree::detached)
+                {
+                    kb_offer.reset();
+                }
+                boss->base::reflow();
             };
 
-            // Propagate form events down to the visual branch
+            // Propagate form events down to the visual branch.
             // Exec after all subscriptions.
             SUBMIT(e2::release, e2::form::notify::any, gear)
             {
@@ -1471,11 +1458,11 @@ namespace netxs::console
             base::resize(newsize);
             return point - base::anchor;
         }
-        // base: Retest current size, ask parent if it is linked.
+        // base: Going to rebuild visual tree. Retest current size, ask parent if it is linked.
         void reflow ()
         {
             auto parent_ptr = parent.lock();
-            if (parent_ptr && parent_ptr->linked)
+            if (parent_ptr && !visual_root)
             {
                 parent_ptr->base::reflow();
             }
@@ -1669,6 +1656,7 @@ namespace netxs::console
                     };
                 }
              }
+            // pro::boost: Attach feature and return itself.
             template<template<class> class S, class ...Args>
             auto plugin(Args&&... args)
             {
@@ -1676,12 +1664,14 @@ namespace netxs::console
                 boss.base::reflow();
                 return boss.template This<T>();
             }
+            // pro::boost: Invoke arbitrary functor(itself/*This/boss).
             template<class P>
             auto invoke(P functor)
             {
                 functor(boss);
                 return boss.template This<T>();
             }
+            // pro::boost: Attach homeless brunch and return itself.
             template<class C, class ...Args>
             auto brunch(C child, Args&&... args)
             {
@@ -1709,20 +1699,19 @@ namespace netxs::console
                 ARGTYPE(PROPERTY) arg;
                 data_src->SIGNAL(e2::request, PROPERTY, arg);
                 auto new_item = item_template(data_src, arg)
-                                    ->depend(data_src);
-                auto shadow = std::weak_ptr{ new_item };
-                auto data_src_shadow = std::weak_ptr{ data_src };
+                                     ->depend(data_src);
+                auto item_shadow = std::weak_ptr{ new_item };
+                auto data_shadow = std::weak_ptr{ data_src };
                 auto boss_shadow = std::weak_ptr{ boss.template This<T>() };
                 data_src->SUBMIT_BYVAL_T(e2::release, PROPERTY, memo[data_src->id], new_arg_value)
                 {
                     if (auto boss_ptr = boss_shadow.lock())
-                    if (auto data_src = data_src_shadow.lock())
-                    if (auto old_item = shadow.lock())
+                    if (auto data_src = data_shadow.lock())
+                    if (auto old_item = item_shadow.lock())
                     {
                         auto new_item = item_template(data_src, new_arg_value)
-                                           ->depend(data_src);
-                        shadow = std::weak_ptr{ new_item };
-
+                                             ->depend(data_src);
+                        item_shadow = std::weak_ptr{ new_item }; // Update current item shadow.
                         boss_ptr->update(old_item, new_item);
                     }
                 };
@@ -1738,12 +1727,6 @@ namespace netxs::console
                 }
                 return boss.template This<T>();
             }
-            /*// pro::boost: Create a new item of the specified subtype and attach it.
-            template<class C, class ...Args>
-            auto attach(Args&&... args)
-            {
-                return boss.T::attach(create<C>(std::forward<Args>(args)...));
-            }*/
         };
         // pro: Provides shared storage for the states of type T::state_t.
         template<class T>
@@ -1794,7 +1777,7 @@ namespace netxs::console
         };
 
         // pro: Provides size-binding functionality for child objects
-        //      after attaching to the parent.
+        //      after attaching to the parent. Used at the mold only.
         template<class T>
         class align
             : public skill<T>
@@ -1808,6 +1791,12 @@ namespace netxs::console
             rect body; // pro::align: For current coor/size tracking.
 
         public:
+            align(T&&) = delete;
+            align(T& boss) : skill<T>{ boss },
+                weak{}
+            { }
+            ~align() { unbind(faux); }
+
             auto seized(id_t master)
             {
                 return weak == master;
@@ -1825,7 +1814,7 @@ namespace netxs::console
                     auto pads = boss.get_border();
                     area.coor -= pads;
                     area.size += pads * 2;
-                    body = {}; // In oder to unbind previous subscription if it is
+                    body = {}; // In oder to unbind previous subscription if it is.
                     boss.base::extend(area);
                     body = area;
 
@@ -1882,112 +1871,7 @@ namespace netxs::console
                 if (restor_size) boss.base::extend(last); // Restore previous position
                 weak = {};
             }
-
-            align(T&&) = delete;
-            align(T& boss) : skill<T>{ boss },
-                weak{}
-            {
-                boss.base::linked = true;
-            }
-            ~align() { unbind(faux); }
-
-            /// Ask the client about the new size (the client can override the size) and return delta
-            //auto accord(twod& newsize)
-            //{
-            //	return boss.base::size.set(newsize);
-            //}
         };
-
-        //todo deprecated: here is only one focus is possible
-        ////pro: Provides functionality to capture focus.
-        //template<class T>
-        //class focus
-        //{
-        //	T&   boss;
-        //	subs memo;
-        //
-        //public:
-        //	hook holder; //todo used in pane
-        //
-        //	focus(T&&) = delete;
-        //	focus(T& boss) : boss{ boss }
-        //	{
-        //		//boss.SUBMIT_T(e2::release, e2::form::upon::attached, memo, parent)
-        //		//{
-        //		//	this->parent = parent;
-        //		//});
-        //		///<summary> focus: Got focus and apply it for the visual tree behind. </summary>
-        //		boss.SUBMIT_T(e2::preview, e2::form::focus::got, memo, holder)
-        //		{
-        //			if (auto parent_ptr = boss.base::parent.lock())
-        //			//if (boss.base::parent)
-        //			{
-        //				//boss.base::parent->signal(e2::preview, e2::form::focus::got, holder);
-        //				parent_ptr->SIGNAL(e2::preview, e2::form::focus::got, holder);
-        //			}
-        //			boss.SIGNAL(e2::release, e2::form::focus::got, holder);
-        //		};
-        //		///<summary> focus: Lost focus and apply it for the visual tree behind. </summary>
-        //		boss.SUBMIT_T(e2::preview, e2::form::focus::lost, memo, holder)
-        //		{
-        //			boss.SIGNAL(e2::release, e2::form::focus::lost, holder);
-        //			if (auto parent_ptr = boss.base::parent.lock())
-        //			{
-        //				//boss.base::parent->signal(e2::preview, e2::form::focus::lost, holder);
-        //				parent_ptr->SIGNAL(e2::preview, e2::form::focus::lost, holder);
-        //			}
-        //		};
-        //	}
-        //
-        //	///<summary> focus: Forced focus seizing. </summary>
-        //	void seize ()
-        //	{
-        //		boss.CHANGE(e2::form::focus::got, holder, e2::form::focus::lost, holder);
-        //	}
-        //};
-
-        //pro: Provides keyboard focus functionality.
-        //template<class T>
-        //class focus
-        //{
-        //	T&   boss;
-        //	subs memo;
-        //
-        //	iota size = 0;
-        //
-        //public:
-        //	focus(T&&) = delete;
-        //	focus(T& boss) : boss{ boss }
-        //	{
-        //		//// focus: Got focus and apply it for the visual tree behind
-        //		//boss.SUBMIT_T(e2::preview, e2::form::focus::got, memo, holder)
-        //		//{
-        //		//	if (auto parent_ptr = boss.base::parent.lock())
-        //		//	//if (boss.base::parent)
-        //		//	{
-        //		//		//boss.base::parent->signal(e2::preview, e2::form::focus::got, holder);
-        //		//		parent_ptr->SIGNAL(e2::preview, e2::form::focus::got, holder);
-        //		//	}
-        //		//	boss.SIGNAL(e2::release, e2::form::focus::got, holder);
-        //		//};
-        //		//// focus: Lost focus and apply it for the visual tree behind
-        //		//boss.SUBMIT_T(e2::preview, e2::form::focus::lost, memo, holder)
-        //		//{
-        //		//	boss.SIGNAL(e2::release, e2::form::focus::lost, holder);
-        //		//	if (auto parent_ptr = boss.base::parent.lock())
-        //		//	{
-        //		//		//boss.base::parent->signal(e2::preview, e2::form::focus::lost, holder);
-        //		//		parent_ptr->SIGNAL(e2::preview, e2::form::focus::lost, holder);
-        //		//	}
-        //		//};
-        //	}
-        //
-        //	//// focus: Forced focus seizing
-        //	//void seize ()
-        //	//{
-        //	//	boss.CHANGE(e2::form::focus::got, holder, e2::form::focus::lost, holder);
-        //	//}
-        //};
 
         // pro: Provides functionality for runtime animation (time-based).
         template<class T>
@@ -2049,7 +1933,7 @@ namespace netxs::console
             // pro::robot: Cancel tick activity.
             void pacify(id_t id = bell::noid)
             {
-                if (id == bell::noid) memo.clear();   // Stop all animations
+                if (id == bell::noid) memo.clear(); // Stop all animations.
                 else                  memo.erase(id);
                 boss.SIGNAL(e2::release, e2::form::animate::stop, id);
             }
@@ -2077,7 +1961,7 @@ namespace netxs::console
         public:
             using skill<T>::skill; // Inherits ctors.
 
-            // pro::timer: Start countdown
+            // pro::timer: Start countdown for specified ID.
             template<class P>
             void actify(id_t ID, period timeout, P lambda)
             {
@@ -2092,6 +1976,7 @@ namespace netxs::console
                 boss.SUBMIT_TV(e2::general, e2::timer::any, memo[ID], handler);
                 //boss.SIGNAL(e2::release, e2::form::animate::start, ID);
             }
+            // pro::timer: Start countdown.
             template<class P>
             void actify(period timeout, P lambda)
             {
@@ -2100,16 +1985,16 @@ namespace netxs::console
             // pro::timer: Cancel timer ('id=noid' for all).
             void pacify(id_t id = bell::noid)
             {
-                if (id == bell::noid) memo.clear();   // Stop all timers
+                if (id == bell::noid) memo.clear(); // Stop all timers.
                 else                  memo.erase(id);
                 //boss.SIGNAL(e2::release, e2::form::animate::stop, id);
             }
-            // aminate: Check activity by id.
+            // pro::timer: Check activity by id.
             bool active(id_t id)
             {
                 return memo.find(id) != memo.end(); //todo use ::contains (C++20)
             }
-            // aminate: Check any activity.
+            // pro::timer: Check any activity.
             operator bool ()
             {
                 return !memo.empty();
@@ -2132,7 +2017,7 @@ namespace netxs::console
             frame(T& boss) : skill<T>{ boss },
                 robo{ boss }
             {
-                boss.SUBMIT_T(e2::release, e2::form::upon::attached, memo, parent)
+                boss.SUBMIT_T(e2::release, e2::form::upon::vtree::attached, memo, parent)
                 {
                     parent->SUBMIT_T(e2::preview, e2::form::global::lucidity, link, alpha)
                     {
@@ -2147,7 +2032,7 @@ namespace netxs::console
                         boss.base::coor += delta;
                     };
 
-                    parent->SUBMIT_T(e2::preview, e2::form::upon::detached, link, p)
+                    parent->SUBMIT_T(e2::preview, e2::form::upon::vtree::detached, link, p)
                     {
                         frame::link.clear();
                     };
@@ -2165,7 +2050,7 @@ namespace netxs::console
                 };
             };
 
-            // frame: Fly to the specified position.
+            // pro::frame: Fly to the specified position.
             void appear(twod const& target)
             {
                 auto screen = boss.base::square();
@@ -2180,8 +2065,8 @@ namespace netxs::console
                 robo.actify(func, [&](twod& x) { boss.base::moveby(x); });
             }
 
-            // frame: Search for a non-overlapping form position in
-            //        the visual tree along a specified direction.
+            // pro::frame: Search for a non-overlapping form position in
+            //             the visual tree along a specified direction.
             rect bounce (rect const& block, twod const& dir)
             {
                 rect result = block.rotate(dir);
@@ -2214,7 +2099,7 @@ namespace netxs::console
 
                 return result;
             }
-            // frame: Move the form no further than the parent canvas.
+            // pro::frame: Move the form no further than the parent canvas.
             void convey (twod const& delta, rect const& boundary)//, bool notify = true)
             {
                 auto r0 = boss.base::square();
@@ -2239,9 +2124,9 @@ namespace netxs::console
                     }
                 }
             }
-            // frame: Check if it is under the rest, and moves it to the
-            //        top of the visual tree.
-            //        Return "true" if it is NOT under the rest.
+            // pro::frame: Check if it is under the rest, and moves it to the
+            //             top of the visual tree.
+            //             Return "true" if it is NOT under the rest.
             bool expose (bool subsequent = faux)
             {
                 if (auto parent_ptr = boss.parent.lock())
@@ -2250,8 +2135,8 @@ namespace netxs::console
                 }
                 return boss.status.exposed;
             }
-            // frame: Place the form in front of the visual tree
-            //        among neighbors.
+            // pro::frame: Place the form in front of the visual tree
+            //             among neighbors.
             void bubble ()
             {
                 if (auto parent_ptr = boss.parent.lock())
@@ -2468,7 +2353,7 @@ namespace netxs::console
             caret(T& boss, bool visible = faux, twod position = dot_00) : skill<T>{ boss },
                 live{ faux },
                 done{ faux },
-                body{ position, dot_11 }, // Caret is always one cell size (see the term::scrollback definition)
+                body{ position, dot_11 }, // Caret is always one cell size (see the term::scrollback definition).
                 step{ BLINK_PERIOD }
             {
                 boss.SUBMIT_T(e2::request, e2::config::intervals::blink, conf, req_step)
@@ -2488,7 +2373,7 @@ namespace netxs::console
 
             operator bool() const { return memo.count(); }
 
-            // caret: Set caret position.
+            // pro::caret: Set caret position.
             void coor(twod const& coor)
             {
                 if (body.coor != coor)
@@ -2497,28 +2382,27 @@ namespace netxs::console
                     body.coor = coor;
                 }
             }
-            // caret: Get caret position.
+            // pro::caret: Get caret position.
             auto& coor() const
             {
                 return body.coor;
             }
-            // caret: Set caret visibility and position.
+            // pro::caret: Set caret visibility and position.
             void set(std::pair<bool, twod const&> data)
             {
                 data.first ? show()
                            : hide();
                 coor(data.second);
             }
-            // caret: Force to show the caret.
+            // pro::caret: Force to redraw caret.
             void reset()
             {
                 live = faux;
                 next = {};
             }
-            // caret: Enable the caret.
+            // pro::caret: Enable caret.
             void show()
             {
-                //reset();
                 if (!*this)
                 {
                     done = faux;
@@ -2529,7 +2413,6 @@ namespace netxs::console
                         {
                             next = timestamp + step;
                             live = !live;
-                            //log("tick ", live ? "1":"0", " item: ", this);
                             boss.SIGNAL(e2::preview, e2::form::layout::strike, body);
                         }
                     };
@@ -2543,16 +2426,13 @@ namespace netxs::console
                             point.coor += field.coor + boss.base::coor.get();
                             if (auto area = field.clip(point))
                             {
-                                //log("blink inside ", this);
                                 canvas.fill(area, [](cell& c) { c.und(!c.und()); });
                             }
-
-                            //log("blink ", this);
                         }
                     };
                 }
             }
-            // caret: Disable the caret.
+            // pro::caret: Disable caret.
             void hide()
             {
                 if (*this)
@@ -2623,7 +2503,7 @@ namespace netxs::console
                 //bool      onhold = faux; // info: Indicator that the current frame has been successfully STDOUT
                 iota      number = 0;    // info: Current frame number
             }
-            track; // site: Textify the telemetry data for debugging purpose
+            track; // debug: Textify the telemetry data for debugging purpose.
 
             void shadow()
             {
@@ -2773,9 +2653,9 @@ namespace netxs::console
                 {
                     shadow();
                     auto& k = gear;
-#ifdef KEYLOG
+                    #ifdef KEYLOG
                     log("debug fired ", k.character);
-#endif
+                    #endif
                     status[prop::last_event   ].set(stress) = "key";
                     status[prop::key_pressed  ].set(stress) = k.down ? "pressed" : "idle";
                     status[prop::ctrl_state   ].set(stress) = "0x" + utf::to_hex(k.ctlstate );
@@ -2838,7 +2718,7 @@ namespace netxs::console
             #undef PROP_LIST
 
         public:
-            bool live = true;
+            bool live = true; // title: Title visibility.
 
             title(T&&) = delete;
             title(T& boss) : skill<T>{ boss }
@@ -2939,7 +2819,7 @@ namespace netxs::console
         class scene
             : public skill<T>
         {
-            class node // console: Helper-class for the pro::scene. Adapter for the object that going to be attached to the scene.
+            class node // pro::scene: Helper-class for the pro::scene. Adapter for the object that going to be attached to the scene.
             {
                 struct ward
                 {
@@ -3090,7 +2970,7 @@ namespace netxs::console
                 }
             };
 
-            class list // console: Helper-class for the pro::scene. List of objects that can be reordered, etc.
+            class list // pro::scene: Helper-class for the pro::scene. List of objects that can be reordered, etc.
             {
                 std::list<sptr<node>> items;
 
@@ -3249,7 +3129,7 @@ namespace netxs::console
                     auto& inst = *item;
                     denote(items.remove(inst.id));
                     denote(users.remove(inst.id));
-                    inst.SIGNAL(e2::release, e2::form::upon::detached, boss.This());
+                    inst.SIGNAL(e2::release, e2::form::upon::vtree::detached, boss.This());
                 };
                 boss.SUBMIT_T(e2::preview, e2::form::layout::strike, memo, region)
                 {
@@ -3293,13 +3173,13 @@ namespace netxs::console
                 };
             }
 
-            // scene: .
+            // pro::scene: .
             void redraw()
             {
                 boss.SIGNAL(e2::release, e2::form::proceed::render, paint);
                 edges.clear();
             }
-            // scene: Mark dirty region.
+            // pro::scene: Mark dirty region.
             void denote(rect const& updateregion)
             {
                 if (updateregion)
@@ -3307,31 +3187,32 @@ namespace netxs::console
                     edges.push_back(updateregion);
                 }
             }
-            // scene: Create a new item of the specified subtype
-            //        and attach it to the scene.
+            // pro::scene: Create a new item of the specified subtype
+            //             and attach it to the scene.
             template<class S, class ...Args>
             auto attach(Args&&... args)
             {
                 auto item = boss.indexer<bell>::create<S>(std::forward<Args>(args)...);
                 items.append(item);
-                item->SIGNAL(e2::release, e2::form::upon::attached, boss.base::This()); // Send creator
-                //SIGNAL_GLOBAL(e2::form::global::object::attached, item);
+                item->base::visual_root = true;
+                item->SIGNAL(e2::release, e2::form::upon::vtree::attached, boss.base::This());
+
+                boss.SIGNAL(e2::release, e2::bindings::list::apps, items.get_list());
                 return item;
             }
-            // scene: Create a new user of the specified subtype
-            //        and invite him to the scene.
+            // pro::scene: Create a new user of the specified subtype
+            //             and invite him to the scene.
             template<class S, class ...Args>
             auto invite(Args&&... args)
             {
                 auto user = boss.indexer<bell>::create<S>(std::forward<Args>(args)...);
                 users.append(user);
-
-                user->SIGNAL(e2::release, e2::form::upon::attached, boss.base::This()); // Send creator
+                user->base::visual_root = true;
+                user->SIGNAL(e2::release, e2::form::upon::vtree::attached, boss.base::This());
 
                 //todo unify
                 tone color{ tone::brighter, tone::shadow};
                 user->SIGNAL(e2::preview, e2::form::state::color, color);
-                //SIGNAL_GLOBAL(e2::form::global::user::attached, user);
 
                 boss.SIGNAL(e2::release, e2::bindings::list::users, users.get_list());
                 return user;
@@ -3346,10 +3227,10 @@ namespace netxs::console
             using skill<T>::boss,
                   skill<T>::memo;
             constexpr static e2::type QUIT_MSG = e2::term::quit;
-            constexpr static int ESC_THRESHOLD = 500; // Double escape threshold in ms
+            constexpr static int ESC_THRESHOLD = 500; // guard: Double escape threshold in ms.
 
-            bool   wait; // Ready to close
-            moment stop; // Timeout for single Esc
+            bool   wait; // guard: Ready to close.
+            moment stop; // guard: Timeout for single Esc.
             text   desc = "exit after preclose";
 
         public:
@@ -3357,7 +3238,7 @@ namespace netxs::console
             guard(T& boss) : skill<T>{ boss },
                 wait{ faux }
             {
-                // Suspected early completion
+                // Suspected early completion.
                 boss.SUBMIT_T(e2::release, e2::term::preclose, memo, pre_close)
                 {
                     if ((wait = pre_close))
@@ -3366,7 +3247,7 @@ namespace netxs::console
                     }
                 };
 
-                // Double escape catcher
+                // Double escape catcher.
                 boss.SUBMIT_T(e2::general, e2::timer::tick, memo, timestamp)
                 {
                     if (wait && (timestamp > stop))
@@ -3390,11 +3271,11 @@ namespace netxs::console
             constexpr static e2::type EXCUSE_MSG = e2::hids::mouse::any;
             constexpr static e2::type QUIT_MSG   = e2::quit;
             //todo unify
-            constexpr static int LIMIT = 60 * 10; // Idle timeout in seconds
+            constexpr static int LIMIT = 60 * 10; // watch: Idle timeout in seconds.
 
-            hook   pong; // Alibi subsciption token
-            hook   ping; // Zombie check countdown token
-            moment stop; // Timeout for zombies
+            hook   pong; // watch: Alibi subsciption token.
+            hook   ping; // watch: Zombie check countdown token.
+            moment stop; // watch: Timeout for zombies.
             text   desc = "no mouse clicking events";
 
         public:
@@ -3403,7 +3284,7 @@ namespace netxs::console
             {
                 stop = tempus::now() + std::chrono::seconds(LIMIT);
 
-                // No mouse events watchdog
+                // No mouse events watchdog.
                 boss.SUBMIT_T(e2::preview, EXCUSE_MSG, pong, something)
                 {
                     stop = tempus::now() + std::chrono::seconds(LIMIT);
@@ -3606,7 +3487,7 @@ namespace netxs::console
             face xmap;
 
         public:
-            iota push = 0; // Mouse pressed buttons bits (Used only for foreign mouse pointer in the gate)
+            iota push = 0; // input: Mouse pressed buttons bits (Used only for foreign mouse pointer in the gate).
 
             input(T&&) = delete;
             input(T& boss) : skill<T>{ boss }, hids{ boss, xmap }
@@ -3651,8 +3532,8 @@ namespace netxs::console
             {
                 boss.SUBMIT_T(e2::release, e2::form::upon::redrawn, memo, parent_canvas)
                 {
-                    iota size = 5; // pro::panel: vertical gradient size
-                    iota step = 2; // pro::panel: vertical gradient step
+                    iota size = 5; // grade: Vertical gradient size.
+                    iota step = 2; // grade: Vertical gradient step.
                     //cell shadow{ cell{}.vis(cell::highlighter) };
                     //cell bright{ cell{}.vis(cell::darklighter) };
                     auto shadow = rgba{0xFF000000};
@@ -3816,7 +3697,7 @@ namespace netxs::console
         {
             using bttn = e2::hids::mouse::button;
 
-            keybd.accept(true); // Subscribe on keybd offers
+            keybd.accept(true); // Subscribe on keybd offers.
 
             SUBMIT(e2::general, e2::timer::tick, timestamp)
             {
@@ -3916,20 +3797,20 @@ namespace netxs::console
         using lock = std::recursive_mutex;
         using cond = std::condition_variable_any;
 
-        bell&     owner; // pipe: Boss.
-        xipc      canal; // pipe: Data highway.
-        work      input; // pipe: Reading thread.
-        cond      synch; // pipe: Thread sync cond variable.
-        lock      mutex; // pipe: Thread sync mutex.
-        bool      alive; // pipe: Working loop state.
-        bool      ready; // pipe: To avoid spuritous wakeup (cv).
-        bool      focus; // pipe: Terminal window focus state.
-        iota      iface; // pipe: Platform specific UI code.
-        sysmouse  mouse; // pipe: Mouse state.
-        syskeybd  keybd; // pipe: Keyboard state.
-        bool      close; // pipe: Pre closing condition.
-        text      chunk; // pipe: The next received chunk of data input.
-        text      total; // pipe: Accumulated unparsed input.
+        bell&     owner; // link: Boss.
+        xipc      canal; // link: Data highway.
+        work      input; // link: Reading thread.
+        cond      synch; // link: Thread sync cond variable.
+        lock      mutex; // link: Thread sync mutex.
+        bool      alive; // link: Working loop state.
+        bool      ready; // link: To avoid spuritous wakeup (cv).
+        bool      focus; // link: Terminal window focus state.
+        iota      iface; // link: Platform specific UI code.
+        sysmouse  mouse; // link: Mouse state.
+        syskeybd  keybd; // link: Keyboard state.
+        bool      close; // link: Pre closing condition.
+        text      chunk; // link: The next received chunk of data input.
+        text      total; // link: Accumulated unparsed input.
 
         void reader()
         {
@@ -4468,7 +4349,7 @@ again:
 
             log("link: std_input thread ended");
         }
-        // pipe: Interrupt the run only.
+        // link: Interrupt the run only.
         void shutdown ()
         {
             mutex.lock();
@@ -4847,7 +4728,7 @@ again:
 
     public:
         // diff: Obtain new content to render.
-        pair commit(core& canvas) // Run inside the e2::sync
+        pair commit(core& canvas) // Run inside the e2::sync.
         {
             std::unique_lock guard(mutex, std::try_to_lock);
             if (guard.owns_lock())
@@ -4932,11 +4813,10 @@ again:
         }
     };
 
-    // console: Client gate.
+    // console: Client's gate.
     class gate
         : public form
     {
-        using sptr = netxs::sptr<base>;
         using self = gate;
         FEATURE(pro::keybd, keybd); // gate: Keyboard controller.
         FEATURE(pro::robot, robot); // gate: Animation controller.
@@ -4951,13 +4831,14 @@ again:
 
         using pair = std::optional<std::pair<period, iota>>;
         pair  yield; // gate: Indicator that the current frame has been successfully STDOUT.
-
-        para uname;
+        para uname; // gate: Client name.
 
     public:
-        sptr uibar; // gate: Local UI overlay, UI bar/taskbar/sidebar.
+        // todo unify
+        page watermark;
+        sptr<base> uibar; // gate: Local UI overlay, UI bar/taskbar/sidebar.
 
-        // Client's main loop.
+        // Main loop.
         void proceed(xipc media /*session socket*/, text title)
         {
             if (auto world = parent.lock())
@@ -5007,7 +4888,8 @@ again:
                 world->SUBMIT_T(e2::release, e2::form::proceed::render, token, render_scene)
                 {
                     auto stamp = tempus::now();
-                    if (render_scene(form::canvas, gate::title.titles()) || !yield) // Put the world on my canvas
+                    //if (render_scene(form::canvas, gate::title.titles()) || !yield) // Put the world on my canvas
+                    if (render_scene(form::canvas, watermark) || !yield) // Put the world on my canvas
                     {
                         // Update objects under mouse cursor
                         //input.fire(e2::hids::mouse::hover);
@@ -5051,6 +4933,11 @@ again:
 
             title.live = faux;
 
+            //todo unify (use uibar)
+            SUBMIT(e2::preview, e2::form::prop::footer, newfooter)
+            {
+                watermark = ansi::cup(dot_00).rlf(feed::rev).jet(bias::right) + newfooter;
+            };
             //todo unify creation (delete simple create wo gear)
             SUBMIT(e2::preview, e2::form::proceed::create, region)
             {
@@ -5081,7 +4968,7 @@ again:
                     {
                         if (auto world = parent.lock())
                         {
-                            sptr item_ptr;
+                            sptr<base> item_ptr;
                             if (pgdn) world->SIGNAL(e2::request, e2::form::proceed::detach, item_ptr); // Take prev item
                             else      world->SIGNAL(e2::request, e2::form::proceed::attach, item_ptr); // Take next item
 
@@ -5236,18 +5123,19 @@ again:
             #endif
         }
     public:
+        // gate: Attach a new item.
+        template<class T>
+        auto attach(sptr<T> item)
+        {
+            uibar = item;
+            item->SIGNAL(e2::release, e2::form::upon::vtree::attached, This());
+            return item;
+        }
         // gate: Create a new item of the specified subtype and attach it.
         template<class T, class ...Args>
         auto attach(Args&&... args)
         {
-            static_assert(std::is_base_of<base, T>::value,
-                "The only a derivative of the «base» class can be attached to the «gate».");
-
-            auto item = base::create<T>(std::forward<Args>(args)...);
-            uibar = item;
-            item->SIGNAL(e2::release, e2::form::upon::attached, This()); // Send creator
-            base::reflow(); // Ask client about the new size (the client can override the size)
-            return item;
+            return attach(base::create<T>(std::forward<Args>(args)...));
         }
     };
 }

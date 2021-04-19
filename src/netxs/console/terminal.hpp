@@ -1507,7 +1507,7 @@ namespace netxs::ui
             keybd.accept(true); // Subscribe to keybd offers.
             #endif
 
-            SUBMIT(e2::release, e2::form::upon::attached, parent)
+            SUBMIT(e2::release, e2::form::upon::vtree::attached, parent)
             {
                 base::riseup<e2::request, e2::form::prop::header>(winprops.get(ansi::OSC_TITLE));
             };

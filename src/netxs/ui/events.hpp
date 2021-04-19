@@ -185,6 +185,7 @@ namespace netxs::ui
             struct list { enum : type {
                     any = bindings::_list,
                     users       = any | (1 << _level1), // list of connected users (arg: std::list<sptr<base>>)
+                    apps        = any | (2 << _level1), // list of running apps (arg: std::list<sptr<base>>)
                 };
             };
         };
@@ -499,8 +500,8 @@ namespace netxs::ui
             };};
             struct upon { enum : type {
                     any = form::_upon,
-                    attached    = any | (1 << _level1), // inform that subject is attached (arg: parent bell_sptr)
-                    detached    = any | (2 << _level1), // inform that subject is detached (arg: parent bell_sptr)
+                    _vtree      = any | (1 << _level1), // visual tree events (arg: parent base_sptr)
+                    //detached    = any | (2 << _level1), // inform that subject is detached (arg: parent bell_sptr)
                     redrawn     = any | (3 << _level1), // inform about camvas is completely redrawn (arg: canvas face)
                     invalidated = any | (4 << _level1),
                     cached      = any | (5 << _level1), // inform about camvas is cached (arg: canvas face)
@@ -512,6 +513,11 @@ namespace netxs::ui
                 };
                 private: static const unsigned int _level2 = _level1 + _width;
                 public:
+                struct vtree { enum : type {
+                        any = upon::_vtree,
+                        attached    = any | (1 << _level2), // Child has been attached (arg: parent sptr<base>)
+                        detached    = any | (2 << _level2), // Child has been detached (arg: parent sptr<base>)
+                };};
                 struct scroll { enum : type {
                         any = upon::_scroll,
                         x           = any | (1 << _level2), // event after scroll along X (arg: rack)
