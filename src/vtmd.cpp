@@ -1227,7 +1227,8 @@ utility like ctags is used to locate the definitions.
         X(Shop         , "▀▄ Shop"             ) \
         X(Logs         , "▀▄ Logs"             ) \
         X(Empty        , "Empty window"        ) \
-        X(Test         , "Test"                )
+        X(Test         , "Test"                ) \
+        X(Menu         , "Old menu object"     )
 
         #define X(a, b) a,
         enum objs { TYPE_LIST count };
@@ -1239,6 +1240,7 @@ utility like ctags is used to locate the definitions.
         #undef TYPE_LIST
 
         objs current_default = objs::Test;
+        auto current_default_ptr = &current_default; //todo unify
         static bool    stobe_state = true;
         static iota    max_count = 20;// 50;
         static iota    max_vtm = 3;
@@ -1310,7 +1312,8 @@ utility like ctags is used to locate the definitions.
         //todo use XAML for that
         auto create = [&](objs type, auto location) -> auto
         {
-            auto window = world->attach<ui::mold>();
+            //auto window = world->attach<ui::mold>();
+            auto window = base::create<ui::mold>();
             window->extend(location);
 
             auto winsz = window->get_region().size;
@@ -1359,7 +1362,7 @@ utility like ctags is used to locate the definitions.
                 }
                 case PowerShell:
                 {
-                    window->header(ansi::jet(bias::center) + "PowerShell");
+                    window->header(ansi::jet_or(bias::center) + "PowerShell");
                     auto layers = window->attach<ui::cake>();
                     auto scroll = layers->attach<ui::rail>()
                                         ->plugin<pro::color>(whitelt, 0xFF560000);
@@ -1370,7 +1373,7 @@ utility like ctags is used to locate the definitions.
                 }
                 case CommandPrompt:
                 {
-                    window->header(ansi::jet(bias::center) + "Command Prompt");
+                    window->header(ansi::jet_or(bias::center) + "Command Prompt");
                     auto layers = window->attach<ui::cake>();
                     auto scroll = layers->attach<ui::rail>();
 
@@ -1394,7 +1397,7 @@ utility like ctags is used to locate the definitions.
                 }
                 case Strobe:
                 {
-                    window->header(ansi::jet(bias::center) + "Strobe");
+                    window->header(ansi::jet_or(bias::center) + "Strobe");
                     auto strob = window->attach<ui::pane>();
                     strob->color(0x0, 0x0);
                     strob->SUBMIT_BYVAL(e2::general, e2::timer::tick, now)  //gcc: use SUBMIT_BYVAL to capture in lambda by value
@@ -1422,7 +1425,7 @@ utility like ctags is used to locate the definitions.
                 }*/
                 case Truecolor:
                 {
-                    window->header(ansi::jet(bias::right) + "True color ANSI/ASCII image test");
+                    window->header(ansi::jet_or(bias::right) + "True color ANSI/ASCII image test");
                     window->blurred = true;
                     auto layers = window->attach<ui::cake>();
                     auto scroll = layers->attach<ui::rail>()
@@ -1442,7 +1445,7 @@ utility like ctags is used to locate the definitions.
                 }
                 case Shop:
                 {
-                    window->header(ansi::jet(bias::right) + objs_desc[Shop]);
+                    window->header(ansi::jet_or(bias::right) + objs_desc[Shop]);
                     window->color(whitelt, 0x60000000);
                     window->blurred = true;
                     window->highlight_center = faux;
@@ -1509,7 +1512,7 @@ utility like ctags is used to locate the definitions.
                     *                              scroll: grid<post> = "..cell_array.."
                     *            all_stat(2): status_area<post> = "Sheet1 [+]"
                     */
-                    window->header(ansi::jet(bias::center) + "Spreadsheet");
+                    window->header(ansi::jet_or(bias::center) + "Spreadsheet");
                     window->color(whitelt, 0x601A5f00);
                     window->limits({ -1,-1 },{ 136,105 });
                     window->blurred = true;
@@ -1594,7 +1597,7 @@ utility like ctags is used to locate the definitions.
                 case Text:
                 {
                     window->color(whitelt, 0x605f1A00);
-                    window->header(ansi::jet(bias::center) + "Text Editor");
+                    window->header(ansi::jet_or(bias::center) + "Text Editor");
                     window->blurred = true;
                     window->highlight_center = faux;
                     window->set_border(dot_00);
@@ -1624,7 +1627,7 @@ utility like ctags is used to locate the definitions.
                 }
                 case VTM:
                 {
-                    window->header(ansi::jet(bias::center) + objs_desc[VTM]);
+                    window->header(ansi::jet_or(bias::center) + objs_desc[VTM]);
                     auto layers = window->attach<ui::cake>();
                     auto scroll = layers->attach<ui::rail>();
                     if (vtm_count < max_vtm)
@@ -1653,7 +1656,7 @@ utility like ctags is used to locate the definitions.
                 }
                 case Far:
                 {
-                    window->header(ansi::jet(bias::center) + objs_desc[Far]);
+                    window->header(ansi::jet_or(bias::center) + objs_desc[Far]);
                     auto layers = window->attach<ui::cake>();
                     auto scroll = layers->attach<ui::rail>();
                     scroll->attach<ui::term>(winsz, "far")
@@ -1663,7 +1666,7 @@ utility like ctags is used to locate the definitions.
                 }
                 case MC:
                 {
-                    window->header(ansi::jet(bias::center) + objs_desc[MC]);
+                    window->header(ansi::jet_or(bias::center) + objs_desc[MC]);
                     twod minsz = { 10,1 }; // mc crashes when window is too small
                     winsz = std::max(winsz, minsz);
                     auto layers = window->attach<ui::cake>();
@@ -1696,7 +1699,7 @@ utility like ctags is used to locate the definitions.
                 case Bash:
                 case Term:
                 {
-                    window->header(ansi::jet(bias::center) + objs_desc[Bash]);
+                    window->header(ansi::jet_or(bias::center) + objs_desc[Bash]);
                     auto layers = window->attach<ui::cake>();
                     auto scroll = layers->attach<ui::rail>();
                     {
@@ -1740,6 +1743,9 @@ utility like ctags is used to locate the definitions.
                     break;
                 }
             }
+
+            world->brunch(type, window);
+
             return window;
         };
 
@@ -1816,7 +1822,7 @@ utility like ctags is used to locate the definitions.
 
         #ifndef PROD
             creator(objs::Test, { { 22,1  },{ 70,21 } })
-                ->header(ansi::jet(bias::center) + "Welcome");
+                ->header(ansi::jet_or(bias::center) + "Welcome");
             creator(objs::Shop, { { 4 ,6  },{ 80,38 } });
             creator(objs::Calc, { { 15,13 },{ 65,23 } });
             creator(objs::Text, { { 30,20 },{ 59,26 } });
@@ -1855,10 +1861,10 @@ utility like ctags is used to locate the definitions.
         log("pipe: ", path);
 
         { // Menu
-            auto frame = world->attach<ui::mold>();
+            auto frame = world->attach<ui::mold>(objs::Menu);
             frame->liquid(faux);
             frame->strong(true);
-            frame->header(ansi::jet(bias::center) + "Menu");
+            frame->header(ansi::jet_or(bias::center) + "Menu");
 
             //frame->color(whitelt, 0xA0000000);//.alpha(0x50));
             frame->color(whitelt, 0xA0202020);//.alpha(0x50));
@@ -2007,6 +2013,7 @@ utility like ctags is used to locate the definitions.
                     auto x2 = c2; x2.bga(0x00);
                     auto c1 = cell{}.bgc(danger_color);
                     auto x1 = c1; x1.bga(0x00);
+                    /*
                     auto next_item = [&, x3, c3](auto container, bool b, auto utf8){
                         auto item_area = container->template attach<ui::pads>(dent{ 1,0,0,1 }, dent{ 0,0,1,0 })
                                                   ->template plugin<pro::mouse>()
@@ -2048,8 +2055,19 @@ utility like ctags is used to locate the definitions.
                                     ->brunch(instance2("App instance 4"));
                                     data->attach(instance2("App instance 5"));
                         return item_area;
+                    };*/
+                    auto app_class_block = [x3, c3](bool b, auto utf8){
+                        auto item_area = base::template create<ui::pads>(dent{ 1,0,0,1 }, dent{ 0,0,1,0 })
+                                                  ->template plugin<pro::mouse>();
+                        auto block = item_area->template attach<ui::fork>(axis::Y);
+                            auto head_area = block->template attach<slot::_1, ui::pads>(dent{ 0,0,0,0 }, dent{ 1,0,1,1 })
+                                                  ->template plugin<pro::mouse>()
+                                                  ->template plugin<pro::fader>(x3, c3, 0ms);
+                                auto head = head_area->template attach<ui::item>(ansi::bgc4(b ? 0xFF00FF00 : 0x7F000000)
+                                                                         + "  " + ansi::nil() + "  " + utf8, true);
+                            auto data = block->template attach<slot::_2, ui::list>();
+                        return std::pair{ item_area, data };
                     };
-
 
                     auto client = world->invite<ui::gate>(username);
                         auto window = client->attach<ui::cake>();
@@ -2072,13 +2090,33 @@ utility like ctags is used to locate the definitions.
                                             auto items = items_scrl->attach<ui::list>();
                                                 auto apps_title = items->attach<ui::post>()
                                                                        ->upload(ansi::wrp(wrap::off) + " Applications\n");
-                                                auto apps = items->attach<ui::list>()
-                                                    ->brunch(next_item3(true, "Application 0 app name"))
-                                                    ->brunch(next_item3(faux, "Application 1 app name"))
-                                                    ->brunch(next_item3(faux, "Application 2 app name"));
+
+                                                auto app_template = [=](auto& data_src, auto const& utf8){
+                                                    auto c3 = cell{}.bgc(tint::bluelt);
+                                                    auto x3 = c3; x3.bga(0x00);
+                                                    auto item_area = base::template create<ui::pads>(dent{ 1,0,0,0 }, dent{ 0,0,0,0 })
+                                                                              ->template plugin<pro::mouse>()
+                                                                              ->template plugin<pro::fader>(x3, c3, 0ms);
+                                                        auto user = item_area->template attach<ui::item>(
+                                                        ansi::fgc4(0xFF00ff00) + "‣" + ansi::nil() + "   " +
+                                                        ansi::jet(bias::left) + utf8 + ansi::mgl(0).wrp(wrap::off), true);
+                                                    return item_area;
+                                                };
+                                                auto apps_template = [=](auto& data_src, auto& apps_map){
+                                                    auto apps = base::create<ui::list>();
+                                                    //todo incompatible with Declarative UI
+                                                    for(auto const& [class_id, inst_ptr_list] : apps_map)
+                                                    {
+                                                        auto [ block, list ] = app_class_block(class_id == *current_default_ptr, objs_desc[class_id]);
+                                                        auto insts_area = apps->attach(block);
+                                                        auto insts = list->attach_collection<e2::form::prop::header>(inst_ptr_list, app_template);
+                                                    }
+                                                    return apps;
+                                                };
+                                                auto apps2 = items->attach_element<e2::bindings::list::apps>(world, apps_template);
+
                                                 auto users_title = items->attach<ui::post>()
                                                                         ->upload(ansi::wrp(wrap::off) + " TTY Sessions\n");
-
                                                 auto user_template = [=, my_id = client->id](auto& data_src, auto const& utf8){
                                                     auto c3 = cell{}.bgc(tint::bluelt);
                                                     auto x3 = c3; x3.bga(0x00);

@@ -50,6 +50,7 @@ namespace netxs::console
     using xipc = os::xipc;
 
     using drawfx = std::function<bool(face&, page const&)>;
+    using registry_t = std::map<id_t, std::list<sptr<base>>>;
 
     EVENT_NS
     EVENT_BIND(e2::timer::any, moment)
@@ -68,7 +69,7 @@ namespace netxs::console
 
     EVENT_BIND(e2::bindings::any, sptr<base>)
         EVENT_BIND(e2::bindings::list::users, std::list<sptr<base>>)
-        EVENT_BIND(e2::bindings::list::apps,  std::list<sptr<base>>)
+        EVENT_BIND(e2::bindings::list::apps,  registry_t)
 
     EVENT_BIND(e2::term::any, iota)
         EVENT_BIND(e2::term::unknown , iota)
@@ -3107,6 +3108,8 @@ namespace netxs::console
             list items; // scene: Child visual tree
             list users; // scene: Scene spectators
 
+            registry_t registry;
+
         public:
             scene(T&&) = delete;
             scene(T& boss) : skill<T>{ boss }
@@ -3126,11 +3129,26 @@ namespace netxs::console
                     else return faux;
                 };
 
-                boss.SUBMIT_T(e2::preview, e2::form::proceed::detach, memo, item)
+                boss.SUBMIT_T(e2::preview, e2::form::proceed::detach, memo, item_ptr)
                 {
-                    auto& inst = *item;
+                    auto& inst = *item_ptr;
                     denote(items.remove(inst.id));
                     denote(users.remove(inst.id));
+
+                    //todo unify
+                    // Remove from active app registry.
+                    for (auto& [class_id, app_list] : registry)
+                    {
+                        auto head = app_list.begin();
+                        auto tail = app_list.end();
+                        auto iter = std::find_if(head, tail, [&](auto& c) { return c == item_ptr; });
+                        if (iter != tail)
+                        {
+                            app_list.erase(iter);
+                            break;
+                        }
+                    }
+
                     inst.SIGNAL(e2::release, e2::form::upon::vtree::detached, boss.This());
                 };
                 boss.SUBMIT_T(e2::preview, e2::form::layout::strike, memo, region)
@@ -3151,6 +3169,10 @@ namespace netxs::console
                 boss.SUBMIT_T(e2::request, e2::bindings::list::users, memo, usr_list)
                 {
                     usr_list = users.get_list();
+                };
+                boss.SUBMIT_T(e2::request, e2::bindings::list::apps, memo, app_list)
+                {
+                    app_list = registry;
                 };
 
                 ///// Pass the paint procedure to custom client drawing
@@ -3189,17 +3211,26 @@ namespace netxs::console
                     edges.push_back(updateregion);
                 }
             }
+
+            // pro::scene: Attach a new item to the scene.
+            template<class S>
+            auto brunch(id_t class_id, sptr<S> item)
+            {
+                items.append(item);
+                item->base::visual_root = true;
+                registry[class_id].push_back(item);
+                item->SIGNAL(e2::release, e2::form::upon::vtree::attached, boss.base::This());
+
+                boss.SIGNAL(e2::release, e2::bindings::list::apps, registry);
+                return item;
+            }
             // pro::scene: Create a new item of the specified subtype
             //             and attach it to the scene.
             template<class S, class ...Args>
-            auto attach(Args&&... args)
+            auto attach(id_t class_id, Args&&... args)
             {
                 auto item = boss.indexer<bell>::create<S>(std::forward<Args>(args)...);
-                items.append(item);
-                item->base::visual_root = true;
-                item->SIGNAL(e2::release, e2::form::upon::vtree::attached, boss.base::This());
-
-                boss.SIGNAL(e2::release, e2::bindings::list::apps, items.get_list());
+                brunch(class_id, item);
                 return item;
             }
             // pro::scene: Create a new user of the specified subtype
@@ -3678,13 +3709,19 @@ namespace netxs::console
 
     public:
         // host: Create a new item of the specified subtype and attach it.
-        template<class T, class ...Args>
-        auto attach(Args&&... args)
+        template<class T>
+        auto brunch(id_t class_id, sptr<T> item_ptr)
         {
-            return scene.attach<T>(std::forward<Args>(args)...);
+            return scene.brunch(class_id, item_ptr);
         }
-
+        // host: Create a new item of the specified subtype and attach it.
+        template<class T, class ...Args>
+        auto attach(id_t class_id, Args&&... args)
+        {
+            return scene.attach<T>(class_id, std::forward<Args>(args)...);
+        }
         //todo unify
+        // host: .
         template<class T, class ...Args>
         auto invite(Args&&... args)
         {
