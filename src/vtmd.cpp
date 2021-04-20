@@ -1161,9 +1161,10 @@ utility like ctags is used to locate the definitions.
         truecolor += wiki01;
 
         //auto const highlight_color2 = tint::blackdk ;
-        auto const highlight_color  = tint::bluelt  ;
-        auto const warning_color    = tint::yellowdk;
-        auto const danger_color     = tint::redlt   ;
+        auto const highlightdk_color = tint::bluedk  ;
+        auto const highlight_color   = tint::bluelt  ;
+        auto const warning_color     = tint::yellowdk;
+        auto const danger_color      = tint::redlt   ;
         auto background_color = cell{}.fgc(whitedk).bgc(0xFF000000 /* blackdk */);
         skin::setup(tone::kb_focus, 60);
         skin::setup(tone::brighter, 120);
@@ -1290,7 +1291,7 @@ utility like ctags is used to locate the definitions.
                 for (auto& body : menu_items) menu_list->template attach<ui::pads>(inner_pads, body.second)
                                                        ->template plugin<pro::mouse>()
                                                        ->template plugin<pro::fader>(x2, c2, 150ms)
-                                                       ->template attach<ui::item>(body.first);
+                                                       ->template attach<ui::item>(body.first, faux, true);
                 auto close_hndl = [&](auto& boss)
                         {
                              // MSVC 16.9.4 don't get it inline, use close_hndl (possible compiler bug, todo investigate)
@@ -1820,6 +1821,13 @@ utility like ctags is used to locate the definitions.
             stobe_state = !stobe_state;
         };
 
+        { // Init registry/menu list.
+            registry_t menu_list;
+            iota i = objs::count;
+            while (i--) menu_list[i];
+            world->SIGNAL(e2::preview, e2::bindings::list::apps, menu_list);
+        }
+
         #ifndef PROD
             creator(objs::Test, { { 22,1  },{ 70,21 } })
                 ->header(ansi::jet_or(bias::center) + "Welcome");
@@ -1929,7 +1937,7 @@ utility like ctags is used to locate the definitions.
         world->SIGNAL(e2::general, e2::timer::fps, 60);
 
         iota usr_count = 0;
-
+        
         if (auto link = os::ipc::open<os::server>(path))
         {
             log("sock: listen socket ", link);
@@ -1967,6 +1975,7 @@ utility like ctags is used to locate the definitions.
 
                 std::thread{ [=]
                 {
+                    iota uibar_full_size = 32;
                     log("main: peer using socket ", peer);
 
                     #ifdef DEMO
@@ -1974,7 +1983,7 @@ utility like ctags is used to locate the definitions.
                     #else
                         auto username = _name;
                     #endif
-                   /* Task Panel Layout pseudocode:
+                   /* Task Panel Layout pseudocode: (a bit outdated)
                     *
                     * world<host>
                     *    world: client<gate(username)>
@@ -2004,86 +2013,63 @@ utility like ctags is used to locate the definitions.
                     *                         shutdown_area: shutdown<item>
                     *
                     */
-                    //todo MSVC 16.9.4 don't capture x3,c3 by & (possible compiler bug)
-                    //auto c4 = cell{}.bgc(highlight_color2);
-                    //auto x4 = c4; x4.bga(0x00);
-                    auto c3 = cell{}.bgc(highlight_color);
-                    auto x3 = c3; x3.bga(0x00);
-                    auto c2 = cell{}.bgc(warning_color);
-                    auto x2 = c2; x2.bga(0x00);
-                    auto c1 = cell{}.bgc(danger_color);
-                    auto x1 = c1; x1.bga(0x00);
-                    /*
-                    auto next_item = [&, x3, c3](auto container, bool b, auto utf8){
-                        auto item_area = container->template attach<ui::pads>(dent{ 1,0,0,1 }, dent{ 0,0,1,0 })
-                                                  ->template plugin<pro::mouse>()
-                                                  ->template plugin<pro::fader>(x3, c3, 0ms);//150ms);
-                        auto item = item_area->template attach<ui::item>(ansi::bgc4(b ? 0xFF00FF00 : 0x7F000000) + "  " + ansi::nil() + "  " + utf8, true);
-                    };
-                    auto next_item2 = [&, x3, c3](bool b, auto const& para_data){
-                        auto item_area = base::template create<ui::pads>(dent{ 1,0,0,1 }, dent{ 0,0,1,0 })
-                                                  ->template plugin<pro::mouse>()
-                                                  ->template plugin<pro::fader>(x3, c3, 0ms);//150ms);
-                        auto item = item_area->template attach<ui::item>(para_data, true);
-                        return item_area;
-                    };
-                    auto instance = [&, x3, c3](auto container, auto utf8){
-                        auto item_area = container->template attach<ui::pads>(dent{ 2,0,0,0 }, dent{ 2,0,0,0 })
-                                                  ->template plugin<pro::mouse>()
-                                                  ->template plugin<pro::fader>(x3, c3, 0ms);//150ms);
-                        auto item = item_area->template attach<ui::item>(ansi::fgc4(0xFF00FF00) + "‣" + ansi::nil() + "    " + utf8, true);
-                    };
-                    auto instance2 = [&, x3, c3](auto utf8){
-                        auto item = base::template create<ui::pads>(dent{ 1,0,0,0 }, dent{ 0,-1,0,0 })
-                                        ->template plugin<pro::mouse>()
-                                        ->template plugin<pro::fader>(x3, c3, 0ms);
-                        auto data = item->template attach<ui::item>(ansi::fgc4(0xFF00FF00) + "‣" + ansi::nil() + "   " + utf8, true);
-                        return item;
-                    };
-                    auto next_item3 = [x3, c3, &instance2](bool b, auto utf8){
-                        auto item_area = base::template create<ui::pads>(dent{ 1,0,0,1 }, dent{ 0,0,1,0 })
-                                                  ->template plugin<pro::mouse>();
-                        auto block = item_area->template attach<ui::fork>(axis::Y);
-                            auto head_area = block->template attach<slot::_1, ui::pads>(dent{ 0,0,0,1 }, dent{ 1,0,1,0 })
-                                                  ->template plugin<pro::mouse>()
-                                                  ->template plugin<pro::fader>(x3, c3, 0ms);
-                                auto head = head_area->template attach<ui::item>(ansi::bgc4(b ? 0xFF00FF00 : 0x7F000000) + "  " + ansi::nil() + "  " + utf8, true);
-                            auto data = block->template attach<slot::_2, ui::list>()
-                                    ->brunch(instance2("App instance 1"))
-                                    ->brunch(instance2("App instance 2"))
-                                    ->brunch(instance2("App instance 3"))
-                                    ->brunch(instance2("App instance 4"));
-                                    data->attach(instance2("App instance 5"));
-                        return item_area;
-                    };*/
 
-                    auto app_template = [](auto& data_src, auto const& utf8){
-                        auto c3 = cell{}.bgc(tint::bluedk);
-                        auto x3 = c3; x3.bga(0x00);
+                    //todo MSVC 16.9.4 don't capture x3,c3 by & (possible a compiler bug)
+                    auto c4 = cell{}.bgc(highlight_color);
+                    auto x4 = c4; x4.bga(0x00);
+                    auto c3 = cell{}.bgc(highlight_color).fgc(0xFFffffff);
+                    auto x3 = c3; x3.bga(0x00).fga(0x00);
+                    auto c2 = cell{}.bgc(warning_color).fgc(whitelt);
+                    auto x2 = c2; x2.bga(0x00);
+                    auto c1 = cell{}.bgc(danger_color).fgc(whitelt);
+                    auto x1 = c1; x1.bga(0x00);
+
+                    auto app_template = [c4, x4, danger_color](auto& data_src, auto const& utf8){
                         auto item_area = base::template create<ui::pads>(dent{ 1,0,0,0 }, dent{ 0,0,0,0 })
-                                                  ->template plugin<pro::mouse>(true)
-                                                  ->template plugin<pro::fader>(x3, c3, 0ms);
-                            auto user = item_area->template attach<ui::item>(
-                            ansi::fgc4(0xFF00ff00) + "‣" + ansi::nil() + "   " +
-                            ansi::jet(bias::left) + utf8 + ansi::mgl(0).wrp(wrap::off), true);
+                                             ->template plugin<pro::mouse>(true)
+                                             ->template plugin<pro::fader>(x4, c4, 150ms);
+                            auto label_area = item_area->template attach<ui::fork>();
+                                auto app_label = label_area->template attach<slot::_1, ui::item>(
+                                            ansi::fgc4(0xFF00ff00) + "‣" + ansi::nil() + "   "
+                                            + ansi::jet(bias::left).fgc(whitelt)
+                                            + utf8 + ansi::mgl(0).wrp(wrap::off), true, true);
+                                auto app_close = label_area->template attach<slot::_2, ui::item>(
+                                            //ansi::bgc4(0xFF0000ff) + "  ", true);
+                                            //ansi::bgc4(0xFFffffff) + "❌", true);
+                                            ansi::bgc4(danger_color) + " ✕ ", true);
+                                            auto size = twod{ 0, -1 };
+                                            app_close->base::limits(size, size);
+                                    auto app_close_shadow = std::weak_ptr{ app_close };
+                                    item_area->invoke([=](auto& boss) {
+                                                boss.SUBMIT_BYVAL(e2::release, e2::form::state::mouse, active)
+                                                {
+                                                    if(auto app_close = app_close_shadow.lock())
+                                                    {
+                                                        auto size = twod{ active ? 3:0, -1 };
+                                                        app_close->base::limits(size, size);
+                                                        app_close->base::reflow();
+                                                    }
+                                                };
+                                            });
                         return item_area;
                     };
-                    auto apps_template = [&, x3,c3, app_template](auto& data_src, auto& apps_map){
+                    auto apps_template = [&, c3, x3, app_template](auto& data_src, auto& apps_map){
                         auto apps = base::create<ui::list>();
-                        //todo incompatible with Declarative UI
+                        //todo loops are not compatible with Declarative UI
                         for(auto const& [class_id, inst_ptr_list] : apps_map)
                         {
                             auto selected = class_id == *current_default_ptr;
                             auto item_area = apps->template attach<ui::pads>(dent{ 1,0,0,1 }, dent{ 0,0,1,0 })
-                                                  ->template plugin<pro::mouse>()
-                                                  ->template plugin<pro::fader>(x3, c3, 150ms);
+                                                 ->template plugin<pro::mouse>(true)
+                                                 ->template plugin<pro::fader>(x3, c3, 0ms);
                                 auto block = item_area->template attach<ui::fork>(axis::Y);
                                     auto head_area = block->template attach<slot::_1, ui::pads>(dent{ 0,0,0,0 }, dent{ 1,0,1,1 })
                                                           ->template plugin<pro::mouse>();
                                         auto head = head_area->template attach<ui::item>(
                                                 ansi::bgc4(selected ? 0xFF00FF00 : 0x7F000000)
-                                                + "  " + ansi::nil().fgc(whitedk) + "  " + objs_desc[class_id], true);
+                                                + "  " + ansi::nil() + "  " + objs_desc[class_id], true);
                                     auto list = block->template attach<slot::_2, ui::pads>(dent{ 0,1,0,0 }, dent{ 0,0,0,0 })
+                                                     ->template plugin<pro::mouse>()
                                                      ->template attach<ui::list>();
                             auto insts = list->template attach_collection<e2::form::prop::header>(inst_ptr_list, app_template);
                         }
@@ -2093,34 +2079,42 @@ utility like ctags is used to locate the definitions.
                         auto window = client->attach<ui::cake>();
                             auto menu_area = window->attach<ui::fork>(axis::X);
                                 auto menu = menu_area->attach<slot::_1, ui::fork>(axis::Y)
-                                                     //->plugin<pro::mouse>()
-                                                     ->plugin<pro::color>(whitelt, 0xA0202020)
+                                                     ->plugin<pro::color>(whitedk, 0xA0202020)
                                                      ->plugin<pro::limit>(twod{ 4,-1 }, twod{ 4,-1 })
-                                                     ->invoke([&](auto& boss) {
+                                                     ->invoke([&](auto& boss) mutable {
                                                             boss.SUBMIT(e2::release, e2::form::state::mouse, active)
                                                             {
-                                                                auto size = twod{ active ? 32 : 4,-1 };
-                                                                boss.base::limits(size, size);
+                                                                auto size = active ? uibar_full_size : std::min(uibar_full_size, 4);
+                                                                auto lims = twod{ size,-1 };
+                                                                boss.base::limits(lims, lims);
                                                                 boss.base::reflow();
+                                                                //log("UIBAR STATE has CHANGED!!!");
                                                             };
+                                                            boss.SUBMIT(e2::release, e2::message(e2::form::drag::pull::any, sysmouse::left), gear)
+                                                            {
+                                                                auto limits = boss.base::limits();
+                                                                limits.min.x += gear.delta.get().x;
+                                                                limits.max.x = uibar_full_size = limits.min.x;
+                                                                boss.base::limits(limits.min, limits.max);
+                                                                boss.base::reflow();
+                                                            }; 
                                                         });
+                                    menu->mouse.draggable<sysmouse::left>();
                                     auto items_area = menu->attach<slot::_1, ui::cake>();
                                         auto items_scrl = items_area->attach<ui::rail>(axes::ONLY_Y)
                                                                     ->plugin<pro::color>(0x00, 0x00); //todo mouse events passthrough
                                             auto items = items_scrl->attach<ui::list>();
                                                 auto apps_title = items->attach<ui::post>()
-                                                                       ->upload(ansi::wrp(wrap::off) + " Applications\n");
+                                                                       ->upload(ansi::wrp(wrap::off).fgc(whitelt) + " Applications\n");
 
                                                 auto apps2 = items->attach_element<e2::bindings::list::apps>(world, apps_template);
 
                                                 auto users_title = items->attach<ui::post>()
-                                                                        ->upload(ansi::wrp(wrap::off) + " TTY Sessions\n");
-                                                auto user_template = [=, my_id = client->id](auto& data_src, auto const& utf8){
-                                                    auto c3 = cell{}.bgc(tint::bluelt);
-                                                    auto x3 = c3; x3.bga(0x00);
+                                                                        ->upload(ansi::wrp(wrap::off).fgc(whitelt) + " TTY Sessions\n");
+                                                auto user_template = [c3, x3, my_id = client->id](auto& data_src, auto const& utf8){
                                                     auto item_area = base::template create<ui::pads>(dent{ 1,0,0,1 }, dent{ 0,0,1,0 })
-                                                                              ->template plugin<pro::mouse>()
-                                                                              ->template plugin<pro::fader>(x3, c3, 0ms);
+                                                                         ->template plugin<pro::mouse>()
+                                                                         ->template plugin<pro::fader>(x3, c3, 150ms);
                                                         auto user = item_area->template attach<ui::item>(
                                                         ansi::fgc4(data_src->id == my_id ? 0xFFffff00 : 0xFFff0000)
                                                         + " ‣" + ansi::nil() + "  " + utf8, true);

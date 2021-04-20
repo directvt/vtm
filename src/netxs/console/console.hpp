@@ -114,6 +114,36 @@ namespace netxs::console
             EVENT_BIND(e2::form::prop::footer, text)
             //EVENT_BIND(e2::form::prop::params, text)
 
+        EVENT_BIND(e2::form::drag::any, hids)
+            EVENT_SAME(e2::form::drag::any, e2::form::drag::cancel::any)
+                EVENT_SAME(e2::form::drag::any, e2::form::drag::cancel::left)
+                EVENT_SAME(e2::form::drag::any, e2::form::drag::cancel::leftright)
+                EVENT_SAME(e2::form::drag::any, e2::form::drag::cancel::middle)
+                EVENT_SAME(e2::form::drag::any, e2::form::drag::cancel::right)
+                EVENT_SAME(e2::form::drag::any, e2::form::drag::cancel::wheel)
+                EVENT_SAME(e2::form::drag::any, e2::form::drag::cancel::win)
+            EVENT_SAME(e2::form::drag::any, e2::form::drag::pull::any)
+                EVENT_SAME(e2::form::drag::any, e2::form::drag::pull::left)
+                EVENT_SAME(e2::form::drag::any, e2::form::drag::pull::leftright)
+                EVENT_SAME(e2::form::drag::any, e2::form::drag::pull::middle)
+                EVENT_SAME(e2::form::drag::any, e2::form::drag::pull::right)
+                EVENT_SAME(e2::form::drag::any, e2::form::drag::pull::wheel)
+                EVENT_SAME(e2::form::drag::any, e2::form::drag::pull::win)
+            EVENT_SAME(e2::form::drag::any, e2::form::drag::start::any)
+                EVENT_SAME(e2::form::drag::any, e2::form::drag::start::left)
+                EVENT_SAME(e2::form::drag::any, e2::form::drag::start::leftright)
+                EVENT_SAME(e2::form::drag::any, e2::form::drag::start::middle)
+                EVENT_SAME(e2::form::drag::any, e2::form::drag::start::right)
+                EVENT_SAME(e2::form::drag::any, e2::form::drag::start::wheel)
+                EVENT_SAME(e2::form::drag::any, e2::form::drag::start::win)
+            EVENT_SAME(e2::form::drag::any, e2::form::drag::stop::any)
+                EVENT_SAME(e2::form::drag::any, e2::form::drag::stop::left)
+                EVENT_SAME(e2::form::drag::any, e2::form::drag::stop::leftright)
+                EVENT_SAME(e2::form::drag::any, e2::form::drag::stop::middle)
+                EVENT_SAME(e2::form::drag::any, e2::form::drag::stop::right)
+                EVENT_SAME(e2::form::drag::any, e2::form::drag::stop::wheel)
+                EVENT_SAME(e2::form::drag::any, e2::form::drag::stop::win)
+
         EVENT_BIND(e2::form::layout::any, const twod)
             EVENT_BIND(e2::form::layout::move  , twod)
             EVENT_BIND(e2::form::layout::size  , twod)
@@ -294,13 +324,15 @@ namespace netxs::console
 
     public:
         constexpr static int numofbutton = 6;
-
-        constexpr static int left      = e2::item(usable::left     );
-        constexpr static int right     = e2::item(usable::right    );
-        constexpr static int leftright = e2::item(usable::leftright);
-        constexpr static int middle    = e2::item(usable::middle   );
-        constexpr static int wheel     = e2::item(usable::wheel    );
-        constexpr static int win       = e2::item(usable::win      );
+        enum bttns
+        {
+            left      = e2::item(usable::left     ),
+            right     = e2::item(usable::right    ),
+            leftright = e2::item(usable::leftright),
+            middle    = e2::item(usable::middle   ),
+            wheel     = e2::item(usable::wheel    ),
+            win       = e2::item(usable::win      ),
+        };
 
         twod  coor = dot_mx;            // sysmouse: Cursor coordinates.
         bool  button[numofbutton] = {}; // sysmouse: Button states.
@@ -388,15 +420,17 @@ namespace netxs::console
         using tail = netxs::datetime::tail<twod>;
         using idxs = std::vector<iota>;
         using mouse_event = e2::hids::mouse;
-
-        constexpr static int total = sysmouse::numofbutton;
-        constexpr static int first = sysmouse::left;
-        constexpr static int midst = sysmouse::middle;
-        constexpr static int other = sysmouse::right;
-        constexpr static int third = sysmouse::wheel;
-        constexpr static int extra = sysmouse::win;
-        constexpr static int joint = sysmouse::leftright;
-
+        //todo C++20 using enum namespace sysmouse::bttns
+        enum bttns
+        {
+            total = sysmouse::numofbutton,
+            first = sysmouse::left       ,
+            midst = sysmouse::middle     ,
+            other = sysmouse::right      ,
+            third = sysmouse::wheel      ,
+            extra = sysmouse::win        ,
+            joint = sysmouse::leftright  ,
+        };
         constexpr static auto dragstrt = e2::group<total>(mouse_event::button::drag::start::any);
         constexpr static auto dragpull = e2::group<total>(mouse_event::button::drag::pull::any);
         constexpr static auto dragcncl = e2::group<total>(mouse_event::button::drag::cancel::any);
@@ -1532,6 +1566,12 @@ namespace netxs::console
             limit.min = min_size.less(dot_00, limit.min, min_size);
             limit.max = max_size.less(dot_00, limit.max, max_size);
         }
+        // base: Set resize limits (min, max).
+        //       Preserve current value if specified arg less than 0
+        void limits(decltype(limit) const& new_limits)
+        {
+            limit = new_limits;
+        }
         // base: Return current limits.
         auto& limits() const
         {
@@ -1640,6 +1680,8 @@ namespace netxs::console
             skill(T& boss) : boss{ boss } { }
             virtual ~skill() = default; // In order to allow man derived class via base ptr.
         };
+
+        // pro:: UI builder.
         template<class T, bool ISPARENT = faux>
         struct boost
         {
@@ -1728,6 +1770,7 @@ namespace netxs::console
                 return boss.template This<T>();
             }
         };
+
         // pro: Provides shared storage for the states of type T::state_t.
         template<class T>
         class share
@@ -3171,6 +3214,11 @@ namespace netxs::console
                 {
                     app_list = registry;
                 };
+                // pro::scene: Init registry/menu.
+                boss.SUBMIT_T(e2::preview, e2::bindings::list::apps, memo, app_list)
+                {
+                    std::swap(app_list, registry);
+                };
 
                 ///// Pass the paint procedure to custom client drawing
                 //boss.SUBMIT_T(e2::request, e2::form::proceed::render, owner::memo, empty_fx)
@@ -3442,15 +3490,16 @@ namespace netxs::console
                   skill<T>::memo;
             iota clients = 0;
             bool active = faux;
-            bool highlightable;
+            bool highlightable; // mouse: Consider cursors only directly over the object. This attribute is also required by the parent object if set.
 
         public:
+            operator bool() { return active; }
+
             mouse(T&&) = delete;
             mouse(T& boss, bool take_all_focus = faux) : skill<T>{ boss },
                 highlightable{ take_all_focus }
             {
                 boss.base::color().link(boss.bell::id);
-
                 // pro::mouse: Forward preview to all parents.
                 boss.SUBMIT_T(e2::preview, e2::hids::mouse::any, memo, gear)
                 {
@@ -3460,7 +3509,6 @@ namespace netxs::console
                     if (gear) gear.okay(boss);
                     else      boss.bell::expire(e2::preview);
                 };
-
                 // pro::mouse: Forward all not expired mouse events to all parents.
                 boss.SUBMIT_T(e2::release, e2::hids::mouse::any, memo, gear)
                 {
@@ -3470,7 +3518,6 @@ namespace netxs::console
                         gear.pass<e2::release>(boss.parent.lock(), offset);
                     }
                 };
-
                 // pro::mouse: Notify form::state::active when the number of clients is positive.
                 boss.SUBMIT_T(e2::release, e2::form::notify::mouse::enter, memo, gear)
                 {
@@ -3500,9 +3547,44 @@ namespace netxs::console
                     state = active;
                 };
             }
-            operator bool()
+            template<sysmouse::bttns button>
+            void draggable()
             {
-                return active;
+                using bttn = e2::hids::mouse::button;
+                boss.SUBMIT(e2::release, e2::message(bttn::drag::start::any, button), gear)
+                {
+                    if (gear.capture(boss.bell::id))
+                    {
+                        boss.SIGNAL(e2::release, e2::message(e2::form::drag::start::any, button), gear);
+                        gear.dismiss();
+                    }
+                };
+                boss.SUBMIT(e2::release, e2::message(bttn::drag::pull::any, button), gear)
+                {
+                    if (gear.captured(boss.bell::id))
+                    {
+                        boss.SIGNAL(e2::release, e2::message(e2::form::drag::pull::any, button), gear);
+                        gear.dismiss();
+                    }
+                };
+                boss.SUBMIT(e2::release, e2::message(bttn::drag::cancel::any, button), gear)
+                {
+                    if (gear.captured(boss.bell::id))
+                    {
+                        boss.SIGNAL(e2::release, e2::message(e2::form::drag::cancel::any, button), gear);
+                        gear.release();
+                        gear.dismiss();
+                    }
+                };
+                boss.SUBMIT(e2::release, e2::message(bttn::drag::stop::any, button), gear)
+                {
+                    if (gear.captured(boss.bell::id))
+                    {
+                        boss.SIGNAL(e2::release, e2::message(e2::form::drag::stop::any, button), gear);
+                        gear.release();
+                        gear.dismiss();
+                    }
+                };
             }
         };
 
@@ -3620,7 +3702,7 @@ namespace netxs::console
                 : skill<T>{ boss },
                 robo{ boss },
                 fade{ fade_out },
-                c1 { default_state     },
+                c1 { default_state },
                 c2 { highlighted_state },
                 transit{ 0 }
             {

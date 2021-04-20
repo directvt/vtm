@@ -413,7 +413,7 @@ namespace netxs::events
                 //key         = any | (6 << _level0),
                 _cursor     = any | (7 << _level0),
                 _animate    = any | (8 << _level0),
-                //_mouse      = any | (9 << _level0),
+                _drag       = any | (9 << _level0),
                 _prop       = any | (10<< _level0),
                 //_client     = any | (11<< _level0),
                 _upevent    = any | (11<< _level0), // eventss streamed up (to children) of the visual tree by base::
@@ -424,6 +424,52 @@ namespace netxs::events
             };
             private: static const unsigned int _level1 = _level0 + _width;
             public:
+            struct drag { enum : type {
+                    any = form::_drag,
+                    _start      = any | (1 << _level1), // notify about mouse drag start by pro::mouse (arg: hids)
+                    _pull       = any | (2 << _level1), // notify about mouse drag pull by pro::mouse (arg: hids)
+                    _cancel     = any | (3 << _level1), // notify about mouse drag cancel by pro::mouse (arg: hids)
+                    _stop       = any | (4 << _level1), // notify about mouse drag stop by pro::mouse (arg: hids)
+                };
+                private: static const unsigned int _level2 = _level1 + _width;
+                public:
+                struct start { enum : type {
+                        any = drag::_start,
+                        left        = any | (1 << _level2),
+                        right       = any | (2 << _level2),
+                        leftright   = any | (3 << _level2),
+                        middle      = any | (4 << _level2),
+                        wheel       = any | (5 << _level2),
+                        win         = any | (6 << _level2),
+                };};
+                struct pull { enum : type {
+                        any = drag::_pull,
+                        left        = any | (1 << _level2),
+                        right       = any | (2 << _level2),
+                        leftright   = any | (3 << _level2),
+                        middle      = any | (4 << _level2),
+                        wheel       = any | (5 << _level2),
+                        win         = any | (6 << _level2),
+                };};
+                struct cancel { enum : type {
+                        any = drag::_cancel,
+                        left        = any | (1 << _level2),
+                        right       = any | (2 << _level2),
+                        leftright   = any | (3 << _level2),
+                        middle      = any | (4 << _level2),
+                        wheel       = any | (5 << _level2),
+                        win         = any | (6 << _level2),
+                };};
+                struct stop { enum : type {
+                        any = drag::_stop,
+                        left        = any | (1 << _level2),
+                        right       = any | (2 << _level2),
+                        leftright   = any | (3 << _level2),
+                        middle      = any | (4 << _level2),
+                        wheel       = any | (5 << _level2),
+                        win         = any | (6 << _level2),
+                };};
+            };
             // Form events that should be propagated down to the visual branch
             struct notify { enum : type {
                     any = form::_notify,

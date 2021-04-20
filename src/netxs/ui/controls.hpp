@@ -188,7 +188,7 @@ namespace netxs::ui
             //todo unify
             base::limits(gripsz * 2 + dot_11, { 400,200 });
             base::brush.txt(whitespace);
-
+            xmouse.draggable<sysmouse::left>();
             using bttn = e2::hids::mouse::button;
 
             {//todo only for the title test
@@ -290,59 +290,40 @@ namespace netxs::ui
                     client->SIGNAL(e2::release, e2::form::layout::size, region.size);
             };
 
-            SUBMIT(e2::release, bttn::drag::start::left, gear)
+            SUBMIT(e2::release, e2::form::drag::start::left, gear)
             {
-                if (gear.capture(bell::id))
-                {
-                    shared[gear.id].grab(gear.coord);
-                    cyborg.pacify();
-                    gear.dismiss();
-                }
+                shared[gear.id].grab(gear.coord);
+                cyborg.pacify();
             };
-            SUBMIT(e2::release, bttn::drag::pull::left, gear)
+            SUBMIT(e2::release, e2::form::drag::pull::left, gear)
             {
-                if (gear.captured(bell::id))
-                {
-                    shared[gear.id].drag(gear.coord);
-                    window.bubble();
-                    gear.dismiss();
-                }
+                shared[gear.id].drag(gear.coord);
+                window.bubble();
             };
-            SUBMIT(e2::release, bttn::drag::cancel::left, gear)
+            SUBMIT(e2::release, e2::form::drag::cancel::left, gear)
             {
-                if (gear.captured(bell::id))
-                {
-                    //shared[gear.id].drop();
-                    base::deface();
-                    gear.release();
-                    gear.dismiss();
-                }
+                //shared[gear.id].drop();
+                base::deface();
             };
-            SUBMIT(e2::release, bttn::drag::stop::left, gear)
+            SUBMIT(e2::release, e2::form::drag::stop::left, gear)
             {
-                if (gear.captured(bell::id))
+                auto& border = shared[gear.id];
+                if (border.wholly)
                 {
-                    auto& border = shared[gear.id];
-                    if (border.wholly)
-                    {
-                        cyborg.actify(gear.fader<quadratic<twod>>(2s), [&](auto x)
-                            {
-                                base::moveby(x);
-                            });
-                    }
-                    else
-                    {
-                        auto boundary = gear.area();
-                        cyborg.actify(gear.fader<quadratic<twod>>(2s), [&, boundary](auto x)
-                            {
-                                window.convey(x, boundary);
-                            });
-                    }
-
-                    base::deface();
-                    gear.release();
-                    gear.dismiss();
+                    cyborg.actify(gear.fader<quadratic<twod>>(2s), [&](auto x)
+                        {
+                            base::moveby(x);
+                        });
                 }
+                else
+                {
+                    auto boundary = gear.area();
+                    cyborg.actify(gear.fader<quadratic<twod>>(2s), [&, boundary](auto x)
+                        {
+                            window.convey(x, boundary);
+                        });
+                }
+                base::deface();
             };
 
             SUBMIT(e2::release, bttn::dblclick::left, gear)
@@ -525,8 +506,10 @@ namespace netxs::ui
     class fork
         : public base, public pro::boost<fork, true>
     {
+    public:
         pro::mouse<fork> mouse{*this }; // fork: Mouse controller.
 
+    private:
         enum action { seize, drag, release };
 
         static constexpr iota MAX_RATIO = 0xFFFF;
@@ -2017,8 +2000,10 @@ namespace netxs::ui
     class item
         : public base
     {
+        static constexpr view dots = "‥";
         para name;
         bool flex; // item: Violate or not the label size, default is faux.
+        bool test; // item: Place or not(default) the Two Dot Leader when there is not enough space.
 
         void recalc()
         {
@@ -2028,14 +2013,15 @@ namespace netxs::ui
             base::resize(size);
         }
     public:
-        item(para const& label_para, bool flexible = faux)
+        item(para const& label_para, bool flexible = faux, bool check_size = faux)
             : name{ label_para },
-              flex{ flexible   }
+              flex{ flexible   },
+              test{ check_size }
         {
             recalc();
         }
-        item(text const& label_text, bool flexible = faux)
-            : item(para{ label_text }, flexible)
+        item(text const& label_text, bool flexible = faux, bool check_size = faux)
+            : item(para{ label_text }, flexible, check_size)
         { }
         void set(text const& label_text)
         {
@@ -2048,6 +2034,16 @@ namespace netxs::ui
             base::renderproc(parent_canvas);
             parent_canvas.cup(dot_00);
             parent_canvas.output(name);
+            if (test)
+            {
+                auto area = parent_canvas.view();
+                auto size = name.size();
+                if (area.size.x > 0 && area.size.x < size.x)
+                {
+                    auto coor = area.coor + area.size - dot_11;
+                    parent_canvas.core::data(coor)->txt(dots);
+                }
+            }
         }
     };
 
