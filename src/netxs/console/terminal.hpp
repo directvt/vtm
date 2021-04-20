@@ -472,13 +472,11 @@ namespace netxs::ui
     class term
         : public base, public pro::boost<term>
     {
-        using self = term;
-
         #ifndef DEMO
-        FEATURE(pro::keybd, keybd); // term: Keyboard controller.
+        pro::keybd<term> keybd{ *this }; // term: Keyboard controller.
         #endif
-        FEATURE(pro::caret, caret); // term: Caret controller.
-        FEATURE(pro::mouse, mouse); // term: Mouse controller.
+        pro::caret<term> caret{ *this }; // term: Caret controller.
+        pro::mouse<term> mouse{ *this }; // term: Mouse controller.
 
         // term: VT-mouse tracking functionality.
         struct mtracking

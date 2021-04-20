@@ -1630,9 +1630,6 @@ namespace netxs::console
     // console: Template modules for the base class behavior extension.
     namespace pro
     {
-        // pro: Assign `using self = _class_name_;` in order to use FEATURE() marco.
-        #define FEATURE(feature, object) feature<self> object{ *this }
-
         // pro:: Base class for plugins.
         template<class T>
         struct skill
@@ -3445,10 +3442,9 @@ namespace netxs::console
                   skill<T>::memo;
             iota clients = 0;
             bool active = faux;
+            bool highlightable;
 
         public:
-            bool highlightable = faux;
-
             mouse(T&&) = delete;
             mouse(T& boss, bool take_all_focus = faux) : skill<T>{ boss },
                 highlightable{ take_all_focus }
@@ -3691,14 +3687,13 @@ namespace netxs::console
     class host
         : public base
     {
-        using self = host;
         #ifdef DEMO
-        FEATURE(pro::watch, zombi); // host: Zombie protection.
+        pro::watch<host> zombi{*this }; // host: Zombie protection.
         #endif // DEMO
-        FEATURE(pro::robot, robot); // host: Amination controller.
-        FEATURE(pro::keybd, keybd); // host: Keyboard controller.
-        FEATURE(pro::mouse, mouse); // host: Mouse controller.
-        FEATURE(pro::scene, scene); // host: Scene controller.
+        pro::robot<host> robot{*this }; // host: Amination controller.
+        pro::keybd<host> keybd{*this }; // host: Keyboard controller.
+        pro::mouse<host> mouse{*this }; // host: Mouse controller.
+        pro::scene<host> scene{*this }; // host: Scene controller.
 
         using tick = quartz<reactor, e2::type>;
         using hndl = std::function<void(view)>;
@@ -4856,16 +4851,15 @@ again:
     class gate
         : public form
     {
-        using self = gate;
-        FEATURE(pro::keybd, keybd); // gate: Keyboard controller.
-        FEATURE(pro::robot, robot); // gate: Animation controller.
-        FEATURE(pro::maker, maker); // gate: Form generator.
-        FEATURE(pro::title, title); // gate: Logo watermark.
-        FEATURE(pro::guard, guard); // gate: Watch dog against robots and single Esc detector.
-        FEATURE(pro::input, input); // gate: User input event handler.
-        FEATURE(pro::align, align); // gate: Size binding controller.
+        pro::keybd<gate> keybd{*this }; // gate: Keyboard controller.
+        pro::robot<gate> robot{*this }; // gate: Animation controller.
+        pro::maker<gate> maker{*this }; // gate: Form generator.
+        pro::title<gate> title{*this }; // gate: Logo watermark.
+        pro::guard<gate> guard{*this }; // gate: Watch dog against robots and single Esc detector.
+        pro::input<gate> input{*this }; // gate: User input event handler.
+        pro::align<gate> align{*this }; // gate: Size binding controller.
         #ifdef DEBUG_OVERLAY
-        FEATURE(pro::debug, debug); // gate: Debug telemetry controller.
+        pro::debug<gate> debug{*this }; // gate: Debug telemetry controller.
         #endif
 
         using pair = std::optional<std::pair<period, iota>>;

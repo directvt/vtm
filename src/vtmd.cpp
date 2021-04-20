@@ -208,9 +208,8 @@ enum test_topic_vars
 class post_logs
     : public ui::post
 {
-    using self = post_logs;
-    FEATURE(pro::caret, caret); // post_logs: Text caret controller.
-    FEATURE(pro::mouse, mouse); // post_logs: .
+    pro::caret<post_logs> caret{ *this }; // post_logs: Text caret controller.
+    pro::mouse<post_logs> mouse{ *this }; // post_logs: .
 
     text label;
     hook token;
@@ -1445,7 +1444,8 @@ utility like ctags is used to locate the definitions.
                 }
                 case Shop:
                 {
-                    window->header(ansi::jet_or(bias::right) + objs_desc[Shop]);
+                    //window->header(ansi::jet_or(bias::right) + objs_desc[Shop]);
+                    window->header("Desktopio App Store", faux);
                     window->color(whitelt, 0x60000000);
                     window->blurred = true;
                     window->highlight_center = faux;
@@ -1723,7 +1723,7 @@ utility like ctags is used to locate the definitions.
                 }
                 case Logs:
                 {
-                    window->header(objs_desc[Logs]);
+                    window->header("VT monitoring tool");
                     auto layers = window->attach<ui::cake>();
                     auto scroll = layers->attach<ui::rail>();
 
@@ -2056,19 +2056,39 @@ utility like ctags is used to locate the definitions.
                                     data->attach(instance2("App instance 5"));
                         return item_area;
                     };*/
-                    auto app_class_block = [x3, c3](bool b, auto utf8){
-                        auto item_area = base::template create<ui::pads>(dent{ 1,0,0,1 }, dent{ 0,0,1,0 })
-                                                  ->template plugin<pro::mouse>();
-                        auto block = item_area->template attach<ui::fork>(axis::Y);
-                            auto head_area = block->template attach<slot::_1, ui::pads>(dent{ 0,0,0,0 }, dent{ 1,0,1,1 })
-                                                  ->template plugin<pro::mouse>()
-                                                  ->template plugin<pro::fader>(x3, c3, 0ms);
-                                auto head = head_area->template attach<ui::item>(ansi::bgc4(b ? 0xFF00FF00 : 0x7F000000)
-                                                                         + "  " + ansi::nil() + "  " + utf8, true);
-                            auto data = block->template attach<slot::_2, ui::list>();
-                        return std::pair{ item_area, data };
-                    };
 
+                    auto app_template = [](auto& data_src, auto const& utf8){
+                        auto c3 = cell{}.bgc(tint::bluedk);
+                        auto x3 = c3; x3.bga(0x00);
+                        auto item_area = base::template create<ui::pads>(dent{ 1,0,0,0 }, dent{ 0,0,0,0 })
+                                                  ->template plugin<pro::mouse>(true)
+                                                  ->template plugin<pro::fader>(x3, c3, 0ms);
+                            auto user = item_area->template attach<ui::item>(
+                            ansi::fgc4(0xFF00ff00) + "‣" + ansi::nil() + "   " +
+                            ansi::jet(bias::left) + utf8 + ansi::mgl(0).wrp(wrap::off), true);
+                        return item_area;
+                    };
+                    auto apps_template = [&, x3,c3, app_template](auto& data_src, auto& apps_map){
+                        auto apps = base::create<ui::list>();
+                        //todo incompatible with Declarative UI
+                        for(auto const& [class_id, inst_ptr_list] : apps_map)
+                        {
+                            auto selected = class_id == *current_default_ptr;
+                            auto item_area = apps->template attach<ui::pads>(dent{ 1,0,0,1 }, dent{ 0,0,1,0 })
+                                                  ->template plugin<pro::mouse>()
+                                                  ->template plugin<pro::fader>(x3, c3, 150ms);
+                                auto block = item_area->template attach<ui::fork>(axis::Y);
+                                    auto head_area = block->template attach<slot::_1, ui::pads>(dent{ 0,0,0,0 }, dent{ 1,0,1,1 })
+                                                          ->template plugin<pro::mouse>();
+                                        auto head = head_area->template attach<ui::item>(
+                                                ansi::bgc4(selected ? 0xFF00FF00 : 0x7F000000)
+                                                + "  " + ansi::nil().fgc(whitedk) + "  " + objs_desc[class_id], true);
+                                    auto list = block->template attach<slot::_2, ui::pads>(dent{ 0,1,0,0 }, dent{ 0,0,0,0 })
+                                                     ->template attach<ui::list>();
+                            auto insts = list->template attach_collection<e2::form::prop::header>(inst_ptr_list, app_template);
+                        }
+                        return apps;
+                    };
                     auto client = world->invite<ui::gate>(username);
                         auto window = client->attach<ui::cake>();
                             auto menu_area = window->attach<ui::fork>(axis::X);
@@ -2091,28 +2111,6 @@ utility like ctags is used to locate the definitions.
                                                 auto apps_title = items->attach<ui::post>()
                                                                        ->upload(ansi::wrp(wrap::off) + " Applications\n");
 
-                                                auto app_template = [=](auto& data_src, auto const& utf8){
-                                                    auto c3 = cell{}.bgc(tint::bluelt);
-                                                    auto x3 = c3; x3.bga(0x00);
-                                                    auto item_area = base::template create<ui::pads>(dent{ 1,0,0,0 }, dent{ 0,0,0,0 })
-                                                                              ->template plugin<pro::mouse>()
-                                                                              ->template plugin<pro::fader>(x3, c3, 0ms);
-                                                        auto user = item_area->template attach<ui::item>(
-                                                        ansi::fgc4(0xFF00ff00) + "‣" + ansi::nil() + "   " +
-                                                        ansi::jet(bias::left) + utf8 + ansi::mgl(0).wrp(wrap::off), true);
-                                                    return item_area;
-                                                };
-                                                auto apps_template = [=](auto& data_src, auto& apps_map){
-                                                    auto apps = base::create<ui::list>();
-                                                    //todo incompatible with Declarative UI
-                                                    for(auto const& [class_id, inst_ptr_list] : apps_map)
-                                                    {
-                                                        auto [ block, list ] = app_class_block(class_id == *current_default_ptr, objs_desc[class_id]);
-                                                        auto insts_area = apps->attach(block);
-                                                        auto insts = list->attach_collection<e2::form::prop::header>(inst_ptr_list, app_template);
-                                                    }
-                                                    return apps;
-                                                };
                                                 auto apps2 = items->attach_element<e2::bindings::list::apps>(world, apps_template);
 
                                                 auto users_title = items->attach<ui::post>()

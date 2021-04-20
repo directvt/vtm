@@ -146,14 +146,13 @@ namespace netxs::ui
         };
 
     private:
-        using self = mold;
-        FEATURE(pro::keybd, keybrd); // mold: Keyboard controller.
-        FEATURE(pro::mouse, xmouse); // mold: World image.
-        FEATURE(pro::robot, cyborg); // mold: Animation controller.
-        FEATURE(pro::frame, window); // mold: Window controller.
-        FEATURE(pro::align, adjust); // mold: Size linking controller.
-        FEATURE(pro::title, legend); // mold: Window caption and footer.
-        FEATURE(pro::share, shared); // mold: The shared border states.
+        pro::mouse<mold> xmouse{*this, true }; // mold: World image.
+        pro::keybd<mold> keybrd{*this }; // mold: Keyboard controller.
+        pro::robot<mold> cyborg{*this }; // mold: Animation controller.
+        pro::frame<mold> window{*this }; // mold: Window controller.
+        pro::align<mold> adjust{*this }; // mold: Size linking controller.
+        pro::title<mold> legend{*this }; // mold: Window caption and footer.
+        pro::share<mold> shared{*this }; // mold: The shared border states.
 
         rect region; // mold: Client area.
         bool active; // mold: Keyboard focus.
@@ -188,7 +187,6 @@ namespace netxs::ui
         {
             //todo unify
             base::limits(gripsz * 2 + dot_11, { 400,200 });
-            xmouse.highlightable = true;
             base::brush.txt(whitespace);
 
             using bttn = e2::hids::mouse::button;
@@ -493,9 +491,10 @@ namespace netxs::ui
             secure = immortal;
         }
         // mold: Set window title.
-        void header(view title)
+        void header(view title, bool visible = true)
         {
             legend.header(title);
+            legend.live = visible;
         }
         //todo unify, default = true
         void liquid(bool resizeble)
@@ -526,8 +525,7 @@ namespace netxs::ui
     class fork
         : public base, public pro::boost<fork, true>
     {
-        using self = fork;
-        FEATURE(pro::mouse, mouse); // fork: Mouse controller.
+        pro::mouse<fork> mouse{*this }; // fork: Mouse controller.
 
         enum action { seize, drag, release };
 
@@ -834,10 +832,9 @@ namespace netxs::ui
     class list
         : public base, public pro::boost<list, true>
     {
-        using roll = std::list<std::pair<sptr<base>, iota>>;
-        using self = list;
-        FEATURE(pro::mouse, mouse); // list: Mouse controller.
+        pro::mouse<list> mouse{*this }; // list: Mouse controller.
 
+        using roll = std::list<std::pair<sptr<base>, iota>>;
         roll subset;
         bool updown; // list: List orientation, true: vertical(default), faux: horizontal.
 
@@ -967,8 +964,7 @@ namespace netxs::ui
     class cake
         : public base, public pro::boost<cake, true>
     {
-        using self = cake;
-        FEATURE(pro::mouse, mouse); // cake: Mouse controller.
+        pro::mouse<cake> mouse{*this }; // cake: Mouse controller.
 
         std::list<sptr<base>> subset;
 
@@ -1202,9 +1198,8 @@ namespace netxs::ui
     class rail
         : public base, public pro::boost<rail, true>
     {
-        using self = rail;
-        FEATURE(pro::mouse, mouse); // rail: Mouse controller.
-        FEATURE(pro::robot, robot); // rail: Animation controller.
+        pro::mouse<rail> mouse{*this }; // rail: Mouse controller.
+        pro::robot<rail> robot{*this }; // rail: Animation controller.
 
         static constexpr hint events[] = { e2::form::upon::scroll::x,
                                            e2::form::upon::scroll::y,
@@ -1566,11 +1561,11 @@ namespace netxs::ui
     class grip
         : public base
     {
+        pro::mouse<grip> mouse{*this }; // grip: Mouse events controller.
+        pro::timer<grip> timer{*this }; // grip: Minimize by timeout.
+
         using wptr = netxs::wptr<bell>;
         using sptr = netxs::sptr<bell>;
-        using self = grip;
-        FEATURE(pro::mouse, mouse); // grip: Mouse events controller.
-        FEATURE(pro::timer, timer); // grip: Minimize by timeout.
 
         enum activity
         {
@@ -1939,8 +1934,7 @@ namespace netxs::ui
     class pads
         : public base, public pro::boost<pads, true>
     {
-        using self = pads;
-        //FEATURE(pro::mouse, mouse); // pads: Mouse controller.
+        //pro::mouse<pads> mouse{*this }; // pads: Mouse controller.
 
         dent padding; // pads: Space around an element's content, outside of any defined borders. It does not affect the size, only affects the fill. Used in base::renderproc only.
         dent margins; // pads: Space around an element's content, inside of any defined borders. Containers take this parameter into account when calculating sizes. Used in all conainers.
@@ -2070,14 +2064,9 @@ namespace netxs::ui
         : public form
     {
     public:
-        using self = pane;
-        FEATURE(pro::mouse, mouse);   // pane: Mouse controller.
-        FEATURE(pro::robot, robot);   // pane: Animation controller.
-        FEATURE(pro::align, adjust);  // pane: Size linking controller.
-        //FEATURE(pro::keybd, keybd);   // pane: Keyboard controller.
-        //FEATURE(pro::focus, focus);   // pane: Focus controller.
-        //FEATURE(pro::align, align);   // pane: Align controller.
-        //FEATURE(pro::caret, caret);   // pane: Cursor controller.
+        pro::mouse<pane> mouse{*this }; // pane: Mouse controller.
+        pro::robot<pane> robot{*this }; // pane: Animation controller.
+        pro::align<pane> align{*this }; // pane: Size linking controller.
 
         //using sptr = utils::sptr<base>;
 
@@ -2404,11 +2393,10 @@ namespace netxs::ui
     class chat
         : public pane
     {
-        using self = pane;
         #ifndef DEMO
-        FEATURE(pro::keybd, keybd); // chat: Keyboard controller.
+        pro::keybd<pane> keybd{*this }; // chat: Keyboard controller.
         #endif // DEMO
-        FEATURE(pro::caret, caret); // chat: Caret controller
+        pro::caret<pane> caret{*this }; // chat: Caret controller
 
     public:
 
@@ -2462,8 +2450,7 @@ namespace netxs::ui
     class button
         : public form
     {
-        using self = button;
-        FEATURE(pro::mouse, mouse);
+        pro::mouse<button> mouse{*this };
 
     public:
         page topic; // button: Text content.
@@ -2524,8 +2511,7 @@ namespace netxs::ui
 
     class stem_elem : public form
     {
-        using self = stem_elem;
-        FEATURE(pro::mouse, mouse);
+        pro::mouse<stem_elem> mouse{*this };
 
     public:
         page topic; // stem_elem: Text content.
@@ -2624,10 +2610,7 @@ namespace netxs::ui
     };
     class stem_bsu : public form
     {
-        using self = stem_bsu;
-        FEATURE(pro::mouse, mouse);   // stem_bsu: Mouse controller.
-        //FEATURE(pro::align, align); // stem_bsu: Align controller. Auto sized by parent.
-        //FEATURE(pro::frame, frame); // stem_bsu: Window controller
+        pro::mouse<stem_bsu> mouse{*this }; // stem_bsu: Mouse controller.
 
     public:
         page topic; // stem_bsu: Text content.
@@ -2713,8 +2696,7 @@ namespace netxs::ui
     };
     class stem_rate_grip : public form
     {
-        using self = stem_rate_grip;
-        FEATURE(pro::mouse, mouse); // stem_rate_grip: Mouse controller.
+        pro::mouse<stem_rate_grip> mouse{*this }; // stem_rate_grip: Mouse controller.
 
     public:
         page topic; // stem_rate_grip: Text content.
@@ -2768,7 +2750,7 @@ namespace netxs::ui
             : sfx_str{ sfx_string }
         {
             //mouse.skipall(true);
-            mouse.highlightable = true;
+            //mouse.highlightable = true;
 
             sfx_len = utf::length(sfx_str);
 
@@ -2799,10 +2781,8 @@ namespace netxs::ui
     template<e2::tier TIER, e2::type EVENT>
     class stem_rate : public form
     {
-        using self = stem_rate;
-        FEATURE(pro::robot, robot); // stem_rate: Animation controller.
-        FEATURE(pro::mouse, mouse); // stem_rate: Mouse controller.
-        //FEATURE(pro::align, align); // stem_rate: Align controller (Inform parent about size changes).
+        pro::mouse<stem_rate> mouse{*this }; // stem_rate: Mouse controller.
+        pro::robot<stem_rate> robot{*this }; // stem_rate: Animation controller.
 
         using tail = netxs::datetime::tail<iota>;
 
