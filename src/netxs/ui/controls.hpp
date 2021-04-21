@@ -35,35 +35,27 @@ namespace netxs::ui
         struct sock
         {
             id_t      id; // sock: Hids ID.
-            mold& master; // sock: Main form reference.
-            twod& length = master.square.size;// sock: master.square.size.
-            face& canvas = master.canvas;     // sock: master.canvas.
-            twod& center = master.center;     // sock: master.center.
-            bool& locked = master.locked;     // sock: master.locked.
-            rect& middle = master.middle;     // sock: master.middle.
-            twod& gripsz = master.gripsz;     // sock: master.gripsz.
-
-            twod  origin; // sock: Grab's initial coord info.
             bool  wholly; // sock: Should the whole border be visible.
+            bool  direct; // sock: Indirect mouse hover.
+            twod  origin; // sock: Grab's initial coord info.
             twod  dtcoor; // sock: The form coor parameter change factor while resizing.
             twod  dtsize; // sock: The form size parameter change factor while resizing.
             twod  sector; // sock: Active quadrant, x,y = {-1|+1}.
             twod  corner; // sock: Coordinates of the active corner.
             twod  levels; // sock: The lengths of the grips (a corner based, signed).
-            bool  direct; // sock: Indirect mouse hover.
             twod  widths; // sock: Border widths.
 
-            operator bool()
-            {
-                return !wholly;
-            }
-            bool operator ()(id_t hids_id)
-            {
-                return id == hids_id;
-            }
+            sock(id_t ctrl)
+                :     id{ ctrl },
+                  wholly{ faux },
+                  direct{ faux }
+            { }
+            operator bool()               { return !wholly;       }
+            bool operator()(id_t hids_id) { return id == hids_id; }
+
             // sock: Assign the borders/resize-grips length.
             template<class P>
-            void draw(core& canvas, P fuse)
+            void draw(mold const& master, core& canvas, P fuse)
             {
                 //auto c = corner.less(dot_11, dot_00, length);
                 //todo revise
@@ -71,7 +63,7 @@ namespace netxs::ui
                 //auto area = master.base::square();
                 //auto c = area.coor
                 auto c = master.base::coor.get()
-                       - canvas.coor() + corner.less(dot_11, dot_00, length);
+                       - canvas.coor() + corner.less(dot_11, dot_00, master.square.size);
                 //todo bug: levels can be larger than form itself
                 // repro: comment .clip(area), create a recursive connection,
                 //        place the mouse cursor in the bottom right corner
@@ -84,32 +76,33 @@ namespace netxs::ui
                 canvas.fill(side_y, fuse);
             }
             // sock: Take the current coordinates of the mouse relative to the corresponding corner.
-            void grab(twod const& coord)
+            void grab(mold const& master, twod const& coord)
             {
-                origin = coord - (wholly ? center : corner);
+                origin = coord - (wholly ? master.center : corner);
             }
             // sock: Mark borders if mold hilighted.
-            void join(hids const& gear)
+            void join(mold const& master, hids const& gear)
             {
                 direct = gear.start == master.bell::id;
             }
             // sock: Recalc (on every mouse::move or ::hover) the borders/resize-grips length and other metrics.
-            bool calc(hids const& gear)
+            bool calc(mold const& master, hids const& gear)
             {
+                auto& length = master.square.size;
+                auto& center = master.center;
                 auto& curpos = gear.coord;
                 if (!gear.captured(master.bell::id))
                 {
-                    wholly = locked
+                    wholly = master.locked
                          || !direct
-                         ||  middle.hittest(curpos)
-                         || !length.inside (curpos);
+                         ||  master.middle.hittest(curpos)
+                         || !length.inside(curpos);
 
                     dtcoor = curpos.less(center + (length & 1), dot_11, dot_00);
                     dtsize = dtcoor.less(dot_11, dot_11,-dot_11);
                     sector = dtcoor.less(dot_11,-dot_11, dot_11);
-                    widths = sector * (master.blurred ? dot_11 : gripsz);
+                    widths = sector * (master.blurred ? dot_11 : master.gripsz);
                 }
-
                 corner = dtcoor.less(dot_11, length - dot_11, dot_00);
                 auto l = sector * (curpos - corner) + dot_11;
                 auto a = (length - center) * l / center;
@@ -120,12 +113,12 @@ namespace netxs::ui
                 return levels(sector * s);
             }
             // sock: .
-            void drag(twod const& coord)
+            void drag(mold& master, twod const& coord)
             {
                 auto delta = coord - origin;
                 if (wholly)
                 {
-                    delta -= center;
+                    delta -= master.center;
                     master.base::moveby(delta);
                 }
                 else
@@ -137,12 +130,6 @@ namespace netxs::ui
                     }
                 }
             }
-            sock(id_t ctrl, mold& boss)
-                :     id{ ctrl },
-                  master{ boss },
-                  wholly{ faux },
-                  direct{ faux }
-            { }
         };
 
     private:
@@ -222,11 +209,11 @@ namespace netxs::ui
 
             SUBMIT(e2::release, e2::form::notify::mouse::enter, gear)
             {
-                shared[gear.id].join(gear);
+                shared.enter(gear.id).join(*this, gear);
             };
             SUBMIT(e2::release, e2::form::notify::mouse::leave, gear)
             {
-                shared.remove(gear.id);
+                shared.leave(gear.id);
             };
             SUBMIT(e2::release, e2::form::state::mouse, mouse_active)
             {
@@ -260,7 +247,7 @@ namespace netxs::ui
 
             SUBMIT(e2::release, e2::hids::mouse::move, gear)
             {
-                shared[gear.id].calc(gear);
+                shared[gear.id].calc(*this, gear);
                 base::deface();
             };
 
@@ -292,12 +279,12 @@ namespace netxs::ui
 
             SUBMIT(e2::release, e2::form::drag::start::left, gear)
             {
-                shared[gear.id].grab(gear.coord);
+                shared[gear.id].grab(*this, gear.coord);
                 cyborg.pacify();
             };
             SUBMIT(e2::release, e2::form::drag::pull::left, gear)
             {
-                shared[gear.id].drag(gear.coord);
+                shared[gear.id].drag(*this, gear.coord);
                 window.bubble();
             };
             SUBMIT(e2::release, e2::form::drag::cancel::left, gear)
@@ -393,12 +380,12 @@ namespace netxs::ui
 
                 bool isnorm =
                     !active && states.end() == std::find_if(states.begin(), states.end(),
-                                                [](auto& a) { return a.wholly; });
+                                                [](auto& a) { return a.first.wholly; });
                 auto guides = [&](auto bright)
                 {
                     for (auto& grip : states)
-                        if (grip)
-                            grip.draw(parent_canvas, bright);
+                        if (grip.first)
+                            grip.first.draw(*this, parent_canvas, bright);
                 };
                 auto fillup = [&](auto bright, auto shadow)
                 {

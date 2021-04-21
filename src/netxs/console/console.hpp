@@ -862,13 +862,32 @@ namespace netxs::console
             {
                 if (mouse::hover != boss.id)
                 {
-                    if (auto last = bell::getref(mouse::hover))
-                    {
-                        last->SIGNAL(e2::release, e2::form::notify::mouse::leave, *this);
-                    }
+                    //if (auto last = bell::getref(mouse::hover))
+                    //{
+                    //    last->SIGNAL(e2::release, e2::form::notify::mouse::leave, *this);
+                    //}
+                    //mouse::hover = boss.id;
+                    //mouse::start = 0;
+                    //boss.SIGNAL(e2::release, e2::form::notify::mouse::enter, *this);
+
+                    // Firing leave event right after the enter
+                    // allows us to avoid flickering the parent object state when focus
+                    // acquired by children.
+                    auto last_id = mouse::hover;
+                    auto init_id = mouse::start;
                     mouse::hover = boss.id;
                     mouse::start = 0;
                     boss.SIGNAL(e2::release, e2::form::notify::mouse::enter, *this);
+                    if (auto last = bell::getref(last_id))
+                    {
+                        auto new_hover = mouse::hover;
+                        auto new_start = mouse::start;
+                        mouse::hover = last_id;
+                        mouse::start = init_id;
+                        last->SIGNAL(e2::release, e2::form::notify::mouse::leave, *this);
+                        mouse::hover = new_hover;
+                        mouse::start = new_start;
+                    }
                 }
                 boss.bell::template signal<e2::release>(mouse::cause, *this);
             }
@@ -1778,39 +1797,59 @@ namespace netxs::console
         {
             using skill<T>::boss,
                   skill<T>::memo;
-            using list = std::list<typename T::sock>;
+            using sock = typename T::sock;
+            using list = std::list<std::pair<sock, iota>>;
             list depo;
 
         public:
             using skill<T>::skill; // Inherits ctors.
 
+            auto& enter(bell::id_t hids_id)
+            {
+                for (auto& item_rec : depo)
+                {
+                    auto& item = item_rec.first;
+                    if (item(hids_id))
+                    {
+                        ++item_rec.second;
+                        return item;
+                    }
+                }
+                auto& item = depo.emplace_back(std::pair{ sock{ hids_id }, 1 });
+                return item.first;
+            }
             auto& operator [](bell::id_t hids_id)
             {
-                for (auto& item : depo)
+                for (auto& item_rec : depo)
                 {
+                    auto& item = item_rec.first;
                     if (item(hids_id))
                     {
                         return item;
                     }
                 }
-                auto& item = depo.emplace_back(hids_id, boss);
-                return item;
+                //todo debug
+                throw;
+                auto& item = depo.emplace_back(std::pair{ sock{ hids_id }, 0 });
+                return item.first;
             }
             auto& states()
             {
                 return depo;
             }
-            void remove(id_t hids_id)
+            void leave(id_t hids_id)
             {
-                auto item = depo.begin();
-                while (item != depo.end())
+                auto iter = depo.begin();
+                while (iter != depo.end())
                 {
-                    if ((*item)(hids_id))
+                    auto& item_rec = *iter;
+                    auto& item = item_rec.first;
+                    if (item(hids_id))
                     {
-                        depo.erase(item);
+                        if (--item_rec.second < 1) depo.erase(iter);
                         break;
                     }
-                    ++item;
+                    ++iter;
                 }
             }
             //bool active()

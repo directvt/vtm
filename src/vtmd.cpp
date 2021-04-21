@@ -2,7 +2,7 @@
 // Licensed under the MIT license.
 
 #define DEMO
-#define MONOTTY_VER "Monotty Desktopio Preview v0.3.3"
+#define MONOTTY_VER "Monotty Desktopio Preview v0.3.4"
 //#define PROD
 
 // Terminal's default line wrapping mode.
@@ -1362,7 +1362,7 @@ utility like ctags is used to locate the definitions.
                 }
                 case PowerShell:
                 {
-                    window->header(ansi::jet_or(bias::center) + "PowerShell");
+                    window->header(ansi::jet(bias::center) + "PowerShell");
                     auto layers = window->attach<ui::cake>();
                     auto scroll = layers->attach<ui::rail>()
                                         ->plugin<pro::color>(whitelt, 0xFF560000);
@@ -1373,7 +1373,7 @@ utility like ctags is used to locate the definitions.
                 }
                 case CommandPrompt:
                 {
-                    window->header(ansi::jet_or(bias::center) + "Command Prompt");
+                    window->header(ansi::jet(bias::center) + "Command Prompt");
                     auto layers = window->attach<ui::cake>();
                     auto scroll = layers->attach<ui::rail>();
 
@@ -1397,7 +1397,7 @@ utility like ctags is used to locate the definitions.
                 }
                 case Strobe:
                 {
-                    window->header(ansi::jet_or(bias::center) + "Strobe");
+                    window->header(ansi::jet(bias::center) + "Strobe");
                     auto strob = window->attach<ui::pane>();
                     strob->color(0x0, 0x0);
                     strob->SUBMIT_BYVAL(e2::general, e2::timer::tick, now)  //gcc: use SUBMIT_BYVAL to capture in lambda by value
@@ -1425,7 +1425,7 @@ utility like ctags is used to locate the definitions.
                 }*/
                 case Truecolor:
                 {
-                    window->header(ansi::jet_or(bias::right) + "True color ANSI/ASCII image test");
+                    window->header(ansi::jet(bias::right) + "True color ANSI/ASCII image test");
                     window->blurred = true;
                     auto layers = window->attach<ui::cake>();
                     auto scroll = layers->attach<ui::rail>()
@@ -1513,7 +1513,7 @@ utility like ctags is used to locate the definitions.
                     *                              scroll: grid<post> = "..cell_array.."
                     *            all_stat(2): status_area<post> = "Sheet1 [+]"
                     */
-                    window->header(ansi::jet_or(bias::center) + "Spreadsheet");
+                    window->header(ansi::jet(bias::center) + "Spreadsheet");
                     window->color(whitelt, 0x601A5f00);
                     window->limits({ -1,-1 },{ 136,105 });
                     window->blurred = true;
@@ -1598,7 +1598,7 @@ utility like ctags is used to locate the definitions.
                 case Text:
                 {
                     window->color(whitelt, 0x605f1A00);
-                    window->header(ansi::jet_or(bias::center) + "Text Editor");
+                    window->header(ansi::jet(bias::center) + "Text Editor");
                     window->blurred = true;
                     window->highlight_center = faux;
                     window->set_border(dot_00);
@@ -1628,7 +1628,7 @@ utility like ctags is used to locate the definitions.
                 }
                 case VTM:
                 {
-                    window->header(ansi::jet_or(bias::center) + objs_desc[VTM]);
+                    window->header(ansi::jet(bias::center) + objs_desc[VTM]);
                     auto layers = window->attach<ui::cake>();
                     auto scroll = layers->attach<ui::rail>();
                     if (vtm_count < max_vtm)
@@ -1657,7 +1657,7 @@ utility like ctags is used to locate the definitions.
                 }
                 case Far:
                 {
-                    window->header(ansi::jet_or(bias::center) + objs_desc[Far]);
+                    window->header(ansi::jet(bias::center) + objs_desc[Far]);
                     auto layers = window->attach<ui::cake>();
                     auto scroll = layers->attach<ui::rail>();
                     scroll->attach<ui::term>(winsz, "far")
@@ -1667,7 +1667,7 @@ utility like ctags is used to locate the definitions.
                 }
                 case MC:
                 {
-                    window->header(ansi::jet_or(bias::center) + objs_desc[MC]);
+                    window->header(ansi::jet(bias::center) + objs_desc[MC]);
                     twod minsz = { 10,1 }; // mc crashes when window is too small
                     winsz = std::max(winsz, minsz);
                     auto layers = window->attach<ui::cake>();
@@ -1700,7 +1700,7 @@ utility like ctags is used to locate the definitions.
                 case Bash:
                 case Term:
                 {
-                    window->header(ansi::jet_or(bias::center) + objs_desc[Bash]);
+                    window->header(ansi::jet(bias::center) + objs_desc[Bash]);
                     auto layers = window->attach<ui::cake>();
                     auto scroll = layers->attach<ui::rail>();
                     {
@@ -1829,15 +1829,16 @@ utility like ctags is used to locate the definitions.
         }
 
         #ifndef PROD
-            creator(objs::Test, { { 22,1  },{ 70,21 } })
-                ->header(ansi::jet_or(bias::center) + "Welcome");
-            creator(objs::Shop, { { 4 ,6  },{ 80,38 } });
-            creator(objs::Calc, { { 15,13 },{ 65,23 } });
-            creator(objs::Text, { { 30,20 },{ 59,26 } });
-            creator(objs::MC,   { { 49,26 },{ 63,22 } });
-            creator(objs::Term, { { 34,34 },{ 57,15 } });
+            auto sub_pos = twod{12, 0};
+            creator(objs::Test, { twod{ 22,1 } + sub_pos,{ 70,21 } })
+                ->header(ansi::jet(bias::center) + "Welcome");
+            creator(objs::Shop, { twod{ 4 ,6  } + sub_pos,{ 80,38 } });
+            creator(objs::Calc, { twod{ 15,13 } + sub_pos,{ 65,23 } });
+            creator(objs::Text, { twod{ 30,20 } + sub_pos,{ 59,26 } });
+            creator(objs::MC,   { twod{ 49,26 } + sub_pos,{ 63,22 } });
+            creator(objs::Term, { twod{ 34,34 } + sub_pos,{ 57,15 } });
 
-            auto sub_pos = twod{-120, 60};
+            sub_pos = twod{-120, 60};
             creator(objs::Truecolor,   { twod{ 20,15 } + sub_pos,{ 70,30 } });
             creator(objs::Logs,        { twod{ 52,33 } + sub_pos,{ 45,12 } });
             creator(objs::RefreshRate, { twod{ 60,41 } + sub_pos,{ 35,10 } });
@@ -2031,8 +2032,8 @@ utility like ctags is used to locate the definitions.
                             auto label_area = item_area->template attach<ui::fork>();
                                 auto app_label = label_area->template attach<slot::_1, ui::item>(
                                             ansi::fgc4(0xFF00ff00) + "‣" + ansi::nil() + "   "
-                                            + ansi::jet(bias::left).fgc(whitelt)
-                                            + utf8 + ansi::mgl(0).wrp(wrap::off), true, true);
+                                            + ansi::fgc(whitelt)
+                                            + utf8 + ansi::mgl(0).wrp(wrap::off).jet(bias::left), true, true);
                                 auto app_close = label_area->template attach<slot::_2, ui::item>(
                                             //ansi::bgc4(0xFF0000ff) + "  ", true);
                                             //ansi::bgc4(0xFFffffff) + "❌", true);
@@ -2088,7 +2089,7 @@ utility like ctags is used to locate the definitions.
                                                                 auto lims = twod{ size,-1 };
                                                                 boss.base::limits(lims, lims);
                                                                 boss.base::reflow();
-                                                                //log("UIBAR STATE has CHANGED!!!");
+                                                                log("UIBAR STATE has CHANGED!!!");
                                                             };
                                                             boss.SUBMIT(e2::release, e2::message(e2::form::drag::pull::any, sysmouse::left), gear)
                                                             {
