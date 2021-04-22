@@ -165,7 +165,7 @@ namespace netxs::events
             _debug      = any | (6 << 0), // return info struct with telemtry data
             _config     = any | (7 << 0), // set/notify/get/global_set configuration data (e2::preview/e2::release/e2::request/e2::general)
             quit        = any | (8 << 0), // return bye msg //errcode (arg: const view)
-            dtor        = any | (9 << 0), // Notify about object destruction (arg: const id_t)
+            dtor        = any | (9 << 0), // Notify about object destruction, release only (arg: const id_t)
 
             //todo unify
             radio       = any | (10<< 0), // return active radio id_t (arg: const id_t)
@@ -579,7 +579,7 @@ namespace netxs::events
                     destroy     = any | (3 << _level1), // ??? bool return reference to the parent
                     render      = any | (4 << _level1), // ask children to render itself to the parent canvas (arg: function drawfx to perform drawing)
                     attach      = any | (5 << _level1), // order to attach a child (arg: parent base_sptr)
-                    detach      = any | (6 << _level1), // order to detach a child (arg: child  base_sptr)
+                    detach      = any | (6 << _level1), // order to detach a child (e2::release - kill itself, e2::preview - detach the child specified in args) (arg: child  base_sptr)
                     //commit      = any | (3 << _level1), // order to output the targets (arg: frame number iota)
                     //multirender = any | (5 << _level1), // ask children to render itself to the set of canvases (arg: array of the face sptrs: cuts = vector<shared_ptr<face>>)
                     //draw        = any | (6 << _level1), // ????  order to render itself to the canvas (arg: canvas face)
@@ -617,7 +617,7 @@ namespace netxs::events
             };};
             struct state { enum : type {
                     any = form::_state,
-                    mouse       = any | (1 << _level1), // notify the client is mouse active or not. The form is active when the number of client (form::eventa::mouse::enter - mouse::leave) is not zero. (arg is only release: bool)
+                    mouse       = any | (1 << _level1), // notify the client is mouse active or not. The form is active when the number of client (form::eventa::mouse::enter - mouse::leave) is not zero. (arg is only release: iota - number of clients)
                     keybd       = any | (2 << _level1), // notify the client is keybd active or not. The form is active when the number of client (form::eventa::keybd::got - keybd::lost) is not zero. (arg is only release: bool)
                     header      = any | (3 << _level1), // notify the client has changed title  (arg: para)
                     footer      = any | (4 << _level1), // notify the client has changed footer (arg: para)

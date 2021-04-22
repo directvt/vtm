@@ -124,7 +124,7 @@ namespace netxs::ui
         };
 
     private:
-        pro::mouse<mold> xmouse{*this, true }; // mold: World image.
+        pro::mouse<mold> xmouse{*this, faux }; // mold: World image.
         pro::keybd<mold> keybrd{*this }; // mold: Keyboard controller.
         pro::robot<mold> cyborg{*this }; // mold: Animation controller.
         pro::frame<mold> window{*this }; // mold: Window controller.

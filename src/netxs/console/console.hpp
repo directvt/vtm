@@ -158,7 +158,7 @@ namespace netxs::console
             EVENT_BIND(e2::form::layout::appear, twod)
 
         EVENT_BIND(e2::form::state::any, const twod)
-            EVENT_BIND(e2::form::state::mouse , bool)
+            EVENT_BIND(e2::form::state::mouse , iota)
             EVENT_BIND(e2::form::state::keybd , bool)
             EVENT_BIND(e2::form::state::header, para)
             EVENT_BIND(e2::form::state::footer, para)
@@ -675,7 +675,7 @@ namespace netxs::console
         {
             if constexpr (ENTERED)
             {
-                if (!start)
+                if (!start) // The first one to track the mouse will assign itslef to be a root.
                 {
                     start = asker;
                     return true;
@@ -781,7 +781,7 @@ namespace netxs::console
 
         bool kb_focus_taken = faux;
 
-        enum modifiers : unsigned
+        enum modifiers : uint32_t
         {
             SHIFT = 1 << 2,
             ALT   = 1 << 3,
@@ -790,14 +790,7 @@ namespace netxs::console
             ANYCTRL = CTRL | RCTRL,
         };
 
-        auto meta(unsigned ctl_key)
-        {
-            return hids::ctlstate & ctl_key;
-        }
-        auto meta()
-        {
-            return hids::ctlstate;
-        }
+        auto meta(uint32_t ctl_key = -1) { return hids::ctlstate & ctl_key; }
 
         template<class T>
         hids(T& owner, core const& idmap)
@@ -809,10 +802,7 @@ namespace netxs::console
         { }
         ~hids()
         {
-            if (auto last = bell::getref(mouse::hover))
-            {
-                last->SIGNAL(e2::release, e2::form::notify::mouse::leave, *this);
-            }
+            mouse_leave(mouse::hover, mouse::start);
             clear_kb_focus();
         }
 
@@ -856,38 +846,32 @@ namespace netxs::console
                 coord = temp;
             }
         }
+        void mouse_leave(id_t last_id, id_t start_id)
+        {
+            if (last_id)
+            if (auto last = bell::getref(last_id))
+            {
+                auto start = mouse::start;
+                mouse::start = start_id;
+                last->SIGNAL(e2::release, e2::form::notify::mouse::leave, *this);
+                mouse::start = start;
+            }
+            else log("hids: error condition: Clients count is broken, dangling id ", last_id);
+        }
         void okay(bell& boss)
         {
             if (boss.id == relay)
             {
-                if (mouse::hover != boss.id)
+                if (mouse::hover != boss.id) // The mouse cursor is over the new object.
                 {
-                    //if (auto last = bell::getref(mouse::hover))
-                    //{
-                    //    last->SIGNAL(e2::release, e2::form::notify::mouse::leave, *this);
-                    //}
-                    //mouse::hover = boss.id;
-                    //mouse::start = 0;
-                    //boss.SIGNAL(e2::release, e2::form::notify::mouse::enter, *this);
-
-                    // Firing leave event right after the enter
-                    // allows us to avoid flickering the parent object state when focus
+                    // Firing the leave event right after the enter allows us
+                    // to avoid flickering the parent object state when focus
                     // acquired by children.
-                    auto last_id = mouse::hover;
-                    auto init_id = mouse::start;
-                    mouse::hover = boss.id;
-                    mouse::start = 0;
+                    auto start_l = mouse::start;
+                    mouse::start = 0; // The first one to track the mouse will assign itself by calling gear.direct<true>(id).
                     boss.SIGNAL(e2::release, e2::form::notify::mouse::enter, *this);
-                    if (auto last = bell::getref(last_id))
-                    {
-                        auto new_hover = mouse::hover;
-                        auto new_start = mouse::start;
-                        mouse::hover = last_id;
-                        mouse::start = init_id;
-                        last->SIGNAL(e2::release, e2::form::notify::mouse::leave, *this);
-                        mouse::hover = new_hover;
-                        mouse::start = new_start;
-                    }
+                    mouse_leave(mouse::hover, start_l);
+                    mouse::hover = boss.id;
                 }
                 boss.bell::template signal<e2::release>(mouse::cause, *this);
             }
@@ -1837,7 +1821,7 @@ namespace netxs::console
             }
             auto& operator [](hids& gear)
             {
-                for (auto& item : depo)
+                for (auto& item : depo) // Linear search, because a few items.
                     if (item.id == gear.id)
                         return item;
 
@@ -2910,7 +2894,7 @@ namespace netxs::console
                     cell brush[states::count];
                     para basis;
                     bool usable = faux;
-                    bool active = faux;
+                    iota active = 0;
                     tone color;
 
                     operator bool ()
@@ -3424,7 +3408,6 @@ namespace netxs::console
                   skill<T>::memo;
             hook accept_kbd;
             iota clients = 0;
-            //bool active = faux;
 
         public:
             bool focusable = true;
@@ -3458,7 +3441,6 @@ namespace netxs::console
                     {
                         if (!clients++)
                         {
-                            //auto active = true;
                             boss.SIGNAL(e2::release, e2::form::state::keybd, true);
                         }
                     }
@@ -3470,7 +3452,6 @@ namespace netxs::console
                     {
                         if (!--clients)
                         {
-                            //auto active = faux;
                             boss.SIGNAL(e2::release, e2::form::state::keybd, faux);
                         }
                     }
@@ -3519,16 +3500,15 @@ namespace netxs::console
         {
             using skill<T>::boss,
                   skill<T>::memo;
-            iota clients = 0;
-            bool active = faux;
-            bool highlightable; // mouse: Consider cursors only directly over the object. This attribute is also required by the parent object if set.
+            sptr<base> soul; // mouse: Boss cannot be removed while it has active gears.
+            iota       rent; // mouse: Active gears count.
+            bool       omni; // mouse: Ability to accept all hover events (true) or only directly over the object (faux). This attribute is also required by the parent object if set.
 
         public:
-            operator bool() { return active; }
-
             mouse(T&&) = delete;
-            mouse(T& boss, bool take_all_focus = faux) : skill<T>{ boss },
-                highlightable{ take_all_focus }
+            mouse(T& boss, bool take_all_events = true) : skill<T>{ boss },
+                omni{ take_all_events },
+                rent{ 0               }
             {
                 boss.base::color().link(boss.bell::id);
                 // pro::mouse: Forward preview to all parents.
@@ -3552,30 +3532,30 @@ namespace netxs::console
                 // pro::mouse: Notify form::state::active when the number of clients is positive.
                 boss.SUBMIT_T(e2::release, e2::form::notify::mouse::enter, memo, gear)
                 {
-                    if (!highlightable || gear.direct<true>(boss.bell::id))
+                    if (omni || gear.direct<true>(boss.bell::id))
                     {
-                        if (!clients++)
+                        if (!rent++)
                         {
-                            active = true;
-                            boss.SIGNAL(e2::release, e2::form::state::mouse, active);
+                            soul = boss.This();
+                            boss.SIGNAL(e2::release, e2::form::state::mouse, rent);
                         }
                     }
                 };
                 // pro::mouse: Notify form::state::active when the number of clients is zero.
                 boss.SUBMIT_T(e2::release, e2::form::notify::mouse::leave, memo, gear)
                 {
-                    if (!highlightable || gear.direct<faux>(boss.bell::id))
+                    if (omni || gear.direct<faux>(boss.bell::id))
                     {
-                        if (!--clients)
+                        if (!--rent)
                         {
-                            active = faux;
-                            boss.SIGNAL(e2::release, e2::form::state::mouse, active);
+                            soul.reset();
+                            boss.SIGNAL(e2::release, e2::form::state::mouse, rent);
                         }
                     }
                 };
                 boss.SUBMIT_T(e2::request, e2::form::state::mouse, memo, state)
                 {
-                    state = active;
+                    state = rent;
                 };
             }
             template<sysmouse::bttns button>

@@ -1209,26 +1209,27 @@ utility like ctags is used to locate the definitions.
             }
         };
 
-        #define TYPE_LIST                        \
-        X(PowerShell   , "PowerShell"          ) \
-        X(CommandPrompt, "Command Prompt"      ) \
-        X(Bash         , "Bash/Zsh/CMD"        ) \
-        X(Far          , "Far Manager"         ) \
-        X(MC           , "Midnight Commander"  ) \
-        X(Strobe       , "Strobe"              ) \
-        X(RefreshRate  , "Refresh rate"        ) \
-        X(Truecolor    , "Truecolor image"     ) \
-        X(VTM          , "Recursive connection") \
-        X(Cellatix     , "Cellatix \033[92m▄▀\033[m") \
-        X(Textancy     , "Textancy \033[94m▄▀\033[m") \
-        X(Term         , "▀▄ Term"             ) \
-        X(Text         , "▀▄ Text"             ) \
-        X(Calc         , "▀▄ Calc"             ) \
-        X(Shop         , "▀▄ Shop"             ) \
-        X(Logs         , "▀▄ Logs"             ) \
-        X(Empty        , "Empty window"        ) \
-        X(Test         , "Test"                ) \
-        X(Menu         , "Old menu object"     )
+        #define TYPE_LIST                         \
+        X(Term         , "Term"                 ) \
+        X(Text         , "Text"                 ) \
+        X(Calc         , "Calc"                 ) \
+        X(Shop         , "Shop"                 ) \
+        X(Logs         , "Logs"                 ) \
+        X(PowerShell   , "PowerShell"           ) \
+        X(CommandPrompt, "Command Prompt"       ) \
+        X(Bash         , "Bash/Zsh/CMD"         ) \
+        X(Far          , "Far Manager"          ) \
+        X(VTM          , "Recursive connection" ) \
+        X(MC           , "Midnight Commander"   ) \
+        X(Truecolor    , "Truecolor image"      ) \
+        X(RefreshRate  , "Refresh rate"         ) \
+        X(Strobe       , "Strobe"               ) \
+        X(Test         , "Test"                 ) \
+        X(Empty        , "Empty window"         ) \
+        X(Menu         , "Old menu object"      )
+
+        //X(Cellatix     , "Cellatix \033[92m▄▀\033[m")
+        //X(Textancy     , "Textancy \033[94m▄▀\033[m")
 
         #define X(a, b) a,
         enum objs { TYPE_LIST count };
@@ -1483,7 +1484,7 @@ utility like ctags is used to locate the definitions.
                     scroll_bars(layers, scroll);
                     break;
                 }
-                case Cellatix:
+                //case Cellatix:
                 case Calc:
                 {
                     //todo XAML converter
@@ -1594,7 +1595,7 @@ utility like ctags is used to locate the definitions.
                             scroll_bars(layers, scroll);
                     break;
                 }
-                case Textancy:
+                //case Textancy:
                 case Text:
                 {
                     window->color(whitelt, 0x605f1A00);
@@ -1837,6 +1838,8 @@ utility like ctags is used to locate the definitions.
             creator(objs::Text, { twod{ 30,20 } + sub_pos,{ 59,26 } });
             creator(objs::MC,   { twod{ 49,26 } + sub_pos,{ 63,22 } });
             creator(objs::Term, { twod{ 34,34 } + sub_pos,{ 57,15 } });
+            creator(objs::Term, { twod{ 44 + 85,35 } + sub_pos,{ 57,15 } });
+            creator(objs::Term, { twod{ 40 + 85,38 } + sub_pos,{ 57,15 } });
 
             sub_pos = twod{-120, 60};
             creator(objs::Truecolor,   { twod{ 20,15 } + sub_pos,{ 70,30 } });
@@ -2027,7 +2030,7 @@ utility like ctags is used to locate the definitions.
 
                     auto app_template = [c4, x4, danger_color](auto& data_src, auto const& utf8){
                         auto item_area = base::template create<ui::pads>(dent{ 1,0,0,0 }, dent{ 0,0,0,0 })
-                                             ->template plugin<pro::mouse>(true)
+                                             ->template plugin<pro::mouse>(faux)
                                              ->template plugin<pro::fader>(x4, c4, 150ms);
                             auto label_area = item_area->template attach<ui::fork>();
                                 auto app_label = label_area->template attach<slot::_1, ui::item>(
@@ -2061,7 +2064,7 @@ utility like ctags is used to locate the definitions.
                         {
                             auto selected = class_id == *current_default_ptr;
                             auto item_area = apps->template attach<ui::pads>(dent{ 1,0,0,1 }, dent{ 0,0,1,0 })
-                                                 ->template plugin<pro::mouse>(true)
+                                                 ->template plugin<pro::mouse>(faux)
                                                  ->template plugin<pro::fader>(x3, c3, 0ms);
                                 auto block = item_area->template attach<ui::fork>(axis::Y);
                                     auto head_area = block->template attach<slot::_1, ui::pads>(dent{ 0,0,0,0 }, dent{ 1,0,1,1 })
@@ -2089,7 +2092,6 @@ utility like ctags is used to locate the definitions.
                                                                 auto lims = twod{ size,-1 };
                                                                 boss.base::limits(lims, lims);
                                                                 boss.base::reflow();
-                                                                log("UIBAR STATE has CHANGED!!!");
                                                             };
                                                             boss.SUBMIT(e2::release, e2::message(e2::form::drag::pull::any, sysmouse::left), gear)
                                                             {
