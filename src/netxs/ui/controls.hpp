@@ -36,7 +36,7 @@ namespace netxs::ui
         {
             id_t      id; // sock: Hids ID.
             bool  wholly; // sock: Should the whole border be visible.
-            bool  direct; // sock: Indirect mouse hover.
+            bool  direct; // sock: Direct or indirect mouse hovering.
             twod  origin; // sock: Grab's initial coord info.
             twod  dtcoor; // sock: The form coor parameter change factor while resizing.
             twod  dtsize; // sock: The form size parameter change factor while resizing.
@@ -45,14 +45,11 @@ namespace netxs::ui
             twod  levels; // sock: The lengths of the grips (a corner based, signed).
             twod  widths; // sock: Border widths.
 
-            sock(id_t ctrl)
+            sock(id_t ctrl, bool self)
                 :     id{ ctrl },
                   wholly{ faux },
-                  direct{ faux }
+                  direct{ self }
             { }
-            operator bool()               { return !wholly;       }
-            bool operator()(id_t hids_id) { return id == hids_id; }
-
             // sock: Assign the borders/resize-grips length.
             template<class P>
             void draw(mold const& master, core& canvas, P fuse)
@@ -76,16 +73,10 @@ namespace netxs::ui
                 canvas.fill(side_y, fuse);
             }
             // sock: Take the current coordinates of the mouse relative to the corresponding corner.
-            void grab(mold const& master, twod const& coord)
+            void grab(mold const& master, twod const& curpos)
             {
-                origin = coord - (wholly ? master.center : corner);
+                origin = curpos - (wholly ? master.center : corner);
             }
-            // sock: Mark borders if mold hilighted.
-            void join(mold const& master, hids const& gear)
-            {
-                direct = gear.start == master.bell::id;
-            }
-            // sock: Recalc (on every mouse::move or ::hover) the borders/resize-grips length and other metrics.
             bool calc(mold const& master, hids const& gear)
             {
                 auto& length = master.square.size;
@@ -139,7 +130,7 @@ namespace netxs::ui
         pro::frame<mold> window{*this }; // mold: Window controller.
         pro::align<mold> adjust{*this }; // mold: Size linking controller.
         pro::title<mold> legend{*this }; // mold: Window caption and footer.
-        pro::share<mold> shared{*this }; // mold: The shared border states.
+        pro::multi<mold> shared{*this }; // mold: The shared border states.
 
         rect region; // mold: Client area.
         bool active; // mold: Keyboard focus.
@@ -182,23 +173,6 @@ namespace netxs::ui
                 static auto item_number = 0_sz;
                 item_number++;
                 legend.header(ansi::mgl(1).mgr(1) + "Instance: " + std::to_string(item_number));
-                //SUBMIT(e2::release, e2::form::layout::size, size)
-                //{
-                //	//if (!nosize)
-                //	//	legend.footer("size " + std::to_string(size.x) + ":"
-                //	//		+ std::to_string(size.y));
-                //	if (!nosize && client)
-                //	{
-                //		auto& size = client->base::size.get();
-                //		legend.footer("client size " + std::to_string(size.x) + ":"
-                //			+ std::to_string(size.y));
-                //	}
-                //	else
-                //	{
-                //		legend.footer("window size " + std::to_string(size.x) + ":"
-                //			+ std::to_string(size.y));
-                //	}
-                //};
             }
 
             SUBMIT(e2::release, e2::form::state::keybd, status)
@@ -207,14 +181,6 @@ namespace netxs::ui
                 base::deface();
             };
 
-            SUBMIT(e2::release, e2::form::notify::mouse::enter, gear)
-            {
-                shared.enter(gear.id).join(*this, gear);
-            };
-            SUBMIT(e2::release, e2::form::notify::mouse::leave, gear)
-            {
-                shared.leave(gear.id);
-            };
             SUBMIT(e2::release, e2::form::state::mouse, mouse_active)
             {
                 base::deface();
@@ -247,7 +213,8 @@ namespace netxs::ui
 
             SUBMIT(e2::release, e2::hids::mouse::move, gear)
             {
-                shared[gear.id].calc(*this, gear);
+                auto& handle = shared[gear];
+                handle.calc(*this, gear);
                 base::deface();
             };
 
@@ -279,12 +246,14 @@ namespace netxs::ui
 
             SUBMIT(e2::release, e2::form::drag::start::left, gear)
             {
-                shared[gear.id].grab(*this, gear.coord);
+                auto& handle = shared[gear];
+                handle.grab(*this, gear.coord);
                 cyborg.pacify();
             };
             SUBMIT(e2::release, e2::form::drag::pull::left, gear)
             {
-                shared[gear.id].drag(*this, gear.coord);
+                auto& handle = shared[gear];
+                handle.drag(*this, gear.coord);
                 window.bubble();
             };
             SUBMIT(e2::release, e2::form::drag::cancel::left, gear)
@@ -294,8 +263,8 @@ namespace netxs::ui
             };
             SUBMIT(e2::release, e2::form::drag::stop::left, gear)
             {
-                auto& border = shared[gear.id];
-                if (border.wholly)
+                auto& handle = shared[gear];
+                if (handle.wholly)
                 {
                     cyborg.actify(gear.fader<quadratic<twod>>(2s), [&](auto x)
                         {
@@ -359,10 +328,9 @@ namespace netxs::ui
             //todo unify - make pro::theme
             acryl = 5;// 100;
 
-            auto& states = shared.states();
+            auto& guests = shared.items();
             //todo temporarily use locked for old menu
-            //if (states.empty()) //if (loosen)
-            if (locked || (states.empty() && !active)) //if (loosen)
+            if (locked || (guests.empty() && !active)) //if (loosen)
             {
                 if (!blurred || base::brush.bga() == 0xFF) parent_canvas.fill(fuse_normal);
                 else if (base::brush.wdt())                parent_canvas.blur(acryl, fuse_normal);
@@ -379,13 +347,13 @@ namespace netxs::ui
                 shadow.fgc(title_fg_color);
 
                 bool isnorm =
-                    !active && states.end() == std::find_if(states.begin(), states.end(),
-                                                [](auto& a) { return a.first.wholly; });
+                    !active && guests.end() == std::find_if(guests.begin(), guests.end(),
+                                                [](auto& a) { return a.wholly; });
                 auto guides = [&](auto bright)
                 {
-                    for (auto& grip : states)
-                        if (grip.first)
-                            grip.first.draw(*this, parent_canvas, bright);
+                    for (auto& grip : guests)
+                        if (!grip.wholly)
+                            grip.draw(*this, parent_canvas, bright);
                 };
                 auto fillup = [&](auto bright, auto shadow)
                 {

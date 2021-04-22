@@ -1790,72 +1790,64 @@ namespace netxs::console
             }
         };
 
-        // pro: Provides shared storage for the states of type T::state_t.
+        // pro: Provides shared storage for the states of type T::sock.
         template<class T>
-        class share
+        class multi
             : public skill<T>
         {
             using skill<T>::boss,
                   skill<T>::memo;
-            using sock = typename T::sock;
-            using list = std::list<std::pair<sock, iota>>;
+            struct sock : public T::sock
+            {
+                using T::sock::sock; // Inherit ctor.
+                iota count = 0;
+            };
+            using list = std::vector<sock>;
             list depo;
 
         public:
-            using skill<T>::skill; // Inherits ctors.
+            multi(T&&) = delete;
+            multi(T& boss) : skill<T>{ boss }
+            {
+                boss.SUBMIT_T(e2::release, e2::form::notify::mouse::enter, memo, gear)
+                {
+                    for (auto& item : depo) // Linear search, because a few items.
+                        if (item.id == gear.id)
+                        {
+                            ++item.count;
+                            return;
+                        }
 
-            auto& enter(bell::id_t hids_id)
-            {
-                for (auto& item_rec : depo)
+                    auto& item = depo.emplace_back(gear.id, gear.start == boss.bell::id);
+                    ++item.count;
+                };
+                boss.SUBMIT_T(e2::release, e2::form::notify::mouse::leave, memo, gear)
                 {
-                    auto& item = item_rec.first;
-                    if (item(hids_id))
-                    {
-                        ++item_rec.second;
-                        return item;
-                    }
-                }
-                auto& item = depo.emplace_back(std::pair{ sock{ hids_id }, 1 });
-                return item.first;
+                    for (auto& item : depo) // Linear search, because a few items.
+                        if (item.id == gear.id)
+                        {
+                            if (--item.count < 1) // item.count could but equal to 0 due to unregistered access.
+                            {
+                                item = depo.back(); // Remove an item without allocations.
+                                depo.pop_back();
+                            }
+                            return;
+                        }
+                };
             }
-            auto& operator [](bell::id_t hids_id)
+            auto& operator [](hids& gear)
             {
-                for (auto& item_rec : depo)
-                {
-                    auto& item = item_rec.first;
-                    if (item(hids_id))
-                    {
+                for (auto& item : depo)
+                    if (item.id == gear.id)
                         return item;
-                    }
-                }
-                //todo debug
-                throw;
-                auto& item = depo.emplace_back(std::pair{ sock{ hids_id }, 0 });
-                return item.first;
+
+                log("pro::multi: error: access to unregistered input device, id:", gear.id);
+                return depo.emplace_back(gear.id, gear.start == boss.bell::id);
             }
-            auto& states()
+            auto& items()
             {
                 return depo;
             }
-            void leave(id_t hids_id)
-            {
-                auto iter = depo.begin();
-                while (iter != depo.end())
-                {
-                    auto& item_rec = *iter;
-                    auto& item = item_rec.first;
-                    if (item(hids_id))
-                    {
-                        if (--item_rec.second < 1) depo.erase(iter);
-                        break;
-                    }
-                    ++iter;
-                }
-            }
-            //bool active()
-            //{
-            //	return depo.size();
-            //}
         };
 
         // pro: Provides size-binding functionality for child objects
