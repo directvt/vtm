@@ -479,7 +479,7 @@ namespace netxs::events
                 private: static const unsigned int _level2 = _level1 + _width;
                 public:
                 struct mouse { enum : type {
-                        any = notify::_mouse,
+                        any = notify::_mouse,               // inform the form about the mouse hover (arg: hids)
                         enter       = any | (1 << _level2), // inform the form about the mouse hover (arg: hids)
                         leave       = any | (2 << _level2), // inform the form about the mouse leave (arg: hids)
                 };};

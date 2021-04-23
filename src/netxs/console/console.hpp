@@ -2894,6 +2894,7 @@ namespace netxs::console
                     cell brush[states::count];
                     para basis;
                     bool usable = faux;
+                    bool highlighted = faux;
                     iota active = 0;
                     tone color;
 
@@ -2909,7 +2910,7 @@ namespace netxs::console
                     }
                     auto& get()
                     {
-                        return title[(active ? 2 : 0) + usable];
+                        return title[(active || highlighted ? 2 : 0) + usable];
                     }
                     void recalc()
                     {
@@ -2962,6 +2963,10 @@ namespace netxs::console
                     {
                         header.active = state;
                     };
+                    inst.SUBMIT(e2::release, e2::form::highlight::any, state)
+                    {
+                        header.highlighted = state;
+                    };
                     inst.SUBMIT(e2::release, e2::form::state::header, caption)
                     {
                         header.set(caption);
@@ -2994,9 +2999,9 @@ namespace netxs::console
                     auto offset = region.coor - window.coor;
                     auto center = offset + (region.size / 2);
                     header.usable = window.overlap(region);
-
-                    auto& grade = skin::grade(header.active ? header.color.active
-                                                            : header.color.passive);
+                    auto active = header.active || header.highlighted;
+                    auto& grade = skin::grade(active ? header.color.active
+                                                     : header.color.passive);
                     auto pset = [&](twod const& p, uint8_t k)
                     {
                         //canvas[p].fuse(grade[k], obj_id, p - offset);
@@ -3508,7 +3513,7 @@ namespace netxs::console
             mouse(T&&) = delete;
             mouse(T& boss, bool take_all_events = true) : skill<T>{ boss },
                 omni{ take_all_events },
-                rent{ 0               }
+                rent{ 0              }
             {
                 boss.base::color().link(boss.bell::id);
                 // pro::mouse: Forward preview to all parents.

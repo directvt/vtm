@@ -19,6 +19,7 @@ namespace netxs::ui
 
     enum slot : id_t { _1, _2 };
     enum axis : id_t { X, Y };
+    enum role : bool { NOT_PARENT, PARENT };
     enum axes
     {
         NONE   = 0,
@@ -150,6 +151,7 @@ namespace netxs::ui
         bool nosize = faux;
         rgba title_fg_color = 0xFFffffff;
         bool highlight_center = true;
+        bool highlighted = faux;
 
         ~mold()
         {
@@ -180,7 +182,11 @@ namespace netxs::ui
                 active = status;
                 base::deface();
             };
-
+            //todo unify
+            SUBMIT(e2::release, e2::form::highlight::any, state)
+            {
+                highlighted = state;
+            };
             SUBMIT(e2::release, e2::form::state::mouse, mouse_active)
             {
                 base::deface();
@@ -328,6 +334,17 @@ namespace netxs::ui
             //todo unify - make pro::theme
             acryl = 5;// 100;
 
+            // Draw highlighting
+            if (highlighted)
+            {
+                // Draw the border around
+                auto area = parent_canvas.full();
+                auto mark = skin::color(tone::brighter);
+                mark.fgc(title_fg_color); //todo unify, make it more contrast
+                auto fill = [&](cell& c) { c.fuse(mark); };
+                parent_canvas.fill(area, fill);
+            }
+
             auto& guests = shared.items();
             //todo temporarily use locked for old menu
             if (locked || (guests.empty() && !active)) //if (loosen)
@@ -459,7 +476,7 @@ namespace netxs::ui
 
     // controls: Splitter control.
     class fork
-        : public base, public pro::boost<fork, true>
+        : public base, public pro::boost<fork, role::PARENT>
     {
     public:
         pro::mouse<fork> mouse{*this }; // fork: Mouse controller.
@@ -768,7 +785,7 @@ namespace netxs::ui
 
     // controls: Vertical/horizontal list control.
     class list
-        : public base, public pro::boost<list, true>
+        : public base, public pro::boost<list, role::PARENT>
     {
         pro::mouse<list> mouse{*this }; // list: Mouse controller.
 
@@ -900,7 +917,7 @@ namespace netxs::ui
 
     // controls: (puff) Layered cake of forms on top of each other.
     class cake
-        : public base, public pro::boost<cake, true>
+        : public base, public pro::boost<cake, role::PARENT>
     {
         pro::mouse<cake> mouse{*this }; // cake: Mouse controller.
 
@@ -1029,7 +1046,7 @@ namespace netxs::ui
 
     // controls: Rigid text page.
     class post
-        : public base, public flow, public pro::boost<post>
+        : public base, public flow, public pro::boost<post, role::NOT_PARENT>
     {
         twod width; // post: Page dimensions.
         page_layout layout;
@@ -1134,7 +1151,7 @@ namespace netxs::ui
 
     // controls: Scroller.
     class rail
-        : public base, public pro::boost<rail, true>
+        : public base, public pro::boost<rail, role::PARENT>
     {
         pro::mouse<rail> mouse{*this }; // rail: Mouse controller.
         pro::robot<rail> robot{*this }; // rail: Animation controller.
@@ -1870,7 +1887,7 @@ namespace netxs::ui
 
     // controls: Container with margins (outer space) and padding (inner space).
     class pads
-        : public base, public pro::boost<pads, true>
+        : public base, public pro::boost<pads, role::PARENT>
     {
         //pro::mouse<pads> mouse{*this }; // pads: Mouse controller.
 
@@ -1945,7 +1962,7 @@ namespace netxs::ui
 
     // controls: Pluggable dummy object.
     class mock
-        : public base, public pro::boost<mock>
+        : public base, public pro::boost<mock, role::NOT_PARENT>
     {
     public:
         mock() : boost{*this } { };
@@ -1953,7 +1970,7 @@ namespace netxs::ui
 
     // controls: Menu label.
     class item
-        : public base
+        : public base, public pro::boost<item, role::NOT_PARENT>
     {
         static constexpr view dots = "‥";
         para name;
@@ -1968,10 +1985,10 @@ namespace netxs::ui
             base::resize(size);
         }
     public:
-        item(para const& label_para, bool flexible = faux, bool check_size = faux)
-            : name{ label_para },
-              flex{ flexible   },
-              test{ check_size }
+        item(para const& label_para, bool flexible = faux, bool check_size = faux) : boost{*this },
+            name{ label_para },
+            flex{ flexible   },
+            test{ check_size }
         {
             recalc();
         }

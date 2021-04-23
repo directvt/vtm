@@ -1262,7 +1262,7 @@ utility like ctags is used to locate the definitions.
         {
             auto scroll_bars = layers->template attach<ui::fork>();
                 auto scroll_down = scroll_bars->template attach<slot::_2, ui::fork>(axis::Y);
-                    auto hz = scroll_down->template attach<slot::_2, ui::grip<axis::X>>(master);
+                    //auto hz = scroll_down->template attach<slot::_2, ui::grip<axis::X>>(master);
                     auto vt = scroll_bars->template attach<slot::_1, ui::grip<axis::Y>>(master);
         };
         auto scroll_bars_term = [](auto layers, auto master)
@@ -1923,8 +1923,7 @@ utility like ctags is used to locate the definitions.
                 btn_pos.size.y += 1;
                 frame->extend({ { 85,12 }, size + dot_22 + btn_pos.size });
 
-                //current_default = objs::Help;
-                current_default = objs::CommandPrompt;
+                current_default = objs::Term;
                 block->SIGNAL(e2::release, e2::data::changed, current_default);
             }
 
@@ -2019,6 +2018,8 @@ utility like ctags is used to locate the definitions.
                     */
 
                     //todo MSVC 16.9.4 don't capture x3,c3 by & (possible a compiler bug)
+                    auto c5 = cell{}.bgc(danger_color).fgc(whitelt);
+                    auto x5 = c5; x5.bga(0x00).fga(0x00);
                     auto c4 = cell{}.bgc(highlight_color);
                     auto x4 = c4; x4.bga(0x00);
                     auto c3 = cell{}.bgc(highlight_color).fgc(0xFFffffff);
@@ -2028,33 +2029,74 @@ utility like ctags is used to locate the definitions.
                     auto c1 = cell{}.bgc(danger_color).fgc(whitelt);
                     auto x1 = c1; x1.bga(0x00);
 
-                    auto app_template = [c4, x4, danger_color](auto& data_src, auto const& utf8){
-                        auto item_area = base::template create<ui::pads>(dent{ 1,0,0,0 }, dent{ 0,0,0,0 })
+                    auto app_template = [c4, x4, x5, c5](auto& data_src, auto const& utf8){
+                        auto item_area = base::template create<ui::pads>(dent{ 1,0,1,0 }, dent{ 0,0,0,1 })
                                              ->template plugin<pro::mouse>(faux)
-                                             ->template plugin<pro::fader>(x4, c4, 150ms);
-                            auto label_area = item_area->template attach<ui::fork>();
-                                auto app_label = label_area->template attach<slot::_1, ui::item>(
-                                            ansi::fgc4(0xFF00ff00) + "‣" + ansi::nil() + "   "
-                                            + ansi::fgc(whitelt)
-                                            + utf8 + ansi::mgl(0).wrp(wrap::off).jet(bias::left), true, true);
-                                auto app_close = label_area->template attach<slot::_2, ui::item>(
-                                            //ansi::bgc4(0xFF0000ff) + "  ", true);
-                                            //ansi::bgc4(0xFFffffff) + "❌", true);
-                                            ansi::bgc4(danger_color) + " ✕ ", true);
-                                            auto size = twod{ 0, -1 };
-                                            app_close->base::limits(size, size);
-                                    auto app_close_shadow = std::weak_ptr{ app_close };
-                                    item_area->invoke([=](auto& boss) {
-                                                boss.SUBMIT_BYVAL(e2::release, e2::form::state::mouse, active)
+                                             ->template plugin<pro::fader>(x4, c4, 150ms)
+                                             ->invoke([&](auto& boss) {
+                                                auto data_src_shadow = std::weak_ptr{ data_src };
+                                                boss.SUBMIT_BYVAL(e2::release, e2::hids::mouse::button::click::left, gear)
                                                 {
-                                                    if(auto app_close = app_close_shadow.lock())
+                                                    if(auto data_src = data_src_shadow.lock())
                                                     {
-                                                        auto size = twod{ active ? 3:0, -1 };
-                                                        app_close->base::limits(size, size);
-                                                        app_close->base::reflow();
+                                                        auto& inst = *data_src;
+                                                        //todo make it via events (pro::frame)
+                                                        if (auto parent_ptr = inst.parent.lock()) // Expose window.
+                                                        {
+                                                            parent_ptr->SIGNAL(e2::release, e2::form::layout::expose, inst);
+                                                        }
+
+                                                        auto square = inst.base::square();
+                                                        auto center = square.coor + (square.size / 2);
+                                                        bell::getref(gear.id)->
+                                                            SIGNAL(e2::release, e2::form::layout::shift, center);  // Goto to the window.
+                                                    }
+                                                };
+                                                boss.SUBMIT_BYVAL(e2::release, e2::hids::mouse::button::click::right, gear)
+                                                {
+                                                    if(auto data_src = data_src_shadow.lock())
+                                                    {
+                                                        auto& inst = *data_src;
+                                                        //todo make it via events (pro::frame)
+                                                        if (auto parent_ptr = inst.parent.lock()) // Expose window.
+                                                        {
+                                                            parent_ptr->SIGNAL(e2::release, e2::form::layout::expose, inst);
+                                                        }
+                                                        auto square = gear.area();
+                                                        auto center = square.coor + (square.size / 2);
+                                                        inst.SIGNAL(e2::preview, e2::form::layout::appear, center); // Pull window.
+                                                    }
+                                                };
+                                                boss.SUBMIT_BYVAL(e2::release, e2::form::state::mouse, hits)
+                                                {
+                                                    if(auto data_src = data_src_shadow.lock())
+                                                    {
+                                                        data_src->SIGNAL(e2::release, e2::form::highlight::any, !!hits);
                                                     }
                                                 };
                                             });
+                            auto label_area = item_area->template attach<ui::fork>();
+                                auto mark_app = label_area->template attach<slot::_1, ui::fork>();
+                                auto mark = mark_app->template attach<slot::_1, ui::pads>(dent{ 0,2,0,0 }, dent{ 0,0,0,0 })
+                                                    ->template attach<ui::item>(
+                                                        ansi::fgc4(0xFF00ff00) + "‣", faux);
+                                auto app_label = mark_app->template attach<slot::_2, ui::item>(
+                                            ansi::fgc(whitelt)
+                                            + utf8 + ansi::mgl(0).wrp(wrap::off).jet(bias::left), true, true);
+                                auto app_close_area = label_area->template attach<slot::_2, ui::pads>(dent{ 0,0,0,0 }, dent{ 0,0,1,1 })
+                                            ->template plugin<pro::mouse>()
+                                             ->template plugin<pro::fader>(x5, c5, 150ms)
+                                            ->invoke([&](auto& boss) {
+                                                auto data_src_shadow = std::weak_ptr{ data_src };
+                                                boss.SUBMIT_BYVAL(e2::release, e2::hids::mouse::button::click::left, gear)
+                                                {
+                                                    if(auto data_src = data_src_shadow.lock())
+                                                    {
+                                                        data_src->SIGNAL(e2::release, e2::form::proceed::detach, data_src);
+                                                    }
+                                                };
+                                            });
+                                auto app_close = app_close_area->template attach<ui::item>("  ✕  ", faux);
                         return item_area;
                     };
                     auto apps_template = [&, c3, x3, app_template](auto& data_src, auto& apps_map){
@@ -2070,9 +2112,9 @@ utility like ctags is used to locate the definitions.
                                     auto head_area = block->template attach<slot::_1, ui::pads>(dent{ 0,0,0,0 }, dent{ 1,0,1,1 })
                                                           ->template plugin<pro::mouse>();
                                         auto head = head_area->template attach<ui::item>(
-                                                ansi::bgc4(selected ? 0xFF00FF00 : 0x7F000000)
-                                                + "  " + ansi::nil() + "  " + objs_desc[class_id], true);
-                                    auto list = block->template attach<slot::_2, ui::pads>(dent{ 0,1,0,0 }, dent{ 0,0,0,0 })
+                                                ansi::bgc4(selected ? 0xFF00FF00 : 0x7F000000) + "  "
+                                                + ansi::nil() + " " + objs_desc[class_id], true);
+                                    auto list = block->template attach<slot::_2, ui::pads>(dent{ 0,0,0,0 }, dent{ 0,0,0,0 })
                                                      ->template plugin<pro::mouse>()
                                                      ->template attach<ui::list>();
                             auto insts = list->template attach_collection<e2::form::prop::header>(inst_ptr_list, app_template);
@@ -2120,7 +2162,7 @@ utility like ctags is used to locate the definitions.
                                                                          ->template plugin<pro::fader>(x3, c3, 150ms);
                                                         auto user = item_area->template attach<ui::item>(
                                                         ansi::fgc4(data_src->id == my_id ? 0xFFffff00 : 0xFFff0000)
-                                                        + " ‣" + ansi::nil() + "  " + utf8, true);
+                                                        + " ‣" + ansi::nil() + " " + utf8, true);
                                                     return item_area;
                                                 };
                                                 auto brunch_template = [=](auto& data_src, auto& usr_list){
