@@ -1731,8 +1731,19 @@ namespace netxs::console
                 master->SUBMIT_T(e2::release, e2::dtor, memo[master->id], master_id)
                 {
                     memo[master_id].clear();
-                    boss.base::detach();
+                    memo.erase(master_id);
+                    if (memo.empty()) boss.base::detach();
                 };
+                return boss.template This<T>();
+            }
+            // pro::boost: Boss will be detached when the last item of collection is dtor'ed.
+            template<class C>
+            auto depend_on_collection(C data_collection_src)
+            {
+                for(auto& data_src : data_collection_src)
+                {
+                    depend(data_src);
+                }
                 return boss.template This<T>();
             }
             //template<class P, class C, class ...Args>
@@ -3507,13 +3518,15 @@ namespace netxs::console
                   skill<T>::memo;
             sptr<base> soul; // mouse: Boss cannot be removed while it has active gears.
             iota       rent; // mouse: Active gears count.
+            iota       full; // mouse: All gears count. Counting to keep the entire chain of links in the visual tree.
             bool       omni; // mouse: Ability to accept all hover events (true) or only directly over the object (faux). This attribute is also required by the parent object if set.
 
         public:
             mouse(T&&) = delete;
             mouse(T& boss, bool take_all_events = true) : skill<T>{ boss },
                 omni{ take_all_events },
-                rent{ 0              }
+                rent{ 0              },
+                full{ 0              }
             {
                 boss.base::color().link(boss.bell::id);
                 // pro::mouse: Forward preview to all parents.
@@ -3537,11 +3550,11 @@ namespace netxs::console
                 // pro::mouse: Notify form::state::active when the number of clients is positive.
                 boss.SUBMIT_T(e2::release, e2::form::notify::mouse::enter, memo, gear)
                 {
+                    if (!full++) soul = boss.This();
                     if (omni || gear.direct<true>(boss.bell::id))
                     {
                         if (!rent++)
                         {
-                            soul = boss.This();
                             boss.SIGNAL(e2::release, e2::form::state::mouse, rent);
                         }
                     }
@@ -3549,11 +3562,11 @@ namespace netxs::console
                 // pro::mouse: Notify form::state::active when the number of clients is zero.
                 boss.SUBMIT_T(e2::release, e2::form::notify::mouse::leave, memo, gear)
                 {
+                    if (!--full) soul.reset();
                     if (omni || gear.direct<faux>(boss.bell::id))
                     {
                         if (!--rent)
                         {
-                            soul.reset();
                             boss.SIGNAL(e2::release, e2::form::state::mouse, rent);
                         }
                     }

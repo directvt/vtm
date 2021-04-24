@@ -1958,6 +1958,14 @@ namespace netxs::ui
                 item_ptr->SIGNAL(e2::release, e2::form::upon::vtree::detached, This());
             }
         }
+        // pads: Update nested object.
+        template<class T, class S>
+        void update(T old_item_ptr, S new_item_ptr)
+        {
+            client = new_item_ptr;
+            old_item_ptr->SIGNAL(e2::release, e2::form::upon::vtree::detached, This());
+            new_item_ptr->SIGNAL(e2::release, e2::form::upon::vtree::attached, This());
+        }
     };
 
     // controls: Pluggable dummy object.
