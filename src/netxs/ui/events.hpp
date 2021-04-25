@@ -184,8 +184,8 @@ namespace netxs::events
             public:
             struct list { enum : type {
                     any = bindings::_list,
-                    users       = any | (1 << _level1), // list of connected users (arg: std::list<sptr<base>>)
-                    apps        = any | (2 << _level1), // list of running apps (arg: std::list<sptr<base>>)
+                    users       = any | (1 << _level1), // list of connected users (arg: sptr<std::list<sptr<base>>>)
+                    apps        = any | (2 << _level1), // list of running apps (arg: sptr<std::map<id_t, std::list<sptr<base>>>>)
                 };
             };
         };
@@ -608,7 +608,7 @@ namespace netxs::events
                     local       = any | (8 << _level1), // Recursively calculate local coordinate from global (arg: twod)
                     strike      = any | (9 << _level1), // (always preview) inform about the child canvas has changed (arg: modified region rect)
                     bubble      = any | (10<< _level1), // order to popup the requested item through the visual tree (arg: form)
-                    expose      = any | (11<< _level1), // order to bring the requested item on top of the visual tree (arg: base)
+                    expose      = any | (11<< _level1), // order to bring the requested item on top of the visual tree (release: ask parent to expose specified child; preview: ask child to expose itself) (arg: base)
                     //next        = any | (12<< _level1), // request client for next child object (arg is only request: sptr<base>)
                     //prev        = any | (13<< _level1), // request client for prev child object (arg is only request: sptr<base>)
                     // footer     = any | (14<< _level1), // notify the client has changed footer (arg is only release: const rich)

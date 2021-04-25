@@ -1824,10 +1824,11 @@ utility like ctags is used to locate the definitions.
         };
 
         { // Init registry/menu list.
-            registry_t menu_list;
+            sptr<registry_t> menu_list_ptr;
+            world->SIGNAL(e2::request, e2::bindings::list::apps, menu_list_ptr);
+            auto& menu_list = *menu_list_ptr;
             iota i = objs::count;
             while (i--) menu_list[i];
-            world->SIGNAL(e2::preview, e2::bindings::list::apps, menu_list);
         }
 
         #ifndef PROD
@@ -2060,12 +2061,7 @@ utility like ctags is used to locate the definitions.
                                                     if(auto data_src = data_src_shadow.lock())
                                                     {
                                                         auto& inst = *data_src;
-                                                        //todo make it via events (pro::frame)
-                                                        if (auto parent_ptr = inst.parent.lock()) // Expose window.
-                                                        {
-                                                            parent_ptr->SIGNAL(e2::release, e2::form::layout::expose, inst);
-                                                        }
-
+                                                        inst.SIGNAL(e2::preview, e2::form::layout::expose, inst);
                                                         auto square = inst.base::square();
                                                         auto center = square.coor + (square.size / 2);
                                                         bell::getref(gear.id)->
@@ -2078,11 +2074,7 @@ utility like ctags is used to locate the definitions.
                                                     if(auto data_src = data_src_shadow.lock())
                                                     {
                                                         auto& inst = *data_src;
-                                                        //todo make it via events (pro::frame)
-                                                        if (auto parent_ptr = inst.parent.lock()) // Expose window.
-                                                        {
-                                                            parent_ptr->SIGNAL(e2::release, e2::form::layout::expose, inst);
-                                                        }
+                                                        inst.SIGNAL(e2::preview, e2::form::layout::expose, inst);
                                                         auto square = gear.area();
                                                         auto center = square.coor + (square.size / 2);
                                                         inst.SIGNAL(e2::preview, e2::form::layout::appear, center); // Pull window.
@@ -2127,7 +2119,7 @@ utility like ctags is used to locate the definitions.
                     auto apps_template = [&, c3, x3, app_template](auto& data_src, auto& apps_map){
                         auto apps = base::create<ui::list>();
                         //todo loops are not compatible with Declarative UI
-                        for(auto const& [class_id, inst_ptr_list] : apps_map)
+                        for(auto const& [class_id, inst_ptr_list] : *apps_map)
                         {
                             auto id = class_id;
                             if (inst_ptr_list.size())
@@ -2142,11 +2134,42 @@ utility like ctags is used to locate the definitions.
                                                          auto id2 = id; // MSVC dci
                                                          boss.SUBMIT_BYVAL(e2::release, e2::hids::mouse::button::click::left, gear)
                                                          {
-                                                             log("CLICK id=", id2);
                                                              if(auto data_src = data_src_shadow.lock())
                                                              {
-                                                                 //...
-                                                                 gear.dismiss();
+                                                                sptr<registry_t> registry_ptr;
+                                                                data_src->SIGNAL(e2::request, e2::bindings::list::apps, registry_ptr);
+                                                                auto& app_list = (*registry_ptr)[id2];
+                                                                // Rotate list forward.
+                                                                app_list.push_back(app_list.front());
+                                                                app_list.pop_front();
+                                                                // Expose window.
+                                                                auto& inst = *app_list.back(); 
+                                                                inst.SIGNAL(e2::preview, e2::form::layout::expose, inst);
+                                                                auto square = inst.base::square();
+                                                                auto center = square.coor + (square.size / 2);
+                                                                bell::getref(gear.id)->
+                                                                SIGNAL(e2::release, e2::form::layout::shift, center);  // Goto to the window.
+                                                                gear.dismiss();
+                                                             }
+                                                         };
+                                                         boss.SUBMIT_BYVAL(e2::release, e2::hids::mouse::button::click::right, gear)
+                                                         {
+                                                             if(auto data_src = data_src_shadow.lock())
+                                                             {
+                                                                sptr<registry_t> registry_ptr;
+                                                                data_src->SIGNAL(e2::request, e2::bindings::list::apps, registry_ptr);
+                                                                auto& app_list = (*registry_ptr)[id2];
+                                                                // Rotate list forward.
+                                                                app_list.push_front(app_list.back());
+                                                                app_list.pop_back();
+                                                                // Expose window.
+                                                                auto& inst = *app_list.back(); 
+                                                                inst.SIGNAL(e2::preview, e2::form::layout::expose, inst);
+                                                                auto square = inst.base::square();
+                                                                auto center = square.coor + (square.size / 2);
+                                                                bell::getref(gear.id)->
+                                                                SIGNAL(e2::release, e2::form::layout::shift, center);  // Goto to the window.
+                                                                gear.dismiss();
                                                              }
                                                          };
                                                      });
@@ -2179,7 +2202,7 @@ utility like ctags is used to locate the definitions.
                     };
                     auto brunch_template = [=](auto& data_src, auto& usr_list){
                         auto users = base::create<ui::list>()
-                            ->attach_collection<e2::form::prop::header>(usr_list, user_template);
+                            ->attach_collection<e2::form::prop::header>(*usr_list, user_template);
                         return users;
                     };
                     auto window = client->attach<ui::cake>();
@@ -2244,6 +2267,25 @@ utility like ctags is used to locate the definitions.
                                                     auto bttn = bttn_pads->attach<ui::item>("⮟", faux);
                                     auto userlist_area = users_area->attach<slot::_2, ui::pads>();
                                         auto users = userlist_area->attach_element<e2::bindings::list::users>(world, brunch_template);
+                                    //todo unify
+                                    bttn_pads->invoke([&](auto& boss) {
+                                        auto userlist_area_shadow = std::weak_ptr{ userlist_area };
+                                        auto bttn_shadow = std::weak_ptr{ bttn };
+                                        boss.SUBMIT_BYVAL(e2::release, e2::hids::mouse::button::click::left, gear)
+                                        {
+                                            static bool state = faux;
+                                            if(auto bttn = bttn_shadow.lock())
+                                            if(auto userlist = userlist_area_shadow.lock())
+                                            {
+                                                state = !state;
+                                                bttn->set(state ? "⮞" : "⮟");
+                                                auto lims = userlist->base::limits();
+                                                lims.min.y = lims.max.y = state ? 0 : -1;
+                                                userlist->base::limits(lims);
+                                                userlist->base::reflow();
+                                            }
+                                        };
+                                    });
                                 }
                             }
                             auto bttns_area = menu->attach<slot::_2, ui::fork>(axis::X);

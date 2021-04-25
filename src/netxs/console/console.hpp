@@ -68,8 +68,8 @@ namespace netxs::console
         EVENT_BIND(e2::debug::parsed , const page)
 
     EVENT_BIND(e2::bindings::any, sptr<base>)
-        EVENT_BIND(e2::bindings::list::users, std::list<sptr<base>>)
-        EVENT_BIND(e2::bindings::list::apps,  registry_t)
+        EVENT_BIND(e2::bindings::list::users, sptr<std::list<sptr<base>>>)
+        EVENT_BIND(e2::bindings::list::apps,  sptr<registry_t>)
 
     EVENT_BIND(e2::term::any, iota)
         EVENT_BIND(e2::term::unknown , iota)
@@ -1247,10 +1247,17 @@ namespace netxs::console
         status;
 
         //todo unify
-        struct
+        struct limit_t
         {
-            twod min{ 0,0 };
-            twod max{ 1920,1080 };
+            static constexpr twod min_value = dot_00;
+            static constexpr twod max_value = twod{ 1920, 1080 };
+            twod min = min_value;
+            twod max = max_value;
+            void set(limit_t const& new_limits)
+            {
+                min = new_limits.min.less(dot_00, min_value, new_limits.min);
+                max = new_limits.max.less(dot_00, max_value, new_limits.max);
+            }
         }
         limit;
 
@@ -1566,14 +1573,15 @@ namespace netxs::console
         //       Preserve current value if specified arg less than 0
         void limits(twod const& min_size, twod const& max_size = -dot_11)
         {
-            limit.min = min_size.less(dot_00, limit.min, min_size);
-            limit.max = max_size.less(dot_00, limit.max, max_size);
+            //todo revise
+            limit.min = min_size.less(dot_00, limit.min_value, min_size);
+            limit.max = max_size.less(dot_00, limit.max_value, max_size);
         }
         // base: Set resize limits (min, max).
         //       Preserve current value if specified arg less than 0
         void limits(decltype(limit) const& new_limits)
         {
-            limit = new_limits;
+            limit.set(new_limits);
         }
         // base: Return current limits.
         auto& limits() const
@@ -1771,7 +1779,9 @@ namespace netxs::console
                         boss_ptr->update(old_item, new_item);
                     }
                 };
-                return boss.brunch(new_item);
+                //return boss.brunch(new_item);
+                boss.brunch(new_item);
+                return new_item;
             }
             // pro::boost: Create and attach a new item using a template and dynamic datasource.
             template<e2::type PROPERTY, class C, class P>
@@ -2100,19 +2110,15 @@ namespace netxs::console
                     {
                         boss.base::coor += delta;
                     };
-
                     parent->SUBMIT_T(e2::preview, e2::form::upon::vtree::detached, link, p)
                     {
                         frame::link.clear();
                     };
-
-                    //todo verify release
-                    //parent->SUBMIT_T(e2::release, e2::form::layout::expose, parent_memo, p)
-                    //{
-                    //	expose();
-                    //});
                 };
-
+                boss.SUBMIT_T(e2::preview, e2::form::layout::expose, memo, boss)
+                {
+                    expose();
+                };
                 boss.SUBMIT_T(e2::preview, e2::form::layout::appear, memo, newpos)
                 {
                     appear(newpos);
@@ -3023,15 +3029,15 @@ namespace netxs::console
                     netxs::online(window, origin, center, pset);
                 }
                 // node: Output the title to the canvas.
-                void enlist(face& canvas)
-                {
-                    if (header)
-                    {
-                        auto& title = header.get();
-                        canvas.output(title);
-                        canvas.eol();
-                    }
-                }
+                //void enlist(face& canvas)
+                //{
+                //    if (header)
+                //    {
+                //        auto& title = header.get();
+                //        canvas.output(title);
+                //        canvas.eol();
+                //    }
+                //}
                 // node: Visualize the underlying object.
                 void render(face& canvas)
                 {
@@ -3061,7 +3067,7 @@ namespace netxs::console
 
             public:
                 operator bool () { return items.size(); }
-
+                auto size()      { return items.size(); }
                 void append(sptr<base> item)
                 {
                     items.push_back(std::make_shared<node>(item));
@@ -3069,8 +3075,8 @@ namespace netxs::console
                 // Draw backpane for spectators.
                 void prerender(face& canvas)
                 {
-                    for (auto& item : items)          item->fasten(canvas); // Draw strings
-                    for (auto& item : items)          item->render(canvas); // Draw shadows
+                    for (auto& item : items)          item->fasten(canvas); // Draw strings.
+                    for (auto& item : items)          item->render(canvas); // Draw shadows.
                     //todo deprecated: enlisted in taskbar
                     //canvas.cup(dot_00).jet(bias::right);
                     //for (auto& item : items)          item->enlist(canvas); // Draw a list of objects
@@ -3157,15 +3163,6 @@ namespace netxs::console
                     items.pop_back();
                     return items.back();
                 }
-                auto get_list()
-                {
-                    std::list<sptr<base>> item_ptrs;
-                    for(auto& i : items)
-                    {
-                        item_ptrs.push_back(i->object);
-                    }
-                    return item_ptrs;
-                }
             };
 
             using skill<T>::boss,
@@ -3179,11 +3176,14 @@ namespace netxs::console
             list items; // scene: Child visual tree
             list users; // scene: Scene spectators
 
-            registry_t registry;
+            sptr<registry_t> app_registry;
+            sptr<std::list<sptr<base>>> usr_registry;
 
         public:
             scene(T&&) = delete;
-            scene(T& boss) : skill<T>{ boss }
+            scene(T& boss) : skill<T>{ boss },
+                app_registry{ std::make_shared<registry_t>() },
+                usr_registry{ std::make_shared<std::list<sptr<base>>>() }
             {
                 paint = [&](face& canvas, page const& titles) -> bool
                 {
@@ -3192,7 +3192,7 @@ namespace netxs::console
                         canvas.wipe(boss.id);
                         canvas.output(titles);
                         //todo revise
-                        users.prerender (canvas); // Draw backpane for spectators
+                        if (users.size() > 1) users.prerender(canvas); // Draw backpane for spectators
                         items.render    (canvas); // Draw objects of the world
                         users.postrender(canvas); // Draw spectator's mouse pointers
                         return true;
@@ -3208,7 +3208,7 @@ namespace netxs::console
 
                     //todo unify
                     // Remove from active app registry.
-                    for (auto& [class_id, app_list] : registry)
+                    for (auto& [class_id, app_list] : *app_registry)
                     {
                         auto head = app_list.begin();
                         auto tail = app_list.end();
@@ -3217,6 +3217,16 @@ namespace netxs::console
                         {
                             app_list.erase(iter);
                             break;
+                        }
+                    }
+                    { // Remove user.
+                        auto& subset = *usr_registry;
+                        auto head = subset.begin();
+                        auto tail = subset.end();
+                        auto item = std::find_if(head, tail, [&](auto& c){ return c == item_ptr; });
+                        if (item != tail)
+                        {
+                            subset.erase(item);
                         }
                     }
 
@@ -3239,23 +3249,13 @@ namespace netxs::console
                 };
                 boss.SUBMIT_T(e2::request, e2::bindings::list::users, memo, usr_list)
                 {
-                    usr_list = users.get_list();
+                    usr_list = usr_registry;
                 };
                 boss.SUBMIT_T(e2::request, e2::bindings::list::apps, memo, app_list)
                 {
-                    app_list = registry;
-                };
-                // pro::scene: Init registry/menu.
-                boss.SUBMIT_T(e2::preview, e2::bindings::list::apps, memo, app_list)
-                {
-                    std::swap(app_list, registry);
+                    app_list = app_registry;
                 };
 
-                ///// Pass the paint procedure to custom client drawing
-                //boss.SUBMIT_T(e2::request, e2::form::proceed::render, owner::memo, empty_fx)
-                //{
-                //	empty_fx = paint;
-                //});
 
                 // pro::scene: Proceed request for available objects (next)
                 boss.SUBMIT_T(e2::request, e2::form::proceed::attach, memo, next)
@@ -3294,10 +3294,10 @@ namespace netxs::console
             {
                 items.append(item);
                 item->base::visual_root = true;
-                registry[class_id].push_back(item);
+                (*app_registry)[class_id].push_back(item);
                 item->SIGNAL(e2::release, e2::form::upon::vtree::attached, boss.base::This());
 
-                boss.SIGNAL(e2::release, e2::bindings::list::apps, registry);
+                boss.SIGNAL(e2::release, e2::bindings::list::apps, app_registry);
                 return item;
             }
             // pro::scene: Create a new item of the specified subtype
@@ -3316,6 +3316,7 @@ namespace netxs::console
             {
                 auto user = boss.indexer<bell>::create<S>(std::forward<Args>(args)...);
                 users.append(user);
+                usr_registry->push_back(user);
                 user->base::visual_root = true;
                 user->SIGNAL(e2::release, e2::form::upon::vtree::attached, boss.base::This());
 
@@ -3323,7 +3324,7 @@ namespace netxs::console
                 tone color{ tone::brighter, tone::shadow};
                 user->SIGNAL(e2::preview, e2::form::state::color, color);
 
-                boss.SIGNAL(e2::release, e2::bindings::list::users, users.get_list());
+                boss.SIGNAL(e2::release, e2::bindings::list::users, usr_registry);
                 return user;
             }
         };

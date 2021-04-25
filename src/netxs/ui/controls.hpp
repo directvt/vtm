@@ -1908,6 +1908,9 @@ namespace netxs::ui
                     auto client_size = new_size - padding;
                     client->SIGNAL(e2::preview, e2::form::layout::size, client_size);
                     new_size = client_size + padding;
+                    //todo unify
+                    auto lims = base::limits();
+                    new_size = std::clamp(new_size, lims.min, lims.max);
                 }
             };
             SUBMIT(e2::release, e2::form::layout::size, new_size)
