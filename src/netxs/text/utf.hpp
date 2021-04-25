@@ -17,8 +17,8 @@
 #include <sstream>
 
 /**
- * limits the number of code points in a grapheme cluster
- * to a number sufficient for any possible linguistic situation
+ * Limits the number of code points in a grapheme cluster
+ * to a number sufficient for any possible linguistic situation.
  **/
 #define GRAPHEME_CLUSTER_LIMIT (31)
 #define CLUSTER_FIELD_SIZE     (5)
@@ -669,7 +669,7 @@ namespace netxs::utf
 
     static wide to_utf(char const* utf8, size_t size)
     {
-        // � The standard also recommends replacing each error with the replacement character
+        // � The standard also recommends replacing each error with the replacement character.
         //
         // In terms of the newline, Unicode introduced U+2028 LINE SEPARATOR
         // and U+2029 PARAGRAPH SEPARATOR.
@@ -805,7 +805,7 @@ namespace netxs::utf
         }
         return length;
     }
-    // check utf-8 integrity (last codepoint) and cut off the invalid bytes at the end
+    // utf: Check utf-8 integrity (last codepoint) and cut off the invalid bytes at the end.
     template<class TEXT_OR_VIEW>
     void purify(TEXT_OR_VIEW& utf8)
     {
@@ -943,7 +943,7 @@ namespace netxs::utf
             if (what_sz < repl_sz)
             {
                 text temp;
-                temp.reserve((line_sz / what_sz + 1) * repl_sz); // to avoid allocations
+                temp.reserve((line_sz / what_sz + 1) * repl_sz); // In order to avoid allocations.
                 auto shadow = view{ utf8 };
                 while ((spot = utf8.find(frag, last)) != npos)
                 {
@@ -954,7 +954,7 @@ namespace netxs::utf
                 }
                 temp += shadow.substr(last);
 
-                utf8 = temp; // assign to perform simultaneous shrinking and copying
+                utf8 = temp; // Assign to perform simultaneous shrinking and copying.
             }
             else
             {
@@ -1004,7 +1004,7 @@ namespace netxs::utf
         return remain(std::move(utf8), what);
     }
 
-    // Return left substring (from begin) until delimeter (lazy=faux: from left, true: from right)
+    // utf: Return left substring (from begin) until delimeter (lazy=faux: from left, true: from right).
     template<class T>
     T cutoff(T const& txt, T const& delimiter = T{ '.' }, bool lazy = true)
     {
@@ -1079,7 +1079,7 @@ namespace netxs::utf
         }
         return crop;
     }
-    // utf.h: to_hex without allocations (the crop should has a reserved capacity)
+    // utf: to_hex without allocations (the crop should has a reserved capacity).
     template <bool UCASE = faux, class V, class = typename std::enable_if<std::is_integral<V>::value>::type>
     auto to_hex(text& crop, V number, size_t width = sizeof(V) * 2, char filler = '0')
     {
@@ -1301,7 +1301,7 @@ namespace netxs::utf
         text buff;
         auto size = utf8.size();
         buff.reserve(size * 2);
-        auto head  = size - 1; // Begining with ESC is a special case
+        auto head  = size - 1; // Begining with ESC is a special case.
         auto s = [&](prop const& traits, view& utf8)
         {
             switch (traits.cdpoint)

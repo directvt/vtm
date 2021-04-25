@@ -22,21 +22,21 @@ namespace netxs::datetime
 
     using iota = int32_t;
 
-    // quartz.h: Round a chrono time moment in degree (def: milliseconds)
-    //           units since epoch.
+    // quartz: Round a chrono time moment in degree (def: milliseconds)
+    //         units since epoch.
     template<class T, class degree = std::chrono::milliseconds>
     static T round(moment t)
     {
         return clamp<T>(std::chrono::duration_cast<degree>(t.time_since_epoch()).count());
     }
-    // quartz.h: Round a chrono time period in degree (def: milliseconds).
+    // quartz: Round a chrono time period in degree (def: milliseconds).
     template<class T, class degree = std::chrono::milliseconds>
     static T round(period t)
     {
         return clamp<T>(std::chrono::duration_cast<degree>(t).count());
     }
 
-    // quartz.h: Return a total count degree unts (def: milliseconds) since epoch.
+    // quartz: Return a total count degree unts (def: milliseconds) since epoch.
     template<class T, class degree = std::chrono::milliseconds>
     static T now()
     {

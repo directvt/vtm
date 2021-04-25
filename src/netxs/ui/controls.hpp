@@ -13,9 +13,13 @@
 namespace netxs::ui
 {
     using namespace netxs;
+    using namespace netxs::events;
     using namespace netxs::console;
+    using namespace netxs::ui::atoms;
 
+    enum slot : id_t { _1, _2 };
     enum axis : id_t { X, Y };
+    enum role : bool { NOT_PARENT, PARENT };
     enum axes
     {
         NONE   = 0,
@@ -24,83 +28,73 @@ namespace netxs::ui
         ALL    = (ONLY_X | ONLY_Y),
     };
 
-    class mold // controls.h: Flexible window frame
+    // controls: Flexible window frame.
+    class mold
         : public form
     {
     public:
         struct sock
         {
-            id_t      id; // sock: Hids ID
-            mold& master; // sock: Main form reference
-            twod& length = master.square.size;// sock: master.square.size
-            face& canvas = master.canvas;     // sock: master.canvas
-            twod& center = master.center;     // sock: master.center
-            bool& locked = master.locked;     // sock: master.locked
-            rect& middle = master.middle;     // sock: master.middle
-            twod& gripsz = master.gripsz;     // sock: master.gripsz
+            id_t      id; // sock: Hids ID.
+            bool  wholly; // sock: Should the whole border be visible.
+            bool  direct; // sock: Direct or indirect mouse hovering.
+            twod  origin; // sock: Grab's initial coord info.
+            twod  dtcoor; // sock: The form coor parameter change factor while resizing.
+            twod  dtsize; // sock: The form size parameter change factor while resizing.
+            twod  sector; // sock: Active quadrant, x,y = {-1|+1}.
+            twod  corner; // sock: Coordinates of the active corner.
+            twod  levels; // sock: The lengths of the grips (a corner based, signed).
+            twod  widths; // sock: Border widths.
 
-            twod  origin; // sock: Grab's initial coord info
-            bool  wholly; // sock: Should the whole border be visible
-            twod  dtcoor; // sock: The form coor parameter change factor while resizing
-            twod  dtsize; // sock: The form size parameter change factor while resizing
-            twod  sector; // sock: Active quadrant, x,y = {-1|+1}
-            twod  corner; // sock: Coordinates of the active corner
-            twod  levels; // sock: The lengths of the grips (a corner based, signed)
-            bool  direct; // sock: Indirect mouse hover
-            twod  widths; // sock: Border widths
-
-            operator bool()
-            {
-                return !wholly;
-            }
-            bool operator ()(id_t hids_id)
-            {
-                return id == hids_id;
-            }
-            // sock: Assign the borders/resize-grips length
+            sock(id_t ctrl, bool self)
+                :     id{ ctrl },
+                  wholly{ faux },
+                  direct{ self }
+            { }
+            // sock: Assign the borders/resize-grips length.
             template<class P>
-            void draw(core& canvas, P fuse)
+            void draw(mold const& master, core& canvas, P fuse)
             {
                 //auto c = corner.less(dot_11, dot_00, length);
                 //todo revise
                 //auto c = master.base::coor.get() + corner.less(dot_11, dot_00, length);
+                //auto area = master.base::square();
+                //auto c = area.coor
                 auto c = master.base::coor.get()
-                       - canvas.coor() + corner.less(dot_11, dot_00, length);
-
-                auto side_x = rect{ c, { levels.x, widths.y } }.normalize();
+                       - canvas.coor() + corner.less(dot_11, dot_00, master.square.size);
+                //todo bug: levels can be larger than form itself
+                // repro: comment .clip(area), create a recursive connection,
+                //        place the mouse cursor in the bottom right corner
+                //        quickly resize by dragging the top-left corner to the max and back.
+                auto area = canvas.view();
+                auto side_x = rect{ c, { levels.x, widths.y } }.normalize().clip(area);
                 c.y += levels.y > 0 ? 1 : -1;
-                auto side_y = rect{ c, { widths.x, levels.y } }.normalize();
-
+                auto side_y = rect{ c, { widths.x, levels.y } }.normalize().clip(area);
                 canvas.fill(side_x, fuse);
                 canvas.fill(side_y, fuse);
             }
-            // sock: Take the current coordinates of the mouse relative to the corresponding corner
-            void grab(twod const& coord)
+            // sock: Take the current coordinates of the mouse relative to the corresponding corner.
+            void grab(mold const& master, twod const& curpos)
             {
-                origin = coord - (wholly ? center : corner);
+                origin = curpos - (wholly ? master.center : corner);
             }
-            // sock: Mark borders if mold hilighted
-            void join(hids const& gear)
+            bool calc(mold const& master, hids const& gear)
             {
-                direct = gear.start == master.bell::id;
-            }
-            // sock: Recalc (on every mouse::move or ::hover) the borders/resize-grips length and other metrics
-            bool calc(hids const& gear)
-            {
+                auto& length = master.square.size;
+                auto& center = master.center;
                 auto& curpos = gear.coord;
                 if (!gear.captured(master.bell::id))
                 {
-                    wholly = locked
+                    wholly = master.locked
                          || !direct
-                         ||  middle.hittest(curpos)
-                         || !length.inside (curpos);
+                         ||  master.middle.hittest(curpos)
+                         || !length.inside(curpos);
 
                     dtcoor = curpos.less(center + (length & 1), dot_11, dot_00);
                     dtsize = dtcoor.less(dot_11, dot_11,-dot_11);
                     sector = dtcoor.less(dot_11,-dot_11, dot_11);
-                    widths = sector * gripsz;
+                    widths = sector * (master.blurred ? dot_11 : master.gripsz);
                 }
-
                 corner = dtcoor.less(dot_11, length - dot_11, dot_00);
                 auto l = sector * (curpos - corner) + dot_11;
                 auto a = (length - center) * l / center;
@@ -111,12 +105,12 @@ namespace netxs::ui
                 return levels(sector * s);
             }
             // sock: .
-            void drag(twod const& coord)
+            void drag(mold& master, twod const& coord)
             {
                 auto delta = coord - origin;
                 if (wholly)
                 {
-                    delta -= center;
+                    delta -= master.center;
                     master.base::moveby(delta);
                 }
                 else
@@ -128,44 +122,36 @@ namespace netxs::ui
                     }
                 }
             }
-            sock(id_t ctrl, mold& boss)
-                :     id{ ctrl },
-                  master{ boss },
-                  wholly{ faux },
-                  direct{ faux }
-            { }
         };
 
     private:
-        using self = mold;
-        FEATURE(pro::keybd, keybrd); // mold: Keyboard controller
-        FEATURE(pro::mouse, xmouse); // mold: World image
-        FEATURE(pro::robot, cyborg); // mold: Animation controller
-        FEATURE(pro::frame, window); // mold: Window controller
-        FEATURE(pro::align, adjust); // mold: Size linking controller
-        FEATURE(pro::title, legend); // mold: Window caption and footer
-        FEATURE(pro::share, shared); // mold: The shared border states
-        //pro::focus<mold> xfocus{*this };	// mold: Focus controller
+        pro::mouse<mold> xmouse{*this, faux }; // mold: World image.
+        pro::keybd<mold> keybrd{*this }; // mold: Keyboard controller.
+        pro::robot<mold> cyborg{*this }; // mold: Animation controller.
+        pro::frame<mold> window{*this }; // mold: Window controller.
+        pro::align<mold> adjust{*this }; // mold: Size linking controller.
+        pro::title<mold> legend{*this }; // mold: Window caption and footer.
+        pro::multi<mold> shared{*this }; // mold: The shared border states.
 
-        using sptr = netxs::sptr<base>;
-
-        rect region; // mold: Client area
-        bool active; // mold: Keyboard focus
-        bool secure; // mold: Can the object be deleted
-        twod gripsz; // mold: Border width
-        rect middle; // mold: The middle region of the child form
-        twod center; // mold: Coordinates of the child form center
-        rect square; // mold: Window size
-        //rect lastsz; // mold: Last window position before fullscreen
+        rect region; // mold: Client area.
+        bool active; // mold: Keyboard focus.
+        bool secure; // mold: Can the object be deleted.
+        twod gripsz; // mold: Border width.
+        rect middle; // mold: The middle region of the child form.
+        twod center; // mold: Coordinates of the child form center.
+        rect square; // mold: Window size.
+        //rect lastsz; // mold: Last window position before fullscreen.
 
     public:
-        //todo make it private (used in vtmd::creator)
-        sptr client; // mold: Client object
+        sptr<base> client; // mold: Client object.
 
-
-        bool locked; // mold: Whether the control resizable
-        iota acryl = 0; // mold: Blur radius
+        bool locked; // mold: Whether the control resizable.
+        bool blurred = faux; // mold: Use acryllic background.
+        iota acryl = 0; // mold: Blur radius.
         bool nosize = faux;
+        rgba title_fg_color = 0xFFffffff;
+        bool highlight_center = true;
+        bool highlighted = faux;
 
         ~mold()
         {
@@ -181,33 +167,14 @@ namespace netxs::ui
         {
             //todo unify
             base::limits(gripsz * 2 + dot_11, { 400,200 });
-            xmouse.highlightable = true;
             base::brush.txt(whitespace);
-            //base::linked = true;
-
+            xmouse.draggable<sysmouse::left>();
             using bttn = e2::hids::mouse::button;
 
             {//todo only for the title test
                 static auto item_number = 0_sz;
                 item_number++;
                 legend.header(ansi::mgl(1).mgr(1) + "Instance: " + std::to_string(item_number));
-                //SUBMIT(e2::release, e2::form::layout::size, size)
-                //{
-                //	//if (!nosize)
-                //	//	legend.footer("size " + std::to_string(size.x) + ":"
-                //	//		+ std::to_string(size.y));
-                //	if (!nosize && client)
-                //	{
-                //		auto& size = client->base::size.get();
-                //		legend.footer("client size " + std::to_string(size.x) + ":"
-                //			+ std::to_string(size.y));
-                //	}
-                //	else
-                //	{
-                //		legend.footer("window size " + std::to_string(size.x) + ":"
-                //			+ std::to_string(size.y));
-                //	}
-                //};
             }
 
             SUBMIT(e2::release, e2::form::state::keybd, status)
@@ -215,14 +182,10 @@ namespace netxs::ui
                 active = status;
                 base::deface();
             };
-
-            SUBMIT(e2::release, e2::form::notify::mouse::enter, gear)
+            //todo unify
+            SUBMIT(e2::release, e2::form::highlight::any, state)
             {
-                shared[gear.id].join(gear);
-            };
-            SUBMIT(e2::release, e2::form::notify::mouse::leave, gear)
-            {
-                shared.remove(gear.id);
+                highlighted = state;
             };
             SUBMIT(e2::release, e2::form::state::mouse, mouse_active)
             {
@@ -256,7 +219,8 @@ namespace netxs::ui
 
             SUBMIT(e2::release, e2::hids::mouse::move, gear)
             {
-                shared[gear.id].calc(gear);
+                auto& handle = shared[gear];
+                handle.calc(*this, gear);
                 base::deface();
             };
 
@@ -284,73 +248,44 @@ namespace netxs::ui
                 middle.size = size - (middle.coor * 2);
                 if (client)
                     client->SIGNAL(e2::release, e2::form::layout::size, region.size);
+            };
 
-                if (!nosize && client)
+            SUBMIT(e2::release, e2::form::drag::start::left, gear)
+            {
+                auto& handle = shared[gear];
+                handle.grab(*this, gear.coord);
+                cyborg.pacify();
+            };
+            SUBMIT(e2::release, e2::form::drag::pull::left, gear)
+            {
+                auto& handle = shared[gear];
+                handle.drag(*this, gear.coord);
+                window.bubble();
+            };
+            SUBMIT(e2::release, e2::form::drag::cancel::left, gear)
+            {
+                //shared[gear.id].drop();
+                base::deface();
+            };
+            SUBMIT(e2::release, e2::form::drag::stop::left, gear)
+            {
+                auto& handle = shared[gear];
+                if (handle.wholly)
                 {
-                    auto& size = client->base::size.get();
-                    legend.footer(ansi::mgl(1).mgr(1) + "client " + std::to_string(size.x) + ":"
-                        + std::to_string(size.y));
+                    cyborg.actify(gear.fader<quadratic<twod>>(2s), [&](auto x)
+                        {
+                            base::moveby(x);
+                        });
                 }
                 else
                 {
-                    legend.footer(ansi::mgl(1).mgr(1) + "window " + std::to_string(size.x) + ":"
-                        + std::to_string(size.y));
+                    auto boundary = gear.area();
+                    cyborg.actify(gear.fader<quadratic<twod>>(2s), [&, boundary](auto x)
+                        {
+                            window.convey(x, boundary);
+                        });
                 }
-            };
-
-            SUBMIT(e2::release, bttn::drag::start::left, gear)
-            {
-                if (gear.capture(bell::id))
-                {
-                    shared[gear.id].grab(gear.coord);
-                    cyborg.pacify();
-                    gear.dismiss();
-                }
-            };
-            SUBMIT(e2::release, bttn::drag::pull::left, gear)
-            {
-                if (gear.captured(bell::id))
-                {
-                    shared[gear.id].drag(gear.coord);
-                    window.bubble();
-                    gear.dismiss();
-                }
-            };
-            SUBMIT(e2::release, bttn::drag::cancel::left, gear)
-            {
-                if (gear.captured(bell::id))
-                {
-                    //shared[gear.id].drop();
-                    base::deface();
-                    gear.release();
-                    gear.dismiss();
-                }
-            };
-            SUBMIT(e2::release, bttn::drag::stop::left, gear)
-            {
-                if (gear.captured(bell::id))
-                {
-                    auto& border = shared[gear.id];
-                    if (border.wholly)
-                    {
-                        cyborg.actify(gear.fader<quadratic<twod>>(2s), [&](auto x)
-                            {
-                                base::moveby(x);
-                            });
-                    }
-                    else
-                    {
-                        auto boundary = gear.area();
-                        cyborg.actify(gear.fader<quadratic<twod>>(2s), [&, boundary](auto x)
-                            {
-                                window.convey(x, boundary);
-                            });
-                    }
-
-                    base::deface();
-                    gear.release();
-                    gear.dismiss();
-                }
+                base::deface();
             };
 
             SUBMIT(e2::release, bttn::dblclick::left, gear)
@@ -378,48 +313,64 @@ namespace netxs::ui
                     gear.dismiss();
                 }
             };
-
-            //todo revise/what is this? history?
+            SUBMIT(e2::release, e2::form::proceed::detach, shadow)
+            {
+                base::detach(); // The object kills itself.
+            };
             SUBMIT(e2::preview, e2::form::proceed::detach, shadow)
             {
                 if (client == shadow)
                 {
                     client.reset();
-                    shadow->SIGNAL(e2::release, e2::form::upon::detached, This()); // Send parent
+                    shadow->SIGNAL(e2::release, e2::form::upon::vtree::detached, This());
                 }
             };
         }
-        // mold: Draw client window
+        // mold: Draw client window.
         virtual void renderproc (face& parent_canvas)
         {
-            auto const& normal = base::brush;
+            auto normal = base::brush;
             auto fuse_normal = [&](cell& c) { c.fuse(normal); };
             //todo unify - make pro::theme
             acryl = 5;// 100;
 
-            auto& states = shared.states();
-            //todo temporarily use locked for old menu
-            //if (states.empty()) //if (loosen)
-            if (locked || (states.empty() && !active)) //if (loosen)
+            // Draw highlighting
+            if (highlighted)
             {
-                if (base::brush.bga() == 0xFF) parent_canvas.fill(fuse_normal);
-                else if (base::brush.wdt())    parent_canvas.blur(acryl, fuse_normal);
-                else                           parent_canvas.blur(acryl);
+                // Draw the border around
+                auto area = parent_canvas.full();
+                auto mark = skin::color(tone::brighter);
+                mark.fgc(title_fg_color); //todo unify, make it more contrast
+                auto fill = [&](cell& c) { c.fuse(mark); };
+                parent_canvas.fill(area, fill);
+            }
+
+            auto& guests = shared.items();
+            //todo temporarily use locked for old menu
+            if (locked || (guests.empty() && !active)) //if (loosen)
+            {
+                if (!blurred || base::brush.bga() == 0xFF) parent_canvas.fill(fuse_normal);
+                else if (base::brush.wdt())                parent_canvas.blur(acryl, fuse_normal);
+                else                                       parent_canvas.blur(acryl);
             }
             else
             {
                 auto bright = skin::color(tone::brighter);
                 auto shadow = skin::color(tone::shadower);
-                shadow.alpha(bright.bga());
+
+                //todo unify, make it more contrast
+                shadow.alpha(0x80);
+                bright.fgc(title_fg_color);
+                shadow.fgc(title_fg_color);
 
                 bool isnorm =
-                    !active && states.end() == std::find_if(states.begin(), states.end(),
+                    !active && guests.end() == std::find_if(guests.begin(), guests.end(),
                                                 [](auto& a) { return a.wholly; });
                 auto guides = [&](auto bright)
                 {
-                    for (auto& grip : states)
-                        if (grip)
-                            grip.draw(parent_canvas, bright);
+                    for (auto& grip : guests)
+                        if (!grip.wholly)
+                            grip.draw(*this, parent_canvas, bright);
                 };
                 auto fillup = [&](auto bright, auto shadow)
                 {
@@ -432,7 +383,7 @@ namespace netxs::ui
                 auto only_bright = [&](cell& c) { c.fuse(bright); };
                 auto only_shadow = [&](cell& c) { c.fuse(shadow); };
 
-                if (!isnorm) bright.alpha(bright.bga() >> 1); // too bright when selected
+                if (blurred && !isnorm) bright.alpha(highlight_center ? bright.bga() >> 1 : 0); // too bright when selected
                 if (normal.bgc().alpha())
                 {
                     if (isnorm) fillup(fuse_bright, fuse_normal);
@@ -450,12 +401,13 @@ namespace netxs::ui
                     // Draw the border around
                     auto area = parent_canvas.full();
                     auto mark = skin::color(tone::kb_focus);
+                    mark.fgc(title_fg_color); //todo unify, make it more contrast
                     auto fill = [&](cell& c) { c.fuse(mark); };
-                    parent_canvas.cage(area, gripsz, fill);
+                    parent_canvas.cage(area, blurred ? dot_11 : gripsz, fill);
                 }
 
-                //todo make it selectable
                 //if (base::brush.bga() != 0xFF)
+                if (blurred)
                 {
                     parent_canvas.blur(acryl);
                 }
@@ -471,65 +423,72 @@ namespace netxs::ui
             parent_canvas.plot(canvas);
         }
 
-        // mold: Get client region
+        // mold: Set border width.
+        void set_border(twod const& border_width)
+        {
+            gripsz = border_width;
+        }
+        // mold: Set border width.
+        auto& get_border() const
+        {
+            return gripsz;
+        }
+        // mold: Get client region.
         auto get_region()
         {
             return region;
         }
-        // mold: Set the window undeleteble
+        // mold: Set the window undeleteble.
         void strong(bool immortal)
         {
             secure = immortal;
         }
-        // mold: Set window title
-        void header(view title)
+        // mold: Set window title.
+        void header(view title, bool visible = true)
         {
             legend.header(title);
+            legend.live = visible;
         }
         //todo unify, default = true
         void liquid(bool resizeble)
         {
             locked = !resizeble;
         }
-        // mold: Create a new item of the specified subtype and attach it
-        template<class T, class ...Args>
-        auto attach(Args&&... args)
+        // mold: Attach specified item.
+        template<class T>
+        auto attach(sptr<T> item)
         {
-            static_assert(std::is_base_of<base, T>::value,
-                "The only a derivative of the «base» class can be attached to the «mold».");
-
-            auto item = base::create<T>(std::forward<Args>(args)...);
             client = item;
-            item->SIGNAL(e2::release, e2::form::upon::attached, This()); // Send creator
-
             region.coor = gripsz;
             item->SIGNAL(e2::release, e2::form::layout::move, region.coor);
-            base::reflow(); // Ask client about the new size (the client can override the size)
+            item->SIGNAL(e2::release, e2::form::upon::vtree::attached, This());
 
             SIGNAL(e2::general, e2::form::canvas, canvas.shared_from_this());
             return item;
         }
+        // mold: Create a new item of the specified subtype and attach it.
+        template<class T, class ...Args>
+        auto attach(Args&&... args)
+        {
+            return attach(base::create<T>(std::forward<Args>(args)...));
+        }
     };
 
-    class fork // controls.h: Splitter control
-        : public base
+    // controls: Splitter control.
+    class fork
+        : public base, public pro::boost<fork, role::PARENT>
     {
-        using sptr = netxs::sptr<base>;
     public:
-        using self = fork;
-        FEATURE(pro::align, align); // fork: Size linking controller
-        FEATURE(pro::mouse, mouse); // fork: Mouse controller
+        pro::mouse<fork> mouse{*this }; // fork: Mouse controller.
 
-        enum slot { _1, _2 };
-        enum orientation { horizontal, vertical };
     private:
         enum action { seize, drag, release };
 
         static constexpr iota MAX_RATIO = 0xFFFF;
         static constexpr iota HALF_RATIO = 0xFFFF >> 1;
 
-        sptr client_1; // fork: Client 1 object
-        sptr client_2; // fork: Client 2 object
+        sptr<base> client_1; // fork: 1st object.
+        sptr<base> client_2; // fork: 2nd object.
 
         twod size1;
         twod size2;
@@ -549,43 +508,65 @@ namespace netxs::ui
         iota get_x(twod const& pt) { return updown ? pt.y : pt.x; }
         iota get_y(twod const& pt) { return updown ? pt.x : pt.y; }
 
+        void _config(axis alignment, iota thickness, iota scale)
+        {
+            switch (alignment)
+            {
+                case axis::X:
+                    updown = faux;
+                    break;
+                case axis::Y:
+                    updown = true;
+                    break;
+                default:
+                    updown = faux;
+                    break;
+            }
+            width = std::max(thickness, 0);
+            ratio = MAX_RATIO * std::clamp(scale, 0, 100) / 100;
+            base::reflow();
+        }
+
     public:
+        auto config(axis alignment, iota thickness, iota scale)
+        {
+            _config(alignment, thickness, scale);
+            return This<fork>();
+        }
+
         ~fork()
         {
             if (client_1) client_1->base::detach();
             if (client_2) client_2->base::detach();
         }
-        fork()
-            : maxpos{ 0 },
+        fork(axis alignment = axis::X, iota thickness = 0, iota scale = 50)
+        : boost{*this },
+            maxpos{ 0 },
             start{ 0 },
             width{ 0 },
             movable{ true },
             updown{ faux },
             ratio{ 0xFFFF >> 1 }
         {
-
-            //mouse.highlightable = true;
-
             SUBMIT(e2::preview, e2::form::layout::size, new_size)
             {
-                fork::resize(new_size);
+                fork::size_preview(new_size);
             };
             SUBMIT(e2::release, e2::form::layout::size, new_size)
             {
                 size = new_size;
-
                 if (client_1)
                 {
                     client_1->SIGNAL(e2::release, e2::form::layout::size, size1);
                 }
                 if (client_2)
                 {
-                    //todo use e2::form::layout::rect to minimize invocation overhead
                     client_2->SIGNAL(e2::release, e2::form::layout::move, coor2);
                     client_2->SIGNAL(e2::release, e2::form::layout::size, size2);
                 }
             };
-
+            
+            _config(alignment, thickness, scale);
             //  case WM_SIZE:
             //  	entity->resize({ GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) });
             //  	return 0;
@@ -626,7 +607,7 @@ namespace netxs::ui
             //  	}
             //  	return 0;
         }
-        // base (virtual, auto): Draw the form composition on the specified canvas
+        // base (virtual, auto): Draw the form composition on the specified canvas.
         virtual void renderproc (face& parent_canvas)
         {
             base::renderproc(parent_canvas);
@@ -650,26 +631,6 @@ namespace netxs::ui
             //fork::resize(size);
             //takecursor();
         }
-        //todo use axis:X/Y
-        void config(orientation alignment, iota thickness, iota scale)
-        {
-            switch (alignment)
-            {
-                case orientation::horizontal:
-                    updown = faux;
-                    break;
-                case orientation::vertical:
-                    updown = true;
-                    break;
-                default:
-                    updown = faux;
-                    break;
-            }
-            width = std::max(thickness, 0);
-            ratio = MAX_RATIO * std::clamp(scale, 0, 100) / 100;
-            base::reflow();
-        }
-
         void toggle()
         {
             if (movable)
@@ -689,8 +650,8 @@ namespace netxs::ui
                 base::reflow();
             }
         }
-
-        void resize(twod& new_size)
+        // fork: .
+        void size_preview(twod& new_size)
         {
             //todo revise/unify
             auto new_size0 = xpose(new_size);
@@ -716,7 +677,7 @@ namespace netxs::ui
                     item.SIGNAL(e2::preview, e2::form::layout::size, size2);
                     split = new_size0.x - width - get_x(size2);
 
-                    if (test_size2 != size2) /// If the size2 is not suitable
+                    if (test_size2 != size2) // If the size2 is not suitable
                     {
                         new_size0.y = get_y(size2);
                         size1 = xpose({ split, new_size0.y });
@@ -796,57 +757,65 @@ namespace netxs::ui
                 base::deface();
             }
         }
-        // fork: Create a new item of the specified subtype and attach it to a specified slot
-        template<class T, class ...Args>
-        auto attach(slot client_slot, Args&&... args)
+        template<slot SLOT, class T>
+        auto attach(sptr<T> item)
         {
-            static_assert(std::is_base_of<base, T>::value,
-                "The only a derivative of the «base» class can be attached to the «mold».");
-
-            auto item = create<T>(std::forward<Args>(args)...);
-            if (client_slot == slot::_1) client_1 = item;
-            else                         client_2 = item;
-
-            item->SIGNAL(e2::release, e2::form::upon::attached, This()); // Send creator
-            base::reflow(); // Ask the client about the new size (the client can override the size)
+            if (SLOT == slot::_1) client_1 = item;
+            else                  client_2 = item;
+            item->SIGNAL(e2::release, e2::form::upon::vtree::attached, This());
             return item;
+        }
+        template<slot SLOT, class T, class ...Args>
+        // fork: Create a new item of the specified subtype and attach it to a specified slot.
+        auto attach(Args&&... args)
+        {
+            return attach<SLOT>(create<T>(std::forward<Args>(args)...));
+        }
+        // fork: Remove nested object by it's ptr.
+        template<class T>
+        void remove(T item_ptr)
+        {
+            if (client_1 == item_ptr ? (client_1.reset(), true) :
+                client_2 == item_ptr ? (client_2.reset(), true) : faux)
+            {
+                item_ptr->SIGNAL(e2::release, e2::form::upon::vtree::detached, This());
+            }
         }
     };
 
-    class list // controls.h: Vertical/horizontal list control
-        : public base
+    // controls: Vertical/horizontal list control.
+    class list
+        : public base, public pro::boost<list, role::PARENT>
     {
-        using self = list;
-        FEATURE(pro::mouse, mouse); // list: Mouse controller
-        FEATURE(pro::align, align); // list: Size linking controller
+        pro::mouse<list> mouse{*this }; // list: Mouse controller.
 
-        using sptr = netxs::sptr<base>;
-        using roll = std::list<std::pair<sptr, iota>>;
-
-        roll clients;
-        bool up_down = true;
+        using roll = std::list<std::pair<sptr<base>, iota>>;
+        roll subset;
+        bool updown; // list: List orientation, true: vertical(default), faux: horizontal.
 
     public:
         ~list()
         {
-            while (clients.size())
+            while (subset.size())
             {
-                clients.back().first->base::detach();
-                clients.pop_back();
+                subset.back().first->base::detach();
+                subset.pop_back();
             }
         }
-        list()
+        list(axis orientation = axis::Y) : boost{*this },
+            updown{ orientation == axis::Y }
         {
             SUBMIT(e2::preview, e2::form::layout::size, new_sz)
             {
                 iota  height;
-                auto& y_size = up_down ? new_sz.y : new_sz.x;
-                auto& x_size = up_down ? new_sz.x : new_sz.y;
+                auto& y_size = updown ? new_sz.y : new_sz.x;
+                auto& x_size = updown ? new_sz.x : new_sz.y;
                 auto  x_temp = x_size;
+                auto  y_temp = y_size;
 
                 auto meter = [&]() {
                     height = 0;
-                    for (auto& client : clients)
+                    for (auto& client : subset)
                     {
                         y_size = 0;
                         client.first->SIGNAL(e2::preview, e2::form::layout::size, new_sz);
@@ -855,20 +824,19 @@ namespace netxs::ui
                     }
                 };
                 meter(); if (x_temp != x_size) meter();
-
                 y_size = height;
             };
             SUBMIT(e2::release, e2::form::layout::size, new_sz)
             {
                 //todo optimize avoid SIGNAL if size/coor is unchanged
-                auto& y_size = up_down ? new_sz.y : new_sz.x;
-                auto& x_size = up_down ? new_sz.x : new_sz.y;
+                auto& y_size = updown ? new_sz.y : new_sz.x;
+                auto& x_size = updown ? new_sz.x : new_sz.y;
                 twod  new_xy;
-                auto& y_coor = up_down ? new_xy.y : new_xy.x;
-                auto& x_coor = up_down ? new_xy.x : new_xy.y;
+                auto& y_coor = updown ? new_xy.y : new_xy.x;
+                auto& x_coor = updown ? new_xy.x : new_xy.y;
 
                 auto  found = faux;
-                for (auto& client : clients)
+                for (auto& client : subset)
                 {
                     y_size = client.second;
                     if (client.first)
@@ -876,8 +844,8 @@ namespace netxs::ui
                         auto& entry = *client.first;
                         if (!found)
                         {
-                            //todo optimize: use the only one axis to hittest
-                            //todo detect client during preview, use wptr
+                            // todo optimize: use the only one axis to hittest
+                            // todo detect client during preview, use wptr
                             auto anker = entry.base::square();
                             if (anker.hittest(base::anchor))
                             {
@@ -893,109 +861,135 @@ namespace netxs::ui
                 }
             };
         }
-        // list (virtual, auto): Draw the form composition on the specified canvas
+        // list (virtual, auto): Draw the form composition on the specified canvas.
         virtual void renderproc (face& parent_canvas)
         {
             base::renderproc(parent_canvas);
-
             auto basis = base::coor.get();
-            for (auto& client : clients)
+            for (auto& client : subset)
             {
                 parent_canvas.render(client.first, basis);
             }
         }
-        // list: Create a new item of the specified subtype and attach it
+        // list: Attach specified item.
+        template<class T>
+        auto attach(sptr<T> item)
+        {
+            subset.push_back({ item, 0 });
+            item->SIGNAL(e2::release, e2::form::upon::vtree::attached, This());
+            return item;
+        }
+        // list: Create a new item of the specified subtype and attach it.
         template<class T, class ...Args>
         auto attach(Args&&... args)
         {
-            static_assert(std::is_base_of<base, T>::value,
-                "The only a derivative of the «base» class can be attached to the «mold».");
-
-            auto item = create<T>(std::forward<Args>(args)...);
-            clients.push_back({ item, 0 });
-            //heights.push_back(0);
-
-            item->SIGNAL(e2::release, e2::form::upon::attached, This()); // Send creator
-            base::reflow(); // Ask the client about the new size (the client can override the size)
-            return item;
+            return attach(create<T>(std::forward<Args>(args)...));
+        }
+        // list: Remove nested object.
+        template<class T>
+        void remove(T item_ptr)
+        {
+            auto head = subset.begin();
+            auto tail = subset.end();
+            auto item = std::find_if(head, tail, [&](auto& c){ return c.first == item_ptr; });
+            if (item != tail)
+            {
+                subset.erase(item);
+                item_ptr->SIGNAL(e2::release, e2::form::upon::vtree::detached, This());
+            }
+        }
+        // list: Update nested object.
+        template<class T, class S>
+        void update(T old_item_ptr, S new_item_ptr)
+        {
+            auto head = subset.begin();
+            auto tail = subset.end();
+            auto item = std::find_if(head, tail, [&](auto& c){ return c.first == old_item_ptr; });
+            if (item != tail)
+            {
+                auto pos = subset.erase(item);
+                old_item_ptr->SIGNAL(e2::release, e2::form::upon::vtree::detached, This());
+                subset.insert(pos, std::pair{ new_item_ptr, 0 });
+                new_item_ptr->SIGNAL(e2::release, e2::form::upon::vtree::attached, This());
+            }
         }
     };
 
-    class cake // controls.h: (puff) Layered cake of forms on top of each other
-        : public base
+    // controls: (puff) Layered cake of forms on top of each other.
+    class cake
+        : public base, public pro::boost<cake, role::PARENT>
     {
-        using self = cake;
-        FEATURE(pro::mouse, mouse); // cake: Mouse controller
-        FEATURE(pro::align, align); // cake: Size linking controller
+        pro::mouse<cake> mouse{*this }; // cake: Mouse controller.
 
-        using sptr = netxs::sptr<base>;
-        std::list<sptr> clients;
+        std::list<sptr<base>> subset;
 
     public:
         ~cake()
         {
-            while (clients.size())
+            while (subset.size())
             {
-                clients.back()->base::detach();
-                clients.pop_back();
+                subset.back()->base::detach();
+                subset.pop_back();
             }
         }
-        cake()
+        cake() : boost{*this }
         {
             SUBMIT(e2::preview, e2::form::layout::size, newsz)
             {
-                for (auto& client : clients)
+                for (auto& client : subset)
                 {
                     if (client)
-                    {
-                        auto& object = *client;
-                        //object.base::anchor = base::anchor;
-                        object.SIGNAL(e2::preview, e2::form::layout::size, newsz);
-                        //base::anchor = object.base::anchor;
-                    }
+                        client->SIGNAL(e2::preview, e2::form::layout::size, newsz);
                 }
             };
             SUBMIT(e2::release, e2::form::layout::size, newsz)
             {
-                for (auto& client : clients)
+                for (auto& client : subset)
                 {
                     if (client)
-                    {
-                        auto& object = *client;
-                        object.SIGNAL(e2::release, e2::form::layout::size, newsz);
-                    }
+                        client->SIGNAL(e2::release, e2::form::layout::size, newsz);
                 }
             };
         }
-        // cake (virtual, auto): Draw the form composition on the specified canvas
+        // cake (virtual, auto): Draw the form composition on the specified canvas.
         virtual void renderproc (face& parent_canvas)
         {
             base::renderproc(parent_canvas);
-
             auto basis = base::coor.get();
-            for (auto& client : clients)
+            for (auto& client : subset)
             {
                 parent_canvas.render(client, basis);
             }
         }
 
-        // cake: Create a new item of the specified subtype and attach it
+        // cake: Create a new item of the specified subtype and attach it.
+        template<class T>
+        auto attach(sptr<T> item)
+        {
+            subset.push_back(item);
+            item->SIGNAL(e2::release, e2::form::upon::vtree::attached, This());
+            return item;
+        }
+        // cake: Create a new item of the specified subtype and attach it.
         template<class T, class ...Args>
         auto attach(Args&&... args)
         {
-            static_assert(std::is_base_of<base, T>::value,
-                "The only a derivative of the «base» class can be attached to the «mold».");
-
-            auto item = create<T>(std::forward<Args>(args)...);
-            clients.push_back(item);
-
-            item->SIGNAL(e2::release, e2::form::upon::attached, This()); // Send creator
-            base::reflow(); // Ask the client about the new size (the client can override the size)
-            return item;
+            return attach(create<T>(std::forward<Args>(args)...));
+        }
+        // cake: Remove nested object.
+        template<class T>
+        void remove(T item_ptr)
+        {
+            auto head = subset.begin();
+            auto tail = subset.end();
+            auto item = std::find_if(head, tail, [&](auto& c){ return c == item_ptr; });
+            if (item != tail)
+            {
+                subset.erase(item);
+                item_ptr->SIGNAL(e2::release, e2::form::upon::vtree::detached, This());
+            }
         }
     };
-
-
 
     struct page_layout
     {
@@ -1050,20 +1044,30 @@ namespace netxs::ui
         void clear() { layout.clear(); }
     };
 
-    class post // controls.h: Rigid text page
-        : public base,
-          public flow
+    // controls: Rigid text page.
+    class post
+        : public base, public flow, public pro::boost<post, role::NOT_PARENT>
     {
-        using self = post;
-        FEATURE(pro::mouse, mouse); // post: Mouse controller
-
-        twod width; // post: Page dimensions
+        twod width; // post: Page dimensions.
         page_layout layout;
+        bool beyond; // post: Allow vertical scrolling beyond last line.
 
     public:
-        page topic; // post: Text content
+        page topic; // post: Text content.
 
-        // post: Print page
+        template<class T>
+        auto& lyric(T paraid) { return *topic[paraid].lyric; }
+        template<class T>
+        auto& content(T paraid) { return topic[paraid]; }
+
+        // post: Set content.
+        template<class TEXT>
+        auto upload(TEXT utf8)
+        {
+            topic = utf8;
+            base::reflow();
+            return This<post>();
+        }
         void output(face& canvas)
         {
             flow::reset(canvas);
@@ -1096,7 +1100,7 @@ namespace netxs::ui
             };
             topic.stream(publish);
 
-            // Apply only vertical anchoring for this type of control
+            // Apply only vertical anchoring for this type of control.
             base::anchor.y -= entry.coor.y; // Move the central point accordingly to the anchored object
 
             auto& cover = flow::minmax();
@@ -1104,16 +1108,16 @@ namespace netxs::ui
                                 std::max(0, cover.r - width.x + 1),
                                -std::min(0, cover.t),
                                 0);
-            width.y = cover.height() + 1;
+            width.y = cover.height() + (beyond ? width.y : 1); //todo unify (text editor)
         }
         void recalc(twod const& size)
         {
-            width.x = size.x;
+            width = size;
             recalc();
         }
 
-        post()
-            : flow{ width }
+        post(bool scroll_beyond = faux) : flow{ width }, boost{*this },
+            beyond{ scroll_beyond }
         {
             SUBMIT(e2::preview, e2::form::layout::size, size)
             {
@@ -1131,7 +1135,7 @@ namespace netxs::ui
             };
         }
 
-        // post: Render base and output topic content
+        // post: Render base and output topic content.
         virtual void renderproc (face& parent_canvas)
         {
             base::renderproc(parent_canvas);
@@ -1145,45 +1149,68 @@ namespace netxs::ui
         }
     };
 
-    class rail // controls.h: Scroller
-        : public base
+    // controls: Scroller.
+    class rail
+        : public base, public pro::boost<rail, role::PARENT>
     {
-        using sptr = netxs::sptr<base>;
-        using self = rail;
-        FEATURE(pro::mouse, mouse); // rail: Mouse controller
-        FEATURE(pro::robot, robot); // rail: Animation controller
-        FEATURE(pro::align, align); // rail: Size linking controller
+        pro::mouse<rail> mouse{*this }; // rail: Mouse controller.
+        pro::robot<rail> robot{*this }; // rail: Animation controller.
 
         static constexpr hint events[] = { e2::form::upon::scroll::x,
                                            e2::form::upon::scroll::y,
                                            e2::form::upon::scroll::resetx,
                                            e2::form::upon::scroll::resety };
-        bool locked = faux; // rail: Client is under resizing
-        sptr client; // rail: Client instance
-        subs tokens; // rail: Subscriptions on client moveto and resize
-        rack scinfo; // rail: Scroll info
-        bool strict[2] = { true, true }; // rail: Don't allow overscroll
-        bool manual[2] = { true, true }; // rail: Manaul scrolling (no auto align)
-        axes permit; // rail: Allowed axes to scroll
-        axes siezed; // rail: Allowed axes to capture
+        bool strict[2] = { true, true }; // rail: Don't allow overscroll.
+        bool manual[2] = { true, true }; // rail: Manaul scrolling (no auto align).
+        bool locked{}; // rail: Client is under resizing.
+        subs tokens{}; // rail: Subscriptions on client moveto and resize.
+        subs fasten{}; // rail: Subscriptions on masters to follow they state.
+        rack scinfo{}; // rail: Scroll info.
+        axes permit{}; // rail: Allowed axes to scroll.
+        axes siezed{}; // rail: Allowed axes to capture.
 
-        iota speed; // rail: Text auto-scroll initial speed component ΔR
-        iota pulse; // rail: Text auto-scroll initial speed component ΔT
-        iota cycle; // rail: Text auto-scroll duration in ms
-        bool steer; // rail: Text scroll vertical direction
+        iota speed{ SPD  }; // rail: Text auto-scroll initial speed component ΔR.
+        iota pulse{ PLS  }; // rail: Text auto-scroll initial speed component ΔT.
+        iota cycle{ CCL  }; // rail: Text auto-scroll duration in ms.
+        bool steer{ faux }; // rail: Text scroll vertical direction.
+
+        sptr<base> client; // rail: Client instance.
 
     public:
-        bool overscroll[2] = { true, true }; // rail: Allow overscroll with auto correct
+        bool overscroll[2] = { true, true }; // rail: Allow overscroll with auto correct.
+        auto config(bool allow_x_overscroll = true, bool allow_y_overscroll = true)
+        {
+            overscroll[axis::X] = allow_x_overscroll;
+            overscroll[axis::Y] = allow_y_overscroll;
+            return This<rail>();
+        }
+        template<axis AXIS>
+        auto moveby(iota coor)
+        {
+            AXIS == axis::X ? scroll<X>(coor)
+                            : scroll<Y>(coor);
+            return This<rail>();
+        }
+        template<axis AXIS>
+        auto follow(sptr<base> master = {})
+        {
+            if (master) master->SUBMIT_T(e2::release, events[AXIS], fasten, master_scinfo)
+            {
+                AXIS == axis::X ? scroll<X>(scinfo.window.coor.x - master_scinfo.window.coor.x)
+                                : scroll<Y>(scinfo.window.coor.y - master_scinfo.window.coor.y);
+            };
+            else fasten.clear();
 
-        rail(axes allow_to_scroll = axes::ALL, axes allow_to_capture = axes::ALL)
-            : speed{ SPD  },
-              pulse{ PLS  },
-              cycle{ CCL  },
-              steer{ faux },
-            permit{ allow_to_scroll },
+            return This<rail>();
+        }
+        //todo should we detach client in dtor?
+        //~rail...
+
+        rail(axes allow_to_scroll = axes::ALL, axes allow_to_capture = axes::ALL) : boost{*this },
+            permit{ allow_to_scroll  },
             siezed{ allow_to_capture }
         {
-            // Receive scroll parameters from external source
+            // Receive scroll parameters from external source.
             SUBMIT(e2::preview, e2::form::upon::scroll::any, info)
             {
                 if (client)
@@ -1210,14 +1237,14 @@ namespace netxs::ui
             {
                 req_scinfo = scinfo;
             };
+
             SUBMIT(e2::release, e2::form::layout::size, new_size)
             {
                 if (client)
                 {
-                    locked = true; // see subscription in the attach()
+                    locked = true; // See the details in subscription at the attach().
                     auto delta = client->base::resize(new_size, base::anchor);
                     locked = faux;
-
                     scroll<X>(delta.x);
                     scroll<Y>(delta.y);
                 }
@@ -1348,7 +1375,7 @@ namespace netxs::ui
         void keepon(FX&& func)
         {
             strict[AXIS] = true;
-            robot.actify<AXIS>(func, [&](auto& p)
+            robot.actify(AXIS, func, [&](auto& p)
                 {
                     scroll<AXIS>(p);
                 });
@@ -1400,7 +1427,7 @@ namespace netxs::ui
                 auto& thing = *client;
                 auto  block = thing.base::square();
                 auto  basis = thing.oversize.topleft();
-                block.coor -= basis; // Scroll origin basis
+                block.coor -= basis; // Scroll origin basis.
                 block.size += thing.oversize.summ();
                 auto& frame = base::size.get();
                 auto  level = AXIS == X;
@@ -1410,23 +1437,23 @@ namespace netxs::ui
                                     : block.coor.y;
                 coord += delta;
 
-                if (manual[AXIS]) // check overscroll if no auto correction
+                if (manual[AXIS]) // Check overscroll if no auto correction.
                 {
                     auto clamp = std::clamp(coord, bound, 0);
                     inside = clamp == coord;
-                    if (!inside && strict[AXIS]) // if outside the scroll limits
-                    {                            // and overscroll is not allowed
+                    if (!inside && strict[AXIS]) // If outside the scroll limits
+                    {                            // and overscroll is not allowed.
                             coord = clamp;
                     }
                 }
 
-                scinfo.beyond = thing.oversize;  // Oversize value
+                scinfo.beyond = thing.oversize;  // Oversize value.
                 scinfo.region = block.size;
-                scinfo.window.coor =-block.coor; // Viewport
+                scinfo.window.coor =-block.coor; // Viewport.
                 scinfo.window.size = frame;      //
                 SIGNAL(e2::release, events[AXIS], scinfo);
 
-                block.coor += basis; // Client origin basis
+                block.coor += basis; // Client origin basis.
                 locked = true;
                 thing.base::moveto(block.coor);
                 locked = faux;
@@ -1435,22 +1462,17 @@ namespace netxs::ui
 
             return inside;
         }
-        // rail (virtual, auto): Draw the form composition on the specified canvas
+        // rail (virtual, auto): Draw the form composition on the specified canvas.
         virtual void renderproc (face& parent_canvas)
         {
             base::renderproc(parent_canvas);
             if (client) parent_canvas.render<faux>(client, base::coor.get());
         }
-        // rail: Create a new item of the specified subtype and attach it
-        template<class T, class ...Args>
-        auto attach(Args&&... args)
+        // rail: Attach specified item.
+        template<class T>
+        auto attach(sptr<T> item)
         {
-            static_assert(std::is_base_of<base, T>::value,
-                "The only a derivative of the «base» class can be attached to the «mold».");
-
-            auto item = create<T>(std::forward<Args>(args)...);
             client = item;
-
             tokens.clear();
             item->SUBMIT_T(e2::release, e2::form::layout::size, tokens.extra(), size)
             {
@@ -1460,32 +1482,45 @@ namespace netxs::ui
                     scroll<Y>();
                 }
             };
-            item->SUBMIT_T(e2::release, e2::form::upon::detached, tokens.extra(), p)
+            item->SUBMIT_T(e2::release, e2::form::upon::vtree::detached, tokens.extra(), p)
             {
                 scinfo.region = {};
                 scinfo.window.coor = {};
                 SIGNAL(e2::release, events[axis::X], scinfo);
                 SIGNAL(e2::release, events[axis::Y], scinfo);
                 tokens.clear();
+                fasten.clear();
             };
-
-            item->SIGNAL(e2::release, e2::form::upon::attached, This()); // Send creator
-            base::reflow(); // Ask the client about the new size (the client can override the size)
+            item->SIGNAL(e2::release, e2::form::upon::vtree::attached, This());
             return item;
+        }
+        // rail: Create a new item of the specified subtype and attach it.
+        template<class T, class ...Args>
+        auto attach(Args&&... args)
+        {
+            return attach(create<T>(std::forward<Args>(args)...));
+        }
+        template<class T>
+        void remove(T item_ptr)
+        {
+            if (client == item_ptr)
+            {
+                client.reset();
+                item_ptr->SIGNAL(e2::release, e2::form::upon::vtree::detached, This());
+            }
         }
     };
 
+    // controls: Scroll bar.
     template<axis AXIS>
-    class grip // controls.h: Scroll bar
+    class grip
         : public base
     {
+        pro::mouse<grip> mouse{*this }; // grip: Mouse events controller.
+        pro::timer<grip> timer{*this }; // grip: Minimize by timeout.
+
         using wptr = netxs::wptr<bell>;
         using sptr = netxs::sptr<bell>;
-
-        using self = grip;
-        FEATURE(pro::mouse, mouse); // grip: Mouse events controller
-        FEATURE(pro::align, align); // grip: Size linking controller
-        FEATURE(pro::timer, timer); // grip: Minimize by timeout
 
         enum activity
         {
@@ -1505,20 +1540,20 @@ namespace netxs::ui
 
         struct math
         {
-            rack  master_inf = {};                         // math: Master scroll info
-            iota& master_len = xy(master_inf.region);      // math: Master len
-            iota& master_pos = xy(master_inf.window.coor); // math: Master viewport pos
-            iota& master_box = xy(master_inf.window.size); // math: Master viewport len
-            iota  scroll_len = 0; // math: Scrollbar len
-            iota  scroll_pos = 0; // math: Scrollbar grip pos
-            iota  scroll_box = 0; // math: Scrollbar grip len
-            iota   m         = 0; // math: Master max pos
-            iota   s         = 0; // math: Scroll max pos
-            double r         = 1; // math: Scroll/master len ratio
+            rack  master_inf = {};                         // math: Master scroll info.
+            iota& master_len = xy(master_inf.region);      // math: Master len.
+            iota& master_pos = xy(master_inf.window.coor); // math: Master viewport pos.
+            iota& master_box = xy(master_inf.window.size); // math: Master viewport len.
+            iota  scroll_len = 0; // math: Scrollbar len.
+            iota  scroll_pos = 0; // math: Scrollbar grip pos.
+            iota  scroll_box = 0; // math: Scrollbar grip len.
+            iota   m         = 0; // math: Master max pos.
+            iota   s         = 0; // math: Scroll max pos.
+            double r         = 1; // math: Scroll/master len ratio.
 
-            iota  cursor_pos = 0; // math: Mouse cursor position
+            iota  cursor_pos = 0; // math: Mouse cursor position.
 
-            // math: Calc scroll to master metrics
+            // math: Calc scroll to master metrics.
             void s_to_m()
             {
                 auto scroll_center = scroll_pos + scroll_box / 2.0;
@@ -1530,7 +1565,7 @@ namespace netxs::ui
                 if (scroll_pos == 0 && master_pos > 0) master_pos = 0;
                 if (scroll_pos == s && master_pos < m) master_pos = m;
             }
-            // math: Calc master to scroll metrics
+            // math: Calc master to scroll metrics.
             void m_to_s()
             {
                 r = (double)scroll_len / master_len;
@@ -1574,9 +1609,9 @@ namespace netxs::ui
             }
             auto inside(iota coor)
             {
-                if (coor >= scroll_pos + scroll_box) return 1; // Below the grip
-                if (coor >= scroll_pos)              return 0; // Inside the grip
-                                                     return-1; // Above the grip
+                if (coor >= scroll_pos + scroll_box) return 1; // Below the grip.
+                if (coor >= scroll_pos)              return 0; // Inside the grip.
+                                                     return-1; // Above the grip.
             }
             void pager(iota dir)
             {
@@ -1587,7 +1622,7 @@ namespace netxs::ui
             {
                 auto dir = scroll_len > 2 ? inside(cursor_pos)
                                           : cursor_pos > 0 ? 1 // Don't stop to follow over
-                                                           :-1;//    box on small scrollbar
+                                                           :-1;//    box on small scrollbar.
                 if (dir)
                 {
                     pager(dir);
@@ -1599,10 +1634,11 @@ namespace netxs::ui
 
         wptr boss;
         hook memo;
-        iota thin; // grip: Scrollbar thickness
-        iota init; // grip: Handle base width
-        math calc; // grip: Scrollbar calculator
-        bool wide; // grip: Is the scrollbar active
+        iota thin; // grip: Scrollbar thickness.
+        iota init; // grip: Handle base width.
+        math calc; // grip: Scrollbar calculator.
+        bool wide; // grip: Is the scrollbar active.
+        iota mult; // grip: Vertical bar width multiplier.
 
         bool on_pager = faux;
 
@@ -1634,14 +1670,13 @@ namespace netxs::ui
             return on_pager;
         }
     public:
-        grip(sptr boss, iota thin = 1)
-            : boss{ boss },
-              thin{ thin },
-              wide{ faux },
-              init{ thin }
+        grip(sptr boss, iota thickness = 1, iota multiplier = 2)
+            : boss{ boss       },
+              thin{ thickness  },
+              wide{ faux       },
+              init{ thickness  },
+              mult{ multiplier }
         {
-            mouse.highlightable = true;
-
             config(thin);
 
             boss->SUBMIT_T(e2::release, events[AXIS], memo, scinfo)
@@ -1672,9 +1707,8 @@ namespace netxs::ui
             };
             SUBMIT(e2::release, bttn::dblclick::left, gear)
             {
-                gear.dismiss(); // Do not pass double clicks outside
+                gear.dismiss(); // Do not pass double clicks outside.
             };
-            //SUBMIT(e2::release, bttn::down::left, gear)
             SUBMIT(e2::release, bttn::down::any, gear)
             {
                 if (!on_pager)
@@ -1688,16 +1722,16 @@ namespace netxs::ui
                         pager_repeat();
                         gear.dismiss();
 
-                        timer.template actify<activity::pager_first>(REPEAT_DELAY, [&](auto p)
+                        timer.actify(activity::pager_first, REPEAT_DELAY, [&](auto p)
                         {
                             if (pager_repeat())
                             {
-                                timer.template actify<activity::pager_next>(REPEAT_RATE, [&](auto d)
+                                timer.actify(activity::pager_next, REPEAT_RATE, [&](auto d)
                                 {
-                                    return pager_repeat(); // Repeat until on_pager
+                                    return pager_repeat(); // Repeat until on_pager.
                                 });
                             }
-                            return faux; // One shot call (first)
+                            return faux; // One shot call (first).
                         });
                     }
                 }
@@ -1792,16 +1826,16 @@ namespace netxs::ui
                 auto apply = [&](auto active)
                 {
                     wide = active;
-                    if (AXIS == axis::Y) config(active ? init * 2 // Make vertical scrollbar
-                                                       : init);   //          wider on hover
+                    if (AXIS == axis::Y && mult) config(active ? init * mult // Make vertical scrollbar
+                                                               : init);      // wider on hover.
                     base::reflow();
-                    return faux; // One shot call
+                    return faux; // One shot call.
                 };
 
                 timer.pacify(activity::mouse_leave);
 
-                if (active)          apply(activity::mouse_hover);
-                else timer.template actify<activity::mouse_leave>(ACTIVE_TIMEOUT, apply);
+                if (active) apply(activity::mouse_hover);
+                else timer.actify(activity::mouse_leave, ACTIVE_TIMEOUT, apply);
             };
             //SUBMIT(e2::release, e2::hids::mouse::move, gear)
             //{
@@ -1819,7 +1853,7 @@ namespace netxs::ui
             //	timer.template actify<activity::mouse_leave>(ACTIVE_TIMEOUT, apply);
             //};
         }
-        // grip (virtual, auto): Draw the form composition on the specified canvas
+        // grip (virtual, auto): Draw the form composition on the specified canvas.
         virtual void renderproc (face& parent_canvas)
         {
             base::renderproc(parent_canvas);
@@ -1834,9 +1868,9 @@ namespace netxs::ui
             handle = region.clip(handle);
             handle_len = std::max(1, handle_len);
 
-            if (handle_len != region_len) // Show only if it is oversized
+            if (handle_len != region_len) // Show only if it is oversized.
             {
-                // Brightener isn't suitable for white backgrounds
+                // Brightener isn't suitable for white backgrounds.
                 //auto bright = skin::color(tone::brighter);
                 //bright.bga(bright.bga() / 2).fga(0);
                 //bright.link(bell::id);
@@ -1851,20 +1885,164 @@ namespace netxs::ui
         }
     };
 
+    // controls: Container with margins (outer space) and padding (inner space).
+    class pads
+        : public base, public pro::boost<pads, role::PARENT>
+    {
+        //pro::mouse<pads> mouse{*this }; // pads: Mouse controller.
+
+        dent padding; // pads: Space around an element's content, outside of any defined borders. It does not affect the size, only affects the fill. Used in base::renderproc only.
+        dent margins; // pads: Space around an element's content, inside of any defined borders. Containers take this parameter into account when calculating sizes. Used in all conainers.
+
+    public:
+        sptr<base> client;
+
+        pads(dent const& padding_value = {}, dent const& margins_value = {}) : boost{*this },
+              padding{ padding_value },
+              margins{ margins_value }
+        {
+            SUBMIT(e2::preview, e2::form::layout::size, new_size)
+            {
+                if (client)
+                {
+                    auto client_size = new_size - padding;
+                    client->SIGNAL(e2::preview, e2::form::layout::size, client_size);
+                    new_size = client_size + padding;
+                }
+            };
+            SUBMIT(e2::release, e2::form::layout::size, new_size)
+            {
+                if (client)
+                {
+                    auto client_size = new_size - padding;
+                    client->SIGNAL(e2::release, e2::form::layout::size, client_size);
+                }
+            };
+        }
+        // pads: Draw background and client.
+        virtual void renderproc(face& parent_canvas)
+        {
+            auto view = parent_canvas.view();
+            parent_canvas.view(view + margins);
+            base::renderproc(parent_canvas);
+            parent_canvas.view(view);
+            if (client)
+            {
+                auto full = parent_canvas.full();
+                parent_canvas.full(full - padding);
+                parent_canvas.render<true>(client, base::coor.get());
+                parent_canvas.full(full);
+            }
+        }
+        // pads: Attach specified item.
+        template<class T>
+        auto attach(sptr<T> item)
+        {
+            client = item;
+            item->SIGNAL(e2::release, e2::form::upon::vtree::attached, This());
+            return item;
+        }
+        // pads: Create a new item of the specified subtype and attach it.
+        template<class T, class ...Args>
+        auto attach(Args&&... args)
+        {
+            return attach(create<T>(std::forward<Args>(args)...));
+        }
+        // pads: Remove item.
+        template<class T>
+        void remove(T item_ptr)
+        {
+            if (client == item_ptr)
+            {
+                client.reset();
+                item_ptr->SIGNAL(e2::release, e2::form::upon::vtree::detached, This());
+            }
+        }
+        // pads: Update nested object.
+        template<class T, class S>
+        void update(T old_item_ptr, S new_item_ptr)
+        {
+            client = new_item_ptr;
+            old_item_ptr->SIGNAL(e2::release, e2::form::upon::vtree::detached, This());
+            new_item_ptr->SIGNAL(e2::release, e2::form::upon::vtree::attached, This());
+        }
+    };
+
+    // controls: Pluggable dummy object.
+    class mock
+        : public base, public pro::boost<mock, role::NOT_PARENT>
+    {
+    public:
+        mock() : boost{*this } { };
+    };
+
+    // controls: Menu label.
+    class item
+        : public base, public pro::boost<item, role::NOT_PARENT>
+    {
+        static constexpr view dots = "‥";
+        para name;
+        bool flex; // item: Violate or not the label size, default is faux.
+        bool test; // item: Place or not(default) the Two Dot Leader when there is not enough space.
+
+        void recalc()
+        {
+            auto size = name.size();
+            auto lims = flex ? twod{ -1,size.y } : size;
+            base::limits(lims, lims);
+            base::resize(size);
+        }
+    public:
+        item(para const& label_para, bool flexible = faux, bool check_size = faux) : boost{*this },
+            name{ label_para },
+            flex{ flexible   },
+            test{ check_size }
+        {
+            recalc();
+        }
+        item(text const& label_text, bool flexible = faux, bool check_size = faux)
+            : item(para{ label_text }, flexible, check_size)
+        { }
+        void set(text const& label_text)
+        {
+            name = label_text;
+            recalc();
+        }
+        // item: Render base and output content.
+        virtual void renderproc (face& parent_canvas)
+        {
+            base::renderproc(parent_canvas);
+            parent_canvas.cup(dot_00);
+            parent_canvas.output(name);
+            if (test)
+            {
+                auto area = parent_canvas.view();
+                auto size = name.size();
+                if (area.size.x > 0 && area.size.x < size.x)
+                {
+                    auto coor = area.coor + area.size - dot_11;
+                    parent_canvas.core::data(coor)->txt(dots);
+                }
+            }
+        }
+    };
+
+    // controls: Menu controller.
+    //class menu
+    //    : public base
+    //{
+    //public:
+    //};
+
     // DEPRECATED STUFF
 
     class pane
         : public form
     {
     public:
-        using self = pane;
-        FEATURE(pro::mouse, mouse);   // pane: Mouse controller.
-        FEATURE(pro::robot, robot);   // pane: Animation controller.
-        FEATURE(pro::align, adjust);  // pane: Size linking controller.
-        //FEATURE(pro::keybd, keybd);   // pane: Keyboard controller.
-        //FEATURE(pro::focus, focus);   // pane: Focus controller.
-        //FEATURE(pro::align, align);   // pane: Align controller.
-        //FEATURE(pro::caret, caret);   // pane: Cursor controller.
+        pro::mouse<pane> mouse{*this }; // pane: Mouse controller.
+        pro::robot<pane> robot{*this }; // pane: Animation controller.
+        pro::align<pane> align{*this }; // pane: Size linking controller.
 
         //using sptr = utils::sptr<base>;
 
@@ -1914,7 +2092,7 @@ namespace netxs::ui
 
             using bttn = e2::hids::mouse::button;
 
-            SUBMIT(e2::release, e2::form::upon::attached, p)
+            SUBMIT(e2::release, e2::form::upon::vtree::attached, p)
             {
                 p->SUBMIT(e2::preview, e2::form::global::lucidity, alpha)
                 {
@@ -2191,11 +2369,10 @@ namespace netxs::ui
     class chat
         : public pane
     {
-        using self = pane;
         #ifndef DEMO
-        FEATURE(pro::keybd, keybd); // chat: Keyboard controller.
+        pro::keybd<pane> keybd{*this }; // chat: Keyboard controller.
         #endif // DEMO
-        FEATURE(pro::caret, caret); // chat: Caret controller
+        pro::caret<pane> caret{*this }; // chat: Caret controller
 
     public:
 
@@ -2249,8 +2426,7 @@ namespace netxs::ui
     class button
         : public form
     {
-        using self = button;
-        FEATURE(pro::mouse, mouse);
+        pro::mouse<button> mouse{*this };
 
     public:
         page topic; // button: Text content.
@@ -2311,8 +2487,7 @@ namespace netxs::ui
 
     class stem_elem : public form
     {
-        using self = stem_elem;
-        FEATURE(pro::mouse, mouse);
+        pro::mouse<stem_elem> mouse{*this };
 
     public:
         page topic; // stem_elem: Text content.
@@ -2361,7 +2536,7 @@ namespace netxs::ui
             //mouse.skipall(true);
 
             using bttn = e2::hids::mouse::button;
-            SUBMIT(e2::release, e2::form::upon::attached, p)
+            SUBMIT(e2::release, e2::form::upon::vtree::attached, p)
             {
                 //todo unify
                 p->SUBMIT(e2::release, e2::data::changed, data)
@@ -2411,10 +2586,7 @@ namespace netxs::ui
     };
     class stem_bsu : public form
     {
-        using self = stem_bsu;
-        FEATURE(pro::mouse, mouse);   // stem_bsu: Mouse controller.
-        //FEATURE(pro::align, align); // stem_bsu: Align controller. Auto sized by parent.
-        //FEATURE(pro::frame, frame); // stem_bsu: Window controller
+        pro::mouse<stem_bsu> mouse{*this }; // stem_bsu: Mouse controller.
 
     public:
         page topic; // stem_bsu: Text content.
@@ -2468,7 +2640,7 @@ namespace netxs::ui
 
             auto item = base::create<T>(std::forward<Args>(args)...);
             clients.push_back(item);
-            item->SIGNAL(e2::release, e2::form::upon::attached, This()); // Send root
+            item->SIGNAL(e2::release, e2::form::upon::vtree::attached, This());
             return item;
         }
 
@@ -2479,7 +2651,7 @@ namespace netxs::ui
             iota on_item)
         {
             auto size = twod{ 0, height };
-            ///  Get max width
+            //  Get max width
             for (auto& item_text : objs_desc)
             {
                 auto len = static_cast<iota>(item_text.size());
@@ -2500,8 +2672,7 @@ namespace netxs::ui
     };
     class stem_rate_grip : public form
     {
-        using self = stem_rate_grip;
-        FEATURE(pro::mouse, mouse); // stem_rate_grip: Mouse controller.
+        pro::mouse<stem_rate_grip> mouse{*this }; // stem_rate_grip: Mouse controller.
 
     public:
         page topic; // stem_rate_grip: Text content.
@@ -2555,7 +2726,7 @@ namespace netxs::ui
             : sfx_str{ sfx_string }
         {
             //mouse.skipall(true);
-            mouse.highlightable = true;
+            //mouse.highlightable = true;
 
             sfx_len = utf::length(sfx_str);
 
@@ -2586,10 +2757,8 @@ namespace netxs::ui
     template<e2::tier TIER, e2::type EVENT>
     class stem_rate : public form
     {
-        using self = stem_rate;
-        FEATURE(pro::robot, robot); // stem_rate: Animation controller.
-        FEATURE(pro::mouse, mouse); // stem_rate: Mouse controller.
-        //FEATURE(pro::align, align); // stem_rate: Align controller (Inform parent about size changes).
+        pro::mouse<stem_rate> mouse{*this }; // stem_rate: Mouse controller.
+        pro::robot<stem_rate> robot{*this }; // stem_rate: Animation controller.
 
         using tail = netxs::datetime::tail<iota>;
 
@@ -2729,11 +2898,11 @@ namespace netxs::ui
                 }
             };
 
-            SUBMIT(e2::release, e2::form::upon::attached, parent)
+            SUBMIT(e2::release, e2::form::upon::vtree::attached, parent)
             {
                 grip_ctl = create<stem_rate_grip>(grip_suffix);
-                grip_ctl->SIGNAL(e2::release, e2::form::upon::attached, This()); // Send root
-                //grip->SIGNAL(e2::release, e2::form::upon::attached, This());
+                grip_ctl->SIGNAL(e2::release, e2::form::upon::vtree::attached, This());
+                //grip->SIGNAL(e2::release, e2::form::upon::vtree::attached, This());
 
                 grip_ctl->SUBMIT(e2::release, bttn::drag::start::left, gear)
                     //grip->SUBMIT(e2::preview, bttn::drag::start::left, gear)
@@ -2926,7 +3095,7 @@ namespace netxs::ui
                 status.wrecked = true;
             };
 
-            SUBMIT(e2::release, e2::form::upon::attached, parent)
+            SUBMIT(e2::release, e2::form::upon::vtree::attached, parent)
             {
                 //todo via align behavior
                 parent->SUBMIT(e2::release, e2::form::layout::size, basesize)

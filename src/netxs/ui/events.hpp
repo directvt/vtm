@@ -21,7 +21,7 @@
     #define faux (false)
 #endif
 
-namespace netxs::ui
+namespace netxs::events
 {
     //todo unify/automate structure replenishment
     struct e2
@@ -33,7 +33,7 @@ namespace netxs::ui
         template<class V>
         struct _globals
         {
-            static std::recursive_mutex mutex; // e2: shared mutex
+            static std::recursive_mutex mutex; // e2: shared mutex.
         };
 
     public:
@@ -41,8 +41,8 @@ namespace netxs::ui
         {
             std::lock_guard<std::recursive_mutex> lock;
 
-            sync            (sync const&) = delete; // deleted copy constructor
-            sync& operator= (sync const&) = delete; // deleted copy assignment operator
+            sync            (sync const&) = delete; // deleted copy constructor.
+            sync& operator= (sync const&) = delete; // deleted copy assignment operator.
 
              sync() : lock(_globals<void>::mutex) { }
             ~sync() { }
@@ -51,8 +51,8 @@ namespace netxs::ui
         {
             std::unique_lock<std::recursive_mutex> lock;
 
-            try_sync            (try_sync const&) = delete; // deleted copy constructor
-            try_sync& operator= (try_sync const&) = delete; // deleted copy assignment operator
+            try_sync            (try_sync const&) = delete; // deleted copy constructor.
+            try_sync& operator= (try_sync const&) = delete; // deleted copy assignment operator.
 
             operator bool() { return lock.owns_lock(); }
 
@@ -165,15 +165,30 @@ namespace netxs::ui
             _debug      = any | (6 << 0), // return info struct with telemtry data
             _config     = any | (7 << 0), // set/notify/get/global_set configuration data (e2::preview/e2::release/e2::request/e2::general)
             quit        = any | (8 << 0), // return bye msg //errcode (arg: const view)
-            dtor        = any | (9 << 0), // Notify about object destruction (arg: const id_t)
+            dtor        = any | (9 << 0), // Notify about object destruction, release only (arg: const id_t)
 
             //todo unify
             radio       = any | (10<< 0), // return active radio id_t (arg: const id_t)
             cout        = any | (11<< 0), // Append extra data to output (arg: const text)
+
+            _bindings   = any | (12<< 0), // Dynamic Data Bindings.
         };
         //private: static const unsigned int _level = _toplevel + _width;
         private: static const unsigned int _level0 = _width;
         public:
+        struct bindings { enum : type {
+                any = e2::_bindings,
+                _list       = any | (1 << _level0),
+            };
+            private: static const unsigned int _level1 = _level0 + _width;
+            public:
+            struct list { enum : type {
+                    any = bindings::_list,
+                    users       = any | (1 << _level1), // list of connected users (arg: std::list<sptr<base>>)
+                    apps        = any | (2 << _level1), // list of running apps (arg: std::list<sptr<base>>)
+                };
+            };
+        };
         struct debug { enum : type {
                 any = e2::_debug,
                 logs        = any | (1 << _level0), // logs output (arg: const text)
@@ -234,8 +249,8 @@ namespace netxs::ui
                         _down       = any | (1 << _level2),
                         _up         = any | (2 << _level2),
                     };
-                private: static const unsigned int _level3 = _level2 + _width;
-                public:
+                    private: static const unsigned int _level3 = _level2 + _width;
+                    public:
                     struct down { enum : type {
                             any = control::_down,
                             alt_right       = any | (1 << _level3),
@@ -260,8 +275,8 @@ namespace netxs::ui
                         _on         = any | (1 << _level2),
                         _off        = any | (2 << _level2),
                     };
-                private: static const unsigned int _level3 = _level2 + _width;
-                public:
+                    private: static const unsigned int _level3 = _level2 + _width;
+                    public:
                     struct on { enum : type {
                             any = state::_on,
                             numlock         = any | (1 << _level3),
@@ -348,42 +363,42 @@ namespace netxs::ui
                         };
                         private: static const unsigned int _level4 = _level3 + _width;
                         public:
-                            struct start { enum : type {
-                                    any = drag::_start,
-                                    left        = any | (1 << _level4),
-                                    right       = any | (2 << _level4),
-                                    leftright   = any | (3 << _level4),
-                                    middle      = any | (4 << _level4),
-                                    wheel       = any | (5 << _level4),
-                                    win         = any | (6 << _level4),
-                            };};
-                            struct pull { enum : type {
-                                    any = drag::_pull,
-                                    left        = any | (1 << _level4),
-                                    right       = any | (2 << _level4),
-                                    leftright   = any | (3 << _level4),
-                                    middle      = any | (4 << _level4),
-                                    wheel       = any | (5 << _level4),
-                                    win         = any | (6 << _level4),
-                            };};
-                            struct cancel { enum : type {
-                                    any = drag::_cancel,
-                                    left        = any | (1 << _level4),
-                                    right       = any | (2 << _level4),
-                                    leftright   = any | (3 << _level4),
-                                    middle      = any | (4 << _level4),
-                                    wheel       = any | (5 << _level4),
-                                    win         = any | (6 << _level4),
-                            };};
-                            struct stop { enum : type {
-                                    any = drag::_stop,
-                                    left        = any | (1 << _level4),
-                                    right       = any | (2 << _level4),
-                                    leftright   = any | (3 << _level4),
-                                    middle      = any | (4 << _level4),
-                                    wheel       = any | (5 << _level4),
-                                    win         = any | (6 << _level4),
-                            };};
+                        struct start { enum : type {
+                                any = drag::_start,
+                                left        = any | (1 << _level4),
+                                right       = any | (2 << _level4),
+                                leftright   = any | (3 << _level4),
+                                middle      = any | (4 << _level4),
+                                wheel       = any | (5 << _level4),
+                                win         = any | (6 << _level4),
+                        };};
+                        struct pull { enum : type {
+                                any = drag::_pull,
+                                left        = any | (1 << _level4),
+                                right       = any | (2 << _level4),
+                                leftright   = any | (3 << _level4),
+                                middle      = any | (4 << _level4),
+                                wheel       = any | (5 << _level4),
+                                win         = any | (6 << _level4),
+                        };};
+                        struct cancel { enum : type {
+                                any = drag::_cancel,
+                                left        = any | (1 << _level4),
+                                right       = any | (2 << _level4),
+                                leftright   = any | (3 << _level4),
+                                middle      = any | (4 << _level4),
+                                wheel       = any | (5 << _level4),
+                                win         = any | (6 << _level4),
+                        };};
+                        struct stop { enum : type {
+                                any = drag::_stop,
+                                left        = any | (1 << _level4),
+                                right       = any | (2 << _level4),
+                                leftright   = any | (3 << _level4),
+                                middle      = any | (4 << _level4),
+                                wheel       = any | (5 << _level4),
+                                win         = any | (6 << _level4),
+                        };};
                     };
                 };
             };
@@ -398,7 +413,7 @@ namespace netxs::ui
                 //key         = any | (6 << _level0),
                 _cursor     = any | (7 << _level0),
                 _animate    = any | (8 << _level0),
-                //_mouse      = any | (9 << _level0),
+                _drag       = any | (9 << _level0),
                 _prop       = any | (10<< _level0),
                 //_client     = any | (11<< _level0),
                 _upevent    = any | (11<< _level0), // eventss streamed up (to children) of the visual tree by base::
@@ -409,16 +424,62 @@ namespace netxs::ui
             };
             private: static const unsigned int _level1 = _level0 + _width;
             public:
+            struct drag { enum : type {
+                    any = form::_drag,
+                    _start      = any | (1 << _level1), // notify about mouse drag start by pro::mouse (arg: hids)
+                    _pull       = any | (2 << _level1), // notify about mouse drag pull by pro::mouse (arg: hids)
+                    _cancel     = any | (3 << _level1), // notify about mouse drag cancel by pro::mouse (arg: hids)
+                    _stop       = any | (4 << _level1), // notify about mouse drag stop by pro::mouse (arg: hids)
+                };
+                private: static const unsigned int _level2 = _level1 + _width;
+                public:
+                struct start { enum : type {
+                        any = drag::_start,
+                        left        = any | (1 << _level2),
+                        right       = any | (2 << _level2),
+                        leftright   = any | (3 << _level2),
+                        middle      = any | (4 << _level2),
+                        wheel       = any | (5 << _level2),
+                        win         = any | (6 << _level2),
+                };};
+                struct pull { enum : type {
+                        any = drag::_pull,
+                        left        = any | (1 << _level2),
+                        right       = any | (2 << _level2),
+                        leftright   = any | (3 << _level2),
+                        middle      = any | (4 << _level2),
+                        wheel       = any | (5 << _level2),
+                        win         = any | (6 << _level2),
+                };};
+                struct cancel { enum : type {
+                        any = drag::_cancel,
+                        left        = any | (1 << _level2),
+                        right       = any | (2 << _level2),
+                        leftright   = any | (3 << _level2),
+                        middle      = any | (4 << _level2),
+                        wheel       = any | (5 << _level2),
+                        win         = any | (6 << _level2),
+                };};
+                struct stop { enum : type {
+                        any = drag::_stop,
+                        left        = any | (1 << _level2),
+                        right       = any | (2 << _level2),
+                        leftright   = any | (3 << _level2),
+                        middle      = any | (4 << _level2),
+                        wheel       = any | (5 << _level2),
+                        win         = any | (6 << _level2),
+                };};
+            };
             // Form events that should be propagated down to the visual branch
             struct notify { enum : type {
                     any = form::_notify,
                     _mouse      = any | (1 << _level1), // request context menu at specified coords (arg: twod)
                     _keybd      = any | (2 << _level1), // request the prev scene window (arg: twod)
-            };
-            private: static const unsigned int _level2 = _level1 + _width;
-            public:
+                };
+                private: static const unsigned int _level2 = _level1 + _width;
+                public:
                 struct mouse { enum : type {
-                        any = notify::_mouse,
+                        any = notify::_mouse,               // inform the form about the mouse hover (arg: hids)
                         enter       = any | (1 << _level2), // inform the form about the mouse hover (arg: hids)
                         leave       = any | (2 << _level2), // inform the form about the mouse leave (arg: hids)
                 };};
@@ -434,7 +495,22 @@ namespace netxs::ui
                     prev        = any | (2 << _level1), // request the prev scene window (arg: twod)
                     next        = any | (3 << _level1), // request the next scene window (arg: twod)
                     lucidity    = any | (4 << _level1), // set or request global window transparency (arg: iota: 0-255, -1 to request)
-            };};
+                    _object     = any | (5 << _level1), // global scene objects events
+                    _user       = any | (6 << _level1), // global scene users events
+                };
+                private: static const unsigned int _level2 = _level1 + _width;
+                public:
+                struct object { enum : type {
+                        any = global::_object,
+                        attached        = any | (1 << _level2), // global: object attached to the world (args: sptr<base>)
+                        detached        = any | (2 << _level2), // global: object detached from the world (args: sptr<base>)
+                };};
+                struct user { enum : type {
+                        any = global::_user,
+                        attached        = any | (1 << _level2), // global: user attached to the world (args: sptr<base>)
+                        detached        = any | (2 << _level2), // global: user detached from the world (args: sptr<base>)
+                };};
+            };
             struct upevent { enum : type {
                     any = form::_upevent,
                     kboffer     = any | (1 << _level1), // inform nested objects that the keybd focus should be taken (arg: hids)
@@ -470,8 +546,8 @@ namespace netxs::ui
             };};
             struct upon { enum : type {
                     any = form::_upon,
-                    attached    = any | (1 << _level1), // inform that subject is attached (arg: parent bell_sptr)
-                    detached    = any | (2 << _level1), // inform that subject is detached (arg: parent bell_sptr)
+                    _vtree      = any | (1 << _level1), // visual tree events (arg: parent base_sptr)
+                    //detached    = any | (2 << _level1), // inform that subject is detached (arg: parent bell_sptr)
                     redrawn     = any | (3 << _level1), // inform about camvas is completely redrawn (arg: canvas face)
                     invalidated = any | (4 << _level1),
                     cached      = any | (5 << _level1), // inform about camvas is cached (arg: canvas face)
@@ -480,9 +556,14 @@ namespace netxs::ui
                     moved       = any | (8 << _level1), // event after moveto (arg: diff bw old and new coor twod)
                     resized     = any | (9 << _level1), // event after resize (arg: diff bw old and new size twod)
                     _scroll     = any | (10<< _level1), // event after scroll (arg: rack)
-            };
-            private: static const unsigned int _level2 = _level1 + _width;
-            public:
+                };
+                private: static const unsigned int _level2 = _level1 + _width;
+                public:
+                struct vtree { enum : type {
+                        any = upon::_vtree,
+                        attached    = any | (1 << _level2), // Child has been attached (arg: parent sptr<base>)
+                        detached    = any | (2 << _level2), // Child has been detached (arg: parent sptr<base>)
+                };};
                 struct scroll { enum : type {
                         any = upon::_scroll,
                         x           = any | (1 << _level2), // event after scroll along X (arg: rack)
@@ -498,7 +579,7 @@ namespace netxs::ui
                     destroy     = any | (3 << _level1), // ??? bool return reference to the parent
                     render      = any | (4 << _level1), // ask children to render itself to the parent canvas (arg: function drawfx to perform drawing)
                     attach      = any | (5 << _level1), // order to attach a child (arg: parent base_sptr)
-                    detach      = any | (6 << _level1), // order to detach a child (arg: child  base_sptr)
+                    detach      = any | (6 << _level1), // order to detach a child (e2::release - kill itself, e2::preview - detach the child specified in args) (arg: child  base_sptr)
                     //commit      = any | (3 << _level1), // order to output the targets (arg: frame number iota)
                     //multirender = any | (5 << _level1), // ask children to render itself to the set of canvases (arg: array of the face sptrs: cuts = vector<shared_ptr<face>>)
                     //draw        = any | (6 << _level1), // ????  order to render itself to the canvas (arg: canvas face)
@@ -536,7 +617,7 @@ namespace netxs::ui
             };};
             struct state { enum : type {
                     any = form::_state,
-                    mouse       = any | (1 << _level1), // notify the client is mouse active or not. The form is active when the number of client (form::eventa::mouse::enter - mouse::leave) is not zero. (arg is only release: bool)
+                    mouse       = any | (1 << _level1), // notify the client is mouse active or not. The form is active when the number of client (form::eventa::mouse::enter - mouse::leave) is not zero. (arg is only release: iota - number of clients)
                     keybd       = any | (2 << _level1), // notify the client is keybd active or not. The form is active when the number of client (form::eventa::keybd::got - keybd::lost) is not zero. (arg is only release: bool)
                     header      = any | (3 << _level1), // notify the client has changed title  (arg: para)
                     footer      = any | (4 << _level1), // notify the client has changed footer (arg: para)
@@ -582,15 +663,15 @@ namespace netxs::ui
 
         enum exec
         {
-            forward, // Execute concrete event first
-            reverse, // Execute global events first
+            forward, // Execute concrete event first.
+            reverse, // Execute global events first.
         };
 
-        std::map<hint, list> stock; // reactor: handlers repository
-        std::vector<hint>    queue; // reactor: event queue
-        vect                 qcopy; // reactor: copy of the current pretenders to exec on current event
-        bool                 alive; // reactor: current exec branch interruptor
-        exec                 order; // reactor: Execution oreder
+        std::map<hint, list> stock; // reactor: handlers repository.
+        std::vector<hint>    queue; // reactor: event queue.
+        vect                 qcopy; // reactor: copy of the current pretenders to exec on current event.
+        bool                 alive; // reactor: current exec branch interruptor.
+        exec                 order; // reactor: Execution oreder.
 
         reactor(exec order)
             : alive{ true },
@@ -783,15 +864,16 @@ namespace netxs::ui
         }
     };
 
-    // utils::ui: Ext link statics, unique ONLY for concrete T.
+    // events: Ext link statics, unique ONLY for concrete T.
     template<class T> typename indexer<T>::id_t indexer<T>::newid = 0;
     template<class T> typename indexer<T>::imap indexer<T>::store;
     template<class T> typename indexer<T>::wptr indexer<T>::empty;
 
-    // utils::ui: Event x-mitter.
+    // events: Event x-mitter.
     struct bell : public indexer<bell>
     {
         using hook = reactor::hook;
+        static constexpr id_t noid = std::numeric_limits<id_t>::max();
 
     private:
         template<class V>
@@ -1109,12 +1191,14 @@ namespace netxs::ui
         bell::template submit2<type_clue<item>>(level) = [&] (ARGTYPE(item)&& arg)
 
     // Usage: SUBMIT_BYVAL(tier, item, arg) { ...expression; };
+    //        Note: It is a mutable closure!
     #define SUBMIT_BYVAL(level, item, arg) \
-        bell::template submit2<type_clue<item>>(level) = [=] (ARGTYPE(item)&& arg)
+        bell::template submit2<type_clue<item>>(level) = [=] (ARGTYPE(item)&& arg) mutable
 
     // Usage: SUBMIT_BYVAL_T(tier, item, token, arg) { ...expression; };
+    //        Note: It is a mutable closure!
     #define SUBMIT_BYVAL_T(level, item, token, arg) \
-        bell::template submit2<type_clue<item>>(level, token) = [=] (ARGTYPE(item)&& arg)
+        bell::template submit2<type_clue<item>>(level, token) = [=] (ARGTYPE(item)&& arg) mutable
 
     #define SUBMIT_V(level, item, hndl) \
         bell::template submit<type_clue<item>>(level, hndl)

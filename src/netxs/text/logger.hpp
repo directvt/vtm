@@ -4,29 +4,29 @@
 // Usage (C++17) 2013
 //
 // Two (or more) log targets example:
-// utils::logger logger(	[&](auto& a) { ipc.write_message(a); },	//	1st logger proc
-//							file_write,									//	2nd logger proc
-//							...);										//	Nth logger proc
+// utils::logger logger( [&](auto& a) { ipc.write_message(a); }, //  1st logger proc
+//                       file_write,                             //  2nd logger proc
+//                       ...);                                   //  Nth logger proc
 //
 // User defined formatter example:
-// utils::logger::custom(	[](auto& p, auto& v)
+// utils::logger::custom(   [](auto& p, auto& v)
 // {
-// 		return utils::current_short_date_time_with_ms() + "  " + utils::concat(p, std::string("."), std::string("> ")) + v + '\n';
+//      return utils::current_short_date_time_with_ms() + "  " + utils::concat(p, std::string("."), std::string("> ")) + v + '\n';
 // });
 //
 // Automatic prompt changing example:
 // void proc(...) {
-//		AUTO_PROMPT;								//	auto prompt
-//		...code...
-//		{
-//			utils::logger::prompt p("subprompt");	//	nested prompt
-//			...code...
-//		}
-//		...code...
-//		Z("log message: ", some_data);				//	prompted output
-//		...code...
-//		Z("log message: ", some_data, false);		//	promptless output
-//		...code...
+//      AUTO_PROMPT;                                // auto prompt
+//      ...code...
+//      {
+//          utils::logger::prompt p("subprompt");   // nested prompt
+//          ...code...
+//      }
+//      ...code...
+//      Z("log message: ", some_data);              // prompted output
+//      ...code...
+//      Z("log message: ", some_data, false);       // promptless output
+//      ...code...
 // }
 
 #ifndef NETXS_LOGGER_HPP

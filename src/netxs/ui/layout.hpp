@@ -11,11 +11,11 @@
 
 #include <cstring> // std::memcpy
 
-namespace netxs::ui
+namespace netxs::ui::atoms
 {
     using utf::text;
     using utf::view;
-    using id_t = bell::id_t;
+    using id_t = netxs::events::bell::id_t;
 
     static const char whitespace = 0x20;
     //static const char whitespace = '.';
@@ -26,6 +26,7 @@ namespace netxs::ui
         blacklt, redlt, greenlt, yellowlt, bluelt, magentalt, cyanlt, whitelt,
     };
 
+    // layout: 8-bit RGBA.
     union rgba
     {
         struct rgba_t { uint8_t r, g, b, a; } chan;
@@ -188,6 +189,15 @@ namespace netxs::ui
                 chan.a = a >> 8;
             }
         }
+        // rgba: RGBA transitional blending. Level = 0: equals c1, level = 256: equals c2.
+        static auto transit(rgba const& c1, rgba const& c2, iota level)
+        {
+            auto inverse = 256 - level;
+            return rgba{ (c2.chan.r * level + c1.chan.r * inverse) >> 8,
+                         (c2.chan.g * level + c1.chan.g * inverse) >> 8,
+                         (c2.chan.b * level + c1.chan.b * inverse) >> 8,
+                         (c2.chan.a * level + c1.chan.a * inverse) >> 8 };
+        }
         // rgba: Rough alpha blending RGBA colors.
         //void mix_alpha(rgba const& c)
         //{
@@ -293,14 +303,14 @@ namespace netxs::ui
 
         static constexpr uint32_t color256[] =
         {
-            0xFF000000,	// black
-            0xFF1F0FC4,	// red
-            0xFF0EA112,	// green
-            0xFF009CC0,	// yellow
-            0xFFDB3700,	// blue
-            0xFF981787,	// magenta
-            0xFFDD963B,	// cyan
-            0xFFBBBBBB,	// white
+            0xFF101010,	// blackdk
+            0xFF1F0FC4,	// reddk
+            0xFF0EA112,	// greendk
+            0xFF009CC0,	// yellowdk
+            0xFFDB3700,	// bluedk
+            0xFF981787,	// magentadk
+            0xFFDD963B,	// cyandk
+            0xFFBBBBBB,	// whitedk
             0xFF757575,	// blacklt
             0xFF5648E6,	// redlt
             0xFF0CC615,	// greenlt
@@ -367,6 +377,7 @@ namespace netxs::ui
         }
     };
 
+    // layout: Templated RGB.
     template<class T>
     struct irgb
     {
@@ -389,7 +400,7 @@ namespace netxs::ui
         template<class V>
         auto operator / (V v) const
         {
-            return irgb<T>{ r / v, g / v, b / v }; // 10% faster than divround
+            return irgb<T>{ r / v, g / v, b / v }; // 10% faster than divround.
 
             //return irgb<T>{ utils::divround(r, v),
             //                utils::divround(g, v),
@@ -433,7 +444,8 @@ namespace netxs::ui
         }
     };
 
-    class cell // layout: Enriched grapheme cluster.
+    // layout: Enriched grapheme cluster.
+    class cell
     {
     public:
         using bitstate = unsigned char;
@@ -450,8 +462,8 @@ namespace netxs::ui
                 unsigned char jumbo : 1;                  // grapheme cluster length overflow bit
             };
 
-            // there is no need to reset/clear/flush the map because
-            // count of different grapheme clusters is finite
+            // There is no need to reset/clear/flush the map because
+            // count of different grapheme clusters is finite.
             static constexpr size_t         limit = sizeof(uint64_t);
             static std::hash<view>          coder;
             static text                     empty;
@@ -569,12 +581,12 @@ namespace netxs::ui
         };
         union body
         {
-            // there are no applicable rich text formatting attributes due to their gradual nature
+            // There are no applicable rich text formatting attributes due to their gradual nature
             // e.g.: the degree of thickness or italiciety/oblique varies from 0 to 255, etc.,
-            // and should not be represented as a flag
+            // and should not be represented as a flag.
             //
             // In Chinese, the underline/underscore is a punctuation mark for proper names
-            // and should never be used for emphasis
+            // and should never be used for emphasis.
             //
             // weigth := 0..255
             // italic := 0..255
@@ -706,7 +718,7 @@ namespace netxs::ui
         struct clrs
         {
             // Concept of using default colors:
-            //  if alpha is set to zero, then underlaid color should be used
+            //  if alpha is set to zero, then underlaid color should be used.
 
             rgba bg;
             rgba fg;
@@ -750,12 +762,12 @@ namespace netxs::ui
             }
         };
 
-        clrs       uv;     // 8U, cell: RGBA color
-        glyf<void> gc;     // 8U, cell: Grapheme cluster
-        body       st;     // 4U, cell: Style attributes
-        id_t       id = 0; // 4U, cell: Link ID
-        id_t       rsrvd0; // 4U, cell: pad, the size should be a power of 2
-        id_t       rsrvd1; // 4U, cell: pad, the size should be a power of 2
+        clrs       uv;     // 8U, cell: RGBA color.
+        glyf<void> gc;     // 8U, cell: Grapheme cluster.
+        body       st;     // 4U, cell: Style attributes.
+        id_t       id = 0; // 4U, cell: Link ID.
+        id_t       rsrvd0; // 4U, cell: pad, the size should be a power of 2.
+        id_t       rsrvd1; // 4U, cell: pad, the size should be a power of 2.
 
     public:
         cell() = default;
@@ -951,6 +963,12 @@ namespace netxs::ui
         {
             return uv.bg.is_alpha_blendable();//&& uv.param.fg.is_alpha_blendable();
         }
+        // cell: Cell transitional color blending (fg/bg only).
+        void avg(cell const& c1, cell const& c2, iota level)
+        {
+            uv.fg = rgba::transit(c1.uv.fg, c2.uv.fg, level);
+            uv.bg = rgba::transit(c1.uv.bg, c2.uv.bg, level);
+        }
         // cell: Set Grapheme cluster and its width.
         void set_gc (view c, size_t w) { gc.set(c, w); }
         // cell: Set Grapheme cluster.
@@ -1035,7 +1053,7 @@ namespace netxs::ui
         }
     };
 
-    // Extern link statics
+    // Extern link statics.
     template<class T> std::hash<view>          cell::glyf<T>::coder;
     template<class T> text                     cell::glyf<T>::empty;
     template<class T> std::map<uint64_t, text> cell::glyf<T>::jumbo;
@@ -1067,16 +1085,21 @@ namespace netxs::ui
 
             return block;
         }
-
-        operator bool     ()              const { return size.x != 0 && size.y != 0;       }
-        auto   area       ()              const { return size.x * size.y;                  }
-        twod   map        (twod const& p) const { return p - coor;                         }
-        rect   operator & (rect const& r) const { return clip(r);                          }
-        rect   operator + (rect const& r) const { return { coor + r.coor, size + r.size }; }
-        rect   operator - (rect const& r) const { return { coor - r.coor, size - r.size }; }
-        rect   operator | (rect const& r) const { return unite(r);                         }
-        bool   operator!= (rect const& r) const { return coor != r.coor || size != r.size; }
-        bool   operator== (rect const& r) const { return coor == r.coor && size == r.size; }
+        twod clip (twod point) const
+        {
+            return std::clamp(point, coor, coor + std::max(dot_00, size - dot_11));
+        }
+        operator bool      ()              const { return size.x != 0 && size.y != 0;       }
+        auto   area        ()              const { return size.x * size.y;                  }
+        twod   map         (twod const& p) const { return p - coor;                         }
+        rect   operator &  (rect const& r) const { return clip(r);                          }
+        rect   operator +  (rect const& r) const { return { coor + r.coor, size + r.size }; }
+        rect   operator -  (rect const& r) const { return { coor - r.coor, size - r.size }; }
+        rect   operator |  (rect const& r) const { return unite(r);                         }
+        bool   operator != (rect const& r) const { return coor != r.coor || size != r.size; }
+        bool   operator == (rect const& r) const { return coor == r.coor && size == r.size; }
+        void   operator += (rect const& r)       { coor += r.coor; size += r.size;          }
+        void   operator -= (rect const& r)       { coor -= r.coor; size -= r.size;          }
 
         // rect: Is the point inside the rect.
         bool hittest (twod const& p) const
@@ -1201,14 +1224,14 @@ namespace netxs::ui
 
     static constexpr const rect rect_00{ dot_00,dot_00 };
 
-    // layout: The Parallelepiped, generated by three vectors.
+    // layout: A Parallelepiped, generated by three vectors.
     struct cube
     {
         twod delta;
         rect stuff;
     };
 
-    // layout: The rectangle represented by the four values: Left x-coor, Right x-coor, Top y-coor, Bottom y-coor.
+    // layout: A rectangle represented by the four values: Left x-coor, Right x-coor, Top y-coor, Bottom y-coor.
     struct side
     {
         iota l, r, t, b;
@@ -1282,26 +1305,18 @@ namespace netxs::ui
             t -= p.y;
             b -= p.y;
         }
-        // side: Set and return true if changed.
+        // side: Set paddings.
         void set(iota new_l, iota new_r = 0, iota new_t = 0, iota new_b = 0)
         {
             l = new_l;
             r = new_r;
             t = new_t;
             b = new_b;
-
-            //if (l != new_l ||
-            //	r != new_r ||
-            //	t != new_t ||
-            //	b != new_b)
-            //{
-            //	l = new_l;
-            //	r = new_r;
-            //	t = new_t;
-            //	b = new_b;
-            //	return true;
-            //}
-            //else return faux;
+        }
+        // side: Set left and right pads.
+        void set(std::pair<iota, iota> left_right)
+        {
+            set(left_right.first, left_right.second);
         }
         // side: Return top left corner.
         auto topleft() const { return twod{ l, t }; }
@@ -1312,7 +1327,7 @@ namespace netxs::ui
         auto height() const { return b - t; }
         // side: Return width.
         auto width() const { return r - l; }
-        // side: Textify
+        // side: Textify.
         auto str() const
         {
             return "{ l:" + std::to_string(l) + " r: " + std::to_string(r) +
@@ -1324,27 +1339,30 @@ namespace netxs::ui
         }
     };
 
+    // layout: Padding, space around an element's content.
     struct dent
     {
         struct edge
         {
-            iota step = 0;
             bool just = faux;
-            bool flip = faux;
+            iota step = 0;
 
             constexpr edge(bool just)
                 : just { just },
-                  flip { faux },
                   step { 0    }
+            { }
+            constexpr edge(bool just, iota n)
+                : just { just          },
+                  step { n }
             { }
 
             auto get(iota size) const
             {
-                return (just != flip) ? step : size - step;
+                return just ? step : size - step;
             }
             edge& operator = (iota n)
             {
-                step = (flip = n < 0) ? -n : n;
+                step = n;
                 return *this;
             }
             edge& operator = (edge const& e)
@@ -1364,6 +1382,12 @@ namespace netxs::ui
               east{ faux },
               head{ true },
               foot{ faux }
+        { }
+        constexpr dent(iota w, iota e = 0, iota h = 0, iota f = 0)
+            : west{ true, w},
+              east{ faux, e},
+              head{ true, h},
+              foot{ faux, f}
         { }
 
         dent& operator = (dent const& margin)
@@ -1392,11 +1416,23 @@ namespace netxs::ui
             auto f = foot.get(size_y);
             return rect{ {w, h}, {std::max(e - w, 0), std::max(f - h, 0)} };
         }
-        // dent: Return the coor of the area rectangle.
-        auto corner(iota size_x, iota size_y) const
+        // dent: Return inner area rectangle.
+        auto area(twod const& size) const
         {
-            return twod{ west.get(size_x),
-                         head.get(size_y) };
+            return area(size.x, size.y);
+        }
+        // dent: Return inner area rectangle.
+        auto area(rect const& content) const
+        {
+            rect field = area(content.size.x, content.size.y);
+            field.coor += content.coor;
+            return field;
+        }
+        // dent: Return the coor of the area rectangle.
+        auto corner() const
+        {
+            return twod{ west.step,
+                         head.step };
         }
         // dent: Return inner width.
         auto width(iota size_x) const
@@ -1411,6 +1447,11 @@ namespace netxs::ui
             auto h = head.get(size_y);
             auto f = foot.get(size_y);
             return std::max(f - h, 0);
+        }
+        // dent: Return size of the inner rectangle.
+        auto size(twod const& size) const
+        {
+            return twod{ width(size.x), height(size.y) };
         }
         // dent: Return the horizontal coordinate using percentages.
         auto h_ratio(iota px, iota size_x) const
@@ -1440,97 +1481,56 @@ namespace netxs::ui
             head = q(0);
             foot = q(0);
         }
+        // dent: Return size without padding.
+        friend auto operator + (twod const& size, dent const& pad)
+        {
+            return twod{ std::max(0, size.x + (pad.west.step + pad.east.step)),
+                         std::max(0, size.y + (pad.head.step + pad.foot.step)) };
+        }
+        // dent: Return size with padding.
+        friend auto operator - (twod const& size, dent const& pad)
+        {
+            return twod{ std::max(0, size.x - (pad.west.step + pad.east.step)),
+                         std::max(0, size.y - (pad.head.step + pad.foot.step)) };
+        }
+        // dent: Return area without padding.
+        friend auto operator + (rect const& area, dent const& pad)
+        {
+            return rect{{ area.coor.x - pad.west.step,
+                          area.coor.y - pad.head.step },
+                        { std::max(0, area.size.x + (pad.west.step + pad.east.step)),
+                          std::max(0, area.size.y + (pad.head.step + pad.foot.step)) }};
+        }
+        // dent: Return area with padding.
+        friend auto operator - (rect const& area, dent const& pad)
+        {
+            return rect{ { area.coor.x + pad.west.step,
+                           area.coor.y + pad.head.step },
+                         { std::max(0, area.size.x - (pad.west.step + pad.east.step)),
+                           std::max(0, area.size.y - (pad.head.step + pad.foot.step)) }};
+        }
     };
 
-    struct rack // scroll info
+    // layout: Scroll info.
+    struct rack
     {
-        twod region; // rack: Available scroll area
-        rect window; // rack: Scrolling viewport
-        side beyond; // rack: Scroll margins outside of the scroll region
+        twod region; // rack: Available scroll area.
+        rect window; // rack: Scrolling viewport.
+        side beyond; // rack: Scroll margins outside of the scroll region.
+        // rack: Textify.
+        auto str() const
+        {
+            return "{ reg:" + region.str() + " win:" + window.str() +
+                    " ovr:" + beyond.str() + " }";
+        }
+        friend std::ostream& operator << (std::ostream& s, rack const& p)
+        {
+            return s << p.str();
+        }
     };
-
-    //struct limits
-    //{
-    //	twod min = { 0, 0 };
-    //	twod max = { maxval(), maxval() };
-    //
-    //	static int maxval() { return 0xFFFF; }
-    //
-    //	bool set(limits newlimits)
-    //	{
-    //		bool result = faux;
-    //		if (max != newlimits.max)
-    //		{
-    //			max.x = std::clamp(newlimits.max.x, 0, maxval());
-    //			max.y = std::clamp(newlimits.max.y, 0, maxval());
-    //			result = true;
-    //		}
-    //		if (min != newlimits.min)
-    //		{
-    //			min.x = std::clamp(newlimits.min.x, 0, maxval());
-    //			min.y = std::clamp(newlimits.min.y, 0, maxval());
-    //			result = true;
-    //		}
-    //		return result;
-    //	}
-    //	void apply(int& x, int& y)
-    //	{
-    //		x = std::clamp(x, min.x, max.x);
-    //		y = std::clamp(y, min.y, max.y);
-    //	}
-    //};
-    //
-    //enum class orientation	{ horizontal, vertical };
-    //
-    //struct resource
-    //{
-    //	enum type
-    //	{
-    //		undefined,
-    //		accel,
-    //		icon,
-    //		font,
-    //		menu,
-    //		imagelist,
-    //		cstring,
-    //		ptr,
-    //	};
-    //
-    //	resource	()						 : spec(type::undefined) { }
-    //	resource	(type spec)				 : spec(spec)			 { }
-    //	resource	(void * hndl, type spec) : spec(spec)			 { rsrc = handle{ hndl, null_deleter() }; }
-    //
-    //	virtual ~resource()	{ }
-    //
-    //	template<class T>
-    //	operator T ();
-    //
-    //protected:
-    //	using handle = std::shared_ptr<void>;
-    //
-    //	handle	rsrc;
-    //	type	spec;
-    //};
-    //
-    //struct rsrcpack_i
-    //{
-    //	virtual ~rsrcpack_i() { }
-    //	virtual std::vector<resource> get(int selector, int filter = -1) = 0;
-    //};
-    //
-    //using rsrcpack = std::shared_ptr<rsrcpack_i>;
-    //using rcidlist = std::vector<std::pair<int, std::vector<utils::cstr>>>;
-    //
-    //utils::cstr	load_string		(int string_id,					utils::intptr instance = 0);
-    //resource	load_imagelist	(std::vector<resource> const& icons);
-    //resource	load_icon		(utils::cstr const& icon_id,	utils::intptr instance = 0);
-    //resource	load_accl		(utils::cstr const& accl_id,	utils::intptr instance = 0);
-    //resource	load_cursor		(utils::cstr const& curs_id,	utils::intptr instance = 0);
-    //resource	load_menu		(utils::cstr const& menu_id,	utils::intptr instance = 0);
-    //resource	load_font		(utils::cstr const& fontname = utils::cstr(), uint32_t pitch = 0, int height = 0, int width = 0);
-    //rsrcpack	load_iconpack	(utils::intptr instance, rcidlist const& iconlist);
-    //resource	load_cstr		(utils::cstr const& txt = 0);
-    //resource	load_ptr		(void * ptr = nullptr);
 }
-
+namespace netxs::ui
+{
+    using rect = netxs::ui::atoms::rect;
+}
 #endif // NETXS_LAYOUT_HPP

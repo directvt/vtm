@@ -12,7 +12,7 @@
 
 namespace netxs::generics
 {
-    template<class T>
+    template<class T, class DTOR>
     struct ring
     {
         using type = typename T::value_type;
@@ -27,41 +27,40 @@ namespace netxs::generics
                 addr{ addr }
             { }
             auto  operator -  (iter const& r)       { return addr - r.addr;          }
-            auto  operator -  (int n)               { return iter{ buff, addr - n }; }
-            auto  operator +  (int n)               { return iter{ buff, addr + n }; }
-            auto  operator ++ (int)                 { return iter{ buff, addr++   }; }
-            auto  operator -- (int)                 { return iter{ buff, addr--   }; }
+            auto  operator -  (iota n)              { return iter{ buff, addr - n }; }
+            auto  operator +  (iota n)              { return iter{ buff, addr + n }; }
+            auto  operator ++ (iota)                { return iter{ buff, addr++   }; }
+            auto  operator -- (iota)                { return iter{ buff, addr--   }; }
             auto& operator ++ ()                    { ++addr; return *this;          }
             auto& operator -- ()                    { --addr; return *this;          }
             auto& operator *  ()                    { return   buff[addr];           }
             auto  operator -> ()                    { return &(buff[addr]);          }
             auto  operator != (iter const& m) const { return addr != m.addr;         }
             auto  operator == (iter const& m) const { return addr == m.addr;         }
+            friend auto operator - (iter const& n, iter const& m) { return n.addr - m.addr; }
         };
 
-        T    buff; // ring: Inner container
-        bool flex; // ring: True if unlimited
-        iota peak; // ring: Limit of the ring buffer
-        iota size; // ring: Elements count
-        iota cart; // ring: Active item position
-        iota head; // ring: head
-        iota tail; // ring: back
-        iota step; // ring: Unlimited buffer increment step
-        iota mxsz; // ring: Max unlimited buffer size
+        iota step; // ring: Unlimited buffer increment step (zero for fixed size buffer).
+        iota peak; // ring: Limit of the ring buffer.
+        T    buff; // ring: Inner container.
+        iota size; // ring: Elements count.
+        iota cart; // ring: Active item position.
+        iota head; // ring: Front index.
+        iota tail; // ring: Back index.
+        iota mxsz; // ring: Max unlimited buffer size.
+        DTOR wipe; // ring: Item invalidation functor.
 
-        void init(iota ring_size = 0, iota grow_by = 2)
-        {
-            assert(ring_size >= 0 && grow_by >= 0);
-            flex = !ring_size;
-            step = grow_by;
-            peak = flex ? step : ring_size;
-            size = 0;
-            cart = 0;
-            head = 0;
-            tail = peak - 1;
-            buff.resize(peak);
-            mxsz = std::numeric_limits<iota>::max() - step;
-        }
+        ring(iota ring_size, iota grow_by, DTOR unregister_proc)
+            : step{ grow_by                                 },
+              peak{ !ring_size ? step : ring_size           },
+              buff( peak                                    ), // Rounded brackets! Not curly! In oreder to call T::ctor().
+              size{ 0                                       },
+              cart{ 0                                       },
+              head{ 0                                       },
+              tail{ peak - 1                                },
+              mxsz{ std::numeric_limits<iota>::max() - step },
+              wipe{ unregister_proc                         }
+        { }
         void inc(iota& a) const   { if  (++a == peak) a = 0;        }
         void dec(iota& a) const   { if  (--a < 0    ) a = peak - 1; }
         auto mod(iota  a) const   { return a < 0  ? ++a % peak - 1 + peak
@@ -79,7 +78,7 @@ namespace netxs::generics
         {
             if (size == peak)
             {
-                if (flex && peak < mxsz) resize(peak + step, true);
+                if (step && peak < mxsz) resize(peak + step, step);
                 else                     return true;
             }
             return faux;
@@ -89,6 +88,7 @@ namespace netxs::generics
         {
             if (full())
             {
+                wipe(front()); // Cleanup destructed item
                 if (cart == head) inc(head), cart = head;
                 else              inc(head);
             }
@@ -101,6 +101,7 @@ namespace netxs::generics
         void pop()
         {
             assert(size > 0);
+            wipe(back()); // Cleanup destructed item
             back() = type{};
             if (cart == tail) dec(tail), cart = tail;
             else              dec(tail);
@@ -113,18 +114,38 @@ namespace netxs::generics
             head = 0;
             tail = peak - 1;
         }
-        void resize(iota new_size, bool is_unlimited = faux)
+        template<bool BOTTOM_ANCHORED = true>
+        void resize(iota new_size, iota grow_by = 0)
         {
             if (new_size > 0)
             {
                 T temp;
                 temp.reserve(new_size);
-                auto dist = dst(cart, tail);
-                if (size > new_size)
+                if constexpr (BOTTOM_ANCHORED)
                 {
-                    auto diff = size - new_size;
-                    head = mod(head + diff);
-                    size = new_size;
+                    if (size > new_size)
+                    {
+                        do // Cleanup destructed items
+                        {
+                            wipe(front());
+                            inc(head);
+                        }
+                        while(--size != new_size);
+                    }
+                    cart = std::max(0, size - 1 - dst(cart, tail));
+                }
+                else // TOP_ANCHORED
+                {
+                    if (size > new_size)
+                    {
+                        do // Cleanup destructed items
+                        {
+                            wipe(back());
+                            dec(tail);
+                        }
+                        while(--size != new_size);
+                    }
+                    cart = std::min(size - 1, dst(head, cart));
                 }
                 auto i = size;
                 while(i--)
@@ -136,11 +157,10 @@ namespace netxs::generics
                 std::swap(buff, temp);
                 peak = new_size;
                 head = 0;
-                flex = is_unlimited;
-                tail = size ? size - 1 : peak - 1;
-                cart = size ? std::max(0, tail - dist) : 0;
+                tail = size - 1;
+                step = grow_by;
             }
-            else flex = true;
+            else step = grow_by;
         }
         auto& operator  * () { return buff[cart];           }
         auto  operator -> () { return buff.begin() + cart;  }

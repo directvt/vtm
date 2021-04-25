@@ -1,21 +1,24 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-//#define DEMO
-#define MONOTTY_VER "Monotty Desktopio Preview v0.3.2"
-#define PROD
+#define DEMO
+#define MONOTTY_VER "Monotty Desktopio Preview v0.3.4"
+//#define PROD
 
-// Terminal's default line wrapping mode
+// Terminal's default line wrapping mode.
 #define WRAPPING (wrap::on)
 //#define WRAPPING (wrap::off)
 
-// Enable to show debug overlay
+// Enable to show debug overlay.
 //#define DEBUG_OVERLAY
 
-// Enable to show all terminal input (keyboard/mouse etc)
+// Enable to show all terminal input (keyboard/mouse etc).
 //#define KEYLOG
 
-// Show codepoint by the "logs"
+// Highlight region ownership.
+//#define REGIONS
+
+// Show codepoint by the "Logs".
 #define SHOW_CPOINTS faux
 //#define SHOW_CPOINTS true
 
@@ -31,45 +34,9 @@
 
 using namespace std::placeholders;
 using namespace netxs::console;
-using namespace netxs::ui;
+using namespace netxs::ui::events;
+using namespace netxs::ui::atoms;
 using namespace netxs;
-
-text edit_menu = ansi::nil().wrp(wrap::off)
-+ " ≡ "
-+ " " + ansi::und(true) + "F" + ansi::nil() + "ile "
-+ " " + ansi::und(true) + "E" + ansi::nil() + "dit "
-+ " " + ansi::und(true) + "V" + ansi::nil() + "iew "
-+ " " + ansi::und(true) + "D" + ansi::nil() + "ata "
-+ ansi::chx(0).jet(bias::right)
-+ " " + ansi::und(true) + "H" + ansi::nil() + "elp "
-+ "";
-
-text calc_menu = ansi::nil().wrp(wrap::off)
-+ " ≡ "
-+ " " + ansi::und(true) + "F" + ansi::nil() + "ile "
-+ " " + ansi::und(true) + "E" + ansi::nil() + "dit "
-+ " " + ansi::und(true) + "V" + ansi::nil() + "iew "
-+ " " + ansi::und(true) + "D" + ansi::nil() + "ata ";
-
-text calc_help = ansi::nil().wrp(wrap::off)
-+ " " + ansi::und(true) + "H" + ansi::nil() + "elp "
-+ "";
-
-text calc_line1 = ansi::nil().wrp(wrap::off)
-+ ansi::bgc(whitedk).fgc(blackdk)
-+ " Fx "
-+ ansi::bgc(whitelt).fgc(blacklt)
-+ " =SUM(B1:B10) ";
-
-text calc_line2 = ansi::nil().wrp(wrap::off)
-+ ansi::bgc(whitedk).fgc(blackdk)
-+ " ⋯ "
-+ "";
-
-text chat_text = ansi::fgc(whitedk)
-+ ansi::idx(0).nop() + ansi::fgc(whitelt)
-+ " [" + ansi::idx(1).nop() + ansi::fgc(whitelt) + "]> "
-+ ansi::nil().idx(2).nop();
 
 text monotty_logo  = ansi::bgc(blackdk)   + "▀▄";
 text textancy_logo = ansi::bgc(cyandk)    + "▀▄";
@@ -109,17 +76,13 @@ auto item = [](auto app, auto clr, auto rating, auto price, auto buy, auto desc)
 
 text appstore_head = ansi::nil().eol()
 + ansi::mgl(2).mgr(2).wrp(wrap::off)
-//+ ansi::fgc(whitelt).jet(bias::left)
 + ansi::fgc(0xFFFFFFFF).jet(bias::left)
-//+ "▀▄ "
 + ansi::bld(true)
-//+ ansi::bgc(whitelt).fgc(bluedk)
 + "Desktopio App Store"
 + "\n\n"
 + ansi::bld(faux).fgc(whitelt).jet(bias::left).wrp(wrap::on)
-//+ ansi::fgc(whitelt).bgc().jet(bias::left).wrp(true)
 + "A digital distribution platform, developed "
-"and maintained by NetXS Group, for terminal "
+"and maintained by NetXS Group, for TUI/terminal "
 "apps on its desktop environment. "
 "The store allows users to browse and download "
 "apps developed with Desktopio software "
@@ -145,7 +108,7 @@ std::list<text> appstore_body =
     "contain ANSI-formatted text."),
 
     item("Calc", greendk, "30", "Free ", "Get",
-    "A simple spreadsheet program like VisiCalc or Lotus 1-2-3."),
+    "A simple spreadsheet calculator application."),
 
     item("Task", magentadk, "311", "Free ", "Get",
     "A task manager program that displays "
@@ -158,7 +121,7 @@ std::list<text> appstore_body =
 
     item("Char", yellowdk, "161", "Free ", "Get",
     "An utility that allows browsing all Unicode "
-    "code points and inspecting their metadata."),
+    "codepoints and inspecting their metadata."),
 
     item(ansi::fgc(0xff0000) + "File", cyanlt, "4", "Free ", "Get",
     "An orthodox file manager for Monotty environment."),
@@ -169,21 +132,24 @@ std::list<text> appstore_body =
     item("Goto", bluedk, "4", "Free ", "Get",
     "Internet/SSH browser."),
 
-    item(ansi::fgc(0xFF00FFFF)+"Game"+ansi::fgc(), reddk, "4", "Free ", "Get",
-    "Doom II."),
+    item(ansi::fgc(0xFF00FFFF)+"Doom"+ansi::fgc(), reddk, "4", "Free ", "Get",
+    "Doom II source port."),
 
     item("Logs", blackdk, "4096", "Free ", "Get",
     "Application for displaying debug trace. "
     "This is more efficient than writing to STDOUT."),
 
     item("Clip", bluedk, "1", "Free ", "Get",
-    "Clipboard manager. "),
+    "Clipboard manager."),
 
     item("Info", cyandk, "1", "Free ", "Get",
-    "Software documentation browser. "),
+    "Software documentation browser."),
+
+    item("Hood", reddk, "1", "Free ", "Get",
+    "Desktop environment settings configurator."),
 };
 
-text qr = ""s//"\033[38;2;000;000;000m\033[48;2;000;000;000m"s
+text qr = ""s
 + "\033[107m                                 \n"
 + "  \033[40m \033[97m▄▄▄▄▄ \033[107m \033[30m▄\033[40;97m▄\033[107m \033[30m▄\033[40m \033[107m  \033[40m \033[97m▄\033[107;30m▄\033[40;97m▄▄\033[107m  \033[40m ▄▄▄▄▄ \033[107m  \n"
 + "  \033[40m \033[107m \033[40m   \033[107m \033[40m \033[107m \033[40m▄   ▄\033[107m \033[40m \033[107;30m▄ \033[40m \033[107m▄\033[40;97m▄\033[107m  \033[40m \033[107m \033[40m   \033[107m \033[40m \033[107m  \n"
@@ -205,9 +171,7 @@ text qr = ""s//"\033[38;2;000;000;000m\033[48;2;000;000;000m"s
 
 text desktopio_body = ansi::nil().eol()
 + ansi::mgl(2).mgr(2).wrp(wrap::off)
-//+ ansi::fgc(whitelt).bgc(bluedk).jet(bias::left)
 + ansi::fgc(bluedk).jet(bias::left)
-//+ "▀▄ "
 + ansi::bgc(bluedk).fgc(0xFFFFFFFF)
 + " Monotty Desktopio "
 + "\n\n"
@@ -227,14 +191,7 @@ text desktopio_body = ansi::nil().eol()
 + " bitcoin:1Euu4jcQ15LKijaDyZigZrnEoqwe1daTVZ\n"
 + "";
 
-text cellatix_head;
-text cellatix_text;
-text cellatix_foot = ansi::scp()
-+ ansi::chx(4).chy(0).jet(bias::left).rlf(feed::rev).mgl(1).wrp(wrap::off)
-+ ansi::bgc(whitelt).fgc(blackdk) + " Sheet1 "
-+ ansi::bgc(whitedk).fgc(blackdk) + "＋" + ansi::nil().rcp();
-
-enum topic_vars
+enum test_topic_vars
 {
     object1,
     object2,
@@ -247,43 +204,12 @@ enum topic_vars
     dynamix2,
     dynamix3,
 };
-class stem_welcome
-    : public post
-{
-public:
-    iota iteration = 0;
-    side scroll_info;
-
-    template<class T>
-    auto& lyric(T paraid) { return *topic[paraid].lyric; }
-
-    stem_welcome()
-    {
-        SUBMIT(e2::release, e2::form::upon::redrawn, canvas)
-        {
-            canvas.each([&](auto& c) { c.link(bell::id); });
-        };
-        SUBMIT(e2::release, e2::form::upon::wiped, canvas)
-        {
-            iteration++;
-            auto p = canvas.area().size;
-            topic[topic_vars::object1] = " " + ansi::und(true) + "mutable" + ansi::und(faux) + " inlined text #1: "
-                + std::to_string(iteration) + " change" + (iteration > 1 ? "s " : " ");
-
-            topic[topic_vars::object2] = " " + ansi::und(true) + "mutable" + ansi::und(faux) + " inlined text #2: "
-                + std::to_string(p.x) + " x " + std::to_string(p.y) + " ";
-
-            topic[topic_vars::object3] = std::to_string(scroll_info.t) + " : "
-                + std::to_string(scroll_info.b);
-        };
-    }
-};
 
 class post_logs
-    : public post
+    : public ui::post
 {
-    using self = post_logs;
-    FEATURE(pro::caret, caret); // post: Text caret controller.
+    pro::caret<post_logs> caret{ *this }; // post_logs: Text caret controller.
+    pro::mouse<post_logs> mouse{ *this }; // post_logs: .
 
     text label;
     hook token;
@@ -398,11 +324,11 @@ public:
         caret.show();
         caret.coor(dot_01);
 
-#ifdef DEMO
+        #ifdef DEMO
         topic.maxlen(400);
-#else
+        #else
         topic.maxlen(10000);
-#endif
+        #endif
 
         label = ansi::bgc(whitelt).fgc(blackdk)
               + " Note: Log is limited to " + std::to_string(topic.maxlen()) + " lines (old lines will be auto-deleted) \n"
@@ -439,12 +365,12 @@ public:
 
 int main(int argc, char* argv[])
 {
-    //netxs::logger::logger logger([](auto const& data) { os::syslog(data); });
-    netxs::logger::logger logger([](auto const& utf8)
+    // Initialize global logger.
+    netxs::logger::logger logger(
+        [](auto const& utf8)
         {
-            os::syslog(utf8);
-
             static text buff;
+            os::syslog(utf8);
             if (auto sync = e2::try_sync{})
             {
                 if (buff.size())
@@ -484,25 +410,17 @@ int main(int argc, char* argv[])
         banner();
     }
 
-    //get current region from vtm.conf
-    text region;
+    //todo Get current config from vtm.conf.
+    text config;
     {
         std::ifstream conf;
         conf.open("vtm.conf");
-
-        if (conf.is_open())
-        {
-            std::getline(conf, region);
-        }
-
-        if (region.empty())
-        {
-            region = "unknown region";
-        }
+        if (conf.is_open()) std::getline(conf, config);
+        if (config.empty()) config = "empty config";
     }
 
     {
-    #pragma region images
+    #pragma region samples
         //todo put all ansi art into external files
         text r_grut00 = ansi::wrp(wrap::off).rlf(feed::fwd).jet(bias::center) + ""
             "\033[0m\033[s"\
@@ -600,7 +518,6 @@ int main(int argc, char* argv[])
             + ansi::fgc(clr) + "Microsoft Windows" + ansi::nil() + "."
             + "\n";
 
-        text topic2;
         text topic;
         {
             auto clr = 0xFFFFFFFF;
@@ -628,21 +545,29 @@ int main(int argc, char* argv[])
             auto c1 = bluelt;// 0xffff00;
             auto c2 = whitedk;//0xffffff;
             text intro = ansi::mgl(0).mgr(0)
+                + " "
                 //+ ansi::jet(bias::right).mgl(1).mgr(1).wrp(true)
                 //+ "https://github.com/netxs-group/VTM\n\n"
                 + ansi::jet(bias::center).wrp(wrap::off).fgc(whitelt).mgl(0).mgr(0).eol()
                 + ansi::fgc(c1).bgc(c2) + "▄"
                 + ansi::fgc(c2).bgc(c1) + "▄"
-                + ansi::fgc(clr).bgc() + "  Monotty Desktop\n"
-                + ansi::fgc().bgc() + "Usage Guide\n"
+                + ansi::fgc(clr).bgc() + "  Monotty Desktopio\n"
+                + ansi::fgc().bgc() + "Test Page    \n"
                 + "\n"
                 + ansi::nil().jet(bias::left).mgl(4).mgr(4).wrp(wrap::off)
-                + ansi::fgc(0xFFFFFF).bgc(0xFF) + " ! " + "\n"
+                + ansi::fgc(0xff000000).bgc(0xff00FF00) + " ! " + "\n"
+                + ansi::cuu(1).chx(0).mgl(9).fgc().bgc().wrp(wrap::on)
+                + "Test page for testing text formatting functionality. \n"
+                + "The following text doesn't make much sense, "
+                + "it's just a bunch of text samples.\n"
+                +"\n"
+                + ansi::nil().jet(bias::left).mgl(4).mgr(4).wrp(wrap::off)
+                + ansi::fgc(0xffFFFFFF).bgc(0xff0000FF) + " ! " + "\n"
                 + ansi::cuu(1).chx(0).mgl(9).fgc().bgc().wrp(wrap::on)
                 + "Make sure your terminal supports mouse reporting.\n"
                 +"\n"
                 + ansi::nil().jet(bias::left).mgl(4).mgr(4).wrp(wrap::off)
-                + ansi::fgc(0xFFFFFF).bgc(0xFF) + " ! " + "\n"
+                + ansi::fgc(0xffFFFFFF).bgc(0xff0000FF) + " ! " + "\n"
                 + ansi::cuu(1).chx(0).mgl(9).fgc().bgc().wrp(wrap::on)
                 + "At the moment terminal "
                 + "emulators are not able to display wide characters "
@@ -653,8 +578,10 @@ int main(int argc, char* argv[])
                 + "(U+FFFD).\n"
                 + "\n"
 
-                + ansi::wrp(wrap::off).fgc(whitelt).mgl(1).mgr(0)
-                + "Controls\n"
+                + ansi::jet(bias::center).wrp(wrap::off).fgc(whitelt).mgl(1).mgr(0)
+                + "Test Samples\n\n"
+                + ansi::jet(bias::left).wrp(wrap::off).fgc(whitelt).mgl(1).mgr(0)
+                + "User Interface Commands\n"
                 + ansi::jet(bias::left).mgl(1).mgr(0).wrp(wrap::off) + "\n"
                 + ansi::fgc(whitelt).bld(true)
                 + "Mouse:" + ansi::nil() + "\n"
@@ -731,95 +658,93 @@ int main(int argc, char* argv[])
                 + ansi::fgc(whitelt).bld(true) + "Keyboard:" + ansi::nil().wrp(wrap::off) + "\n"
                 + "    " + ansi::fgc(whitelt).und(true) + "Esc" + ansi::nil().wrp(wrap::on) + " - Quit/disconnect.\n"
                 + "    " + ansi::fgc(whitelt).und(true) + "Ctrl" + ansi::nil().wrp(wrap::on) + " - Combine with the left mouse button to set/unset keyboard focus; combining with dragging right/middle mouse buttons copies the selected area to the clipboard.\n"
-                + "    " + ansi::fgc(whitelt).und(true) + "Ctrl + PgUp/PgDn" + ansi::nil().wrp(wrap::on) + " - Navigation between windows.\n\n"
-
+                + "    " + ansi::fgc(whitelt).und(true) + "Ctrl + PgUp/PgDn" + ansi::nil().wrp(wrap::on) + " - Navigation between windows.\n"
+                + "\n"
                 + ansi::fgc(whitelt).bld(true) + "Menu:" + ansi::nil().wrp(wrap::off) + "\n"
                 + "    " + ansi::fgc(whitelt).und(true) + "Midnight Commander" + ansi::nil().wrp(wrap::off) + " - live instance of Midnight Commander.\n"
                 + "       " + ansi::fgc(whitelt).und(true) + "Truecolor image" + ansi::nil().wrp(wrap::off) + " - true color ANSI/ASCII image, ANSI art.\n"
                 + "          " + ansi::fgc(whitelt).und(true) + "Refresh Rate" + ansi::nil().wrp(wrap::off) + " - terminal screen refresh rate selector, applies to\n"
-                + "                      "                                                             + "   all connected users.\n"
-                //+ "        " + ansi::fgc(whitelt).und(true) + "BSU/ESU Toggle" + ansi::nil().wrp(faux) + " - a control sequence selector indicating the start\n"
-                //+ "                      "                                                             + "   and end of terminal screen update, applies to\n"
-                //+ "                      "                                                             + "   all connected users.\n"
+                + "                      "                                                                  + "   all connected users.\n"
                 + "                " + ansi::fgc(whitelt).und(true) + "Strobe" + ansi::nil().wrp(wrap::off) + " - an empty resizable window that changes background color\n"
-                + "                      "                                                             + "   when drawing each new frame (stroboscopic object).\n"
+                + "                      "                                                                  + "   when drawing each new frame (stroboscopic object).\n"
                 + "  " + ansi::fgc(whitelt).und(true) + "Recursive connection" + ansi::nil().wrp(wrap::off) + " - limited to 3 connections.\n"
-                //+ "  " + ansi::fgc(whitelt).und(true) + "ssh vtm@netxs.online" + ansi::nil().wrp(faux) + " - a recursive connection.\n"
                 + "\n"
                 + "    " + ansi::fgc(whitelt).und(true) + "Disconnect" + ansi::nil().wrp(wrap::off) + " - disconnects the current user.\n"
                 + "    " + ansi::fgc(whitelt).und(true) + "Shutdown" + ansi::nil().wrp(wrap::off) + "   - disconnects all connected users and restarts\n"
-                + "            "                                                             + "     the desktop environment (auto-fire if there are\n"
-                + "            "                                                             + "     no mouse clicks for 5 minutes).\n\n"
+                + "            "                                                                  + "     the desktop environment (auto-fire if there are\n"
+                + "            "                                                                  + "     no mouse clicks for 5 minutes).\n\n"
                 + "\n"
                 + ansi::wrp(wrap::on).mgl(0).mgr(0) + "\n"
                 + "\n";
 
             text data = ansi::nil()
-                + ansi::jet(bias::center).wrp(wrap::off).fgc(whitelt) + "Text layout examples\n\n"
+                + ansi::jet(bias::center).wrp(wrap::off).fgc(whitelt) + "Test Layouts\n\n"
                 + ansi::wrp(wrap::off).jet(bias::left).und(true)
-                + "wrap OFF:\n\n" + ansi::nil().wrp(wrap::off)
+                + "Text wrapping is OFF:\n\n" + ansi::nil().wrp(wrap::off)
                 + testline
                 + "\n\n"
 
                 + ansi::wrp(wrap::off).jet(bias::left).und(true).fgc(whitelt)
-                + "wrap ON:\n\n" + ansi::nil().wrp(wrap::on)
+                + "Text wrapping is ON:\n\n" + ansi::nil().wrp(wrap::on)
                 + testline
                 + "\n\n"
 
                 + ansi::jet(bias::left)
-                + "text: " + ansi::idx(topic_vars::object1).sav().fgc(whitelt).bgc(reddk)
-                + "some_text" + ansi::nop().nil() + " other text\n\n" // inline text object test
+                + "text: " + ansi::idx(test_topic_vars::object1).sav().fgc(whitelt).bgc(reddk)
+                + "some_text" + ansi::nop().nil() + " some text\n\n" // inline text object test
                 + ansi::jet(bias::center)
-                + "text: " + ansi::idx(topic_vars::object2).sav().fgc(whitelt).bgc(reddk)
-                + "some_text" + ansi::nop().nil() + " other text\n\n" // inline text object test
+                + "text: " + ansi::idx(test_topic_vars::object2).sav().fgc(whitelt).bgc(reddk)
+                + "some_text" + ansi::nop().nil() + " some text\n\n" // inline text object test
                 + ansi::jet(bias::right)
-                + "text: " + ansi::idx(topic_vars::object3).sav().fgc(whitelt).bgc(reddk)
-                + "some_text" + ansi::nop().nil() + " other text\n\n" // inline text object test
+                + "text: " + ansi::idx(test_topic_vars::object3).sav().fgc(whitelt).bgc(reddk)
+                + "some_text" + ansi::nop().nil() + " some text\n\n" // inline text object test
 
                 + ansi::jet(bias::left).wrp(wrap::on)
-                + "text text text " + ansi::idx(topic_vars::canvas1).wrp(wrap::on)
+                + "text text text " + ansi::idx(test_topic_vars::canvas1).wrp(wrap::on)
                 + ansi::nop().nil() + " text text text"
                 + "\n\n\n"
 
                 + ansi::jet(bias::center).wrp(wrap::off).fgc(clr)
-                + "Variable-width/-height characters\n\n"
+                + "Variable-width/-height Characters\n\n"
                 + ansi::jet(bias::left).wrp(wrap::on).fgc()
-                + "left aligned\n" + ansi::ref(topic_vars::canvas2).nop()
-                                          .ref(topic_vars::canvas2).nop()
-                                          .ref(topic_vars::canvas2).nop()
-                                          .ref(topic_vars::canvas2).nop()
-                                          .ref(topic_vars::canvas2).nop()
+                + "left aligned\n" + ansi::ref(test_topic_vars::canvas2).nop()
+                                          .ref(test_topic_vars::canvas2).nop()
+                                          .ref(test_topic_vars::canvas2).nop()
+                                          .ref(test_topic_vars::canvas2).nop()
+                                          .ref(test_topic_vars::canvas2).nop()
                 + ansi::nop().nil()
                 + "\n\n"
                 + ansi::jet(bias::center).wrp(wrap::on)
-                + "centered\n" + ansi::ref(topic_vars::canvas2).nop()
-                                      .ref(topic_vars::canvas2).nop()
-                                      .ref(topic_vars::canvas2).nop()
-                                      .ref(topic_vars::canvas2).nop()
-                                      .ref(topic_vars::canvas2).nop()
+                + "centered\n" + ansi::ref(test_topic_vars::canvas2).nop()
+                                      .ref(test_topic_vars::canvas2).nop()
+                                      .ref(test_topic_vars::canvas2).nop()
+                                      .ref(test_topic_vars::canvas2).nop()
+                                      .ref(test_topic_vars::canvas2).nop()
                 + ansi::nop().nil()
                 + "\n\n"
                 + ansi::jet(bias::right).wrp(wrap::on)
-                + "right aligned\n" + ansi::ref(topic_vars::canvas2).nop()
-                                           .ref(topic_vars::canvas2).nop()
-                                           .ref(topic_vars::canvas2).nop()
-                                           .ref(topic_vars::canvas2).nop()
-                                           .ref(topic_vars::canvas2).nop()
+                + "right aligned\n" + ansi::ref(test_topic_vars::canvas2).nop()
+                                           .ref(test_topic_vars::canvas2).nop()
+                                           .ref(test_topic_vars::canvas2).nop()
+                                           .ref(test_topic_vars::canvas2).nop()
+                                           .ref(test_topic_vars::canvas2).nop()
                 + ansi::nop().nil()
                 + "\n\n"
 
                 + ansi::jet(bias::center).wrp(wrap::off).fgc(clr)
-                + "Embedded content\n\n"
+                + "Embedded Content\n\n"
                 + ansi::jet(bias::left).wrp(wrap::on)
-                + ansi::idx(topic_vars::dynamix1) + "<"+ ansi::fgc(reddk)+"create smth."+ ansi::fgc()+">"//.nop()
-                + ansi::idx(topic_vars::dynamix2) + "<"+ ansi::fgc(reddk)+"create smth."+ ansi::fgc()+">"//.nop()
-                + ansi::idx(topic_vars::dynamix3) + "<"+ ansi::fgc(reddk)+"create smth."+ ansi::fgc()+">"//.nop()
+                + ansi::idx(test_topic_vars::dynamix1) + "<"+ ansi::fgc(reddk)+"create smth."+ ansi::fgc()+">"//.nop()
+                + ansi::idx(test_topic_vars::dynamix2) + "<"+ ansi::fgc(reddk)+"create smth."+ ansi::fgc()+">"//.nop()
+                + ansi::idx(test_topic_vars::dynamix3) + "<"+ ansi::fgc(reddk)+"create smth."+ ansi::fgc()+">"//.nop()
                 + ansi::nil()
                 + "\n";
 
 
             // Wikipedia run
             text wiki = "\n\n"
+                + ansi::jet(bias::center).wrp(wrap::off).fgc(clr)
+                + "Sample Article\n\n"
 
                 + ansi::jet(bias::left).fgc(clr).wrp(wrap::on) + "ANSI escape code\n\n"
 
@@ -844,7 +769,7 @@ int main(int argc, char* argv[])
                 + "and became widespread in the computer equipment market by the early 1980s. "
                 + "They were used in development, scientific and commercial applications and later by "
                 + "the nascent " + ansi::fgc(clr) + "bulletin board systems" + ansi::nil()
-                + " to offer improved displays " + ansi::ref(topic_vars::canvas2).nop() + "compared to earlier systems lacking cursor movement, "
+                + " to offer improved displays " + ansi::ref(test_topic_vars::canvas2).nop() + "compared to earlier systems lacking cursor movement, "
                 + "a primary reason they became a standard adopted by all manufacturers.\n\n"
 
                 + "Although hardware text terminals have become increasingly rare in the 21st century, "
@@ -967,16 +892,168 @@ int main(int argc, char* argv[])
             topic += wiki_ru;
             topic += wiki_emoji;
             topic += wiki_cjk;
-
-            topic2 = intro;
         }
 
+        text topic3 = R"( 
+Plain text vs. rich text
+
+There are important differences between plain text (created and edited by 
+text editors) and rich text (such as that created by word processors or 
+desktop publishing software).
+
+Plain text exclusively consists of character representation. Each character 
+is represented by a fixed-length sequence of one, two, or four bytes, or as a 
+variable-length sequence of one to four bytes, in accordance to specific 
+character encoding conventions, such as ASCII, ISO/IEC 2022, UTF-8, or 
+Unicode. These conventions define many printable characters, but also 
+non-printing characters that control the flow of the text, such as space, 
+line break, and page break. Plain text contains no other information about 
+the text itself, not even the character encoding convention employed. Plain 
+text is stored in text files, although text files do not exclusively store 
+plain text. In the early days of computers, plain text was displayed using a 
+monospace font, such that horizontal alignment and columnar formatting were 
+sometimes done using whitespace characters. For compatibility reasons, this 
+tradition has not changed.
+
+Rich text, on the other hand, may contain metadata, character formatting data 
+(e.g. typeface, size, weight and style), paragraph formatting data (e.g. 
+indentation, alignment, letter and word distribution, and space between lines 
+or other paragraphs), and page specification data (e.g. size, margin and 
+reading direction). Rich text can be very complex. Rich text can be saved in 
+binary format (e.g. DOC), text files adhering to a markup language (e.g. RTF 
+or HTML), or in a hybrid form of both (e.g. Office Open XML).
+
+Text editors are intended to open and save text files containing either plain 
+text or anything that can be interpreted as plain text, including the markup 
+for rich text or the markup for something else (e.g. SVG).
+
+History
+
+Before text editors existed, computer text was punched into cards with 
+keypunch machines. Physical boxes of these thin cardboard cards were then 
+inserted into a card-reader. Magnetic tape and disk "card-image" files 
+created from such card decks often had no line-separation characters at all, 
+and assumed fixed-length 80-character records. An alternative to cards was 
+punched paper tape. It could be created by some teleprinters (such as the 
+Teletype), which used special characters to indicate ends of records.
+
+The first text editors were "line editors" oriented to teleprinter- or 
+typewriter-style terminals without displays. Commands (often a single 
+keystroke) effected edits to a file at an imaginary insertion point called 
+the "cursor". Edits were verified by typing a command to print a small 
+section of the file, and periodically by printing the entire file. In some 
+line editors, the cursor could be moved by commands that specified the line 
+number in the file, text strings (context) for which to search, and 
+eventually regular expressions. Line editors were major improvements over 
+keypunching. Some line editors could be used by keypunch; editing commands 
+could be taken from a deck of cards and applied to a specified file. Some 
+common line editors supported a "verify" mode in which change commands 
+displayed the altered lines.
+
+When computer terminals with video screens became available, screen-based 
+text editors (sometimes called just "screen editors") became common. One of 
+the earliest full-screen editors was O26, which was written for the operator 
+console of the CDC 6000 series computers in 1967. Another early full-screen 
+editor was vi. Written in the 1970s, it is still a standard editor on Unix 
+and Linux operating systems. Also written in the 1970s was the UCSD Pascal 
+Screen Oriented Editor, which was optimized both for indented source code as 
+well as general text. Emacs, one of the first free and open source software 
+projects, is another early full-screen or real-time editor, one that was 
+ported to many systems. A full-screen editor's ease-of-use and speed 
+(compared to the line-based editors) motivated many early purchases of video 
+terminals.
+
+The core data structure in a text editor is the one that manages the string 
+(sequence of characters) or list of records that represents the current state 
+of the file being edited. While the former could be stored in a single long 
+consecutive array of characters, the desire for text editors that could more 
+quickly insert text, delete text, and undo/redo previous edits led to the 
+development of more complicated sequence data structures. A typical text 
+editor uses a gap buffer, a linked list of lines (as in PaperClip), a piece 
+table, or a rope, as its sequence data structure.
+
+Types of text editors
+
+Some text editors are small and simple, while others offer broad and complex 
+functions. For example, Unix and Unix-like operating systems have the pico 
+editor (or a variant), but many also include the vi and Emacs editors. 
+Microsoft Windows systems come with the simple Notepad, though many 
+people—especially programmers—prefer other editors with more features. Under 
+Apple Macintosh's classic Mac OS there was the native SimpleText, which was 
+replaced in Mac OS X by TextEdit, which combines features of a text editor 
+with those typical of a word processor such as rulers, margins and multiple 
+font selection. These features are not available simultaneously, but must be 
+switched by user command, or through the program automatically determining 
+the file type.
+
+Most word processors can read and write files in plain text format, allowing 
+them to open files saved from text editors. Saving these files from a word 
+processor, however, requires ensuring the file is written in plain text 
+format, and that any text encoding or BOM settings won't obscure the file for 
+its intended use. Non-WYSIWYG word processors, such as WordStar, are more 
+easily pressed into service as text editors, and in fact were commonly used 
+as such during the 1980s. The default file format of these word processors 
+often resembles a markup language, with the basic format being plain text and 
+visual formatting achieved using non-printing control characters or escape 
+sequences. Later word processors like Microsoft Word store their files in a 
+binary format and are almost never used to edit plain text files.
+
+Some text editors can edit unusually large files such as log files or an 
+entire database placed in a single file. Simpler text editors may just read 
+files into the computer's main memory. With larger files, this may be a slow 
+process, and the entire file may not fit. Some text editors do not let the 
+user start editing until this read-in is complete. Editing performance also 
+often suffers in nonspecialized editors, with the editor taking seconds or 
+even minutes to respond to keystrokes or navigation commands. Specialized 
+editors have optimizations such as only storing the visible portion of large 
+files in memory, improving editing performance.
+
+Some editors are programmable, meaning, e.g., they can be customized for 
+specific uses. With a programmable editor it is easy to automate repetitive 
+tasks or, add new functionality or even implement a new application within 
+the framework of the editor. One common motive for customizing is to make a 
+text editor use the commands of another text editor with which the user is 
+more familiar, or to duplicate missing functionality the user has come to 
+depend on. Software developers often use editor customizations tailored to 
+the programming language or development environment they are working in. The 
+programmability of some text editors is limited to enhancing the core editing 
+functionality of the program, but Emacs can be extended far beyond editing 
+text files—for web browsing, reading email, online chat, managing files or 
+playing games and is often thought of as a Lisp execution environment with a 
+Text User Interface. Emacs can even be programmed to emulate Vi, its rival in 
+the traditional editor wars of Unix culture.
+
+An important group of programmable editors uses REXX as a scripting language. 
+These "orthodox editors" contain a "command line" into which commands and 
+macros can be typed and text lines into which line commands and macros can be 
+typed. Most such editors are derivatives of ISPF/PDF EDIT or of XEDIT, IBM's 
+flagship editor for VM/SP through z/VM. Among them are THE, KEDIT, X2, 
+Uni-edit, and SEDIT.
+
+A text editor written or customized for a specific use can determine what the 
+user is editing and assist the user, often by completing programming terms 
+and showing tooltips with relevant documentation. Many text editors for 
+software developers include source code syntax highlighting and automatic 
+indentation to make programs easier to read and write. Programming editors 
+often let the user select the name of an include file, function or variable, 
+then jump to its definition. Some also allow for easy navigation back to the 
+original section of code by storing the initial cursor location or by 
+displaying the requested definition in a popup window or temporary buffer. 
+Some editors implement this ability themselves, but often an auxiliary 
+utility like ctags is used to locate the definitions.
+
+)";
+
+        text cellatix_rows;
+        text cellatix_cols;
+        text cellatix_text;
         {
             auto step = 0x030303;
             auto topclr = 0xffffff;
 
             auto corner = topclr - 0x1f1f1f;
-            text cellatix_text_head = ansi::bgc(corner).fgc(0) + "    ";
+            //text cellatix_text_head = ansi::bgc(0xffffff - 0x1f1f1f).fgc(0) + "    ";
+            text cellatix_text_head = ansi::bgc(corner).fgc(0);
             for (auto c = 'A'; c <= 'Z'; c++)
             {
                 auto clr = topclr - 0x0f0f0f;
@@ -988,7 +1065,6 @@ int main(int argc, char* argv[])
                     + ansi::bgc(clr - step * 4 /* 0xe4e4e4 */) + " "
                     + "";
             }
-
             auto clr = topclr;
             text cellatix_text_01 = ""
                 + ansi::bgc(clr - step * 0 /* 0xffffff */) + " "
@@ -997,7 +1073,6 @@ int main(int argc, char* argv[])
                 + ansi::bgc(clr - step * 3 /* 0xf6f6f6 */) + " "
                 + ansi::bgc(clr - step * 4 /* 0xf3f3f3 */) + " "
                 + "";
-
             text cellatix_text_00 = ""
                 + ansi::bgc(clr - step * 4 /* 0xf3f3f3 */) + " "
                 + ansi::bgc(clr - step * 3 /* 0xf6f6f6 */) + " "
@@ -1005,11 +1080,10 @@ int main(int argc, char* argv[])
                 + ansi::bgc(clr - step * 1 /* 0xfcfcfc */) + " "
                 + ansi::bgc(clr - step * 0 /* 0xffffff */) + " "
                 + "";
-
-            cellatix_head = ansi::nil().wrp(wrap::off)
+            cellatix_cols = ansi::nil().wrp(wrap::off)
                 + cellatix_text_head;
-
             cellatix_text = ansi::nil().wrp(wrap::off);
+            cellatix_rows = ansi::nil().wrp(wrap::off).fgc(blackdk);
             auto base = topclr - 0x1f1f1f;// 0xe0e0e0;// 0xe4e4e4;
             auto c1 = ansi::bgc(base); //ansi::bgc(0xf0f0f0);
             auto c2 = ansi::bgc(base);
@@ -1021,32 +1095,31 @@ int main(int argc, char* argv[])
                     auto c0 = base;
                     for (auto i = 0; i < label.length(); i++)
                     {
-                        cellatix_text += ansi::bgc(c0) + label[i];
+                        cellatix_rows += ansi::bgc(c0) + label[i];
                         c0 += step;
                     }
-                    cellatix_text +=
-                        utf::repeat(cellatix_text_01, 26)
-                        + (i == 99 ? ""s : ansi::eol());
+                    cellatix_rows += (i == 99 ? ""s : ansi::eol());
+                    cellatix_text += utf::repeat(cellatix_text_01, 26)
+                                  + (i == 99 ? ""s : ansi::eol());
                 }
                 else
                 {
                     auto c0 = base + step * (iota)label.length();
                     for (auto i = 0; i < label.length(); i++)
                     {
-                        cellatix_text += ansi::bgc(c0) + label[i];
+                        cellatix_rows += ansi::bgc(c0) + label[i];
                         c0 -= step;
                     }
-                    cellatix_text +=
-                        utf::repeat(cellatix_text_00, 26)
-                        + (i == 99 ? ""s : ansi::eol());
+                    cellatix_rows += (i == 99 ? ""s : ansi::eol());
+                    cellatix_text += utf::repeat(cellatix_text_00, 26)
+                                  + (i == 99 ? ""s : ansi::eol());
                 }
             }
         }
 
     #pragma endregion
 
-
-#ifdef ANSITEST
+    #ifdef ANSITEST
     { // ansi-parser performance test
         page e;
 
@@ -1077,7 +1150,7 @@ int main(int argc, char* argv[])
             + ansi::cuf(1)
             + "test\b" + ansi::rst();
     }
-#endif // ANSITEST
+    #endif // ANSITEST
 
         text truecolor;
         truecolor += wiki00;
@@ -1087,854 +1160,1153 @@ int main(int argc, char* argv[])
         truecolor += r_grut03;
         truecolor += wiki01;
 
+        //auto const highlight_color2 = tint::blackdk ;
+        auto const highlightdk_color = tint::bluedk  ;
+        auto const highlight_color   = tint::bluelt  ;
+        auto const warning_color     = tint::yellowdk;
+        auto const danger_color      = tint::redlt   ;
+        auto const action_color      = tint::greenlt ;
+        auto background_color = cell{}.fgc(whitedk).bgc(0xFF000000 /* blackdk */);
+        skin::setup(tone::kb_focus, 60);
+        skin::setup(tone::brighter, 120);
+        //skin::setup(tone::shadower, 0);
+        skin::setup(tone::shadower, 180);//60);//40);// 20);
+        skin::setup(tone::shadow, 180);//5);
+        //skin::setup(tone::lucidity, 192);
+        skin::setup(tone::lucidity, 255);
+        skin::setup(tone::selector, 48);
+        skin::setup(tone::bordersz, dot_11);
+
+        auto world = base::create<host>([&](auto reason) { os::exit(0, reason); });
+
+        log("host: created");
+
+        world->SUBMIT(e2::general, e2::form::global::lucidity, alpha)
         {
-            skin::setup(tone::kb_focus, 60);
-            skin::setup(tone::brighter, 120);
-            //skin::setup(tone::shadower, 0);
-            skin::setup(tone::shadower, 40);// 20);
-            skin::setup(tone::shadow, 5);
-            //skin::setup(tone::lucidity, 192);
-            skin::setup(tone::lucidity, 255);
-            skin::setup(tone::selector, 48);
-            skin::setup(tone::bordersz, dot_11);
-
-            auto board = base::create<host>([&](auto reason) { os::exit(0, reason); });
-
-            log("host: created");
-
-            board->SUBMIT(e2::general, e2::form::global::lucidity, alpha)
+            if (alpha == -1)
             {
-                if (alpha == -1)
-                {
-                    alpha = skin::shady();
-                }
-                else
-                {
-                    alpha = std::clamp(alpha, 0, 255);
-                    skin::setup(tone::lucidity, alpha);
-                    board->SIGNAL(e2::preview, e2::form::global::lucidity, alpha);
-                }
-            };
-
-            iota current_mode = 0;
-            board->SIGNAL(e2::general, e2::radio, current_mode);
-            board->SUBMIT(e2::general, e2::radio, mode)
+                alpha = skin::shady();
+            }
+            else
             {
-                if (mode == -1)
-                {
-                    mode = current_mode;
-                }
-                else
-                {
-                    current_mode = mode;
-                }
-            };
+                alpha = std::clamp(alpha, 0, 255);
+                skin::setup(tone::lucidity, alpha);
+                world->SIGNAL(e2::preview, e2::form::global::lucidity, alpha);
+            }
+        };
 
-            #define TYPE_LIST                        \
-            X(PowerShell   , "PowerShell"          ) \
-            X(CommandPrompt, "Command Prompt"      ) \
-            X(Bash         , "Bash/Zsh/CMD"        ) \
-            X(Far          , "Far Manager"         ) \
-            X(MC           , "Midnight Commander"  ) \
-            X(Strobe       , "Strobe"              ) \
-            X(RefreshRate  , "Refresh rate"        ) \
-            X(Truecolor    , "Truecolor image"     ) \
-            X(VTM          , "Recursive connection") \
-            X(Cellatix     , "Cellatix \033[92m▄▀\033[m") \
-            X(Textancy     , "Textancy \033[94m▄▀\033[m") \
-            X(Term         , "▀▄ Term"             ) \
-            X(Text         , "▀▄ Text"             ) \
-            X(Calc         , "▀▄ Calc"             ) \
-            X(Shop         , "▀▄ Shop"             ) \
-            X(Logs         , "▀▄ Logs"             ) \
-            X(Empty        , "Empty window"        ) \
-            X(Help         , "Help"                )
-
-            //X(Task         , "▀▄ Task"             )
-            //X(Draw         , "▀▄ Draw"             )
-            //X(Char         , "▀▄ Char"             )
-
-            //X(BSU_Toggle   , "BSU/ESU toggle"      ) \
-            //X(Bash         , "Bash"                )
-            //X(Transparency , "Transparency"        )
-            //X(QQQ          , "Disconnect  Shutdown")
-            //X(Top          , "top (process list)")
-            //X(Wiki         , "www.wikipedia.org"   )
-
-            #define X(a, b) a,
-            enum objs { TYPE_LIST count };
-            #undef X
-
-            #define X(a, b) b,
-            std::vector<text> objs_desc{ TYPE_LIST };
-            #undef X
-            #undef TYPE_LIST
-
-            objs current_default = objs::Help;
-            static bool    stobe_state = true;
-            static iota    max_count = 20;// 50;
-            static iota    max_vtm = 3;
-            static iota    vtm_count = 0;
-            constexpr auto del_timeout = 1s;
-
-            auto scroll_bars = [](auto layers, auto master)
+        // BSU/ESU init.
+        iota current_mode = 0;
+        world->SIGNAL(e2::general, e2::radio, current_mode);
+        world->SUBMIT(e2::general, e2::radio, mode)
+        {
+            if (mode == -1)
             {
-                using fork = netxs::console::fork;
-
-                auto scroll_bars = layers->template attach<fork>();
-                    scroll_bars->config(fork::horizontal, 0, 50);
-                        auto scroll_hz = scroll_bars->template attach<fork>(fork::_1);
-                        scroll_hz->config(fork::vertical, 0, 50);
-                            auto vt = scroll_hz->template attach<grip<axis::X>>(fork::_2, master);
-                auto scroll_vt = scroll_bars->template attach<grip<axis::Y>>(fork::_2, master);
-            };
-
-            auto scroll_bars_term = [](auto layers, auto master)
+                mode = current_mode;
+            }
+            else
             {
-                using fork = netxs::console::fork;
+                current_mode = mode;
+            }
+        };
 
-                auto scroll_bars = layers->template attach<fork>();
-                    scroll_bars->config(fork::horizontal, 0, 50);
-                        auto scroll_hz = scroll_bars->template attach<fork>(fork::_1);
-                        scroll_hz->config(fork::vertical, 0, 50);
-                            auto vt = scroll_hz->template attach<grip<axis::X>>(fork::_1, master);
-                auto scroll_vt = scroll_bars->template attach<grip<axis::Y>>(fork::_2, master);
-            };
+        #define TYPE_LIST                         \
+        X(Term         , "Term"                 ) \
+        X(Text         , "Text"                 ) \
+        X(Calc         , "Calc"                 ) \
+        X(Shop         , "Shop"                 ) \
+        X(Logs         , "Logs"                 ) \
+        X(PowerShell   , "PowerShell"           ) \
+        X(CommandPrompt, "Command Prompt"       ) \
+        X(Bash         , "Bash/Zsh/CMD"         ) \
+        X(Far          , "Far Manager"          ) \
+        X(VTM          , "Recursive connection" ) \
+        X(MC           , "Midnight Commander"   ) \
+        X(Truecolor    , "Truecolor image"      ) \
+        X(RefreshRate  , "Refresh rate"         ) \
+        X(Strobe       , "Strobe"               ) \
+        X(Test         , "Test"                 ) \
+        X(Empty        , "Empty window"         ) \
+        X(Menu         , "Old menu object"      )
 
-            //todo use XAML for that
-            auto create = [&](objs type, auto location) -> auto
-            {
-                auto frame = board->attach<mold>();
-                frame->extend(location);
+        //X(Cellatix     , "Cellatix \033[92m▄▀\033[m")
+        //X(Textancy     , "Textancy \033[94m▄▀\033[m")
 
-                auto winsz = frame->get_region().size;
+        #define X(a, b) a,
+        enum objs { TYPE_LIST count };
+        #undef X
 
-                switch (type)
-                {
-                    default:
-                    case Help:
-                    {
+        #define X(a, b) b,
+        std::vector<text> objs_desc{ TYPE_LIST };
+        #undef X
+        #undef TYPE_LIST
 
-                        auto layers = frame->attach<cake>();
-                        auto scroll = layers->attach<rail>();
-                        scroll->overscroll[axis::X] = true;
-                        scroll->overscroll[axis::Y] = true;
-                        scroll->color(cyanlt, bluedk);
+        objs current_default = objs::Test;
+        auto current_default_ptr = &current_default; //todo unify
+        static bool    stobe_state = true;
+        static iota    max_count = 20;// 50;
+        static iota    max_vtm = 3;
+        static iota    vtm_count = 0;
+        constexpr auto del_timeout = 1s;
 
-                        auto block = scroll->attach<stem_welcome>();
-                        //block->color(cyanlt, bluedk);
-                        block->topic = topic;
-
+        using slot = ui::slot;
+        using axis = ui::axis;
+        using axes = ui::axes;
+        auto scroll_bars = [](auto layers, auto master)
+        {
+            auto scroll_bars = layers->template attach<ui::fork>();
+                auto scroll_down = scroll_bars->template attach<slot::_1, ui::fork>(axis::Y);
+                    auto hz = scroll_down->template attach<slot::_2, ui::grip<axis::X>>(master);
+                    auto vt = scroll_bars->template attach<slot::_2, ui::grip<axis::Y>>(master);
+        };
+        auto scroll_bars_left = [](auto layers, auto master)
+        {
+            auto scroll_bars = layers->template attach<ui::fork>();
+                auto scroll_down = scroll_bars->template attach<slot::_2, ui::fork>(axis::Y);
+                    //auto hz = scroll_down->template attach<slot::_2, ui::grip<axis::X>>(master);
+                    auto vt = scroll_bars->template attach<slot::_1, ui::grip<axis::Y>>(master);
+        };
+        auto scroll_bars_term = [](auto layers, auto master)
+        {
+            auto scroll_bars = layers->template attach<ui::fork>();
+                auto scroll_head = scroll_bars->template attach<slot::_1, ui::fork>(axis::Y);
+                    auto hz = scroll_head->template attach<slot::_1, ui::grip<axis::X>>(master);
+                    auto vt = scroll_bars->template attach<slot::_2, ui::grip<axis::Y>>(master);
+        };
+        auto main_menu = [&](auto master)
+        {
+            auto menu_area = master->template attach<slot::_1, ui::fork>();
+                auto inner_pads = dent{ 1,2,1,1 };
+                auto menu_items = {
+                    std::pair{ " ≡"s,                                       dent{ 0 } },
+                    std::pair{ ansi::und(true) + "F" + ansi::nil() + "ile", dent{ 1 } },
+                    std::pair{ ansi::und(true) + "E" + ansi::nil() + "dit", dent{ 1 } },
+                    std::pair{ ansi::und(true) + "V" + ansi::nil() + "iew", dent{ 1 } },
+                    std::pair{ ansi::und(true) + "D" + ansi::nil() + "ata", dent{ 1 } },
+                    std::pair{ ansi::und(true) + "H" + ansi::nil() + "elp", dent{ 1 } } };
+                auto c3 = cell{ whitespace }.bgc(danger_color);
+                auto x3 = c3; x3.alpha(0x00);
+                auto c2 = cell{ whitespace }.bgc(highlight_color);
+                auto x2 = c2; x2.alpha(0x00);
+                auto menu_list = menu_area->template attach<slot::_1, ui::fork>()
+                                          ->template attach<slot::_1, ui::list>(axis::X);
+                for (auto& body : menu_items) menu_list->template attach<ui::pads>(inner_pads, body.second)
+                                                       ->template plugin<pro::mouse>()
+                                                       ->template plugin<pro::fader>(x2, c2, 150ms)
+                                                       ->template attach<ui::item>(body.first, faux, true);
+                auto close_hndl = [&](auto& boss)
                         {
-                            rect r{ dot_00, { 40, 9 } };
-                            auto& b = block->lyric(topic_vars::canvas1);
-                            b.mark().fgc(0xFF000000);
-                            b.size(r.size);
-                            b.grad(rgba{ 0xFFFFFF00 }, rgba{ 0x40FFFFFF });
+                             // MSVC 16.9.4 don't get it inline, use close_hndl (possible compiler bug, todo investigate)
+                             boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
+                             {
+                                 log(" CLOSE clicked!");
+                                 boss.base::template riseup<e2::release, e2::form::proceed::detach>(boss.This());
+                             };
+                        };
+                menu_area->template attach<slot::_2, ui::pads>(dent{ 2,2,1,1 }, dent{})
+                         ->template plugin<pro::mouse>()
+                         ->template plugin<pro::fader>(x3, c3, 150ms)
+                         ->invoke(close_hndl)
+                         ->template attach<ui::item>("✕");
+            menu_area->base::reflow();
+        };
 
+        //todo use XAML for that
+        auto create = [&](objs type, auto location) -> auto
+        {
+            //auto window = world->attach<ui::mold>();
+            auto window = base::create<ui::mold>();
+            window->extend(location);
+
+            auto winsz = window->get_region().size;
+
+            switch (type)
+            {
+                default:
+                case Test:
+                {
+                    auto layers = window->attach<ui::cake>();
+                    auto scroll = layers->attach<ui::rail>()
+                                        ->plugin<pro::color>(cyanlt, bluedk)
+                                        ->config(true, true);
+                    auto object = scroll->attach<ui::post>()
+                                        ->upload(topic)
+                                        ->plugin<pro::mouse>()
+                                        ->invoke([&](auto& self) {
+                                            self.SUBMIT(e2::release, e2::form::upon::redrawn, canvas)
+                                            {
+                                                static auto counter = 0; counter++;
+                                                static auto textclr =  ansi::bgc(reddk).fgc(whitelt);
+                                                self.content(test_topic_vars::object1) = textclr + " inlined #1: " + std::to_string(counter) + " hits ";
+                                                self.content(test_topic_vars::object2) = textclr + " inlined #2: " + canvas.area().size.str() + " ";
+                                                self.content(test_topic_vars::object3) = textclr + " inlined #3: " + canvas.full().coor.str() + " ";
+                                            };
+                                            self.SUBMIT(e2::general, e2::form::canvas, canvas_ptr)
+                                            {
+                                                self.content(test_topic_vars::dynamix1).lyric = self.content(test_topic_vars::dynamix2).lyric;
+                                                self.content(test_topic_vars::dynamix2).lyric = self.content(test_topic_vars::dynamix3).lyric;
+                                                self.content(test_topic_vars::dynamix3).lyric = canvas_ptr;
+                                            }; });
+                        auto& a = object->lyric(test_topic_vars::canvas1);
+                            a.mark().fgc(0xFF000000);
+                            a.size({ 40, 9 });
+                            a.grad(rgba{ 0xFFFFFF00 }, rgba{ 0x40FFFFFF });
                             para t{ "ARBITRARY SIZE BLOCK" };
-                            b.text((b.size() - twod{ t.length(), 0 }) / 2, t.shadow());
-                        }
-
-                        {
-                            rect r{ dot_00, { 6, 2 } };
-                            auto& b = block->lyric(topic_vars::canvas2);
+                            a.text((a.size() - twod{ t.length(), 0 }) / 2, t.shadow());
+                        auto& b = object->lyric(test_topic_vars::canvas2);
                             b.mark().fgc(0xFF000000);
-                            b.size(r.size);
+                            b.size({ 6, 2 });
                             b.grad(rgba{ 0xFFFFFF00 }, rgba{ 0x40FFFFFF });
                             b[{5, 0}].alpha(0);
                             b[{5, 1}].alpha(0);
+                    scroll_bars(layers, scroll);
+                    break;
+                }
+                case PowerShell:
+                {
+                    window->header(ansi::jet(bias::center) + "PowerShell");
+                    auto layers = window->attach<ui::cake>();
+                    auto scroll = layers->attach<ui::rail>()
+                                        ->plugin<pro::color>(whitelt, 0xFF560000);
+                        scroll->attach<ui::term>(winsz, "powershell")
+                              ->plugin<pro::color>(whitelt, 0xFF562401);
+                    scroll_bars_term(layers, scroll);
+                    break;
+                }
+                case CommandPrompt:
+                {
+                    window->header(ansi::jet(bias::center) + "Command Prompt");
+                    auto layers = window->attach<ui::cake>();
+                    auto scroll = layers->attach<ui::rail>();
 
-                            wptr<stem_welcome> weak = block;
-                            block->SUBMIT_BYVAL(e2::general, e2::form::canvas, canvas_ptr)
-                            {
-                                if (auto bb = weak.lock())
-                                {
-                                    bb->topic[topic_vars::dynamix1].lyric =
-                                        bb->topic[topic_vars::dynamix2].lyric;
-                                    bb->topic[topic_vars::dynamix2].lyric =
-                                        bb->topic[topic_vars::dynamix3].lyric;
-                                    bb->topic[topic_vars::dynamix3].lyric = canvas_ptr;
-                                }
-                            };
-                        }
+                        #if defined(_WIN32)
+                            auto object = scroll->attach<ui::term>(winsz, "cmd");
+                        #elif defined(__linux__)
+                            auto object = scroll->attach<ui::term>(winsz, "bash");
+                        #elif defined(__APPLE__)
+                            auto object = scroll->attach<ui::term>(winsz, "zsh");
+                        #endif
 
-                        scroll_bars(layers, scroll);
-                        break;
-                    }
-                    case PowerShell:
+                        #ifdef DEMO
+                            twod minsz = { 20,1 }; // mc crashes when window is too small
+                            winsz = std::max(winsz, minsz);
+                            object->limits(minsz);
+                        #endif
+                        object->color(whitelt, blackdk);
+
+                    scroll_bars_term(layers, scroll);
+                    break;
+                }
+                case Strobe:
+                {
+                    window->header(ansi::jet(bias::center) + "Strobe");
+                    auto strob = window->attach<ui::pane>();
+                    strob->color(0x0, 0x0);
+                    strob->SUBMIT_BYVAL(e2::general, e2::timer::tick, now)  //gcc: use SUBMIT_BYVAL to capture in lambda by value
                     {
-                        frame->header(ansi::jet(bias::center) + "PowerShell");
+                        strob->canvas.mark().bgc(stobe_state ? 0xFF000000 : 0xFFFFFFFF);
+                        strob->deface();
+                    };
+                    break;
+                }
+                case RefreshRate:
+                {
+                    window->header("Frame rate adjustment");
+                    window->attach<ui::stem_rate<e2::general, e2::timer::fps>>("Set frame rate", 1, 200, "fps")
+                         ->color(0xFFFFFFFF, bluedk);
+                    break;
+                }
+                /*case Transparency:
+                {
+                    frame->header("Window Transparency");
+                    auto block = frame->attach<
+                        stem_rate<e2::general, e2::form::global::lucidity>>
+                        ("Alpha channel", 0, 255, "rgb");
+                                    block->color(0xFFFFFF, bluedk);
+                    break;
+                }*/
+                case Truecolor:
+                {
+                    window->header(ansi::jet(bias::right) + "True color ANSI/ASCII image test");
+                    window->blurred = true;
+                    auto layers = window->attach<ui::cake>();
+                    auto scroll = layers->attach<ui::rail>()
+                                        ->config(true, true)
+                                        ->plugin<pro::color>(whitelt, reddk);
+                    auto object = scroll->attach<ui::post>()
+                                        ->upload(truecolor);
+                    scroll_bars(layers, scroll);
+                    break;
+                }
+                case Empty:
+                {
+                    window->blurred = true;
+                    auto object = window->attach<ui::pane>();
+                    object->canvas.mark().txt(whitespace);
+                    break;
+                }
+                case Shop:
+                {
+                    //window->header(ansi::jet_or(bias::right) + objs_desc[Shop]);
+                    window->header("Desktopio App Store", faux);
+                    window->color(whitelt, 0x60000000);
+                    window->blurred = true;
+                    window->highlight_center = faux;
 
-                        auto layers = frame->attach<cake>();
-                        auto scroll = layers->attach<rail>();
-                            scroll->color(whitelt, 0xFF560000);
-                            auto block = scroll->attach<term>(winsz, "powershell");
-                            block->color(whitelt, 0xFF562401);
-                        scroll_bars_term(layers, scroll);
-                        break;
-                    }
-                    case CommandPrompt:
-                    {
-                        using fork = netxs::console::fork;
-                        frame->header(ansi::jet(bias::center) + "Command Prompt");
+                    auto object = window
+                        ->attach<ui::fork>(axis::Y)
+                        ->plugin<pro::color>(whitelt, 0);
+                        object->attach<slot::_1, ui::post>()
+                              ->plugin<pro::limit>(twod{ 37,-1 }, twod{ -1,-1 })
+                              ->upload(appstore_head);
 
-                        auto layers = frame->attach<cake>();
-                        auto scroll = layers->attach<rail>();
+                        auto layers = object->attach<slot::_2, ui::cake>();
+                        auto scroll = layers
+                            ->attach<ui::rail>()
+                            ->plugin<pro::color>(whitedk, 0xFF0f0f0f)
+                            ->plugin<pro::limit>(twod{ -1,2 }, twod{ -1,-1 })
+                            ->config(true, true);
 
-                        {
-                            #if defined(_WIN32)
-                            auto block = scroll->attach<term>(winsz, "cmd");
-                            #elif defined(__linux__)
-                            auto block = scroll->attach<term>(winsz, "bash");
-                            #elif defined(__APPLE__)
-                            auto block = scroll->attach<term>(winsz, "zsh");
-                            #endif
+                            auto c2 = cell{ whitespace }.fgc(tint::whitelt)
+                                                        .bgc(highlight_color);
+                            auto c1 = c2; c1.alpha(0x00);
 
-                            block->color(whitelt, blackdk);
-                            #ifdef DEMO
-                                twod minsz = { 20,1 }; // mc crashes when window is too small
-                                winsz = std::max(winsz, minsz);
-                                block->limits(minsz);
-                            #endif
-
-                        }
-                            //scroll->color(whitelt, 0xFF121212);
-                            //auto block = scroll->attach<term>(winsz, "cmd");
-                            //block->color(whitelt, 0xFF000000);
-                        scroll_bars_term(layers, scroll);
-                        break;
-                    }
-                    //case BSU_Toggle:
-                    //	frame->header("BSU/ESU Toggle");
-                    //	{
-                    //		auto block = frame->attach<stem_bsu>();
-                    //		block->color(0xFFFFFFFF, blackdk);
-                    //		block->topic = ansi::wrp(faux).cup({ 3,1 }) + "Select the appropriate synchronous update mode\n\n";
-                    //		{
-                    //			std::vector<text> objs_desc{
-                    //				"Don't use synched updates",
-                    //				"Use `ESC P = 1|2 s ESC \\`",
-                    //				"Use `CSI ? 2026 h/l`",
-                    //				"...another kind of control sequence" };
-                    //
-                    //			//todo e2::radio -> e2::form::bsu_mode
-                    //			iota current_mode = -1;
-                    //			block->SIGNAL(e2::general, e2::radio, current_mode);
-                    //			block->create_list(objs_desc, { 5,3 }, 2, 3, current_mode);
-                    //
-                    //			block->SUBMIT_BYVAL(e2::release, e2::data::changed, data)
-                    //			{
-                    //				board->SIGNAL(e2::general, e2::radio, data);
-                    //			};
-                    //
-                    //			wptr<stem_bsu> weak = block;
-                    //			block->SUBMIT_BYVAL(e2::general, e2::radio, data)
-                    //			{
-                    //				if (data >= 0)
-                    //				{
-                    //					if (auto b = weak.lock())
-                    //					{
-                    //						b->SIGNAL(e2::preview, e2::data::changed, data);
-                    //					}
-                    //				}
-                    //			};
-                    //		}
-                    //		break;
-                    //	}
-                    case Strobe:
-                    {
-                        frame->header(ansi::jet(bias::center) + "Strobe");
-                        auto strob = frame->attach<pane>();
-                        strob->color(0x0, 0x0);
-                        strob->SUBMIT_BYVAL(e2::general, e2::timer::tick, now)  //gcc: use SUBMIT_BYVAL to capture in lambda by value
-                        {
-                            strob->canvas.mark().bgc(stobe_state ? 0xFF000000 : 0xFFFFFFFF);
-                            strob->deface();
-                        };
-                        break;
-                    }
-                    case RefreshRate:
-                    {
-                        frame->header("Frame rate adjustment");
-
-                        auto block = frame->attach<
-                            stem_rate<e2::general, e2::timer::fps>>
-                            ("Set frame rate", 1, 200, "fps");
-
-                        block->color(0xFFFFFFFF, bluedk);
-                        break;
-                    }
-                    //case Transparency:
-                        // {
-                        //     frame->header("Window Transparency");
-                        //     auto block = frame->attach<
-                        //         stem_rate<e2::general, e2::form::global::lucidity>>
-                        //         ("Alpha channel", 0, 255, "rgb");
-                        //
-                        //     block->color(0xFFFFFF, bluedk);
-                        //     break;
-                        // }
-                    case Truecolor:
-                    {
-                        frame->header(ansi::jet(bias::right) + "True color ANSI/ASCII image test");
-
-                        auto layers = frame->attach<cake>();
-                        auto scroll = layers->attach<rail>();
-                        scroll->overscroll[axis::X] = true;
-                        scroll->overscroll[axis::Y] = true;
-                        scroll->color(whitelt, reddk);
-
-                        auto block = scroll->attach<post>();
-                        block->topic = truecolor;
-
-                        scroll_bars(layers, scroll);
-                        break;
-                    }
-                    case Empty:
-                    {
-                        auto block = frame->attach<pane>();
-                        block->canvas.mark().txt(whitespace);
-                        //block->color(whitelt, 0x0);
-                        //block->topic = "\e[46m12345\e[0K67890\n12345\e[1K67890\nHong Kong: 全形\nEmoji: 😋\nIndic: क्ष क्क्क्क्क\nFamily: 👨‍👩‍👧‍👦\e[3;2H\e[0J";
-
-                        //auto block = frame->attach<post>();
-                        //block->color(whitelt, blackdk);
-                        //block->topic = ansi::fgc(greenlt)+"\e[12:1pTEST_STRING_TEST_STRINGTEST_STRINGTEST_STRING\n"+
-                        //    ansi::fgc(yellowlt) + "\e[12:0pTEST_STRING_TEST_STRINGTEST_STRINGTEST_STRING\n";
-                        //block->base::reflow();
-                        break;
-                    }
-                    case Shop:
-                    {
-                        using fork = netxs::console::fork;
-                        frame->header(ansi::jet(bias::right) + objs_desc[Shop]);
-                        frame->color(whitelt, 0x60000000);
-                        //frame->color(whitelt, 0xff1A7f00);
-
-                        auto block = frame->attach<fork>();
-                        block->color(whitelt, 0);
-                        block->config(fork::vertical, 0, 50);
-                        {
-                            auto c0 = block->attach<cake>(fork::_1);
-                            {
-                                auto c1 = c0->attach<post>();
-                                c1->topic = appstore_head;
-                                c1->limits({ 37,-1 }, { -1,-1 });
-                            }
-
-                            auto layers = block->attach<cake>(fork::_2);
-                            auto scroll = layers->attach<rail>();
-                            //scroll->color(whitelt, 0x20171710);
-                            scroll->color(whitedk, 0xFF0A0a0a);
-                            scroll->limits({ -1,2 }, { -1,-1 });
-                            scroll->overscroll[axis::X] = true;
-                            scroll->overscroll[axis::Y] = true;
-                            {
-                                auto items = scroll->attach<list>();
-                                {
-                                    for (auto& body : appstore_body)
-                                    {
-                                        auto c0 = items->attach<post>();
-                                        c0->topic = body;
-                                        c0->glow = true;
-                                    }
-
-                                    auto c1 = items->attach<post>();
-                                    c1->topic = desktopio_body;
-                                    c1->glow = true;
-                                }
-                                items->base::reflow();
-                            }
-
+                            auto items = scroll->attach<ui::list>();
+                            for (auto& body : appstore_body) items->attach<ui::post>()
+                                                                  ->upload(body)
+                                                                  ->plugin<pro::grade>()
+                                                                  ->plugin<pro::mouse>()
+                                                                  ->plugin<pro::fader>(c1, c2, 250ms);
+                            items->attach<ui::post>()
+                                 ->upload(desktopio_body)
+                                 ->plugin<pro::grade>()
+                                 ->plugin<pro::mouse>();
+                            items->base::reflow();
+                    scroll_bars(layers, scroll);
+                    break;
+                }
+                //case Cellatix:
+                case Calc:
+                {
+                    //todo XAML converter
+                   /* Calc Interface Layout (pseudocode, a bit outdated):
+                    *
+                    *...window<mold>
+                    *      window: object<fork(v)>
+                    *         object(1): menu<..lambda>
+                    *         object(2): all_stat<fork(v)>
+                    *            all_stat(1): func_body_pad<pads({ -1,-1 })>
+                    *               func_body_pad: func_body<fork(v)>
+                    *                  func_body(1): func_line<fork(h)>
+                    *                     func_line(1): fx_sum<fork(h)>
+                    *                        fx_sum(1): fx<post> = "Fx"
+                    *                        fx_sum(2): sum<post> = "SUM ..."
+                    *                     func_line(2): ellipsis<post> = "..."
+                    *                  func_body(2): body_area<fork(v)>
+                    *                     body_area(1): corner_cols<fork(h)>
+                    *                        corner_cols(1): corner<post> = "[   ]"
+                    *                        corner_cols(2): cols_area<rail>
+                    *                           cols_area: cols<post> = "A B C D E..."
+                    *                     body_area(2): rows_body<fork(h)>
+                    *                        rows_body(1): rows_area<rail>
+                    *                           rows_area: rows<post> = "1 \n2 \n3 \n4..."
+                    *                        rows_body(2): layers<cake>
+                    *                           layers: scroll<rail>
+                    *                              scroll: grid<post> = "..cell_array.."
+                    *            all_stat(2): status_area<post> = "Sheet1 [+]"
+                    */
+                    window->header(ansi::jet(bias::center) + "Spreadsheet");
+                    window->color(whitelt, 0x601A5f00);
+                    window->limits({ -1,-1 },{ 136,105 });
+                    window->blurred = true;
+                    window->highlight_center = faux;
+                    window->set_border(dot_00);
+                    auto object = window
+                        ->attach<ui::fork>(axis::Y)
+                        ->plugin<pro::color>(whitelt, 0);
+                        main_menu(object);
+                        auto c2 = cell{ whitespace }.fgc(whitelt).bgc(highlight_color);
+                        auto c1 = cell{ whitespace }.fgc(blackdk).bgc(whitedk);
+                        auto c0 = c2; c0.alpha(0x00);
+                        auto all_stat = object->attach<slot::_2, ui::fork>(axis::Y);
+                            auto func_body_pad = all_stat->attach<slot::_1, ui::pads>(dent{ 1,1 })
+                                                         ->plugin<pro::mouse>();
+                                auto func_body = func_body_pad->attach<ui::fork>(axis::Y);
+                                    auto func_line = func_body->attach<slot::_1, ui::fork>();
+                                        auto fx_sum = func_line->attach<slot::_1, ui::fork>();
+                                            auto fx = fx_sum->attach<slot::_1, ui::post>()
+                                                            ->plugin<pro::mouse>()
+                                                            ->plugin<pro::fader>(c1, c2, 150ms)
+                                                            ->plugin<pro::limit>(twod{ 3,-1 }, twod{ 4,-1 })
+                                                            ->upload(ansi::wrp(wrap::off)
+                                                              + " Fx ");
+                                            auto sum = fx_sum->attach<slot::_2, ui::post>()
+                                                             ->plugin<pro::color>(0, whitelt)
+                                                             ->upload(ansi::bgc(whitelt).fgc(blacklt)
+                                                               + " =SUM(B1:B10) ");
+                                        auto ellipsis = func_line->attach<slot::_2, ui::post>()
+                                                                 ->plugin<pro::mouse>()
+                                                                 ->plugin<pro::fader>(c1, c2, 150ms)
+                                                                 ->plugin<pro::limit>(twod{ -1,1 }, twod{ 3,-1 })
+                                                                 ->upload(ansi::wrp(wrap::off) + " ⋯ ");
+                                    auto body_area = func_body->attach<slot::_2, ui::fork>(axis::Y);
+                                        auto corner_cols = body_area->attach<slot::_1, ui::fork>();
+                                            auto corner = corner_cols->attach<slot::_1, ui::post>()
+                                                                     ->plugin<pro::limit>(twod{ 4,1 }, twod{ 4,1 })
+                                                                     ->upload(ansi::bgc(0xffffff - 0x1f1f1f).fgc(0)
+                                                                       + "    ");
+                                        auto rows_body = body_area->attach<slot::_2, ui::fork>();
+                                            auto layers = rows_body->attach<slot::_2, ui::cake>();
+                                            auto scroll = layers->attach<ui::rail>()
+                                                                ->plugin<pro::limit>(twod{ -1,1 }, twod{ -1,-1 })
+                                                                ->config(true, true);
+                                                auto grid = scroll->attach<ui::post>()
+                                                                  ->plugin<pro::mouse>()
+                                                                  ->plugin<pro::color>(0xFF000000, 0xFFffffff)
+                                                                  ->upload(cellatix_text);
+                                            auto cols_area = corner_cols->attach<slot::_2, ui::rail>(axes::ONLY_X, axes::ONLY_X)
+                                                                        ->follow<axis::X>(scroll);
+                                                auto cols = cols_area->attach<ui::post>()
+                                                                     ->plugin<pro::limit>(twod{ -1,1 }, twod{ -1,1 })
+                                                                     ->upload(cellatix_cols); //todo grid  A  B  C ...
+                                            auto rows_area = rows_body->attach<slot::_1, ui::rail>(axes::ONLY_Y, axes::ONLY_Y)
+                                                                      ->follow<axis::Y>(scroll)
+                                                                      ->plugin<pro::limit>(twod{ 4,-1 }, twod{ 4,-1 });
+                                                auto rows = rows_area->attach<ui::post>()
+                                                                     ->upload(cellatix_rows); //todo grid  1 \n 2 \n 3 \n ...
+                            auto stat_area = all_stat->attach<slot::_2, ui::rail>()
+                                                     ->plugin<pro::limit>(twod{ -1,1 }, twod{ -1,1 })
+                                                     ->moveby<axis::X>(-5);
+                                auto sheet_plus = stat_area->attach<ui::fork>();
+                                    auto sheet = sheet_plus->attach<slot::_1, ui::post>()
+                                                           ->plugin<pro::limit>(twod{ -1,-1 }, twod{ 13,-1 })
+                                                           ->upload(ansi::wrp(wrap::off)
+                                                             + "     "
+                                                             + ansi::bgc(whitelt).fgc(blackdk)
+                                                             + " Sheet1 ");
+                                    auto plus_pad = sheet_plus->attach<slot::_2, ui::fork>();
+                                        auto plus = plus_pad->attach<slot::_1, ui::post>()
+                                                            ->plugin<pro::mouse>()
+                                                            ->plugin<pro::fader>(c1, c2, 150ms)
+                                                            ->plugin<pro::limit>(twod{ 2,-1 }, twod{ 2,-1 })
+                                                            ->upload(ansi::wrp(wrap::off)
+                                                              + "＋");
+                                        auto pad = plus_pad->attach<slot::_2, ui::mock>()
+                                                           ->plugin<pro::limit>(twod{ 1,1 }, twod{ 1,1 });
                             scroll_bars(layers, scroll);
-                        }
-                        break;
-                    }
-                    case Cellatix:
-                    case Calc:
+                    break;
+                }
+                //case Textancy:
+                case Text:
+                {
+                    window->color(whitelt, 0x605f1A00);
+                    window->header(ansi::jet(bias::center) + "Text Editor");
+                    window->blurred = true;
+                    window->highlight_center = faux;
+                    window->set_border(dot_00);
+                    auto object = window->attach<ui::fork>(axis::Y)
+                                        ->plugin<pro::color>(whitelt, 0);
+                        main_menu(object);
+                        auto body_area = object->attach<slot::_2, ui::fork>(axis::Y);
+                        auto fields = body_area->attach<slot::_1, ui::pads>(dent{ 1,1 })
+                                               ->plugin<pro::mouse>();
+                        auto layers = fields->attach<ui::cake>();
+                        auto scroll = layers->attach<ui::rail>()
+                                            ->plugin<pro::limit>(twod{ 4,3 }, twod{ -1,-1 });
+                        auto edit_box = scroll->attach<ui::post>(true)
+                                              ->plugin<pro::mouse>()
+                                              ->plugin<pro::caret>(true, twod{ 25,1 })
+                                              ->plugin<pro::color>(blackdk, whitelt)
+                                              ->upload(ansi::wrp(wrap::off).mgl(1)
+                                                  + topic3
+                                                  + ansi::fgc(highlight_color)
+                                                  + "From Wikipedia, the free encyclopedia");
+                        auto status_line = body_area->attach<slot::_2, ui::post>()
+                                                    ->plugin<pro::limit>(twod{ 1,1 }, twod{ -1,1 })
+                                                    ->upload(ansi::wrp(wrap::off).mgl(1).mgr(1).jet(bias::right).fgc(whitedk)
+                                                        + "INS  Sel: 0:0  Col: 26  Ln: 2/148" + ansi::nil());
+                    scroll_bars(layers, scroll);
+                    break;
+                }
+                case VTM:
+                {
+                    window->header(ansi::jet(bias::center) + objs_desc[VTM]);
+                    auto layers = window->attach<ui::cake>();
+                    auto scroll = layers->attach<ui::rail>();
+                    if (vtm_count < max_vtm)
                     {
-                        using fork = netxs::console::fork;
-                        frame->limits({ -1,-1 }, { -1,105 });
-                        frame->color(whitelt, 0x601A5f00);
-                        frame->header(ansi::jet(bias::center) + "Spreadsheet");
-                        //frame->SIGNAL(e2::preview, e2::form::prop::params, cellatix_foot);
-                        frame->SIGNAL(e2::preview, e2::form::prop::footer, cellatix_foot);
-
-                        auto block = frame->attach<fork>();
-                        block->color(whitelt, 0);
-                        block->config(fork::vertical, 0, 50);
-                        {
-                            auto menu_block = block->attach<fork>(fork::_1);
-                            menu_block->config(fork::vertical, 1, 50);
-                            {
-                                auto menu = menu_block->attach<fork>(fork::_1);
-                                menu->config(fork::horizontal, 0, 50);
+                        auto c = &vtm_count; (*c)++;
+                        scroll->attach<ui::term>(winsz, "vtm")
+                              ->plugin<pro::color>(whitelt, blackdk)
+                              ->SUBMIT_BYVAL(e2::release, e2::dtor, dummy)
                                 {
-                                    auto menu_l = menu->attach<post>(fork::_1);
-                                    menu_l->topic = calc_menu;
-                                    auto menu_r = menu->attach<post>(fork::_2);
-                                    menu_r->limits({ 4,1 }, { 6,-1 });
-                                    menu_r->topic = calc_help;
-                                }
-                                auto fx = menu_block->attach<fork>(fork::_2);
-                                fx->config(fork::horizontal, 0, 50);
-                                {
-                                    auto menu_l = fx->attach<post>(fork::_1);
-                                    menu_l->color(0, whitelt);
-                                    menu_l->topic = calc_line1;
-                                    auto menu_r = fx->attach<post>(fork::_2);
-                                    menu_r->topic = calc_line2;
-                                    menu_r->limits({ -1,1 }, { 3,-1 });
-                                }
-                            }
-
-                            auto body = block->attach<fork>(fork::_2);
-                            body->config(fork::vertical, 0, 50);
-                            {
-                                auto head = body->attach<post>(fork::_1);
-                                head->topic = cellatix_head;
-
-                                auto layers = body->attach<cake>(fork::_2);
-                                    auto scroll = layers->attach<rail>(axes::ONLY_Y);
-                                    scroll->overscroll[axis::Y] = true;
-                                    scroll->limits({ 4,1 }, { -1,-1 });
-                                        auto grid = scroll->attach<post>();
-                                        grid->color(0xFF000000, 0xFFffffff);
-                                        grid->topic = cellatix_text;
-                                scroll_bars(layers, scroll);
-
-                                scroll->base::reflow();
-                            }
-                        }
-                        break;
+                                    (*c)--;
+                                    log ("main: vtm recursive conn destoyed");
+                                };
                     }
-                    case Textancy:
-                    case Text:
+                    else
                     {
-                        using fork = netxs::console::fork;
-                        frame->color(whitelt, 0x605f1A00);
-                        frame->header(ansi::jet(bias::center) + "Text Editor");
-
-                        auto block = frame->attach<fork>();
-                        block->color(whitelt, 0);
-                        block->config(fork::vertical, 1, 50);
-                        {
-                            auto menu = block->attach<post>(fork::_1);
-                            menu->topic = edit_menu;
-
-                            auto body = block->attach<chat>(fork::_2);
-                            body->limits({ -1,1 }, { -1,-1 });
-                            body->color(blackdk, whitelt);
-                            body->topic = textancy_text;
-                            //body.caret.show();
-                        }
-                        break;
+                        scroll->attach<ui::post>()
+                              ->plugin<pro::mouse>()
+                              ->plugin<pro::color>(whitelt, blackdk)
+                              ->upload(ansi::fgc(yellowlt).mgl(4).mgr(4).wrp(wrap::off)
+                                     + "\n\nconnection rejected\n\n"
+                                     + ansi::nil().wrp(wrap::on)
+                                     + "Reached the limit of recursive connections, destroy existing recursive instances to create new ones.");
                     }
-                    //case Top:
-                        // {
-                        //     frame->header(ansi::jet(bias::left) + "Process list (not ready yet)");
-                        //     //auto block = frame->attach<pane>();
-                        //     auto block = frame->attach<term>("top");
-                        //     block->color(whitelt, blackdk);
-                        //     block->canvas.wipe();
-                        //     break;
-                        // }
-                    case VTM:
-                    {
-                        frame->header(ansi::jet(bias::center) + objs_desc[VTM]);
+                    scroll_bars(layers, scroll);
+                    break;
+                }
+                case Far:
+                {
+                    window->header(ansi::jet(bias::center) + objs_desc[Far]);
+                    auto layers = window->attach<ui::cake>();
+                    auto scroll = layers->attach<ui::rail>();
+                    scroll->attach<ui::term>(winsz, "far")
+                          ->plugin<pro::color>(whitelt, blackdk);
+                    scroll_bars_term(layers, scroll);
+                    break;
+                }
+                case MC:
+                {
+                    window->header(ansi::jet(bias::center) + objs_desc[MC]);
+                    twod minsz = { 10,1 }; // mc crashes when window is too small
+                    winsz = std::max(winsz, minsz);
+                    auto layers = window->attach<ui::cake>();
+                    auto scroll = layers->attach<ui::rail>();
+                    // -c -- force color support
+                    // -x -- force xtrem functionality
 
-                        auto layers = frame->attach<cake>();
-                        auto scroll = layers->attach<rail>();
+                    #if defined(_WIN32)
 
-                        if (vtm_count < max_vtm)
-                        {
-                            vtm_count++;
-                            auto block = scroll->attach<term>(winsz, "vtm");
-                            block->color(whitelt, blackdk);
-                            auto c = &vtm_count;
-                            block->SUBMIT_BYVAL(e2::release, e2::dtor, dummy)
-                            {
-                                log ("main: vtm destoyed");
-                                (*c)--;
-                            };
-                        }
-                        else
-                        {
-                            auto block = scroll->attach<post>();
-                            block->color(whitelt, blackdk);
-                            block->topic = ansi::fgc(yellowlt).mgl(4).mgr(4).wrp(wrap::off) + "\n\nconnection rejected\n\n"
-                                + ansi::nil().wrp(wrap::on) + "Reached the limit of recursive connections, destroy existing recursive instances to create new ones.";
-                        }
+                        auto object = scroll->attach<ui::term>(winsz, "wsl mc");
 
-                        scroll_bars(layers, scroll);
-                        break;
-                    }
-                    case Far:
-                    {
-                        frame->header(ansi::jet(bias::center) + objs_desc[Far]);
-
-                        auto layers = frame->attach<cake>();
-                        auto scroll = layers->attach<rail>();
-                        {
-                            auto block = scroll->attach<term>(winsz, "far");
-                            block->color(whitelt, blackdk);
-                        }
-                        scroll_bars_term(layers, scroll);
-                        break;
-                    }
-                    case MC:
-                    {
-                        frame->header(ansi::jet(bias::center) + objs_desc[MC]);
-
-                        twod minsz = { 10,1 }; // mc crashes when window is too small
-                        winsz = std::max(winsz, minsz);
-
-                        // -c -- force color support
-                        // -x -- force xtrem functionality
-
-                        auto layers = frame->attach<cake>();
-                        auto scroll = layers->attach<rail>();
-                        {
-
-                            #if defined(_WIN32)
-
-                            auto block = scroll->attach<term>(winsz, "wsl mc");
-
-                            #elif defined(__linux__)
-#ifdef DEMO
-                            auto block = scroll->attach<term>(winsz, "bash -c 'LC_ALL=en_US.UTF-8 mc -c -x -d'");
-#else
-                            auto block = scroll->attach<term>(winsz, "bash -c 'LC_ALL=en_US.UTF-8 mc -c -x'");
-#endif
-                            #elif defined(__APPLE__)
-
-                            auto block = scroll->attach<term>(winsz, "zsh -c 'LC_ALL=en_US.UTF-8 mc -c -x'");
-                            //auto block = scroll->attach<term>("mc");
-                            //auto block = scroll->attach<term>("LC_ALL=en_US.UTF-8 mc -c -x");
-                            //auto block = scroll->attach<term>("mc");
-
-                            #endif
-
-                            block->color(whitelt, blackdk);
-                            block->limits(minsz);
-                        }
-                        scroll_bars(layers, scroll);
-                        break;
-                    }
-                    case Bash:
-                    case Term:
-                    {
-                        frame->header(ansi::jet(bias::center) + objs_desc[Bash]);
-
-                        auto layers = frame->attach<cake>();
-                        auto scroll = layers->attach<rail>();
-                        {
-                            #if defined(_WIN32)
-                            auto block = scroll->attach<term>(winsz, "bash");
-                            #elif defined(__linux__)
-                            auto block = scroll->attach<term>(winsz, "bash");
-                            #elif defined(__APPLE__)
-                            auto block = scroll->attach<term>(winsz, "zsh");
-                            #endif
-
-                            block->color(whitelt, blackdk);
-                            #ifdef DEMO
-                                twod minsz = { 20,1 }; // mc crashes when window is too small
-                                winsz = std::max(winsz, minsz);
-                                block->limits(minsz);
-                            #endif
-                        }
-                        scroll_bars_term(layers, scroll);
-                        break;
-                    }
-                    case Logs:
-                    {
-                        frame->header(objs_desc[Logs]);
-
-                        auto layers = frame->attach<cake>();
-                        auto scroll = layers->attach<rail>();
-                        {
+                    #elif defined(__linux__)
                         #ifdef DEMO
-                            auto block = scroll->attach<post>();
-                            block->color(whitelt, blackdk);
-                            block->topic = ansi::fgc(yellowlt).mgl(4).mgr(4).wrp(wrap::off) + "\n\nLogs is not availabe in DEMO mode\n\n"
-                                + ansi::nil().wrp(wrap::on) + "Use the full version of VTM to run Logs.";
-                        #else
-                            auto block = scroll->attach<post_logs>();
-                            block->color(whitelt, blackdk);
+                            auto object = scroll->attach<ui::term>(winsz, "bash -c 'LC_ALL=en_US.UTF-8 mc -c -x -d'");
+                         #else
+                            auto object = scroll->attach<ui::term>(winsz, "bash -c 'LC_ALL=en_US.UTF-8 mc -c -x'");
                         #endif
-                        }
+                    #elif defined(__APPLE__)
 
-                        scroll_bars(layers, scroll);
-                        break;
-                    }
+                         auto object = scroll->attach<ui::term>(winsz, "zsh -c 'LC_ALL=en_US.UTF-8 mc -c -x'");
+
+                    #endif
+
+                    object->color(whitelt, blackdk);
+                    object->limits(minsz);
+
+                    scroll_bars(layers, scroll);
+                    break;
                 }
-
-                return frame;
-            };
-
-            auto creator = [&, insts_count = 0]
-            (objs obj_type, rect area) mutable -> auto
-            {
-                insts_count++;
-                auto frame = create(obj_type, area);
-
-#ifdef DEMO
-                if (insts_count > max_count)
+                case Bash:
+                case Term:
                 {
-                    log("inst: max count reached");
-                    auto timeout = tempus::now() + del_timeout;
-                    auto w_frame = wptr<mold>{ frame };
-                    frame->SUBMIT_BYVAL(e2::general, e2::timer::tick, timestamp)
+                    window->header(ansi::jet(bias::center) + objs_desc[Bash]);
+                    auto layers = window->attach<ui::cake>();
+                    auto scroll = layers->attach<ui::rail>();
                     {
-                        if (timestamp > timeout)
-                        {
-                            log("inst: timebomb");
-                            if (auto frame = w_frame.lock())
-                            {
-                                frame->base::detach();
-                                log("inst: frame detached: ", insts_count);
-                            }
-                        }
-                    };
-                }
-#endif
-                frame->SUBMIT(e2::release, e2::form::upon::detached, master)
-                {
-                    insts_count--;
-                    log("inst: detached: ", insts_count);
-                };
-
-                //log("creator exit");
-
-                return frame;
-            };
-
-            board->SUBMIT(e2::release, e2::form::proceed::createby, gear)
-            {
-                auto location = gear.slot;
-                if (gear.meta(hids::ANYCTRL))
-                {
-                    log("gate: area copied to clipboard ", location);
-                    sptr<core> canvas_ptr;
-                    if (auto gate_ptr = bell::getref(gear.id))
-                    {
-                        auto& gate = *gate_ptr;
-                        gate.SIGNAL(e2::request, e2::form::canvas, canvas_ptr);
-                        if (canvas_ptr)
-                        {
-                            auto& canvas = *canvas_ptr;
-                            auto data = canvas.meta(location);
-                            if (data.length())
-                            {
-                                gate.SIGNAL(e2::release, e2::cout, ansi::setbuf(data));
-                            }
-                        }
-                    }
-                }
-                else
-                {
-                    auto frame = creator(current_default, location);
-
-                    //todo unify
-                    gear.kb_focus_taken = faux;
-                    frame->SIGNAL(e2::release, e2::form::upevent::kboffer, gear);
-                }
-            };
-
-            board->SUBMIT(e2::general, e2::timer::tick, now)
-            {
-                stobe_state = !stobe_state;
-            };
-
-#ifndef PROD
-            creator(objs::Help, { { 22,1  },{ 70,21 } })
-                ->header(ansi::jet(center) + "Welcome");
-            creator(objs::Shop, { { 4 ,6  },{ 80,38 } });
-            creator(objs::Calc, { { 15,13 },{ 65,23 } });
-            creator(objs::Text, { { 30,20 },{ 59,26 } });
-            creator(objs::MC,   { { 49,26 },{ 63,22 } });
-            creator(objs::Term, { { 34,34 },{ 57,15 } });
-
-            auto sub_pos = twod{-120, 60};
-            creator(objs::Truecolor,   { twod{ 20,15 } + sub_pos,{ 70,30 } });
-            creator(objs::Logs,       { twod{ 52,33 } + sub_pos,{ 45,12 } });
-            creator(objs::RefreshRate, { twod{ 60,41 } + sub_pos,{ 35,10 } });
-#endif
-#ifndef DEMO
-            creator(objs::CommandPrompt,   { { 10,5 },{ 80,25 } });
-#endif
-
-            //creator(objs::Far,   { { 49,26 },{ 63,22 } });
-
-            //#ifdef DEMO
-            //			std::thread([&]()
-            //				{
-            //					std::this_thread::sleep_for(5000ms);
-            //					creator(objs::VTM, { { 95,4 },{ 12,6 } });
-            //				}).detach();
-            //#endif /// DEMO
-
-            //#ifdef DEMO
-            //			std::thread([&]() {
-            //					std::this_thread::sleep_for(500ms);
-            //					creator(objs::MC, { { 3,22 },{ 75,20 } });
-            //				}).detach();
-            //#endif /// DEMO
-
-            auto user = os::user();
-            auto path = utf::concat("monotty_", user);
-            log("user: ", user);
-            log("pipe: ", path);
-
-            { // Menu
-                auto frame = board->attach<mold>();
-                frame->liquid(faux);
-                frame->strong(true);
-                frame->header(ansi::jet(bias::center) + "Menu");
-
-                frame->color(whitelt, 0xA0000000);//.alpha(0x50));
-                frame->acryl = 100;
-                frame->nosize = true; // disable footer
-
-
-
-                {
-                    auto block = frame->attach<stem_bsu>();
-                    //block->color(0xFFFFFF, blackdk);
-
-                    auto size = block->create_list(objs_desc, dot_00, 2, 3, 0);
-                    block->SUBMIT(e2::release, e2::data::changed, data)
-                    {
-                        current_default = static_cast<objs>(data);
-                    };
-
-                    //todo unify
-                    rect btn_pos;
-                    btn_pos.coor.x = 0;
-                    btn_pos.coor.y = size.y + 1;
-                    btn_pos.size = twod{ size.x / 2 + 1,3 };
-                    auto logout = block->attach<button>(" Disconnect");
-                    logout->extend(btn_pos);
-                    logout->SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
-                    {
-                        if (auto owner = base::getref(gear.id))
-                        {
-                            owner->SIGNAL(e2::release, e2::term::quit, "main logout by button");
-                        }
-                    };
-
-                    btn_pos.coor.x = 2 + size.x - btn_pos.size.x;
-                    auto shutdn = block->attach<button>("Shutdown");
-                    shutdn->extend(btn_pos);
-                    shutdn->SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
-                    {
-                        //todo unify, see system.h:1614
-                        #if defined(__APPLE__)
-                        path = "/tmp/" + path + ".sock";
-                        ::unlink(path.c_str());
+                        #if defined(_WIN32)
+                            auto object = scroll->attach<ui::term>(winsz, "bash");
+                        #elif defined(__linux__)
+                            auto object = scroll->attach<ui::term>(winsz, "bash");
+                        #elif defined(__APPLE__)
+                            auto object = scroll->attach<term>(winsz, "zsh");
                         #endif
-                        os::exit(0, "main: shutdown by button");
-                    };
 
-                    btn_pos.size.x = 0;
-                    btn_pos.size.y += 1;
-                    frame->extend({ { 85,12 }, size + dot_22 + btn_pos.size });
-
-                    //current_default = objs::Help;
-                    current_default = objs::CommandPrompt;
-                    block->SIGNAL(e2::release, e2::data::changed, current_default);
+                        object->color(whitelt, blackdk);
+                        #ifdef DEMO
+                            twod minsz = { 20,1 }; // mc crashes when window is too small
+                            winsz = std::max(winsz, minsz);
+                            object->limits(minsz);
+                        #endif
+                    }
+                    scroll_bars_term(layers, scroll);
+                    break;
                 }
-
-                wptr<mold> weak = frame;
-                frame->SUBMIT_BYVAL(e2::general, e2::form::global::ctxmenu, newpos)
+                case Logs:
                 {
-                    if (auto b = weak.lock())
+                    window->header("VT monitoring tool");
+                    auto layers = window->attach<ui::cake>();
+                    auto scroll = layers->attach<ui::rail>();
+
+                    #ifdef DEMO
+                        scroll->attach<ui::post>()
+                              ->plugin<pro::color>(whitelt, blackdk)
+                              ->upload(ansi::fgc(yellowlt).mgl(4).mgr(4).wrp(wrap::off)
+                                + "\n\nLogs is not availabe in DEMO mode\n\n"
+                                + ansi::nil().wrp(wrap::on)
+                                + "Use the full version of VTM to run Logs.");
+                    #else
+                        scroll->attach<post_logs>()
+                              ->plugin<pro::color>(whitelt, blackdk);
+                    #endif
+
+                    scroll_bars(layers, scroll);
+                    break;
+                }
+            }
+
+            world->brunch(type, window);
+
+            return window;
+        };
+
+        auto creator = [&, insts_count = 0]
+        (objs obj_type, rect area) mutable -> auto
+        {
+            insts_count++;
+            auto frame = create(obj_type, area);
+            #ifdef DEMO
+            if (insts_count > max_count)
+            {
+                log("inst: max count reached");
+                auto timeout = tempus::now() + del_timeout;
+                auto w_frame = wptr<ui::mold>{ frame };
+                frame->SUBMIT_BYVAL(e2::general, e2::timer::tick, timestamp)
+                {
+                    if (timestamp > timeout)
                     {
-                        b->SIGNAL(e2::preview, e2::form::layout::appear, newpos);
+                        log("inst: timebomb");
+                        if (auto frame = w_frame.lock())
+                        {
+                            frame->base::detach();
+                            log("inst: frame detached: ", insts_count);
+                        }
                     }
                 };
             }
+            #endif
 
-            board->SIGNAL(e2::general, e2::timer::fps, 60);
-
-            iota usr_count = 0;
-
-            if (auto link = os::ipc::open<os::server>(path))
+            frame->SUBMIT(e2::release, e2::form::upon::vtree::detached, master)
             {
-                log("sock: listen socket ", link);
+                insts_count--;
+                log("inst: detached: ", insts_count);
+            };
+            return frame;
+        };
 
-                while (auto peer = link->meet())
+        world->SUBMIT(e2::release, e2::form::proceed::createby, gear)
+        {
+            auto location = gear.slot;
+            if (gear.meta(hids::ANYCTRL))
+            {
+                log("gate: area copied to clipboard ", location);
+                sptr<core> canvas_ptr;
+                if (auto gate_ptr = bell::getref(gear.id))
                 {
-                    if (!peer->cred(user))
+                    auto& gate = *gate_ptr;
+                    gate.SIGNAL(e2::request, e2::form::canvas, canvas_ptr);
+                    if (canvas_ptr)
                     {
-                        log("sock: other users are not allowed to the session, abort");
-                        continue;
+                        auto& canvas = *canvas_ptr;
+                        auto data = canvas.meta(location);
+                        if (data.length())
+                        {
+                            gate.SIGNAL(e2::release, e2::cout, ansi::setbuf(data));
+                        }
                     }
-
-                    auto _region = peer->line(';');
-                    auto _ip     = peer->line(';');
-                    auto _user   = peer->line(';');
-                    auto _name   = peer->line(';');
-                    log("peer: region= ", _region,
-                            ", ip= "    , _ip,
-                            ", user= "  , _user,
-                            ", name= "  , _name);
-                    text c_ip;
-                    text c_port;
-                    auto c_info = utf::divide(_ip, " ");
-                    if (c_info.size() > 0) c_ip   = c_info[0];
-                    if (c_info.size() > 1) c_port = c_info[1];
-
-                    utf::change(_ip, " ", ":");
-
-                    //todo Move user's viewport to the last saved position
-                    auto user_coor = twod{};
-
-                    //todo distinguish users by config, enumerate if no config
-                    _name = "[" + _name + ":" + std::to_string(usr_count++) + "]";
-                    log("main: spawn a new thread for client: ", _name);
-
-                    std::thread{ [=]
-                    {
-                        log("main: peer using socket ", peer);
-
-                        #ifdef DEMO
-                            auto username = "[User." + utf::remain(c_ip) + ":" + c_port + "]";
-                        #else
-                            auto username = _name;
-                        #endif
-
-                        auto client = board->invite<gate>(username);
-                        client->color(whitedk, blacklt);
-                        text header = ansi::jet(bias::center).mgr(0).mgl(0)
-                            + username;
-                        text footer = ansi::mgr(1).mgl(1)
-                            + MONOTTY_VER;
-                        client->SIGNAL(e2::preview, e2::form::prop::header, header);
-                        client->SIGNAL(e2::preview, e2::form::prop::footer, footer);
-                        client->base::moveby(user_coor);
-
-                        log("main: new gate created on ", peer);
-
-                        #ifdef DEMO
-                        client->proceed(peer, _region);
-                        #else
-                        client->proceed(peer, username);
-                        #endif
-
-                        log("main: proceed complete on ", peer);
-                        client->detach();
-                        log("main: exit from the threads sync on ", peer);
-                    } }.detach();
-
-                    log("main: new thread is running on ", peer);
                 }
-
-                board->SIGNAL(e2::general, e2::timer::fps, 0);
             }
+            else
+            {
+                auto frame = creator(current_default, location);
+
+                //todo unify
+                gear.kb_focus_taken = faux;
+                frame->SIGNAL(e2::release, e2::form::upevent::kboffer, gear);
+            }
+        };
+
+        world->SUBMIT(e2::general, e2::timer::tick, now)
+        {
+            stobe_state = !stobe_state;
+        };
+
+        { // Init registry/menu list.
+            registry_t menu_list;
+            iota i = objs::count;
+            while (i--) menu_list[i];
+            world->SIGNAL(e2::preview, e2::bindings::list::apps, menu_list);
         }
-        os::exit(0, "bye!");
+
+        #ifndef PROD
+            auto sub_pos = twod{12, 0};
+            creator(objs::Test, { twod{ 22,1 } + sub_pos,{ 70,21 } })
+                ->header(ansi::jet(bias::center) + "Welcome");
+            creator(objs::Shop, { twod{ 4 ,6  } + sub_pos,{ 80,38 } });
+            creator(objs::Calc, { twod{ 15,13 } + sub_pos,{ 65,23 } });
+            creator(objs::Text, { twod{ 30,20 } + sub_pos,{ 59,26 } });
+            creator(objs::MC,   { twod{ 49,26 } + sub_pos,{ 63,22 } });
+            creator(objs::Term, { twod{ 34,34 } + sub_pos,{ 57,15 } });
+            creator(objs::Term, { twod{ 44 + 85,35 } + sub_pos,{ 57,15 } });
+            creator(objs::Term, { twod{ 40 + 85,38 } + sub_pos,{ 57,15 } });
+
+            sub_pos = twod{-120, 60};
+            creator(objs::Truecolor,   { twod{ 20,15 } + sub_pos,{ 70,30 } });
+            creator(objs::Logs,        { twod{ 52,33 } + sub_pos,{ 45,12 } });
+            creator(objs::RefreshRate, { twod{ 60,41 } + sub_pos,{ 35,10 } });
+        #endif
+        #ifndef DEMO
+            creator(objs::CommandPrompt,   { { 10,5 },{ 80,25 } });
+        #endif
+
+        //creator(objs::Far,   { { 49,26 },{ 63,22 } });
+
+        //#ifdef DEMO
+        //			std::thread([&]()
+        //				{
+        //					std::this_thread::sleep_for(5000ms);
+        //					creator(objs::VTM, { { 95,4 },{ 12,6 } });
+        //				}).detach();
+        //#endif /// DEMO
+
+        //#ifdef DEMO
+        //			std::thread([&]() {
+        //					std::this_thread::sleep_for(500ms);
+        //					creator(objs::MC, { { 3,22 },{ 75,20 } });
+        //				}).detach();
+        //#endif /// DEMO
+
+        auto user = os::user();
+        auto path = utf::concat("monotty_", user);
+        log("user: ", user);
+        log("pipe: ", path);
+
+        { // Menu
+            auto frame = world->attach<ui::mold>(objs::Menu);
+            frame->liquid(faux);
+            frame->strong(true);
+            frame->header(ansi::jet_or(bias::center) + "Menu");
+
+            //frame->color(whitelt, 0xA0000000);//.alpha(0x50));
+            frame->color(whitelt, 0xA0202020);//.alpha(0x50));
+            frame->acryl = 100;
+            frame->nosize = true; // disable footer
+
+            {
+                auto block = frame->attach<ui::stem_bsu>(); // stem_bsu == deprecated menu control
+                auto size = block->create_list(objs_desc, dot_00, 2, 3, 0);
+                block->SUBMIT(e2::release, e2::data::changed, data)
+                {
+                    current_default = static_cast<objs>(data);
+                };
+
+                //todo unify
+                rect btn_pos;
+                btn_pos.coor.x = 0;
+                btn_pos.coor.y = size.y + 1;
+                btn_pos.size = twod{ size.x / 2 + 1,3 };
+                auto logout = block->attach<ui::button>(" Disconnect");
+                logout->extend(btn_pos);
+                logout->SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
+                {
+                    if (auto owner = base::getref(gear.id))
+                    {
+                        owner->SIGNAL(e2::release, e2::term::quit, "main logout by button");
+                    }
+                };
+
+                btn_pos.coor.x = 2 + size.x - btn_pos.size.x;
+                auto shutdn = block->attach<ui::button>("Shutdown");
+                shutdn->extend(btn_pos);
+                shutdn->SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
+                {
+                    //todo unify, see system.h:1614
+                    #if defined(__APPLE__)
+                    path = "/tmp/" + path + ".sock";
+                    ::unlink(path.c_str());
+                    #endif
+                    os::exit(0, "main: shutdown by button");
+                };
+
+                btn_pos.size.x = 0;
+                btn_pos.size.y += 1;
+                frame->extend({ { 85,12 }, size + dot_22 + btn_pos.size });
+
+                current_default = objs::Term;
+                block->SIGNAL(e2::release, e2::data::changed, current_default);
+            }
+
+            wptr<ui::mold> weak = frame;
+            frame->SUBMIT_BYVAL(e2::general, e2::form::global::ctxmenu, newpos)
+            {
+                if (auto b = weak.lock())
+                {
+                    b->SIGNAL(e2::preview, e2::form::layout::appear, newpos);
+                }
+            };
+        }
+
+        world->SIGNAL(e2::general, e2::timer::fps, 60);
+
+        iota usr_count = 0;
+        
+        if (auto link = os::ipc::open<os::server>(path))
+        {
+            log("sock: listen socket ", link);
+
+            while (auto peer = link->meet())
+            {
+                if (!peer->cred(user))
+                {
+                    log("sock: other users are not allowed to the session, abort");
+                    continue;
+                }
+
+                auto _region = peer->line(';');
+                auto _ip     = peer->line(';');
+                auto _user   = peer->line(';');
+                auto _name   = peer->line(';');
+                log("peer: region= ", _region,
+                        ", ip= "    , _ip,
+                        ", user= "  , _user,
+                        ", name= "  , _name);
+                text c_ip;
+                text c_port;
+                auto c_info = utf::divide(_ip, " ");
+                if (c_info.size() > 0) c_ip   = c_info[0];
+                if (c_info.size() > 1) c_port = c_info[1];
+
+                utf::change(_ip, " ", ":");
+
+                //todo Move user's viewport to the last saved position
+                auto user_coor = twod{};
+
+                //todo distinguish users by config, enumerate if no config
+                _name = "[" + _name + ":" + std::to_string(usr_count++) + "]";
+                log("main: spawn a new thread for client: ", _name);
+
+                std::thread{ [//=
+                    /*MSVC don't capture it*/
+                    &objs_desc
+                    , peer
+                    , c_ip
+                    , c_port
+                    , _region
+                    , danger_color
+                    , highlight_color
+                    , warning_color
+                    , current_default_ptr
+                    , background_color
+                    , user_coor
+                    , action_color
+                    , world
+                    ]
+                {
+                    iota uibar_full_size = 32;
+                    log("main: peer using socket ", peer);
+
+                    #ifdef DEMO
+                        auto username = "[User." + utf::remain(c_ip) + ":" + c_port + "]";
+                    #else
+                        auto username = _name;
+                    #endif
+                   /* Task Panel Layout pseudocode: (a bit outdated)
+                    *
+                    * world<host>
+                    *    world: client<gate(username)>
+                    *       client: window<cake>
+                    *          window: menu_area<fork(h)>
+                    *             menu_area: menu<fork(v)>
+                    *                menu(1): items_area<rail>
+                    *                   items_area: items<list>
+                    *                      items: app_title<post> = "Apps"
+                    *                      items: apps_area<rail>
+                    *                         apps_area: apps<list>
+                    *                            apps: app_1<item>
+                    *                               ...
+                    *                            apps: app_n<item>
+                    *                      items: hr<mock> = "----"
+                    *                      items: usr_title<post> = "TTYs"
+                    *                      items: users_area<rail>
+                    *                         users_area: users<list>
+                    *                            users: user_1<item>
+                    *                               ...
+                    *                            users: user_n<item>
+                    *                menu(2): items_bttns<fork(h)>
+                    *                   items_bttns(1): bttns<fork(h)>
+                    *                      bttns(1): disonnect_area<pads>
+                    *                         disonnect_area: disconnect<item>
+                    *                      bttns(2): shutdown_area<pads>
+                    *                         shutdown_area: shutdown<item>
+                    *
+                    */
+
+                    //todo MSVC 16.9.4 don't capture x3,c3 by & (possible a compiler bug)
+                    auto c6 = cell{}.bgc(action_color).fgc(whitelt);
+                    auto x6 = c6; x6.bga(0x00).fga(0x00);
+                    auto c5 = cell{}.bgc(danger_color).fgc(whitelt);
+                    auto x5 = c5; x5.bga(0x00).fga(0x00);
+                    auto c4 = cell{}.bgc(highlight_color);
+                    auto x4 = c4; x4.bga(0x00);
+                    auto c3 = cell{}.bgc(highlight_color).fgc(0xFFffffff);
+                    auto x3 = c3; x3.bga(0x00).fga(0x00);
+                    auto c2 = cell{}.bgc(warning_color).fgc(whitelt);
+                    auto x2 = c2; x2.bga(0x00);
+                    auto c1 = cell{}.bgc(danger_color).fgc(whitelt);
+                    auto x1 = c1; x1.bga(0x00);
+
+                    auto client = world->invite<ui::gate>(username);
+
+                    auto app_template = [c4, x4, x5, c5](auto& data_src, auto const& utf8){
+                        auto item_area = base::template create<ui::pads>(dent{ 1,0,1,0 }, dent{ 0,0,0,1 })
+                                             ->template plugin<pro::mouse>(faux)
+                                             ->template plugin<pro::fader>(x4, c4, 0ms)//150ms)
+                                             ->invoke([&](auto& boss) {
+                                                auto data_src_shadow = std::weak_ptr{ data_src };
+                                                boss.SUBMIT_BYVAL(e2::release, e2::hids::mouse::button::click::left, gear)
+                                                {
+                                                    if(auto data_src = data_src_shadow.lock())
+                                                    {
+                                                        auto& inst = *data_src;
+                                                        //todo make it via events (pro::frame)
+                                                        if (auto parent_ptr = inst.parent.lock()) // Expose window.
+                                                        {
+                                                            parent_ptr->SIGNAL(e2::release, e2::form::layout::expose, inst);
+                                                        }
+
+                                                        auto square = inst.base::square();
+                                                        auto center = square.coor + (square.size / 2);
+                                                        bell::getref(gear.id)->
+                                                            SIGNAL(e2::release, e2::form::layout::shift, center);  // Goto to the window.
+                                                        gear.dismiss();
+                                                    }
+                                                };
+                                                boss.SUBMIT_BYVAL(e2::release, e2::hids::mouse::button::click::right, gear)
+                                                {
+                                                    if(auto data_src = data_src_shadow.lock())
+                                                    {
+                                                        auto& inst = *data_src;
+                                                        //todo make it via events (pro::frame)
+                                                        if (auto parent_ptr = inst.parent.lock()) // Expose window.
+                                                        {
+                                                            parent_ptr->SIGNAL(e2::release, e2::form::layout::expose, inst);
+                                                        }
+                                                        auto square = gear.area();
+                                                        auto center = square.coor + (square.size / 2);
+                                                        inst.SIGNAL(e2::preview, e2::form::layout::appear, center); // Pull window.
+                                                        gear.dismiss();
+                                                    }
+                                                };
+                                                boss.SUBMIT_BYVAL(e2::release, e2::form::state::mouse, hits)
+                                                {
+                                                    if(auto data_src = data_src_shadow.lock())
+                                                    {
+                                                        data_src->SIGNAL(e2::release, e2::form::highlight::any, !!hits);
+                                                    }
+                                                };
+                                            });
+                        { // Active label
+                            auto label_area = item_area->template attach<ui::fork>();
+                                auto mark_app = label_area->template attach<slot::_1, ui::fork>();
+                                    auto mark = mark_app->template attach<slot::_1, ui::pads>(dent{ 2,1,0,0 }, dent{ 0,0,0,0 })
+                                                        ->template attach<ui::item>(
+                                                            ansi::fgc4(0xFF00ff00) + "‣", faux);
+                                    auto app_label = mark_app->template attach<slot::_2, ui::item>(
+                                                ansi::fgc(whitelt)
+                                                + utf8 + ansi::mgl(0).wrp(wrap::off).jet(bias::left), true, true);
+                                auto app_close_area = label_area->template attach<slot::_2, ui::pads>(dent{ 0,0,0,0 }, dent{ 0,0,1,1 })
+                                            ->template plugin<pro::mouse>()
+                                             ->template plugin<pro::fader>(x5, c5, 150ms)
+                                            ->invoke([&](auto& boss) {
+                                                auto data_src_shadow = std::weak_ptr{ data_src };
+                                                boss.SUBMIT_BYVAL(e2::release, e2::hids::mouse::button::click::left, gear)
+                                                {
+                                                    if(auto data_src = data_src_shadow.lock())
+                                                    {
+                                                        data_src->SIGNAL(e2::release, e2::form::proceed::detach, data_src);
+                                                        gear.dismiss();
+                                                    }
+                                                };
+                                            });
+                                auto app_close = app_close_area->template attach<ui::item>("  ✕  ", faux);
+                        } // Active label
+                        return item_area;
+                    };
+                    auto apps_template = [&, c3, x3, app_template](auto& data_src, auto& apps_map){
+                        auto apps = base::create<ui::list>();
+                        //todo loops are not compatible with Declarative UI
+                        for(auto const& [class_id, inst_ptr_list] : apps_map)
+                        {
+                            auto id = class_id;
+                            if (inst_ptr_list.size())
+                            {
+                                auto selected = class_id == *current_default_ptr;
+                                auto item_area = apps->template attach<ui::pads>(dent{ 0,0,0,1 }, dent{ 0,0,1,0 })
+                                                     ->template plugin<pro::mouse>(faux)
+                                                     ->template plugin<pro::fader>(x3, c3, 0ms)
+                                                     ->depend_on_collection(inst_ptr_list)
+                                                     ->invoke([&](auto& boss) {
+                                                         auto data_src_shadow = std::weak_ptr{ data_src };
+                                                         auto id2 = id; // MSVC dci
+                                                         boss.SUBMIT_BYVAL(e2::release, e2::hids::mouse::button::click::left, gear)
+                                                         {
+                                                             log("CLICK id=", id2);
+                                                             if(auto data_src = data_src_shadow.lock())
+                                                             {
+                                                                 //...
+                                                                 gear.dismiss();
+                                                             }
+                                                         };
+                                                     });
+                                    auto block = item_area->template attach<ui::fork>(axis::Y);
+                                        auto head_area = block->template attach<slot::_1, ui::pads>(dent{ 0,0,0,0 }, dent{ 0,0,1,1 })
+                                                              ->template plugin<pro::mouse>();
+                                            auto head = head_area->template attach<ui::item>(
+                                                    //ansi::fgc4(0xFF00FF00) + 
+                                                    objs_desc[class_id], true);
+                                                    //ansi::bgc4(selected ? 0xFF00FF00 : 0x7F000000) + "  "
+                                                    //+ ansi::nil() + " " + objs_desc[class_id], true);
+                                        auto list_pads = block->template attach<slot::_2, ui::pads>(dent{ 0,0,0,0 }, dent{ 0,0,0,0 })
+                                                         ->template plugin<pro::mouse>();
+                                auto insts = list_pads->template attach<ui::list>()
+                                                 ->template attach_collection<e2::form::prop::header>(inst_ptr_list, app_template);
+                            }
+                        }
+                        return apps;
+                    };
+                    auto user_template = [c3, x3, my_id = client->id](auto& data_src, auto const& utf8){
+                        auto item_area = base::template create<ui::pads>(dent{ 1,0,0,1 }, dent{ 0,0,1,0 })
+                                             ->template plugin<pro::mouse>()
+                                             ->template plugin<pro::fader>(x3, c3, 150ms);
+                            auto user = item_area->template attach<ui::item>(
+                            //ansi::fgc4(data_src->id == my_id ? 0xFFffff00 : 0xFFff0000)
+                            + "🔗" + ansi::nil() + " "
+                            + ansi::fgc4(data_src->id == my_id ? rgba::color256[whitelt] : 0x00) + utf8, true);
+                            //+ " ‣" + ansi::nil() + " " + utf8, true);
+                        return item_area;
+                    };
+                    auto brunch_template = [=](auto& data_src, auto& usr_list){
+                        auto users = base::create<ui::list>()
+                            ->attach_collection<e2::form::prop::header>(usr_list, user_template);
+                        return users;
+                    };
+                    auto window = client->attach<ui::cake>();
+                        auto menu = window->attach<ui::fork>(axis::X)
+                                          ->attach<slot::_1, ui::fork>(axis::Y)
+                                          ->plugin<pro::color>(whitedk, 0xA0202020)
+                                          ->plugin<pro::limit>(twod{ 4,-1 }, twod{ 4,-1 })
+                                          ->invoke([&](auto& boss) mutable {
+                                                        boss.SUBMIT(e2::release, e2::form::state::mouse, active)
+                                                        {
+                                                            auto size = active ? uibar_full_size : std::min(uibar_full_size, 4);
+                                                            auto lims = twod{ size,-1 };
+                                                            boss.base::limits(lims, lims);
+                                                            boss.base::reflow();
+                                                        };
+                                                        boss.SUBMIT(e2::release, e2::message(e2::form::drag::pull::any, sysmouse::left), gear)
+                                                        {
+                                                            auto limits = boss.base::limits();
+                                                            limits.min.x += gear.delta.get().x;
+                                                            limits.max.x = uibar_full_size = limits.min.x;
+                                                            boss.base::limits(limits.min, limits.max);
+                                                            boss.base::reflow();
+                                                        }; 
+                                                    });
+                        menu->mouse.draggable<sysmouse::left>();
+                        {
+                            auto apps_users_fork = menu->attach<slot::_1, ui::fork>(axis::Y);
+                            {
+                                auto apps_area = apps_users_fork->attach<slot::_1, ui::fork>(axis::Y);
+                                {
+                                    auto label_pads = apps_area->attach<slot::_1, ui::pads>(dent{ 0,0,1,1 }, dent{ 0,0,0,0 })
+                                                              ->plugin<pro::mouse>()
+                                                              ->plugin<pro::fader>(x3, c3, 150ms);
+                                        auto label_bttn = label_pads->attach<ui::fork>();
+                                            auto label = label_bttn->attach<slot::_1, ui::item>(
+                                                                ansi::fgc(whitelt) + "Apps", faux, faux);
+                                            auto bttn_area = label_bttn->attach<slot::_2, ui::fork>();
+                                                auto bttn_pads = bttn_area->attach<slot::_2, ui::pads>(dent{ 2,2,0,0 }, dent{ 0,0,1,1 })
+                                                            ->plugin<pro::mouse>()
+                                                            ->plugin<pro::fader>(x6, c6, 150ms);
+                                                    auto bttn = bttn_pads->attach<ui::item>("⮞", faux); //⮟
+                                    auto applist_area = apps_area->attach<slot::_2, ui::cake>();
+                                        auto items_scrl = applist_area->attach<ui::rail>(axes::ONLY_Y)
+                                                                      ->plugin<pro::color>(0x00, 0x00); //todo mouse events passthrough
+                                            auto items = items_scrl->attach<ui::list>();
+                                                auto apps = items->attach_element<e2::bindings::list::apps>(world, apps_template);
+                                    //todo make some sort of highlighting at the bottom and top
+                                    //scroll_bars_left(items_area, items_scrl);
+                                }
+                                auto users_area = apps_users_fork->attach<slot::_2, ui::fork>(axis::Y);
+                                {
+                                    auto label_pads = users_area->attach<slot::_1, ui::pads>(dent{ 0,0,1,1 }, dent{ 0,0,0,0 })
+                                                              ->plugin<pro::mouse>()
+                                                              ->plugin<pro::fader>(x3, c3, 150ms);
+                                        auto label_bttn = label_pads->attach<ui::fork>();
+                                            auto label = label_bttn->attach<slot::_1, ui::item>(
+                                                            ansi::fgc(whitelt) + "TTYs", faux, faux);
+                                            auto bttn_area = label_bttn->attach<slot::_2, ui::fork>();
+                                                auto bttn_pads = bttn_area->attach<slot::_2, ui::pads>(dent{ 2,2,0,0 }, dent{ 0,0,1,1 })
+                                                            ->plugin<pro::mouse>()
+                                                            ->plugin<pro::fader>(x6, c6, 150ms);
+                                                    auto bttn = bttn_pads->attach<ui::item>("⮟", faux);
+                                    auto userlist_area = users_area->attach<slot::_2, ui::pads>();
+                                        auto users = userlist_area->attach_element<e2::bindings::list::users>(world, brunch_template);
+                                }
+                            }
+                            auto bttns_area = menu->attach<slot::_2, ui::fork>(axis::X);
+                            {
+                                auto bttns = bttns_area->attach<slot::_1, ui::fork>(axis::X);
+                                    auto disconnect_area = bttns->attach<slot::_1, ui::pads>(dent{ 2,3,1,1 })
+                                                                ->plugin<pro::mouse>()
+                                                                ->plugin<pro::fader>(x2, c2, 150ms)
+                                                                ->invoke([&](auto& boss) {
+                                                                        boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
+                                                                        {
+                                                                            if (auto owner = base::getref(gear.id))
+                                                                            {
+                                                                                owner->SIGNAL(e2::release, e2::term::quit, "sidebar: logout by button");
+                                                                            }
+                                                                        };
+                                                                    });
+                                        auto disconnect = disconnect_area->attach<ui::item>("✕ Disconnect");
+                                    auto shutdown_area = bttns->attach<slot::_2, ui::pads>(dent{ 2,3,1,1 })
+                                                              ->plugin<pro::mouse>()
+                                                              ->plugin<pro::fader>(x1, c1, 150ms)
+                                                              ->invoke([&](auto& boss) {
+                                                                      boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
+                                                                      {
+                                                                          //todo unify, see system.h:1614
+                                                                          #if defined(__APPLE__)
+                                                                          path = "/tmp/" + path + ".sock";
+                                                                          ::unlink(path.c_str());
+                                                                          #endif
+                                                                          os::exit(0, "sidebar: shutdown by button");
+                                                                      };
+                                                                  });
+                                        auto shutdown = shutdown_area->attach<ui::item>("✕ Shutdown");
+                            }
+                        }
+                    client->color(background_color.fgc(), background_color.bgc());
+                    //text header = ansi::jet(bias::center).mgr(0).mgl(0)
+                    //    + username;
+                    text header = username;
+                    text footer = ansi::mgr(1).mgl(1)
+                        + MONOTTY_VER;
+                    client->SIGNAL(e2::preview, e2::form::prop::header, header);
+                    client->SIGNAL(e2::preview, e2::form::prop::footer, footer);
+                    client->base::moveby(user_coor);
+
+                    log("main: new gate created on ", peer);
+
+                    #ifdef DEMO
+                    client->proceed(peer, _region);
+                    #else
+                    client->proceed(peer, username);
+                    #endif
+
+                    log("main: proceed complete on ", peer);
+                    client->detach();
+                    log("main: exit from the threads sync on ", peer);
+                } }.detach();
+
+                log("main: new thread is running on ", peer);
+            }
+
+            world->SIGNAL(e2::general, e2::timer::fps, 0);
+        }
     }
+    os::exit(0, "bye!");
 }
