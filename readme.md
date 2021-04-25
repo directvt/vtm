@@ -1,7 +1,7 @@
-# Monotty Desktopio
+# Monotty Desktopio Preview
 
 A text-based desktop environment in your terminal
-![image](https://dice.netxs.online/cloud/vtm/mde_banner_v1.11.png)
+![image](https://dice.netxs.online/cloud/vtm/mde_banner_v1.13.png)
 
 # Demo
 
@@ -110,10 +110,10 @@ double `LeftClick`    | Window: Maximize/restore
   - Just a sketch
 
  - `▀▄ Text`
-  - A user interface only
+  - User interface only
 
  - `▀▄ Calc`
-  - A user interface only
+  - User interface only
 
  - `▀▄ Clip`
   - ...

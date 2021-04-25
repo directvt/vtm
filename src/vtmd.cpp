@@ -1831,7 +1831,7 @@ utility like ctags is used to locate the definitions.
         }
 
         #ifndef PROD
-            auto sub_pos = twod{12, 0};
+            auto sub_pos = twod{12 + 17, 0};
             creator(objs::Test, { twod{ 22,1 } + sub_pos,{ 70,21 } })
                 ->header(ansi::jet(bias::center) + "Welcome");
             creator(objs::Shop, { twod{ 4 ,6  } + sub_pos,{ 80,38 } });

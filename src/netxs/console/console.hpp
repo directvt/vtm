@@ -3562,7 +3562,7 @@ namespace netxs::console
                 // pro::mouse: Notify form::state::active when the number of clients is zero.
                 boss.SUBMIT_T(e2::release, e2::form::notify::mouse::leave, memo, gear)
                 {
-                    if (!--full) soul.reset();
+                    if (!--full) soul->base::strike(), soul.reset();
                     if (omni || gear.direct<faux>(boss.bell::id))
                     {
                         if (!--rent)
