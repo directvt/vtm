@@ -10,6 +10,7 @@
 #include "../text/logger.hpp"
 
 #include <iostream>
+#include <typeindex>
 
 #define SPD 10               // console: Auto-scroll initial speed component ΔR.
 #define PLS 167              // console: Auto-scroll initial speed component ΔT.
@@ -22,6 +23,8 @@
 #define STOPPING_TIME  2s    // console: Object state stopping duration in s.
 #define SWITCHING_TIME 200   // console: Object state switching duration in ms.
 #define BLINK_PERIOD   400ms // console: Period in ms between the blink states of the cursor.
+
+#define MENU_TIMEOUT  250ms  // console: Taskbar collaplse timeout.
 
 #define ACTIVE_TIMEOUT  1s   // console: Timeout off the active object.
 #define REPEAT_DELAY  500ms  // console: Repeat delay.
@@ -1691,13 +1694,13 @@ namespace netxs::console
             skill(T& boss) : boss{ boss } { }
             virtual ~skill() = default; // In order to allow man derived class via base ptr.
         };
-
+        
         // pro:: UI builder.
         template<class T, bool ISPARENT = faux>
         struct boost
         {
-            std::list<uptr<skill<T>>> plugins;
-            T&   boss;
+            std::map<std::type_index, uptr<skill<T>>> depo;
+            T& boss;
             std::map<id_t, subs> memo; // pro::boost: Token set for depend submissions.
             boost(T& boss) : boss{ boss }
             {
@@ -1713,9 +1716,16 @@ namespace netxs::console
             template<template<class> class S, class ...Args>
             auto plugin(Args&&... args)
             {
-                plugins.emplace_back(std::make_unique<S<T>>(boss, std::forward<Args>(args)...));
+                depo[std::type_index(typeid(S<T>))] = std::make_unique<S<T>>(boss, std::forward<Args>(args)...);
                 boss.base::reflow();
                 return boss.template This<T>();
+            }
+            // pro::boost: Return plugin reference of specified type.
+            template<template<class> class S>
+            auto& plugins()
+            {
+                auto ptr = static_cast<S<T>*>(depo[std::type_index(typeid(S<T>))].get());
+                return *ptr;
             }
             // pro::boost: Invoke arbitrary functor(itself/*This/boss).
             template<class P>

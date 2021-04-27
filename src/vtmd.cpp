@@ -2210,14 +2210,9 @@ utility like ctags is used to locate the definitions.
                                           ->attach<slot::_1, ui::fork>(axis::Y)
                                           ->plugin<pro::color>(whitedk, 0xA0202020)
                                           ->plugin<pro::limit>(twod{ 4,-1 }, twod{ 4,-1 })
+                                          ->plugin<pro::timer>()
                                           ->invoke([&](auto& boss) mutable {
-                                                        boss.SUBMIT(e2::release, e2::form::state::mouse, active)
-                                                        {
-                                                            auto size = active ? uibar_full_size : std::min(uibar_full_size, 4);
-                                                            auto lims = twod{ size,-1 };
-                                                            boss.base::limits(lims, lims);
-                                                            boss.base::reflow();
-                                                        };
+                                                        boss.mouse.draggable<sysmouse::left>();
                                                         boss.SUBMIT(e2::release, e2::message(e2::form::drag::pull::any, sysmouse::left), gear)
                                                         {
                                                             auto limits = boss.base::limits();
@@ -2226,8 +2221,23 @@ utility like ctags is used to locate the definitions.
                                                             boss.base::limits(limits.min, limits.max);
                                                             boss.base::reflow();
                                                         }; 
+                                                        boss.SUBMIT(e2::release, e2::form::state::mouse, active)
+                                                        {
+                                                            auto apply = [&](auto active)
+                                                            {
+                                                                auto size = active ? uibar_full_size : std::min(uibar_full_size, 4);
+                                                                auto lims = twod{ size,-1 };
+                                                                boss.base::limits(lims, lims);
+                                                                boss.base::reflow();
+                                                                return faux; // One shot call.
+                                                            };
+                                                            auto& timer = boss.plugins<pro::timer>();
+                                                            timer.pacify(faux);
+                                                            if (active) apply(true);
+                                                            else timer.actify(faux, MENU_TIMEOUT, apply);
+                                                        };
+                                                        
                                                     });
-                        menu->mouse.draggable<sysmouse::left>();
                         {
                             auto apps_users_fork = menu->attach<slot::_1, ui::fork>(axis::Y);
                             {
