@@ -2212,7 +2212,7 @@ utility like ctags is used to locate the definitions.
                                           ->plugin<pro::limit>(twod{ 4,-1 }, twod{ 4,-1 })
                                           ->plugin<pro::timer>()
                                           ->invoke([&](auto& boss) mutable {
-                                                        boss.mouse.draggable<sysmouse::left>();
+                                                        boss.mouse.template draggable<sysmouse::left>();
                                                         boss.SUBMIT(e2::release, e2::message(e2::form::drag::pull::any, sysmouse::left), gear)
                                                         {
                                                             auto limits = boss.base::limits();
@@ -2231,7 +2231,7 @@ utility like ctags is used to locate the definitions.
                                                                 boss.base::reflow();
                                                                 return faux; // One shot call.
                                                             };
-                                                            auto& timer = boss.plugins<pro::timer>();
+                                                            auto& timer = boss.template plugins<pro::timer>();
                                                             timer.pacify(faux);
                                                             if (active) apply(true);
                                                             else timer.actify(faux, MENU_TIMEOUT, apply);
