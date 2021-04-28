@@ -528,6 +528,15 @@ namespace netxs::ui
         }
 
     public:
+        auto get_ratio()
+        {
+            return ratio;
+        }
+        auto config(iota scale)
+        {
+            ratio = MAX_RATIO * std::clamp(scale, 0, 100) / 100;
+            base::reflow();
+        }
         auto config(axis alignment, iota thickness, iota scale)
         {
             _config(alignment, thickness, scale);
@@ -1508,6 +1517,14 @@ namespace netxs::ui
                 client.reset();
                 item_ptr->SIGNAL(e2::release, e2::form::upon::vtree::detached, This());
             }
+        }
+        // rail: Update nested object.
+        template<class T, class S>
+        void update(T old_item_ptr, S new_item_ptr)
+        {
+            client = new_item_ptr;
+            old_item_ptr->SIGNAL(e2::release, e2::form::upon::vtree::detached, This());
+            new_item_ptr->SIGNAL(e2::release, e2::form::upon::vtree::attached, This());
         }
     };
 

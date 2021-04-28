@@ -1210,25 +1210,25 @@ utility like ctags is used to locate the definitions.
             }
         };
 
-        #define TYPE_LIST                         \
-        X(Term         , "Term"                 ) \
-        X(Text         , "Text"                 ) \
-        X(Calc         , "Calc"                 ) \
-        X(Shop         , "Shop"                 ) \
-        X(Logs         , "Logs"                 ) \
-        X(PowerShell   , "PowerShell"           ) \
-        X(CommandPrompt, "Command Prompt"       ) \
-        X(Bash         , "Bash/Zsh/CMD"         ) \
-        X(Far          , "Far Manager"          ) \
-        X(VTM          , "Recursive connection" ) \
-        X(MC           , "Midnight Commander"   ) \
-        X(Truecolor    , "Truecolor image"      ) \
-        X(RefreshRate  , "Refresh rate"         ) \
-        X(Strobe       , "Strobe"               ) \
-        X(Test         , "Test"                 ) \
-        X(Empty        , "Empty window"         ) \
-        X(Menu         , "Old menu object"      )
+        #define TYPE_LIST                             \
+        X(Term         , "Term"                     ) \
+        X(Text         , "Text"                     ) \
+        X(Calc         , "Calc"                     ) \
+        X(Shop         , "Shop"                     ) \
+        X(Logs         , "Logs"                     ) \
+        X(PowerShell   , "pwsh PowerShell"          ) \
+        X(CommandPrompt, "cmd Command Prompt"       ) \
+        X(Bash         , "Bash/Zsh/CMD"             ) \
+        X(Far          , "Far Manager"              ) \
+        X(VTM          , "vtm Recursive connection" ) \
+        X(MC           , "mc  Midnight Commander"   ) \
+        X(Truecolor    , "RGB Truecolor image"      ) \
+        X(RefreshRate  , "fps Refresh rate"         ) \
+        X(Strobe       , "Strobe"                   ) \
+        X(Test         , "Test"                     ) \
+        X(Empty        , "Test Empty window"        )
 
+        //X(Menu         , "Old menu object"      )
         //X(Cellatix     , "Cellatix \033[92m▄▀\033[m")
         //X(Textancy     , "Textancy \033[94m▄▀\033[m")
 
@@ -1241,8 +1241,6 @@ utility like ctags is used to locate the definitions.
         #undef X
         #undef TYPE_LIST
 
-        objs current_default = objs::Test;
-        auto current_default_ptr = &current_default; //todo unify
         static bool    stobe_state = true;
         static iota    max_count = 20;// 50;
         static iota    max_vtm = 3;
@@ -1314,7 +1312,6 @@ utility like ctags is used to locate the definitions.
         //todo use XAML for that
         auto create = [&](objs type, auto location) -> auto
         {
-            //auto window = world->attach<ui::mold>();
             auto window = base::create<ui::mold>();
             window->extend(location);
 
@@ -1747,7 +1744,7 @@ utility like ctags is used to locate the definitions.
                 }
             }
 
-            world->brunch(type, window);
+            world->branch(type, window);
 
             return window;
         };
@@ -1810,11 +1807,18 @@ utility like ctags is used to locate the definitions.
             }
             else
             {
-                auto frame = creator(current_default, location);
-
                 //todo unify
-                gear.kb_focus_taken = faux;
-                frame->SIGNAL(e2::release, e2::form::upevent::kboffer, gear);
+                if (auto gate_ptr = bell::getref(gear.id))
+                {
+                    auto& gate = *gate_ptr;
+                    iota data = 0;
+                    gate.SIGNAL(e2::request, e2::data::changed, data);
+                    auto current_default = static_cast<objs>(data);
+                    auto frame = creator(current_default, location);
+
+                    gear.kb_focus_taken = faux;
+                    frame->SIGNAL(e2::release, e2::form::upevent::kboffer, gear);
+                }
             }
         };
 
@@ -1874,78 +1878,13 @@ utility like ctags is used to locate the definitions.
         log("user: ", user);
         log("pipe: ", path);
 
-        { // Menu
-            auto frame = world->attach<ui::mold>(objs::Menu);
-            frame->liquid(faux);
-            frame->strong(true);
-            frame->header(ansi::jet_or(bias::center) + "Menu");
-
-            //frame->color(whitelt, 0xA0000000);//.alpha(0x50));
-            frame->color(whitelt, 0xA0202020);//.alpha(0x50));
-            frame->acryl = 100;
-            frame->nosize = true; // disable footer
-
-            {
-                auto block = frame->attach<ui::stem_bsu>(); // stem_bsu == deprecated menu control
-                auto size = block->create_list(objs_desc, dot_00, 2, 3, 0);
-                block->SUBMIT(e2::release, e2::data::changed, data)
-                {
-                    current_default = static_cast<objs>(data);
-                };
-
-                //todo unify
-                rect btn_pos;
-                btn_pos.coor.x = 0;
-                btn_pos.coor.y = size.y + 1;
-                btn_pos.size = twod{ size.x / 2 + 1,3 };
-                auto logout = block->attach<ui::button>(" Disconnect");
-                logout->extend(btn_pos);
-                logout->SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
-                {
-                    if (auto owner = base::getref(gear.id))
-                    {
-                        owner->SIGNAL(e2::release, e2::term::quit, "main logout by button");
-                    }
-                };
-
-                btn_pos.coor.x = 2 + size.x - btn_pos.size.x;
-                auto shutdn = block->attach<ui::button>("Shutdown");
-                shutdn->extend(btn_pos);
-                shutdn->SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
-                {
-                    //todo unify, see system.h:1614
-                    #if defined(__APPLE__)
-                    path = "/tmp/" + path + ".sock";
-                    ::unlink(path.c_str());
-                    #endif
-                    os::exit(0, "main: shutdown by button");
-                };
-
-                btn_pos.size.x = 0;
-                btn_pos.size.y += 1;
-                frame->extend({ { 85,12 }, size + dot_22 + btn_pos.size });
-
-                current_default = objs::Term;
-                block->SIGNAL(e2::release, e2::data::changed, current_default);
-            }
-
-            wptr<ui::mold> weak = frame;
-            frame->SUBMIT_BYVAL(e2::general, e2::form::global::ctxmenu, newpos)
-            {
-                if (auto b = weak.lock())
-                {
-                    b->SIGNAL(e2::preview, e2::form::layout::appear, newpos);
-                }
-            };
-        }
-
         world->SIGNAL(e2::general, e2::timer::fps, 60);
 
         iota usr_count = 0;
         
         if (auto link = os::ipc::open<os::server>(path))
         {
-            log("sock: listen socket ", link);
+            log("sock: listening socket ", link);
 
             while (auto peer = link->meet())
             {
@@ -1976,10 +1915,10 @@ utility like ctags is used to locate the definitions.
 
                 //todo distinguish users by config, enumerate if no config
                 _name = "[" + _name + ":" + std::to_string(usr_count++) + "]";
-                log("main: spawn a new thread for client: ", _name);
+                log("main: creating a new thread for user ", _name);
 
                 std::thread{ [//=
-                    /*MSVC don't capture it*/
+                    /*MSVC don't capture it. Complier bug.*/
                     &objs_desc
                     , peer
                     , c_ip
@@ -1988,53 +1927,25 @@ utility like ctags is used to locate the definitions.
                     , danger_color
                     , highlight_color
                     , warning_color
-                    , current_default_ptr
                     , background_color
                     , user_coor
                     , action_color
                     , world
                     ]
                 {
+
                     iota uibar_full_size = 32;
-                    log("main: peer using socket ", peer);
+                    log("user: session name ", peer);
 
                     #ifdef DEMO
                         auto username = "[User." + utf::remain(c_ip) + ":" + c_port + "]";
                     #else
                         auto username = _name;
                     #endif
-                   /* Task Panel Layout pseudocode: (a bit outdated)
-                    *
-                    * world<host>
-                    *    world: client<gate(username)>
-                    *       client: window<cake>
-                    *          window: menu_area<fork(h)>
-                    *             menu_area: menu<fork(v)>
-                    *                menu(1): items_area<rail>
-                    *                   items_area: items<list>
-                    *                      items: app_title<post> = "Apps"
-                    *                      items: apps_area<rail>
-                    *                         apps_area: apps<list>
-                    *                            apps: app_1<item>
-                    *                               ...
-                    *                            apps: app_n<item>
-                    *                      items: hr<mock> = "----"
-                    *                      items: usr_title<post> = "TTYs"
-                    *                      items: users_area<rail>
-                    *                         users_area: users<list>
-                    *                            users: user_1<item>
-                    *                               ...
-                    *                            users: user_n<item>
-                    *                menu(2): items_bttns<fork(h)>
-                    *                   items_bttns(1): bttns<fork(h)>
-                    *                      bttns(1): disonnect_area<pads>
-                    *                         disonnect_area: disconnect<item>
-                    *                      bttns(2): shutdown_area<pads>
-                    *                         shutdown_area: shutdown<item>
-                    *
-                    */
 
-                    //todo MSVC 16.9.4 don't capture x3,c3 by & (possible a compiler bug)
+                    // Taskbar Layout (PoC)
+
+                    //todo MSVC 16.9.4 don't capture x3,c3 by & (compiler bug)
                     auto c6 = cell{}.bgc(action_color).fgc(whitelt);
                     auto x6 = c6; x6.bga(0x00).fga(0x00);
                     auto c5 = cell{}.bgc(danger_color).fgc(whitelt);
@@ -2049,6 +1960,16 @@ utility like ctags is used to locate the definitions.
                     auto x1 = c1; x1.bga(0x00);
 
                     auto client = world->invite<ui::gate>(username);
+
+                    auto current_default = objs::Term;
+                    client->SUBMIT(e2::request, e2::data::changed, data)
+                    {
+                        data = current_default;
+                    };
+                    client->SUBMIT(e2::release, e2::data::changed, data)
+                    {
+                        current_default = static_cast<objs>(data);
+                    };
 
                     auto app_template = [c4, x4, x5, c5](auto& data_src, auto const& utf8){
                         auto item_area = base::template create<ui::pads>(dent{ 1,0,1,0 }, dent{ 0,0,0,1 })
@@ -2124,7 +2045,7 @@ utility like ctags is used to locate the definitions.
                             auto id = class_id;
                             if (inst_ptr_list.size())
                             {
-                                auto selected = class_id == *current_default_ptr;
+                                auto selected = class_id == current_default;
                                 auto item_area = apps->template attach<ui::pads>(dent{ 0,0,0,1 }, dent{ 0,0,1,0 })
                                                      ->template plugin<pro::mouse>(faux)
                                                      ->template plugin<pro::fader>(x3, c3, 0ms)
@@ -2176,11 +2097,7 @@ utility like ctags is used to locate the definitions.
                                     auto block = item_area->template attach<ui::fork>(axis::Y);
                                         auto head_area = block->template attach<slot::_1, ui::pads>(dent{ 0,0,0,0 }, dent{ 0,0,1,1 })
                                                               ->template plugin<pro::mouse>();
-                                            auto head = head_area->template attach<ui::item>(
-                                                    //ansi::fgc4(0xFF00FF00) + 
-                                                    objs_desc[class_id], true);
-                                                    //ansi::bgc4(selected ? 0xFF00FF00 : 0x7F000000) + "  "
-                                                    //+ ansi::nil() + " " + objs_desc[class_id], true);
+                                            auto head = head_area->template attach<ui::item>(objs_desc[class_id], true);
                                         auto list_pads = block->template attach<slot::_2, ui::pads>(dent{ 0,0,0,0 }, dent{ 0,0,0,0 })
                                                          ->template plugin<pro::mouse>();
                                 auto insts = list_pads->template attach<ui::list>()
@@ -2189,29 +2106,81 @@ utility like ctags is used to locate the definitions.
                         }
                         return apps;
                     };
+                    auto menuitems_template = [&, c3, x3, app_template, &objs_desc](auto& data_src, auto& apps_map){
+                        auto menuitems = base::create<ui::list>();
+                        //todo loops are not compatible with Declarative UI
+                        for(auto const& [class_id, inst_ptr_list] : *apps_map)
+                        {
+                            auto id = class_id;
+                            auto selected = class_id == current_default;
+                            auto item_area = menuitems->template attach<ui::pads>(dent{ 0,0,0,1 }, dent{ 0,0,1,0 })
+                                                 ->template plugin<pro::mouse>(faux)
+                                                 ->template plugin<pro::fader>(x3, c3, 0ms)
+                                                 //->depend_on_collection(inst_ptr_list)
+                                                 ->invoke([&](auto& boss) {
+                                                     auto client_shadow = std::weak_ptr{ client };
+                                                     auto id2 = id; // MSVC dci
+                                                     boss.SUBMIT_BYVAL(e2::release, e2::hids::mouse::button::click::left, gear)
+                                                     {
+                                                         if(auto client = client_shadow.lock())
+                                                         {
+                                                            client->SIGNAL(e2::release, e2::data::changed, id2);
+                                                            gear.dismiss();
+                                                         }
+                                                     };
+                                                     //boss.SUBMIT_BYVAL(e2::release, e2::hids::mouse::button::click::right, gear)
+                                                     //{
+                                                     //};
+                                                 });
+                                auto block = item_area->template attach<ui::fork>(axis::X);
+                                    auto mark_area = block->template attach<slot::_1, ui::pads>(dent{ 1,1,0,0 }, dent{ 0,0,0,0 })
+                                                          ->template plugin<pro::mouse>();
+                                    auto id2 = id; // MSVC dci
+                                        auto mark = mark_area->template attach<ui::item>(
+                                            ansi::bgc4(selected ? 0xFF00ff00 : 0xFF000000)
+                                             + "  ", faux)
+                                             ->invoke([&](auto& boss) {
+                                                 auto mark_shadow = std::weak_ptr{ boss.template This<ui::item>() };
+                                                 client->SUBMIT_BYVAL_T(e2::release, e2::data::changed, boss.memo, data)
+                                                 {
+                                                    auto selected = id2 == data;
+                                                    if(auto mark = mark_shadow.lock())
+                                                    {
+                                                        mark->set(ansi::bgc4(selected ? 0xFF00ff00 : 0xFF000000)
+                                                                + "  ");
+                                                    }
+                                                 };
+                                             });
+                                    auto label_area = block->template attach<slot::_2, ui::pads>(dent{ 1,1,0,0 }, dent{ 0,0,0,0 })
+                                                           ->template plugin<pro::mouse>();
+                                        auto label = label_area->template attach<ui::item>(
+                                            ansi::fgc4(0xFFffffff)
+                                            + objs_desc[class_id], true, true);
+                        }
+                        return menuitems;
+                    };
                     auto user_template = [c3, x3, my_id = client->id](auto& data_src, auto const& utf8){
                         auto item_area = base::template create<ui::pads>(dent{ 1,0,0,1 }, dent{ 0,0,1,0 })
                                              ->template plugin<pro::mouse>()
                                              ->template plugin<pro::fader>(x3, c3, 150ms);
                             auto user = item_area->template attach<ui::item>(
-                            //ansi::fgc4(data_src->id == my_id ? 0xFFffff00 : 0xFFff0000)
                             + "🔗" + ansi::nil() + " "
                             + ansi::fgc4(data_src->id == my_id ? rgba::color256[whitelt] : 0x00) + utf8, true);
-                            //+ " ‣" + ansi::nil() + " " + utf8, true);
                         return item_area;
                     };
-                    auto brunch_template = [=](auto& data_src, auto& usr_list){
+                    auto branch_template = [=](auto& data_src, auto& usr_list){
                         auto users = base::create<ui::list>()
                             ->attach_collection<e2::form::prop::header>(*usr_list, user_template);
                         return users;
                     };
                     auto window = client->attach<ui::cake>();
-                        auto menu = window->attach<ui::fork>(axis::X)
-                                          ->attach<slot::_1, ui::fork>(axis::Y)
-                                          ->plugin<pro::color>(whitedk, 0xA0202020)
-                                          ->plugin<pro::limit>(twod{ 4,-1 }, twod{ 4,-1 })
-                                          ->plugin<pro::timer>()
-                                          ->invoke([&](auto& boss) mutable {
+                        auto taskbar = window->attach<ui::fork>(axis::X)
+                                             ->attach<slot::_1, ui::fork>(axis::Y)
+                                             //->plugin<pro::color>(whitedk, 0xA0202020)
+                                             ->plugin<pro::color>(whitedk, 0xD0202020)
+                                             ->plugin<pro::limit>(twod{ 4,-1 }, twod{ 4,-1 })
+                                             ->plugin<pro::timer>()
+                                             ->invoke([&](auto& boss) mutable {
                                                         boss.mouse.template draggable<sysmouse::left>();
                                                         boss.SUBMIT(e2::release, e2::message(e2::form::drag::pull::any, sysmouse::left), gear)
                                                         {
@@ -2239,7 +2208,7 @@ utility like ctags is used to locate the definitions.
                                                         
                                                     });
                         {
-                            auto apps_users_fork = menu->attach<slot::_1, ui::fork>(axis::Y);
+                            auto apps_users_fork = taskbar->attach<slot::_1, ui::fork>(axis::Y);
                             {
                                 auto apps_area = apps_users_fork->attach<slot::_1, ui::fork>(axis::Y);
                                 {
@@ -2248,17 +2217,52 @@ utility like ctags is used to locate the definitions.
                                                               ->plugin<pro::fader>(x3, c3, 150ms);
                                         auto label_bttn = label_pads->attach<ui::fork>();
                                             auto label = label_bttn->attach<slot::_1, ui::item>(
-                                                                ansi::fgc(whitelt) + "Apps", faux, faux);
+                                                                ansi::fgc(whitelt) + "  ≡ ", faux, faux);
                                             auto bttn_area = label_bttn->attach<slot::_2, ui::fork>();
                                                 auto bttn_pads = bttn_area->attach<slot::_2, ui::pads>(dent{ 2,2,0,0 }, dent{ 0,0,1,1 })
                                                             ->plugin<pro::mouse>()
                                                             ->plugin<pro::fader>(x6, c6, 150ms);
-                                                    auto bttn = bttn_pads->attach<ui::item>("⮞", faux); //⮟
+                                                    auto bttn = bttn_pads->attach<ui::item>("⮟", faux);
                                     auto applist_area = apps_area->attach<slot::_2, ui::cake>();
-                                        auto items_scrl = applist_area->attach<ui::rail>(axes::ONLY_Y)
-                                                                      ->plugin<pro::color>(0x00, 0x00); //todo mouse events passthrough
-                                            auto items = items_scrl->attach<ui::list>();
-                                                auto apps = items->attach_element<e2::bindings::list::apps>(world, apps_template);
+                                        auto task_menu_area = applist_area->attach<ui::fork>(axis::Y, 0, 00);
+                                            auto menu_scrl = task_menu_area->attach<slot::_1, ui::rail>(axes::ONLY_Y)
+                                                                           ->plugin<pro::color>(0x00, 0x00); //todo mouse events passthrough
+                                                auto menuitems = menu_scrl->attach_element<e2::bindings::list::apps>(world, menuitems_template);
+                                            auto tasks_scrl = task_menu_area->attach<slot::_2, ui::rail>(axes::ONLY_Y)
+                                                                            ->plugin<pro::color>(0x00, 0x00); //todo mouse events passthrough
+                                                auto apps = tasks_scrl->attach_element<e2::bindings::list::apps>(world, apps_template);
+                                    label_pads->invoke([&](auto& boss) {
+                                        auto task_menu_area_shadow = std::weak_ptr{ task_menu_area };
+                                        auto bttn_shadow = std::weak_ptr{ bttn };
+                                        boss.SUBMIT_BYVAL(e2::release, e2::hids::mouse::button::click::left, gear)
+                                        {
+                                            if(auto bttn = bttn_shadow.lock())
+                                            if(auto task_menu_area = task_menu_area_shadow.lock())
+                                            {
+                                                auto state = task_menu_area->get_ratio();
+                                                bttn->set(state ? "⮝" : "⮟");
+                                                task_menu_area->config(state ? 0 : 100);
+                                                gear.dismiss();
+                                            }
+                                        };
+                                    });
+                                    apps_area->invoke([&](auto& boss) {
+                                        auto task_menu_area_shadow = std::weak_ptr{ task_menu_area };
+                                        auto bttn_shadow = std::weak_ptr{ bttn };
+                                        boss.SUBMIT_BYVAL(e2::release, e2::form::state::mouse, active)
+                                        {
+                                            if (!active)
+                                            if(auto bttn = bttn_shadow.lock())
+                                            if(auto task_menu_area = task_menu_area_shadow.lock())
+                                            {
+                                                if (auto state = task_menu_area->get_ratio())
+                                                {
+                                                    bttn->set("⮝");
+                                                    task_menu_area->config(0);
+                                                }
+                                            }
+                                        };
+                                    });
                                     //todo make some sort of highlighting at the bottom and top
                                     //scroll_bars_left(items_area, items_scrl);
                                 }
@@ -2274,9 +2278,9 @@ utility like ctags is used to locate the definitions.
                                                 auto bttn_pads = bttn_area->attach<slot::_2, ui::pads>(dent{ 2,2,0,0 }, dent{ 0,0,1,1 })
                                                             ->plugin<pro::mouse>()
                                                             ->plugin<pro::fader>(x6, c6, 150ms);
-                                                    auto bttn = bttn_pads->attach<ui::item>("⮟", faux);
+                                                    auto bttn = bttn_pads->attach<ui::item>("⮝", faux);
                                     auto userlist_area = users_area->attach<slot::_2, ui::pads>();
-                                        auto users = userlist_area->attach_element<e2::bindings::list::users>(world, brunch_template);
+                                        auto users = userlist_area->attach_element<e2::bindings::list::users>(world, branch_template);
                                     //todo unify
                                     bttn_pads->invoke([&](auto& boss) {
                                         auto userlist_area_shadow = std::weak_ptr{ userlist_area };
@@ -2288,7 +2292,7 @@ utility like ctags is used to locate the definitions.
                                             if(auto userlist = userlist_area_shadow.lock())
                                             {
                                                 state = !state;
-                                                bttn->set(state ? "⮞" : "⮟");
+                                                bttn->set(state ? "⮟" : "⮝");
                                                 auto lims = userlist->base::limits();
                                                 lims.min.y = lims.max.y = state ? 0 : -1;
                                                 userlist->base::limits(lims);
@@ -2298,7 +2302,7 @@ utility like ctags is used to locate the definitions.
                                     });
                                 }
                             }
-                            auto bttns_area = menu->attach<slot::_2, ui::fork>(axis::X);
+                            auto bttns_area = taskbar->attach<slot::_2, ui::fork>(axis::X);
                             {
                                 auto bttns = bttns_area->attach<slot::_1, ui::fork>(axis::X);
                                     auto disconnect_area = bttns->attach<slot::_1, ui::pads>(dent{ 2,3,1,1 })
@@ -2309,7 +2313,7 @@ utility like ctags is used to locate the definitions.
                                                                         {
                                                                             if (auto owner = base::getref(gear.id))
                                                                             {
-                                                                                owner->SIGNAL(e2::release, e2::term::quit, "sidebar: logout by button");
+                                                                                owner->SIGNAL(e2::release, e2::term::quit, "taskbar: logout by button");
                                                                             }
                                                                         };
                                                                     });
@@ -2325,23 +2329,20 @@ utility like ctags is used to locate the definitions.
                                                                           path = "/tmp/" + path + ".sock";
                                                                           ::unlink(path.c_str());
                                                                           #endif
-                                                                          os::exit(0, "sidebar: shutdown by button");
+                                                                          os::exit(0, "taskbar: shutdown by button");
                                                                       };
                                                                   });
                                         auto shutdown = shutdown_area->attach<ui::item>("✕ Shutdown");
                             }
                         }
                     client->color(background_color.fgc(), background_color.bgc());
-                    //text header = ansi::jet(bias::center).mgr(0).mgl(0)
-                    //    + username;
                     text header = username;
-                    text footer = ansi::mgr(1).mgl(1)
-                        + MONOTTY_VER;
+                    text footer = ansi::mgr(1).mgl(1) + MONOTTY_VER;
                     client->SIGNAL(e2::preview, e2::form::prop::header, header);
                     client->SIGNAL(e2::preview, e2::form::prop::footer, footer);
                     client->base::moveby(user_coor);
 
-                    log("main: new gate created on ", peer);
+                    log("user: new gate for ", peer);
 
                     #ifdef DEMO
                     client->proceed(peer, _region);
@@ -2349,12 +2350,12 @@ utility like ctags is used to locate the definitions.
                     client->proceed(peer, username);
                     #endif
 
-                    log("main: proceed complete on ", peer);
+                    log("user: ", peer, " has logged out");
                     client->detach();
-                    log("main: exit from the threads sync on ", peer);
+                    log("user: ", peer, " is diconnected");
                 } }.detach();
 
-                log("main: new thread is running on ", peer);
+                log("main: new thread constructed for ", peer);
             }
 
             world->SIGNAL(e2::general, e2::timer::fps, 0);

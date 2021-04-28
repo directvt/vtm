@@ -959,13 +959,13 @@ namespace netxs::events
     public:
         class subs
         {
-            std::vector<hook> memo;
+            std::vector<hook> storage;
 
         public:
-            hook& extra()       { return memo.emplace_back(); }
-            auto  count() const { return memo.size();         }
-            void  clear()       {        memo.clear();        }
-        };
+            hook& extra()       { return storage.emplace_back(); }
+            auto  count() const { return storage.size();         }
+            void  clear()       {        storage.clear();        }
+        } memo;
 
         // bell: Subscribe on a specified event
         //       of specified reaction node by defining an event

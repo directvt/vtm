@@ -1701,7 +1701,7 @@ namespace netxs::console
         {
             std::map<std::type_index, uptr<skill<T>>> depo;
             T& boss;
-            std::map<id_t, subs> memo; // pro::boost: Token set for depend submissions.
+            std::map<id_t, subs> memomap; // pro::boost: Token set for depend submissions.
             boost(T& boss) : boss{ boss }
             {
                 if constexpr (ISPARENT)
@@ -1734,9 +1734,9 @@ namespace netxs::console
                 functor(boss);
                 return boss.template This<T>();
             }
-            // pro::boost: Attach homeless brunch and return itself.
+            // pro::boost: Attach homeless branch and return itself.
             template<class C, class ...Args>
-            auto brunch(C child, Args&&... args)
+            auto branch(C child, Args&&... args)
             {
                 if (child)
                     boss.T::attach(child, std::forward<Args>(args)...);
@@ -1746,11 +1746,11 @@ namespace netxs::console
             template<class C>
             auto depend(C master)
             {
-                master->SUBMIT_T(e2::release, e2::dtor, memo[master->id], master_id)
+                master->SUBMIT_T(e2::release, e2::dtor, memomap[master->id], master_id)
                 {
-                    memo[master_id].clear();
-                    memo.erase(master_id);
-                    if (memo.empty()) boss.base::detach();
+                    memomap[master_id].clear();
+                    memomap.erase(master_id);
+                    if (memomap.empty()) boss.base::detach();
                 };
                 return boss.template This<T>();
             }
@@ -1777,7 +1777,7 @@ namespace netxs::console
                 auto item_shadow = std::weak_ptr{ new_item };
                 auto data_shadow = std::weak_ptr{ data_src };
                 auto boss_shadow = std::weak_ptr{ boss.template This<T>() };
-                data_src->SUBMIT_BYVAL_T(e2::release, PROPERTY, memo[data_src->id], new_arg_value)
+                data_src->SUBMIT_BYVAL_T(e2::release, PROPERTY, memomap[data_src->id], new_arg_value)
                 {
                     if (auto boss_ptr = boss_shadow.lock())
                     if (auto data_src = data_shadow.lock())
@@ -1789,8 +1789,8 @@ namespace netxs::console
                         boss_ptr->update(old_item, new_item);
                     }
                 };
-                //return boss.brunch(new_item);
-                boss.brunch(new_item);
+                //return boss.branch(new_item);
+                boss.branch(new_item);
                 return new_item;
             }
             // pro::boost: Create and attach a new item using a template and dynamic datasource.
@@ -3300,7 +3300,7 @@ namespace netxs::console
 
             // pro::scene: Attach a new item to the scene.
             template<class S>
-            auto brunch(id_t class_id, sptr<S> item)
+            auto branch(id_t class_id, sptr<S> item)
             {
                 items.append(item);
                 item->base::visual_root = true;
@@ -3316,7 +3316,7 @@ namespace netxs::console
             auto attach(id_t class_id, Args&&... args)
             {
                 auto item = boss.indexer<bell>::create<S>(std::forward<Args>(args)...);
-                brunch(class_id, item);
+                branch(class_id, item);
                 return item;
             }
             // pro::scene: Create a new user of the specified subtype
@@ -3827,9 +3827,9 @@ namespace netxs::console
     public:
         // host: Create a new item of the specified subtype and attach it.
         template<class T>
-        auto brunch(id_t class_id, sptr<T> item_ptr)
+        auto branch(id_t class_id, sptr<T> item_ptr)
         {
-            return scene.brunch(class_id, item_ptr);
+            return scene.branch(class_id, item_ptr);
         }
         // host: Create a new item of the specified subtype and attach it.
         template<class T, class ...Args>
