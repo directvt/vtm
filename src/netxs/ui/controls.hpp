@@ -152,6 +152,7 @@ namespace netxs::ui
         rgba title_fg_color = 0xFFffffff;
         bool highlight_center = true;
         bool highlighted = faux;
+        bool only_frame = faux;
 
         ~mold()
         {
@@ -326,6 +327,13 @@ namespace netxs::ui
                 }
             };
         }
+        virtual void postrender (face& parent_canvas)
+        {
+            if (!only_frame)
+            {
+                form::postrender(parent_canvas);
+            }
+        }
         // mold: Draw client window.
         virtual void renderproc (face& parent_canvas)
         {
@@ -343,6 +351,20 @@ namespace netxs::ui
                 mark.fgc(title_fg_color); //todo unify, make it more contrast
                 auto fill = [&](cell& c) { c.fuse(mark); };
                 parent_canvas.fill(area, fill);
+            }
+
+            //todo revise
+            // Draw only frame. It is used in View only
+            if (only_frame)
+            {
+                // Draw a border around
+                auto area = parent_canvas.full();
+                auto mark = skin::color(tone::shadower);
+                mark.fgc(title_fg_color).link(bell::id);
+                auto fill = [&](cell& c) { c.fusefull(mark); };
+                parent_canvas.cage(area, gripsz, fill);
+                SIGNAL(e2::release, e2::form::upon::redrawn, parent_canvas); // to draw the title and footer
+                return;
             }
 
             auto& guests = shared.items();
@@ -686,7 +708,7 @@ namespace netxs::ui
                     item.SIGNAL(e2::preview, e2::form::layout::size, size2);
                     split = new_size0.x - width - get_x(size2);
 
-                    if (test_size2 != size2) // If the size2 is not suitable
+                    if (test_size2 != size2) // If size2 doesn't fit.
                     {
                         new_size0.y = get_y(size2);
                         size1 = xpose({ split, new_size0.y });

@@ -147,6 +147,9 @@ std::list<text> appstore_body =
 
     item("Hood", reddk, "1", "Free ", "Get",
     "Desktop environment settings configurator."),
+
+    item("View", cyandk, "1", "Free ", "Get",
+    "Meta object. Desktop location marker."),
 };
 
 text qr = ""s
@@ -1216,6 +1219,7 @@ utility like ctags is used to locate the definitions.
         X(Calc         , "Calc"                     ) \
         X(Shop         , "Shop"                     ) \
         X(Logs         , "Logs"                     ) \
+        X(View         , "View [try click on group]") \
         X(PowerShell   , "pwsh PowerShell"          ) \
         X(CommandPrompt, "cmd Command Prompt"       ) \
         X(Bash         , "Bash/Zsh/CMD"             ) \
@@ -1482,7 +1486,6 @@ utility like ctags is used to locate the definitions.
                     scroll_bars(layers, scroll);
                     break;
                 }
-                //case Cellatix:
                 case Calc:
                 {
                     //todo XAML converter
@@ -1593,7 +1596,6 @@ utility like ctags is used to locate the definitions.
                             scroll_bars(layers, scroll);
                     break;
                 }
-                //case Textancy:
                 case Text:
                 {
                     window->color(whitelt, 0x605f1A00);
@@ -1742,6 +1744,15 @@ utility like ctags is used to locate the definitions.
                     scroll_bars(layers, scroll);
                     break;
                 }
+                case View:
+                {
+                    window->header(ansi::jet(bias::center) + "Location Meta Object");
+                    window->only_frame = true;
+                    //auto object = window->attach<ui::pane>();
+                    //object->canvas.mark().txt(whitespace);
+                    break;
+                }
+
             }
 
             world->branch(type, window);
@@ -1846,11 +1857,13 @@ utility like ctags is used to locate the definitions.
             creator(objs::Term, { twod{ 34,34 } + sub_pos,{ 57,15 } });
             creator(objs::Term, { twod{ 44 + 85,35 } + sub_pos,{ 57,15 } });
             creator(objs::Term, { twod{ 40 + 85,38 } + sub_pos,{ 57,15 } });
+            creator(objs::View, { twod{ 0,-1 } + sub_pos,{ 120,52 } });
 
             sub_pos = twod{-120, 60};
             creator(objs::Truecolor,   { twod{ 20,15 } + sub_pos,{ 70,30 } });
             creator(objs::Logs,        { twod{ 52,33 } + sub_pos,{ 45,12 } });
             creator(objs::RefreshRate, { twod{ 60,41 } + sub_pos,{ 35,10 } });
+            creator(objs::View, { twod{ 0,7 } + sub_pos,{ 120,52 } });
         #endif
         #ifndef DEMO
             creator(objs::CommandPrompt,   { { 10,5 },{ 80,25 } });
@@ -2232,6 +2245,10 @@ utility like ctags is used to locate the definitions.
                                             auto label = label_bttn->attach<slot::_1, ui::item>(
                                                                 ansi::fgc(whitelt) + "  ≡ ", faux, faux);
                                             auto bttn_area = label_bttn->attach<slot::_2, ui::fork>();
+
+                                                //auto defapp_pads = bttn_area->attach<slot::_1, ui::post>()
+                                                //                            ->upload(ansi::jet(bias::center) + "[ Term ]");
+                                                    
                                                 auto bttn_pads = bttn_area->attach<slot::_2, ui::pads>(dent{ 2,2,0,0 }, dent{ 0,0,1,1 })
                                                             ->plugin<pro::mouse>()
                                                             ->plugin<pro::fader>(x6, c6, 150ms);
