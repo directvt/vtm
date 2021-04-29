@@ -2106,7 +2106,7 @@ utility like ctags is used to locate the definitions.
                         }
                         return apps;
                     };
-                    auto menuitems_template = [&, c3, x3, app_template, &objs_desc](auto& data_src, auto& apps_map){
+                    auto menuitems_template = [&, &world, c3, x3, app_template, &objs_desc](auto& data_src, auto& apps_map){
                         auto menuitems = base::create<ui::list>();
                         //todo loops are not compatible with Declarative UI
                         for(auto const& [class_id, inst_ptr_list] : *apps_map)
@@ -2116,22 +2116,34 @@ utility like ctags is used to locate the definitions.
                             auto item_area = menuitems->template attach<ui::pads>(dent{ 0,0,0,1 }, dent{ 0,0,1,0 })
                                                  ->template plugin<pro::mouse>(faux)
                                                  ->template plugin<pro::fader>(x3, c3, 0ms)
-                                                 //->depend_on_collection(inst_ptr_list)
-                                                 ->invoke([&](auto& boss) {
-                                                     auto client_shadow = std::weak_ptr{ client };
-                                                     auto id2 = id; // MSVC dci
-                                                     boss.SUBMIT_BYVAL(e2::release, e2::hids::mouse::button::click::left, gear)
-                                                     {
-                                                         if(auto client = client_shadow.lock())
-                                                         {
-                                                            client->SIGNAL(e2::release, e2::data::changed, id2);
-                                                            gear.dismiss();
-                                                         }
-                                                     };
-                                                     //boss.SUBMIT_BYVAL(e2::release, e2::hids::mouse::button::click::right, gear)
-                                                     //{
-                                                     //};
-                                                 });
+                                                 ;
+                                        //MSVC 16.9.4 compiler bug. Workaround - using temporary variables.
+                                        auto& client2 = client; // MSVC dci
+                                        auto& world2 = world; // MSVC dci
+                                        item_area->invoke([&, client2, world2](auto& boss) {
+                                            auto client_shadow = std::weak_ptr{ client2 };
+                                            auto id2 = id; // MSVC dci
+                                            auto& world3 = world2; // MSVC dci
+                                            boss.SUBMIT_BYVAL(e2::release, e2::hids::mouse::button::click::left, gear)
+                                            {
+                                                if (auto client = client_shadow.lock())
+                                                {
+                                                    client->SIGNAL(e2::release, e2::data::changed, id2);
+                                                    gear.dismiss();
+                                                }
+                                            };
+                                            boss.SUBMIT_BYVAL(e2::release, e2::hids::mouse::button::dblclick::left, gear)
+                                            {
+                                                static iota random = 0;
+                                                random = (random + 2) % 10;
+                                                auto offset = twod{ random * 2, random };
+                                                auto viewport = gear.area();
+                                                gear.slot.coor = viewport.coor + viewport.size / 4 + offset;
+                                                gear.slot.size = viewport.size / 2;
+                                                world3->SIGNAL(e2::release, e2::form::proceed::createby, gear);
+                                            };
+                                        });
+
                                 auto block = item_area->template attach<ui::fork>(axis::X);
                                     auto mark_area = block->template attach<slot::_1, ui::pads>(dent{ 1,1,0,0 }, dent{ 0,0,0,0 })
                                                           ->template plugin<pro::mouse>();
@@ -2139,11 +2151,12 @@ utility like ctags is used to locate the definitions.
                                         auto mark = mark_area->template attach<ui::item>(
                                             ansi::bgc4(selected ? 0xFF00ff00 : 0xFF000000)
                                              + "  ", faux)
-                                             ->invoke([&](auto& boss) {
+                                             ->invoke([&, client](auto& boss) {
+                                                 auto id3 = id2; // MSVC dci
                                                  auto mark_shadow = std::weak_ptr{ boss.template This<ui::item>() };
                                                  client->SUBMIT_BYVAL_T(e2::release, e2::data::changed, boss.memo, data)
                                                  {
-                                                    auto selected = id2 == data;
+                                                    auto selected = id3 == data;
                                                     if(auto mark = mark_shadow.lock())
                                                     {
                                                         mark->set(ansi::bgc4(selected ? 0xFF00ff00 : 0xFF000000)
@@ -2165,7 +2178,8 @@ utility like ctags is used to locate the definitions.
                                              ->template plugin<pro::fader>(x3, c3, 150ms);
                             auto user = item_area->template attach<ui::item>(
                             + "🔗" + ansi::nil() + " "
-                            + ansi::fgc4(data_src->id == my_id ? rgba::color256[whitelt] : 0x00) + utf8, true);
+                            + ansi::fgc4(data_src->id == my_id ? rgba::color256[whitelt] : 0x00) + utf8, true)
+                                             ->template plugin<pro::mouse>();
                         return item_area;
                     };
                     auto branch_template = [=](auto& data_src, auto& usr_list){
@@ -2176,7 +2190,6 @@ utility like ctags is used to locate the definitions.
                     auto window = client->attach<ui::cake>();
                         auto taskbar = window->attach<ui::fork>(axis::X)
                                              ->attach<slot::_1, ui::fork>(axis::Y)
-                                             //->plugin<pro::color>(whitedk, 0xA0202020)
                                              ->plugin<pro::color>(whitedk, 0xD0202020)
                                              ->plugin<pro::limit>(twod{ 4,-1 }, twod{ 4,-1 })
                                              ->plugin<pro::timer>()
@@ -2224,7 +2237,7 @@ utility like ctags is used to locate the definitions.
                                                             ->plugin<pro::fader>(x6, c6, 150ms);
                                                     auto bttn = bttn_pads->attach<ui::item>("⮟", faux);
                                     auto applist_area = apps_area->attach<slot::_2, ui::cake>();
-                                        auto task_menu_area = applist_area->attach<ui::fork>(axis::Y, 0, 00);
+                                        auto task_menu_area = applist_area->attach<ui::fork>(axis::Y, 0, 0);
                                             auto menu_scrl = task_menu_area->attach<slot::_1, ui::rail>(axes::ONLY_Y)
                                                                            ->plugin<pro::color>(0x00, 0x00); //todo mouse events passthrough
                                                 auto menuitems = menu_scrl->attach_element<e2::bindings::list::apps>(world, menuitems_template);
@@ -2279,7 +2292,8 @@ utility like ctags is used to locate the definitions.
                                                             ->plugin<pro::mouse>()
                                                             ->plugin<pro::fader>(x6, c6, 150ms);
                                                     auto bttn = bttn_pads->attach<ui::item>("⮝", faux);
-                                    auto userlist_area = users_area->attach<slot::_2, ui::pads>();
+                                    auto userlist_area = users_area->attach<slot::_2, ui::pads>()
+                                                            ->plugin<pro::mouse>();
                                         auto users = userlist_area->attach_element<e2::bindings::list::users>(world, branch_template);
                                     //todo unify
                                     bttn_pads->invoke([&](auto& boss) {
