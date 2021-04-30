@@ -1253,30 +1253,47 @@ utility like ctags is used to locate the definitions.
         using slot = ui::slot;
         using axis = ui::axis;
         using axes = ui::axes;
-        auto scroll_bars = [](auto layers, auto master)
+
+        auto c6 = cell{}.bgc(action_color).fgc(whitelt);
+        auto x6 = c6; x6.bga(0x00).fga(0x00);
+        auto c5 = cell{}.bgc(danger_color).fgc(whitelt);
+        auto x5 = c5; x5.bga(0x00).fga(0x00);
+        auto c4 = cell{}.bgc(highlight_color);
+        auto x4 = c4; x4.bga(0x00);
+        auto c3 = cell{}.bgc(highlight_color).fgc(0xFFffffff);
+        auto x3 = c3; x3.bga(0x00).fga(0x00);
+        auto c2 = cell{}.bgc(warning_color).fgc(whitelt);
+        auto x2 = c2; x2.bga(0x00);
+        auto c1 = cell{}.bgc(danger_color).fgc(whitelt);
+        auto x1 = c1; x1.bga(0x00);
+
+        auto scroll_bars = [](auto master)
         {
-            auto scroll_bars = layers->template attach<ui::fork>();
-                auto scroll_down = scroll_bars->template attach<slot::_1, ui::fork>(axis::Y);
-                    auto hz = scroll_down->template attach<slot::_2, ui::grip<axis::X>>(master);
-                    auto vt = scroll_bars->template attach<slot::_2, ui::grip<axis::Y>>(master);
+            auto scroll_bars = base::create<ui::fork>();
+                auto scroll_down = scroll_bars->attach<slot::_1, ui::fork>(axis::Y);
+                    auto hz = scroll_down->attach<slot::_2, ui::grip<axis::X>>(master);
+                    auto vt = scroll_bars->attach<slot::_2, ui::grip<axis::Y>>(master);
+            return scroll_bars;
         };
-        auto scroll_bars_left = [](auto layers, auto master)
+        auto scroll_bars_left = [](auto master)
         {
-            auto scroll_bars = layers->template attach<ui::fork>();
-                auto scroll_down = scroll_bars->template attach<slot::_2, ui::fork>(axis::Y);
-                    //auto hz = scroll_down->template attach<slot::_2, ui::grip<axis::X>>(master);
-                    auto vt = scroll_bars->template attach<slot::_1, ui::grip<axis::Y>>(master);
+            auto scroll_bars = base::create<ui::fork>();
+                auto scroll_down = scroll_bars->attach<slot::_2, ui::fork>(axis::Y);
+                    //auto hz = scroll_down->attach<slot::_2, ui::grip<axis::X>>(master);
+                    auto vt = scroll_bars->attach<slot::_1, ui::grip<axis::Y>>(master);
+            return scroll_bars;
         };
-        auto scroll_bars_term = [](auto layers, auto master)
+        auto scroll_bars_term = [](auto master)
         {
-            auto scroll_bars = layers->template attach<ui::fork>();
-                auto scroll_head = scroll_bars->template attach<slot::_1, ui::fork>(axis::Y);
-                    auto hz = scroll_head->template attach<slot::_1, ui::grip<axis::X>>(master);
-                    auto vt = scroll_bars->template attach<slot::_2, ui::grip<axis::Y>>(master);
+            auto scroll_bars = base::create<ui::fork>();
+                auto scroll_head = scroll_bars->attach<slot::_1, ui::fork>(axis::Y);
+                    auto hz = scroll_head->attach<slot::_1, ui::grip<axis::X>>(master);
+                    auto vt = scroll_bars->attach<slot::_2, ui::grip<axis::Y>>(master);
+            return scroll_bars;
         };
-        auto main_menu = [&](auto master)
+        auto main_menu = [&]()
         {
-            auto menu_area = master->template attach<slot::_1, ui::fork>();
+            auto menu_area = base::create<ui::fork>();
                 auto inner_pads = dent{ 1,2,1,1 };
                 auto menu_items = {
                     std::pair{ " ≡"s,                                       dent{ 0 } },
@@ -1285,19 +1302,15 @@ utility like ctags is used to locate the definitions.
                     std::pair{ ansi::und(true) + "V" + ansi::nil() + "iew", dent{ 1 } },
                     std::pair{ ansi::und(true) + "D" + ansi::nil() + "ata", dent{ 1 } },
                     std::pair{ ansi::und(true) + "H" + ansi::nil() + "elp", dent{ 1 } } };
-                auto c3 = cell{ whitespace }.bgc(danger_color);
-                auto x3 = c3; x3.alpha(0x00);
-                auto c2 = cell{ whitespace }.bgc(highlight_color);
-                auto x2 = c2; x2.alpha(0x00);
-                auto menu_list = menu_area->template attach<slot::_1, ui::fork>()
-                                          ->template attach<slot::_1, ui::list>(axis::X);
-                for (auto& body : menu_items) menu_list->template attach<ui::pads>(inner_pads, body.second)
-                                                       ->template plugin<pro::mouse>()
-                                                       ->template plugin<pro::fader>(x2, c2, 150ms)
-                                                       ->template attach<ui::item>(body.first, faux, true);
-                menu_area->template attach<slot::_2, ui::pads>(dent{ 2,2,1,1 }, dent{})
-                         ->template plugin<pro::mouse>()
-                         ->template plugin<pro::fader>(x3, c3, 150ms)
+                auto menu_list = menu_area->attach<slot::_1, ui::fork>()
+                                          ->attach<slot::_1, ui::list>(axis::X);
+                for (auto& body : menu_items) menu_list->attach<ui::pads>(inner_pads, body.second)
+                                                       ->plugin<pro::mouse>()
+                                                       ->plugin<pro::fader>(x3, c3, 150ms)
+                                                       ->attach<ui::item>(body.first, faux, true);
+                menu_area->attach<slot::_2, ui::pads>(dent{ 2,2,1,1 }, dent{})
+                         ->plugin<pro::mouse>()
+                         ->plugin<pro::fader>(x1, c1, 150ms)
                          ->invoke([&](auto& boss)
                             {
                                 boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
@@ -1305,7 +1318,8 @@ utility like ctags is used to locate the definitions.
                                     boss.base::template riseup<e2::release, e2::form::proceed::detach>(boss.This());
                                 };
                             })
-                         ->template attach<ui::item>("✕");
+                         ->attach<ui::item>("✕");
+            return menu_area;
         };
 
         //todo use XAML for that
@@ -1355,7 +1369,7 @@ utility like ctags is used to locate the definitions.
                             b.grad(rgba{ 0xFFFFFF00 }, rgba{ 0x40FFFFFF });
                             b[{5, 0}].alpha(0);
                             b[{5, 1}].alpha(0);
-                    scroll_bars(layers, scroll);
+                    layers->attach(scroll_bars(scroll));
                     break;
                 }
                 case PowerShell:
@@ -1366,7 +1380,7 @@ utility like ctags is used to locate the definitions.
                                         ->plugin<pro::color>(whitelt, 0xFF560000);
                         scroll->attach<ui::term>(winsz, "powershell")
                               ->plugin<pro::color>(whitelt, 0xFF562401);
-                    scroll_bars_term(layers, scroll);
+                    layers->attach(scroll_bars_term(scroll));
                     break;
                 }
                 case CommandPrompt:
@@ -1390,7 +1404,7 @@ utility like ctags is used to locate the definitions.
                         #endif
                         object->color(whitelt, blackdk);
 
-                    scroll_bars_term(layers, scroll);
+                    layers->attach(scroll_bars_term(scroll));
                     break;
                 }
                 case Strobe:
@@ -1437,7 +1451,7 @@ utility like ctags is used to locate the definitions.
                                         ->plugin<pro::color>(whitelt, reddk);
                     auto object = scroll->attach<ui::post>()
                                         ->upload(truecolor);
-                    scroll_bars(layers, scroll);
+                    layers->attach(scroll_bars(scroll));
                     break;
                 }
                 case Empty:
@@ -1483,38 +1497,13 @@ utility like ctags is used to locate the definitions.
                                  ->plugin<pro::grade>()
                                  ->plugin<pro::mouse>();
                             items->base::reflow();
-                    scroll_bars(layers, scroll);
+                    layers->attach(scroll_bars(scroll));
                     break;
                 }
                 case Calc:
                 {
                     //todo XAML converter
-                   /* Calc Interface Layout (pseudocode, a bit outdated):
-                    *
-                    *...window<mold>
-                    *      window: object<fork(v)>
-                    *         object(1): menu<..lambda>
-                    *         object(2): all_stat<fork(v)>
-                    *            all_stat(1): func_body_pad<pads({ -1,-1 })>
-                    *               func_body_pad: func_body<fork(v)>
-                    *                  func_body(1): func_line<fork(h)>
-                    *                     func_line(1): fx_sum<fork(h)>
-                    *                        fx_sum(1): fx<post> = "Fx"
-                    *                        fx_sum(2): sum<post> = "SUM ..."
-                    *                     func_line(2): ellipsis<post> = "..."
-                    *                  func_body(2): body_area<fork(v)>
-                    *                     body_area(1): corner_cols<fork(h)>
-                    *                        corner_cols(1): corner<post> = "[   ]"
-                    *                        corner_cols(2): cols_area<rail>
-                    *                           cols_area: cols<post> = "A B C D E..."
-                    *                     body_area(2): rows_body<fork(h)>
-                    *                        rows_body(1): rows_area<rail>
-                    *                           rows_area: rows<post> = "1 \n2 \n3 \n4..."
-                    *                        rows_body(2): layers<cake>
-                    *                           layers: scroll<rail>
-                    *                              scroll: grid<post> = "..cell_array.."
-                    *            all_stat(2): status_area<post> = "Sheet1 [+]"
-                    */
+                    // Calc Interface Layout
                     window->header(ansi::jet(bias::center) + "Spreadsheet");
                     window->color(whitelt, 0x601A5f00);
                     window->limits({ -1,-1 },{ 136,105 });
@@ -1523,7 +1512,7 @@ utility like ctags is used to locate the definitions.
                     window->set_border(dot_00);
                     auto object = window->attach<ui::fork>(axis::Y)
                                         ->plugin<pro::color>(whitelt, 0);
-                        main_menu(object);
+                        object->attach<slot::_1>(main_menu());
                         auto c2 = cell{ whitespace }.fgc(whitelt).bgc(highlight_color);
                         auto c1 = cell{ whitespace }.fgc(blackdk).bgc(whitedk);
                         auto c0 = c2; c0.alpha(0x00);
@@ -1592,7 +1581,7 @@ utility like ctags is used to locate the definitions.
                                                               + "＋");
                                         auto pad = plus_pad->attach<slot::_2, ui::mock>()
                                                            ->plugin<pro::limit>(twod{ 1,1 }, twod{ 1,1 });
-                            scroll_bars(layers, scroll);
+                            layers->attach(scroll_bars(scroll));
                     break;
                 }
                 case Text:
@@ -1604,7 +1593,7 @@ utility like ctags is used to locate the definitions.
                     window->set_border(dot_00);
                     auto object = window->attach<ui::fork>(axis::Y)
                                         ->plugin<pro::color>(whitelt, 0);
-                        main_menu(object);
+                        object->attach<slot::_1>(main_menu());
                         auto body_area = object->attach<slot::_2, ui::fork>(axis::Y);
                         auto fields = body_area->attach<slot::_1, ui::pads>(dent{ 1,1 })
                                                ->plugin<pro::mouse>();
@@ -1623,7 +1612,7 @@ utility like ctags is used to locate the definitions.
                                                     ->plugin<pro::limit>(twod{ 1,1 }, twod{ -1,1 })
                                                     ->upload(ansi::wrp(wrap::off).mgl(1).mgr(1).jet(bias::right).fgc(whitedk)
                                                         + "INS  Sel: 0:0  Col: 26  Ln: 2/148" + ansi::nil());
-                    scroll_bars(layers, scroll);
+                    layers->attach(scroll_bars(scroll));
                     break;
                 }
                 case VTM:
@@ -1652,7 +1641,7 @@ utility like ctags is used to locate the definitions.
                                      + ansi::nil().wrp(wrap::on)
                                      + "Reached the limit of recursive connections, destroy existing recursive instances to create new ones.");
                     }
-                    scroll_bars(layers, scroll);
+                    layers->attach(scroll_bars(scroll));
                     break;
                 }
                 case Far:
@@ -1662,7 +1651,7 @@ utility like ctags is used to locate the definitions.
                     auto scroll = layers->attach<ui::rail>();
                     scroll->attach<ui::term>(winsz, "far")
                           ->plugin<pro::color>(whitelt, blackdk);
-                    scroll_bars_term(layers, scroll);
+                    layers->attach(scroll_bars_term(scroll));
                     break;
                 }
                 case MC:
@@ -1694,7 +1683,7 @@ utility like ctags is used to locate the definitions.
                     object->color(whitelt, blackdk);
                     object->limits(minsz);
 
-                    scroll_bars(layers, scroll);
+                    layers->attach(scroll_bars(scroll));
                     break;
                 }
                 case Bash:
@@ -1719,7 +1708,7 @@ utility like ctags is used to locate the definitions.
                             object->limits(minsz);
                         #endif
                     }
-                    scroll_bars_term(layers, scroll);
+                    layers->attach(scroll_bars_term(scroll));
                     break;
                 }
                 case Logs:
@@ -1740,7 +1729,7 @@ utility like ctags is used to locate the definitions.
                               ->plugin<pro::color>(whitelt, blackdk);
                     #endif
 
-                    scroll_bars(layers, scroll);
+                    layers->attach(scroll_bars(scroll));
                     break;
                 }
                 case View:
@@ -1835,36 +1824,36 @@ utility like ctags is used to locate the definitions.
         }
 
         #ifndef PROD
-            auto sub_pos = twod{12 + 17, 0};
-            creator(objs::Test, { twod{ 22,1 } + sub_pos,{ 70,21 } })
+            auto sub_pos = twod{ 12+17, 0 };
+            creator(objs::Test, { twod{ 22, 1 } + sub_pos, { 70, 21 } })
                 ->header(ansi::jet(bias::center) + "Welcome");
-            creator(objs::Shop, { twod{ 4 ,6  } + sub_pos,{ 80,38 } });
-            creator(objs::Calc, { twod{ 15,13 } + sub_pos,{ 65,23 } });
-            creator(objs::Text, { twod{ 30,20 } + sub_pos,{ 59,26 } });
-            creator(objs::MC,   { twod{ 49,26 } + sub_pos,{ 63,22 } });
-            creator(objs::Term, { twod{ 34,34 } + sub_pos,{ 57,15 } });
-            creator(objs::Term, { twod{ 44 + 85,35 } + sub_pos,{ 57,15 } });
-            creator(objs::Term, { twod{ 40 + 85,38 } + sub_pos,{ 57,15 } });
+            creator(objs::Shop, { twod{ 4 , 6  } + sub_pos, { 80, 38 } });
+            creator(objs::Calc, { twod{ 15, 13 } + sub_pos, { 65, 23 } });
+            creator(objs::Text, { twod{ 30, 20 } + sub_pos, { 59, 26 } });
+            creator(objs::MC,   { twod{ 49, 26 } + sub_pos, { 63, 22 } });
+            creator(objs::Term, { twod{ 34, 34 } + sub_pos, { 57, 15 } });
+            creator(objs::Term, { twod{ 44 + 85, 35 } + sub_pos, { 57, 15 } });
+            creator(objs::Term, { twod{ 40 + 85, 38 } + sub_pos, { 57, 15 } });
 
-            creator(objs::View, { twod{ 0,7 } + twod{-120, 60},{ 120,52 } });
-            creator(objs::View, { twod{ 0,-1 } + sub_pos,{ 120,52 } });
+            creator(objs::View, { twod{ 0, 7 } + twod{ -120, 60 }, { 120, 52 } });
+            creator(objs::View, { twod{ 0,-1 } + sub_pos, { 120, 52 } });
 
             sub_pos = twod{-120, 60};
-            creator(objs::Truecolor,   { twod{ 20,15 } + sub_pos,{ 70,30 } });
-            creator(objs::Logs,        { twod{ 52,33 } + sub_pos,{ 45,12 } });
-            creator(objs::RefreshRate, { twod{ 60,41 } + sub_pos,{ 35,10 } });
+            creator(objs::Truecolor,   { twod{ 20, 15 } + sub_pos, { 70, 30 } });
+            creator(objs::Logs,        { twod{ 52, 33 } + sub_pos, { 45, 12 } });
+            creator(objs::RefreshRate, { twod{ 60, 41 } + sub_pos, { 35, 10 } });
         #endif
         #ifndef DEMO
-            creator(objs::CommandPrompt,   { { 10,5 },{ 80,25 } });
+            creator(objs::CommandPrompt,   { { 10, 5 }, { 80, 25 } });
         #endif
 
-        //creator(objs::Far,   { { 49,26 },{ 63,22 } });
+        //creator(objs::Far,   { { 49, 26 }, { 63, 22 } });
 
         //#ifdef DEMO
         //			std::thread([&]()
         //				{
         //					std::this_thread::sleep_for(5000ms);
-        //					creator(objs::VTM, { { 95,4 },{ 12,6 } });
+        //					creator(objs::VTM, { { 95, 4 }, { 12, 6 } });
         //				}).detach();
         //#endif /// DEMO
 
@@ -1931,19 +1920,6 @@ utility like ctags is used to locate the definitions.
                     #endif
 
                     // Taskbar Layout (PoC)
-                    auto c6 = cell{}.bgc(action_color).fgc(whitelt);
-                    auto x6 = c6; x6.bga(0x00).fga(0x00);
-                    auto c5 = cell{}.bgc(danger_color).fgc(whitelt);
-                    auto x5 = c5; x5.bga(0x00).fga(0x00);
-                    auto c4 = cell{}.bgc(highlight_color);
-                    auto x4 = c4; x4.bga(0x00);
-                    auto c3 = cell{}.bgc(highlight_color).fgc(0xFFffffff);
-                    auto x3 = c3; x3.bga(0x00).fga(0x00);
-                    auto c2 = cell{}.bgc(warning_color).fgc(whitelt);
-                    auto x2 = c2; x2.bga(0x00);
-                    auto c1 = cell{}.bgc(danger_color).fgc(whitelt);
-                    auto x1 = c1; x1.bga(0x00);
-
                     auto client = world->invite<ui::gate>(username);
 
                     auto current_default = objs::Term;
@@ -1957,9 +1933,9 @@ utility like ctags is used to locate the definitions.
                     };
 
                     auto app_template = [c4, x4, x5, c5](auto& data_src, auto const& utf8){
-                        auto item_area = base::template create<ui::pads>(dent{ 1,0,1,0 }, dent{ 0,0,0,1 })
-                                             ->template plugin<pro::mouse>(faux)
-                                             ->template plugin<pro::fader>(x4, c4, 0ms)//150ms)
+                        auto item_area = base::create<ui::pads>(dent{ 1,0,1,0 }, dent{ 0,0,0,1 })
+                                             ->plugin<pro::mouse>(faux)
+                                             ->plugin<pro::fader>(x4, c4, 0ms)//150ms)
                                              ->invoke([&](auto& boss) {
                                                 auto data_src_shadow = std::weak_ptr{ data_src };
                                                 boss.SUBMIT_BYVAL(e2::release, e2::hids::mouse::button::click::left, gear)
