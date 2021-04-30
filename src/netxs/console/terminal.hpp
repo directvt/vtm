@@ -1507,7 +1507,7 @@ namespace netxs::ui
 
             SUBMIT(e2::release, e2::form::upon::vtree::attached, parent)
             {
-                base::riseup<e2::request, e2::form::prop::header>(winprops.get(ansi::OSC_TITLE));
+                this->base::riseup<e2::request, e2::form::prop::header>(winprops.get(ansi::OSC_TITLE));
             };
             SUBMIT(e2::release, e2::hids::keybd::any, gear)
             {
@@ -1519,7 +1519,7 @@ namespace netxs::ui
                     auto old_caret_pos = viewport.coor + viewport.size - dot_11;
                     auto anchor_delta = caret_xy - old_caret_pos;
                     auto new_coor = base::coor.get() - anchor_delta;
-                    SIGNAL(e2::release, base::move_event, new_coor);
+                    this->SIGNAL(e2::release, base::move_event, new_coor);
                 }
 
                 //todo optimize/unify
@@ -1580,7 +1580,7 @@ namespace netxs::ui
                         auto v0 = viewport; v0.coor.x = 0;
                         auto new_coor = base::coor.get() - delta;
                         if (v0.hittest(caret.coor())) new_coor.x = 0;
-                        SIGNAL(e2::release, base::move_event, new_coor);
+                        this->SIGNAL(e2::release, base::move_event, new_coor);
                     }
                 }
 

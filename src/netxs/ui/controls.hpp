@@ -1247,7 +1247,7 @@ namespace netxs::ui
                 if (client)
                 {
                     auto& item = *client;
-                    switch (bell::protos<e2::preview>())
+                    switch (this->bell::protos<e2::preview>())
                     {
                         case events[X]:
                             scroll<X>(scinfo.window.coor.x - info.window.coor.x);
@@ -1517,8 +1517,8 @@ namespace netxs::ui
             {
                 scinfo.region = {};
                 scinfo.window.coor = {};
-                SIGNAL(e2::release, events[axis::X], scinfo);
-                SIGNAL(e2::release, events[axis::Y], scinfo);
+                this->SIGNAL(e2::release, events[axis::X], scinfo);
+                this->SIGNAL(e2::release, events[axis::Y], scinfo);
                 tokens.clear();
                 fasten.clear();
             };
@@ -1744,15 +1744,15 @@ namespace netxs::ui
             {
                 calc.cursor_pos = xy(gear.mouse::coord);
             };
-            SUBMIT(e2::release, bttn::dblclick::left, gear)
+            SUBMIT(e2::release, e2::hids::mouse::button::dblclick::left, gear)
             {
                 gear.dismiss(); // Do not pass double clicks outside.
             };
-            SUBMIT(e2::release, bttn::down::any, gear)
+            SUBMIT(e2::release, e2::hids::mouse::button::down::any, gear)
             {
                 if (!on_pager)
-                if (bell::protos<e2::release>(bttn::down::left ) ||
-                    bell::protos<e2::release>(bttn::down::right))
+                if (this->bell::protos<e2::release>(bttn::down::left ) ||
+                    this->bell::protos<e2::release>(bttn::down::right))
                 if (auto dir = calc.inside(xy(gear.mouse::coord)))
                 {
                     if (gear.capture(bell::id))
@@ -1775,12 +1775,12 @@ namespace netxs::ui
                     }
                 }
             };
-            SUBMIT(e2::release, bttn::up::any, gear)
+            SUBMIT(e2::release, e2::hids::mouse::button::up::any, gear)
             {
                 if (on_pager && gear.captured(bell::id))
                 {
-                    if (bell::protos<e2::release>(bttn::up::left) ||
-                        bell::protos<e2::release>(bttn::up::right))
+                    if (this->bell::protos<e2::release>(bttn::up::left) ||
+                        this->bell::protos<e2::release>(bttn::up::right))
                     {
                         gear.release();
                         gear.dismiss();
@@ -1790,7 +1790,7 @@ namespace netxs::ui
                     }
                 }
             };
-            SUBMIT(e2::release, bttn::up::right, gear)
+            SUBMIT(e2::release, e2::hids::mouse::button::up::right, gear)
             {
                 //if (!gear.captured(bell::id)) //todo why?
                 {
@@ -1799,7 +1799,7 @@ namespace netxs::ui
                 }
             };
 
-            SUBMIT(e2::release, bttn::drag::start::any, gear)
+            SUBMIT(e2::release, e2::hids::mouse::button::drag::start::any, gear)
             {
                 if (on_pager) gear.dismiss();
                 else
@@ -1810,7 +1810,7 @@ namespace netxs::ui
                     }
                 }
             };
-            SUBMIT(e2::release, bttn::drag::pull::any, gear)
+            SUBMIT(e2::release, e2::hids::mouse::button::drag::pull::any, gear)
             {
                 if (on_pager) gear.dismiss();
                 else
@@ -1826,14 +1826,14 @@ namespace netxs::ui
                     }
                 }
             };
-            SUBMIT(e2::release, bttn::drag::cancel::any, gear)
+            SUBMIT(e2::release, e2::hids::mouse::button::drag::cancel::any, gear)
             {
                 if (on_pager) gear.dismiss();
                 else
                 {
                     if (gear.captured(bell::id))
                     {
-                        if (bell::protos<e2::release>(bttn::drag::cancel::right))
+                        if (this->bell::protos<e2::release>(bttn::drag::cancel::right))
                         {
                             gohome();
                         }
@@ -1843,14 +1843,14 @@ namespace netxs::ui
                     }
                 }
             };
-            SUBMIT(e2::release, bttn::drag::stop::any, gear)
+            SUBMIT(e2::release, e2::hids::mouse::button::drag::stop::any, gear)
             {
                 if (on_pager) gear.dismiss();
                 else
                 {
                     if (gear.captured(bell::id))
                     {
-                        if (bell::protos<e2::release>(bttn::drag::stop::right))
+                        if (this->bell::protos<e2::release>(bttn::drag::stop::right))
                         {
                             gohome();
                         }
@@ -2141,7 +2141,7 @@ namespace netxs::ui
                     auto a = std::clamp(alpha, 0, 255);
                     canvas.mark().alpha(a);
                     base::deface();
-                    SIGNAL(e2::release, e2::form::global::lucidity, alpha);
+                    this->SIGNAL(e2::release, e2::form::global::lucidity, alpha);
                 };
 
                 //guide.show();
@@ -2577,7 +2577,7 @@ namespace netxs::ui
 
             //mouse.skipall(true);
 
-            using bttn = e2::hids::mouse::button;
+            //using bttn = e2::hids::mouse::button;
             SUBMIT(e2::release, e2::form::upon::vtree::attached, p)
             {
                 //todo unify
@@ -2608,7 +2608,7 @@ namespace netxs::ui
                 topic[pos_id].locus.kill().cup({ 2,center });
             };
 
-            SUBMIT(e2::release, bttn::click::left, gear)
+            SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
             {
                 if (auto p = base::parent.lock())
                 {
@@ -2638,10 +2638,10 @@ namespace netxs::ui
 
         stem_bsu()
         {
-            using bttn = e2::hids::mouse::button;
+            //using bttn = e2::hids::mouse::button;
 
             //todo unify: e2::preview +/or/and e2::release
-            SUBMIT(e2::release, bttn::click::right, gear) //child event
+            SUBMIT(e2::release, e2::hids::mouse::button::click::right, gear) //child event
             {
                 color(canvas.mark().fgc(), (tint)((++bgclr) % 16));
                 deface();
@@ -2917,7 +2917,7 @@ namespace netxs::ui
             topic[max_id].locus.chx(pad);
             topic[min_id].locus.chx(pad);
 
-            using bttn = e2::hids::mouse::button;
+            //using bttn = e2::hids::mouse::button;
 
             //todo unify
             SUBMIT(e2::general, e2::form::global::lucidity, alpha)
@@ -2946,7 +2946,7 @@ namespace netxs::ui
                 grip_ctl->SIGNAL(e2::release, e2::form::upon::vtree::attached, This());
                 //grip->SIGNAL(e2::release, e2::form::upon::vtree::attached, This());
 
-                grip_ctl->SUBMIT(e2::release, bttn::drag::start::left, gear)
+                grip_ctl->SUBMIT(e2::release, e2::hids::mouse::button::drag::start::left, gear)
                     //grip->SUBMIT(e2::preview, bttn::drag::start::left, gear)
                 {
                     if (gear.capture(grip_ctl->id))
@@ -2957,7 +2957,7 @@ namespace netxs::ui
                         gear.dismiss();
                     }
                 };
-                grip_ctl->SUBMIT(e2::release, bttn::drag::pull::left, gear)
+                grip_ctl->SUBMIT(e2::release, e2::hids::mouse::button::drag::pull::left, gear)
                 {
                     if (gear.captured(grip_ctl->id))
                     {
@@ -2967,7 +2967,7 @@ namespace netxs::ui
                         gear.dismiss();
                     }
                 };
-                grip_ctl->SUBMIT(e2::release, bttn::drag::cancel::left, gear)
+                grip_ctl->SUBMIT(e2::release, e2::hids::mouse::button::drag::cancel::left, gear)
                 {
                     if (gear.captured(grip_ctl->id))
                     {
@@ -2978,7 +2978,7 @@ namespace netxs::ui
                         gear.dismiss();
                     }
                 };
-                grip_ctl->SUBMIT(e2::release, bttn::drag::stop::left, gear)
+                grip_ctl->SUBMIT(e2::release, e2::hids::mouse::button::drag::stop::left, gear)
                 {
                     if (gear.captured(grip_ctl->id))
                     {
@@ -3006,7 +3006,7 @@ namespace netxs::ui
                     gear.dismiss();
                 };
 
-                SUBMIT(e2::release, e2::form::layout::size, size)
+                this->SUBMIT(e2::release, e2::form::layout::size, size)
                 {
                     recalc();
                 };
@@ -3019,7 +3019,7 @@ namespace netxs::ui
             //	size = std::max(size, minsize);
             //};
 
-            SUBMIT(e2::release, bttn::click::right, gear)
+            SUBMIT(e2::release, e2::hids::mouse::button::click::right, gear)
             {
                 color(canvas.mark().fgc(), (tint)((++bgclr) % 16));
                 deface();

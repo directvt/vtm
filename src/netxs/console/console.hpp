@@ -335,6 +335,7 @@ namespace netxs::console
             middle    = e2::item(usable::middle   ),
             wheel     = e2::item(usable::wheel    ),
             win       = e2::item(usable::win      ),
+            total     = numofbutton,
         };
 
         twod  coor = dot_mx;            // sysmouse: Cursor coordinates.
@@ -423,16 +424,15 @@ namespace netxs::console
         using tail = netxs::datetime::tail<twod>;
         using idxs = std::vector<iota>;
         using mouse_event = e2::hids::mouse;
-        //todo C++20 using enum namespace sysmouse::bttns
         enum bttns
         {
-            total = sysmouse::numofbutton,
-            first = sysmouse::left       ,
-            midst = sysmouse::middle     ,
-            other = sysmouse::right      ,
-            third = sysmouse::wheel      ,
-            extra = sysmouse::win        ,
-            joint = sysmouse::leftright  ,
+            first = sysmouse::left     ,
+            midst = sysmouse::middle   ,
+            other = sysmouse::right    ,
+            third = sysmouse::wheel    ,
+            extra = sysmouse::win      ,
+            joint = sysmouse::leftright,
+            total = sysmouse::total    ,
         };
         constexpr static auto dragstrt = e2::group<total>(mouse_event::button::drag::start::any);
         constexpr static auto dragpull = e2::group<total>(mouse_event::button::drag::pull::any);
@@ -469,8 +469,8 @@ namespace netxs::console
         twod   coord = dot_mx;  // mouse: Relative mouse cursor coordinates.
         //todo unify the mint=1/fps
         tail   delta = { 75ms, 4ms }; // mouse: History of mouse movements for a specified period of time.
-        bool   wheel = faux;
-        bool   hzwhl = faux;
+        bool   scrll = faux; // mouse: Vertical scrolling.
+        bool   hzwhl = faux; // mouse: Horizontal scrolling.
         iota   whldt = 0;
         bool   reach = faux;    // mouse: Has the event tree relay reached the mouse event target.
         hint   cause = e2::any; // mouse: Current event id.
@@ -486,10 +486,10 @@ namespace netxs::console
             moment fired;
             twod   coord;
         }
-        stamp[sysmouse::numofbutton] = {}; // mouse: Recorded intervals between successive button presses to track double-clicks.
+        stamp[sysmouse::total] = {}; // mouse: Recorded intervals between successive button presses to track double-clicks.
         static constexpr period delay = 500ms;   // mouse: Double-click threshold.
 
-        knob   button[sysmouse::numofbutton];
+        knob   button[sysmouse::total];
 
         idxs  pressed_list;
         idxs  flipped_list;
@@ -584,7 +584,7 @@ namespace netxs::console
 
                 coord = m.coor;
 #ifdef DEBUG_OVERLAY // Overlay needs current values for every frame
-                wheel = m.wheeled;
+                scrll = m.wheeled;
                 hzwhl = m.hzwheel;
                 whldt = m.wheeldt;
 #endif
@@ -601,13 +601,13 @@ namespace netxs::console
                 if (m.wheeled)
                 {
 #ifndef DEBUG_OVERLAY
-                    wheel = m.wheeled;
+                    scrll = m.wheeled;
                     hzwhl = m.hzwheel;
                     whldt = m.wheeldt;
 #endif
                     action( m.wheeldt > 0 ? scrollup : scrolldn);
 #ifndef DEBUG_OVERLAY
-                    wheel = faux;
+                    scrll = faux;
                     hzwhl = faux;
                     whldt = 0;
 #endif
@@ -1326,7 +1326,7 @@ namespace netxs::console
                             if (auto deed = parent_ptr->bell::protos<e2::release>())
                             {
                                 //SIGNAL(e2::release, e2::form::kboffer, gear);
-                                bell::signal<e2::release>(deed, gear);
+                                this->bell::signal<e2::release>(deed, gear);
                             }
                         }
                     }
@@ -1335,7 +1335,7 @@ namespace netxs::console
             };
             SUBMIT(e2::release, e2::form::upon::vtree::any, boss)
             {
-                if (bell::protos<e2::release>() == e2::form::upon::vtree::detached)
+                if (this->bell::protos<e2::release>() == e2::form::upon::vtree::detached)
                 {
                     kb_offer.reset();
                 }
@@ -1348,7 +1348,7 @@ namespace netxs::console
             {
                 if (auto parent_ptr = parent.lock())
                 {
-                    if (auto deed = bell::protos<e2::release>())
+                    if (auto deed = this->bell::protos<e2::release>())
                     {
                         parent_ptr->bell::signal<e2::release>(deed, gear);
                     }
@@ -1937,7 +1937,7 @@ namespace netxs::console
                     };
 
                     weak = master;
-                    boss.SUBMIT_BYVAL_T(e2::release, e2::form::prop::header, memo, newhead)
+                    boss.SUBMIT_T(e2::release, e2::form::prop::header, memo, newhead)
                     {
                         if (auto gate_ptr = bell::getref(weak))
                         {
@@ -2723,7 +2723,7 @@ namespace netxs::console
                     }
                     status[prop::mouse_wheeldt].set(stress) = std::to_string(m.whldt);
                     status[prop::mouse_hzwheel].set(stress) = m.hzwhl ? "active" : "idle";
-                    status[prop::mouse_vtwheel].set(stress) = m.wheel ? "active" : "idle";
+                    status[prop::mouse_vtwheel].set(stress) = m.scrll ? "active" : "idle";
                     status[prop::ctrl_state   ].set(stress) = "0x" + utf::to_hex(m.meta());
                 };
 
@@ -3590,8 +3590,8 @@ namespace netxs::console
             template<sysmouse::bttns button>
             void draggable()
             {
-                using bttn = e2::hids::mouse::button;
-                boss.SUBMIT(e2::release, e2::message(bttn::drag::start::any, button), gear)
+                //using bttn = e2::hids::mouse::button; //MSVC 16.9.4 don't get it
+                boss.SUBMIT(e2::release, e2::message(e2::hids::mouse::button::drag::start::any, button), gear)
                 {
                     if (gear.capture(boss.bell::id))
                     {
@@ -3599,7 +3599,7 @@ namespace netxs::console
                         gear.dismiss();
                     }
                 };
-                boss.SUBMIT(e2::release, e2::message(bttn::drag::pull::any, button), gear)
+                boss.SUBMIT(e2::release, e2::message(e2::hids::mouse::button::drag::pull::any, button), gear)
                 {
                     if (gear.captured(boss.bell::id))
                     {
@@ -3607,7 +3607,7 @@ namespace netxs::console
                         gear.dismiss();
                     }
                 };
-                boss.SUBMIT(e2::release, e2::message(bttn::drag::cancel::any, button), gear)
+                boss.SUBMIT(e2::release, e2::message(e2::hids::mouse::button::drag::cancel::any, button), gear)
                 {
                     if (gear.captured(boss.bell::id))
                     {
@@ -3616,7 +3616,7 @@ namespace netxs::console
                         gear.dismiss();
                     }
                 };
-                boss.SUBMIT(e2::release, e2::message(bttn::drag::stop::any, button), gear)
+                boss.SUBMIT(e2::release, e2::message(e2::hids::mouse::button::drag::stop::any, button), gear)
                 {
                     if (gear.captured(boss.bell::id))
                     {
@@ -3871,7 +3871,7 @@ namespace netxs::console
             SUBMIT(e2::release, bttn::click::right, gear)
             {
                 //auto newpos = gear.mouse.coord + gear.xview.coor;
-                SIGNAL(e2::general, e2::form::global::ctxmenu, gear.coord);
+                this->SIGNAL(e2::general, e2::form::global::ctxmenu, gear.coord);
             };
 
             SUBMIT(e2::release, bttn::drag::start::left, gear)
@@ -3887,7 +3887,7 @@ namespace netxs::console
                 if (gear.captured(bell::id))
                 {
                     auto data = cube{ gear.mouse::delta.get(), gear.area() };
-                    SIGNAL(e2::preview, e2::form::layout::convey, data);
+                    this->SIGNAL(e2::preview, e2::form::layout::convey, data);
                     gear.dismiss();
                 }
             };
@@ -3908,7 +3908,7 @@ namespace netxs::console
                     robot.actify(gear.mouse::fader<quadratic<twod>>(2s), [&, boundary](auto& x)
                                  {
                                      auto data = cube{ x, boundary };
-                                     SIGNAL(e2::preview, e2::form::layout::convey, data);
+                                     this->SIGNAL(e2::preview, e2::form::layout::convey, data);
                                  });
                     gear.dismiss();
                 }
@@ -5058,7 +5058,7 @@ again:
                         #endif // DEBUG_OVERLAY
 
                         // in order to draw debug overlay, maker, titles, etc
-                        SIGNAL(e2::release, e2::form::upon::redrawn, form::canvas);
+                        this->SIGNAL(e2::release, e2::form::upon::redrawn, form::canvas);
                         #ifdef DEBUG_OVERLAY
                             if ((yield = paint.commit(canvas)))
                             {
@@ -5084,7 +5084,7 @@ again:
             uname = user_name;
 
             using bttn = e2::hids::mouse::button;
-            using keyb = e2::hids::keybd;
+            //using keyb = e2::hids::keybd; //MSVC 16.9.4 don't get it
 
             title.live = faux;
 
@@ -5111,7 +5111,7 @@ again:
                 }
             };
 
-            SUBMIT(e2::preview, keyb::any, gear)
+            SUBMIT(e2::preview, e2::hids::keybd::any, gear)
             {
                 //todo unify
                 //if (gear.meta(hids::CTRL | hids::RCTRL))
@@ -5132,7 +5132,7 @@ again:
                                 auto& item = *item_ptr;
                                 auto square = item.square();
                                 auto center = square.coor + (square.size / 2);
-                                SIGNAL(e2::release, e2::form::layout::shift, center);
+                                this->SIGNAL(e2::release, e2::form::layout::shift, center);
 
                                 //todo unify
                                 gear.clear_kb_focus();

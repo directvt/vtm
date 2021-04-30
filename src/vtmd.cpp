@@ -1219,7 +1219,7 @@ utility like ctags is used to locate the definitions.
         X(Calc         , "Calc"                     ) \
         X(Shop         , "Shop"                     ) \
         X(Logs         , "Logs"                     ) \
-        X(View         , "View [try click on group]") \
+        X(View         , "View [click me]"          ) \
         X(PowerShell   , "pwsh PowerShell"          ) \
         X(CommandPrompt, "cmd Command Prompt"       ) \
         X(Bash         , "Bash/Zsh/CMD"             ) \
@@ -1245,7 +1245,6 @@ utility like ctags is used to locate the definitions.
         #undef X
         #undef TYPE_LIST
 
-        static bool    stobe_state = true;
         static iota    max_count = 20;// 50;
         static iota    max_vtm = 3;
         static iota    vtm_count = 0;
@@ -1296,21 +1295,17 @@ utility like ctags is used to locate the definitions.
                                                        ->template plugin<pro::mouse>()
                                                        ->template plugin<pro::fader>(x2, c2, 150ms)
                                                        ->template attach<ui::item>(body.first, faux, true);
-                auto close_hndl = [&](auto& boss)
-                        {
-                             // MSVC 16.9.4 don't get it inline, use close_hndl (possible compiler bug, todo investigate)
-                             boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
-                             {
-                                 log(" CLOSE clicked!");
-                                 boss.base::template riseup<e2::release, e2::form::proceed::detach>(boss.This());
-                             };
-                        };
                 menu_area->template attach<slot::_2, ui::pads>(dent{ 2,2,1,1 }, dent{})
                          ->template plugin<pro::mouse>()
                          ->template plugin<pro::fader>(x3, c3, 150ms)
-                         ->invoke(close_hndl)
+                         ->invoke([&](auto& boss)
+                            {
+                                boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
+                                {
+                                    boss.base::template riseup<e2::release, e2::form::proceed::detach>(boss.This());
+                                };
+                            })
                          ->template attach<ui::item>("✕");
-            menu_area->base::reflow();
         };
 
         //todo use XAML for that
@@ -1403,10 +1398,16 @@ utility like ctags is used to locate the definitions.
                     window->header(ansi::jet(bias::center) + "Strobe");
                     auto strob = window->attach<ui::pane>();
                     strob->color(0x0, 0x0);
+                    auto strob_shadow = std::weak_ptr{ strob };
+                    bool stobe_state = true;
                     strob->SUBMIT_BYVAL(e2::general, e2::timer::tick, now)  //gcc: use SUBMIT_BYVAL to capture in lambda by value
                     {
-                        strob->canvas.mark().bgc(stobe_state ? 0xFF000000 : 0xFFFFFFFF);
-                        strob->deface();
+                        stobe_state = !stobe_state;
+                        if (auto strob = strob_shadow.lock())
+                        {
+                            strob->canvas.mark().bgc(stobe_state ? 0xFF000000 : 0xFFFFFFFF);
+                            strob->deface();
+                        }
                     };
                     break;
                 }
@@ -1414,7 +1415,7 @@ utility like ctags is used to locate the definitions.
                 {
                     window->header("Frame rate adjustment");
                     window->attach<ui::stem_rate<e2::general, e2::timer::fps>>("Set frame rate", 1, 200, "fps")
-                         ->color(0xFFFFFFFF, bluedk);
+                          ->color(0xFFFFFFFF, bluedk);
                     break;
                 }
                 /*case Transparency:
@@ -1448,7 +1449,6 @@ utility like ctags is used to locate the definitions.
                 }
                 case Shop:
                 {
-                    //window->header(ansi::jet_or(bias::right) + objs_desc[Shop]);
                     window->header("Desktopio App Store", faux);
                     window->color(whitelt, 0x60000000);
                     window->blurred = true;
@@ -1521,9 +1521,8 @@ utility like ctags is used to locate the definitions.
                     window->blurred = true;
                     window->highlight_center = faux;
                     window->set_border(dot_00);
-                    auto object = window
-                        ->attach<ui::fork>(axis::Y)
-                        ->plugin<pro::color>(whitelt, 0);
+                    auto object = window->attach<ui::fork>(axis::Y)
+                                        ->plugin<pro::color>(whitelt, 0);
                         main_menu(object);
                         auto c2 = cell{ whitespace }.fgc(whitelt).bgc(highlight_color);
                         auto c1 = cell{ whitespace }.fgc(blackdk).bgc(whitedk);
@@ -1748,20 +1747,14 @@ utility like ctags is used to locate the definitions.
                 {
                     window->header(ansi::jet(bias::center) + "Location Meta Object");
                     window->only_frame = true;
-                    //auto object = window->attach<ui::pane>();
-                    //object->canvas.mark().txt(whitespace);
                     break;
                 }
-
             }
-
             world->branch(type, window);
-
             return window;
         };
 
-        auto creator = [&, insts_count = 0]
-        (objs obj_type, rect area) mutable -> auto
+        auto creator = [&, insts_count = 0](objs obj_type, rect area) mutable -> auto
         {
             insts_count++;
             auto frame = create(obj_type, area);
@@ -1833,11 +1826,6 @@ utility like ctags is used to locate the definitions.
             }
         };
 
-        world->SUBMIT(e2::general, e2::timer::tick, now)
-        {
-            stobe_state = !stobe_state;
-        };
-
         { // Init registry/menu list.
             sptr<registry_t> menu_list_ptr;
             world->SIGNAL(e2::request, e2::bindings::list::apps, menu_list_ptr);
@@ -1857,13 +1845,14 @@ utility like ctags is used to locate the definitions.
             creator(objs::Term, { twod{ 34,34 } + sub_pos,{ 57,15 } });
             creator(objs::Term, { twod{ 44 + 85,35 } + sub_pos,{ 57,15 } });
             creator(objs::Term, { twod{ 40 + 85,38 } + sub_pos,{ 57,15 } });
+
+            creator(objs::View, { twod{ 0,7 } + twod{-120, 60},{ 120,52 } });
             creator(objs::View, { twod{ 0,-1 } + sub_pos,{ 120,52 } });
 
             sub_pos = twod{-120, 60};
             creator(objs::Truecolor,   { twod{ 20,15 } + sub_pos,{ 70,30 } });
             creator(objs::Logs,        { twod{ 52,33 } + sub_pos,{ 45,12 } });
             creator(objs::RefreshRate, { twod{ 60,41 } + sub_pos,{ 35,10 } });
-            creator(objs::View, { twod{ 0,7 } + sub_pos,{ 120,52 } });
         #endif
         #ifndef DEMO
             creator(objs::CommandPrompt,   { { 10,5 },{ 80,25 } });
@@ -1930,23 +1919,8 @@ utility like ctags is used to locate the definitions.
                 _name = "[" + _name + ":" + std::to_string(usr_count++) + "]";
                 log("main: creating a new thread for user ", _name);
 
-                std::thread{ [//=
-                    /*MSVC don't capture it. Complier bug.*/
-                    &objs_desc
-                    , peer
-                    , c_ip
-                    , c_port
-                    , _region
-                    , danger_color
-                    , highlight_color
-                    , warning_color
-                    , background_color
-                    , user_coor
-                    , action_color
-                    , world
-                    ]
+                std::thread{ [=]
                 {
-
                     iota uibar_full_size = 32;
                     log("user: session name ", peer);
 
@@ -1957,8 +1931,6 @@ utility like ctags is used to locate the definitions.
                     #endif
 
                     // Taskbar Layout (PoC)
-
-                    //todo MSVC 16.9.4 don't capture x3,c3 by & (compiler bug)
                     auto c6 = cell{}.bgc(action_color).fgc(whitelt);
                     auto x6 = c6; x6.bga(0x00).fga(0x00);
                     auto c5 = cell{}.bgc(danger_color).fgc(whitelt);
@@ -2065,14 +2037,13 @@ utility like ctags is used to locate the definitions.
                                                      ->depend_on_collection(inst_ptr_list)
                                                      ->invoke([&](auto& boss) {
                                                          auto data_src_shadow = std::weak_ptr{ data_src };
-                                                         auto id2 = id; // MSVC dci
                                                          boss.SUBMIT_BYVAL(e2::release, e2::hids::mouse::button::click::left, gear)
                                                          {
                                                              if(auto data_src = data_src_shadow.lock())
                                                              {
                                                                 sptr<registry_t> registry_ptr;
                                                                 data_src->SIGNAL(e2::request, e2::bindings::list::apps, registry_ptr);
-                                                                auto& app_list = (*registry_ptr)[id2];
+                                                                auto& app_list = (*registry_ptr)[id];
                                                                 // Rotate list forward.
                                                                 app_list.push_back(app_list.front());
                                                                 app_list.pop_front();
@@ -2092,7 +2063,7 @@ utility like ctags is used to locate the definitions.
                                                              {
                                                                 sptr<registry_t> registry_ptr;
                                                                 data_src->SIGNAL(e2::request, e2::bindings::list::apps, registry_ptr);
-                                                                auto& app_list = (*registry_ptr)[id2];
+                                                                auto& app_list = (*registry_ptr)[id];
                                                                 // Rotate list forward.
                                                                 app_list.push_front(app_list.back());
                                                                 app_list.pop_back();
@@ -2119,7 +2090,7 @@ utility like ctags is used to locate the definitions.
                         }
                         return apps;
                     };
-                    auto menuitems_template = [&, &world, c3, x3, app_template, &objs_desc](auto& data_src, auto& apps_map){
+                    auto menuitems_template = [&, c3, x3, app_template](auto& data_src, auto& apps_map){
                         auto menuitems = base::create<ui::list>();
                         //todo loops are not compatible with Declarative UI
                         for(auto const& [class_id, inst_ptr_list] : *apps_map)
@@ -2127,49 +2098,40 @@ utility like ctags is used to locate the definitions.
                             auto id = class_id;
                             auto selected = class_id == current_default;
                             auto item_area = menuitems->template attach<ui::pads>(dent{ 0,0,0,1 }, dent{ 0,0,1,0 })
-                                                 ->template plugin<pro::mouse>(faux)
-                                                 ->template plugin<pro::fader>(x3, c3, 0ms)
-                                                 ;
-                                        //MSVC 16.9.4 compiler bug. Workaround - using temporary variables.
-                                        auto& client2 = client; // MSVC dci
-                                        auto& world2 = world; // MSVC dci
-                                        item_area->invoke([&, client2, world2](auto& boss) {
-                                            auto client_shadow = std::weak_ptr{ client2 };
-                                            auto id2 = id; // MSVC dci
-                                            auto& world3 = world2; // MSVC dci
-                                            boss.SUBMIT_BYVAL(e2::release, e2::hids::mouse::button::click::left, gear)
-                                            {
-                                                if (auto client = client_shadow.lock())
-                                                {
-                                                    client->SIGNAL(e2::release, e2::data::changed, id2);
-                                                    gear.dismiss();
-                                                }
-                                            };
-                                            boss.SUBMIT_BYVAL(e2::release, e2::hids::mouse::button::dblclick::left, gear)
-                                            {
-                                                static iota random = 0;
-                                                random = (random + 2) % 10;
-                                                auto offset = twod{ random * 2, random };
-                                                auto viewport = gear.area();
-                                                gear.slot.coor = viewport.coor + viewport.size / 4 + offset;
-                                                gear.slot.size = viewport.size / 2;
-                                                world3->SIGNAL(e2::release, e2::form::proceed::createby, gear);
-                                            };
-                                        });
-
+                                                      ->template plugin<pro::mouse>(faux)
+                                                      ->template plugin<pro::fader>(x3, c3, 0ms)
+                                                      ->invoke([&](auto& boss) {
+                                                         auto client_shadow = std::weak_ptr{ client };
+                                                         boss.SUBMIT_BYVAL(e2::release, e2::hids::mouse::button::click::left, gear)
+                                                         {
+                                                             if (auto client = client_shadow.lock())
+                                                             {
+                                                                 client->SIGNAL(e2::release, e2::data::changed, id);
+                                                                 gear.dismiss();
+                                                             }
+                                                         };
+                                                         boss.SUBMIT_BYVAL(e2::release, e2::hids::mouse::button::dblclick::left, gear)
+                                                         {
+                                                             static iota random = 0;
+                                                             random = (random + 2) % 10;
+                                                             auto offset = twod{ random * 2, random };
+                                                             auto viewport = gear.area();
+                                                             gear.slot.coor = viewport.coor + viewport.size / 4 + offset;
+                                                             gear.slot.size = viewport.size / 2;
+                                                             world->SIGNAL(e2::release, e2::form::proceed::createby, gear);
+                                                         };
+                                                     });
                                 auto block = item_area->template attach<ui::fork>(axis::X);
                                     auto mark_area = block->template attach<slot::_1, ui::pads>(dent{ 1,1,0,0 }, dent{ 0,0,0,0 })
                                                           ->template plugin<pro::mouse>();
-                                    auto id2 = id; // MSVC dci
                                         auto mark = mark_area->template attach<ui::item>(
                                             ansi::bgc4(selected ? 0xFF00ff00 : 0xFF000000)
                                              + "  ", faux)
-                                             ->invoke([&, client](auto& boss) {
-                                                 auto id3 = id2; // MSVC dci
+                                             ->invoke([&](auto& boss) {
                                                  auto mark_shadow = std::weak_ptr{ boss.template This<ui::item>() };
                                                  client->SUBMIT_BYVAL_T(e2::release, e2::data::changed, boss.memo, data)
                                                  {
-                                                    auto selected = id3 == data;
+                                                    auto selected = id == data;
                                                     if(auto mark = mark_shadow.lock())
                                                     {
                                                         mark->set(ansi::bgc4(selected ? 0xFF00ff00 : 0xFF000000)
