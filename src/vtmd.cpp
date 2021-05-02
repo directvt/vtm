@@ -1403,7 +1403,7 @@ utility like ctags is used to locate the definitions.
                 case Strobe:
                 {
                     window->header(ansi::jet(bias::center) + "Strobe");
-                    auto strob = window;//->attach<ui::pane>();
+                    auto strob = window;
                     strob->color(0x0, 0x0);
                     auto strob_shadow = ptr::shadow(strob);
                     bool stobe_state = true;
@@ -1425,15 +1425,6 @@ utility like ctags is used to locate the definitions.
                           ->color(0xFFFFFFFF, bluedk);
                     break;
                 }
-                /*case Transparency:
-                {
-                    frame->header("Window Transparency");
-                    auto block = frame->attach<
-                        stem_rate<e2::general, e2::form::global::lucidity>>
-                        ("Alpha channel", 0, 255, "rgb");
-                                    block->color(0xFFFFFF, bluedk);
-                    break;
-                }*/
                 case Truecolor:
                 {
                     window->header(ansi::jet(bias::right) + "True color ANSI/ASCII image test");
@@ -1450,8 +1441,6 @@ utility like ctags is used to locate the definitions.
                 case Empty:
                 {
                     window->blurred = true;
-                    auto object = window->attach<ui::pane>();
-                    object->canvas.mark().txt(whitespace);
                     break;
                 }
                 case Shop:
