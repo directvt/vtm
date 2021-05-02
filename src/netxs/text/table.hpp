@@ -40,7 +40,7 @@ namespace utils
         template<class T>
         using content = std::vector<row<T>>;
 
-        template<class T, class W = typename std::conditional<std::is_same<char, T>::value, wchar_t, char>::type>
+        template<class T, class W = std::conditional<std::is_same<char, T>::value, wchar_t, char>::type>
         cell<W> to_utf(cell<T>& obj)
         {
             cell<W> values;
@@ -51,7 +51,7 @@ namespace utils
             return values;
         }
 
-        template<class T, class W = typename std::conditional<std::is_same<char, T>::value, wchar_t, char>::type>
+        template<class T, class W = std::conditional<std::is_same<char, T>::value, wchar_t, char>::type>
         row<W> to_utf(row<T>& obj)
         {
             row<W> values;

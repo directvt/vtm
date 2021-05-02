@@ -1121,7 +1121,7 @@ namespace netxs::console
     // richtext: Cascade of the identical paragraphs.
     class rope
     {
-        using iter = typename std::list<para>::const_iterator;
+        using iter = std::list<para>::const_iterator;
         iter source;
         iter finish;
         iota prefix;

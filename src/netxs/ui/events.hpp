@@ -865,9 +865,9 @@ namespace netxs::events
     };
 
     // events: Ext link statics, unique ONLY for concrete T.
-    template<class T> typename indexer<T>::id_t indexer<T>::newid = 0;
-    template<class T> typename indexer<T>::imap indexer<T>::store;
-    template<class T> typename indexer<T>::wptr indexer<T>::empty;
+    template<class T> indexer<T>::id_t indexer<T>::newid = 0;
+    template<class T> indexer<T>::imap indexer<T>::store;
+    template<class T> indexer<T>::wptr indexer<T>::empty;
 
     // events: Event x-mitter.
     struct bell : public indexer<bell>
@@ -1029,32 +1029,8 @@ namespace netxs::events
         template<class EVENT>
         static auto submit_global(hook& token)
         {
-            //_globals<void>::general.subscribe(EVENT::cause, handler);
             return submit_helper_token_global<EVENT>(token);
         }
-
-        // bell: Change the global ownership of the specified
-        //       event and subscribe to emit the event "gone"
-        //       the next time the owner changes.
-        //template<class EVENT>
-        //void change(hook& token, e2::type gone, typename EVENT::param& p)
-        //{
-        //	if (!token)
-        //	{
-        //		//signal(e2::general, EVENT::cause, p);
-        //		signal<e2::general>(EVENT::cause, p);
-        //		submit<EVENT>(e2::general, token, [&, gone](auto d)
-        //					  {
-        //						  token.reset();
-        //						  //signal(e2::general, gone, d);
-        //						  //signal(e2::preview, gone, d);
-        //						  signal<e2::general>(gone, d);
-        //						  signal<e2::preview>(gone, d);
-        //					  });
-        //		//signal(e2::preview, EVENT::cause, p);
-        //		signal<e2::preview>(EVENT::cause, p);
-        //	}
-        //}
         //todo used only with indexer::create
         // bell: Rise specified evench execution branch on the specified relay node.
         template<class F>

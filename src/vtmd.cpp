@@ -1403,11 +1403,11 @@ utility like ctags is used to locate the definitions.
                 case Strobe:
                 {
                     window->header(ansi::jet(bias::center) + "Strobe");
-                    auto strob = window->attach<ui::pane>();
+                    auto strob = window;//->attach<ui::pane>();
                     strob->color(0x0, 0x0);
-                    auto strob_shadow = std::weak_ptr{ strob };
+                    auto strob_shadow = ptr::shadow(strob);
                     bool stobe_state = true;
-                    strob->SUBMIT_BYVAL(e2::general, e2::timer::tick, now)  //gcc: use SUBMIT_BYVAL to capture in lambda by value
+                    strob->SUBMIT_BYVAL(e2::general, e2::timer::tick, now)
                     {
                         stobe_state = !stobe_state;
                         if (auto strob = strob_shadow.lock())
@@ -1901,7 +1901,7 @@ utility like ctags is used to locate the definitions.
                                              ->plugin<pro::mouse>(faux)
                                              ->plugin<pro::fader>(x4, c4, 0ms)//150ms)
                                              ->invoke([&](auto& boss) {
-                                                auto data_src_shadow = std::weak_ptr{ data_src };
+                                                auto data_src_shadow = ptr::shadow(data_src);
                                                 boss.SUBMIT_BYVAL(e2::release, e2::hids::mouse::button::click::left, gear)
                                                 {
                                                     if(auto data_src = data_src_shadow.lock())
@@ -1947,7 +1947,7 @@ utility like ctags is used to locate the definitions.
                                             ->template plugin<pro::mouse>()
                                              ->template plugin<pro::fader>(x5, c5, 150ms)
                                             ->invoke([&](auto& boss) {
-                                                auto data_src_shadow = std::weak_ptr{ data_src };
+                                                auto data_src_shadow = ptr::shadow(data_src);
                                                 boss.SUBMIT_BYVAL(e2::release, e2::hids::mouse::button::click::left, gear)
                                                 {
                                                     if(auto data_src = data_src_shadow.lock())
@@ -1974,7 +1974,7 @@ utility like ctags is used to locate the definitions.
                                                      ->template plugin<pro::fader>(x3, c3, 0ms)
                                                      ->depend_on_collection(inst_ptr_list)
                                                      ->invoke([&](auto& boss) {
-                                                         auto data_src_shadow = std::weak_ptr{ data_src };
+                                                         auto data_src_shadow = ptr::shadow(data_src);
                                                          boss.SUBMIT_BYVAL(e2::release, e2::hids::mouse::button::click::left, gear)
                                                          {
                                                              if(auto data_src = data_src_shadow.lock())
@@ -2035,11 +2035,11 @@ utility like ctags is used to locate the definitions.
                         {
                             auto id = class_id;
                             auto selected = class_id == current_default;
-                            auto item_area = menuitems->template attach<ui::pads>(dent{ 0,0,0,1 }, dent{ 0,0,1,0 })
-                                                      ->template plugin<pro::mouse>(faux)
-                                                      ->template plugin<pro::fader>(x3, c3, 0ms)
+                            auto item_area = menuitems->attach<ui::pads>(dent{ 0,0,0,1 }, dent{ 0,0,1,0 })
+                                                      ->plugin<pro::mouse>(faux)
+                                                      ->plugin<pro::fader>(x3, c3, 0ms)
                                                       ->invoke([&](auto& boss) {
-                                                         auto client_shadow = std::weak_ptr{ client };
+                                                         auto client_shadow = ptr::shadow(client);
                                                          boss.SUBMIT_BYVAL(e2::release, e2::hids::mouse::button::click::left, gear)
                                                          {
                                                              if (auto client = client_shadow.lock())
@@ -2063,10 +2063,10 @@ utility like ctags is used to locate the definitions.
                                     auto mark_area = block->template attach<slot::_1, ui::pads>(dent{ 1,1,0,0 }, dent{ 0,0,0,0 })
                                                           ->template plugin<pro::mouse>();
                                         auto mark = mark_area->template attach<ui::item>(
-                                            ansi::bgc4(selected ? 0xFF00ff00 : 0xFF000000)
-                                             + "  ", faux)
+                                                    ansi::bgc4(selected ? 0xFF00ff00 : 0xFF000000)
+                                                    + "  ", faux)
                                              ->invoke([&](auto& boss) {
-                                                 auto mark_shadow = std::weak_ptr{ boss.template This<ui::item>() };
+                                                 auto mark_shadow = ptr::shadow(boss.template This<ui::item>());
                                                  client->SUBMIT_BYVAL_T(e2::release, e2::data::changed, boss.memo, data)
                                                  {
                                                     auto selected = id == data;
@@ -2086,10 +2086,10 @@ utility like ctags is used to locate the definitions.
                         return menuitems;
                     };
                     auto user_template = [&, my_id = client->id](auto& data_src, auto const& utf8){
-                        auto item_area = base::template create<ui::pads>(dent{ 1,0,0,1 }, dent{ 0,0,1,0 })
-                                             ->template plugin<pro::mouse>()
-                                             ->template plugin<pro::fader>(x3, c3, 150ms);
-                            auto user = item_area->template attach<ui::item>(
+                        auto item_area = base::create<ui::pads>(dent{ 1,0,0,1 }, dent{ 0,0,1,0 })
+                                             ->plugin<pro::mouse>()
+                                             ->plugin<pro::fader>(x3, c3, 150ms);
+                            auto user = item_area->attach<ui::item>(
                             + "🔗" + ansi::nil() + " "
                             + ansi::fgc4(data_src->id == my_id ? rgba::color256[whitelt] : 0x00) + utf8, true)
                                              ->template plugin<pro::mouse>();
@@ -2158,8 +2158,8 @@ utility like ctags is used to locate the definitions.
                                                                             ->plugin<pro::color>(0x00, 0x00); //todo mouse events passthrough
                                                 auto apps = tasks_scrl->attach_element<e2::bindings::list::apps>(world, apps_template);
                                     label_pads->invoke([&](auto& boss) {
-                                        auto task_menu_area_shadow = std::weak_ptr{ task_menu_area };
-                                        auto bttn_shadow = std::weak_ptr{ bttn };
+                                        auto task_menu_area_shadow = ptr::shadow(task_menu_area);
+                                        auto bttn_shadow = ptr::shadow(bttn);
                                         boss.SUBMIT_BYVAL(e2::release, e2::hids::mouse::button::click::left, gear)
                                         {
                                             if(auto bttn = bttn_shadow.lock())
@@ -2173,8 +2173,8 @@ utility like ctags is used to locate the definitions.
                                         };
                                     });
                                     apps_area->invoke([&](auto& boss) {
-                                        auto task_menu_area_shadow = std::weak_ptr{ task_menu_area };
-                                        auto bttn_shadow = std::weak_ptr{ bttn };
+                                        auto task_menu_area_shadow = ptr::shadow(task_menu_area);
+                                        auto bttn_shadow = ptr::shadow(bttn);
                                         boss.SUBMIT_BYVAL(e2::release, e2::form::state::mouse, active)
                                         {
                                             if (!active)
@@ -2195,23 +2195,23 @@ utility like ctags is used to locate the definitions.
                                 auto users_area = apps_users_fork->attach<slot::_2, ui::fork>(axis::Y);
                                 {
                                     auto label_pads = users_area->attach<slot::_1, ui::pads>(dent{ 0,0,1,1 }, dent{ 0,0,0,0 })
-                                                              ->plugin<pro::mouse>()
-                                                              ->plugin<pro::fader>(x3, c3, 150ms);
+                                                                ->plugin<pro::mouse>()
+                                                                ->plugin<pro::fader>(x3, c3, 150ms);
                                         auto label_bttn = label_pads->attach<ui::fork>();
                                             auto label = label_bttn->attach<slot::_1, ui::item>(
                                                             ansi::fgc(whitelt) + "TTYs", faux, faux);
                                             auto bttn_area = label_bttn->attach<slot::_2, ui::fork>();
                                                 auto bttn_pads = bttn_area->attach<slot::_2, ui::pads>(dent{ 2,2,0,0 }, dent{ 0,0,1,1 })
-                                                            ->plugin<pro::mouse>()
-                                                            ->plugin<pro::fader>(x6, c6, 150ms);
+                                                                          ->plugin<pro::mouse>()
+                                                                          ->plugin<pro::fader>(x6, c6, 150ms);
                                                     auto bttn = bttn_pads->attach<ui::item>("⮝", faux);
                                     auto userlist_area = users_area->attach<slot::_2, ui::pads>()
-                                                            ->plugin<pro::mouse>();
+                                                                   ->plugin<pro::mouse>();
                                         auto users = userlist_area->attach_element<e2::bindings::list::users>(world, branch_template);
                                     //todo unify
                                     bttn_pads->invoke([&](auto& boss) {
-                                        auto userlist_area_shadow = std::weak_ptr{ userlist_area };
-                                        auto bttn_shadow = std::weak_ptr{ bttn };
+                                        auto userlist_area_shadow = ptr::shadow(userlist_area);
+                                        auto bttn_shadow = ptr::shadow(bttn);
                                         boss.SUBMIT_BYVAL(e2::release, e2::hids::mouse::button::click::left, gear)
                                         {
                                             static bool state = faux;

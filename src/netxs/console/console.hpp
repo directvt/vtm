@@ -1705,6 +1705,7 @@ namespace netxs::console
             std::map<std::type_index, uptr<skill<T>>> depo;
             T& boss;
             std::map<id_t, subs> memomap; // pro::boost: Token set for depend submissions.
+
             boost(T& boss) : boss{ boss }
             {
                 if constexpr (ISPARENT)
@@ -1714,7 +1715,7 @@ namespace netxs::console
                         boss.remove(shadow);
                     };
                 }
-             }
+            }
             // pro::boost: Attach feature and return itself.
             template<template<class> class S, class ...Args>
             auto plugin(Args&&... args)

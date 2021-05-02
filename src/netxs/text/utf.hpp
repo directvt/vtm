@@ -1063,7 +1063,7 @@ namespace netxs::utf
         else return std::to_string(number);
     }
 
-    template <bool UCASE = faux, class V, class = typename std::enable_if<std::is_integral<V>::value>::type>
+    template <bool UCASE = faux, class V, class = std::enable_if<std::is_integral<V>::value>::type>
     auto to_hex(V number, size_t width = sizeof(V) * 2, char filler = '0')
     {
         static constexpr auto nums = UCASE ? "0123456789ABCDEF"
@@ -1080,7 +1080,7 @@ namespace netxs::utf
         return crop;
     }
     // utf: to_hex without allocations (the crop should has a reserved capacity).
-    template <bool UCASE = faux, class V, class = typename std::enable_if<std::is_integral<V>::value>::type>
+    template <bool UCASE = faux, class V, class = std::enable_if<std::is_integral<V>::value>::type>
     auto to_hex(text& crop, V number, size_t width = sizeof(V) * 2, char filler = '0')
     {
         static constexpr auto nums = UCASE ? "0123456789ABCDEF"
@@ -1185,7 +1185,7 @@ namespace netxs::utf
     template <class Container, class V1, class V2>
     auto concat(Container const& set, V1 const& delimiter, V2 const& ender)
     {
-        using elem_type = typename Container::value_type;
+        using elem_type = Container::value_type;
         elem_type objects;
         elem_type delim	(delimiter);
         elem_type end	(ender);

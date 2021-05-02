@@ -94,11 +94,11 @@ namespace netxs
     struct _disintegrate { using type = T; };
 
     template<class T>
-    struct _disintegrate<faux, T> { using type = typename T::type; };
+    struct _disintegrate<faux, T> { using type = T::type; };
 
     // intmath: Deduce a scalar type from the vector type.
     template<class T>
-    using disintegrate = typename _disintegrate< std::is_integral<T>::value, T >::type;
+    using disintegrate = _disintegrate< std::is_integral<T>::value, T >::type;
 
     // intmath: Delta sequence generator.
     //          The QUADRATIC-LAW fader from the initial velocity
