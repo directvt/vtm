@@ -19,7 +19,6 @@ namespace netxs::ui
 
     enum slot : id_t { _1, _2 };
     enum axis : id_t { X, Y };
-    enum role : bool { NOT_PARENT, PARENT };
     enum axes
     {
         NONE   = 0,
@@ -28,8 +27,17 @@ namespace netxs::ui
         ALL    = (ONLY_X | ONLY_Y),
     };
 
+    //todo use C++20 requires expressions
+    template <class T>
+    struct has
+    {
+        template <class D> static int16_t _(decltype(&D::remove));
+        template <class D> static uint8_t _(...);
+        static constexpr bool remove = sizeof(_<T>(nullptr)) - 1;
+    };
+
     // controls: UI base control.
-    template<class T, bool ISPARENT = faux>
+    template<class T>
     struct ui_control
         : public base
     {
@@ -39,7 +47,7 @@ namespace netxs::ui
 
         ui_control()
         {
-            if constexpr (ISPARENT)
+            if constexpr (has<T>::remove)
             {
                 SUBMIT(e2::preview, e2::form::proceed::detach, shadow)
                 {
@@ -606,7 +614,7 @@ namespace netxs::ui
 
     // controls: Splitter control.
     class fork
-        : public ui_control<fork, role::PARENT>
+        : public ui_control<fork>
     {
         enum action { seize, drag, release };
 
@@ -919,7 +927,7 @@ namespace netxs::ui
 
     // controls: Vertical/horizontal list control.
     class list
-        : public ui_control<list, role::PARENT>
+        : public ui_control<list>
     {
         using roll = std::list<std::pair<sptr<base>, iota>>;
         roll subset;
@@ -1049,7 +1057,7 @@ namespace netxs::ui
 
     // controls: (puff) Layered cake of forms on top of each other.
     class cake
-        : public ui_control<cake, role::PARENT>
+        : public ui_control<cake>
     {
         //pro::mouse<cake> mouse{*this }; // cake: Mouse controller.
 
@@ -1178,7 +1186,7 @@ namespace netxs::ui
 
     // controls: Rigid text page.
     class post
-        : public flow, public ui_control<post, role::NOT_PARENT>
+        : public flow, public ui_control<post>
     {
         twod width; // post: Page dimensions.
         page_layout layout;
@@ -1284,7 +1292,7 @@ namespace netxs::ui
 
     // controls: Scroller.
     class rail
-        : public ui_control<rail, role::PARENT>
+        : public ui_control<rail>
     {
         pro::robot robot{*this }; // rail: Animation controller.
 
@@ -2027,7 +2035,7 @@ namespace netxs::ui
 
     // controls: Container with margins (outer space) and padding (inner space).
     class pads
-        : public ui_control<pads, role::PARENT>
+        : public ui_control<pads>
     {
         dent padding; // pads: Space around an element's content, outside of any defined borders. It does not affect the size, only affects the fill. Used in base::renderproc only.
         dent margins; // pads: Space around an element's content, inside of any defined borders. Containers take this parameter into account when calculating sizes. Used in all conainers.
@@ -2111,12 +2119,12 @@ namespace netxs::ui
 
     // controls: Pluggable dummy object.
     class mock
-        : public ui_control<mock, role::NOT_PARENT>
+        : public ui_control<mock>
     { };
 
     // controls: Menu label.
     class item
-        : public ui_control<item, role::NOT_PARENT>
+        : public ui_control<item>
     {
         static constexpr view dots = "‥";
         para name;
