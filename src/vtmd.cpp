@@ -1,9 +1,9 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-//#define DEMO
+#define DEMO
 #define MONOTTY_VER "Monotty Desktopio Preview v0.3.4"
-#define PROD
+//#define PROD
 
 // Terminal's default line wrapping mode.
 #define WRAPPING (wrap::on)
@@ -211,8 +211,7 @@ enum test_topic_vars
 class post_logs
     : public ui::post
 {
-    pro::caret<post_logs> caret{ *this }; // post_logs: Text caret controller.
-    pro::mouse<post_logs> mouse{ *this }; // post_logs: .
+    pro::caret caret{ *this }; // post_logs: Text caret controller.
 
     text label;
     hook token;
@@ -1298,11 +1297,11 @@ utility like ctags is used to locate the definitions.
                 auto menu_list = menu_area->attach<slot::_1, ui::fork>()
                                           ->attach<slot::_1, ui::list>(axis::X);
                 for (auto& body : menu_items) menu_list->attach<ui::pads>(inner_pads, body.second)
-                                                       ->plugin<pro::mouse>()
+                                                       //->plugin<pro::mouse>()
                                                        ->plugin<pro::fader>(x3, c3, 150ms)
                                                        ->attach<ui::item>(body.first, faux, true);
                 menu_area->attach<slot::_2, ui::pads>(dent{ 2,2,1,1 }, dent{})
-                         ->plugin<pro::mouse>()
+                         //->plugin<pro::mouse>()
                          ->plugin<pro::fader>(x1, c1, 150ms)
                          ->invoke([&](auto& boss)
                             {
@@ -1334,7 +1333,7 @@ utility like ctags is used to locate the definitions.
                                         ->config(true, true);
                     auto object = scroll->attach<ui::post>()
                                         ->upload(topic)
-                                        ->plugin<pro::mouse>()
+                                        //->plugin<pro::mouse>()
                                         ->invoke([&](auto& self) {
                                             self.SUBMIT(e2::release, e2::form::upon::redrawn, canvas)
                                             {
@@ -1467,12 +1466,12 @@ utility like ctags is used to locate the definitions.
                             for (auto& body : appstore_body) items->attach<ui::post>()
                                                                   ->upload(body)
                                                                   ->plugin<pro::grade>()
-                                                                  ->plugin<pro::mouse>()
+                                                                  //->plugin<pro::mouse>()
                                                                   ->plugin<pro::fader>(x3, c3, 250ms);
                             items->attach<ui::post>()
                                  ->upload(desktopio_body)
-                                 ->plugin<pro::grade>()
-                                 ->plugin<pro::mouse>();
+                                 //->plugin<pro::mouse>()
+                                 ->plugin<pro::grade>();
                             items->base::reflow();
                     layers->attach(scroll_bars(scroll));
                     break;
@@ -1492,12 +1491,13 @@ utility like ctags is used to locate the definitions.
                         object->attach<slot::_1>(main_menu());
                         auto all_stat = object->attach<slot::_2, ui::fork>(axis::Y);
                             auto func_body_pad = all_stat->attach<slot::_1, ui::pads>(dent{ 1,1 })
-                                                         ->plugin<pro::mouse>();
+                                                         //->plugin<pro::mouse>()
+                                                         ;
                                 auto func_body = func_body_pad->attach<ui::fork>(axis::Y);
                                     auto func_line = func_body->attach<slot::_1, ui::fork>();
                                         auto fx_sum = func_line->attach<slot::_1, ui::fork>();
                                             auto fx = fx_sum->attach<slot::_1, ui::post>()
-                                                            ->plugin<pro::mouse>()
+                                                            //->plugin<pro::mouse>()
                                                             ->plugin<pro::fader>(c7, c3, 150ms)
                                                             ->plugin<pro::limit>(twod{ 3,-1 }, twod{ 4,-1 })
                                                             ->upload(ansi::wrp(wrap::off)
@@ -1507,7 +1507,7 @@ utility like ctags is used to locate the definitions.
                                                              ->upload(ansi::bgc(whitelt).fgc(blacklt)
                                                                + " =SUM(B1:B10) ");
                                         auto ellipsis = func_line->attach<slot::_2, ui::post>()
-                                                                 ->plugin<pro::mouse>()
+                                                                 //->plugin<pro::mouse>()
                                                                  ->plugin<pro::fader>(c7, c3, 150ms)
                                                                  ->plugin<pro::limit>(twod{ -1,1 }, twod{ 3,-1 })
                                                                  ->upload(ansi::wrp(wrap::off) + " ⋯ ");
@@ -1523,7 +1523,7 @@ utility like ctags is used to locate the definitions.
                                                                 ->plugin<pro::limit>(twod{ -1,1 }, twod{ -1,-1 })
                                                                 ->config(true, true);
                                                 auto grid = scroll->attach<ui::post>()
-                                                                  ->plugin<pro::mouse>()
+                                                                  //->plugin<pro::mouse>()
                                                                   ->plugin<pro::color>(0xFF000000, 0xFFffffff)
                                                                   ->upload(cellatix_text);
                                             auto cols_area = corner_cols->attach<slot::_2, ui::rail>(axes::ONLY_X, axes::ONLY_X)
@@ -1548,7 +1548,7 @@ utility like ctags is used to locate the definitions.
                                                              + " Sheet1 ");
                                     auto plus_pad = sheet_plus->attach<slot::_2, ui::fork>();
                                         auto plus = plus_pad->attach<slot::_1, ui::post>()
-                                                            ->plugin<pro::mouse>()
+                                                            //->plugin<pro::mouse>()
                                                             ->plugin<pro::fader>(c7, c3, 150ms)
                                                             ->plugin<pro::limit>(twod{ 2,-1 }, twod{ 2,-1 })
                                                             ->upload(ansi::wrp(wrap::off)
@@ -1570,12 +1570,13 @@ utility like ctags is used to locate the definitions.
                         object->attach<slot::_1>(main_menu());
                         auto body_area = object->attach<slot::_2, ui::fork>(axis::Y);
                         auto fields = body_area->attach<slot::_1, ui::pads>(dent{ 1,1 })
-                                               ->plugin<pro::mouse>();
+                                               //->plugin<pro::mouse>()
+                                               ;
                         auto layers = fields->attach<ui::cake>();
                         auto scroll = layers->attach<ui::rail>()
                                             ->plugin<pro::limit>(twod{ 4,3 }, twod{ -1,-1 });
                         auto edit_box = scroll->attach<ui::post>(true)
-                                              ->plugin<pro::mouse>()
+                                              //->plugin<pro::mouse>()
                                               ->plugin<pro::caret>(true, twod{ 25,1 })
                                               ->plugin<pro::color>(blackdk, whitelt)
                                               ->upload(ansi::wrp(wrap::off).mgl(1)
@@ -1608,7 +1609,7 @@ utility like ctags is used to locate the definitions.
                     else
                     {
                         scroll->attach<ui::post>()
-                              ->plugin<pro::mouse>()
+                              //->plugin<pro::mouse>()
                               ->plugin<pro::color>(whitelt, blackdk)
                               ->upload(ansi::fgc(yellowlt).mgl(4).mgr(4).wrp(wrap::off)
                                      + "\n\nconnection rejected\n\n"
@@ -1887,9 +1888,10 @@ utility like ctags is used to locate the definitions.
 
                     auto app_template = [&](auto& data_src, auto const& utf8){
                         auto item_area = base::create<ui::pads>(dent{ 1,0,1,0 }, dent{ 0,0,0,1 })
-                                             ->plugin<pro::mouse>(faux)
+                                             //->plugin<pro::mouse>(faux)
                                              ->plugin<pro::fader>(x4, c4, 0ms)//150ms)
                                              ->invoke([&](auto& boss) {
+                                                boss.mouse.take_all_events(faux);
                                                 auto data_src_shadow = ptr::shadow(data_src);
                                                 boss.SUBMIT_BYVAL(e2::release, e2::hids::mouse::button::click::left, gear)
                                                 {
@@ -1933,19 +1935,19 @@ utility like ctags is used to locate the definitions.
                                                 ansi::fgc(whitelt)
                                                 + utf8 + ansi::mgl(0).wrp(wrap::off).jet(bias::left), true, true);
                                 auto app_close_area = label_area->template attach<slot::_2, ui::pads>(dent{ 0,0,0,0 }, dent{ 0,0,1,1 })
-                                            ->template plugin<pro::mouse>()
-                                             ->template plugin<pro::fader>(x5, c5, 150ms)
-                                            ->invoke([&](auto& boss) {
-                                                auto data_src_shadow = ptr::shadow(data_src);
-                                                boss.SUBMIT_BYVAL(e2::release, e2::hids::mouse::button::click::left, gear)
-                                                {
-                                                    if(auto data_src = data_src_shadow.lock())
-                                                    {
-                                                        data_src->SIGNAL(e2::release, e2::form::proceed::detach, data_src);
-                                                        gear.dismiss();
-                                                    }
-                                                };
-                                            });
+                                                                //->template plugin<pro::mouse>()
+                                                                ->template plugin<pro::fader>(x5, c5, 150ms)
+                                                                ->invoke([&](auto& boss) {
+                                                                   auto data_src_shadow = ptr::shadow(data_src);
+                                                                   boss.SUBMIT_BYVAL(e2::release, e2::hids::mouse::button::click::left, gear)
+                                                                   {
+                                                                       if(auto data_src = data_src_shadow.lock())
+                                                                       {
+                                                                           data_src->SIGNAL(e2::release, e2::form::proceed::detach, data_src);
+                                                                           gear.dismiss();
+                                                                       }
+                                                                   };
+                                                                });
                                 auto app_close = app_close_area->template attach<ui::item>("  ✕  ", faux);
                         return item_area;
                     };
@@ -1959,10 +1961,11 @@ utility like ctags is used to locate the definitions.
                             {
                                 auto selected = class_id == current_default;
                                 auto item_area = apps->template attach<ui::pads>(dent{ 0,0,0,1 }, dent{ 0,0,1,0 })
-                                                     ->template plugin<pro::mouse>(faux)
+                                                     //->template plugin<pro::mouse>(faux)
                                                      ->template plugin<pro::fader>(x3, c3, 0ms)
                                                      ->depend_on_collection(inst_ptr_list)
                                                      ->invoke([&](auto& boss) {
+                                                         boss.mouse.take_all_events(faux);
                                                          auto data_src_shadow = ptr::shadow(data_src);
                                                          boss.SUBMIT_BYVAL(e2::release, e2::hids::mouse::button::click::left, gear)
                                                          {
@@ -2007,10 +2010,12 @@ utility like ctags is used to locate the definitions.
                                                      });
                                     auto block = item_area->template attach<ui::fork>(axis::Y);
                                         auto head_area = block->template attach<slot::_1, ui::pads>(dent{ 0,0,0,0 }, dent{ 0,0,1,1 })
-                                                              ->template plugin<pro::mouse>();
+                                                              //->template plugin<pro::mouse>()
+                                                              ;
                                             auto head = head_area->template attach<ui::item>(objs_desc[class_id], true);
                                         auto list_pads = block->template attach<slot::_2, ui::pads>(dent{ 0,0,0,0 }, dent{ 0,0,0,0 })
-                                                         ->template plugin<pro::mouse>();
+                                                         //->template plugin<pro::mouse>()
+                                                         ;
                                 auto insts = list_pads->template attach<ui::list>()
                                                  ->template attach_collection<e2::form::prop::header>(inst_ptr_list, app_template);
                             }
@@ -2025,9 +2030,10 @@ utility like ctags is used to locate the definitions.
                             auto id = class_id;
                             auto selected = class_id == current_default;
                             auto item_area = menuitems->attach<ui::pads>(dent{ 0,0,0,1 }, dent{ 0,0,1,0 })
-                                                      ->plugin<pro::mouse>(faux)
+                                                      //->plugin<pro::mouse>(faux)
                                                       ->plugin<pro::fader>(x3, c3, 0ms)
                                                       ->invoke([&](auto& boss) {
+                                                         boss.mouse.take_all_events(faux);
                                                          auto client_shadow = ptr::shadow(client);
                                                          boss.SUBMIT_BYVAL(e2::release, e2::hids::mouse::button::click::left, gear)
                                                          {
@@ -2050,7 +2056,8 @@ utility like ctags is used to locate the definitions.
                                                      });
                                 auto block = item_area->template attach<ui::fork>(axis::X);
                                     auto mark_area = block->template attach<slot::_1, ui::pads>(dent{ 1,1,0,0 }, dent{ 0,0,0,0 })
-                                                          ->template plugin<pro::mouse>();
+                                                          //->template plugin<pro::mouse>()
+                                                          ;
                                         auto mark = mark_area->template attach<ui::item>(
                                                     ansi::bgc4(selected ? 0xFF00ff00 : 0xFF000000)
                                                     + "  ", faux)
@@ -2067,7 +2074,8 @@ utility like ctags is used to locate the definitions.
                                                  };
                                              });
                                     auto label_area = block->template attach<slot::_2, ui::pads>(dent{ 1,1,0,0 }, dent{ 0,0,0,0 })
-                                                           ->template plugin<pro::mouse>();
+                                                           //->template plugin<pro::mouse>()
+                                                           ;
                                         auto label = label_area->template attach<ui::item>(
                                             ansi::fgc4(0xFFffffff)
                                             + objs_desc[class_id], true, true);
@@ -2076,12 +2084,13 @@ utility like ctags is used to locate the definitions.
                     };
                     auto user_template = [&, my_id = client->id](auto& data_src, auto const& utf8){
                         auto item_area = base::create<ui::pads>(dent{ 1,0,0,1 }, dent{ 0,0,1,0 })
-                                             ->plugin<pro::mouse>()
+                                             //->plugin<pro::mouse>()
                                              ->plugin<pro::fader>(x3, c3, 150ms);
                             auto user = item_area->attach<ui::item>(
                             + "🔗" + ansi::nil() + " "
                             + ansi::fgc4(data_src->id == my_id ? rgba::color256[whitelt] : 0x00) + utf8, true)
-                                             ->template plugin<pro::mouse>();
+                                             //->template plugin<pro::mouse>()
+                                             ;
                         return item_area;
                     };
                     auto branch_template = [&](auto& data_src, auto& usr_list){
@@ -2126,7 +2135,7 @@ utility like ctags is used to locate the definitions.
                                 auto apps_area = apps_users_fork->attach<slot::_1, ui::fork>(axis::Y);
                                 {
                                     auto label_pads = apps_area->attach<slot::_1, ui::pads>(dent{ 0,0,1,1 }, dent{ 0,0,0,0 })
-                                                              ->plugin<pro::mouse>()
+                                                              //->plugin<pro::mouse>()
                                                               ->plugin<pro::fader>(x3, c3, 150ms);
                                         auto label_bttn = label_pads->attach<ui::fork>();
                                             auto label = label_bttn->attach<slot::_1, ui::item>(
@@ -2135,7 +2144,7 @@ utility like ctags is used to locate the definitions.
                                                 //auto defapp_pads = bttn_area->attach<slot::_1, ui::post>()
                                                 //                            ->upload(ansi::jet(bias::center) + "[ Term ]");
                                                 auto bttn_pads = bttn_area->attach<slot::_2, ui::pads>(dent{ 2,2,0,0 }, dent{ 0,0,1,1 })
-                                                            ->plugin<pro::mouse>()
+                                                            //->plugin<pro::mouse>()
                                                             ->plugin<pro::fader>(x6, c6, 150ms);
                                                     auto bttn = bttn_pads->attach<ui::item>("⮟", faux);
                                     auto applist_area = apps_area->attach<slot::_2, ui::cake>();
@@ -2184,18 +2193,19 @@ utility like ctags is used to locate the definitions.
                                 auto users_area = apps_users_fork->attach<slot::_2, ui::fork>(axis::Y);
                                 {
                                     auto label_pads = users_area->attach<slot::_1, ui::pads>(dent{ 0,0,1,1 }, dent{ 0,0,0,0 })
-                                                                ->plugin<pro::mouse>()
+                                                                //->plugin<pro::mouse>()
                                                                 ->plugin<pro::fader>(x3, c3, 150ms);
                                         auto label_bttn = label_pads->attach<ui::fork>();
                                             auto label = label_bttn->attach<slot::_1, ui::item>(
                                                             ansi::fgc(whitelt) + "TTYs", faux, faux);
                                             auto bttn_area = label_bttn->attach<slot::_2, ui::fork>();
                                                 auto bttn_pads = bttn_area->attach<slot::_2, ui::pads>(dent{ 2,2,0,0 }, dent{ 0,0,1,1 })
-                                                                          ->plugin<pro::mouse>()
+                                                                          //->plugin<pro::mouse>()
                                                                           ->plugin<pro::fader>(x6, c6, 150ms);
                                                     auto bttn = bttn_pads->attach<ui::item>("⮝", faux);
                                     auto userlist_area = users_area->attach<slot::_2, ui::pads>()
-                                                                   ->plugin<pro::mouse>();
+                                                                   //->plugin<pro::mouse>()
+                                                                   ;
                                         auto users = userlist_area->attach_element<e2::bindings::list::users>(world, branch_template);
                                     //todo unify
                                     bttn_pads->invoke([&](auto& boss) {
@@ -2221,7 +2231,7 @@ utility like ctags is used to locate the definitions.
                             {
                                 auto bttns = bttns_area->attach<slot::_1, ui::fork>(axis::X);
                                     auto disconnect_area = bttns->attach<slot::_1, ui::pads>(dent{ 2,3,1,1 })
-                                                                ->plugin<pro::mouse>()
+                                                                //->plugin<pro::mouse>()
                                                                 ->plugin<pro::fader>(x2, c2, 150ms)
                                                                 ->invoke([&](auto& boss) {
                                                                         boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
@@ -2234,7 +2244,7 @@ utility like ctags is used to locate the definitions.
                                                                     });
                                         auto disconnect = disconnect_area->attach<ui::item>("✕ Disconnect");
                                     auto shutdown_area = bttns->attach<slot::_2, ui::pads>(dent{ 2,3,1,1 })
-                                                              ->plugin<pro::mouse>()
+                                                              //->plugin<pro::mouse>()
                                                               ->plugin<pro::fader>(x1, c1, 150ms)
                                                               ->invoke([&](auto& boss) {
                                                                       boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)

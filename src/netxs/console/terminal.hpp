@@ -470,13 +470,13 @@ namespace netxs::ui
 
     // terminal: Built-in terminal app.
     class term
-        : public base, public pro::boost<term>
+        : public ui_control<term>
     {
         #ifndef DEMO
-        pro::keybd<term> keybd{ *this }; // term: Keyboard controller.
+        pro::keybd keybd{ *this }; // term: Keyboard controller.
         #endif
-        pro::caret<term> caret{ *this }; // term: Caret controller.
-        pro::mouse<term> mouse{ *this }; // term: Mouse controller.
+        pro::caret caret{ *this }; // term: Caret controller.
+        //pro::mouse<term> mouse{ *this }; // term: Mouse controller.
 
         // term: VT-mouse tracking functionality.
         struct mtracking
@@ -1491,8 +1491,7 @@ namespace netxs::ui
 
     public:
         term(twod initial_window_size, text cmd_line, iota max_scrollback_size = default_size, iota grow_step = default_step)
-            : boost   { *this },
-              mtracker{ *this },
+            : mtracker{ *this },
               ftracker{ *this },
               winprops{ *this },
               normal  { *this, max_scrollback_size  , grow_step },

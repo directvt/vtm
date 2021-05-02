@@ -28,6 +28,114 @@ namespace netxs::ui
         ALL    = (ONLY_X | ONLY_Y),
     };
 
+    // controls: UI base control.
+    template<class T, bool ISPARENT = faux>
+    struct ui_control
+        : public base
+    {
+        std::map<std::type_index, uptr<pro::skill>> depo;
+        std::map<id_t, subs> memomap; // pro::ui_control: Token set for depend submissions.
+        pro::mouse mouse{ *this }; // pro::ui_control: Mouse controller.
+
+        ui_control()
+        {
+            if constexpr (ISPARENT)
+            {
+                SUBMIT(e2::preview, e2::form::proceed::detach, shadow)
+                {
+                    This<T>()->T::remove(shadow);
+                };
+            }
+        }
+        // pro::ui_control: Attach feature and return itself.
+        //template<template<class> class S, class ...Args>
+        template<class S, class ...Args>
+        auto plugin(Args&&... args)
+        {
+            depo[std::type_index(typeid(S))] = std::make_unique<S>(*this, std::forward<Args>(args)...);
+            base::reflow();
+            return This<T>();
+        }
+        // pro::ui_control: Return plugin reference of specified type.
+        template<class S>
+        auto& plugins()
+        {
+            auto ptr = static_cast<S*>(depo[std::type_index(typeid(S))].get());
+            return *ptr;
+        }
+        // pro::ui_control: Invoke arbitrary functor(itself/*This/boss).
+        template<class P>
+        auto invoke(P functor)
+        {
+            functor(*(This<T>()));
+            return This<T>();
+        }
+        // pro::ui_control: Attach homeless branch and return itself.
+        template<class C, class ...Args>
+        auto branch(C child, Args&&... args)
+        {
+            if (child) This<T>()->T::attach(child, std::forward<Args>(args)...);
+            return This<T>();
+        }
+        // pro::ui_control: Boss will be detached when the master is dtor'ed.
+        auto depend(sptr<base> master)
+        {
+            master->SUBMIT_T(e2::release, e2::dtor, memomap[master->id], master_id)
+            {
+                memomap[master_id].clear();
+                memomap.erase(master_id);
+                if (memomap.empty()) base::detach();
+            };
+            return This<T>();
+        }
+        // pro::ui_control: Boss will be detached when the last item of collection is dtor'ed.
+        template<class S>
+        auto depend_on_collection(S data_collection_src)
+        {
+            for(auto& data_src : data_collection_src)
+            {
+                depend(data_src);
+            }
+            return This<T>();
+        }
+        // pro::ui_control: Create and attach a new item using a template and dynamic datasource.
+        template<e2::type PROPERTY, class C, class P>
+        auto attach_element(C data_src, P item_template)
+        {
+            ARGTYPE(PROPERTY) arg;
+            data_src->SIGNAL(e2::request, PROPERTY, arg);
+            auto new_item = item_template(data_src, arg)
+                                 ->depend(data_src);
+            auto item_shadow = ptr::shadow(new_item);
+            auto data_shadow = ptr::shadow(data_src);
+            auto boss_shadow = ptr::shadow(This<T>());
+            data_src->SUBMIT_BYVAL_T(e2::release, PROPERTY, memomap[data_src->id], new_arg_value)
+            {
+                if (auto boss_ptr = boss_shadow.lock())
+                if (auto data_src = data_shadow.lock())
+                if (auto old_item = item_shadow.lock())
+                {
+                    auto new_item = item_template(data_src, new_arg_value)
+                                         ->depend(data_src);
+                    item_shadow = ptr::shadow(new_item); // Update current item shadow.
+                    boss_ptr->update(old_item, new_item);
+                }
+            };
+            branch(new_item);
+            return new_item;
+        }
+        // pro::ui_control: Create and attach a new item using a template and dynamic datasource.
+        template<e2::type PROPERTY, class S, class P>
+        auto attach_collection(S data_collection_src, P item_template)
+        {
+            for(auto& data_src : data_collection_src)
+            {
+                attach_element<PROPERTY>(data_src, item_template);
+            }
+            return This<T>();
+        }
+    };
+
     // controls: Flexible window frame.
     class mold
         : public form
@@ -125,12 +233,12 @@ namespace netxs::ui
         };
 
     private:
-        pro::mouse<mold> xmouse{*this, faux }; // mold: World image.
-        pro::keybd<mold> keybrd{*this }; // mold: Keyboard controller.
-        pro::robot<mold> cyborg{*this }; // mold: Animation controller.
-        pro::frame<mold> window{*this }; // mold: Window controller.
-        pro::align<mold> adjust{*this }; // mold: Size linking controller.
-        pro::title<mold> legend{*this }; // mold: Window caption and footer.
+        pro::mouse xmouse{*this, faux }; // mold: World image.
+        pro::keybd keybrd{*this }; // mold: Keyboard controller.
+        pro::robot cyborg{*this }; // mold: Animation controller.
+        pro::frame window{*this }; // mold: Window controller.
+        pro::align adjust{*this }; // mold: Size linking controller.
+        pro::title legend{*this }; // mold: Window caption and footer.
         pro::multi<mold> shared{*this }; // mold: The shared border states.
 
         rect region; // mold: Client area.
@@ -294,7 +402,7 @@ namespace netxs::ui
                 if (!secure && square.size.inside(gear.coord))
                 {
                     if (adjust.seized(gear.id)) adjust.unbind();
-                    else                        adjust.follow(gear.id);
+                    else                        adjust.follow(gear.id, gripsz);
                     gear.dismiss();
                 }
             };
@@ -498,12 +606,8 @@ namespace netxs::ui
 
     // controls: Splitter control.
     class fork
-        : public base, public pro::boost<fork, role::PARENT>
+        : public ui_control<fork, role::PARENT>
     {
-    public:
-        pro::mouse<fork> mouse{*this }; // fork: Mouse controller.
-
-    private:
         enum action { seize, drag, release };
 
         static constexpr iota MAX_RATIO = 0xFFFF;
@@ -571,8 +675,7 @@ namespace netxs::ui
             if (client_2) client_2->base::detach();
         }
         fork(axis alignment = axis::X, iota thickness = 0, iota scale = 50)
-        : boost{*this },
-            maxpos{ 0 },
+        :   maxpos{ 0 },
             start{ 0 },
             width{ 0 },
             movable{ true },
@@ -803,8 +906,8 @@ namespace netxs::ui
             return attach<SLOT>(create<T>(std::forward<Args>(args)...));
         }
         // fork: Remove nested object by it's ptr.
-        template<class T>
-        void remove(T item_ptr)
+        //template<class T>
+        void remove(sptr<base> item_ptr)
         {
             if (client_1 == item_ptr ? (client_1.reset(), true) :
                 client_2 == item_ptr ? (client_2.reset(), true) : faux)
@@ -816,10 +919,8 @@ namespace netxs::ui
 
     // controls: Vertical/horizontal list control.
     class list
-        : public base, public pro::boost<list, role::PARENT>
+        : public ui_control<list, role::PARENT>
     {
-        pro::mouse<list> mouse{*this }; // list: Mouse controller.
-
         using roll = std::list<std::pair<sptr<base>, iota>>;
         roll subset;
         bool updown; // list: List orientation, true: vertical(default), faux: horizontal.
@@ -833,8 +934,8 @@ namespace netxs::ui
                 subset.pop_back();
             }
         }
-        list(axis orientation = axis::Y) : boost{*this },
-            updown{ orientation == axis::Y }
+        list(axis orientation = axis::Y)
+            : updown{ orientation == axis::Y }
         {
             SUBMIT(e2::preview, e2::form::layout::size, new_sz)
             {
@@ -917,8 +1018,8 @@ namespace netxs::ui
             return attach(create<T>(std::forward<Args>(args)...));
         }
         // list: Remove nested object.
-        template<class T>
-        void remove(T item_ptr)
+        //template<class T>
+        void remove(sptr<base> item_ptr)
         {
             auto head = subset.begin();
             auto tail = subset.end();
@@ -948,9 +1049,9 @@ namespace netxs::ui
 
     // controls: (puff) Layered cake of forms on top of each other.
     class cake
-        : public base, public pro::boost<cake, role::PARENT>
+        : public ui_control<cake, role::PARENT>
     {
-        pro::mouse<cake> mouse{*this }; // cake: Mouse controller.
+        //pro::mouse<cake> mouse{*this }; // cake: Mouse controller.
 
         std::list<sptr<base>> subset;
 
@@ -963,7 +1064,7 @@ namespace netxs::ui
                 subset.pop_back();
             }
         }
-        cake() : boost{*this }
+        cake()
         {
             SUBMIT(e2::preview, e2::form::layout::size, newsz)
             {
@@ -1008,8 +1109,8 @@ namespace netxs::ui
             return attach(create<T>(std::forward<Args>(args)...));
         }
         // cake: Remove nested object.
-        template<class T>
-        void remove(T item_ptr)
+        //template<class T>
+        void remove(sptr<base> item_ptr)
         {
             auto head = subset.begin();
             auto tail = subset.end();
@@ -1077,7 +1178,7 @@ namespace netxs::ui
 
     // controls: Rigid text page.
     class post
-        : public base, public flow, public pro::boost<post, role::NOT_PARENT>
+        : public flow, public ui_control<post, role::NOT_PARENT>
     {
         twod width; // post: Page dimensions.
         page_layout layout;
@@ -1147,8 +1248,9 @@ namespace netxs::ui
             recalc();
         }
 
-        post(bool scroll_beyond = faux) : flow{ width }, boost{*this },
-            beyond{ scroll_beyond }
+        post(bool scroll_beyond = faux)
+            : flow{ width },
+              beyond{ scroll_beyond }
         {
             SUBMIT(e2::preview, e2::form::layout::size, size)
             {
@@ -1182,10 +1284,9 @@ namespace netxs::ui
 
     // controls: Scroller.
     class rail
-        : public base, public pro::boost<rail, role::PARENT>
+        : public ui_control<rail, role::PARENT>
     {
-        pro::mouse<rail> mouse{*this }; // rail: Mouse controller.
-        pro::robot<rail> robot{*this }; // rail: Animation controller.
+        pro::robot robot{*this }; // rail: Animation controller.
 
         static constexpr hint events[] = { e2::form::upon::scroll::x,
                                            e2::form::upon::scroll::y,
@@ -1237,9 +1338,9 @@ namespace netxs::ui
         //todo should we detach client in dtor?
         //~rail...
 
-        rail(axes allow_to_scroll = axes::ALL, axes allow_to_capture = axes::ALL) : boost{*this },
-            permit{ allow_to_scroll  },
-            siezed{ allow_to_capture }
+        rail(axes allow_to_scroll = axes::ALL, axes allow_to_capture = axes::ALL)
+            : permit{ allow_to_scroll  },
+              siezed{ allow_to_capture }
         {
             // Receive scroll parameters from external source.
             SUBMIT(e2::preview, e2::form::upon::scroll::any, info)
@@ -1531,8 +1632,8 @@ namespace netxs::ui
         {
             return attach(create<T>(std::forward<Args>(args)...));
         }
-        template<class T>
-        void remove(T item_ptr)
+        //template<class T>
+        void remove(sptr<base> item_ptr)
         {
             if (client == item_ptr)
             {
@@ -1555,8 +1656,8 @@ namespace netxs::ui
     class grip
         : public base
     {
-        pro::mouse<grip> mouse{*this }; // grip: Mouse events controller.
-        pro::timer<grip> timer{*this }; // grip: Minimize by timeout.
+        pro::mouse mouse{*this }; // grip: Mouse events controller.
+        pro::timer timer{*this }; // grip: Minimize by timeout.
 
         using wptr = netxs::wptr<bell>;
         using sptr = netxs::sptr<bell>;
@@ -1926,18 +2027,16 @@ namespace netxs::ui
 
     // controls: Container with margins (outer space) and padding (inner space).
     class pads
-        : public base, public pro::boost<pads, role::PARENT>
+        : public ui_control<pads, role::PARENT>
     {
-        //pro::mouse<pads> mouse{*this }; // pads: Mouse controller.
-
         dent padding; // pads: Space around an element's content, outside of any defined borders. It does not affect the size, only affects the fill. Used in base::renderproc only.
         dent margins; // pads: Space around an element's content, inside of any defined borders. Containers take this parameter into account when calculating sizes. Used in all conainers.
 
     public:
         sptr<base> client;
 
-        pads(dent const& padding_value = {}, dent const& margins_value = {}) : boost{*this },
-              padding{ padding_value },
+        pads(dent const& padding_value = {}, dent const& margins_value = {})
+            : padding{ padding_value },
               margins{ margins_value }
         {
             SUBMIT(e2::preview, e2::form::layout::size, new_size)
@@ -1991,8 +2090,8 @@ namespace netxs::ui
             return attach(create<T>(std::forward<Args>(args)...));
         }
         // pads: Remove item.
-        template<class T>
-        void remove(T item_ptr)
+        //template<class T>
+        void remove(sptr<base> item_ptr)
         {
             if (client == item_ptr)
             {
@@ -2012,15 +2111,12 @@ namespace netxs::ui
 
     // controls: Pluggable dummy object.
     class mock
-        : public base, public pro::boost<mock, role::NOT_PARENT>
-    {
-    public:
-        mock() : boost{*this } { };
-    };
+        : public ui_control<mock, role::NOT_PARENT>
+    { };
 
     // controls: Menu label.
     class item
-        : public base, public pro::boost<item, role::NOT_PARENT>
+        : public ui_control<item, role::NOT_PARENT>
     {
         static constexpr view dots = "‥";
         para name;
@@ -2035,10 +2131,10 @@ namespace netxs::ui
             base::resize(size);
         }
     public:
-        item(para const& label_para, bool flexible = faux, bool check_size = faux) : boost{*this },
-            name{ label_para },
-            flex{ flexible   },
-            test{ check_size }
+        item(para const& label_para, bool flexible = faux, bool check_size = faux)
+            : name{ label_para },
+              flex{ flexible   },
+              test{ check_size }
         {
             recalc();
         }
@@ -2074,7 +2170,7 @@ namespace netxs::ui
     class stem_rate_grip
         : public form
     {
-        pro::mouse<stem_rate_grip> mouse{*this }; // stem_rate_grip: Mouse controller.
+        pro::mouse mouse{*this }; // stem_rate_grip: Mouse controller.
 
     public:
         page topic; // stem_rate_grip: Text content.
@@ -2153,8 +2249,8 @@ namespace netxs::ui
     class stem_rate
         : public form
     {
-        pro::mouse<stem_rate> mouse{*this }; // stem_rate: Mouse controller.
-        pro::robot<stem_rate> robot{*this }; // stem_rate: Animation controller.
+        pro::mouse mouse{*this }; // stem_rate: Mouse controller.
+        pro::robot robot{*this }; // stem_rate: Animation controller.
 
         using tail = netxs::datetime::tail<iota>;
 
