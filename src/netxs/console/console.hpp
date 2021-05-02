@@ -859,7 +859,10 @@ namespace netxs::console
                 last->SIGNAL(e2::release, e2::form::notify::mouse::leave, *this);
                 mouse::start = start;
             }
-            else log("hids: error condition: Clients count is broken, dangling id ", last_id);
+            else
+            {
+                log("hids: error condition: Clients count is broken, dangling id ", last_id);
+            } 
         }
         void okay(bell& boss)
         {
@@ -1764,8 +1767,6 @@ namespace netxs::console
                 }
                 return boss.template This<T>();
             }
-            //template<class P, class C, class ...Args>
-            //auto source(P item_template, C master, Args&&... args)
             // pro::boost: Create and attach a new item using a template and dynamic datasource.
             template<e2::type PROPERTY, class C, class P>
             auto attach_element(C data_src, P item_template)
@@ -1789,7 +1790,6 @@ namespace netxs::console
                         boss_ptr->update(old_item, new_item);
                     }
                 };
-                //return boss.branch(new_item);
                 boss.branch(new_item);
                 return new_item;
             }

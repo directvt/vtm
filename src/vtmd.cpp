@@ -1,9 +1,9 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#define DEMO
+//#define DEMO
 #define MONOTTY_VER "Monotty Desktopio Preview v0.3.4"
-//#define PROD
+#define PROD
 
 // Terminal's default line wrapping mode.
 #define WRAPPING (wrap::on)
@@ -1254,6 +1254,7 @@ utility like ctags is used to locate the definitions.
         using axis = ui::axis;
         using axes = ui::axes;
 
+        auto c7 = cell{}.bgc(whitedk).fgc(blackdk);
         auto c6 = cell{}.bgc(action_color).fgc(whitelt);
         auto x6 = c6; x6.bga(0x00).fga(0x00);
         auto c5 = cell{}.bgc(danger_color).fgc(whitelt);
@@ -1273,14 +1274,6 @@ utility like ctags is used to locate the definitions.
                 auto scroll_down = scroll_bars->attach<slot::_1, ui::fork>(axis::Y);
                     auto hz = scroll_down->attach<slot::_2, ui::grip<axis::X>>(master);
                     auto vt = scroll_bars->attach<slot::_2, ui::grip<axis::Y>>(master);
-            return scroll_bars;
-        };
-        auto scroll_bars_left = [](auto master)
-        {
-            auto scroll_bars = base::create<ui::fork>();
-                auto scroll_down = scroll_bars->attach<slot::_2, ui::fork>(axis::Y);
-                    //auto hz = scroll_down->attach<slot::_2, ui::grip<axis::X>>(master);
-                    auto vt = scroll_bars->attach<slot::_1, ui::grip<axis::Y>>(master);
             return scroll_bars;
         };
         auto scroll_bars_term = [](auto master)
@@ -1481,17 +1474,12 @@ utility like ctags is used to locate the definitions.
                             ->plugin<pro::color>(whitedk, 0xFF0f0f0f)
                             ->plugin<pro::limit>(twod{ -1,2 }, twod{ -1,-1 })
                             ->config(true, true);
-
-                            auto c2 = cell{ whitespace }.fgc(tint::whitelt)
-                                                        .bgc(highlight_color);
-                            auto c1 = c2; c1.alpha(0x00);
-
                             auto items = scroll->attach<ui::list>();
                             for (auto& body : appstore_body) items->attach<ui::post>()
                                                                   ->upload(body)
                                                                   ->plugin<pro::grade>()
                                                                   ->plugin<pro::mouse>()
-                                                                  ->plugin<pro::fader>(c1, c2, 250ms);
+                                                                  ->plugin<pro::fader>(x3, c3, 250ms);
                             items->attach<ui::post>()
                                  ->upload(desktopio_body)
                                  ->plugin<pro::grade>()
@@ -1513,9 +1501,6 @@ utility like ctags is used to locate the definitions.
                     auto object = window->attach<ui::fork>(axis::Y)
                                         ->plugin<pro::color>(whitelt, 0);
                         object->attach<slot::_1>(main_menu());
-                        auto c2 = cell{ whitespace }.fgc(whitelt).bgc(highlight_color);
-                        auto c1 = cell{ whitespace }.fgc(blackdk).bgc(whitedk);
-                        auto c0 = c2; c0.alpha(0x00);
                         auto all_stat = object->attach<slot::_2, ui::fork>(axis::Y);
                             auto func_body_pad = all_stat->attach<slot::_1, ui::pads>(dent{ 1,1 })
                                                          ->plugin<pro::mouse>();
@@ -1524,7 +1509,7 @@ utility like ctags is used to locate the definitions.
                                         auto fx_sum = func_line->attach<slot::_1, ui::fork>();
                                             auto fx = fx_sum->attach<slot::_1, ui::post>()
                                                             ->plugin<pro::mouse>()
-                                                            ->plugin<pro::fader>(c1, c2, 150ms)
+                                                            ->plugin<pro::fader>(c7, c3, 150ms)
                                                             ->plugin<pro::limit>(twod{ 3,-1 }, twod{ 4,-1 })
                                                             ->upload(ansi::wrp(wrap::off)
                                                               + " Fx ");
@@ -1534,7 +1519,7 @@ utility like ctags is used to locate the definitions.
                                                                + " =SUM(B1:B10) ");
                                         auto ellipsis = func_line->attach<slot::_2, ui::post>()
                                                                  ->plugin<pro::mouse>()
-                                                                 ->plugin<pro::fader>(c1, c2, 150ms)
+                                                                 ->plugin<pro::fader>(c7, c3, 150ms)
                                                                  ->plugin<pro::limit>(twod{ -1,1 }, twod{ 3,-1 })
                                                                  ->upload(ansi::wrp(wrap::off) + " ⋯ ");
                                     auto body_area = func_body->attach<slot::_2, ui::fork>(axis::Y);
@@ -1575,7 +1560,7 @@ utility like ctags is used to locate the definitions.
                                     auto plus_pad = sheet_plus->attach<slot::_2, ui::fork>();
                                         auto plus = plus_pad->attach<slot::_1, ui::post>()
                                                             ->plugin<pro::mouse>()
-                                                            ->plugin<pro::fader>(c1, c2, 150ms)
+                                                            ->plugin<pro::fader>(c7, c3, 150ms)
                                                             ->plugin<pro::limit>(twod{ 2,-1 }, twod{ 2,-1 })
                                                             ->upload(ansi::wrp(wrap::off)
                                                               + "＋");
@@ -1698,7 +1683,7 @@ utility like ctags is used to locate the definitions.
                         #elif defined(__linux__)
                             auto object = scroll->attach<ui::term>(winsz, "bash");
                         #elif defined(__APPLE__)
-                            auto object = scroll->attach<term>(winsz, "zsh");
+                            auto object = scroll->attach<ui::term>(winsz, "zsh");
                         #endif
 
                         object->color(whitelt, blackdk);
@@ -1843,36 +1828,15 @@ utility like ctags is used to locate the definitions.
             creator(objs::Logs,        { twod{ 52, 33 } + sub_pos, { 45, 12 } });
             creator(objs::RefreshRate, { twod{ 60, 41 } + sub_pos, { 35, 10 } });
         #endif
-        #ifndef DEMO
-            creator(objs::CommandPrompt,   { { 10, 5 }, { 80, 25 } });
-        #endif
 
-        //creator(objs::Far,   { { 49, 26 }, { 63, 22 } });
+        world->SIGNAL(e2::general, e2::timer::fps, 60);
 
-        //#ifdef DEMO
-        //			std::thread([&]()
-        //				{
-        //					std::this_thread::sleep_for(5000ms);
-        //					creator(objs::VTM, { { 95, 4 }, { 12, 6 } });
-        //				}).detach();
-        //#endif /// DEMO
-
-        //#ifdef DEMO
-        //			std::thread([&]() {
-        //					std::this_thread::sleep_for(500ms);
-        //					creator(objs::MC, { { 3,22 },{ 75,20 } });
-        //				}).detach();
-        //#endif /// DEMO
-
+        iota usr_count = 0;
         auto user = os::user();
         auto path = utf::concat("monotty_", user);
         log("user: ", user);
         log("pipe: ", path);
 
-        world->SIGNAL(e2::general, e2::timer::fps, 60);
-
-        iota usr_count = 0;
-        
         if (auto link = os::ipc::open<os::server>(path))
         {
             log("sock: listening socket ", link);
@@ -1919,9 +1883,9 @@ utility like ctags is used to locate the definitions.
                         auto username = _name;
                     #endif
 
-                    // Taskbar Layout (PoC)
                     auto client = world->invite<ui::gate>(username);
 
+                    // Taskbar Layout (PoC)
                     auto current_default = objs::Term;
                     client->SUBMIT(e2::request, e2::data::changed, data)
                     {
@@ -1932,7 +1896,7 @@ utility like ctags is used to locate the definitions.
                         current_default = static_cast<objs>(data);
                     };
 
-                    auto app_template = [c4, x4, x5, c5](auto& data_src, auto const& utf8){
+                    auto app_template = [&](auto& data_src, auto const& utf8){
                         auto item_area = base::create<ui::pads>(dent{ 1,0,1,0 }, dent{ 0,0,0,1 })
                                              ->plugin<pro::mouse>(faux)
                                              ->plugin<pro::fader>(x4, c4, 0ms)//150ms)
@@ -1971,7 +1935,6 @@ utility like ctags is used to locate the definitions.
                                                     }
                                                 };
                                             });
-                        { // Active label
                             auto label_area = item_area->template attach<ui::fork>();
                                 auto mark_app = label_area->template attach<slot::_1, ui::fork>();
                                     auto mark = mark_app->template attach<slot::_1, ui::pads>(dent{ 2,1,0,0 }, dent{ 0,0,0,0 })
@@ -1995,10 +1958,9 @@ utility like ctags is used to locate the definitions.
                                                 };
                                             });
                                 auto app_close = app_close_area->template attach<ui::item>("  ✕  ", faux);
-                        } // Active label
                         return item_area;
                     };
-                    auto apps_template = [&, c3, x3, app_template](auto& data_src, auto& apps_map){
+                    auto apps_template = [&](auto& data_src, auto& apps_map){
                         auto apps = base::create<ui::list>();
                         //todo loops are not compatible with Declarative UI
                         for(auto const& [class_id, inst_ptr_list] : *apps_map)
@@ -2066,7 +2028,7 @@ utility like ctags is used to locate the definitions.
                         }
                         return apps;
                     };
-                    auto menuitems_template = [&, c3, x3, app_template](auto& data_src, auto& apps_map){
+                    auto menuitems_template = [&](auto& data_src, auto& apps_map){
                         auto menuitems = base::create<ui::list>();
                         //todo loops are not compatible with Declarative UI
                         for(auto const& [class_id, inst_ptr_list] : *apps_map)
@@ -2123,7 +2085,7 @@ utility like ctags is used to locate the definitions.
                         }
                         return menuitems;
                     };
-                    auto user_template = [c3, x3, my_id = client->id](auto& data_src, auto const& utf8){
+                    auto user_template = [&, my_id = client->id](auto& data_src, auto const& utf8){
                         auto item_area = base::template create<ui::pads>(dent{ 1,0,0,1 }, dent{ 0,0,1,0 })
                                              ->template plugin<pro::mouse>()
                                              ->template plugin<pro::fader>(x3, c3, 150ms);
@@ -2133,7 +2095,7 @@ utility like ctags is used to locate the definitions.
                                              ->template plugin<pro::mouse>();
                         return item_area;
                     };
-                    auto branch_template = [=](auto& data_src, auto& usr_list){
+                    auto branch_template = [&](auto& data_src, auto& usr_list){
                         auto users = base::create<ui::list>()
                             ->attach_collection<e2::form::prop::header>(*usr_list, user_template);
                         return users;
@@ -2171,9 +2133,7 @@ utility like ctags is used to locate the definitions.
                                                         };
                                                         
                                                     });
-                        {
                             auto apps_users_fork = taskbar->attach<slot::_1, ui::fork>(axis::Y);
-                            {
                                 auto apps_area = apps_users_fork->attach<slot::_1, ui::fork>(axis::Y);
                                 {
                                     auto label_pads = apps_area->attach<slot::_1, ui::pads>(dent{ 0,0,1,1 }, dent{ 0,0,0,0 })
@@ -2183,10 +2143,8 @@ utility like ctags is used to locate the definitions.
                                             auto label = label_bttn->attach<slot::_1, ui::item>(
                                                                 ansi::fgc(whitelt) + "  ≡ ", faux, faux);
                                             auto bttn_area = label_bttn->attach<slot::_2, ui::fork>();
-
                                                 //auto defapp_pads = bttn_area->attach<slot::_1, ui::post>()
                                                 //                            ->upload(ansi::jet(bias::center) + "[ Term ]");
-                                                    
                                                 auto bttn_pads = bttn_area->attach<slot::_2, ui::pads>(dent{ 2,2,0,0 }, dent{ 0,0,1,1 })
                                                             ->plugin<pro::mouse>()
                                                             ->plugin<pro::fader>(x6, c6, 150ms);
@@ -2270,7 +2228,6 @@ utility like ctags is used to locate the definitions.
                                         };
                                     });
                                 }
-                            }
                             auto bttns_area = taskbar->attach<slot::_2, ui::fork>(axis::X);
                             {
                                 auto bttns = bttns_area->attach<slot::_1, ui::fork>(axis::X);
@@ -2295,15 +2252,14 @@ utility like ctags is used to locate the definitions.
                                                                       {
                                                                           //todo unify, see system.h:1614
                                                                           #if defined(__APPLE__)
-                                                                          path = "/tmp/" + path + ".sock";
-                                                                          ::unlink(path.c_str());
+                                                                          auto path2 = "/tmp/" + path + ".sock";
+                                                                          ::unlink(path2.c_str());
                                                                           #endif
                                                                           os::exit(0, "taskbar: shutdown by button");
                                                                       };
                                                                   });
                                         auto shutdown = shutdown_area->attach<ui::item>("✕ Shutdown");
                             }
-                        }
                     client->color(background_color.fgc(), background_color.bgc());
                     text header = username;
                     text footer = ansi::mgr(1).mgl(1) + MONOTTY_VER;
