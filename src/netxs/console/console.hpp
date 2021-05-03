@@ -1629,61 +1629,6 @@ namespace netxs::console
         //}
     };
 
-    // console: Visual form with cached canvas.
-    class form
-        : public base
-    {
-        sptr<face> coreface;
-
-    public:
-        face& canvas; // form: Form bitmap.
-
-        auto get_canvas() { return canvas.shared_from_this(); }
-
-        form() : canvas{*(coreface = std::make_shared<face>())}
-        {
-            canvas.link(bell::id);
-            SUBMIT(e2::release, base::size_event, new_sz) { canvas.size(new_sz); };
-            SUBMIT(e2::release, base::move_event, new_xy) { canvas.move(new_xy); };
-            SUBMIT(e2::request, e2::form::canvas, canvas) { canvas = coreface; };
-        }
-
-        // form: Set canvas default color and char as a whitespace (preserve all other attrs).
-        virtual void color(rgba const& fg_color, rgba const& bg_color)
-        {
-            base::color(fg_color, bg_color);
-            canvas.mark().bgc(bg_color)
-                         .fgc(fg_color)
-                         .txt(whitespace);
-        }
-        // form: Default render proc.
-        virtual void redraw()
-        {
-
-        }
-        // form: Draw the form composition on the specified canvas.
-        virtual void renderproc (face& parent_canvas)
-        {
-            if (base::status.invalid)
-            {
-                canvas.wipe();
-                base::renderproc(canvas);
-                redraw();
-            }
-        }
-        // form: Draw the form composition on the specified canvas.
-        //       Executed right after the renderproc().
-        virtual void postrender (face& parent_canvas)
-        {
-            if (base::status.invalid)
-            {
-                base::postrender(canvas);
-                base::status.invalid = faux;
-            }
-            parent_canvas.plot(canvas);
-        }
-    };
-
     // console: Template modules for the base class behavior extension.
     namespace pro
     {
@@ -2157,7 +2102,7 @@ namespace netxs::console
                     auto& step = data.step;
 
                     data.ctrl = gear.meta(hids::ANYCTRL);
-                    slot.coor = init = step = gear.mouse::coord;
+                    slot.coor = init = step = gear.coord;
                     slot.size = dot_00;
                     boss.SIGNAL(e2::preview, e2::form::layout::strike, slot);
                     gear.dismiss();
@@ -2173,7 +2118,7 @@ namespace netxs::console
                     auto& init = data.init;
                     auto& step = data.step;
 
-                    step += gear.mouse::delta.get();
+                    step += gear.delta.get();
                     slot.coor = std::min(init, step);
                     slot.size = std::max(std::abs(step - init), dot_00);
                     boss.SIGNAL(e2::preview, e2::form::layout::strike, slot);
@@ -2726,15 +2671,13 @@ namespace netxs::console
                 textline.link(boss.id);
                 boss.SIGNAL(e2::release, e2::form::state::footer, textline);
             }
-
-            title(base&&) = delete;
-            title(base& boss) : skill{ boss }
+            void init()
             {
                 logo += ansi::cup(dot_00)
-                      + ansi::wrp(wrap::off).rtl(rtol::ltr).rlf(feed::fwd).jet(bias::left).mgr(1).mgl(1)
-                      + ansi::idx(prop::head) + ansi::nop()
-                      + ansi::cup(dot_00).rlf(feed::rev).jet(bias::right)
-                      + ansi::idx(prop::foot);
+                    + ansi::wrp(wrap::off).rtl(rtol::ltr).rlf(feed::fwd).jet(bias::left).mgr(1).mgl(1)
+                    + ansi::idx(prop::head) + ansi::nop()
+                    + ansi::cup(dot_00).rlf(feed::rev).jet(bias::right)
+                    + ansi::idx(prop::foot);
 
                 boss.SUBMIT_T(e2::release, e2::form::upon::redrawn, memo, canvas)
                 {
@@ -2760,6 +2703,20 @@ namespace netxs::console
                 {
                     caption = footer();
                 };
+            }
+
+            title(base&&) = delete;
+            title(base& boss)
+                : skill{ boss }
+            {
+                init();
+            }
+            title(base& boss, view title, bool visible = true)
+                : skill{ boss }
+            {
+                init();
+                header(title);
+                live = visible;
             }
         };
 
@@ -4829,7 +4786,7 @@ again:
 
     // console: Client's gate.
     class gate
-        : public form
+        : public base
     {
         pro::keybd keybd{*this }; // gate: Keyboard controller.
         pro::robot robot{*this }; // gate: Animation controller.
@@ -4845,6 +4802,10 @@ again:
         using pair = std::optional<std::pair<period, iota>>;
         pair  yield; // gate: Indicator that the current frame has been successfully STDOUT.
         para uname; // gate: Client name.
+
+        //todo cache specific
+        sptr<face> coreface;
+        face& canvas; // .: Form cache.
 
     public:
         // todo unify
@@ -4902,7 +4863,7 @@ again:
                 {
                     auto stamp = tempus::now();
                     //if (render_scene(form::canvas, gate::title.titles()) || !yield) // Put the world on my canvas
-                    if (render_scene(form::canvas, watermark) || !yield) // Put the world on my canvas
+                    if (render_scene(canvas, watermark) || !yield) // Put the world on my canvas
                     {
                         // Update objects under mouse cursor
                         //input.fire(e2::hids::mouse::hover);
@@ -4916,7 +4877,7 @@ again:
                         #endif // DEBUG_OVERLAY
 
                         // in order to draw debug overlay, maker, titles, etc
-                        this->SIGNAL(e2::release, e2::form::upon::redrawn, form::canvas);
+                        this->SIGNAL(e2::release, e2::form::upon::redrawn, canvas);
                         #ifdef DEBUG_OVERLAY
                             if ((yield = paint.commit(canvas)))
                             {
@@ -4926,7 +4887,7 @@ again:
                             }
                             debug.update(stamp);
                         #else
-                            yield = paint.commit(form::canvas); // Try output my canvas to the my console.
+                            yield = paint.commit(canvas); // Try output my canvas to the my console.
                         #endif // DEBUG_OVERLAY
                     }
                 };
@@ -4937,7 +4898,14 @@ again:
 
     protected:
         gate(view user_name)
+            : canvas{*(coreface = std::make_shared<face>())}
         {
+            //todo cache specific
+            canvas.link(bell::id);
+            SUBMIT(e2::release, base::size_event, new_sz) { canvas.mark(base::brush); canvas.size(new_sz); };
+            SUBMIT(e2::release, base::move_event, new_xy) { canvas.move(new_xy); };
+            SUBMIT(e2::request, e2::form::canvas, canvas) { canvas = coreface; };
+
             //todo unify
             uname = user_name;
 
@@ -5082,7 +5050,11 @@ again:
             {
                 auto area = canvas.area();
                 area.coor-= parent_canvas.area().coor;
-                parent_canvas.fill(area, skin::color(tone::shadow));
+
+                //todo revise
+                auto mark = skin::color(tone::shadow);
+                mark.bga(mark.bga() / 2);
+                parent_canvas.fill(area, [&](cell& c){ c.fuse(mark); });
             }
         }
         // gate: .

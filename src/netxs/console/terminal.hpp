@@ -470,7 +470,7 @@ namespace netxs::ui
 
     // terminal: Built-in terminal app.
     class term
-        : public ui_control<term>
+        : public form<term>
     {
         #ifndef DEMO
         pro::keybd keybd{ *this }; // term: Keyboard controller.
@@ -1275,6 +1275,8 @@ namespace netxs::ui
         rect viewport = { dot_00, dot_11 }; // term: Viewport.
         para     status; // term: Status line.
         os::cons ptycon; // term: PTY device.
+        hook oneshot_resize_token; // term: First resize subscription token.
+        text cmdline;
 
         static constexpr iota default_size = 20000;
         static constexpr iota default_step = 0;
@@ -1490,12 +1492,13 @@ namespace netxs::ui
         }
 
     public:
-        term(twod initial_window_size, text cmd_line, iota max_scrollback_size = default_size, iota grow_step = default_step)
+        term(text cmd_line, iota max_scrollback_size = default_size, iota grow_step = default_step)
             : mtracker{ *this },
               ftracker{ *this },
               winprops{ *this },
-              normal  { *this, max_scrollback_size  , grow_step },
-              altbuf  { *this, initial_window_size.y, 0         },
+              cmdline { cmd_line },
+              normal  { *this, max_scrollback_size, grow_step },
+              altbuf  { *this, 1                  , 0         },
               target  { &normal }
         {
             caret.show();
@@ -1507,6 +1510,44 @@ namespace netxs::ui
             SUBMIT(e2::release, e2::form::upon::vtree::attached, parent)
             {
                 this->base::riseup<e2::request, e2::form::prop::header>(winprops.get(ansi::OSC_TITLE));
+                this->SUBMIT_T(e2::release, e2::form::layout::size, oneshot_resize_token, new_size)
+                {
+                    if (new_size.y > 0)
+                    {
+                        oneshot_resize_token.reset();
+                        altbuf.resize<faux>(new_size.y);
+                        this->SUBMIT(e2::preview, e2::form::layout::size, new_size)
+                        {
+                            auto old_caret_pos = caret.coor();
+                            auto caret_seeable = caret && viewport.hittest(old_caret_pos);
+                            viewport.size = new_size;
+                            altbuf.resize<faux>(new_size.y);
+
+                            if (target == &normal) target->remove_empties();
+
+                            oversize.set(target->recalc_pads());
+                            caret.set(target->get_caret());
+
+                            auto scrollback_size = target->frame_size();
+                            new_size.y = std::max(new_size.y, scrollback_size.y);
+                            target->rebuild_viewport();
+
+                            //viewport.set(...);
+                            if (caret_seeable)// && !viewport.hittest(caret_xy))
+                            {
+                                if (auto delta = old_caret_pos - viewport.clip(caret.coor()))
+                                {
+                                    auto v0 = viewport; v0.coor.x = 0;
+                                    auto new_coor = base::coor.get() - delta;
+                                    if (v0.hittest(caret.coor())) new_coor.x = 0;
+                                    this->SIGNAL(e2::release, base::move_event, new_coor);
+                                }
+                            }
+                            ptycon.resize(viewport.size);
+                        };
+                        ptycon.start(cmdline, new_size, [&](auto utf8_shadow) { input_hndl(utf8_shadow); });
+                    }
+                };
             };
             SUBMIT(e2::release, e2::hids::keybd::any, gear)
             {
@@ -1553,38 +1594,6 @@ namespace netxs::ui
                     log("key strokes bin: ", d.str());
                 #endif
             };
-            SUBMIT(e2::preview, e2::form::layout::size, new_size)
-            {
-                auto old_caret_pos = caret.coor();
-                auto caret_seeable = caret && viewport.hittest(old_caret_pos);
-
-                viewport.size = new_size;
-                altbuf.resize<faux>(new_size.y);
-
-                if (target == &normal) target->remove_empties();
-
-                oversize.set(target->recalc_pads());
-                caret.set(target->get_caret());
-
-
-                auto scrollback_size = target->frame_size();
-                new_size.y = std::max(new_size.y, scrollback_size.y);
-                target->rebuild_viewport();
-
-                //viewport.set(...);
-                if (caret_seeable)// && !viewport.hittest(caret_xy))
-                {
-                    if (auto delta = old_caret_pos - viewport.clip(caret.coor()))
-                    {
-                        auto v0 = viewport; v0.coor.x = 0;
-                        auto new_coor = base::coor.get() - delta;
-                        if (v0.hittest(caret.coor())) new_coor.x = 0;
-                        this->SIGNAL(e2::release, base::move_event, new_coor);
-                    }
-                }
-
-                ptycon.resize(viewport.size);
-            };
             SUBMIT(e2::release, e2::form::layout::move, new_coor)
             {
                 viewport.coor = -new_coor;
@@ -1600,8 +1609,6 @@ namespace netxs::ui
                 status.lyric->move(area.coor);
                 parent_canvas.fill(*status.lyric);
             };
-
-            ptycon.start(cmd_line, initial_window_size, [&](auto utf8_shadow) { input_hndl(utf8_shadow); });
         }
 
         // term/base: Output to the canvas.

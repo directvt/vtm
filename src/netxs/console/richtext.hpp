@@ -321,18 +321,18 @@ namespace netxs::console
             return static_cast<utf::text>(yield);
         }
         template<class P>
-        void cage(ui::rect const& area, twod const& edge, P fuse) // core: Draw the cage around specified area.
+        void cage(ui::rect const& area, twod const& border_width, P fuse) // core: Draw the cage around specified area.
         {
             auto temp = area;
-            temp.size.y = edge.y; // Top
+            temp.size.y = border_width.y; // Top
             fill(temp, fuse);
-            temp.coor.y += area.size.y - edge.y; // Bottom
+            temp.coor.y += area.size.y - border_width.y; // Bottom
             fill(temp, fuse);
-            temp.size.x = edge.x; // Left
-            temp.size.y = area.size.y - edge.y * 2;
-            temp.coor.y = area.coor.y + edge.y;
+            temp.size.x = border_width.x; // Left
+            temp.size.y = area.size.y - border_width.y * 2;
+            temp.coor.y = area.coor.y + border_width.y;
             fill(temp, fuse);
-            temp.coor.x += area.size.x - edge.x; // Right
+            temp.coor.x += area.size.x - border_width.x; // Right
             fill(temp, fuse);
         }
         template<class TEXT>
