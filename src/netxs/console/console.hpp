@@ -1643,23 +1643,112 @@ namespace netxs::console
         };
 
         // pro: Provides shared storage for the states of type T::sock.
-        template<class T>
-        class multi
+        class grips
             : public skill
         {
             using skill::boss,
                   skill::memo;
-            struct sock : public T::sock
+
+            struct sock
             {
-                using T::sock::sock; // Inherit ctor.
+                id_t      id; // sock: Hids ID.
+                bool  wholly; // sock: Should the whole border be visible.
+                bool  direct; // sock: Direct or indirect mouse hovering.
+                twod  origin; // sock: Grab's initial coord info.
+                twod  dtcoor; // sock: The form coor parameter change factor while resizing.
+                twod  dtsize; // sock: The form size parameter change factor while resizing.
+                twod  sector; // sock: Active quadrant, x,y = {-1|+1}. Border widths.
+                twod  corner; // sock: Coordinates of the active corner.
+                twod  levels; // sock: The lengths of the grips (a corner based, signed).
                 iota count = 0;
+
+                sock(id_t ctrl, bool self)
+                    :     id{ ctrl },
+                      wholly{ faux },
+                      direct{ self }
+                { }
+                // sock: Assign the borders/resize-grips length.
+                template<class P>
+                void draw(base const& master, core& canvas, P fuse)
+                {
+                    //auto c = corner.less(dot_11, dot_00, length);
+                    //todo revise
+                    //auto c = master.base::coor.get() + corner.less(dot_11, dot_00, length);
+                    //auto square = master.base::square();
+                    //auto c = area.coor
+                    auto s = master.base::square();
+                    auto c = s.coor - canvas.coor() + corner.less(dot_11, dot_00, s.size);
+                    //todo bug: levels can be larger than form itself
+                    // repro: comment .clip(area), create a recursive connection,
+                    //        place the mouse cursor in the bottom right corner
+                    //        quickly resize by dragging the top-left corner to the max and back.
+                    auto area = canvas.view();
+                    auto side_x = rect{ c, { levels.x, sector.y } }.normalize().clip(area);
+                    c.y += levels.y > 0 ? 1 : -1;
+                    auto side_y = rect{ c, { sector.x, levels.y } }.normalize().clip(area);
+                    canvas.fill(side_x, fuse);
+                    canvas.fill(side_y, fuse);
+                }
+                // sock: Take the current coordinates of the mouse relative to the corresponding corner.
+                void grab(base const& master, twod const& curpos)
+                {
+                    auto center = master.base::size.get() / 2;
+                    origin = curpos - (wholly ? center : corner);
+                }
+                bool calc(base const& master, hids const& gear)
+                {
+                    auto square = master.base::square();
+                    auto& length = square.size;
+
+                    auto middle = rect{ length / 3, length };
+                    middle.size -= middle.coor * 2;
+
+                     auto center = std::max(length / 2, dot_11);
+                    auto& curpos = gear.coord;
+                    if (!gear.captured(master.bell::id))
+                    {
+                        wholly = !direct
+                              ||  middle.hittest(curpos)
+                              || !length.inside(curpos);
+                        dtcoor = curpos.less(center + (length & 1), dot_11, dot_00);
+                        dtsize = dtcoor.less(dot_11, dot_11,-dot_11);
+                        sector = dtcoor.less(dot_11,-dot_11, dot_11);
+                    }
+                    corner = dtcoor.less(dot_11, length - dot_11, dot_00);
+                    auto l = sector * (curpos - corner) + dot_11;
+                    auto a = (length - center) * l / center;
+                    auto b = (center - dot_11) *~l /~center;
+                    auto s = std::clamp(a - b + center, dot_22, std::max(dot_22, length));
+                    s.y -= 1; // To avoid grpis overlapping at the corner
+                    return levels(sector * s);
+                }
+                // sock: .
+                void drag(base& master, twod const& coord)
+                {
+                    auto delta = coord - origin;
+                    if (wholly)
+                    {
+                        auto center = master.base::size.get() / 2;
+                        delta -= center;
+                        master.base::moveby(delta);
+                    }
+                    else
+                    {
+                        delta -= corner;
+                        if (auto dxdy = master.base::sizeby(delta * dtsize))
+                        {
+                            master.base::moveby(-dxdy * dtcoor);
+                        }
+                    }
+                }
             };
+
             using list = std::vector<sock>;
             list depo;
 
         public:
-            multi(T&&) = delete;
-            multi(T& boss) : skill{ boss }
+            grips(base&&) = delete;
+            grips(base& boss) : skill{ boss }
             {
                 boss.SUBMIT_T(e2::release, e2::form::notify::mouse::enter, memo, gear)
                 {
@@ -1699,6 +1788,25 @@ namespace netxs::console
             auto& items()
             {
                 return depo;
+            }
+            // pro::grips: Configuring the mouse button to operate.
+            template<sysmouse::bttns button>
+            void engage()
+            {
+                boss.SUBMIT(e2::release, e2::message(e2::form::drag::start::any, button), gear)
+                {
+                    depo.operator[](gear).grab(boss, gear.coord);
+                };
+                boss.SUBMIT(e2::release, e2::message(e2::form::drag::pull::any, button), gear)
+                {
+                    depo.operator[](gear).drag(boss, gear.coord);
+                };
+                boss.SUBMIT(e2::release, e2::message(e2::form::drag::cancel::any, button), gear)
+                {
+                };
+                boss.SUBMIT(e2::release, e2::message(e2::form::drag::stop::any, button), gear)
+                {
+                };
             }
         };
 
@@ -3624,9 +3732,9 @@ namespace netxs::console
     class host
         : public base
     {
-        #ifdef DEMO
+        #ifndef PROD
         pro::watch zombi{*this }; // host: Zombie protection.
-        #endif // DEMO
+        #endif
         pro::robot robot{*this }; // host: Amination controller.
         pro::keybd keybd{*this }; // host: Keyboard controller.
         pro::mouse mouse{*this }; // host: Mouse controller.
@@ -3859,7 +3967,7 @@ namespace netxs::console
 
                 view strv = total;
 
-                #ifdef DEMO
+                #ifndef PROD
                 if (close)
                 {
                     close = faux;
@@ -3872,7 +3980,7 @@ namespace netxs::console
                         return;
                     }
                 }
-                #endif /// DEMO
+                #endif
                 //int g = 0;
 
 
@@ -3886,7 +3994,7 @@ namespace netxs::console
                     {
                         ++pos;
 
-                        #ifdef DEMO
+                        #ifndef PROD
                         if (pos == len) // the only one esc
                         {
                             close = true;
@@ -3921,7 +4029,7 @@ namespace netxs::console
                             //strv = total;
                             break;
                         }
-                        #endif /// DEMO
+                        #endif
                         else if (strv.at(pos) == '[')
                         {
                             if (++pos == len) { total = strv; break; }//incomlpete
@@ -4789,6 +4897,7 @@ again:
         : public base
     {
         pro::keybd keybd{*this }; // gate: Keyboard controller.
+        pro::mouse mouse{*this }; // gate: Mouse controller.
         pro::robot robot{*this }; // gate: Animation controller.
         pro::maker maker{*this }; // gate: Form generator.
         pro::title title{*this }; // gate: Logo watermark.
@@ -4908,12 +5017,24 @@ again:
 
             //todo unify
             uname = user_name;
-
-            using bttn = e2::hids::mouse::button;
-            //using keyb = e2::hids::keybd; //MSVC 16.9.4 don't get it
-
             title.live = faux;
-
+            mouse.draggable<sysmouse::leftright>();
+            SUBMIT(e2::release, e2::form::drag::start::leftright, gear)
+            {
+                robot.pacify();
+            };
+            SUBMIT(e2::release, e2::form::drag::pull::leftright, gear)
+            {
+                base::moveby(-gear.delta.get());
+            };
+            SUBMIT(e2::release, e2::form::drag::stop::leftright, gear)
+            {
+                robot.pacify();
+                robot.actify(gear.mouse::fader<quadratic<twod>>(2s), [&](auto& x)
+                             {
+                                base::moveby(-x);
+                             });
+            };
             //todo unify (use uibar)
             SUBMIT(e2::preview, e2::form::prop::footer, newfooter)
             {
@@ -4936,7 +5057,6 @@ again:
                     world->SIGNAL(e2::release, e2::form::proceed::createby, gear);
                 }
             };
-
             SUBMIT(e2::preview, e2::hids::keybd::any, gear)
             {
                 //todo unify
@@ -4970,45 +5090,6 @@ again:
                     }
                 }
             };
-
-            SUBMIT(e2::release, bttn::drag::start::leftright, gear)
-            {
-                if (gear.capture(bell::id))
-                {
-                    robot.pacify();
-                    gear.dismiss();
-                }
-            };
-            SUBMIT(e2::release, bttn::drag::pull::leftright, gear)
-            {
-                if (gear.captured(bell::id))
-                {
-                    base::moveby(-gear.delta.get());
-                    gear.dismiss();
-                }
-            };
-            SUBMIT(e2::release, bttn::drag::cancel::leftright, gear)
-            {
-                if (gear.captured(bell::id))
-                {
-                    gear.release();
-                    gear.dismiss();
-                }
-            };
-            SUBMIT(e2::release, bttn::drag::stop::leftright, gear)
-            {
-                if (gear.captured(bell::id))
-                {
-                    gear.release();
-                    robot.pacify();
-                    robot.actify(gear.mouse::fader<quadratic<twod>>(2s), [&](auto& x)
-                                 {
-                                    base::moveby(-x);
-                                 });
-                    gear.dismiss();
-                }
-            };
-
             SUBMIT(e2::release, e2::form::layout::shift, newpos)
             {
                 auto window = canvas.area();
@@ -5023,20 +5104,10 @@ again:
                                      moveby(-x);
                                  });
             };
-
-            //SUBMIT(e2::preview, e2::form::layout::size, newsz)
-            //{
-            //    if (uibar) uibar->SIGNAL(e2::preview, e2::form::layout::size, newsz);
-            //};
-            //SUBMIT(e2::release, e2::form::layout::size, newsz)
-            //{
-            //    if (uibar) uibar->SIGNAL(e2::release, e2::form::layout::size, newsz);
-            //};
             SUBMIT(e2::release, e2::form::layout::size, newsz)
             {
                 if (uibar) uibar->base::resize(newsz);
             };
-
         }
 
         // gate: Draw the form composition on the specified canvas.

@@ -46,6 +46,7 @@ namespace netxs::ui
 
     public:
         pro::mouse mouse{ *this }; // form: Mouse controller.
+        pro::keybd keybd{ *this }; // form: Keybd controller.
 
         form()
         {
@@ -149,187 +150,39 @@ namespace netxs::ui
     class mold
         : public form<mold>
     {
-    public:
-        struct sock
-        {
-            id_t      id; // sock: Hids ID.
-            bool  wholly; // sock: Should the whole border be visible.
-            bool  direct; // sock: Direct or indirect mouse hovering.
-            twod  origin; // sock: Grab's initial coord info.
-            twod  dtcoor; // sock: The form coor parameter change factor while resizing.
-            twod  dtsize; // sock: The form size parameter change factor while resizing.
-            twod  sector; // sock: Active quadrant, x,y = {-1|+1}. Border widths.
-            twod  corner; // sock: Coordinates of the active corner.
-            twod  levels; // sock: The lengths of the grips (a corner based, signed).
-            //twod  widths; // sock: Border widths.
-
-            sock(id_t ctrl, bool self)
-                :     id{ ctrl },
-                  wholly{ faux },
-                  direct{ self }
-            { }
-            // sock: Assign the borders/resize-grips length.
-            template<class P>
-            void draw(mold const& master, core& canvas, P fuse)
-            {
-                //auto c = corner.less(dot_11, dot_00, length);
-                //todo revise
-                //auto c = master.base::coor.get() + corner.less(dot_11, dot_00, length);
-                //auto square = master.base::square();
-                //auto c = area.coor
-                auto s = master.base::square();
-                auto c = s.coor - canvas.coor() + corner.less(dot_11, dot_00, s.size);
-                //todo bug: levels can be larger than form itself
-                // repro: comment .clip(area), create a recursive connection,
-                //        place the mouse cursor in the bottom right corner
-                //        quickly resize by dragging the top-left corner to the max and back.
-                auto area = canvas.view();
-                auto side_x = rect{ c, { levels.x, sector.y } }.normalize().clip(area);
-                c.y += levels.y > 0 ? 1 : -1;
-                auto side_y = rect{ c, { sector.x, levels.y } }.normalize().clip(area);
-                canvas.fill(side_x, fuse);
-                canvas.fill(side_y, fuse);
-            }
-            // sock: Take the current coordinates of the mouse relative to the corresponding corner.
-            void grab(mold const& master, twod const& curpos)
-            {
-                auto center = master.base::size.get() / 2;
-                origin = curpos - (wholly ? center : corner);
-            }
-            bool calc(mold const& master, hids const& gear)
-            {
-                auto square = master.base::square();
-                auto& length = square.size;
-
-                auto middle = rect{ length / 3, length };
-                middle.size -= middle.coor * 2;
-
-                auto center = std::max(length / 2, dot_11);
-                auto& curpos = gear.coord;
-                if (!gear.captured(master.bell::id))
-                {
-                    wholly = !direct
-                          ||  middle.hittest(curpos)
-                          || !length.inside(curpos);
-
-                    dtcoor = curpos.less(center + (length & 1), dot_11, dot_00);
-                    dtsize = dtcoor.less(dot_11, dot_11,-dot_11);
-                    sector = dtcoor.less(dot_11,-dot_11, dot_11);
-                }
-                corner = dtcoor.less(dot_11, length - dot_11, dot_00);
-                auto l = sector * (curpos - corner) + dot_11;
-                auto a = (length - center) * l / center;
-                auto b = (center - dot_11) *~l /~center;
-                auto s = std::clamp(a - b + center, dot_22, std::max(dot_22, length));
-                s.y -= 1; // To avoid grpis overlapping at the corner
-
-                return levels(sector * s);
-            }
-            // sock: .
-            void drag(mold& master, twod const& coord)
-            {
-                auto delta = coord - origin;
-                if (wholly)
-                {
-                    auto center = master.base::size.get() / 2;
-                    delta -= center;
-                    master.base::moveby(delta);
-                }
-                else
-                {
-                    delta -= corner;
-                    if (auto dxdy = master.base::sizeby(delta * dtsize))
-                    {
-                        master.base::moveby(-dxdy * dtcoor);
-                    }
-                }
-            }
-        };
-
-    private:
-        pro::keybd keybd{*this }; // mold: Keyboard controller.
-        pro::robot robot{*this }; // mold: Animation controller.
-        pro::frame frame{*this }; // mold: Window controller.
-        pro::align align{*this }; // mold: Size linking controller.
-        pro::multi<mold> shared{*this }; // mold: The shared border states.
-
-        bool active; // mold: Keyboard focus.
+        //todo cache specific
         sptr<face> coreface;
-
-    public:
-        face& canvas; // .: Form cache.
         sptr<base> client; // mold: Client object.
-
-        bool blurred = faux; // mold: Use acryllic background.
-        iota acryl = 0; // mold: Blur radius.
+        face& canvas; // .: Form cache.
+    public:
         rgba title_fg_color = 0xFFffffff;
+        bool only_frame = faux;
+        iota acryl = 0; // mold: Blur radius.
+        bool blurred = faux; // mold: Use acryllic background.
         bool highlight_center = true;
         bool highlighted = faux;
-        bool only_frame = faux;
+        bool active = faux; // mold: Keyboard focus.
 
         ~mold()
         {
-            log("mold: dtor ", this);
             if (client) client->base::detach();
         }
         mold()
-            : active{ faux }, 
-            canvas{*(coreface = std::make_shared<face>())}
+            : canvas{*(coreface = std::make_shared<face>())}
         {
             canvas.link(bell::id);
             SUBMIT(e2::release, base::size_event, new_sz) { canvas.size(new_sz); };
             SUBMIT(e2::release, base::move_event, new_xy) { canvas.move(new_xy); };
             SUBMIT(e2::request, e2::form::canvas, canvas) { canvas = coreface; };
 
-            mouse.take_all_events(faux);
-            mouse.draggable<sysmouse::left>();
-            using bttn = e2::hids::mouse::button;
-
             SUBMIT(e2::release, e2::form::state::keybd, status)
             {
                 active = status;
                 base::deface();
             };
-            //todo unify
             SUBMIT(e2::release, e2::form::highlight::any, state)
             {
                 highlighted = state;
-            };
-            SUBMIT(e2::release, e2::form::state::mouse, mouse_active)
-            {
-                base::deface();
-            };
-
-            SUBMIT(e2::preview, bttn::click::left, gear)
-            {
-                frame.expose();
-            };
-            SUBMIT(e2::release, bttn::click::left, gear)
-            {
-                auto square = base::square();
-                if (!square.size.inside(gear.coord))
-                {
-                    auto center = square.coor + (square.size / 2);
-                    bell::getref(gear.id)->
-                        SIGNAL(e2::release, e2::form::layout::shift, center);
-                }
-                base::deface();
-            };
-            SUBMIT(e2::release, bttn::click::right, gear)
-            {
-                auto square = base::square();
-                auto coord = gear.coord + square.coor;
-                if (!square.hittest(coord))
-                {
-                    frame.appear(coord);
-                }
-                gear.dismiss();
-            };
-
-            SUBMIT(e2::release, e2::hids::mouse::move, gear)
-            {
-                auto& handle = shared[gear];
-                handle.calc(*this, gear);
                 base::deface();
             };
 
@@ -337,84 +190,11 @@ namespace netxs::ui
             {
                 if (client)
                     client->SIGNAL(e2::preview, e2::form::layout::size, new_size);
-                // Reset canvas brush to nothing to avoid double filling.
-                //form::canvas.mark(cell{}).link(bell::id);
-                //canvas.mark(whitespace).link(bell::id);
             };
             SUBMIT(e2::release, e2::form::layout::size, new_size)
             {
                 if (client)
                     client->SIGNAL(e2::release, e2::form::layout::size, new_size);
-            };
-
-            SUBMIT(e2::release, e2::form::drag::start::left, gear)
-            {
-                auto& handle = shared[gear];
-                handle.grab(*this, gear.coord);
-                robot.pacify();
-            };
-            SUBMIT(e2::release, e2::form::drag::pull::left, gear)
-            {
-                auto& handle = shared[gear];
-                handle.drag(*this, gear.coord);
-                frame.bubble();
-            };
-            SUBMIT(e2::release, e2::form::drag::cancel::left, gear)
-            {
-                base::deface();
-            };
-            SUBMIT(e2::release, e2::form::drag::stop::left, gear)
-            {
-                auto& handle = shared[gear];
-                if (handle.wholly)
-                {
-                    robot.actify(gear.fader<quadratic<twod>>(2s), [&](auto x)
-                        {
-                            base::moveby(x);
-                        });
-                }
-                else
-                {
-                    auto boundary = gear.area();
-                    robot.actify(gear.fader<quadratic<twod>>(2s), [&, boundary](auto x)
-                        {
-                            frame.convey(x, boundary);
-                        });
-                }
-                base::deface();
-            };
-
-            SUBMIT(e2::release, bttn::dblclick::left, gear)
-            {
-                auto size = base::size.get();
-                if (size.inside(gear.coord))
-                {
-                    if (align.seized(gear.id)) align.unbind();
-                    else                        align.follow(gear.id, dot_00);
-                    gear.dismiss();
-                }
-            };
-            SUBMIT(e2::release, bttn::click::leftright, gear)
-            {
-                base::detach();
-                gear.dismiss();
-            };
-            SUBMIT(e2::release, bttn::click::middle, gear)
-            {
-                base::detach();
-                gear.dismiss();
-            };
-            SUBMIT(e2::release, e2::form::proceed::detach, shadow)
-            {
-                base::detach(); // The object kills itself.
-            };
-            SUBMIT(e2::preview, e2::form::proceed::detach, shadow)
-            {
-                if (client == shadow)
-                {
-                    client.reset();
-                    shadow->SIGNAL(e2::release, e2::form::upon::vtree::detached, This());
-                }
             };
         }
         virtual void postrender (face& parent_canvas)
@@ -463,6 +243,7 @@ namespace netxs::ui
                 return;
             }
 
+            auto& shared = plugins<pro::grips>();
             auto& guests = shared.items();
             //todo temporarily use locked for old menu
             //if (locked || (guests.empty() && !active)) //if (loosen)
@@ -547,7 +328,10 @@ namespace netxs::ui
         {
             client = item;
             item->SIGNAL(e2::release, e2::form::upon::vtree::attached, This());
+
+            //todo cache specific
             SIGNAL(e2::general, e2::form::canvas, canvas.shared_from_this());
+
             return item;
         }
         // mold: Create a new item of the specified subtype and attach it.
@@ -555,6 +339,15 @@ namespace netxs::ui
         auto attach(Args&&... args)
         {
             return attach(base::create<T>(std::forward<Args>(args)...));
+        }
+        // mold: Remove nested object by it's ptr.
+        void remove(sptr<base> item_ptr)
+        {
+            if (client == item_ptr)
+            {
+                client.reset();
+                item_ptr->SIGNAL(e2::release, e2::form::upon::vtree::detached, This());
+            }
         }
     };
 
@@ -860,7 +653,6 @@ namespace netxs::ui
             return attach<SLOT>(create<T>(std::forward<Args>(args)...));
         }
         // fork: Remove nested object by it's ptr.
-        //template<class T>
         void remove(sptr<base> item_ptr)
         {
             if (client_1 == item_ptr ? (client_1.reset(), true) :

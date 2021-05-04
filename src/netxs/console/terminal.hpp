@@ -472,11 +472,7 @@ namespace netxs::ui
     class term
         : public form<term>
     {
-        #ifndef DEMO
-        pro::keybd keybd{ *this }; // term: Keyboard controller.
-        #endif
         pro::caret caret{ *this }; // term: Caret controller.
-        //pro::mouse<term> mouse{ *this }; // term: Mouse controller.
 
         // term: VT-mouse tracking functionality.
         struct mtracking
@@ -1503,8 +1499,8 @@ namespace netxs::ui
         {
             caret.show();
 
-            #ifndef DEMO
-            keybd.accept(true); // Subscribe to keybd offers.
+            #ifdef PROD
+            form::keybd.accept(true); // Subscribe to keybd offers.
             #endif
 
             SUBMIT(e2::release, e2::form::upon::vtree::attached, parent)

@@ -1,9 +1,11 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#define DEMO
 #define MONOTTY_VER "Monotty Desktopio Preview v0.3.4"
-//#define PROD
+// Autostart demo apps.
+#define DEMO
+// Enable keyboard input and disable exit by single Esc.
+#define PROD
 
 // Terminal's default line wrapping mode.
 #define WRAPPING (wrap::on)
@@ -326,7 +328,7 @@ public:
         caret.show();
         caret.coor(dot_01);
 
-        #ifdef DEMO
+        #ifndef PROD
         topic.maxlen(400);
         #else
         topic.maxlen(10000);
@@ -1315,8 +1317,118 @@ utility like ctags is used to locate the definitions.
         //todo use XAML for that
         auto create = [&](objs type, auto location) -> auto
         {
-            auto window = base::create<ui::mold>();
-            window->limits(dot_33, { 400,200 }); //todo unify, set via config
+            sptr<ui::mold> window = base::create<ui::mold>()
+                            ->plugin<pro::limit>(dot_33, twod{ 400,200 }) //todo unify, set via config
+                            ->plugin<pro::align>()
+                            ->plugin<pro::frame>()
+                            ->plugin<pro::robot>()
+                            ->plugin<pro::grips>()
+                            ->invoke([&](ui::mold& boss){
+                                // Define basic behavior of application window.
+                                boss.mouse.take_all_events(faux);
+                                boss.mouse.draggable<sysmouse::left>();
+                                //auto& grips = boss.plugins<pro::grips>();
+                                //grips.engage<sysmouse::left>();
+                                boss.SUBMIT(e2::preview, e2::hids::mouse::button::click::left, gear)
+                                {
+                                    auto& frame = boss.plugins<pro::frame>();
+                                    frame.expose();
+                                };
+                                boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
+                                {
+                                    auto square = boss.base::square();
+                                    if (!square.size.inside(gear.coord))
+                                    {
+                                        auto center = square.coor + (square.size / 2);
+                                        bell::getref(gear.id)->
+                                            SIGNAL(e2::release, e2::form::layout::shift, center);
+                                    }
+                                    boss.base::deface();
+                                };
+                                boss.SUBMIT(e2::release, e2::hids::mouse::button::click::right, gear)
+                                {
+                                    auto square = boss.base::square();
+                                    auto coord = gear.coord + square.coor;
+                                    if (!square.hittest(coord))
+                                    {
+                                        auto& frame = boss.plugins<pro::frame>();
+                                        frame.appear(coord);
+                                    }
+                                    gear.dismiss();
+                                };
+                                boss.SUBMIT(e2::release, e2::hids::mouse::move, gear)
+                                {
+                                    auto& grips = boss.plugins<pro::grips>();
+                                    grips[gear].calc(boss, gear);
+                                    boss.base::deface();
+                                };
+                                boss.SUBMIT(e2::release, e2::form::drag::start::left, gear)
+                                {
+                                    auto& grips = boss.plugins<pro::grips>();
+                                    grips[gear].grab(boss, gear.coord);
+                                    auto& robot = boss.plugins<pro::robot>();
+                                    robot.pacify();
+                                };
+                                boss.SUBMIT(e2::release, e2::form::drag::pull::left, gear)
+                                {
+                                    auto& grips = boss.plugins<pro::grips>();
+                                    grips[gear].drag(boss, gear.coord);
+                                    auto& frame = boss.plugins<pro::frame>();
+                                    frame.bubble();
+                                };
+                                boss.SUBMIT(e2::release, e2::form::drag::cancel::left, gear)
+                                {
+                                    boss.base::deface();
+                                };
+                                boss.SUBMIT(e2::release, e2::form::drag::stop::left, gear)
+                                {
+                                    auto& robot = boss.plugins<pro::robot>();
+                                    auto& grips = boss.plugins<pro::grips>();
+                                    if (grips[gear].wholly)
+                                    {
+                                        robot.actify(gear.fader<quadratic<twod>>(2s), [&](auto x)
+                                            {
+                                                boss.base::moveby(x);
+                                            });
+                                    }
+                                    else
+                                    {
+                                        auto& frame = boss.plugins<pro::frame>();
+                                        auto boundary = gear.area();
+                                        robot.actify(gear.fader<quadratic<twod>>(2s), [&, boundary](auto x)
+                                            {
+                                                frame.convey(x, boundary);
+                                            });
+                                    }
+                                    boss.base::deface();
+                                };
+                                boss.SUBMIT(e2::release, e2::hids::mouse::button::dblclick::left, gear)
+                                {
+                                    auto& align = boss.plugins<pro::align>();
+                                    auto size = boss.base::size.get();
+                                    if (size.inside(gear.coord))
+                                    {
+                                        if (align.seized(gear.id)) align.unbind();
+                                        else                       align.follow(gear.id, dot_00);
+                                        gear.dismiss();
+                                    }
+                                };
+                                boss.SUBMIT(e2::release, e2::hids::mouse::button::click::leftright, gear)
+                                {
+                                    boss.base::detach();
+                                    gear.dismiss();
+                                };
+                                boss.SUBMIT(e2::release, e2::hids::mouse::button::click::middle, gear)
+                                {
+                                    boss.base::detach();
+                                    gear.dismiss();
+                                };
+                                boss.SUBMIT(e2::release, e2::form::proceed::detach, shadow)
+                                {
+                                    boss.base::detach(); // The object kills itself.
+                                };
+                            });
+
             window->extend(location);
 
             switch (type)
@@ -1634,7 +1746,7 @@ utility like ctags is used to locate the definitions.
                         auto object = scroll->attach<ui::term>("wsl mc");
 
                     #elif defined(__linux__)
-                        #ifdef DEMO
+                        #ifndef PROD
                             auto object = scroll->attach<ui::term>("bash -c 'LC_ALL=en_US.UTF-8 mc -c -x -d'");
                          #else
                             auto object = scroll->attach<ui::term>("bash -c 'LC_ALL=en_US.UTF-8 mc -c -x'");
@@ -1682,7 +1794,7 @@ utility like ctags is used to locate the definitions.
                     auto layers = client->attach<ui::cake>();
                     auto scroll = layers->attach<ui::rail>();
 
-                    #ifdef DEMO
+                    #ifndef PROD
                         scroll->attach<ui::post>()
                               ->plugin<pro::color>(whitelt, blackdk)
                               ->upload(ansi::fgc(yellowlt).mgl(4).mgr(4).wrp(wrap::off)
@@ -1712,7 +1824,7 @@ utility like ctags is used to locate the definitions.
         {
             insts_count++;
             auto frame = create(obj_type, area);
-            #ifdef DEMO
+            #ifndef PROD
             if (insts_count > max_count)
             {
                 log("inst: max count reached");
@@ -1788,7 +1900,7 @@ utility like ctags is used to locate the definitions.
             while (i--) menu_list[i];
         }
 
-        #ifndef PROD
+        #ifdef DEMO
             auto sub_pos = twod{ 12+17, 0 };
             creator(objs::Test, { twod{ 22, 1  } + sub_pos, { 70, 21 } });
             creator(objs::Shop, { twod{ 4 , 6  } + sub_pos, { 80, 38 } });
@@ -1856,7 +1968,7 @@ utility like ctags is used to locate the definitions.
                     iota uibar_full_size = 32;
                     log("user: session name ", peer);
 
-                    #ifdef DEMO
+                    #ifndef PROD
                         auto username = "[User." + utf::remain(c_ip) + ":" + c_port + "]";
                     #else
                         auto username = _name;
@@ -2234,7 +2346,7 @@ utility like ctags is used to locate the definitions.
 
                     log("user: new gate for ", peer);
 
-                    #ifdef DEMO
+                    #ifndef PROD
                     client->proceed(peer, _region);
                     #else
                     client->proceed(peer, username);
