@@ -243,7 +243,7 @@ namespace netxs::ui
                 return;
             }
 
-            auto& shared = plugins<pro::grips>();
+            auto& shared = plugins<pro::sizer>();
             auto& guests = shared.items();
             //todo temporarily use locked for old menu
             //if (locked || (guests.empty() && !active)) //if (loosen)
@@ -1399,7 +1399,7 @@ namespace netxs::ui
 
     // controls: Scroll bar.
     template<axis AXIS>
-    class grip
+    class grip // rename to roll?
         : public base
     {
         pro::mouse mouse{*this }; // grip: Mouse events controller.

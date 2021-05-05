@@ -405,7 +405,7 @@ namespace netxs::events
         };
         struct form { enum : type {
                 any = e2::_form,
-                //_focus      = any | (1 << _level0),
+                _draggable  = any | (1 << _level0), // signal to the form to enable draggablity for specified mouse button (arg: bool)
                 _layout     = any | (2 << _level0),
                 _highlight  = any | (3 << _level0),
                 _upon       = any | (4 << _level0),
@@ -514,6 +514,15 @@ namespace netxs::events
             struct upevent { enum : type {
                     any = form::_upevent,
                     kboffer     = any | (1 << _level1), // inform nested objects that the keybd focus should be taken (arg: hids)
+            };};
+            struct draggable { enum : type {
+                    any = form::_draggable,
+                    left        = any | (1 << _level1),
+                    right       = any | (2 << _level1),
+                    leftright   = any | (3 << _level1),
+                    middle      = any | (4 << _level1),
+                    wheel       = any | (5 << _level1),
+                    win         = any | (6 << _level1),
             };};
             //struct client { enum : type {
             //		any = form::_client,

@@ -99,6 +99,14 @@ namespace netxs::console
         EVENT_BIND(e2::form::upevent::any, hids)
             EVENT_BIND(e2::form::upevent::kboffer , hids)
 
+        EVENT_BIND(e2::form::draggable::any, bool)
+            EVENT_BIND(e2::form::draggable::left     , bool)
+            EVENT_BIND(e2::form::draggable::leftright, bool)
+            EVENT_BIND(e2::form::draggable::middle   , bool)
+            EVENT_BIND(e2::form::draggable::right    , bool)
+            EVENT_BIND(e2::form::draggable::wheel    , bool)
+            EVENT_BIND(e2::form::draggable::win      , bool)
+
         EVENT_BIND(e2::form::canvas, sptr<core>)
         EVENT_BIND(e2::form::global::any, twod)
             EVENT_BIND(e2::form::global::ctxmenu , twod)
@@ -1632,7 +1640,7 @@ namespace netxs::console
     // console: Template modules for the base class behavior extension.
     namespace pro
     {
-        // pro:: Base class for plugins.
+        // pro: Base class for plugins.
         struct skill
         {
             base& boss;
@@ -1642,8 +1650,8 @@ namespace netxs::console
             virtual ~skill() = default; // In order to allow man derived class via base ptr.
         };
 
-        // pro: Provides shared storage for the states of type T::sock.
-        class grips
+        // pro: Provides resizing by dragging.
+        class sizer
             : public skill
         {
             using skill::boss,
@@ -1667,7 +1675,6 @@ namespace netxs::console
                       wholly{ faux },
                       direct{ self }
                 { }
-                // sock: Assign the borders/resize-grips length.
                 template<class P>
                 void draw(base const& master, core& canvas, P fuse)
                 {
@@ -1689,7 +1696,6 @@ namespace netxs::console
                     canvas.fill(side_x, fuse);
                     canvas.fill(side_y, fuse);
                 }
-                // sock: Take the current coordinates of the mouse relative to the corresponding corner.
                 void grab(base const& master, twod const& curpos)
                 {
                     auto center = master.base::size.get() / 2;
@@ -1722,7 +1728,6 @@ namespace netxs::console
                     s.y -= 1; // To avoid grpis overlapping at the corner
                     return levels(sector * s);
                 }
-                // sock: .
                 void drag(base& master, twod const& coord)
                 {
                     auto delta = coord - origin;
@@ -1747,8 +1752,8 @@ namespace netxs::console
             list depo;
 
         public:
-            grips(base&&) = delete;
-            grips(base& boss) : skill{ boss }
+            sizer(base&&) = delete;
+            sizer(base& boss) : skill{ boss }
             {
                 boss.SUBMIT_T(e2::release, e2::form::notify::mouse::enter, memo, gear)
                 {
@@ -1775,6 +1780,7 @@ namespace netxs::console
                             return;
                         }
                 };
+                //engage<sysmouse::left>();
             }
             auto& operator [](hids& gear)
             {
@@ -1782,30 +1788,142 @@ namespace netxs::console
                     if (item.id == gear.id)
                         return item;
 
-                log("pro::multi: error: access to unregistered input device, id:", gear.id);
+                log("pro::sizer: error: access to unregistered input device, id:", gear.id);
                 return depo.emplace_back(gear.id, gear.start == boss.bell::id);
             }
             auto& items()
             {
                 return depo;
             }
-            // pro::grips: Configuring the mouse button to operate.
+            // pro::sizer: Configuring the mouse button to operate.
             template<sysmouse::bttns button>
             void engage()
             {
+                boss.SIGNAL(e2::release, e2::message(e2::form::draggable::any, button), true);
                 boss.SUBMIT(e2::release, e2::message(e2::form::drag::start::any, button), gear)
                 {
-                    depo.operator[](gear).grab(boss, gear.coord);
+                    operator[](gear).grab(boss, gear.coord);
                 };
                 boss.SUBMIT(e2::release, e2::message(e2::form::drag::pull::any, button), gear)
                 {
-                    depo.operator[](gear).drag(boss, gear.coord);
+                    operator[](gear).drag(boss, gear.coord);
                 };
                 boss.SUBMIT(e2::release, e2::message(e2::form::drag::cancel::any, button), gear)
                 {
                 };
                 boss.SUBMIT(e2::release, e2::message(e2::form::drag::stop::any, button), gear)
                 {
+                };
+            }
+        };
+
+        // pro: Provides moving by dragging.
+        class mover
+            : public skill
+        {
+            using skill::boss,
+                  skill::memo;
+
+            struct sock
+            {
+                id_t      id; // sock: Hids ID.
+                twod  origin; // sock: Grab's initial coord info.
+                iota count = 0;
+
+                sock(id_t ctrl)
+                    :     id{ ctrl }
+                { }
+                void grab(base const& master, twod const& curpos)
+                {
+                    auto center = master.base::size.get() / 2;
+                    origin = curpos - center;
+                }
+                void drag(base& master, twod const& coord)
+                {
+                    auto delta = coord - origin;
+                    auto center = master.base::size.get() / 2;
+                    delta -= center;
+                    master.base::moveby(delta);
+                }
+            };
+
+            using list = std::vector<sock>;
+            list       depo;
+            wptr<base> dest_shadow;
+            sptr<base> dest_object;
+
+        public:
+            mover(base&&) = delete;
+            mover(base& boss, sptr<base> subject)
+                : skill{ boss },
+                  dest_shadow{ subject }
+            {
+                boss.SUBMIT_T(e2::release, e2::form::notify::mouse::enter, memo, gear)
+                {
+                    for (auto& item : depo) // Linear search, because a few items.
+                        if (item.id == gear.id)
+                        {
+                            ++item.count;
+                            return;
+                        }
+
+                    auto& item = depo.emplace_back(gear.id);
+                    ++item.count;
+                };
+                boss.SUBMIT_T(e2::release, e2::form::notify::mouse::leave, memo, gear)
+                {
+                    for (auto& item : depo) // Linear search, because a few items.
+                        if (item.id == gear.id)
+                        {
+                            if (--item.count < 1) // item.count could but equal to 0 due to unregistered access.
+                            {
+                                item = depo.back(); // Remove an item without allocations.
+                                depo.pop_back();
+                            }
+                            return;
+                        }
+                };
+                engage<sysmouse::left>();
+            }
+            auto& operator [](hids& gear)
+            {
+                for (auto& item : depo) // Linear search, because a few items.
+                    if (item.id == gear.id)
+                        return item;
+
+                log("pro::mover: error: access to unregistered input device, id:", gear.id);
+                return depo.emplace_back(gear.id);
+            }
+            auto& items()
+            {
+                return depo;
+            }
+            // pro::mover: Configuring the mouse button to operate.
+            template<sysmouse::bttns button>
+            void engage()
+            {
+                boss.SIGNAL(e2::release, e2::message(e2::form::draggable::any, button), true);
+                boss.SUBMIT(e2::release, e2::message(e2::form::drag::start::any, button), gear)
+                {
+                    if (dest_object = dest_shadow.lock())
+                    {
+                        operator[](gear).grab(*dest_object, gear.coord);
+                    }
+                };
+                boss.SUBMIT(e2::release, e2::message(e2::form::drag::pull::any, button), gear)
+                {
+                    if (dest_object)
+                    {
+                        operator[](gear).drag(*dest_object, gear.coord);
+                    }
+                };
+                boss.SUBMIT(e2::release, e2::message(e2::form::drag::cancel::any, button), gear)
+                {
+                    dest_object.reset();
+                };
+                boss.SUBMIT(e2::release, e2::message(e2::form::drag::stop::any, button), gear)
+                {
+                    dest_object.reset();
                 };
             }
         };
@@ -3509,6 +3627,20 @@ namespace netxs::console
                 boss.SUBMIT_T(e2::request, e2::form::state::mouse, memo, state)
                 {
                     state = rent;
+                };
+                boss.SUBMIT_T(e2::release, e2::form::draggable::any, memo, enabled)
+                {
+                    //todo implement unsubscribing
+                    switch(auto deed = boss.bell::protos<e2::release>())
+                    {
+                        default:
+                        case e2::form::draggable::left     : draggable<sysmouse::left     >(); break;
+                        case e2::form::draggable::right    : draggable<sysmouse::right    >(); break;
+                        case e2::form::draggable::leftright: draggable<sysmouse::leftright>(); break;
+                        case e2::form::draggable::middle   : draggable<sysmouse::middle   >(); break;
+                        case e2::form::draggable::wheel    : draggable<sysmouse::wheel    >(); break;
+                        case e2::form::draggable::win      : draggable<sysmouse::win      >(); break;
+                    }
                 };
             }
             void take_all_events(bool b)

@@ -1172,7 +1172,7 @@ utility like ctags is used to locate the definitions.
         auto const action_color      = tint::greenlt ;
         auto background_color = cell{}.fgc(whitedk).bgc(0xFF000000 /* blackdk */);
         skin::setup(tone::kb_focus, 60);
-        skin::setup(tone::brighter, 120);
+        skin::setup(tone::brighter, 60);//120);
         //skin::setup(tone::shadower, 0);
         skin::setup(tone::shadower, 180);//60);//40);// 20);
         skin::setup(tone::shadow, 180);//5);
@@ -1322,13 +1322,11 @@ utility like ctags is used to locate the definitions.
                             ->plugin<pro::align>()
                             ->plugin<pro::frame>()
                             ->plugin<pro::robot>()
-                            ->plugin<pro::grips>()
+                            ->plugin<pro::sizer>()
                             ->invoke([&](ui::mold& boss){
                                 // Define basic behavior of application window.
                                 boss.mouse.take_all_events(faux);
                                 boss.mouse.draggable<sysmouse::left>();
-                                //auto& grips = boss.plugins<pro::grips>();
-                                //grips.engage<sysmouse::left>();
                                 boss.SUBMIT(e2::preview, e2::hids::mouse::button::click::left, gear)
                                 {
                                     auto& frame = boss.plugins<pro::frame>();
@@ -1358,21 +1356,21 @@ utility like ctags is used to locate the definitions.
                                 };
                                 boss.SUBMIT(e2::release, e2::hids::mouse::move, gear)
                                 {
-                                    auto& grips = boss.plugins<pro::grips>();
-                                    grips[gear].calc(boss, gear);
+                                    auto& sizer = boss.plugins<pro::sizer>();
+                                    sizer[gear].calc(boss, gear);
                                     boss.base::deface();
                                 };
                                 boss.SUBMIT(e2::release, e2::form::drag::start::left, gear)
                                 {
-                                    auto& grips = boss.plugins<pro::grips>();
-                                    grips[gear].grab(boss, gear.coord);
+                                    auto& sizer = boss.plugins<pro::sizer>();
+                                    sizer[gear].grab(boss, gear.coord);
                                     auto& robot = boss.plugins<pro::robot>();
                                     robot.pacify();
                                 };
                                 boss.SUBMIT(e2::release, e2::form::drag::pull::left, gear)
                                 {
-                                    auto& grips = boss.plugins<pro::grips>();
-                                    grips[gear].drag(boss, gear.coord);
+                                    auto& sizer = boss.plugins<pro::sizer>();
+                                    sizer[gear].drag(boss, gear.coord);
                                     auto& frame = boss.plugins<pro::frame>();
                                     frame.bubble();
                                 };
@@ -1383,8 +1381,8 @@ utility like ctags is used to locate the definitions.
                                 boss.SUBMIT(e2::release, e2::form::drag::stop::left, gear)
                                 {
                                     auto& robot = boss.plugins<pro::robot>();
-                                    auto& grips = boss.plugins<pro::grips>();
-                                    if (grips[gear].wholly)
+                                    auto& sizer = boss.plugins<pro::sizer>();
+                                    if (sizer[gear].wholly)
                                     {
                                         robot.actify(gear.fader<quadratic<twod>>(2s), [&](auto x)
                                             {
@@ -1568,8 +1566,9 @@ utility like ctags is used to locate the definitions.
                                         ->plugin<pro::color>(whitelt, 0);
                         object->attach<slot::_1, ui::post>()
                               ->plugin<pro::limit>(twod{ 37,-1 }, twod{ -1,-1 })
-                              ->upload(appstore_head);
-
+                              ->upload(appstore_head)
+                              ->plugin<pro::color>(0, 0) //todo mouse tracking
+                              ->plugin<pro::mover>(window);
                         auto layers = object->attach<slot::_2, ui::cake>();
                         auto scroll = layers->attach<ui::rail>()
                                             ->plugin<pro::color>(whitedk, 0xFF0f0f0f)
@@ -1598,7 +1597,9 @@ utility like ctags is used to locate the definitions.
                     window->highlight_center = faux;
                     auto object = window->attach<ui::fork>(axis::Y)
                                         ->plugin<pro::color>(whitelt, 0);
-                        object->attach<slot::_1>(main_menu());
+                        auto menu = object->attach<slot::_1>(main_menu())
+                                          ->plugin<pro::color>(0, 0) //todo mouse tracking
+                                          ->plugin<pro::mover>(window);
                         auto all_stat = object->attach<slot::_2, ui::fork>(axis::Y);
                             auto func_body_pad = all_stat->attach<slot::_1, ui::pads>(dent{ 1,1 });
                                 auto func_body = func_body_pad->attach<ui::fork>(axis::Y);
@@ -1665,12 +1666,15 @@ utility like ctags is used to locate the definitions.
                 case Text:
                 {
                     window->plugin<pro::title>(ansi::jet(bias::center) + "Text Editor");
-                    window->color(whitelt, 0x605f1A00);
-                    window->blurred = true;
-                    window->highlight_center = faux;
-                    auto object = window->attach<ui::fork>(axis::Y)
-                                        ->plugin<pro::color>(whitelt, 0);
-                        object->attach<slot::_1>(main_menu());
+                    //window->color(whitelt, 0x605f1A00);
+                    //window->blurred = true;
+                    //window->highlight_center = faux;
+                    auto client = window->attach<ui::pads>(dent{1,1,1,1});
+                    auto object = client->attach<ui::fork>(axis::Y)
+                                        ->plugin<pro::color>(whitelt, 0x605f1A00);
+                        auto menu = object->attach<slot::_1>(main_menu())
+                                          ->plugin<pro::color>(0, 0) //todo mouse tracking
+                                          ->plugin<pro::mover>(window);
                         auto body_area = object->attach<slot::_2, ui::fork>(axis::Y);
                         auto fields = body_area->attach<slot::_1, ui::pads>(dent{ 1,1 });
                         auto layers = fields->attach<ui::cake>();
