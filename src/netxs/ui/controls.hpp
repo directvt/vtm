@@ -263,19 +263,18 @@ namespace netxs::ui
                 bright.fgc(title_fg_color);
                 shadow.fgc(title_fg_color);
 
-                bool isnorm =
-                    !active && guests.end() == std::find_if(guests.begin(), guests.end(),
-                                                [](auto& a) { return a.wholly; });
-                auto guides = [&](auto bright)
-                {
-                    for (auto& grip : guests)
-                        if (!grip.wholly)
-                            grip.draw(*this, parent_canvas, bright);
-                };
+                bool isnorm = !active;
+                    //!active && guests.end() == std::find_if(guests.begin(), guests.end(),
+                    //                            [](auto& a) { return a.wholly; });
+                //auto guides = [&](auto bright)
+                //{
+                //    for (auto& grip : guests)
+                //            grip.draw(*this, parent_canvas, bright);
+                //};
                 auto fillup = [&](auto bright, auto shadow)
                 {
                     parent_canvas.fill(shadow);
-                    guides(bright);
+                    //guides(bright);
                 };
                 auto fuse_bright = [&](cell& c) { c.fuse(normal); c.fuse(bright); };
                 auto fuse_shadow = [&](cell& c) { c.fuse(normal); c.fuse(shadow); };
@@ -291,7 +290,7 @@ namespace netxs::ui
                 }
                 else
                 {
-                    if (isnorm) guides(fuse_bright);
+                    if (isnorm) ;//guides(fuse_bright);
                     else        fillup(only_shadow, only_bright);
                 }
 
@@ -318,9 +317,10 @@ namespace netxs::ui
             {
                 canvas.wipe();
                 canvas.render(client, base::coor.get());
-                SIGNAL(e2::release, e2::form::upon::redrawn, canvas); // to draw the title and footer
+                //SIGNAL(e2::release, e2::form::upon::redrawn, canvas); // to draw the title and footer
             }
             parent_canvas.plot(canvas);
+            SIGNAL(e2::release, e2::form::upon::redrawn, parent_canvas); // to draw the title and footer
         }
         // mold: Attach specified item.
         template<class T>

@@ -1317,21 +1317,9 @@ utility like ctags is used to locate the definitions.
         //todo use XAML for that
         auto create = [&](objs type, auto location) -> auto
         {
-            sptr<ui::mold> window = base::create<ui::mold>()
-                            ->plugin<pro::limit>(dot_33, twod{ 400,200 }) //todo unify, set via config
-                            ->plugin<pro::align>()
+            sptr<ui::fork> window = base::create<ui::fork>(axis::Y)
                             ->plugin<pro::frame>()
-                            ->plugin<pro::robot>()
-                            ->plugin<pro::sizer>()
-                            ->invoke([&](ui::mold& boss){
-                                // Define basic behavior of application window.
-                                boss.mouse.take_all_events(faux);
-                                boss.mouse.draggable<sysmouse::left>();
-                                boss.SUBMIT(e2::preview, e2::hids::mouse::button::click::left, gear)
-                                {
-                                    auto& frame = boss.plugins<pro::frame>();
-                                    frame.expose();
-                                };
+                            ->invoke([&](ui::fork& boss){
                                 boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
                                 {
                                     auto square = boss.base::square();
@@ -1354,62 +1342,10 @@ utility like ctags is used to locate the definitions.
                                     }
                                     gear.dismiss();
                                 };
-                                boss.SUBMIT(e2::release, e2::hids::mouse::move, gear)
+                                boss.SUBMIT(e2::preview, e2::hids::mouse::button::click::left, gear)
                                 {
-                                    auto& sizer = boss.plugins<pro::sizer>();
-                                    sizer[gear].calc(boss, gear);
-                                    boss.base::deface();
-                                };
-                                boss.SUBMIT(e2::release, e2::form::drag::start::left, gear)
-                                {
-                                    auto& sizer = boss.plugins<pro::sizer>();
-                                    sizer[gear].grab(boss, gear.coord);
-                                    auto& robot = boss.plugins<pro::robot>();
-                                    robot.pacify();
-                                };
-                                boss.SUBMIT(e2::release, e2::form::drag::pull::left, gear)
-                                {
-                                    auto& sizer = boss.plugins<pro::sizer>();
-                                    sizer[gear].drag(boss, gear.coord);
                                     auto& frame = boss.plugins<pro::frame>();
-                                    frame.bubble();
-                                };
-                                boss.SUBMIT(e2::release, e2::form::drag::cancel::left, gear)
-                                {
-                                    boss.base::deface();
-                                };
-                                boss.SUBMIT(e2::release, e2::form::drag::stop::left, gear)
-                                {
-                                    auto& robot = boss.plugins<pro::robot>();
-                                    auto& sizer = boss.plugins<pro::sizer>();
-                                    if (sizer[gear].wholly)
-                                    {
-                                        robot.actify(gear.fader<quadratic<twod>>(2s), [&](auto x)
-                                            {
-                                                boss.base::moveby(x);
-                                            });
-                                    }
-                                    else
-                                    {
-                                        auto& frame = boss.plugins<pro::frame>();
-                                        auto boundary = gear.area();
-                                        robot.actify(gear.fader<quadratic<twod>>(2s), [&, boundary](auto x)
-                                            {
-                                                frame.convey(x, boundary);
-                                            });
-                                    }
-                                    boss.base::deface();
-                                };
-                                boss.SUBMIT(e2::release, e2::hids::mouse::button::dblclick::left, gear)
-                                {
-                                    auto& align = boss.plugins<pro::align>();
-                                    auto size = boss.base::size.get();
-                                    if (size.inside(gear.coord))
-                                    {
-                                        if (align.seized(gear.id)) align.unbind();
-                                        else                       align.follow(gear.id, dot_00);
-                                        gear.dismiss();
-                                    }
+                                    frame.expose();
                                 };
                                 boss.SUBMIT(e2::release, e2::hids::mouse::button::click::leftright, gear)
                                 {
@@ -1426,6 +1362,67 @@ utility like ctags is used to locate the definitions.
                                     boss.base::detach(); // The object kills itself.
                                 };
                             });
+                auto window_head = window->attach<slot::_1, ui::post>()
+                                    //->plugin<pro::color>(0,0) // Remove underneath characters in the header area.
+                                    ->upload("window\nmultiline title");
+                sptr<ui::mold> window_body = window->attach<slot::_2, ui::mold>()
+                            ->plugin<pro::limit>(dot_33, twod{ 400,200 }) //todo unify, set via config
+                            ->plugin<pro::robot>()
+                            ->plugin<pro::align>()
+                            ->plugin<pro::sizer>(window)
+                            ->invoke([&](ui::mold& boss){
+                                // Define basic behavior of application window.
+                                //boss.mouse.take_all_events(faux);
+                                //boss.mouse.draggable<sysmouse::left>();
+
+                                boss.SUBMIT(e2::release, e2::form::drag::start::left, gear)
+                                {
+                                    auto& robot = boss.plugins<pro::robot>();
+                                    robot.pacify();
+                                };
+                                boss.SUBMIT(e2::release, e2::form::drag::pull::left, gear)
+                                {
+                                    //auto& frame = boss.plugins<pro::frame>();
+                                    //frame.bubble();
+                                };
+                                boss.SUBMIT(e2::release, e2::form::drag::cancel::left, gear)
+                                {
+                                    boss.base::deface();
+                                };
+                                boss.SUBMIT(e2::release, e2::form::drag::stop::left, gear)
+                                {
+                                  //  auto& robot = boss.plugins<pro::robot>();
+                                  //  //auto& sizer = boss.plugins<pro::sizer>();
+                                  //  //if (sizer[gear].wholly)
+                                  //  //{
+                                  //  //    robot.actify(gear.fader<quadratic<twod>>(2s), [&](auto x)
+                                  //  //        {
+                                  //  //            boss.base::moveby(x);
+                                  //  //        });
+                                  //  //}
+                                  //  //else
+                                  //  {
+                                  //      auto& frame = boss.plugins<pro::frame>();
+                                  //      auto boundary = gear.area();
+                                  //      robot.actify(gear.fader<quadratic<twod>>(2s), [&, boundary](auto x)
+                                  //          {
+                                  //              frame.convey(x, boundary);
+                                  //          });
+                                  //  }
+                                  //  boss.base::deface();
+                                };
+                                boss.SUBMIT(e2::release, e2::hids::mouse::button::dblclick::left, gear)
+                                {
+                                    auto& align = boss.plugins<pro::align>();
+                                    auto size = boss.base::size.get();
+                                    if (size.inside(gear.coord))
+                                    {
+                                        if (align.seized(gear.id)) align.unbind();
+                                        else                       align.follow(gear.id, dot_00);
+                                        gear.dismiss();
+                                    }
+                                };
+                            });
 
             window->extend(location);
 
@@ -1435,8 +1432,7 @@ utility like ctags is used to locate the definitions.
                 case Test:
                 {
                     window->plugin<pro::title>(ansi::jet(bias::center) + "Test Page");
-                    auto client = window->attach<ui::pads>(dent{1,1,1,1});
-                    auto layers = client->attach<ui::cake>();
+                    auto layers = window_body->attach<ui::cake>();
                     auto scroll = layers->attach<ui::rail>()
                                         ->plugin<pro::color>(cyanlt, bluedk)
                                         ->config(true, true);
@@ -1475,8 +1471,7 @@ utility like ctags is used to locate the definitions.
                 case PowerShell:
                 {
                     window->plugin<pro::title>(ansi::jet(bias::center) + "PowerShell");
-                    auto client = window->attach<ui::pads>(dent{1,1,1,1});
-                    auto layers = client->attach<ui::cake>();
+                    auto layers = window_body->attach<ui::cake>();
                     auto scroll = layers->attach<ui::rail>()
                                         ->plugin<pro::color>(whitelt, 0xFF560000);
                         scroll->attach<ui::term>("powershell")
@@ -1487,8 +1482,7 @@ utility like ctags is used to locate the definitions.
                 case CommandPrompt:
                 {
                     window->plugin<pro::title>(ansi::jet(bias::center) + "Command Prompt");
-                    auto client = window->attach<ui::pads>(dent{1,1,1,1});
-                    auto layers = client->attach<ui::cake>();
+                    auto layers = window_body->attach<ui::cake>();
                     auto scroll = layers->attach<ui::rail>();
                         #ifdef DEMO
                             twod minsz = { 20,1 }; // mc crashes when window is too small
@@ -1511,8 +1505,7 @@ utility like ctags is used to locate the definitions.
                 case Strobe:
                 {
                     window->plugin<pro::title>(ansi::jet(bias::center) + "Strobe");
-                    auto client = window->attach<ui::pads>(dent{1,1,1,1});
-                    auto strob = client->attach<ui::mock>();
+                    auto strob = window_body->attach<ui::mock>();
                     auto strob_shadow = ptr::shadow(strob);
                     bool stobe_state = true;
                     strob->SUBMIT_BYVAL(e2::general, e2::timer::tick, now)
@@ -1529,17 +1522,15 @@ utility like ctags is used to locate the definitions.
                 case RefreshRate:
                 {
                     window->plugin<pro::title>("Frame rate adjustment");
-                    auto client = window->attach<ui::pads>(dent{1,1,1,1});
-                    client->attach<ui::stem_rate<e2::general, e2::timer::fps>>("Set frame rate", 1, 200, "fps")
+                    window_body->attach<ui::stem_rate<e2::general, e2::timer::fps>>("Set frame rate", 1, 200, "fps")
                           ->color(0xFFFFFFFF, bluedk);
                     break;
                 }
                 case Truecolor:
                 {
                     window->plugin<pro::title>(ansi::jet(bias::right) + "True color ANSI/ASCII image test");
-                    window->blurred = true;
-                    auto client = window->attach<ui::pads>(dent{1,1,1,1});
-                    auto layers = client->attach<ui::cake>();
+                    window_body->blurred = true;
+                    auto layers = window_body->attach<ui::cake>();
                     auto scroll = layers->attach<ui::rail>()
                                         ->config(true, true)
                                         ->plugin<pro::color>(whitelt, reddk);
@@ -1550,19 +1541,17 @@ utility like ctags is used to locate the definitions.
                 }
                 case Empty:
                 {
-                    window->blurred = true;
                     window->plugin<pro::title>(ansi::mgl(1).mgr(1) + "Instance id: " + std::to_string(window->id));
+                    window_body->blurred = true;
                     break;
                 }
                 case Shop:
                 {
                     window->plugin<pro::title>("Desktopio App Store", faux);
-                    window->color(whitelt, 0x60000000);
-                    window->blurred = true;
-                    window->highlight_center = faux;
-
-                    auto client = window->attach<ui::pads>(dent{1,1,0,1});
-                    auto object = client->attach<ui::fork>(axis::Y)
+                    window_body->color(whitelt, 0x60000000);
+                    window_body->blurred = true;
+                    window_body->highlight_center = faux;
+                    auto object = window_body->attach<ui::fork>(axis::Y)
                                         ->plugin<pro::color>(whitelt, 0);
                         object->attach<slot::_1, ui::post>()
                               ->plugin<pro::limit>(twod{ 37,-1 }, twod{ -1,-1 })
@@ -1591,11 +1580,11 @@ utility like ctags is used to locate the definitions.
                     //todo XAML converter
                     // Calc Interface Layout
                     window->plugin<pro::title>(ansi::jet(bias::center) + "Spreadsheet");
-                    window->color(whitelt, 0x601A5f00);
-                    window->limits({ -1,-1 },{ 136,105 });
-                    window->blurred = true;
-                    window->highlight_center = faux;
-                    auto object = window->attach<ui::fork>(axis::Y)
+                    window_body->color(whitelt, 0x601A5f00);
+                    window_body->limits({ -1,-1 },{ 136,105 });
+                    window_body->blurred = true;
+                    window_body->highlight_center = faux;
+                    auto object = window_body->attach<ui::fork>(axis::Y)
                                         ->plugin<pro::color>(whitelt, 0);
                         auto menu = object->attach<slot::_1>(main_menu())
                                           ->plugin<pro::color>(0, 0) //todo mouse tracking
@@ -1669,8 +1658,7 @@ utility like ctags is used to locate the definitions.
                     //window->color(whitelt, 0x605f1A00);
                     //window->blurred = true;
                     //window->highlight_center = faux;
-                    auto client = window->attach<ui::pads>(dent{1,1,1,1});
-                    auto object = client->attach<ui::fork>(axis::Y)
+                    auto object = window_body->attach<ui::fork>(axis::Y)
                                         ->plugin<pro::color>(whitelt, 0x605f1A00);
                         auto menu = object->attach<slot::_1>(main_menu())
                                           ->plugin<pro::color>(0, 0) //todo mouse tracking
@@ -1697,8 +1685,7 @@ utility like ctags is used to locate the definitions.
                 case VTM:
                 {
                     window->plugin<pro::title>(ansi::jet(bias::center) + objs_desc[VTM]);
-                    auto client = window->attach<ui::pads>(dent{1,1,1,1});
-                    auto layers = client->attach<ui::cake>();
+                    auto layers = window_body->attach<ui::cake>();
                     auto scroll = layers->attach<ui::rail>();
                     if (vtm_count < max_vtm)
                     {
@@ -1726,8 +1713,7 @@ utility like ctags is used to locate the definitions.
                 case Far:
                 {
                     window->plugin<pro::title>(ansi::jet(bias::center) + objs_desc[Far]);
-                    auto client = window->attach<ui::pads>(dent{1,1,1,1});
-                    auto layers = client->attach<ui::cake>();
+                    auto layers = window_body->attach<ui::cake>();
                     auto scroll = layers->attach<ui::rail>();
                     scroll->attach<ui::term>("far")
                           ->plugin<pro::color>(whitelt, blackdk);
@@ -1737,8 +1723,7 @@ utility like ctags is used to locate the definitions.
                 case MC:
                 {
                     window->plugin<pro::title>(ansi::jet(bias::center) + objs_desc[MC]);
-                    auto client = window->attach<ui::pads>(dent{1,1,1,1});
-                    auto layers = client->attach<ui::cake>();
+                    auto layers = window_body->attach<ui::cake>();
                     auto scroll = layers->attach<ui::rail>();
                     twod minsz = { 10,1 }; // mc crashes when window is too small
                     scroll->limits(minsz);
@@ -1769,8 +1754,7 @@ utility like ctags is used to locate the definitions.
                 case Term:
                 {
                     window->plugin<pro::title>(ansi::jet(bias::center) + objs_desc[Bash]);
-                    auto client = window->attach<ui::pads>(dent{1,1,1,1});
-                    auto layers = client->attach<ui::cake>();
+                    auto layers = window_body->attach<ui::cake>();
                     auto scroll = layers->attach<ui::rail>();
                     {
                         #ifdef DEMO
@@ -1794,8 +1778,7 @@ utility like ctags is used to locate the definitions.
                 case Logs:
                 {
                     window->plugin<pro::title>("VT monitoring tool");
-                    auto client = window->attach<ui::pads>(dent{1,1,1,1});
-                    auto layers = client->attach<ui::cake>();
+                    auto layers = window_body->attach<ui::cake>();
                     auto scroll = layers->attach<ui::rail>();
 
                     #ifndef PROD
@@ -1816,7 +1799,7 @@ utility like ctags is used to locate the definitions.
                 case View:
                 {
                     window->plugin<pro::title>(ansi::jet(bias::center) + "Location Meta Object");
-                    window->only_frame = true;
+                    window_body->only_frame = true;
                     break;
                 }
             }
