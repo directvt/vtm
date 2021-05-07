@@ -243,11 +243,7 @@ namespace netxs::ui
                 return;
             }
 
-            auto& shared = plugins<pro::sizer>();
-            auto& guests = shared.items();
-            //todo temporarily use locked for old menu
-            //if (locked || (guests.empty() && !active)) //if (loosen)
-            if (guests.empty() && !active)
+            if (!active)
             {
                 if (!blurred || base::brush.bga() == 0xFF) parent_canvas.fill(fuse_normal);
                 else if (base::brush.wdt())                parent_canvas.blur(acryl, fuse_normal);

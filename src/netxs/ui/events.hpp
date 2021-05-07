@@ -562,9 +562,10 @@ namespace netxs::events
                     cached      = any | (5 << _level1), // inform about camvas is cached (arg: canvas face)
                     wiped       = any | (6 << _level1), // event after wipe the canvas (arg: canvas face)
                     created     = any | (7 << _level1), // event after itself creation (arg: itself bell_sptr)
-                    moved       = any | (8 << _level1), // event after moveto (arg: diff bw old and new coor twod)
+                    moved       = any | (8 << _level1), // release: event after moveto (arg: diff bw old and new coor twod). preview: event after moved by somebody.
                     resized     = any | (9 << _level1), // event after resize (arg: diff bw old and new size twod)
                     _scroll     = any | (10<< _level1), // event after scroll (arg: rack)
+                    dragged     = any | (11<< _level1), // event after drag (arg: hids)
                 };
                 private: static const unsigned int _level2 = _level1 + _width;
                 public:

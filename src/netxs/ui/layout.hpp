@@ -1347,11 +1347,7 @@ namespace netxs::ui::atoms
             bool just = faux;
             iota step = 0;
 
-            constexpr edge(bool just)
-                : just { just },
-                  step { 0    }
-            { }
-            constexpr edge(bool just, iota n)
+            constexpr edge(bool just, iota n = 0)
                 : just { just          },
                   step { n }
             { }
