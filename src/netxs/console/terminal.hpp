@@ -657,7 +657,7 @@ namespace netxs::ui
                 {
                                   props[ansi::OSC_LABEL] = txt;
                     auto& utf8 = (props[ansi::OSC_TITLE] = txt);
-                    utf8 = ansi::mgr(1).mgl(1).jet(bias::left) + utf8;
+                    utf8 = ansi::jet(bias::left) + utf8;
                     owner.base::riseup<e2::preview, e2::form::prop::header>(utf8);
                 }
                 else
@@ -665,7 +665,7 @@ namespace netxs::ui
                     auto& utf8 = (props[property] = txt);
                     if (property == ansi::OSC_TITLE)
                     {
-                        utf8 = ansi::mgr(1).mgl(1).jet(bias::left) + utf8;
+                        utf8 = ansi::jet(bias::left) + utf8;
                         owner.base::riseup<e2::preview, e2::form::prop::header>(utf8);
                     }
                 }
@@ -1601,7 +1601,7 @@ namespace netxs::ui
                 auto size = status.size();
                 auto area = parent_canvas.area();
                 area.coor.x += area.size.x - size.x - 1;
-                area.coor.y += area.size.y - 1;
+                area.coor.y += area.size.y;
                 status.lyric->move(area.coor);
                 parent_canvas.fill(*status.lyric);
             };

@@ -1080,8 +1080,8 @@ namespace netxs::ui::atoms
                 block.size = std::clamp(block_apex, base, apex) - block.coor;
             };
 
-            if constexpr (NESTED) clamp(dot_00, size);
-            else                  clamp(coor,   coor + size);
+            if constexpr (NESTED) clamp(dot_00, size       );
+            else                  clamp(coor  , coor + size);
 
             return block;
         }

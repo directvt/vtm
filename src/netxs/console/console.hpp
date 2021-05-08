@@ -1767,7 +1767,6 @@ namespace netxs::console
                 {
                     auto area = rect{dot_00,boss.size.get()} + outer;
                     area.coor += canvas.full().coor;
-                    //canvas.cage(area, width, [&](cell& c){ c.bgc().mix(0x400000ff); c.link(boss.id); });
                     canvas.cage(area, width, [&](cell& c){ c.link(boss.id); });
                     auto fuse = [&](cell& c){ c.xlight(); };
                     for (auto& item : items)
@@ -2171,8 +2170,7 @@ namespace netxs::console
             }
         };
 
-        // pro: Provides functionality for manipulating objects
-        //      with a frame structure.
+        // pro: Provides functionality for manipulating objects with a frame structure.
         class frame
             : public skill
         {
@@ -2902,40 +2900,26 @@ namespace netxs::console
         {
             using skill::boss,
                   skill::memo;
-            page logo; // title: Owner's caption
-            text name; // title: Preserve original title
-
-            #define PROP_LIST                    \
-            X(head, "Window title." )            \
-            X(foot, "Window status.")
-            //X(body, "Window title properties." )
-
-            #define X(a, b) a,
-            enum prop { PROP_LIST count };
-            #undef X
-
-            #define X(a, b) b,
-            text description[prop::count] = { PROP_LIST };
-            #undef X
-            #undef PROP_LIST
+            page head; // title: Owner's caption header.
+            page foot; // title: Owner's caption footer.
+            text name; // title: Preserve original header.
+            twod size; // title: Owner width.
+            flow oooo; // title: .
 
         public:
             bool live = true; // title: Title visibility.
 
             auto& titles() const
             {
-                return logo;
-            }
-            auto& header()
-            {
-                return logo[prop::head];
-            }
-            auto& footer()
-            {
-                return logo[prop::foot];
+                return head;
             }
             void header(view newtext)
             {
+                head = newtext;
+                name = newtext;
+                recalc();
+                boss.SIGNAL(e2::release, e2::form::prop::header, name);
+                /*
                 name = newtext;
                 auto& textline = header();
                 textline = newtext;
@@ -2946,9 +2930,12 @@ namespace netxs::console
                 textline.link(boss.id);
                 boss.SIGNAL(e2::release, e2::form::prop::header, name);
                 boss.SIGNAL(e2::release, e2::form::state::header, textline);
+                */
             }
             void footer(view newtext)
             {
+                foot = newtext;
+                /*
                 auto& textline = footer();
                 textline = newtext;
                 textline.style.rtl_or(rtol::ltr);
@@ -2957,18 +2944,46 @@ namespace netxs::console
                 textline.style.jet_or(bias::right);
                 textline.link(boss.id);
                 boss.SIGNAL(e2::release, e2::form::state::footer, textline);
+                */
+            }
+            void recalc()
+            {
+                oooo.flow::reset();
+                oooo.flow::size(size);
+                auto publish = [&](auto const& combo)
+                {
+                    auto cp = oooo.flow::print(combo);
+                };
+                head.stream(publish);
+                auto& cover = oooo.flow::minmax();
+                size.y = cover.height() + 1;
+            }
+            void recalc(twod const& new_size)
+            {
+                size = new_size;
+                recalc();
             }
             void init()
             {
-                logo += ansi::cup(dot_00)
-                    + ansi::wrp(wrap::off).rtl(rtol::ltr).rlf(feed::fwd).jet(bias::left).mgr(1).mgl(1)
-                    + ansi::idx(prop::head) + ansi::nop()
-                    + ansi::cup(dot_00).rlf(feed::rev).jet(bias::right)
-                    + ansi::idx(prop::foot);
-
+                boss.SUBMIT_T(e2::release, e2::form::layout::size, memo, new_size)
+                {
+                    recalc(new_size);
+                };
                 boss.SUBMIT_T(e2::release, e2::form::upon::redrawn, memo, canvas)
                 {
-                    if (live) canvas.output(logo);
+                    if (live)
+                    {
+                        auto full = canvas.full();
+                        auto view = canvas.view();
+                        auto bump = dent{ 0,0,size.y,0 };
+                        auto area = canvas.area().clip<true>(view + bump);
+                        canvas.full(full + bump);
+                        canvas.view(area);
+                        canvas.cup(dot_00);
+                        canvas.output(head);
+                        canvas.full(full);
+                        canvas.view(view);
+                    }
                 };
                 boss.SUBMIT_T(e2::preview, e2::form::prop::header, memo, newtext)
                 {
@@ -2982,6 +2997,7 @@ namespace netxs::console
                 {
                     curtext = name;
                 };
+                /*
                 boss.SUBMIT_T(e2::request, e2::form::state::header, memo, caption)
                 {
                     caption = header();
@@ -2990,6 +3006,7 @@ namespace netxs::console
                 {
                     caption = footer();
                 };
+                */
             }
 
             title(base&&) = delete;

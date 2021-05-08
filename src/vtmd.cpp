@@ -1,7 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#define MONOTTY_VER "Monotty Desktopio Preview v0.3.4"
+#define MONOTTY_VER "Monotty Desktopio Preview v0.3.5"
 // Autostart demo apps.
 #define DEMO
 // Enable keyboard input and disable exit by single Esc.
@@ -603,19 +603,11 @@ int main(int argc, char* argv[])
                     + l2 + ansi::wrp(wrap::on)
                     + "outside of any objects:\n"
                         + l3 + "- move all visible objects inside the viewport.\n"
-                    + l2
-                    + "inside the object:\n"
-                        + l3 + "- move or resize, depends on the distance to the center of the object.\n"
-                    + l2
-                    + "the label in the top-left list of objects:\n"
-                    + "the connecting line of an object:\n"
-                        + l3 + "- move the object relativly to its place.\n"
                 + l1 + ansi::wrp(wrap::off)
                 + "right" + ansi::nil() + "\n"
                     + l2 + ansi::fgc(blackdk).bgc(clr).wrp(wrap::off)
                     + "click" + ansi::nil() + "\n"
                     + l2 + ansi::wrp(wrap::on)
-                    + "on the label in the upper left list of objects:\n"
                     + "on the connecting line of an object:\n"
                         + l3 + "- move object to mouse cursor.\n"
                     + l2
@@ -1220,7 +1212,7 @@ utility like ctags is used to locate the definitions.
         X(Calc         , "Calc"                     ) \
         X(Shop         , "Shop"                     ) \
         X(Logs         , "Logs"                     ) \
-        X(View         , "View [click me]"          ) \
+        X(View         , "View"                     ) \
         X(PowerShell   , "pwsh PowerShell"          ) \
         X(CommandPrompt, "cmd Command Prompt"       ) \
         X(Bash         , "Bash/Zsh/CMD"             ) \
@@ -1232,10 +1224,6 @@ utility like ctags is used to locate the definitions.
         X(Strobe       , "Strobe"                   ) \
         X(Test         , "Test"                     ) \
         X(Empty        , "Test Empty window"        )
-
-        //X(Menu         , "Old menu object"      )
-        //X(Cellatix     , "Cellatix \033[92m▄▀\033[m")
-        //X(Textancy     , "Textancy \033[94m▄▀\033[m")
 
         #define X(a, b) a,
         enum objs { TYPE_LIST count };
@@ -1290,17 +1278,27 @@ utility like ctags is used to locate the definitions.
             auto menu_area = base::create<ui::fork>();
                 auto inner_pads = dent{ 1,2,1,1 };
                 auto menu_items = {
-                    std::pair{ " ≡"s,                                       dent{ 0 } },
-                    std::pair{ ansi::und(true) + "F" + ansi::nil() + "ile", dent{ 1 } },
-                    std::pair{ ansi::und(true) + "E" + ansi::nil() + "dit", dent{ 1 } },
-                    std::pair{ ansi::und(true) + "V" + ansi::nil() + "iew", dent{ 1 } },
-                    std::pair{ ansi::und(true) + "D" + ansi::nil() + "ata", dent{ 1 } },
-                    std::pair{ ansi::und(true) + "H" + ansi::nil() + "elp", dent{ 1 } } };
+                    ansi::und(true) + "F" + ansi::nil() + "ile",
+                    ansi::und(true) + "E" + ansi::nil() + "dit",
+                    ansi::und(true) + "V" + ansi::nil() + "iew",
+                    ansi::und(true) + "D" + ansi::nil() + "ata",
+                    ansi::und(true) + "H" + ansi::nil() + "elp" };
                 auto menu_list = menu_area->attach<slot::_1, ui::fork>()
                                           ->attach<slot::_1, ui::list>(axis::X);
-                for (auto& body : menu_items) menu_list->attach<ui::pads>(inner_pads, body.second)
+                menu_list->attach<ui::pads>(inner_pads, dent{ 0 })
+                         ->plugin<pro::fader>(x3, c3, 150ms)
+                         ->invoke([&](ui::pads& boss){
+                             boss.SUBMIT(e2::release, e2::hids::mouse::button::dblclick::left, gear)
+                             {
+                                auto backup = boss.This();
+                                boss.base::template riseup<e2::release, e2::form::proceed::detach>(backup);
+                                gear.dismiss();
+                             };
+                         })
+                         ->attach<ui::item>(" ≡", faux, true);
+                for (auto& body : menu_items) menu_list->attach<ui::pads>(inner_pads, dent{ 1 })
                                                        ->plugin<pro::fader>(x3, c3, 150ms)
-                                                       ->attach<ui::item>(body.first, faux, true);
+                                                       ->attach<ui::item>(body, faux, true);
                 menu_area->attach<slot::_2, ui::pads>(dent{ 2,2,1,1 }, dent{})
                          ->plugin<pro::fader>(x1, c1, 150ms)
                          ->invoke([&](auto& boss)
@@ -1411,7 +1409,7 @@ utility like ctags is used to locate the definitions.
                 }
                 case PowerShell:
                 {
-                    window->plugin<pro::title>(ansi::jet(bias::center) + "PowerShell");
+                    window->plugin<pro::title>("Term \nPowerShell");
                     auto layers = window->attach<ui::cake>();
                     auto scroll = layers->attach<ui::rail>()
                                         ->plugin<pro::mover>(window)
@@ -1423,7 +1421,7 @@ utility like ctags is used to locate the definitions.
                 }
                 case CommandPrompt:
                 {
-                    window->plugin<pro::title>(ansi::jet(bias::center) + "Command Prompt");
+                    window->plugin<pro::title>("Term \nCommand Prompt");
                     auto layers = window->attach<ui::cake>();
                     auto scroll = layers->attach<ui::rail>()
                                         ->plugin<pro::mover>(window);
@@ -1486,7 +1484,7 @@ utility like ctags is used to locate the definitions.
                 }
                 case Empty:
                 {
-                    window->plugin<pro::title>(ansi::mgl(1).mgr(1) + "Instance id: " + std::to_string(window->id));
+                    window->plugin<pro::title>(ansi::mgl(1).mgr(1) + "Empty Instance \nid: " + std::to_string(window->id));
                     window->blurred = true;
                     auto object = window->attach<ui::mock>()
                                         ->plugin<pro::color>(0,0) //todo mouse tracking
@@ -1525,9 +1523,8 @@ utility like ctags is used to locate the definitions.
                 }
                 case Calc:
                 {
-                    //todo XAML converter
-                    // Calc Interface Layout
-                    window->plugin<pro::title>(ansi::jet(bias::center) + "Spreadsheet");
+                    static iota i = 0; i++;
+                    window->plugin<pro::title>(ansi::jet(bias::right) + "Spreadsheet\n ~/Untitled " + std::to_string(i) + ".ods");
                     window->color(whitelt, 0x601A5f00);
                     window->limits({ -1,-1 },{ 136,105 });
                     window->blurred = true;
@@ -1602,7 +1599,8 @@ utility like ctags is used to locate the definitions.
                 }
                 case Text:
                 {
-                    window->plugin<pro::title>(ansi::jet(bias::center) + "Text Editor");
+                    static iota i = 0; i++;
+                    window->plugin<pro::title>(ansi::jet(bias::center) + "Text Editor\n ~/Untitled " + std::to_string(i) + ".txt");
                     //window->color(whitelt, 0x605f1A00);
                     //window->blurred = true;
                     //window->highlight_center = faux;
@@ -1632,8 +1630,13 @@ utility like ctags is used to locate the definitions.
                 }
                 case VTM:
                 {
-                    window->plugin<pro::title>(ansi::jet(bias::center) + objs_desc[VTM]);
-                    auto layers = window->attach<ui::cake>();
+                    window->plugin<pro::title>("Term \n" + objs_desc[VTM]);
+                    auto object = window->attach<ui::fork>(axis::Y)
+                                        ->plugin<pro::color>(whitelt, 0x60303030);
+                        auto menu = object->attach<slot::_1>(main_menu())
+                                          ->plugin<pro::color>(0, 0) //todo mouse tracking
+                                          ->plugin<pro::mover>(window);
+                    auto layers = object->attach<slot::_2, ui::cake>();
                     auto scroll = layers->attach<ui::rail>();
                     if (vtm_count < max_vtm)
                     {
@@ -1660,7 +1663,7 @@ utility like ctags is used to locate the definitions.
                 }
                 case Far:
                 {
-                    window->plugin<pro::title>(ansi::jet(bias::center) + objs_desc[Far]);
+                    window->plugin<pro::title>("Term \n" + objs_desc[Far]);
                     auto layers = window->attach<ui::cake>();
                     auto scroll = layers->attach<ui::rail>();
                     scroll->attach<ui::term>("far")
@@ -1670,8 +1673,13 @@ utility like ctags is used to locate the definitions.
                 }
                 case MC:
                 {
-                    window->plugin<pro::title>(ansi::jet(bias::center) + objs_desc[MC]);
-                    auto layers = window->attach<ui::cake>();
+                    window->plugin<pro::title>("Term \n" + objs_desc[MC]);
+                    auto object = window->attach<ui::fork>(axis::Y)
+                                        ->plugin<pro::color>(whitelt, 0x60303030);
+                        auto menu = object->attach<slot::_1>(main_menu())
+                                          ->plugin<pro::color>(0, 0) //todo mouse tracking
+                                          ->plugin<pro::mover>(window);
+                    auto layers = object->attach<slot::_2, ui::cake>();
                     auto scroll = layers->attach<ui::rail>();
                     twod minsz = { 10,1 }; // mc crashes when window is too small
                     scroll->limits(minsz);
@@ -1680,29 +1688,34 @@ utility like ctags is used to locate the definitions.
 
                     #if defined(_WIN32)
 
-                        auto object = scroll->attach<ui::term>("wsl mc");
+                        auto inst = scroll->attach<ui::term>("wsl mc");
 
                     #elif defined(__linux__)
                         #ifndef PROD
-                            auto object = scroll->attach<ui::term>("bash -c 'LC_ALL=en_US.UTF-8 mc -c -x -d'");
+                            auto inst = scroll->attach<ui::term>("bash -c 'LC_ALL=en_US.UTF-8 mc -c -x -d'");
                          #else
-                            auto object = scroll->attach<ui::term>("bash -c 'LC_ALL=en_US.UTF-8 mc -c -x'");
+                            auto inst = scroll->attach<ui::term>("bash -c 'LC_ALL=en_US.UTF-8 mc -c -x'");
                         #endif
                     #elif defined(__APPLE__)
 
-                         auto object = scroll->attach<ui::term>("zsh -c 'LC_ALL=en_US.UTF-8 mc -c -x'");
+                         auto inst = scroll->attach<ui::term>("zsh -c 'LC_ALL=en_US.UTF-8 mc -c -x'");
 
                     #endif
 
-                    object->color(whitelt, blackdk);
+                    inst->color(whitelt, blackdk);
                     layers->attach(scroll_bars(scroll));
                     break;
                 }
                 case Bash:
                 case Term:
                 {
-                    window->plugin<pro::title>(ansi::jet(bias::center) + objs_desc[Bash]);
-                    auto layers = window->attach<ui::cake>();
+                    window->plugin<pro::title>("Term \n" + objs_desc[Bash]);
+                    auto object = window->attach<ui::fork>(axis::Y)
+                                        ->plugin<pro::color>(whitelt, 0x60303030);
+                        auto menu = object->attach<slot::_1>(main_menu())
+                                          ->plugin<pro::color>(0, 0) //todo mouse tracking
+                                          ->plugin<pro::mover>(window);
+                    auto layers = object->attach<slot::_2, ui::cake>();
                     auto scroll = layers->attach<ui::rail>();
                     {
                         #ifdef DEMO
@@ -1711,21 +1724,21 @@ utility like ctags is used to locate the definitions.
                         #endif
 
                         #if defined(_WIN32)
-                            auto object = scroll->attach<ui::term>("bash");
+                            auto inst = scroll->attach<ui::term>("bash");
                         #elif defined(__linux__)
-                            auto object = scroll->attach<ui::term>("bash");
+                            auto inst = scroll->attach<ui::term>("bash");
                         #elif defined(__APPLE__)
-                            auto object = scroll->attach<ui::term>("zsh");
+                            auto inst = scroll->attach<ui::term>("zsh");
                         #endif
 
-                        object->color(whitelt, blackdk);
+                        inst->color(whitelt, blackdk);
                     }
                     layers->attach(scroll_bars_term(scroll));
                     break;
                 }
                 case Logs:
                 {
-                    window->plugin<pro::title>("VT monitoring tool");
+                    window->plugin<pro::title>("Logs \nVT monitoring tool");
                     auto layers = window->attach<ui::cake>();
                     auto scroll = layers->attach<ui::rail>()
                                         ->plugin<pro::mover>(window);
@@ -1747,7 +1760,8 @@ utility like ctags is used to locate the definitions.
                 }
                 case View:
                 {
-                    window->plugin<pro::title>(ansi::jet(bias::center) + "Location Meta Object");
+                    static iota i = 0; i++;
+                    window->plugin<pro::title>(ansi::jet(bias::center) + "View \n Region " + std::to_string(i));
                     window->only_frame = true;
                     break;
                 }
@@ -1840,12 +1854,12 @@ utility like ctags is used to locate the definitions.
             auto sub_pos = twod{ 12+17, 0 };
             creator(objs::Test, { twod{ 22, 1  } + sub_pos, { 70, 21 } });
             creator(objs::Shop, { twod{ 4 , 6  } + sub_pos, { 80, 38 } });
-            creator(objs::Calc, { twod{ 15, 13 } + sub_pos, { 65, 23 } });
-            creator(objs::Text, { twod{ 30, 20 } + sub_pos, { 59, 26 } });
+            creator(objs::Calc, { twod{ 15, 15 } + sub_pos, { 65, 23 } });
+            creator(objs::Text, { twod{ 30, 22 } + sub_pos, { 59, 26 } });
             creator(objs::MC,   { twod{ 49, 26 } + sub_pos, { 63, 22 } });
             creator(objs::Term, { twod{ 34, 34 } + sub_pos, { 57, 15 } });
             creator(objs::Term, { twod{ 44 + 85, 35 } + sub_pos, { 57, 15 } });
-            creator(objs::Term, { twod{ 40 + 85, 38 } + sub_pos, { 57, 15 } });
+            creator(objs::Term, { twod{ 40 + 85, 42 } + sub_pos, { 57, 15 } });
 
             creator(objs::View, { twod{ 0, 7 } + twod{ -120, 60 }, { 120, 52 } });
             creator(objs::View, { twod{ 0,-1 } + sub_pos, { 120, 52 } });
