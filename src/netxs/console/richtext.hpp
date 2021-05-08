@@ -335,6 +335,23 @@ namespace netxs::console
             temp.coor.x += area.size.x - border_width.x; // Right
             fill(temp, fuse);
         }
+        template<class P>
+        void cage(ui::rect const& area, dent const& border, P fuse) // core: Draw the cage around specified area.
+        {
+            auto temp = area;
+            temp.size.y = border.head.step; // Top
+            fill(temp, fuse);
+            temp.coor.y += area.size.y - border.foot.step; // Bottom
+            temp.size.y = border.foot.step;
+            fill(temp, fuse);
+            temp.size.x = border.west.step; // Left
+            temp.size.y = area.size.y - border.head.step - border.foot.step;
+            temp.coor.y = area.coor.y + border.head.step;
+            fill(temp, fuse);
+            temp.coor.x += area.size.x - border.east.step; // Right
+            temp.size.x = border.east.step;
+            fill(temp, fuse);
+        }
         template<class TEXT>
         void  text(twod const& pos, TEXT const& txt, bool rtl = faux) // core: Put the specified text substring to the specified coordinates on the canvas.
         {

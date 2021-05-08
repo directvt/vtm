@@ -1486,9 +1486,11 @@ utility like ctags is used to locate the definitions.
                 }
                 case Empty:
                 {
-                    window->plugin<pro::title>(ansi::mgl(1).mgr(1) + "Instance id: " + std::to_string(window->id))
-                          ->plugin<pro::mover>(window);
+                    window->plugin<pro::title>(ansi::mgl(1).mgr(1) + "Instance id: " + std::to_string(window->id));
                     window->blurred = true;
+                    auto object = window->attach<ui::mock>()
+                                        ->plugin<pro::color>(0,0) //todo mouse tracking
+                                        ->plugin<pro::mover>(window);
                     break;
                 }
                 case Shop:
