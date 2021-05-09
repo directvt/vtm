@@ -45,13 +45,13 @@ Module               | Options
 Shortcut              | Action
 ----------------------|--------------------------------------
 `Ctrl + PgUp/Dn`      | Switch between windows
-`LeftClick`           | Assign exclusive keyboard focus
+`LeftClick`           | Taskbar: Go to window<br>Window: Assign exclusive keyboard focus
 `Ctrl + LeftClick`    | Assign/clear group keyboard focus
-double `LeftClick`    | Window: Maximize/restore
-`RightClick`          | Desktop: Call menu
-`Left + Right`<br>or `MiddleClick` | Window: Close/destroy
-`LeftDrag`            | Desktop: Move visible windows<br>Window: Resize/move
-`RightDrag`           | Desktop: Create new window<br>Window: Scroll content
+double `LeftClick`    | Menu: Create new window<br>Window: Maximize/restore window
+`RightClick`          | Taskbar: Move window to center of view
+`Left + Right`<br>or `MiddleClick` | Window: Close/destroy window
+`LeftDrag`            | Desktop: Move visible windows<br>Window menu: Move window
+`RightDrag`           | Desktop: Create new window<br>Window: Scroll window content
 `Left + RightDrag`    | Scroll workspace
 `Ctrl + RightDrag`<br>or `Ctrl + MiddleDrag` | Copy selected area to clipboard `OSC 52`
 
