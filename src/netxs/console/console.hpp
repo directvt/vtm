@@ -861,17 +861,16 @@ namespace netxs::console
         void mouse_leave(id_t last_id, id_t start_id)
         {
             if (last_id)
-            if (auto last = bell::getref(last_id))
             {
-                auto start = mouse::start;
-                mouse::start = start_id;
-                last->SIGNAL(e2::release, e2::form::notify::mouse::leave, *this);
-                mouse::start = start;
+                if (auto last = bell::getref(last_id))
+                {
+                    auto start = mouse::start;
+                    mouse::start = start_id;
+                    last->SIGNAL(e2::release, e2::form::notify::mouse::leave, *this);
+                    mouse::start = start;
+                }
+                else log("hids: error condition: Clients count is broken, dangling id ", last_id);
             }
-            else
-            {
-                log("hids: error condition: Clients count is broken, dangling id ", last_id);
-            } 
         }
         void okay(bell& boss)
         {
@@ -1830,6 +1829,7 @@ namespace netxs::console
                 boss.SUBMIT(e2::release, e2::message(e2::form::drag::stop::any, button), gear)
                 {
                     take(gear).drop();
+                    boss.SIGNAL(e2::release, e2::form::upon::dragged, gear);
                 };
             }
         };
@@ -1922,7 +1922,7 @@ namespace netxs::console
                 boss.SIGNAL(e2::release, e2::message(e2::form::draggable::any, button), true);
                 boss.SUBMIT(e2::release, e2::message(e2::form::drag::start::any, button), gear)
                 {
-                    if (dest_object = dest_shadow.lock())
+                    if ((dest_object = dest_shadow.lock()))
                     {
                         take(gear).grab(*dest_object, gear.coord);
                     }
@@ -3694,7 +3694,7 @@ namespace netxs::console
                 // pro::mouse: Notify form::state::active when the number of clients is zero.
                 boss.SUBMIT_T(e2::release, e2::form::notify::mouse::leave, memo, gear)
                 {
-                    if (!--full) soul->base::strike(), soul.reset();
+                    if (!--full) { soul->base::strike(); soul.reset(); }
                     if (gear.direct<faux>(boss.bell::id) || omni)
                     {
                         if (!--rent)

@@ -875,9 +875,9 @@ namespace netxs::events
     };
 
     // events: Ext link statics, unique ONLY for concrete T.
-    template<class T> indexer<T>::id_t indexer<T>::newid = 0;
-    template<class T> indexer<T>::imap indexer<T>::store;
-    template<class T> indexer<T>::wptr indexer<T>::empty;
+    template<class T> typename indexer<T>::id_t indexer<T>::newid = 0;
+    template<class T> typename indexer<T>::imap indexer<T>::store;
+    template<class T> typename indexer<T>::wptr indexer<T>::empty;
 
     // events: Event x-mitter.
     struct bell : public indexer<bell>

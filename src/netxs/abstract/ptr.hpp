@@ -45,7 +45,7 @@ namespace netxs
         template <class T>
         auto shadow(sptr<T> p)
         {
-            return std::weak_ptr{ p };
+            return std::weak_ptr<T>{ p };
         }
     }
 

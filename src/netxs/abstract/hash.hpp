@@ -31,11 +31,11 @@ namespace netxs
     template<class M>
     struct addref
     {
-        using type = std::conditional<std::is_class<typename M::mapped_type>::value, typename M::mapped_type &, typename M::mapped_type>::type;
+        using type = typename std::conditional<std::is_class<typename M::mapped_type>::value, typename M::mapped_type &, typename M::mapped_type>::type;
     };
 
     template<class M, class K>
-    addref<M>::type get_or(M& map, K const& key, typename addref<M>::type default_value)
+    typename addref<M>::type get_or(M& map, K const& key, typename addref<M>::type default_value)
     {
         const auto it = map.find(key);
         if (it == map.end())

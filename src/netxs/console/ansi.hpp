@@ -201,11 +201,11 @@ namespace netxs::console::ansi
         inline text str(char n) { return text(1, n); }
 
         template<class T>
-        std::enable_if<!std::is_integral<T>::value, esc&>::type
+        typename std::enable_if<!std::is_integral<T>::value, esc&>::type
         add(T&& t) { operator+=(t); return *this; }
 
         template<class T>
-        std::enable_if<std::is_integral<T>::value, esc&>::type
+        typename std::enable_if<std::is_integral<T>::value, esc&>::type
         add(T t) { operator+=(std::to_string(t)); return *this; }
 
         auto& add(char t) { operator+=(t); return *this; }
@@ -766,8 +766,8 @@ namespace netxs::console::ansi
         void proceed_excl  (fifo& q, T*& p) { table_excl  .execute(q, p); }
     };
 
-    template<class T> struct _glb { static T::template parser<T> parser; };
-    template<class T> T::template parser<T> _glb<T>::parser;
+    template<class T> struct _glb { static typename T::template parser<T> parser; };
+    template<class T> typename T::template parser<T> _glb<T>::parser;
 
     template<class T> inline void parse(view utf8, T*&  dest) { _glb<T>::parser.parse(utf8, dest); }
     template<class T> inline void parse(view utf8, T*&& dest) { T* dptr = dest; parse(utf8, dptr); }

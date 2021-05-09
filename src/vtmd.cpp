@@ -3,7 +3,7 @@
 
 #define MONOTTY_VER "Monotty Desktopio Preview v0.3.5"
 // Autostart demo apps.
-#define DEMO
+//#define DEMO
 // Enable keyboard input and disable exit by single Esc.
 #define PROD
 
@@ -1370,7 +1370,12 @@ utility like ctags is used to locate the definitions.
                 case Test:
                 {
                     window->plugin<pro::title>(ansi::jet(bias::center) + "Test Page");
-                    auto layers = window->attach<ui::cake>();
+                    auto object0 = window->attach<ui::fork>(axis::Y)
+                                        ->plugin<pro::color>(whitelt, 0x60DB3700);
+                        auto menu = object0->attach<slot::_1>(main_menu())
+                                          ->plugin<pro::color>(0, 0) //todo mouse tracking
+                                          ->plugin<pro::mover>(window);
+                    auto layers = object0->attach<slot::_2, ui::cake>();
                     auto scroll = layers->attach<ui::rail>()
                                         ->plugin<pro::color>(cyanlt, bluedk)
                                         ->plugin<pro::mover>(window)
@@ -1410,7 +1415,12 @@ utility like ctags is used to locate the definitions.
                 case PowerShell:
                 {
                     window->plugin<pro::title>("Term \nPowerShell");
-                    auto layers = window->attach<ui::cake>();
+                    auto object = window->attach<ui::fork>(axis::Y)
+                                        ->plugin<pro::color>(whitelt, 0x60303030);
+                        auto menu = object->attach<slot::_1>(main_menu())
+                                          ->plugin<pro::color>(0, 0) //todo mouse tracking
+                                          ->plugin<pro::mover>(window);
+                    auto layers = object->attach<slot::_2, ui::cake>();
                     auto scroll = layers->attach<ui::rail>()
                                         ->plugin<pro::mover>(window)
                                         ->plugin<pro::color>(whitelt, 0xFF560000);
@@ -1422,7 +1432,12 @@ utility like ctags is used to locate the definitions.
                 case CommandPrompt:
                 {
                     window->plugin<pro::title>("Term \nCommand Prompt");
-                    auto layers = window->attach<ui::cake>();
+                    auto object0 = window->attach<ui::fork>(axis::Y)
+                                        ->plugin<pro::color>(whitelt, 0x60303030);
+                        auto menu = object0->attach<slot::_1>(main_menu())
+                                          ->plugin<pro::color>(0, 0) //todo mouse tracking
+                                          ->plugin<pro::mover>(window);
+                    auto layers = object0->attach<slot::_2, ui::cake>();
                     auto scroll = layers->attach<ui::rail>()
                                         ->plugin<pro::mover>(window);
                         #ifdef DEMO
@@ -1472,12 +1487,17 @@ utility like ctags is used to locate the definitions.
                 {
                     window->plugin<pro::title>(ansi::jet(bias::right) + "True color ANSI/ASCII image test");
                     window->blurred = true;
-                    auto layers = window->attach<ui::cake>();
+                    auto object = window->attach<ui::fork>(axis::Y)
+                                        ->plugin<pro::color>(whitelt, 0x601F0FC4);
+                        auto menu = object->attach<slot::_1>(main_menu())
+                                          ->plugin<pro::color>(0, 0) //todo mouse tracking
+                                          ->plugin<pro::mover>(window);
+                    auto layers = object->attach<slot::_2, ui::cake>();
                     auto scroll = layers->attach<ui::rail>()
                                         ->plugin<pro::mover>(window)
                                         ->config(true, true)
                                         ->plugin<pro::color>(whitelt, reddk);
-                    auto object = scroll->attach<ui::post>()
+                                  scroll->attach<ui::post>()
                                         ->upload(truecolor);
                     layers->attach(scroll_bars(scroll));
                     break;
@@ -1664,7 +1684,12 @@ utility like ctags is used to locate the definitions.
                 case Far:
                 {
                     window->plugin<pro::title>("Term \n" + objs_desc[Far]);
-                    auto layers = window->attach<ui::cake>();
+                    auto object = window->attach<ui::fork>(axis::Y)
+                                        ->plugin<pro::color>(whitelt, 0x60303030);
+                        auto menu = object->attach<slot::_1>(main_menu())
+                                          ->plugin<pro::color>(0, 0) //todo mouse tracking
+                                          ->plugin<pro::mover>(window);
+                    auto layers = object->attach<slot::_2, ui::cake>();
                     auto scroll = layers->attach<ui::rail>();
                     scroll->attach<ui::term>("far")
                           ->plugin<pro::color>(whitelt, blackdk);
@@ -1739,7 +1764,12 @@ utility like ctags is used to locate the definitions.
                 case Logs:
                 {
                     window->plugin<pro::title>("Logs \nVT monitoring tool");
-                    auto layers = window->attach<ui::cake>();
+                    auto object = window->attach<ui::fork>(axis::Y)
+                                        ->plugin<pro::color>(whitelt, 0x60303030);
+                        auto menu = object->attach<slot::_1>(main_menu())
+                                          ->plugin<pro::color>(0, 0) //todo mouse tracking
+                                          ->plugin<pro::mover>(window);
+                    auto layers = object->attach<slot::_2, ui::cake>();
                     auto scroll = layers->attach<ui::rail>()
                                         ->plugin<pro::mover>(window);
 
@@ -2180,7 +2210,8 @@ utility like ctags is used to locate the definitions.
                                                 auto bttn_pads = bttn_area->attach<slot::_2, ui::pads>(dent{ 2,2,0,0 }, dent{ 0,0,1,1 })
                                                             ->plugin<pro::fader>(x6, c6, 150ms);
                                                     auto bttn = bttn_pads->attach<ui::item>("⮟", faux);
-                                    auto applist_area = apps_area->attach<slot::_2, ui::cake>();
+                                    auto applist_area = apps_area->attach<slot::_2, ui::pads>(dent{ 0,0,1,0 }, dent{})
+                                                                 ->attach<ui::cake>();
                                         auto task_menu_area = applist_area->attach<ui::fork>(axis::Y, 0, 0);
                                             auto menu_scrl = task_menu_area->attach<slot::_1, ui::rail>(axes::ONLY_Y)
                                                                            ->plugin<pro::color>(0x00, 0x00); //todo mouse events passthrough

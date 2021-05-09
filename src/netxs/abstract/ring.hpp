@@ -15,7 +15,7 @@ namespace netxs::generics
     template<class T, class DTOR>
     struct ring
     {
-        using type = T::value_type;
+        using type = typename T::value_type;
         using iota = int32_t;
 
         struct iter
