@@ -415,7 +415,6 @@ namespace netxs::events
                 _animate    = any | (8 << _level0),
                 _drag       = any | (9 << _level0),
                 _prop       = any | (10<< _level0),
-                //_client     = any | (11<< _level0),
                 _upevent    = any | (11<< _level0), // eventss streamed up (to children) of the visual tree by base::
                 _global     = any | (12<< _level0),
                 _state      = any | (13<< _level0),
@@ -524,26 +523,12 @@ namespace netxs::events
                     wheel       = any | (5 << _level1),
                     win         = any | (6 << _level1),
             };};
-            //struct client { enum : type {
-            //		any = form::_client,
-            //		rect		= any | (1 << _level1), // notify the client area has changed (arg is only release: rect)
-            //		size		= any | (2 << _level1), // notify the client size has changed (arg is only release: twod)
-            //		coor		= any | (3 << _level1), // notify the client coor has changed (arg is only release: twod)
-            //		align		= any | (4 << _level1), //
-            //};};
             struct prop { enum : type {
                     any = form::_prop,
-                    header      = any | (1 << _level1), // set the form caption header (arg: text)
-                    footer      = any | (2 << _level1), // set the form caption footer (arg: text)
-                    //params      = any | (3 << _level1), // set the form caption params (arg: text)
+                    header      = any | (1 << _level1), // set form caption header (arg: text)
+                    footer      = any | (2 << _level1), // set form caption footer (arg: text)
+                    zorder      = any | (3 << _level1), // set form z-order (arg: iota: -1 backmost, 0 plain, 1 topmost)
             };};
-            //struct mouse { enum : type {
-            //		any = form::_mouse,
-            //		enter		= any | (1 << _level1), // inform the form about the mouse hover (arg: hids)
-            //		leave		= any | (2 << _level1), // inform the form about the mouse leave (arg: hids)
-            //		//capture		= any | (3 << _level), // seize mouse button events flow if positive, and release if negative
-            //		//release		= any | (4 << _level), // release a hook of the mouse events visual tree branch, -1 to release all
-            //};};
             struct animate { enum : type {
                     any = form::_animate,
                     start       = any | (1 << _level1),

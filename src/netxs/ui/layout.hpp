@@ -20,6 +20,13 @@ namespace netxs::ui::atoms
     static const char whitespace = 0x20;
     //static const char whitespace = '.';
 
+    enum Z_order : iota
+    {
+        backmost = -1,
+        plain    =  0,
+        topmost  =  1,
+    };
+
     enum tint
     {
         blackdk, reddk, greendk, yellowdk, bluedk, magentadk, cyandk, whitedk,

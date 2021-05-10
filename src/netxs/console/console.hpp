@@ -123,7 +123,7 @@ namespace netxs::console
         EVENT_BIND(e2::form::prop::any, text)
             EVENT_BIND(e2::form::prop::header, text)
             EVENT_BIND(e2::form::prop::footer, text)
-            //EVENT_BIND(e2::form::prop::params, text)
+            EVENT_BIND(e2::form::prop::zorder, iota)
 
         EVENT_BIND(e2::form::drag::any, hids)
             EVENT_SAME(e2::form::drag::any, e2::form::drag::cancel::any)
@@ -3095,6 +3095,7 @@ namespace netxs::console
                 rect region;
                 sptr object;
                 id_t obj_id;
+                iota z_order = Z_order::plain;
 
                 node(sptr item)
                     : object{ item }
@@ -3102,6 +3103,10 @@ namespace netxs::console
                     auto& inst = *item;
                     obj_id = inst.bell::id;
 
+                    inst.SUBMIT(e2::release, e2::form::prop::zorder, order)
+                    {
+                        z_order = order;
+                    };
                     inst.SUBMIT(e2::release, e2::form::layout::size, size)
                     {
                         region.size = size;
@@ -3209,25 +3214,22 @@ namespace netxs::console
                 // Draw backpane for spectators.
                 void prerender(face& canvas)
                 {
-                    for (auto& item : items)          item->fasten(canvas); // Draw strings.
-                    for (auto& item : items)          item->render(canvas); // Draw shadows.
-                    //todo deprecated: enlisted in taskbar
-                    //canvas.cup(dot_00).jet(bias::right);
-                    //for (auto& item : items)          item->enlist(canvas); // Draw a list of objects
+                    for (auto& item : items) item->fasten(canvas); // Draw strings.
+                    for (auto& item : items) item->render(canvas); // Draw shadows.
                 }
                 // Draw windows.
                 void render(face& canvas)
                 {
-                    for (auto& item : items)          item->fasten(canvas);
-                    //todo deprecated: enlisted in taskbar
-                    //canvas.cup(dot_00).jet(bias::left);
-                    //for (auto& item : reverse(items)) item->enlist(canvas);
-                    for (auto& item : items)          item->render(canvas);
+                    for (auto& item : items) item->fasten(canvas);
+                    //todo optimize
+                    for (auto& item : items) if (item->z_order == Z_order::backmost) item->render(canvas);
+                    for (auto& item : items) if (item->z_order == Z_order::plain   ) item->render(canvas);
+                    for (auto& item : items) if (item->z_order == Z_order::topmost ) item->render(canvas);
                 }
                 // Draw spectator's mouse pointers.
                 void postrender(face& canvas)
                 {
-                    for (auto& item : items)          item->postrender(canvas);
+                    for (auto& item : items) item->postrender(canvas);
                 }
 
                 rect remove(id_t id)

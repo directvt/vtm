@@ -1793,6 +1793,12 @@ utility like ctags is used to locate the definitions.
                     static iota i = 0; i++;
                     window->plugin<pro::title>(ansi::jet(bias::center) + "View \n Region " + std::to_string(i));
                     window->only_frame = true;
+                    window->invoke([&](auto& boss){
+                        boss.SUBMIT(e2::release, e2::form::upon::vtree::attached, parent)
+                        {
+                            boss.SIGNAL(e2::release, e2::form::prop::zorder, Z_order::backmost);
+                        };
+                    });
                     break;
                 }
             }
