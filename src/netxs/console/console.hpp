@@ -2178,11 +2178,13 @@ namespace netxs::console
                   skill::memo;
             subs  link;
             robot robo;
+            iota  seat;
 
         public:
             frame(base&&) = delete;
-            frame(base& boss) : skill{ boss },
-                robo{ boss }
+            frame(base& boss, iota z_order = Z_order::plain) : skill{ boss },
+                robo{ boss    },
+                seat{ z_order }
             {
                 boss.SUBMIT_T(e2::release, e2::form::upon::vtree::attached, memo, parent)
                 {
@@ -2202,6 +2204,12 @@ namespace netxs::console
                     {
                         frame::link.clear();
                     };
+                    boss.SIGNAL(e2::release, e2::form::prop::zorder, seat);
+                };
+                boss.SUBMIT(e2::preview, e2::form::prop::zorder, order)
+                {
+                    seat = order;
+                    boss.SIGNAL(e2::release, e2::form::prop::zorder, seat);
                 };
                 boss.SUBMIT_T(e2::preview, e2::form::layout::expose, memo, boss)
                 {

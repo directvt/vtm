@@ -730,9 +730,9 @@ int main(int argc, char* argv[])
                 + ansi::jet(bias::center).wrp(wrap::off).fgc(clr)
                 + "Embedded Content\n\n"
                 + ansi::jet(bias::left).wrp(wrap::on)
-                + ansi::idx(test_topic_vars::dynamix1) + "<"+ ansi::fgc(reddk)+"create smth."+ ansi::fgc()+">"//.nop()
-                + ansi::idx(test_topic_vars::dynamix2) + "<"+ ansi::fgc(reddk)+"create smth."+ ansi::fgc()+">"//.nop()
-                + ansi::idx(test_topic_vars::dynamix3) + "<"+ ansi::fgc(reddk)+"create smth."+ ansi::fgc()+">"//.nop()
+                + ansi::idx(test_topic_vars::dynamix1) + "<"+ ansi::fgc(reddk)+"placeholder"+ ansi::fgc()+">"//.nop()
+                + ansi::idx(test_topic_vars::dynamix2) + "<"+ ansi::fgc(reddk)+"placeholder"+ ansi::fgc()+">"//.nop()
+                + ansi::idx(test_topic_vars::dynamix3) + "<"+ ansi::fgc(reddk)+"placeholder"+ ansi::fgc()+">"//.nop()
                 + ansi::nil()
                 + "\n";
 
@@ -1243,19 +1243,19 @@ utility like ctags is used to locate the definitions.
         using axis = ui::axis;
         using axes = ui::axes;
 
-        auto c7 = cell{}.bgc(whitedk).fgc(blackdk);
-        auto c6 = cell{}.bgc(action_color).fgc(whitelt);
-        auto x6 = c6; x6.bga(0x00).fga(0x00);
-        auto c5 = cell{}.bgc(danger_color).fgc(whitelt);
-        auto x5 = c5; x5.bga(0x00).fga(0x00);
-        auto c4 = cell{}.bgc(highlight_color);
-        auto x4 = c4; x4.bga(0x00);
-        auto c3 = cell{}.bgc(highlight_color).fgc(0xFFffffff);
-        auto x3 = c3; x3.bga(0x00).fga(0x00);
-        auto c2 = cell{}.bgc(warning_color).fgc(whitelt);
-        auto x2 = c2; x2.bga(0x00);
-        auto c1 = cell{}.bgc(danger_color).fgc(whitelt);
-        auto x1 = c1; x1.bga(0x00);
+        const static auto c7 = cell{}.bgc(whitedk).fgc(blackdk);
+        const static auto c6 = cell{}.bgc(action_color).fgc(whitelt);
+        const static auto x6 = cell{ c6 }.bga(0x00).fga(0x00);
+        const static auto c5 = cell{}.bgc(danger_color).fgc(whitelt);
+        const static auto x5 = cell{ c5 }.bga(0x00).fga(0x00);
+        const static auto c4 = cell{}.bgc(highlight_color);
+        const static auto x4 = cell{ c4 }.bga(0x00);
+        const static auto c3 = cell{}.bgc(highlight_color).fgc(0xFFffffff);
+        const static auto x3 = cell{ c3 }.bga(0x00).fga(0x00);
+        const static auto c2 = cell{}.bgc(warning_color).fgc(whitelt);
+        const static auto x2 = cell{ c2 }.bga(0x00);
+        const static auto c1 = cell{}.bgc(danger_color).fgc(whitelt);
+        const static auto x1 = cell{ c1 }.bga(0x00);
 
         auto scroll_bars = [](auto master)
         {
@@ -1391,12 +1391,14 @@ utility like ctags is used to locate the definitions.
                                                 self.content(test_topic_vars::object2) = textclr + " inlined #2: " + canvas.area().size.str() + " ";
                                                 self.content(test_topic_vars::object3) = textclr + " inlined #3: " + canvas.full().coor.str() + " ";
                                             };
-                                            self.SUBMIT(e2::general, e2::form::canvas, canvas_ptr)
-                                            {
-                                                self.content(test_topic_vars::dynamix1).lyric = self.content(test_topic_vars::dynamix2).lyric;
-                                                self.content(test_topic_vars::dynamix2).lyric = self.content(test_topic_vars::dynamix3).lyric;
-                                                self.content(test_topic_vars::dynamix3).lyric = canvas_ptr;
-                                            }; });
+                                            //todo
+                                            //self.SUBMIT(e2::general, e2::form::canvas, canvas_ptr)
+                                            //{
+                                            //    self.content(test_topic_vars::dynamix1).lyric = self.content(test_topic_vars::dynamix2).lyric;
+                                            //    self.content(test_topic_vars::dynamix2).lyric = self.content(test_topic_vars::dynamix3).lyric;
+                                            //    self.content(test_topic_vars::dynamix3).lyric = canvas_ptr;
+                                            //};
+                                        });
                         auto& a = object->lyric(test_topic_vars::canvas1);
                             a.mark().fgc(0xFF000000);
                             a.size({ 40, 9 });
@@ -1794,10 +1796,7 @@ utility like ctags is used to locate the definitions.
                     window->plugin<pro::title>(ansi::jet(bias::center) + "View \n Region " + std::to_string(i));
                     window->only_frame = true;
                     window->invoke([&](auto& boss){
-                        boss.SUBMIT(e2::release, e2::form::upon::vtree::attached, parent)
-                        {
-                            boss.SIGNAL(e2::release, e2::form::prop::zorder, Z_order::backmost);
-                        };
+                        boss.SIGNAL(e2::preview, e2::form::prop::zorder, Z_order::backmost);
                     });
                     break;
                 }
