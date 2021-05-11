@@ -1796,6 +1796,8 @@ utility like ctags is used to locate the definitions.
                     window->plugin<pro::title>(ansi::jet(bias::center) + "View \n Region " + std::to_string(i));
                     window->only_frame = true;
                     window->invoke([&](auto& boss){
+                        auto& sizer = boss.template plugins<pro::sizer>();
+                        sizer.props(dent{ 2,2,1,1 }, dent{ -4,-4,-2,-2 });
                         boss.SIGNAL(e2::preview, e2::form::prop::zorder, Z_order::backmost);
                     });
                     break;

@@ -233,11 +233,11 @@ namespace netxs::ui
             // Draw only frame. It is used in View only
             if (only_frame)
             {
-                // auto area = parent_canvas.full();
-                // auto mark = skin::color(tone::shadower);
-                // mark.fgc(title_fg_color).link(bell::id);
-                // auto fill = [&](cell& c) { c.fusefull(mark); };
-                // parent_canvas.cage(area, dot_11, fill);
+                auto area = parent_canvas.full();
+                auto mark = skin::color(tone::shadower);
+                mark.fgc(title_fg_color).link(bell::id);
+                auto fill = [&](cell& c) { c.fusefull(mark); };
+                parent_canvas.cage(area, dot_21, fill);
                 SIGNAL(e2::release, e2::form::upon::redrawn, parent_canvas); // to draw the title and footer
                 return;
             }

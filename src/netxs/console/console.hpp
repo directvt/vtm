@@ -1755,6 +1755,12 @@ namespace netxs::console
             }
 
         public:
+            void props(dent const& outer_rect = {2,2,1,1}, dent const& inner_rect = {})
+            {
+                outer = outer_rect;
+                inner = inner_rect;
+                width = outer - inner;
+            }
             sizer(base&&) = delete;
             sizer(base& boss, dent const& outer_rect = {2,2,1,1}, dent const& inner_rect = {})
                 : skill{ boss          },

@@ -1268,42 +1268,33 @@ namespace netxs::ui::atoms
     {
         iota l, r, t, b;
 
-        constexpr side ()
+        constexpr side()
             : l(0), r(0), t(0), b(0)
         { }
 
-        constexpr side (iota left, iota right = 0, iota top = 0, iota bottom = 0)
+        constexpr side(iota left, iota right = 0, iota top = 0, iota bottom = 0)
             : l(left), r(right), t(top), b(bottom)
         { }
 
-        constexpr side (side const& s)
+        constexpr side(side const& s)
             : l(s.l), r(s.r), t(s.t), b(s.b)
         { }
 
-        constexpr side (twod const& p)
+        constexpr side(twod const& p)
             : l(p.x), r(p.x), t(p.y), b(p.y)
         { }
 
-        constexpr side (rect const& r)
+        constexpr side(rect const& r)
             : l(r.coor.x), r(r.coor.x + r.size.x),
               t(r.coor.y), b(r.coor.y + r.size.y)
         { }
 
-        side (fifo& queue)
+        side(fifo& queue)
         {
             l = queue(0);
             r = queue(0);
             t = queue(0);
             b = queue(0);
-        }
-
-        // side: Unite the two rectangles.
-        void operator |= (side const& s)
-        {
-            l = std::min(l, s.l);
-            t = std::min(t, s.t);
-            r = std::max(r, s.r);
-            b = std::max(b, s.b);
         }
         // side: Unite the two rectangles (normalized).
         void operator |= (rect const& p)
@@ -1424,7 +1415,7 @@ namespace netxs::ui::atoms
               foot{ faux, pad.foot.step }
         { }
 
-        dent& operator = (dent const& pad)
+        auto& operator = (dent const& pad)
         {
             west = pad.west;
             east = pad.east;
@@ -1432,7 +1423,7 @@ namespace netxs::ui::atoms
             foot = pad.foot;
             return *this;
         }
-        dent& operator += (dent const& pad)
+        auto& operator += (dent const& pad)
         {
             west.step += pad.west.step;
             east.step += pad.east.step;
