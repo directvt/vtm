@@ -1296,6 +1296,14 @@ namespace netxs::ui::atoms
             t = queue(0);
             b = queue(0);
         }
+        // side: Unite the two rectangles.
+        void operator |= (side const& s)
+        {
+            l = std::min(l, s.l);
+            t = std::min(t, s.t);
+            r = std::max(r, s.r);
+            b = std::max(b, s.b);
+        }
         // side: Unite the two rectangles (normalized).
         void operator |= (rect const& p)
         {

@@ -1059,7 +1059,15 @@ namespace netxs::console
         void id(iota newid)    { selfid = newid; }
 
         auto chx() const       { return caret;    }
-        void chx(iota new_pos) { caret = new_pos; }
+        void chx(iota new_pos)
+        {
+            if (new_pos < 0)
+            {
+                //todo investigate the reason
+                caret = 0;
+            }
+            else caret = new_pos; 
+        }
 
         void trim_to(iota max_width)
         {
