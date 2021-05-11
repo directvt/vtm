@@ -217,6 +217,7 @@ namespace netxs::console
         template<class P>
         void  fill(ui::rect block, P fuse) // core: Process the specified region by the specified proc.
         {
+            block.normalize_itself();
             block.coor += region.coor;
             netxs::onrect(*this, block, fuse);
         }
