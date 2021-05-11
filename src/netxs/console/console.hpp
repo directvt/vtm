@@ -872,21 +872,25 @@ namespace netxs::console
                 else log("hids: error condition: Clients count is broken, dangling id ", last_id);
             }
         }
+        void take_mouse_focus(bell& boss)
+        {
+            if (mouse::hover != boss.id) // The mouse cursor is over the new object.
+            {
+                // Firing the leave event right after the enter allows us
+                // to avoid flickering the parent object state when focus
+                // acquired by children.
+                auto start_l = mouse::start;
+                mouse::start = 0; // The first one to track the mouse will assign itself by calling gear.direct<true>(id).
+                boss.SIGNAL(e2::release, e2::form::notify::mouse::enter, *this);
+                mouse_leave(mouse::hover, start_l);
+                mouse::hover = boss.id;
+            }
+        }
         void okay(bell& boss)
         {
             if (boss.id == relay)
             {
-                if (mouse::hover != boss.id) // The mouse cursor is over the new object.
-                {
-                    // Firing the leave event right after the enter allows us
-                    // to avoid flickering the parent object state when focus
-                    // acquired by children.
-                    auto start_l = mouse::start;
-                    mouse::start = 0; // The first one to track the mouse will assign itself by calling gear.direct<true>(id).
-                    boss.SIGNAL(e2::release, e2::form::notify::mouse::enter, *this);
-                    mouse_leave(mouse::hover, start_l);
-                    mouse::hover = boss.id;
-                }
+                take_mouse_focus(boss);
                 boss.bell::template signal<e2::release>(mouse::cause, *this);
             }
         }
@@ -901,8 +905,12 @@ namespace netxs::console
             if (mouse::swift)
             {
                 auto next = bell::getref(mouse::swift);
-                if (next) pass<e2::release>(next, offset, true);
-                else      mouse::release();
+                if (next)
+                {
+                    take_mouse_focus(*next);
+                    pass<e2::release>(next, offset, true);
+                }
+                else mouse::release();
             }
             else
             {
