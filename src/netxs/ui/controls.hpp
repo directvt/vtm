@@ -62,9 +62,10 @@ namespace netxs::ui
         template<class S, class ...Args>
         auto plugin(Args&&... args)
         {
+            auto backup = This<T>();
             depo[std::type_index(typeid(S))] = std::make_unique<S>(*this, std::forward<Args>(args)...);
             base::reflow();
-            return This<T>();
+            return backup;
         }
         // form: Return plugin reference of specified type.
         template<class S>
@@ -77,23 +78,27 @@ namespace netxs::ui
         template<class P>
         auto invoke(P functor)
         {
-            functor(*(This<T>()));
-            return This<T>();
+            auto backup = This<T>();
+            functor(*backup);
+            return backup;
         }
         // form: Attach homeless branch and return itself.
         template<class C, class ...Args>
         auto branch(C child, Args&&... args)
         {
-            if (child) This<T>()->T::attach(child, std::forward<Args>(args)...);
-            return This<T>();
+            auto backup = This<T>();
+            if (child) backup->T::attach(child, std::forward<Args>(args)...);
+            return backup;
         }
         // form: Boss will be detached when the master is dtor'ed.
-        auto depend(sptr<base> master)
+        auto depend(sptr<base> master_ptr)
         {
-            master->SUBMIT_T(e2::release, e2::dtor, memomap[master->id], master_id)
+            auto& master = *master_ptr;
+            master.SUBMIT_T(e2::release, e2::form::upon::vtree::detached, memomap[master.id], parent_ptr)
             {
-                memomap[master_id].clear();
-                memomap.erase(master_id);
+                auto backup = This<T>();
+                memomap[master.id].clear();
+                memomap.erase(master.id);
                 if (memomap.empty()) base::detach();
             };
             return This<T>();
@@ -102,23 +107,25 @@ namespace netxs::ui
         template<class S>
         auto depend_on_collection(S data_collection_src)
         {
+            auto backup = This<T>();
             for(auto& data_src : data_collection_src)
             {
                 depend(data_src);
             }
-            return This<T>();
+            return backup;
         }
         // form: Create and attach a new item using a template and dynamic datasource.
         template<e2::type PROPERTY, class C, class P>
         auto attach_element(C data_src, P item_template)
         {
+            auto backup = This<T>();
             ARGTYPE(PROPERTY) arg;
             data_src->SIGNAL(e2::request, PROPERTY, arg);
             auto new_item = item_template(data_src, arg)
                                  ->depend(data_src);
             auto item_shadow = ptr::shadow(new_item);
             auto data_shadow = ptr::shadow(data_src);
-            auto boss_shadow = ptr::shadow(This<T>());
+            auto boss_shadow = ptr::shadow(backup);
             data_src->SUBMIT_BYVAL_T(e2::release, PROPERTY, memomap[data_src->id], new_arg_value)
             {
                 if (auto boss_ptr = boss_shadow.lock())
@@ -138,11 +145,12 @@ namespace netxs::ui
         template<e2::type PROPERTY, class S, class P>
         auto attach_collection(S data_collection_src, P item_template)
         {
+            auto backup = This<T>();
             for(auto& data_src : data_collection_src)
             {
                 attach_element<PROPERTY>(data_src, item_template);
             }
-            return This<T>();
+            return backup;
         }
     };
 

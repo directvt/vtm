@@ -1616,6 +1616,24 @@ namespace netxs::console
             core::wipe(args...);
             flow::reset();
         }
+        // face: Change current context. Return old context.
+        auto  bump(dent const& delta)
+        {
+            auto old_full = face::full();
+            auto old_view = core::view();
+            auto new_view = core::area().clip<true>(old_view + delta);
+            auto new_full = old_full + delta;
+            face::full(new_full);
+            core::view(new_view);
+            return std::pair{ old_full, old_view };
+        }
+        // face: Restore previously saved context.
+        void  bump(std::pair<rect, rect> ctx)
+        {
+            face::full(ctx.first);
+            core::view(ctx.second);
+        }
+
         // Use a two letter function if we don't need to return *this
         face& cup (twod const& p) { flow::ac( p); return *this; } // face: Cursor 0-based absolute position.
         face& chx (iota x)        { flow::ax( x); return *this; } // face: Cursor 0-based horizontal absolute.

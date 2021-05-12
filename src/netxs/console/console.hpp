@@ -1686,13 +1686,14 @@ namespace netxs::console
                       seized{ faux }
                 { }
                 operator bool(){ return inside || seized; }
-                void grab(twod const& curpos)
+                auto grab(twod const& curpos)
                 {
                     if (inside)
                     {
                         origin = curpos - corner;
                         seized = true;
                     }
+                    return seized;
                 }
                 auto calc(base const& master, twod curpos, dent const& outer, dent const& inner, dent const& border)
                 {
@@ -1729,7 +1730,7 @@ namespace netxs::console
                     vtgrip.size.y += s.y;
                     vtgrip.normalize_itself();
                 }
-                void drag(base& master, twod const& curpos)
+                auto drag(base& master, twod const& curpos)
                 {
                     if (seized)
                     {
@@ -1739,6 +1740,7 @@ namespace netxs::console
                             master.base::moveby(-dxdy * dtcoor);
                         }
                     }
+                    return seized;
                 }
                 void drop()
                 {
@@ -1830,11 +1832,13 @@ namespace netxs::console
                 };
                 boss.SUBMIT(e2::release, e2::message(e2::form::drag::start::any, button), gear)
                 {
-                    take(gear).grab(gear.coord);
+                    if (take(gear).grab(gear.coord))
+                        gear.dismiss();
                 };
                 boss.SUBMIT(e2::release, e2::message(e2::form::drag::pull::any, button), gear)
                 {
-                    take(gear).drag(boss, gear.coord);
+                    if (take(gear).drag(boss, gear.coord))
+                        gear.dismiss();
                 };
                 boss.SUBMIT(e2::release, e2::message(e2::form::drag::cancel::any, button), gear)
                 {
@@ -1939,6 +1943,7 @@ namespace netxs::console
                     if ((dest_object = dest_shadow.lock()))
                     {
                         take(gear).grab(*dest_object, gear.coord);
+                        gear.dismiss();
                     }
                 };
                 boss.SUBMIT(e2::release, e2::message(e2::form::drag::pull::any, button), gear)
@@ -1948,16 +1953,25 @@ namespace netxs::console
                         take(gear).drag(*dest_object, gear.coord);
                         auto delta = gear.delta.get();
                         dest_object->SIGNAL(e2::preview, e2::form::upon::moved, delta);
+                        gear.dismiss();
                     }
                 };
                 boss.SUBMIT(e2::release, e2::message(e2::form::drag::cancel::any, button), gear)
                 {
-                    dest_object.reset();
+                    if (dest_object)
+                    {
+                        dest_object.reset();
+                        gear.dismiss();
+                    }
                 };
                 boss.SUBMIT(e2::release, e2::message(e2::form::drag::stop::any, button), gear)
                 {
-                    dest_object->SIGNAL(e2::release, e2::form::upon::dragged, gear);
-                    dest_object.reset();
+                    if (dest_object)
+                    {
+                        dest_object->SIGNAL(e2::release, e2::form::upon::dragged, gear);
+                        dest_object.reset();
+                        gear.dismiss();
+                    }
                 };
             }
         };
@@ -2244,6 +2258,16 @@ namespace netxs::console
                 boss.SUBMIT_T(e2::preview, e2::hids::mouse::button::down::any, memo, gear)
                 {
                     robo.pacify();
+                };
+                boss.SUBMIT_T(e2::release, e2::form::drag::pull::left, memo, gear)
+                {
+                    if (gear)
+                    {
+                        auto delta = gear.delta.get();
+                        boss.base::moveby(delta);
+                        boss.SIGNAL(e2::preview, e2::form::upon::moved, delta);
+                        gear.dismiss();
+                    }
                 };
                 boss.SUBMIT_T(e2::release, e2::form::upon::dragged, memo, gear)
                 {
@@ -2922,68 +2946,63 @@ namespace netxs::console
         {
             using skill::boss,
                   skill::memo;
-            page head; // title: Owner's caption header.
-            page foot; // title: Owner's caption footer.
-            text name; // title: Preserve original header.
-            twod size; // title: Owner width.
-            flow oooo; // title: .
+            page head_page; // title: Owner's caption header.
+            page foot_page; // title: Owner's caption footer.
+            text head_name; // title: Preserve original header.
+            text foot_name; // title: Preserve original footer.
+            twod head_size; // title: Header page size.
+            twod foot_size; // title: Footer page size
+            flow ooooooooo; // title: .
 
         public:
             bool live = true; // title: Title visibility.
 
             auto& titles() const
             {
-                return head;
+                return head_page;
+            }
+            void recalc(page& object, twod& size)
+            {
+                ooooooooo.flow::reset();
+                ooooooooo.flow::size(size);
+                auto publish = [&](auto const& combo)
+                {
+                    auto cp = ooooooooo.flow::print(combo);
+                };
+                object.stream(publish);
+                auto& cover = ooooooooo.flow::minmax();
+                size.y = cover.height() + 1;
+            }
+            void recalc(twod const& new_size)
+            {
+                head_size = new_size;
+                foot_size = new_size;
+                recalc(head_page, head_size);
+                recalc(foot_page, foot_size);
             }
             void header(view newtext)
             {
-                head = newtext;
-                name = newtext;
-                recalc();
-                boss.SIGNAL(e2::release, e2::form::prop::header, name);
+                head_page = newtext;
+                head_name = newtext;
+                recalc(head_page, head_size);
+                boss.SIGNAL(e2::release, e2::form::prop::header, head_name);
                 /*
-                name = newtext;
-                auto& textline = header();
-                textline = newtext;
-                textline.style.rtl_or(rtol::ltr);
-                textline.style.rlf_or(feed::fwd);
-                textline.style.wrp_or(wrap::off);
-                textline.style.jet_or(bias::left);
                 textline.link(boss.id);
-                boss.SIGNAL(e2::release, e2::form::prop::header, name);
+                boss.SIGNAL(e2::release, e2::form::prop::header, head_name);
                 boss.SIGNAL(e2::release, e2::form::state::header, textline);
                 */
             }
             void footer(view newtext)
             {
-                foot = newtext;
+                foot_page = newtext;
+                foot_name = newtext;
+                recalc(foot_page, foot_size);
+                boss.SIGNAL(e2::release, e2::form::prop::footer, foot_name);
                 /*
-                auto& textline = footer();
-                textline = newtext;
-                textline.style.rtl_or(rtol::ltr);
-                textline.style.rlf_or(feed::rev);
-                textline.style.wrp_or(wrap::off);
-                textline.style.jet_or(bias::right);
                 textline.link(boss.id);
+                boss.SIGNAL(e2::release, e2::form::prop::footer, foot_name);
                 boss.SIGNAL(e2::release, e2::form::state::footer, textline);
                 */
-            }
-            void recalc()
-            {
-                oooo.flow::reset();
-                oooo.flow::size(size);
-                auto publish = [&](auto const& combo)
-                {
-                    auto cp = oooo.flow::print(combo);
-                };
-                head.stream(publish);
-                auto& cover = oooo.flow::minmax();
-                size.y = cover.height() + 1;
-            }
-            void recalc(twod const& new_size)
-            {
-                size = new_size;
-                recalc();
             }
             void init()
             {
@@ -2995,16 +3014,12 @@ namespace netxs::console
                 {
                     if (live)
                     {
-                        auto full = canvas.full();
-                        auto view = canvas.view();
-                        auto bump = dent{ 0,0,size.y,0 };
-                        auto area = canvas.area().clip<true>(view + bump);
-                        canvas.full(full + bump);
-                        canvas.view(area);
+                        auto saved_context = canvas.bump(dent{ 0,0,head_size.y,foot_size.y });
                         canvas.cup(dot_00);
-                        canvas.output(head);
-                        canvas.full(full);
-                        canvas.view(view);
+                        canvas.output(head_page);
+                        canvas.cup({ 0, head_size.y + boss.size.get().y });
+                        canvas.output(foot_page);
+                        canvas.bump(saved_context);
                     }
                 };
                 boss.SUBMIT_T(e2::preview, e2::form::prop::header, memo, newtext)
@@ -3017,7 +3032,11 @@ namespace netxs::console
                 };
                 boss.SUBMIT_T(e2::request, e2::form::prop::header, memo, curtext)
                 {
-                    curtext = name;
+                    curtext = head_name;
+                };
+                boss.SUBMIT_T(e2::request, e2::form::prop::footer, memo, curtext)
+                {
+                    curtext = foot_name;
                 };
                 /*
                 boss.SUBMIT_T(e2::request, e2::form::state::header, memo, caption)
@@ -3043,6 +3062,7 @@ namespace netxs::console
                 init();
                 header(title);
                 live = visible;
+                footer(ansi::jet(bias::right) + "test\nmultiline\nfooter");
             }
         };
 

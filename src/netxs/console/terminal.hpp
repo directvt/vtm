@@ -136,9 +136,9 @@ namespace netxs::ui
         }
         auto status()
         {
-            return "Scroll: size=" + std::to_string(batch.size) + ' '
-                         + "peak=" + std::to_string(batch.peak) + ' '
-                         + "type=" + (batch.step ? "unlimited, grow by " + std::to_string(batch.step) : "fixed");
+            return "size=" + std::to_string(batch.size) + ' '
+                 + "peak=" + std::to_string(batch.peak) + ' '
+                 + "type=" + (batch.step ? "unlimited, grow by " + std::to_string(batch.step) : "fixed");
         }
         auto recalc_pads()
         {
@@ -1440,6 +1440,11 @@ namespace netxs::ui
                 queue.clear();
             }
         }
+        void update_status()
+        {
+            auto utf8 = ansi::jet(bias::right) + target->status();
+            base::riseup<e2::preview, e2::form::prop::footer>(utf8);
+        }
         void input_hndl(view shadow)
         {
             while (ptycon)
@@ -1480,6 +1485,7 @@ namespace netxs::ui
 
                     SIGNAL(e2::release, base::size_event, target->frame_size());
 
+                    update_status();
                     //log(" 2. target content: ", target->get_content());
                     break;
                 }
@@ -1514,6 +1520,7 @@ namespace netxs::ui
                         altbuf.resize<faux>(new_size.y);
                         this->SUBMIT(e2::preview, e2::form::layout::size, new_size)
                         {
+                            new_size = std::max(new_size, dot_11);
                             auto old_caret_pos = caret.coor();
                             auto caret_seeable = caret && viewport.hittest(old_caret_pos);
                             viewport.size = new_size;
@@ -1539,6 +1546,8 @@ namespace netxs::ui
                                     this->SIGNAL(e2::release, base::move_event, new_coor);
                                 }
                             }
+
+                            update_status();
                             ptycon.resize(viewport.size);
                         };
                         ptycon.start(cmdline, new_size, [&](auto utf8_shadow) { input_hndl(utf8_shadow); });
@@ -1593,17 +1602,6 @@ namespace netxs::ui
             SUBMIT(e2::release, e2::form::layout::move, new_coor)
             {
                 viewport.coor = -new_coor;
-            };
-            SUBMIT(e2::release, e2::form::upon::redrawn, parent_canvas)
-            {
-                //todo unify
-                status = target->status();
-                auto size = status.size();
-                auto area = parent_canvas.area();
-                area.coor.x += area.size.x - size.x - 1;
-                area.coor.y += area.size.y;
-                status.lyric->move(area.coor);
-                parent_canvas.fill(*status.lyric);
             };
         }
 
