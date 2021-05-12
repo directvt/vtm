@@ -3062,7 +3062,9 @@ namespace netxs::console
                 init();
                 header(title);
                 live = visible;
+                #ifdef DEMO
                 footer(ansi::jet(bias::right) + "test\nmultiline\nfooter");
+                #endif
             }
         };
 
