@@ -136,9 +136,9 @@ namespace netxs::ui
         }
         auto status()
         {
-            return "Scroll: size=" + std::to_string(batch.size) + ' '
-                         + "peak=" + std::to_string(batch.peak) + ' '
-                         + "type=" + (batch.step ? "unlimited, grow by " + std::to_string(batch.step) : "fixed");
+            return "size=" + std::to_string(batch.size) + ' '
+                 + "peak=" + std::to_string(batch.peak) + ' '
+                 + "type=" + (batch.step ? "unlimited, grow by " + std::to_string(batch.step) : "fixed");
         }
         auto recalc_pads()
         {
@@ -470,13 +470,9 @@ namespace netxs::ui
 
     // terminal: Built-in terminal app.
     class term
-        : public base, public pro::boost<term>
+        : public form<term>
     {
-        #ifndef DEMO
-        pro::keybd<term> keybd{ *this }; // term: Keyboard controller.
-        #endif
-        pro::caret<term> caret{ *this }; // term: Caret controller.
-        pro::mouse<term> mouse{ *this }; // term: Mouse controller.
+        pro::caret caret{ *this }; // term: Caret controller.
 
         // term: VT-mouse tracking functionality.
         struct mtracking
@@ -661,7 +657,7 @@ namespace netxs::ui
                 {
                                   props[ansi::OSC_LABEL] = txt;
                     auto& utf8 = (props[ansi::OSC_TITLE] = txt);
-                    utf8 = ansi::mgr(1).mgl(1).jet(bias::left) + utf8;
+                    utf8 = ansi::jet(bias::left) + utf8;
                     owner.base::riseup<e2::preview, e2::form::prop::header>(utf8);
                 }
                 else
@@ -669,7 +665,7 @@ namespace netxs::ui
                     auto& utf8 = (props[property] = txt);
                     if (property == ansi::OSC_TITLE)
                     {
-                        utf8 = ansi::mgr(1).mgl(1).jet(bias::left) + utf8;
+                        utf8 = ansi::jet(bias::left) + utf8;
                         owner.base::riseup<e2::preview, e2::form::prop::header>(utf8);
                     }
                 }
@@ -1275,6 +1271,8 @@ namespace netxs::ui
         rect viewport = { dot_00, dot_11 }; // term: Viewport.
         para     status; // term: Status line.
         os::cons ptycon; // term: PTY device.
+        hook oneshot_resize_token; // term: First resize subscription token.
+        text cmdline;
 
         static constexpr iota default_size = 20000;
         static constexpr iota default_step = 0;
@@ -1442,6 +1440,11 @@ namespace netxs::ui
                 queue.clear();
             }
         }
+        void update_status()
+        {
+            auto utf8 = ansi::jet(bias::right) + target->status();
+            base::riseup<e2::preview, e2::form::prop::footer>(utf8);
+        }
         void input_hndl(view shadow)
         {
             while (ptycon)
@@ -1482,6 +1485,7 @@ namespace netxs::ui
 
                     SIGNAL(e2::release, base::size_event, target->frame_size());
 
+                    update_status();
                     //log(" 2. target content: ", target->get_content());
                     break;
                 }
@@ -1490,24 +1494,65 @@ namespace netxs::ui
         }
 
     public:
-        term(twod initial_window_size, text cmd_line, iota max_scrollback_size = default_size, iota grow_step = default_step)
-            : boost   { *this },
-              mtracker{ *this },
+        term(text cmd_line, iota max_scrollback_size = default_size, iota grow_step = default_step)
+            : mtracker{ *this },
               ftracker{ *this },
               winprops{ *this },
-              normal  { *this, max_scrollback_size  , grow_step },
-              altbuf  { *this, initial_window_size.y, 0         },
+              cmdline { cmd_line },
+              normal  { *this, max_scrollback_size, grow_step },
+              altbuf  { *this, 1                  , 0         },
               target  { &normal }
         {
             caret.show();
 
-            #ifndef DEMO
-            keybd.accept(true); // Subscribe to keybd offers.
+            #ifdef PROD
+            form::keybd.accept(true); // Subscribe to keybd offers.
             #endif
 
             SUBMIT(e2::release, e2::form::upon::vtree::attached, parent)
             {
-                base::riseup<e2::request, e2::form::prop::header>(winprops.get(ansi::OSC_TITLE));
+                this->base::riseup<e2::request, e2::form::prop::header>(winprops.get(ansi::OSC_TITLE));
+                this->SUBMIT_T(e2::release, e2::form::layout::size, oneshot_resize_token, new_size)
+                {
+                    if (new_size.y > 0)
+                    {
+                        oneshot_resize_token.reset();
+                        altbuf.resize<faux>(new_size.y);
+                        this->SUBMIT(e2::preview, e2::form::layout::size, new_size)
+                        {
+                            new_size = std::max(new_size, dot_11);
+                            auto old_caret_pos = caret.coor();
+                            auto caret_seeable = caret && viewport.hittest(old_caret_pos);
+                            viewport.size = new_size;
+                            altbuf.resize<faux>(new_size.y);
+
+                            if (target == &normal) target->remove_empties();
+
+                            oversize.set(target->recalc_pads());
+                            caret.set(target->get_caret());
+
+                            auto scrollback_size = target->frame_size();
+                            new_size.y = std::max(new_size.y, scrollback_size.y);
+                            target->rebuild_viewport();
+
+                            //viewport.set(...);
+                            if (caret_seeable)// && !viewport.hittest(caret_xy))
+                            {
+                                if (auto delta = old_caret_pos - viewport.clip(caret.coor()))
+                                {
+                                    auto v0 = viewport; v0.coor.x = 0;
+                                    auto new_coor = base::coor.get() - delta;
+                                    if (v0.hittest(caret.coor())) new_coor.x = 0;
+                                    this->SIGNAL(e2::release, base::move_event, new_coor);
+                                }
+                            }
+
+                            update_status();
+                            ptycon.resize(viewport.size);
+                        };
+                        ptycon.start(cmdline, new_size, [&](auto utf8_shadow) { input_hndl(utf8_shadow); });
+                    }
+                };
             };
             SUBMIT(e2::release, e2::hids::keybd::any, gear)
             {
@@ -1519,7 +1564,7 @@ namespace netxs::ui
                     auto old_caret_pos = viewport.coor + viewport.size - dot_11;
                     auto anchor_delta = caret_xy - old_caret_pos;
                     auto new_coor = base::coor.get() - anchor_delta;
-                    SIGNAL(e2::release, base::move_event, new_coor);
+                    this->SIGNAL(e2::release, base::move_event, new_coor);
                 }
 
                 //todo optimize/unify
@@ -1554,55 +1599,10 @@ namespace netxs::ui
                     log("key strokes bin: ", d.str());
                 #endif
             };
-            SUBMIT(e2::preview, e2::form::layout::size, new_size)
-            {
-                auto old_caret_pos = caret.coor();
-                auto caret_seeable = caret && viewport.hittest(old_caret_pos);
-
-                viewport.size = new_size;
-                altbuf.resize<faux>(new_size.y);
-
-                if (target == &normal) target->remove_empties();
-
-                oversize.set(target->recalc_pads());
-                caret.set(target->get_caret());
-
-
-                auto scrollback_size = target->frame_size();
-                new_size.y = std::max(new_size.y, scrollback_size.y);
-                target->rebuild_viewport();
-
-                //viewport.set(...);
-                if (caret_seeable)// && !viewport.hittest(caret_xy))
-                {
-                    if (auto delta = old_caret_pos - viewport.clip(caret.coor()))
-                    {
-                        auto v0 = viewport; v0.coor.x = 0;
-                        auto new_coor = base::coor.get() - delta;
-                        if (v0.hittest(caret.coor())) new_coor.x = 0;
-                        SIGNAL(e2::release, base::move_event, new_coor);
-                    }
-                }
-
-                ptycon.resize(viewport.size);
-            };
             SUBMIT(e2::release, e2::form::layout::move, new_coor)
             {
                 viewport.coor = -new_coor;
             };
-            SUBMIT(e2::release, e2::form::upon::redrawn, parent_canvas)
-            {
-                //todo unify
-                status = target->status();
-                auto size = status.size();
-                auto area = parent_canvas.area();
-                area.coor.x += area.size.x - size.x - 1;
-                area.coor.y += area.size.y - 1;
-                status.lyric->move(area.coor);
-                parent_canvas.fill(*status.lyric);
-            };
-
-            ptycon.start(cmd_line, initial_window_size, [&](auto utf8_shadow) { input_hndl(utf8_shadow); });
         }
 
         // term/base: Output to the canvas.

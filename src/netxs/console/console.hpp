@@ -10,6 +10,7 @@
 #include "../text/logger.hpp"
 
 #include <iostream>
+#include <typeindex>
 
 #define SPD 10               // console: Auto-scroll initial speed component ΔR.
 #define PLS 167              // console: Auto-scroll initial speed component ΔT.
@@ -22,6 +23,8 @@
 #define STOPPING_TIME  2s    // console: Object state stopping duration in s.
 #define SWITCHING_TIME 200   // console: Object state switching duration in ms.
 #define BLINK_PERIOD   400ms // console: Period in ms between the blink states of the cursor.
+
+#define MENU_TIMEOUT  250ms  // console: Taskbar collaplse timeout.
 
 #define ACTIVE_TIMEOUT  1s   // console: Timeout off the active object.
 #define REPEAT_DELAY  500ms  // console: Repeat delay.
@@ -68,8 +71,8 @@ namespace netxs::console
         EVENT_BIND(e2::debug::parsed , const page)
 
     EVENT_BIND(e2::bindings::any, sptr<base>)
-        EVENT_BIND(e2::bindings::list::users, std::list<sptr<base>>)
-        EVENT_BIND(e2::bindings::list::apps,  registry_t)
+        EVENT_BIND(e2::bindings::list::users, sptr<std::list<sptr<base>>>)
+        EVENT_BIND(e2::bindings::list::apps,  sptr<registry_t>)
 
     EVENT_BIND(e2::term::any, iota)
         EVENT_BIND(e2::term::unknown , iota)
@@ -96,6 +99,14 @@ namespace netxs::console
         EVENT_BIND(e2::form::upevent::any, hids)
             EVENT_BIND(e2::form::upevent::kboffer , hids)
 
+        EVENT_BIND(e2::form::draggable::any, bool)
+            EVENT_BIND(e2::form::draggable::left     , bool)
+            EVENT_BIND(e2::form::draggable::leftright, bool)
+            EVENT_BIND(e2::form::draggable::middle   , bool)
+            EVENT_BIND(e2::form::draggable::right    , bool)
+            EVENT_BIND(e2::form::draggable::wheel    , bool)
+            EVENT_BIND(e2::form::draggable::win      , bool)
+
         EVENT_BIND(e2::form::canvas, sptr<core>)
         EVENT_BIND(e2::form::global::any, twod)
             EVENT_BIND(e2::form::global::ctxmenu , twod)
@@ -112,7 +123,7 @@ namespace netxs::console
         EVENT_BIND(e2::form::prop::any, text)
             EVENT_BIND(e2::form::prop::header, text)
             EVENT_BIND(e2::form::prop::footer, text)
-            //EVENT_BIND(e2::form::prop::params, text)
+            EVENT_BIND(e2::form::prop::zorder, iota)
 
         EVENT_BIND(e2::form::drag::any, hids)
             EVENT_SAME(e2::form::drag::any, e2::form::drag::cancel::any)
@@ -177,6 +188,7 @@ namespace netxs::console
             EVENT_BIND(e2::form::upon::created    , sptr<base>)
             EVENT_BIND(e2::form::upon::moved      , twod)
             EVENT_BIND(e2::form::upon::resized    , twod)
+            EVENT_BIND(e2::form::upon::dragged    , hids)
 
             EVENT_BIND(e2::form::upon::scroll::any, rack)
                 EVENT_BIND(e2::form::upon::scroll::x     , rack)
@@ -332,6 +344,7 @@ namespace netxs::console
             middle    = e2::item(usable::middle   ),
             wheel     = e2::item(usable::wheel    ),
             win       = e2::item(usable::win      ),
+            total     = numofbutton,
         };
 
         twod  coor = dot_mx;            // sysmouse: Cursor coordinates.
@@ -420,16 +433,15 @@ namespace netxs::console
         using tail = netxs::datetime::tail<twod>;
         using idxs = std::vector<iota>;
         using mouse_event = e2::hids::mouse;
-        //todo C++20 using enum namespace sysmouse::bttns
         enum bttns
         {
-            total = sysmouse::numofbutton,
-            first = sysmouse::left       ,
-            midst = sysmouse::middle     ,
-            other = sysmouse::right      ,
-            third = sysmouse::wheel      ,
-            extra = sysmouse::win        ,
-            joint = sysmouse::leftright  ,
+            first = sysmouse::left     ,
+            midst = sysmouse::middle   ,
+            other = sysmouse::right    ,
+            third = sysmouse::wheel    ,
+            extra = sysmouse::win      ,
+            joint = sysmouse::leftright,
+            total = sysmouse::total    ,
         };
         constexpr static auto dragstrt = e2::group<total>(mouse_event::button::drag::start::any);
         constexpr static auto dragpull = e2::group<total>(mouse_event::button::drag::pull::any);
@@ -466,8 +478,8 @@ namespace netxs::console
         twod   coord = dot_mx;  // mouse: Relative mouse cursor coordinates.
         //todo unify the mint=1/fps
         tail   delta = { 75ms, 4ms }; // mouse: History of mouse movements for a specified period of time.
-        bool   wheel = faux;
-        bool   hzwhl = faux;
+        bool   scrll = faux; // mouse: Vertical scrolling.
+        bool   hzwhl = faux; // mouse: Horizontal scrolling.
         iota   whldt = 0;
         bool   reach = faux;    // mouse: Has the event tree relay reached the mouse event target.
         hint   cause = e2::any; // mouse: Current event id.
@@ -483,10 +495,10 @@ namespace netxs::console
             moment fired;
             twod   coord;
         }
-        stamp[sysmouse::numofbutton] = {}; // mouse: Recorded intervals between successive button presses to track double-clicks.
+        stamp[sysmouse::total] = {}; // mouse: Recorded intervals between successive button presses to track double-clicks.
         static constexpr period delay = 500ms;   // mouse: Double-click threshold.
 
-        knob   button[sysmouse::numofbutton];
+        knob   button[sysmouse::total];
 
         idxs  pressed_list;
         idxs  flipped_list;
@@ -581,7 +593,7 @@ namespace netxs::console
 
                 coord = m.coor;
 #ifdef DEBUG_OVERLAY // Overlay needs current values for every frame
-                wheel = m.wheeled;
+                scrll = m.wheeled;
                 hzwhl = m.hzwheel;
                 whldt = m.wheeldt;
 #endif
@@ -598,13 +610,13 @@ namespace netxs::console
                 if (m.wheeled)
                 {
 #ifndef DEBUG_OVERLAY
-                    wheel = m.wheeled;
+                    scrll = m.wheeled;
                     hzwhl = m.hzwheel;
                     whldt = m.wheeldt;
 #endif
                     action( m.wheeldt > 0 ? scrollup : scrolldn);
 #ifndef DEBUG_OVERLAY
-                    wheel = faux;
+                    scrll = faux;
                     hzwhl = faux;
                     whldt = 0;
 #endif
@@ -849,30 +861,36 @@ namespace netxs::console
         void mouse_leave(id_t last_id, id_t start_id)
         {
             if (last_id)
-            if (auto last = bell::getref(last_id))
             {
-                auto start = mouse::start;
-                mouse::start = start_id;
-                last->SIGNAL(e2::release, e2::form::notify::mouse::leave, *this);
-                mouse::start = start;
+                if (auto last = bell::getref(last_id))
+                {
+                    auto start = mouse::start;
+                    mouse::start = start_id;
+                    last->SIGNAL(e2::release, e2::form::notify::mouse::leave, *this);
+                    mouse::start = start;
+                }
+                else log("hids: error condition: Clients count is broken, dangling id ", last_id);
             }
-            else log("hids: error condition: Clients count is broken, dangling id ", last_id);
+        }
+        void take_mouse_focus(bell& boss)
+        {
+            if (mouse::hover != boss.id) // The mouse cursor is over the new object.
+            {
+                // Firing the leave event right after the enter allows us
+                // to avoid flickering the parent object state when focus
+                // acquired by children.
+                auto start_l = mouse::start;
+                mouse::start = 0; // The first one to track the mouse will assign itself by calling gear.direct<true>(id).
+                boss.SIGNAL(e2::release, e2::form::notify::mouse::enter, *this);
+                mouse_leave(mouse::hover, start_l);
+                mouse::hover = boss.id;
+            }
         }
         void okay(bell& boss)
         {
             if (boss.id == relay)
             {
-                if (mouse::hover != boss.id) // The mouse cursor is over the new object.
-                {
-                    // Firing the leave event right after the enter allows us
-                    // to avoid flickering the parent object state when focus
-                    // acquired by children.
-                    auto start_l = mouse::start;
-                    mouse::start = 0; // The first one to track the mouse will assign itself by calling gear.direct<true>(id).
-                    boss.SIGNAL(e2::release, e2::form::notify::mouse::enter, *this);
-                    mouse_leave(mouse::hover, start_l);
-                    mouse::hover = boss.id;
-                }
+                take_mouse_focus(boss);
                 boss.bell::template signal<e2::release>(mouse::cause, *this);
             }
         }
@@ -887,8 +905,12 @@ namespace netxs::console
             if (mouse::swift)
             {
                 auto next = bell::getref(mouse::swift);
-                if (next) pass<e2::release>(next, offset, true);
-                else      mouse::release();
+                if (next)
+                {
+                    take_mouse_focus(*next);
+                    pass<e2::release>(next, offset, true);
+                }
+                else mouse::release();
             }
             else
             {
@@ -1247,17 +1269,24 @@ namespace netxs::console
         status;
 
         //todo unify
-        struct
+        struct limit_t
         {
-            twod min{ 0,0 };
-            twod max{ 1920,1080 };
+            static constexpr twod min_value = dot_00;
+            static constexpr twod max_value = twod{ 1920, 1080 };
+            twod min = min_value;
+            twod max = max_value;
+            void set(limit_t const& new_limits)
+            {
+                min = new_limits.min.less(dot_00, min_value, new_limits.min);
+                max = new_limits.max.less(dot_00, max_value, new_limits.max);
+            }
         }
         limit;
 
         cell brush;
         tone colors;
         bool visual_root = faux; // Whether the size is tied to the size of the clients.
-        wptr parent; // base: Parental visual tree weak-pointer.
+        wptr parent_shadow; // base: Parental visual tree weak-pointer.
         side oversize; // base: Oversize, margin. Used by scroll/rail only.
         twod anchor; // base: Object balance point. Center point for any transform (on preview).
 
@@ -1297,15 +1326,15 @@ namespace netxs::console
         virtual ~base() = default;
         base()
         {
-            SUBMIT(e2::release, e2::form::upon::vtree::attached, boss)
+            SUBMIT(e2::release, e2::form::upon::vtree::attached, parent_ptr)
             {
-                parent = boss;
+                parent_shadow = parent_ptr;
 
                 // Propagate form events up to the visual branch.
                 // Exec after all subscriptions.
-                boss->SUBMIT_T(e2::release, e2::form::upevent::any, kb_offer, gear)
+                parent_ptr->SUBMIT_T(e2::release, e2::form::upevent::any, kb_offer, gear)
                 {
-                    if (auto parent_ptr = parent.lock())
+                    if (auto parent_ptr = parent_shadow.lock())
                     {
                         if (gear.focus_taken())
                         {
@@ -1316,29 +1345,29 @@ namespace netxs::console
                             if (auto deed = parent_ptr->bell::protos<e2::release>())
                             {
                                 //SIGNAL(e2::release, e2::form::kboffer, gear);
-                                bell::signal<e2::release>(deed, gear);
+                                this->bell::signal<e2::release>(deed, gear);
                             }
                         }
                     }
                 };
 
             };
-            SUBMIT(e2::release, e2::form::upon::vtree::any, boss)
+            SUBMIT(e2::release, e2::form::upon::vtree::any, parent_ptr)
             {
-                if (bell::protos<e2::release>() == e2::form::upon::vtree::detached)
+                if (this->bell::protos<e2::release>() == e2::form::upon::vtree::detached)
                 {
                     kb_offer.reset();
                 }
-                boss->base::reflow();
+                parent_ptr->base::reflow();
             };
 
             // Propagate form events down to the visual branch.
             // Exec after all subscriptions.
             SUBMIT(e2::release, e2::form::notify::any, gear)
             {
-                if (auto parent_ptr = parent.lock())
+                if (auto parent_ptr = parent_shadow.lock())
                 {
-                    if (auto deed = bell::protos<e2::release>())
+                    if (auto deed = this->bell::protos<e2::release>())
                     {
                         parent_ptr->bell::signal<e2::release>(deed, gear);
                     }
@@ -1446,7 +1475,7 @@ namespace netxs::console
             //todo why status.wrecked? why not status.invalid
             status.wrecked = true;
             //status.invalid = true;
-            if (auto parent_ptr = parent.lock())
+            if (auto parent_ptr = parent_shadow.lock())
             {
                 parent_ptr->SIGNAL(e2::preview, e2::form::layout::strike, square());
             }
@@ -1501,7 +1530,7 @@ namespace netxs::console
         // base: Going to rebuild visual tree. Retest current size, ask parent if it is linked.
         void reflow ()
         {
-            auto parent_ptr = parent.lock();
+            auto parent_ptr = parent_shadow.lock();
             if (parent_ptr && !visual_root)
             {
                 parent_ptr->base::reflow();
@@ -1528,7 +1557,7 @@ namespace netxs::console
         // base: Remove the form from the visual tree.
         void detach ()
         {
-            if (auto parent_ptr = parent.lock())
+            if (auto parent_ptr = parent_shadow.lock())
             {
                 auto shadow = This();
                 parent_ptr->SIGNAL(e2::preview, e2::form::proceed::detach, shadow);
@@ -1540,7 +1569,7 @@ namespace netxs::console
         void global(twod& coor)
         {
             coor -= base::coor.get();
-            if (auto parent_ptr = parent.lock())
+            if (auto parent_ptr = parent_shadow.lock())
             {
                 parent_ptr->SIGNAL(e2::request, e2::form::layout::local, coor);
             }
@@ -1557,7 +1586,7 @@ namespace netxs::console
         template<class T>
         void toboss(T proc)
         {
-            if (auto parent_ptr = parent.lock())
+            if (auto parent_ptr = parent_shadow.lock())
             {
                 proc(*parent_ptr);
             }
@@ -1566,14 +1595,15 @@ namespace netxs::console
         //       Preserve current value if specified arg less than 0
         void limits(twod const& min_size, twod const& max_size = -dot_11)
         {
-            limit.min = min_size.less(dot_00, limit.min, min_size);
-            limit.max = max_size.less(dot_00, limit.max, max_size);
+            //todo revise
+            limit.min = min_size.less(dot_00, limit.min_value, min_size);
+            limit.max = max_size.less(dot_00, limit.max_value, max_size);
         }
         // base: Set resize limits (min, max).
         //       Preserve current value if specified arg less than 0
         void limits(decltype(limit) const& new_limits)
         {
-            limit = new_limits;
+            limit.set(new_limits);
         }
         // base: Return current limits.
         auto& limits() const
@@ -1615,194 +1645,262 @@ namespace netxs::console
         //}
     };
 
-    // console: Visual form with cached canvas.
-    class form
-        : public base
-    {
-        sptr<face> coreface;
-
-    public:
-        face& canvas; // form: Form bitmap.
-
-        auto get_canvas() { return canvas.shared_from_this(); }
-
-        form() : canvas{*(coreface = std::make_shared<face>())}
-        {
-            canvas.link(bell::id);
-            SUBMIT(e2::release, base::size_event, new_sz) { canvas.size(new_sz); };
-            SUBMIT(e2::release, base::move_event, new_xy) { canvas.move(new_xy); };
-            SUBMIT(e2::request, e2::form::canvas, canvas) { canvas = coreface; };
-        }
-
-        // form: Set canvas default color and char as a whitespace (preserve all other attrs).
-        virtual void color(rgba const& fg_color, rgba const& bg_color)
-        {
-            base::color(fg_color, bg_color);
-            canvas.mark().bgc(bg_color)
-                         .fgc(fg_color)
-                         .txt(whitespace);
-        }
-        // form: Default render proc.
-        virtual void redraw()
-        {
-
-        }
-        // form: Draw the form composition on the specified canvas.
-        virtual void renderproc (face& parent_canvas)
-        {
-            if (base::status.invalid)
-            {
-                canvas.wipe();
-                base::renderproc(canvas);
-                redraw();
-            }
-        }
-        // form: Draw the form composition on the specified canvas.
-        //       Executed right after the renderproc().
-        virtual void postrender (face& parent_canvas)
-        {
-            if (base::status.invalid)
-            {
-                base::postrender(canvas);
-                base::status.invalid = faux;
-            }
-            parent_canvas.plot(canvas);
-        }
-    };
-
     // console: Template modules for the base class behavior extension.
     namespace pro
     {
-        // pro:: Base class for plugins.
-        template<class T>
+        // pro: Base class for plugins.
         struct skill
         {
-            T&   boss;
-            subs memo;
-            skill(T&&) = delete;
-            skill(T& boss) : boss{ boss } { }
+            base& boss;
+            subs  memo;
+            skill(base&&) = delete;
+            skill(base& boss) : boss{ boss } { }
             virtual ~skill() = default; // In order to allow man derived class via base ptr.
         };
 
-        // pro:: UI builder.
-        template<class T, bool ISPARENT = faux>
-        struct boost
+        // pro: Provides resizing by dragging.
+        class sizer
+            : public skill
         {
-            std::list<uptr<skill<T>>> plugins;
-            T&   boss;
-            std::map<id_t, subs> memo; // pro::boost: Token set for depend submissions.
-            boost(T& boss) : boss{ boss }
+            using skill::boss,
+                  skill::memo;
+
+            struct sock
             {
-                if constexpr (ISPARENT)
+                id_t     id; // sock: Hids ID.
+                twod origin; // sock: Grab's initial coord info.
+                twod dtcoor; // sock: The form coor parameter change factor while resizing.
+                twod dtsize; // sock: The form size parameter change factor while resizing.
+                twod sector; // sock: Active quadrant, x,y = {-1|+1}. Border widths.
+                twod corner; // sock: Coordinates of the active corner.
+                rect hzgrip; // sock: Horizontal grip.
+                rect vtgrip; // sock: Vertical grip.
+                twod widths; // sock: Grip's widths.
+                bool inside; // sock: Is active.
+                bool seized; // sock: Is seized.
+                iota count = 0;
+
+                sock(id_t ctrl)
+                    :     id{ ctrl },
+                      inside{ faux },
+                      seized{ faux }
+                { }
+                operator bool(){ return inside || seized; }
+                auto grab(twod const& curpos)
                 {
-                    boss.SUBMIT(e2::preview, e2::form::proceed::detach, shadow)
+                    if (inside)
                     {
-                        boss.remove(shadow);
-                    };
-                }
-             }
-            // pro::boost: Attach feature and return itself.
-            template<template<class> class S, class ...Args>
-            auto plugin(Args&&... args)
-            {
-                plugins.emplace_back(std::make_unique<S<T>>(boss, std::forward<Args>(args)...));
-                boss.base::reflow();
-                return boss.template This<T>();
-            }
-            // pro::boost: Invoke arbitrary functor(itself/*This/boss).
-            template<class P>
-            auto invoke(P functor)
-            {
-                functor(boss);
-                return boss.template This<T>();
-            }
-            // pro::boost: Attach homeless brunch and return itself.
-            template<class C, class ...Args>
-            auto brunch(C child, Args&&... args)
-            {
-                if (child)
-                    boss.T::attach(child, std::forward<Args>(args)...);
-                return boss.template This<T>();
-            }
-            // pro::boost: Boss will be detached when the master is dtor'ed.
-            template<class C>
-            auto depend(C master)
-            {
-                master->SUBMIT_T(e2::release, e2::dtor, memo[master->id], master_id)
-                {
-                    memo[master_id].clear();
-                    memo.erase(master_id);
-                    if (memo.empty()) boss.base::detach();
-                };
-                return boss.template This<T>();
-            }
-            // pro::boost: Boss will be detached when the last item of collection is dtor'ed.
-            template<class C>
-            auto depend_on_collection(C data_collection_src)
-            {
-                for(auto& data_src : data_collection_src)
-                {
-                    depend(data_src);
-                }
-                return boss.template This<T>();
-            }
-            //template<class P, class C, class ...Args>
-            //auto source(P item_template, C master, Args&&... args)
-            // pro::boost: Create and attach a new item using a template and dynamic datasource.
-            template<e2::type PROPERTY, class C, class P>
-            auto attach_element(C data_src, P item_template)
-            {
-                ARGTYPE(PROPERTY) arg;
-                data_src->SIGNAL(e2::request, PROPERTY, arg);
-                auto new_item = item_template(data_src, arg)
-                                     ->depend(data_src);
-                auto item_shadow = std::weak_ptr{ new_item };
-                auto data_shadow = std::weak_ptr{ data_src };
-                auto boss_shadow = std::weak_ptr{ boss.template This<T>() };
-                data_src->SUBMIT_BYVAL_T(e2::release, PROPERTY, memo[data_src->id], new_arg_value)
-                {
-                    if (auto boss_ptr = boss_shadow.lock())
-                    if (auto data_src = data_shadow.lock())
-                    if (auto old_item = item_shadow.lock())
-                    {
-                        auto new_item = item_template(data_src, new_arg_value)
-                                             ->depend(data_src);
-                        item_shadow = std::weak_ptr{ new_item }; // Update current item shadow.
-                        boss_ptr->update(old_item, new_item);
+                        origin = curpos - corner;
+                        seized = true;
                     }
-                };
-                return boss.brunch(new_item);
-            }
-            // pro::boost: Create and attach a new item using a template and dynamic datasource.
-            template<e2::type PROPERTY, class C, class P>
-            auto attach_collection(C data_collection_src, P item_template)
-            {
-                for(auto& data_src : data_collection_src)
-                {
-                    attach_element<PROPERTY>(data_src, item_template);
+                    return seized;
                 }
-                return boss.template This<T>();
+                auto calc(base const& master, twod curpos, dent const& outer, dent const& inner, dent const& border)
+                {
+                    auto area = rect{ dot_00, master.base::size.get() };
+                    auto inner_rect = area + inner;
+                    auto outer_rect = area + outer;
+                    inside = !inner_rect.hittest(curpos)
+                           && outer_rect.hittest(curpos);
+                    auto& length = outer_rect.size;
+                    curpos += outer.corner();
+                    auto center = std::max(length / 2, dot_11);
+                    if (!seized)
+                    {
+                        dtcoor = curpos.less(center + (length & 1), dot_11, dot_00);
+                        dtsize = dtcoor.less(dot_11, dot_11,-dot_11);
+                        sector = dtcoor.less(dot_11,-dot_11, dot_11);
+                        widths = sector.less(dot_00, twod{-border.east.step,-border.foot.step },
+                                                     twod{ border.west.step, border.head.step });
+                    }
+                    corner = dtcoor.less(dot_11, length, dot_00);
+                    auto l = sector * (curpos - corner);
+                    auto a = center * l / center;
+                    auto b = center *~l /~center;
+                    auto s = sector * std::max(a - b + center, dot_00);
+
+                    hzgrip.coor = corner;
+                    hzgrip.coor.x+= widths.x;
+                    hzgrip.size.y = widths.y;
+                    hzgrip.size.x = s.x;
+                    hzgrip.normalize_itself();
+
+                    vtgrip.coor = corner;
+                    vtgrip.size = widths;
+                    vtgrip.size.y += s.y;
+                    vtgrip.normalize_itself();
+                }
+                auto drag(base& master, twod const& curpos)
+                {
+                    if (seized)
+                    {
+                        auto delta = curpos - corner - origin;
+                        if (auto dxdy = master.base::sizeby(delta * dtsize))
+                        {
+                            master.base::moveby(-dxdy * dtcoor);
+                        }
+                    }
+                    return seized;
+                }
+                void drop()
+                {
+                    seized = faux;
+                }
+            };
+
+            using list = std::vector<sock>;
+            list items;
+            dent outer;
+            dent inner;
+            dent width;
+
+            auto& take(hids& gear)
+            {
+                for (auto& item : items) // Linear search, because a few items.
+                    if (item.id == gear.id)
+                        return item;
+
+                log("pro::sizer: error: access to unregistered input device, id:", gear.id);
+                return items.emplace_back(gear.id);
+            }
+
+        public:
+            void props(dent const& outer_rect = {2,2,1,1}, dent const& inner_rect = {})
+            {
+                outer = outer_rect;
+                inner = inner_rect;
+                width = outer - inner;
+            }
+            sizer(base&&) = delete;
+            sizer(base& boss, dent const& outer_rect = {2,2,1,1}, dent const& inner_rect = {})
+                : skill{ boss          },
+                  outer{ outer_rect    },
+                  inner{ inner_rect    },
+                  width{ outer - inner }
+            {
+                boss.SUBMIT_T(e2::release, e2::form::upon::redrawn, memo, canvas)
+                {
+                    auto area = rect{dot_00,boss.size.get()} + outer;
+                    area.coor += canvas.full().coor;
+                    canvas.cage(area, width, [&](cell& c){ c.link(boss.id); });
+                    auto fuse = [&](cell& c){ c.xlight(); };
+                    for (auto& item : items)
+                        if (item)
+                        {
+                            auto area = canvas.full() + outer;
+                            auto side_x = item.hzgrip.shift(area.coor).clip(area);
+                            auto side_y = item.vtgrip.shift(area.coor).clip(area);
+                            canvas.fill(side_x, fuse);
+                            canvas.fill(side_y, fuse);
+                        }
+                };
+                boss.SUBMIT_T(e2::release, e2::form::notify::mouse::enter, memo, gear)
+                {
+                    for (auto& item : items) // Linear search, because a few items.
+                        if (item.id == gear.id)
+                        {
+                            ++item.count;
+                            return;
+                        }
+                    auto& item = items.emplace_back(gear.id);
+                    ++item.count;
+                };
+                boss.SUBMIT_T(e2::release, e2::form::notify::mouse::leave, memo, gear)
+                {
+                    for (auto& item : items) // Linear search, because a few items.
+                        if (item.id == gear.id)
+                        {
+                            if (--item.count < 1) // item.count could but equal to 0 due to unregistered access.
+                            {
+                                if (items.size() > 1) item = items.back(); // Remove an item without allocations.
+                                items.pop_back();
+                            }
+                            return;
+                        }
+                };
+                engage<sysmouse::left>();
+            }
+            // pro::sizer: Configuring the mouse button to operate.
+            template<sysmouse::bttns button>
+            void engage()
+            {
+                boss.SIGNAL(e2::release, e2::message(e2::form::draggable::any, button), true);
+                boss.SUBMIT_T(e2::release, e2::hids::mouse::move, memo, gear)
+                {
+                    take(gear).calc(boss, gear.coord, outer, inner, width);
+                    boss.base::deface();
+                };
+                boss.SUBMIT(e2::release, e2::message(e2::form::drag::start::any, button), gear)
+                {
+                    if (take(gear).grab(gear.coord))
+                        gear.dismiss();
+                };
+                boss.SUBMIT(e2::release, e2::message(e2::form::drag::pull::any, button), gear)
+                {
+                    if (take(gear).drag(boss, gear.coord))
+                        gear.dismiss();
+                };
+                boss.SUBMIT(e2::release, e2::message(e2::form::drag::cancel::any, button), gear)
+                {
+                    take(gear).drop();
+                };
+                boss.SUBMIT(e2::release, e2::message(e2::form::drag::stop::any, button), gear)
+                {
+                    take(gear).drop();
+                    boss.SIGNAL(e2::release, e2::form::upon::dragged, gear);
+                };
             }
         };
 
-        // pro: Provides shared storage for the states of type T::sock.
-        template<class T>
-        class multi
-            : public skill<T>
+        // pro: Provides moving by dragging.
+        class mover
+            : public skill
         {
-            using skill<T>::boss,
-                  skill<T>::memo;
-            struct sock : public T::sock
+            using skill::boss,
+                  skill::memo;
+
+            struct sock
             {
-                using T::sock::sock; // Inherit ctor.
+                id_t      id; // sock: Hids ID.
+                twod  origin; // sock: Grab's initial coord info.
                 iota count = 0;
+
+                sock(id_t ctrl)
+                    :     id{ ctrl }
+                { }
+                void grab(base const& master, twod const& curpos)
+                {
+                    auto center = master.base::size.get() / 2;
+                    origin = curpos - center;
+                }
+                void drag(base& master, twod const& coord)
+                {
+                    auto delta = coord - origin;
+                    auto center = master.base::size.get() / 2;
+                    delta -= center;
+                    master.base::moveby(delta);
+                }
             };
+
             using list = std::vector<sock>;
-            list depo;
+            list       depo;
+            wptr<base> dest_shadow;
+            sptr<base> dest_object;
+            auto& take(hids& gear)
+            {
+                for (auto& item : depo) // Linear search, because a few items.
+                    if (item.id == gear.id)
+                        return item;
+
+                log("pro::mover: error: access to unregistered input device, id:", gear.id);
+                return depo.emplace_back(gear.id);
+            }
 
         public:
-            multi(T&&) = delete;
-            multi(T& boss) : skill<T>{ boss }
+            mover(base&&) = delete;
+            mover(base& boss, sptr<base> subject)
+                : skill{ boss },
+                  dest_shadow{ subject }
             {
                 boss.SUBMIT_T(e2::release, e2::form::notify::mouse::enter, memo, gear)
                 {
@@ -1813,7 +1911,7 @@ namespace netxs::console
                             return;
                         }
 
-                    auto& item = depo.emplace_back(gear.id, gear.start == boss.bell::id);
+                    auto& item = depo.emplace_back(gear.id);
                     ++item.count;
                 };
                 boss.SUBMIT_T(e2::release, e2::form::notify::mouse::leave, memo, gear)
@@ -1823,45 +1921,78 @@ namespace netxs::console
                         {
                             if (--item.count < 1) // item.count could but equal to 0 due to unregistered access.
                             {
-                                item = depo.back(); // Remove an item without allocations.
+                                if (depo.size() > 1) item = depo.back(); // Remove an item without allocations.
                                 depo.pop_back();
                             }
                             return;
                         }
                 };
-            }
-            auto& operator [](hids& gear)
-            {
-                for (auto& item : depo) // Linear search, because a few items.
-                    if (item.id == gear.id)
-                        return item;
-
-                log("pro::multi: error: access to unregistered input device, id:", gear.id);
-                return depo.emplace_back(gear.id, gear.start == boss.bell::id);
+                engage<sysmouse::left>();
             }
             auto& items()
             {
                 return depo;
             }
+            // pro::mover: Configuring the mouse button to operate.
+            template<sysmouse::bttns button>
+            void engage()
+            {
+                boss.SIGNAL(e2::release, e2::message(e2::form::draggable::any, button), true);
+                boss.SUBMIT(e2::release, e2::message(e2::form::drag::start::any, button), gear)
+                {
+                    if ((dest_object = dest_shadow.lock()))
+                    {
+                        take(gear).grab(*dest_object, gear.coord);
+                        gear.dismiss();
+                    }
+                };
+                boss.SUBMIT(e2::release, e2::message(e2::form::drag::pull::any, button), gear)
+                {
+                    if (dest_object)
+                    {
+                        take(gear).drag(*dest_object, gear.coord);
+                        auto delta = gear.delta.get();
+                        dest_object->SIGNAL(e2::preview, e2::form::upon::moved, delta);
+                        gear.dismiss();
+                    }
+                };
+                boss.SUBMIT(e2::release, e2::message(e2::form::drag::cancel::any, button), gear)
+                {
+                    if (dest_object)
+                    {
+                        dest_object.reset();
+                        gear.dismiss();
+                    }
+                };
+                boss.SUBMIT(e2::release, e2::message(e2::form::drag::stop::any, button), gear)
+                {
+                    if (dest_object)
+                    {
+                        dest_object->SIGNAL(e2::release, e2::form::upon::dragged, gear);
+                        dest_object.reset();
+                        gear.dismiss();
+                    }
+                };
+            }
         };
 
         // pro: Provides size-binding functionality for child objects
         //      after attaching to the parent. Used at the mold only.
-        template<class T>
         class align
-            : public skill<T>
+            : public skill
         {
-            using skill<T>::boss,
-                  skill<T>::memo;
+            using skill::boss,
+                  skill::memo;
             using gptr = wptr<bell>;
             rect last; // pro::align: Window size before the fullscreen has applied.
             text head; // pro::align: Main window title the fullscreen has applied.
             id_t weak; // pro::align: Master id.
             rect body; // pro::align: For current coor/size tracking.
+            twod pads; // pro::align: Owner's borders.
 
         public:
-            align(T&&) = delete;
-            align(T& boss) : skill<T>{ boss },
+            align(base&&) = delete;
+            align(base& boss) : skill{ boss },
                 weak{}
             { }
             ~align() { unbind(faux); }
@@ -1870,8 +2001,9 @@ namespace netxs::console
             {
                 return weak == master;
             }
-            void follow(id_t master)
+            void follow(id_t master, twod const& borders)
             {
+                pads = borders;
                 if (auto gate_ptr = bell::getref(master))
                 {
                     auto& gate = *gate_ptr;
@@ -1880,7 +2012,6 @@ namespace netxs::console
                     gate.SIGNAL(e2::request, e2::form::layout::size, area.size);
                     gate.SIGNAL(e2::request, e2::form::layout::move, area.coor);
                     last = boss.base::square();
-                    auto pads = boss.get_border();
                     area.coor -= pads;
                     area.size += pads * 2;
                     body = {}; // In oder to unbind previous subscription if it is.
@@ -1894,7 +2025,6 @@ namespace netxs::console
 
                     gate.SUBMIT_T(e2::release, e2::form::layout::size, memo, size)
                     {
-                        auto pads = boss.get_border();
                         body.size = size + pads * 2;
                         boss.base::resize(body.size);
                     };
@@ -1909,15 +2039,15 @@ namespace netxs::console
 
                     boss.SUBMIT_T(e2::release, e2::form::layout::size, memo, size)
                     {
-                        if (body.size != size) unbind(faux);
+                        if (weak && body.size != size) unbind(faux);
                     };
                     boss.SUBMIT_T(e2::release, e2::form::layout::move, memo, coor)
                     {
-                        if (body.coor != coor) unbind();
+                        if (weak && body.coor != coor) unbind();
                     };
 
                     weak = master;
-                    boss.SUBMIT_BYVAL_T(e2::release, e2::form::prop::header, memo, newhead)
+                    boss.SUBMIT_T(e2::release, e2::form::prop::header, memo, newhead)
                     {
                         if (auto gate_ptr = bell::getref(weak))
                         {
@@ -1937,22 +2067,21 @@ namespace netxs::console
                         gate_ptr->SIGNAL(e2::preview, e2::form::prop::header, head);
                     }
                 }
-                if (restor_size) boss.base::extend(last); // Restore previous position
                 weak = {};
+                if (restor_size) boss.base::extend(last); // Restore previous position
             }
         };
 
         // pro: Provides functionality for runtime animation (time-based).
-        template<class T>
         class robot
-            : public skill<T>
+            : public skill
         {
-            using skill<T>::boss;
+            using skill::boss;
             using subs = std::map<id_t, hook>;
             subs memo;
 
         public:
-            using skill<T>::skill; // Inherits ctors.
+            using skill::skill; // Inherits ctors.
 
             // pro::robot: Every timer tick, yield the
             //             delta from the flow and, if delta,
@@ -2019,16 +2148,15 @@ namespace netxs::console
         };
 
         // pro: Invokes specified proc after timeout.
-        template<class T>
         class timer
-            : public skill<T>
+            : public skill
         {
-            using skill<T>::boss;
+            using skill::boss;
             using subs = std::map<id_t, hook>;
             subs memo;
 
         public:
-            using skill<T>::skill; // Inherits ctors.
+            using skill::skill; // Inherits ctors.
 
             // pro::timer: Start countdown for specified ID.
             template<class P>
@@ -2070,21 +2198,21 @@ namespace netxs::console
             }
         };
 
-        // pro: Provides functionality for manipulating objects
-        //      with a frame structure.
-        template<class T>
+        // pro: Provides functionality for manipulating objects with a frame structure.
         class frame
-            : public skill<T>
+            : public skill
         {
-            using skill<T>::boss,
-                  skill<T>::memo;
-            subs     link;
-            robot<T> robo;
+            using skill::boss,
+                  skill::memo;
+            subs  link;
+            robot robo;
+            iota  seat;
 
         public:
-            frame(T&&) = delete;
-            frame(T& boss) : skill<T>{ boss },
-                robo{ boss }
+            frame(base&&) = delete;
+            frame(base& boss, iota z_order = Z_order::plain) : skill{ boss },
+                robo{ boss    },
+                seat{ z_order }
             {
                 boss.SUBMIT_T(e2::release, e2::form::upon::vtree::attached, memo, parent)
                 {
@@ -2100,22 +2228,74 @@ namespace netxs::console
                     {
                         boss.base::coor += delta;
                     };
-
                     parent->SUBMIT_T(e2::preview, e2::form::upon::vtree::detached, link, p)
                     {
                         frame::link.clear();
                     };
-
-                    //todo verify release
-                    //parent->SUBMIT_T(e2::release, e2::form::layout::expose, parent_memo, p)
-                    //{
-                    //	expose();
-                    //});
+                    boss.SIGNAL(e2::release, e2::form::prop::zorder, seat);
                 };
-
+                boss.SUBMIT(e2::preview, e2::form::prop::zorder, order)
+                {
+                    seat = order;
+                    boss.SIGNAL(e2::release, e2::form::prop::zorder, seat);
+                };
+                boss.SUBMIT_T(e2::preview, e2::form::layout::expose, memo, boss)
+                {
+                    expose();
+                };
+                boss.SUBMIT_T(e2::preview, e2::hids::mouse::button::click::any, memo, gear)
+                {
+                    expose();
+                };
                 boss.SUBMIT_T(e2::preview, e2::form::layout::appear, memo, newpos)
                 {
                     appear(newpos);
+                };
+                boss.SUBMIT_T(e2::preview, e2::form::upon::moved, memo, delta)
+                {
+                    bubble();
+                };
+                boss.SUBMIT_T(e2::preview, e2::hids::mouse::button::down::any, memo, gear)
+                {
+                    robo.pacify();
+                };
+                boss.SUBMIT_T(e2::release, e2::form::drag::pull::left, memo, gear)
+                {
+                    if (gear)
+                    {
+                        auto delta = gear.delta.get();
+                        boss.base::moveby(delta);
+                        boss.SIGNAL(e2::preview, e2::form::upon::moved, delta);
+                        gear.dismiss();
+                    }
+                };
+                boss.SUBMIT_T(e2::release, e2::form::upon::dragged, memo, gear)
+                {
+                    if (gear.meta(hids::ANYCTRL))
+                    {
+                        robo.actify(gear.fader<quadratic<twod>>(2s), [&](auto x)
+                            {
+                                boss.base::moveby(x);
+                            });
+                    }
+                    else
+                    {
+                        auto boundary = gear.area();
+                        robo.actify(gear.fader<quadratic<twod>>(2s), [&, boundary](auto x)
+                        {
+                            convey(x, boundary);
+                        });
+                    }
+                };
+                boss.SUBMIT_T(e2::release, e2::hids::mouse::button::click::right, memo, gear)
+                {
+                    auto square = boss.base::square();
+                    auto coord = gear.coord + square.coor;
+                    if (!square.hittest(coord))
+                    {
+                        appear(coord);
+                    }
+                    gear.dismiss();
                 };
             };
 
@@ -2133,7 +2313,7 @@ namespace netxs::console
                 robo.pacify();
                 robo.actify(func, [&](twod& x) { boss.base::moveby(x); });
             }
-
+            /*
             // pro::frame: Search for a non-overlapping form position in
             //             the visual tree along a specified direction.
             rect bounce (rect const& block, twod const& dir)
@@ -2168,6 +2348,7 @@ namespace netxs::console
 
                 return result;
             }
+            */
             // pro::frame: Move the form no further than the parent canvas.
             void convey (twod const& delta, rect const& boundary)//, bool notify = true)
             {
@@ -2198,7 +2379,7 @@ namespace netxs::console
             //             Return "true" if it is NOT under the rest.
             bool expose (bool subsequent = faux)
             {
-                if (auto parent_ptr = boss.parent.lock())
+                if (auto parent_ptr = boss.parent_shadow.lock())
                 {
                     parent_ptr->SIGNAL(e2::release, e2::form::layout::expose, boss);
                 }
@@ -2208,7 +2389,7 @@ namespace netxs::console
             //             among neighbors.
             void bubble ()
             {
-                if (auto parent_ptr = boss.parent.lock())
+                if (auto parent_ptr = boss.parent_shadow.lock())
                 {
                     parent_ptr->SIGNAL(e2::release, e2::form::layout::bubble, boss);
                 }
@@ -2216,12 +2397,11 @@ namespace netxs::console
         };
 
         // pro: Form generator functionality.
-        template<class T>
         class maker
-            : public skill<T>
+            : public skill
         {
-            using skill<T>::boss,
-                  skill<T>::memo;
+            using skill::boss,
+                  skill::memo;
             cell mark;
 
             struct slot_t
@@ -2253,7 +2433,7 @@ namespace netxs::console
                     auto& step = data.step;
 
                     data.ctrl = gear.meta(hids::ANYCTRL);
-                    slot.coor = init = step = gear.mouse::coord;
+                    slot.coor = init = step = gear.coord;
                     slot.size = dot_00;
                     boss.SIGNAL(e2::preview, e2::form::layout::strike, slot);
                     gear.dismiss();
@@ -2269,7 +2449,7 @@ namespace netxs::console
                     auto& init = data.init;
                     auto& step = data.step;
 
-                    step += gear.mouse::delta.get();
+                    step += gear.delta.get();
                     slot.coor = std::min(init, step);
                     slot.size = std::max(std::abs(step - init), dot_00);
                     boss.SIGNAL(e2::preview, e2::form::layout::strike, slot);
@@ -2303,8 +2483,8 @@ namespace netxs::console
             }
 
         public:
-            maker(T&&) = delete;
-            maker(T& boss) : skill<T>{ boss },
+            maker(base&&) = delete;
+            maker(base& boss) : skill{ boss },
                 mark{ skin::color(tone::selector) }
             {
                 using drag = e2::hids::mouse::button::drag;
@@ -2403,12 +2583,11 @@ namespace netxs::console
         };
 
         // pro: The text caret controller.
-        template<class T>
         class caret
-            : public skill<T>
+            : public skill
         {
-            using skill<T>::boss,
-                  skill<T>::memo;
+            using skill::boss,
+                  skill::memo;
             subs   conf; // caret: Configuration subscriptions.
             bool   live; // caret: Should the caret be drawn.
             bool   done; // caret: Is the caret already drawn.
@@ -2418,8 +2597,8 @@ namespace netxs::console
             //iota form; // caret: Set caret style (box, line, bar)
 
         public:
-            caret(T&&) = delete;
-            caret(T& boss, bool visible = faux, twod position = dot_00) : skill<T>{ boss },
+            caret(base&&) = delete;
+            caret(base& boss, bool visible = faux, twod position = dot_00) : skill{ boss },
                 live{ faux },
                 done{ faux },
                 body{ position, dot_11 }, // Caret is always one cell size (see the term::scrollback definition).
@@ -2517,12 +2696,11 @@ namespace netxs::console
         };
 
         // pro: Textify the telemetry data for debugging purpose.
-        template<class T>
         class debug
-            : public skill<T>
+            : public skill
         {
-            using skill<T>::boss,
-                  skill<T>::memo;
+            using skill::boss,
+                  skill::memo;
             #define PROP_LIST                     \
             X(total_size   , "total sent"       ) \
             X(proceed_ns   , "rendering time"   ) \
@@ -2610,8 +2788,8 @@ namespace netxs::console
                 track.render = tempus::now() - timestamp;
             }
 
-            debug(T&&) = delete;
-            debug(T& boss) : skill<T>{ boss }
+            debug(base&&) = delete;
+            debug(base& boss) : skill{ boss }
             {
                 //todo use skin
                 stress = cell{}.fgc(whitelt);
@@ -2707,7 +2885,7 @@ namespace netxs::console
                     }
                     status[prop::mouse_wheeldt].set(stress) = std::to_string(m.whldt);
                     status[prop::mouse_hzwheel].set(stress) = m.hzwhl ? "active" : "idle";
-                    status[prop::mouse_vtwheel].set(stress) = m.wheel ? "active" : "idle";
+                    status[prop::mouse_vtwheel].set(stress) = m.scrll ? "active" : "idle";
                     status[prop::ctrl_state   ].set(stress) = "0x" + utf::to_hex(m.meta());
                 };
 
@@ -2763,44 +2941,86 @@ namespace netxs::console
         };
 
         // pro: Provides functionality for the title support.
-        template<class T>
         class title
-            : public skill<T>
+            : public skill
         {
-            using skill<T>::boss,
-                  skill<T>::memo;
-            page logo; // title: Owner's caption
-            text name; // title: Preserve original title
-
-            #define PROP_LIST                    \
-            X(head, "Window title." )            \
-            X(foot, "Window status.")
-            //X(body, "Window title properties." )
-
-            #define X(a, b) a,
-            enum prop { PROP_LIST count };
-            #undef X
-
-            #define X(a, b) b,
-            text description[prop::count] = { PROP_LIST };
-            #undef X
-            #undef PROP_LIST
+            using skill::boss,
+                  skill::memo;
+            page head_page; // title: Owner's caption header.
+            page foot_page; // title: Owner's caption footer.
+            text head_name; // title: Preserve original header.
+            text foot_name; // title: Preserve original footer.
+            twod head_size; // title: Header page size.
+            twod foot_size; // title: Footer page size
+            flow ooooooooo; // title: .
 
         public:
             bool live = true; // title: Title visibility.
 
-            title(T&&) = delete;
-            title(T& boss) : skill<T>{ boss }
+            auto& titles() const
             {
-                logo += ansi::cup(dot_00)
-                      + ansi::wrp(wrap::off).rtl(rtol::ltr).rlf(feed::fwd).jet(bias::left).mgr(1).mgl(1)
-                      + ansi::idx(prop::head) + ansi::nop()
-                      + ansi::cup(dot_00).rlf(feed::rev).jet(bias::right)
-                      + ansi::idx(prop::foot);
-
+                return head_page;
+            }
+            void recalc(page& object, twod& size)
+            {
+                ooooooooo.flow::reset();
+                ooooooooo.flow::size(size);
+                auto publish = [&](auto const& combo)
+                {
+                    auto cp = ooooooooo.flow::print(combo);
+                };
+                object.stream(publish);
+                auto& cover = ooooooooo.flow::minmax();
+                size.y = cover.height() + 1;
+            }
+            void recalc(twod const& new_size)
+            {
+                head_size = new_size;
+                foot_size = new_size;
+                recalc(head_page, head_size);
+                recalc(foot_page, foot_size);
+            }
+            void header(view newtext)
+            {
+                head_page = newtext;
+                head_name = newtext;
+                recalc(head_page, head_size);
+                boss.SIGNAL(e2::release, e2::form::prop::header, head_name);
+                /*
+                textline.link(boss.id);
+                boss.SIGNAL(e2::release, e2::form::prop::header, head_name);
+                boss.SIGNAL(e2::release, e2::form::state::header, textline);
+                */
+            }
+            void footer(view newtext)
+            {
+                foot_page = newtext;
+                foot_name = newtext;
+                recalc(foot_page, foot_size);
+                boss.SIGNAL(e2::release, e2::form::prop::footer, foot_name);
+                /*
+                textline.link(boss.id);
+                boss.SIGNAL(e2::release, e2::form::prop::footer, foot_name);
+                boss.SIGNAL(e2::release, e2::form::state::footer, textline);
+                */
+            }
+            void init()
+            {
+                boss.SUBMIT_T(e2::release, e2::form::layout::size, memo, new_size)
+                {
+                    recalc(new_size);
+                };
                 boss.SUBMIT_T(e2::release, e2::form::upon::redrawn, memo, canvas)
                 {
-                    if (live) canvas.output(logo);
+                    if (live)
+                    {
+                        auto saved_context = canvas.bump(dent{ 0,0,head_size.y,foot_size.y });
+                        canvas.cup(dot_00);
+                        canvas.output(head_page);
+                        canvas.cup({ 0, head_size.y + boss.size.get().y });
+                        canvas.output(foot_page);
+                        canvas.bump(saved_context);
+                    }
                 };
                 boss.SUBMIT_T(e2::preview, e2::form::prop::header, memo, newtext)
                 {
@@ -2810,16 +3030,15 @@ namespace netxs::console
                 {
                     footer(newtext);
                 };
-                //boss.SUBMIT_T(e2::preview, e2::form::prop::params, memo, newtext)
-                //{
-                //    params(newtext);
-                //};
-
                 boss.SUBMIT_T(e2::request, e2::form::prop::header, memo, curtext)
                 {
-                    curtext = name;
+                    curtext = head_name;
                 };
-
+                boss.SUBMIT_T(e2::request, e2::form::prop::footer, memo, curtext)
+                {
+                    curtext = foot_name;
+                };
+                /*
                 boss.SUBMIT_T(e2::request, e2::form::state::header, memo, caption)
                 {
                     caption = header();
@@ -2828,65 +3047,30 @@ namespace netxs::console
                 {
                     caption = footer();
                 };
-                //boss.SUBMIT_T(e2::request, e2::form::state::params, memo, caption)
-                //{
-                //    caption = params();
-                //};
+                */
             }
 
-            auto& titles() const
+            title(base&&) = delete;
+            title(base& boss)
+                : skill{ boss }
             {
-                return logo;
+                init();
             }
-            auto& header()
+            title(base& boss, view title, bool visible = true)
+                : skill{ boss }
             {
-                return logo[prop::head];
+                init();
+                header(title);
+                live = visible;
+                #ifdef DEMO
+                footer(ansi::jet(bias::right) + "test\nmultiline\nfooter");
+                #endif
             }
-            auto& footer()
-            {
-                return logo[prop::foot];
-            }
-            //auto& params()
-            //{
-            //    return logo[prop::body];
-            //}
-            void header(view newtext)
-            {
-                name = newtext;
-                auto& textline = header();
-                textline = newtext;
-                textline.style.rtl_or(rtol::ltr);
-                textline.style.rlf_or(feed::fwd);
-                textline.style.wrp_or(wrap::off);
-                textline.style.jet_or(bias::left);
-                textline.link(boss.id);
-                boss.SIGNAL(e2::release, e2::form::prop::header, name);
-                boss.SIGNAL(e2::release, e2::form::state::header, textline);
-            }
-            void footer(view newtext)
-            {
-                auto& textline = footer();
-                textline = newtext;
-                textline.style.rtl_or(rtol::ltr);
-                textline.style.rlf_or(feed::rev);
-                textline.style.wrp_or(wrap::off);
-                textline.style.jet_or(bias::right);
-                textline.link(boss.id);
-                boss.SIGNAL(e2::release, e2::form::state::footer, textline);
-            }
-            //void params(view newtext)
-            //{
-            //    auto& textline = params();
-            //    textline = newtext;
-            //    textline.link(boss.id);
-            //    boss.SIGNAL(e2::release, e2::form::state::params, textline);
-            //}
         };
 
         // pro: Provides functionality for the scene objects manipulations.
-        template<class T>
         class scene
-            : public skill<T>
+            : public skill
         {
             class node // pro::scene: Helper-class for the pro::scene. Adapter for the object that going to be attached to the scene.
             {
@@ -2955,6 +3139,7 @@ namespace netxs::console
                 rect region;
                 sptr object;
                 id_t obj_id;
+                iota z_order = Z_order::plain;
 
                 node(sptr item)
                     : object{ item }
@@ -2962,6 +3147,10 @@ namespace netxs::console
                     auto& inst = *item;
                     obj_id = inst.bell::id;
 
+                    inst.SUBMIT(e2::release, e2::form::prop::zorder, order)
+                    {
+                        z_order = order;
+                    };
                     inst.SUBMIT(e2::release, e2::form::layout::size, size)
                     {
                         region.size = size;
@@ -3023,15 +3212,15 @@ namespace netxs::console
                     netxs::online(window, origin, center, pset);
                 }
                 // node: Output the title to the canvas.
-                void enlist(face& canvas)
-                {
-                    if (header)
-                    {
-                        auto& title = header.get();
-                        canvas.output(title);
-                        canvas.eol();
-                    }
-                }
+                //void enlist(face& canvas)
+                //{
+                //    if (header)
+                //    {
+                //        auto& title = header.get();
+                //        canvas.output(title);
+                //        canvas.eol();
+                //    }
+                //}
                 // node: Visualize the underlying object.
                 void render(face& canvas)
                 {
@@ -3061,7 +3250,7 @@ namespace netxs::console
 
             public:
                 operator bool () { return items.size(); }
-
+                auto size()      { return items.size(); }
                 void append(sptr<base> item)
                 {
                     items.push_back(std::make_shared<node>(item));
@@ -3069,25 +3258,22 @@ namespace netxs::console
                 // Draw backpane for spectators.
                 void prerender(face& canvas)
                 {
-                    for (auto& item : items)          item->fasten(canvas); // Draw strings
-                    for (auto& item : items)          item->render(canvas); // Draw shadows
-                    //todo deprecated: enlisted in taskbar
-                    //canvas.cup(dot_00).jet(bias::right);
-                    //for (auto& item : items)          item->enlist(canvas); // Draw a list of objects
+                    for (auto& item : items) item->fasten(canvas); // Draw strings.
+                    for (auto& item : items) item->render(canvas); // Draw shadows.
                 }
                 // Draw windows.
                 void render(face& canvas)
                 {
-                    for (auto& item : items)          item->fasten(canvas);
-                    //todo deprecated: enlisted in taskbar
-                    //canvas.cup(dot_00).jet(bias::left);
-                    //for (auto& item : reverse(items)) item->enlist(canvas);
-                    for (auto& item : items)          item->render(canvas);
+                    for (auto& item : items) item->fasten(canvas);
+                    //todo optimize
+                    for (auto& item : items) if (item->z_order == Z_order::backmost) item->render(canvas);
+                    for (auto& item : items) if (item->z_order == Z_order::plain   ) item->render(canvas);
+                    for (auto& item : items) if (item->z_order == Z_order::topmost ) item->render(canvas);
                 }
                 // Draw spectator's mouse pointers.
                 void postrender(face& canvas)
                 {
-                    for (auto& item : items)          item->postrender(canvas);
+                    for (auto& item : items) item->postrender(canvas);
                 }
 
                 rect remove(id_t id)
@@ -3157,19 +3343,10 @@ namespace netxs::console
                     items.pop_back();
                     return items.back();
                 }
-                auto get_list()
-                {
-                    std::list<sptr<base>> item_ptrs;
-                    for(auto& i : items)
-                    {
-                        item_ptrs.push_back(i->object);
-                    }
-                    return item_ptrs;
-                }
             };
 
-            using skill<T>::boss,
-                  skill<T>::memo;
+            using skill::boss,
+                  skill::memo;
             using proc = drawfx;
             using time = moment;
             using area = std::vector<rect>;
@@ -3179,11 +3356,14 @@ namespace netxs::console
             list items; // scene: Child visual tree
             list users; // scene: Scene spectators
 
-            registry_t registry;
+            sptr<registry_t> app_registry;
+            sptr<std::list<sptr<base>>> usr_registry;
 
         public:
-            scene(T&&) = delete;
-            scene(T& boss) : skill<T>{ boss }
+            scene(base&&) = delete;
+            scene(base& boss) : skill{ boss },
+                app_registry{ std::make_shared<registry_t>() },
+                usr_registry{ std::make_shared<std::list<sptr<base>>>() }
             {
                 paint = [&](face& canvas, page const& titles) -> bool
                 {
@@ -3192,7 +3372,7 @@ namespace netxs::console
                         canvas.wipe(boss.id);
                         canvas.output(titles);
                         //todo revise
-                        users.prerender (canvas); // Draw backpane for spectators
+                        if (users.size() > 1) users.prerender(canvas); // Draw backpane for spectators
                         items.render    (canvas); // Draw objects of the world
                         users.postrender(canvas); // Draw spectator's mouse pointers
                         return true;
@@ -3208,7 +3388,7 @@ namespace netxs::console
 
                     //todo unify
                     // Remove from active app registry.
-                    for (auto& [class_id, app_list] : registry)
+                    for (auto& [class_id, app_list] : *app_registry)
                     {
                         auto head = app_list.begin();
                         auto tail = app_list.end();
@@ -3217,6 +3397,16 @@ namespace netxs::console
                         {
                             app_list.erase(iter);
                             break;
+                        }
+                    }
+                    { // Remove user.
+                        auto& subset = *usr_registry;
+                        auto head = subset.begin();
+                        auto tail = subset.end();
+                        auto item = std::find_if(head, tail, [&](auto& c){ return c == item_ptr; });
+                        if (item != tail)
+                        {
+                            subset.erase(item);
                         }
                     }
 
@@ -3239,23 +3429,13 @@ namespace netxs::console
                 };
                 boss.SUBMIT_T(e2::request, e2::bindings::list::users, memo, usr_list)
                 {
-                    usr_list = users.get_list();
+                    usr_list = usr_registry;
                 };
                 boss.SUBMIT_T(e2::request, e2::bindings::list::apps, memo, app_list)
                 {
-                    app_list = registry;
-                };
-                // pro::scene: Init registry/menu.
-                boss.SUBMIT_T(e2::preview, e2::bindings::list::apps, memo, app_list)
-                {
-                    std::swap(app_list, registry);
+                    app_list = app_registry;
                 };
 
-                ///// Pass the paint procedure to custom client drawing
-                //boss.SUBMIT_T(e2::request, e2::form::proceed::render, owner::memo, empty_fx)
-                //{
-                //	empty_fx = paint;
-                //});
 
                 // pro::scene: Proceed request for available objects (next)
                 boss.SUBMIT_T(e2::request, e2::form::proceed::attach, memo, next)
@@ -3290,14 +3470,14 @@ namespace netxs::console
 
             // pro::scene: Attach a new item to the scene.
             template<class S>
-            auto brunch(id_t class_id, sptr<S> item)
+            auto branch(id_t class_id, sptr<S> item)
             {
                 items.append(item);
                 item->base::visual_root = true;
-                registry[class_id].push_back(item);
+                (*app_registry)[class_id].push_back(item);
                 item->SIGNAL(e2::release, e2::form::upon::vtree::attached, boss.base::This());
 
-                boss.SIGNAL(e2::release, e2::bindings::list::apps, registry);
+                boss.SIGNAL(e2::release, e2::bindings::list::apps, app_registry);
                 return item;
             }
             // pro::scene: Create a new item of the specified subtype
@@ -3306,7 +3486,7 @@ namespace netxs::console
             auto attach(id_t class_id, Args&&... args)
             {
                 auto item = boss.indexer<bell>::create<S>(std::forward<Args>(args)...);
-                brunch(class_id, item);
+                branch(class_id, item);
                 return item;
             }
             // pro::scene: Create a new user of the specified subtype
@@ -3316,6 +3496,7 @@ namespace netxs::console
             {
                 auto user = boss.indexer<bell>::create<S>(std::forward<Args>(args)...);
                 users.append(user);
+                usr_registry->push_back(user);
                 user->base::visual_root = true;
                 user->SIGNAL(e2::release, e2::form::upon::vtree::attached, boss.base::This());
 
@@ -3323,18 +3504,17 @@ namespace netxs::console
                 tone color{ tone::brighter, tone::shadow};
                 user->SIGNAL(e2::preview, e2::form::state::color, color);
 
-                boss.SIGNAL(e2::release, e2::bindings::list::users, users.get_list());
+                boss.SIGNAL(e2::release, e2::bindings::list::users, usr_registry);
                 return user;
             }
         };
 
         // pro: Perform graceful shutdown functionality. LIMIT in seconds, ESC_THRESHOLD in milliseconds.
-        template<class T>
         class guard
-            : public skill<T>
+            : public skill
         {
-            using skill<T>::boss,
-                  skill<T>::memo;
+            using skill::boss,
+                  skill::memo;
             constexpr static e2::type QUIT_MSG = e2::term::quit;
             constexpr static int ESC_THRESHOLD = 500; // guard: Double escape threshold in ms.
 
@@ -3343,8 +3523,8 @@ namespace netxs::console
             text   desc = "exit after preclose";
 
         public:
-            guard(T&&) = delete;
-            guard(T& boss) : skill<T>{ boss },
+            guard(base&&) = delete;
+            guard(base& boss) : skill{ boss },
                 wait{ faux }
             {
                 // Suspected early completion.
@@ -3371,12 +3551,11 @@ namespace netxs::console
         };
 
         // pro: Perform graceful shutdown functionality. LIMIT in seconds, ESC_THRESHOLD in milliseconds.
-        template<class T>
         class watch
-            : public skill<T>
+            : public skill
         {
-            using skill<T>::boss,
-                  skill<T>::memo;
+            using skill::boss,
+                  skill::memo;
             constexpr static e2::type EXCUSE_MSG = e2::hids::mouse::any;
             constexpr static e2::type QUIT_MSG   = e2::quit;
             //todo unify
@@ -3388,8 +3567,8 @@ namespace netxs::console
             text   desc = "no mouse clicking events";
 
         public:
-            watch(T&&) = delete;
-            watch(T& boss) : skill<T>{ boss }
+            watch(base&&) = delete;
+            watch(base& boss) : skill{ boss }
             {
                 stop = tempus::now() + std::chrono::seconds(LIMIT);
 
@@ -3416,20 +3595,19 @@ namespace netxs::console
         };
 
         // pro: Provides functionality related to keyboard input.
-        template<class T>
         class keybd
-            : public skill<T>
+            : public skill
         {
-            using skill<T>::boss,
-                  skill<T>::memo;
+            using skill::boss,
+                  skill::memo;
             hook accept_kbd;
             iota clients = 0;
 
         public:
             bool focusable = true;
 
-            keybd(T&&) = delete;
-            keybd(T& boss) : skill<T>{ boss }
+            keybd(base&&) = delete;
+            keybd(base& boss) : skill{ boss }
             {
                 using bttn = e2::hids::mouse::button;
 
@@ -3510,30 +3688,30 @@ namespace netxs::console
         };
 
         // pro: Provides functionality related to mouse interaction.
-        template<class T>
         class mouse
-            : public skill<T>
+            : public skill
         {
-            using skill<T>::boss,
-                  skill<T>::memo;
+            using skill::boss,
+                  skill::memo;
             sptr<base> soul; // mouse: Boss cannot be removed while it has active gears.
             iota       rent; // mouse: Active gears count.
             iota       full; // mouse: All gears count. Counting to keep the entire chain of links in the visual tree.
-            bool       omni; // mouse: Ability to accept all hover events (true) or only directly over the object (faux). This attribute is also required by the parent object if set.
-
+            bool       omni; // mouse: Ability to accept all hover events (true) or only directly over the object (faux).
+            iota       drag; // mouse: Bitfield of buttons subscribed to mouse drag.
         public:
-            mouse(T&&) = delete;
-            mouse(T& boss, bool take_all_events = true) : skill<T>{ boss },
+            mouse(base&&) = delete;
+            mouse(base& boss, bool take_all_events = true) : skill{ boss },
                 omni{ take_all_events },
-                rent{ 0              },
-                full{ 0              }
+                rent{ 0               },
+                full{ 0               },
+                drag{ 0               }
             {
                 boss.base::color().link(boss.bell::id);
                 // pro::mouse: Forward preview to all parents.
                 boss.SUBMIT_T(e2::preview, e2::hids::mouse::any, memo, gear)
                 {
                     auto& offset = boss.base::coor.get();
-                    gear.pass<e2::preview>(boss.parent.lock(), offset);
+                    gear.pass<e2::preview>(boss.parent_shadow.lock(), offset);
 
                     if (gear) gear.okay(boss);
                     else      boss.bell::expire(e2::preview);
@@ -3544,14 +3722,14 @@ namespace netxs::console
                     if (gear && !gear.locks)
                     {
                         auto& offset = boss.base::coor.get();
-                        gear.pass<e2::release>(boss.parent.lock(), offset);
+                        gear.pass<e2::release>(boss.parent_shadow.lock(), offset);
                     }
                 };
                 // pro::mouse: Notify form::state::active when the number of clients is positive.
                 boss.SUBMIT_T(e2::release, e2::form::notify::mouse::enter, memo, gear)
                 {
                     if (!full++) soul = boss.This();
-                    if (omni || gear.direct<true>(boss.bell::id))
+                    if (gear.direct<true>(boss.bell::id) || omni)
                     {
                         if (!rent++)
                         {
@@ -3562,8 +3740,8 @@ namespace netxs::console
                 // pro::mouse: Notify form::state::active when the number of clients is zero.
                 boss.SUBMIT_T(e2::release, e2::form::notify::mouse::leave, memo, gear)
                 {
-                    if (!--full) soul.reset();
-                    if (omni || gear.direct<faux>(boss.bell::id))
+                    if (!--full) { soul->base::strike(); soul.reset(); }
+                    if (gear.direct<faux>(boss.bell::id) || omni)
                     {
                         if (!--rent)
                         {
@@ -3575,62 +3753,82 @@ namespace netxs::console
                 {
                     state = rent;
                 };
+                boss.SUBMIT_T(e2::release, e2::form::draggable::any, memo, enabled)
+                {
+                    switch(auto deed = boss.bell::protos<e2::release>())
+                    {
+                        default:
+                        case e2::form::draggable::left     : draggable<sysmouse::left     >(); break;
+                        case e2::form::draggable::right    : draggable<sysmouse::right    >(); break;
+                        case e2::form::draggable::leftright: draggable<sysmouse::leftright>(); break;
+                        case e2::form::draggable::middle   : draggable<sysmouse::middle   >(); break;
+                        case e2::form::draggable::wheel    : draggable<sysmouse::wheel    >(); break;
+                        case e2::form::draggable::win      : draggable<sysmouse::win      >(); break;
+                    }
+                };
+            }
+            void take_all_events(bool b)
+            {
+                omni = b;
             }
             template<sysmouse::bttns button>
             void draggable()
             {
-                using bttn = e2::hids::mouse::button;
-                boss.SUBMIT(e2::release, e2::message(bttn::drag::start::any, button), gear)
+                if (!(drag & 1 << button))
                 {
-                    if (gear.capture(boss.bell::id))
+                    drag |= 1 << button;
+                    //using bttn = e2::hids::mouse::button; //MSVC 16.9.4 don't get it
+                    boss.SUBMIT(e2::release, e2::message(e2::hids::mouse::button::drag::start::any, button), gear)
                     {
-                        boss.SIGNAL(e2::release, e2::message(e2::form::drag::start::any, button), gear);
-                        gear.dismiss();
-                    }
-                };
-                boss.SUBMIT(e2::release, e2::message(bttn::drag::pull::any, button), gear)
-                {
-                    if (gear.captured(boss.bell::id))
+                        if (gear.capture(boss.bell::id))
+                        {
+                            boss.SIGNAL(e2::release, e2::message(e2::form::drag::start::any, button), gear);
+                            gear.dismiss();
+                        }
+                    };
+                    boss.SUBMIT(e2::release, e2::message(e2::hids::mouse::button::drag::pull::any, button), gear)
                     {
-                        boss.SIGNAL(e2::release, e2::message(e2::form::drag::pull::any, button), gear);
-                        gear.dismiss();
-                    }
-                };
-                boss.SUBMIT(e2::release, e2::message(bttn::drag::cancel::any, button), gear)
-                {
-                    if (gear.captured(boss.bell::id))
+                        if (gear.captured(boss.bell::id))
+                        {
+                            boss.SIGNAL(e2::release, e2::message(e2::form::drag::pull::any, button), gear);
+                            gear.dismiss();
+                        }
+                    };
+                    boss.SUBMIT(e2::release, e2::message(e2::hids::mouse::button::drag::cancel::any, button), gear)
                     {
-                        boss.SIGNAL(e2::release, e2::message(e2::form::drag::cancel::any, button), gear);
-                        gear.release();
-                        gear.dismiss();
-                    }
-                };
-                boss.SUBMIT(e2::release, e2::message(bttn::drag::stop::any, button), gear)
-                {
-                    if (gear.captured(boss.bell::id))
+                        if (gear.captured(boss.bell::id))
+                        {
+                            boss.SIGNAL(e2::release, e2::message(e2::form::drag::cancel::any, button), gear);
+                            gear.release();
+                            gear.dismiss();
+                        }
+                    };
+                    boss.SUBMIT(e2::release, e2::message(e2::hids::mouse::button::drag::stop::any, button), gear)
                     {
-                        boss.SIGNAL(e2::release, e2::message(e2::form::drag::stop::any, button), gear);
-                        gear.release();
-                        gear.dismiss();
-                    }
-                };
+                        if (gear.captured(boss.bell::id))
+                        {
+                            boss.SIGNAL(e2::release, e2::message(e2::form::drag::stop::any, button), gear);
+                            gear.release();
+                            gear.dismiss();
+                        }
+                    };
+                }
             }
         };
 
         // pro: Provides functionality related to keyboard interaction.
-        template<class T>
         class input
-            : public skill<T>, public hids
+            : public skill, public hids
         {
-            using skill<T>::boss,
-                  skill<T>::memo;
+            using skill::boss,
+                  skill::memo;
             face xmap;
 
         public:
             iota push = 0; // input: Mouse pressed buttons bits (Used only for foreign mouse pointer in the gate).
 
-            input(T&&) = delete;
-            input(T& boss) : skill<T>{ boss }, hids{ boss, xmap }
+            input(base&&) = delete;
+            input(base& boss) : skill{ boss }, hids{ boss, xmap }
             {
                 boss.SUBMIT_T(e2::release, e2::form::layout::size, memo, newsize)
                 {
@@ -3660,15 +3858,14 @@ namespace netxs::console
         };
 
         // pro: Glow gradient filter.
-        template<class T>
         class grade
-            : public skill<T>
+            : public skill
         {
-            using skill<T>::boss,
-                  skill<T>::memo;
+            using skill::boss,
+                  skill::memo;
         public:
-            grade(T&&) = delete;
-            grade(T& boss) : skill<T>{ boss }
+            grade(base&&) = delete;
+            grade(base& boss) : skill{ boss }
             {
                 boss.SUBMIT_T(e2::release, e2::form::upon::redrawn, memo, parent_canvas)
                 {
@@ -3706,13 +3903,12 @@ namespace netxs::console
         };
 
         // pro: Fader animation.
-        template<class T>
         class fader
-            : public skill<T>
+            : public skill
         {
-            using skill<T>::boss,
-                  skill<T>::memo;
-            robot<T> robo;   // fader: .
+            using skill::boss,
+                  skill::memo;
+            robot  robo;   // fader: .
             period fade;
             iota transit;
             cell c1;
@@ -3726,9 +3922,9 @@ namespace netxs::console
             }
 
         public:
-            fader(T&&) = delete;
-            fader(T& boss, cell default_state, cell highlighted_state, period fade_out = 250ms)
-                : skill<T>{ boss },
+            fader(base&&) = delete;
+            fader(base& boss, cell default_state, cell highlighted_state, period fade_out = 250ms)
+                : skill{ boss },
                 robo{ boss },
                 fade{ fade_out },
                 c1 { default_state },
@@ -3764,30 +3960,28 @@ namespace netxs::console
         };
 
         // pro: Color manager.
-        template<class T>
         class color
-            : public skill<T>
+            : public skill
         {
-            using skill<T>::boss,
-                  skill<T>::memo;
+            using skill::boss,
+                  skill::memo;
         public:
-            color(T&&) = delete;
-            color(T& boss, rgba fg_color, rgba bg_color) : skill<T>{ boss }
+            color(base&&) = delete;
+            color(base& boss, rgba fg_color, rgba bg_color) : skill{ boss }
             {
                 boss.base::color(fg_color, bg_color);
             }
         };
 
         // pro: Limits manager.
-        template<class T>
         class limit
-            : public skill<T>
+            : public skill
         {
-            using skill<T>::boss,
-                  skill<T>::memo;
+            using skill::boss,
+                  skill::memo;
         public:
-            limit(T&&) = delete;
-            limit(T& boss, twod const& min_size, twod const& max_size = -dot_11) : skill<T>{ boss }
+            limit(base&&) = delete;
+            limit(base& boss, twod const& min_size, twod const& max_size = -dot_11) : skill{ boss }
             {
                 boss.base::limits(min_size, max_size);
             }
@@ -3798,13 +3992,13 @@ namespace netxs::console
     class host
         : public base
     {
-        #ifdef DEMO
-        pro::watch<host> zombi{*this }; // host: Zombie protection.
-        #endif // DEMO
-        pro::robot<host> robot{*this }; // host: Amination controller.
-        pro::keybd<host> keybd{*this }; // host: Keyboard controller.
-        pro::mouse<host> mouse{*this }; // host: Mouse controller.
-        pro::scene<host> scene{*this }; // host: Scene controller.
+        #ifndef PROD
+        pro::watch zombi{*this }; // host: Zombie protection.
+        #endif
+        pro::robot robot{*this }; // host: Amination controller.
+        pro::keybd keybd{*this }; // host: Keyboard controller.
+        pro::mouse mouse{*this }; // host: Mouse controller.
+        pro::scene scene{*this }; // host: Scene controller.
 
         using tick = quartz<reactor, e2::type>;
         using hndl = std::function<void(view)>;
@@ -3816,9 +4010,9 @@ namespace netxs::console
     public:
         // host: Create a new item of the specified subtype and attach it.
         template<class T>
-        auto brunch(id_t class_id, sptr<T> item_ptr)
+        auto branch(id_t class_id, sptr<T> item_ptr)
         {
-            return scene.brunch(class_id, item_ptr);
+            return scene.branch(class_id, item_ptr);
         }
         // host: Create a new item of the specified subtype and attach it.
         template<class T, class ...Args>
@@ -3860,7 +4054,7 @@ namespace netxs::console
             SUBMIT(e2::release, bttn::click::right, gear)
             {
                 //auto newpos = gear.mouse.coord + gear.xview.coor;
-                SIGNAL(e2::general, e2::form::global::ctxmenu, gear.coord);
+                this->SIGNAL(e2::general, e2::form::global::ctxmenu, gear.coord);
             };
 
             SUBMIT(e2::release, bttn::drag::start::left, gear)
@@ -3876,7 +4070,7 @@ namespace netxs::console
                 if (gear.captured(bell::id))
                 {
                     auto data = cube{ gear.mouse::delta.get(), gear.area() };
-                    SIGNAL(e2::preview, e2::form::layout::convey, data);
+                    this->SIGNAL(e2::preview, e2::form::layout::convey, data);
                     gear.dismiss();
                 }
             };
@@ -3897,7 +4091,7 @@ namespace netxs::console
                     robot.actify(gear.mouse::fader<quadratic<twod>>(2s), [&, boundary](auto& x)
                                  {
                                      auto data = cube{ x, boundary };
-                                     SIGNAL(e2::preview, e2::form::layout::convey, data);
+                                     this->SIGNAL(e2::preview, e2::form::layout::convey, data);
                                  });
                     gear.dismiss();
                 }
@@ -4033,7 +4227,7 @@ namespace netxs::console
 
                 view strv = total;
 
-                #ifdef DEMO
+                #ifndef PROD
                 if (close)
                 {
                     close = faux;
@@ -4046,7 +4240,7 @@ namespace netxs::console
                         return;
                     }
                 }
-                #endif /// DEMO
+                #endif
                 //int g = 0;
 
 
@@ -4060,7 +4254,7 @@ namespace netxs::console
                     {
                         ++pos;
 
-                        #ifdef DEMO
+                        #ifndef PROD
                         if (pos == len) // the only one esc
                         {
                             close = true;
@@ -4095,7 +4289,7 @@ namespace netxs::console
                             //strv = total;
                             break;
                         }
-                        #endif /// DEMO
+                        #endif
                         else if (strv.at(pos) == '[')
                         {
                             if (++pos == len) { total = strv; break; }//incomlpete
@@ -4960,22 +5154,27 @@ again:
 
     // console: Client's gate.
     class gate
-        : public form
+        : public base
     {
-        pro::keybd<gate> keybd{*this }; // gate: Keyboard controller.
-        pro::robot<gate> robot{*this }; // gate: Animation controller.
-        pro::maker<gate> maker{*this }; // gate: Form generator.
-        pro::title<gate> title{*this }; // gate: Logo watermark.
-        pro::guard<gate> guard{*this }; // gate: Watch dog against robots and single Esc detector.
-        pro::input<gate> input{*this }; // gate: User input event handler.
-        pro::align<gate> align{*this }; // gate: Size binding controller.
+        pro::keybd keybd{*this }; // gate: Keyboard controller.
+        pro::mouse mouse{*this }; // gate: Mouse controller.
+        pro::robot robot{*this }; // gate: Animation controller.
+        pro::maker maker{*this }; // gate: Form generator.
+        pro::title title{*this }; // gate: Logo watermark.
+        pro::guard guard{*this }; // gate: Watch dog against robots and single Esc detector.
+        pro::input input{*this }; // gate: User input event handler.
+        pro::align align{*this }; // gate: Size binding controller.
         #ifdef DEBUG_OVERLAY
-        pro::debug<gate> debug{*this }; // gate: Debug telemetry controller.
+        pro::debug debug{*this }; // gate: Debug telemetry controller.
         #endif
 
         using pair = std::optional<std::pair<period, iota>>;
         pair  yield; // gate: Indicator that the current frame has been successfully STDOUT.
         para uname; // gate: Client name.
+
+        //todo cache specific
+        sptr<face> coreface;
+        face& canvas; // .: Form cache.
 
     public:
         // todo unify
@@ -4985,7 +5184,7 @@ again:
         // Main loop.
         void proceed(xipc media /*session socket*/, text title)
         {
-            if (auto world = parent.lock())
+            if (auto world = parent_shadow.lock())
             {
                 link conio{ *this, media };          // gate: Terminal IO.
                 diff paint{ conio, input.freeze() }; // gate: Rendering loop.
@@ -5033,7 +5232,7 @@ again:
                 {
                     auto stamp = tempus::now();
                     //if (render_scene(form::canvas, gate::title.titles()) || !yield) // Put the world on my canvas
-                    if (render_scene(form::canvas, watermark) || !yield) // Put the world on my canvas
+                    if (render_scene(canvas, watermark) || !yield) // Put the world on my canvas
                     {
                         // Update objects under mouse cursor
                         //input.fire(e2::hids::mouse::hover);
@@ -5047,7 +5246,7 @@ again:
                         #endif // DEBUG_OVERLAY
 
                         // in order to draw debug overlay, maker, titles, etc
-                        SIGNAL(e2::release, e2::form::upon::redrawn, form::canvas);
+                        this->SIGNAL(e2::release, e2::form::upon::redrawn, canvas);
                         #ifdef DEBUG_OVERLAY
                             if ((yield = paint.commit(canvas)))
                             {
@@ -5057,7 +5256,7 @@ again:
                             }
                             debug.update(stamp);
                         #else
-                            yield = paint.commit(form::canvas); // Try output my canvas to the my console.
+                            yield = paint.commit(canvas); // Try output my canvas to the my console.
                         #endif // DEBUG_OVERLAY
                     }
                 };
@@ -5068,15 +5267,34 @@ again:
 
     protected:
         gate(view user_name)
+            : canvas{*(coreface = std::make_shared<face>())}
         {
+            //todo cache specific
+            canvas.link(bell::id);
+            SUBMIT(e2::release, base::size_event, new_sz) { canvas.mark(base::brush); canvas.size(new_sz); };
+            SUBMIT(e2::release, base::move_event, new_xy) { canvas.move(new_xy); };
+            SUBMIT(e2::request, e2::form::canvas, canvas) { canvas = coreface; };
+
             //todo unify
             uname = user_name;
-
-            using bttn = e2::hids::mouse::button;
-            using keyb = e2::hids::keybd;
-
             title.live = faux;
-
+            mouse.draggable<sysmouse::leftright>();
+            SUBMIT(e2::release, e2::form::drag::start::leftright, gear)
+            {
+                robot.pacify();
+            };
+            SUBMIT(e2::release, e2::form::drag::pull::leftright, gear)
+            {
+                base::moveby(-gear.delta.get());
+            };
+            SUBMIT(e2::release, e2::form::drag::stop::leftright, gear)
+            {
+                robot.pacify();
+                robot.actify(gear.mouse::fader<quadratic<twod>>(2s), [&](auto& x)
+                             {
+                                base::moveby(-x);
+                             });
+            };
             //todo unify (use uibar)
             SUBMIT(e2::preview, e2::form::prop::footer, newfooter)
             {
@@ -5085,7 +5303,7 @@ again:
             //todo unify creation (delete simple create wo gear)
             SUBMIT(e2::preview, e2::form::proceed::create, region)
             {
-                if (auto world = parent.lock())
+                if (auto world = parent_shadow.lock())
                 {
                     region.coor += base::coor.get();
                     world->SIGNAL(e2::release, e2::form::proceed::create, region);
@@ -5093,14 +5311,13 @@ again:
             };
             SUBMIT(e2::preview, e2::form::proceed::createby, gear)
             {
-                if (auto world = parent.lock())
+                if (auto world = parent_shadow.lock())
                 {
                     gear.slot.coor += base::coor.get();
                     world->SIGNAL(e2::release, e2::form::proceed::createby, gear);
                 }
             };
-
-            SUBMIT(e2::preview, keyb::any, gear)
+            SUBMIT(e2::preview, e2::hids::keybd::any, gear)
             {
                 //todo unify
                 //if (gear.meta(hids::CTRL | hids::RCTRL))
@@ -5110,7 +5327,7 @@ again:
                     auto pgdn = gear.keystrokes == "\033[6;5~"s;
                     if (pgup || pgdn)
                     {
-                        if (auto world = parent.lock())
+                        if (auto world = parent_shadow.lock())
                         {
                             sptr<base> item_ptr;
                             if (pgdn) world->SIGNAL(e2::request, e2::form::proceed::detach, item_ptr); // Take prev item
@@ -5121,7 +5338,7 @@ again:
                                 auto& item = *item_ptr;
                                 auto square = item.square();
                                 auto center = square.coor + (square.size / 2);
-                                SIGNAL(e2::release, e2::form::layout::shift, center);
+                                this->SIGNAL(e2::release, e2::form::layout::shift, center);
 
                                 //todo unify
                                 gear.clear_kb_focus();
@@ -5133,45 +5350,6 @@ again:
                     }
                 }
             };
-
-            SUBMIT(e2::release, bttn::drag::start::leftright, gear)
-            {
-                if (gear.capture(bell::id))
-                {
-                    robot.pacify();
-                    gear.dismiss();
-                }
-            };
-            SUBMIT(e2::release, bttn::drag::pull::leftright, gear)
-            {
-                if (gear.captured(bell::id))
-                {
-                    base::moveby(-gear.delta.get());
-                    gear.dismiss();
-                }
-            };
-            SUBMIT(e2::release, bttn::drag::cancel::leftright, gear)
-            {
-                if (gear.captured(bell::id))
-                {
-                    gear.release();
-                    gear.dismiss();
-                }
-            };
-            SUBMIT(e2::release, bttn::drag::stop::leftright, gear)
-            {
-                if (gear.captured(bell::id))
-                {
-                    gear.release();
-                    robot.pacify();
-                    robot.actify(gear.mouse::fader<quadratic<twod>>(2s), [&](auto& x)
-                                 {
-                                    base::moveby(-x);
-                                 });
-                    gear.dismiss();
-                }
-            };
-
             SUBMIT(e2::release, e2::form::layout::shift, newpos)
             {
                 auto window = canvas.area();
@@ -5186,20 +5364,10 @@ again:
                                      moveby(-x);
                                  });
             };
-
-            //SUBMIT(e2::preview, e2::form::layout::size, newsz)
-            //{
-            //    if (uibar) uibar->SIGNAL(e2::preview, e2::form::layout::size, newsz);
-            //};
-            //SUBMIT(e2::release, e2::form::layout::size, newsz)
-            //{
-            //    if (uibar) uibar->SIGNAL(e2::release, e2::form::layout::size, newsz);
-            //};
             SUBMIT(e2::release, e2::form::layout::size, newsz)
             {
                 if (uibar) uibar->base::resize(newsz);
             };
-
         }
 
         // gate: Draw the form composition on the specified canvas.
@@ -5213,7 +5381,11 @@ again:
             {
                 auto area = canvas.area();
                 area.coor-= parent_canvas.area().coor;
-                parent_canvas.fill(area, skin::color(tone::shadow));
+
+                //todo revise
+                auto mark = skin::color(tone::shadow);
+                mark.bga(mark.bga() / 2);
+                parent_canvas.fill(area, [&](cell& c){ c.fuse(mark); });
             }
         }
         // gate: .

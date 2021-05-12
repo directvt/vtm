@@ -35,9 +35,19 @@ namespace netxs
         { }
     };
 
-    template<class T> using sptr = typename std::shared_ptr<T>;
-    template<class T> using wptr = typename std::  weak_ptr<T>;
-    template<class T> using uptr = typename std::unique_ptr<T>;
+    template<class T> using sptr = std::shared_ptr<T>;
+    template<class T> using wptr = std::  weak_ptr<T>;
+    template<class T> using uptr = std::unique_ptr<T>;
+
+    // Due to the fact that alias templates are never deduced by template argument deduction (C++20).
+    namespace ptr
+    {
+        template <class T>
+        auto shadow(sptr<T> p)
+        {
+            return std::weak_ptr<T>{ p };
+        }
+    }
 
     template <class T1, class T2>
     inline bool equals(std::weak_ptr<T1> const& p1, std::weak_ptr<T2> const& p2)

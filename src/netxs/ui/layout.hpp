@@ -20,6 +20,13 @@ namespace netxs::ui::atoms
     static const char whitespace = 0x20;
     //static const char whitespace = '.';
 
+    enum Z_order : iota
+    {
+        backmost = -1,
+        plain    =  0,
+        topmost  =  1,
+    };
+
     enum tint
     {
         blackdk, reddk, greendk, yellowdk, bluedk, magentadk, cyandk, whitedk,
@@ -1071,7 +1078,7 @@ namespace netxs::ui::atoms
         // rect: Intersect two rects. If NESTED==true when use dot_00 as a base corner.
         template<bool NESTED = faux>
         constexpr
-        rect clip (rect block) const
+        rect clip(rect block) const
         {
             auto clamp = [&](auto const& base, auto const& apex)
             {
@@ -1080,18 +1087,19 @@ namespace netxs::ui::atoms
                 block.size = std::clamp(block_apex, base, apex) - block.coor;
             };
 
-            if constexpr (NESTED) clamp(dot_00, size);
-            else                  clamp(coor,   coor + size);
+            if constexpr (NESTED) clamp(dot_00, size       );
+            else                  clamp(coor  , coor + size);
 
             return block;
         }
-        twod clip (twod point) const
+        twod clip(twod point) const
         {
             return std::clamp(point, coor, coor + std::max(dot_00, size - dot_11));
         }
         operator bool      ()              const { return size.x != 0 && size.y != 0;       }
         auto   area        ()              const { return size.x * size.y;                  }
         twod   map         (twod const& p) const { return p - coor;                         }
+        rect   shift       (twod const& p) const { return { coor + p, size };               }
         rect   operator &  (rect const& r) const { return clip(r);                          }
         rect   operator +  (rect const& r) const { return { coor + r.coor, size + r.size }; }
         rect   operator -  (rect const& r) const { return { coor - r.coor, size - r.size }; }
@@ -1102,7 +1110,7 @@ namespace netxs::ui::atoms
         void   operator -= (rect const& r)       { coor -= r.coor; size -= r.size;          }
 
         // rect: Is the point inside the rect.
-        bool hittest (twod const& p) const
+        bool hittest(twod const& p) const
         {
             bool test;
             if (size.x > 0)
@@ -1132,7 +1140,7 @@ namespace netxs::ui::atoms
             }
             return faux;
         }
-        rect rotate (twod const& dir) const
+        rect rotate(twod const& dir) const
         {
             rect r;
             if ((dir.x ^ size.x) < 0)
@@ -1158,7 +1166,7 @@ namespace netxs::ui::atoms
             }
             return r;
         }
-        rect normalize () const
+        rect normalize() const
         {
             rect r;
             if (size.x < 0)
@@ -1185,8 +1193,32 @@ namespace netxs::ui::atoms
 
             return r;
         }
+        void normalize_itself()
+        {
+            if (size.x < 0)
+            {
+                coor.x =  coor.x + size.x;
+                size.x = -size.x;
+            }
+            else
+            {
+                coor.x = coor.x;
+                size.x = size.x;
+            }
+
+            if (size.y < 0)
+            {
+                coor.y =  coor.y + size.y;
+                size.y = -size.y;
+            }
+            else
+            {
+                coor.y = coor.y;
+                size.y = size.y;
+            }
+        }
         // rect: Intersect the rect with rect{ dot_00, edge }.
-        rect trunc (twod const& edge) const
+        rect trunc(twod const& edge) const
         {
             rect r;
             r.coor = std::clamp(coor, dot_00, edge);
@@ -1194,7 +1226,7 @@ namespace netxs::ui::atoms
             return r;
         }
         // rect: Return circumscribed rect.
-        rect unite (rect const& annex) const
+        rect unite(rect const& annex) const
         {
             auto r1 = annex.normalize();
             auto r2 = normalize();
@@ -1205,7 +1237,7 @@ namespace netxs::ui::atoms
             return { tl, br - tl};
         }
         // rect: Return true in case of normalized rectangles are overlapped.
-        bool overlap (rect const& r) const
+        bool overlap(rect const& r) const
         {
             return coor.x          < r.coor.x + r.size.x
                 && coor.y          < r.coor.y + r.size.y
@@ -1236,35 +1268,34 @@ namespace netxs::ui::atoms
     {
         iota l, r, t, b;
 
-        constexpr side ()
+        constexpr side()
             : l(0), r(0), t(0), b(0)
         { }
 
-        constexpr side (iota left, iota right = 0, iota top = 0, iota bottom = 0)
+        constexpr side(iota left, iota right = 0, iota top = 0, iota bottom = 0)
             : l(left), r(right), t(top), b(bottom)
         { }
 
-        constexpr side (side const& s)
+        constexpr side(side const& s)
             : l(s.l), r(s.r), t(s.t), b(s.b)
         { }
 
-        constexpr side (twod const& p)
+        constexpr side(twod const& p)
             : l(p.x), r(p.x), t(p.y), b(p.y)
         { }
 
-        constexpr side (rect const& r)
+        constexpr side(rect const& r)
             : l(r.coor.x), r(r.coor.x + r.size.x),
               t(r.coor.y), b(r.coor.y + r.size.y)
         { }
 
-        side (fifo& queue)
+        side(fifo& queue)
         {
             l = queue(0);
             r = queue(0);
             t = queue(0);
             b = queue(0);
         }
-
         // side: Unite the two rectangles.
         void operator |= (side const& s)
         {
@@ -1347,11 +1378,7 @@ namespace netxs::ui::atoms
             bool just = faux;
             iota step = 0;
 
-            constexpr edge(bool just)
-                : just { just },
-                  step { 0    }
-            { }
-            constexpr edge(bool just, iota n)
+            constexpr edge(bool just, iota n = 0)
                 : just { just          },
                   step { n }
             { }
@@ -1384,26 +1411,32 @@ namespace netxs::ui::atoms
               foot{ faux }
         { }
         constexpr dent(iota w, iota e = 0, iota h = 0, iota f = 0)
-            : west{ true, w},
-              east{ faux, e},
-              head{ true, h},
-              foot{ faux, f}
+            : west{ true, w },
+              east{ faux, e },
+              head{ true, h },
+              foot{ faux, f }
+        { }
+        constexpr dent(dent const& pad)
+            : west{ true, pad.west.step },
+              east{ faux, pad.east.step },
+              head{ true, pad.head.step },
+              foot{ faux, pad.foot.step }
         { }
 
-        dent& operator = (dent const& margin)
+        auto& operator = (dent const& pad)
         {
-            west = margin.west;
-            east = margin.east;
-            head = margin.head;
-            foot = margin.foot;
+            west = pad.west;
+            east = pad.east;
+            head = pad.head;
+            foot = pad.foot;
             return *this;
         }
-        dent& operator += (dent const& margin)
+        auto& operator += (dent const& pad)
         {
-            west.step += margin.west.step;
-            east.step += margin.east.step;
-            head.step += margin.head.step;
-            foot.step += margin.foot.step;
+            west.step += pad.west.step;
+            east.step += pad.east.step;
+            head.step += pad.head.step;
+            foot.step += pad.foot.step;
             return *this;
         }
         // dent: Return inner area rectangle.
@@ -1508,6 +1541,22 @@ namespace netxs::ui::atoms
                            area.coor.y + pad.head.step },
                          { std::max(0, area.size.x - (pad.west.step + pad.east.step)),
                            std::max(0, area.size.y - (pad.head.step + pad.foot.step)) }};
+        }
+        // dent: Return summ of two paddings.
+        friend auto operator + (dent const& pad1, dent const& pad2)
+        {
+            return dent{ pad1.west.step + pad2.west.step,
+                         pad1.east.step + pad2.east.step,
+                         pad1.head.step + pad2.head.step,
+                         pad1.foot.step + pad2.foot.step };
+        }
+        // dent: Return diff of two paddings.
+        friend auto operator - (dent const& pad1, dent const& pad2)
+        {
+            return dent{ pad1.west.step - pad2.west.step,
+                         pad1.east.step - pad2.east.step,
+                         pad1.head.step - pad2.head.step,
+                         pad1.foot.step - pad2.foot.step };
         }
     };
 

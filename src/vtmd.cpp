@@ -1,9 +1,11 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#define DEMO
-#define MONOTTY_VER "Monotty Desktopio Preview v0.3.4"
-//#define PROD
+#define MONOTTY_VER "Monotty Desktopio Preview v0.3.6"
+// Autostart demo apps.
+//#define DEMO
+// Enable keyboard input and disable exit by single Esc.
+#define PROD
 
 // Terminal's default line wrapping mode.
 #define WRAPPING (wrap::on)
@@ -147,6 +149,9 @@ std::list<text> appstore_body =
 
     item("Hood", reddk, "1", "Free ", "Get",
     "Desktop environment settings configurator."),
+
+    item("View", cyandk, "1", "Free ", "Get",
+    "Meta object. Desktop location marker."),
 };
 
 text qr = ""s
@@ -208,8 +213,7 @@ enum test_topic_vars
 class post_logs
     : public ui::post
 {
-    pro::caret<post_logs> caret{ *this }; // post_logs: Text caret controller.
-    pro::mouse<post_logs> mouse{ *this }; // post_logs: .
+    pro::caret caret{ *this }; // post_logs: Text caret controller.
 
     text label;
     hook token;
@@ -324,7 +328,7 @@ public:
         caret.show();
         caret.coor(dot_01);
 
-        #ifdef DEMO
+        #ifndef PROD
         topic.maxlen(400);
         #else
         topic.maxlen(10000);
@@ -599,19 +603,11 @@ int main(int argc, char* argv[])
                     + l2 + ansi::wrp(wrap::on)
                     + "outside of any objects:\n"
                         + l3 + "- move all visible objects inside the viewport.\n"
-                    + l2
-                    + "inside the object:\n"
-                        + l3 + "- move or resize, depends on the distance to the center of the object.\n"
-                    + l2
-                    + "the label in the top-left list of objects:\n"
-                    + "the connecting line of an object:\n"
-                        + l3 + "- move the object relativly to its place.\n"
                 + l1 + ansi::wrp(wrap::off)
                 + "right" + ansi::nil() + "\n"
                     + l2 + ansi::fgc(blackdk).bgc(clr).wrp(wrap::off)
                     + "click" + ansi::nil() + "\n"
                     + l2 + ansi::wrp(wrap::on)
-                    + "on the label in the upper left list of objects:\n"
                     + "on the connecting line of an object:\n"
                         + l3 + "- move object to mouse cursor.\n"
                     + l2
@@ -734,9 +730,9 @@ int main(int argc, char* argv[])
                 + ansi::jet(bias::center).wrp(wrap::off).fgc(clr)
                 + "Embedded Content\n\n"
                 + ansi::jet(bias::left).wrp(wrap::on)
-                + ansi::idx(test_topic_vars::dynamix1) + "<"+ ansi::fgc(reddk)+"create smth."+ ansi::fgc()+">"//.nop()
-                + ansi::idx(test_topic_vars::dynamix2) + "<"+ ansi::fgc(reddk)+"create smth."+ ansi::fgc()+">"//.nop()
-                + ansi::idx(test_topic_vars::dynamix3) + "<"+ ansi::fgc(reddk)+"create smth."+ ansi::fgc()+">"//.nop()
+                + ansi::idx(test_topic_vars::dynamix1) + "<"+ ansi::fgc(reddk)+"placeholder"+ ansi::fgc()+">"//.nop()
+                + ansi::idx(test_topic_vars::dynamix2) + "<"+ ansi::fgc(reddk)+"placeholder"+ ansi::fgc()+">"//.nop()
+                + ansi::idx(test_topic_vars::dynamix3) + "<"+ ansi::fgc(reddk)+"placeholder"+ ansi::fgc()+">"//.nop()
                 + ansi::nil()
                 + "\n";
 
@@ -1168,7 +1164,7 @@ utility like ctags is used to locate the definitions.
         auto const action_color      = tint::greenlt ;
         auto background_color = cell{}.fgc(whitedk).bgc(0xFF000000 /* blackdk */);
         skin::setup(tone::kb_focus, 60);
-        skin::setup(tone::brighter, 120);
+        skin::setup(tone::brighter, 60);//120);
         //skin::setup(tone::shadower, 0);
         skin::setup(tone::shadower, 180);//60);//40);// 20);
         skin::setup(tone::shadow, 180);//5);
@@ -1210,27 +1206,24 @@ utility like ctags is used to locate the definitions.
             }
         };
 
-        #define TYPE_LIST                         \
-        X(Term         , "Term"                 ) \
-        X(Text         , "Text"                 ) \
-        X(Calc         , "Calc"                 ) \
-        X(Shop         , "Shop"                 ) \
-        X(Logs         , "Logs"                 ) \
-        X(PowerShell   , "PowerShell"           ) \
-        X(CommandPrompt, "Command Prompt"       ) \
-        X(Bash         , "Bash/Zsh/CMD"         ) \
-        X(Far          , "Far Manager"          ) \
-        X(VTM          , "Recursive connection" ) \
-        X(MC           , "Midnight Commander"   ) \
-        X(Truecolor    , "Truecolor image"      ) \
-        X(RefreshRate  , "Refresh rate"         ) \
-        X(Strobe       , "Strobe"               ) \
-        X(Test         , "Test"                 ) \
-        X(Empty        , "Empty window"         ) \
-        X(Menu         , "Old menu object"      )
-
-        //X(Cellatix     , "Cellatix \033[92m▄▀\033[m")
-        //X(Textancy     , "Textancy \033[94m▄▀\033[m")
+        #define TYPE_LIST                             \
+        X(Term         , "Term"                     ) \
+        X(Text         , "Text"                     ) \
+        X(Calc         , "Calc"                     ) \
+        X(Shop         , "Shop"                     ) \
+        X(Logs         , "Logs"                     ) \
+        X(View         , "View"                     ) \
+        X(PowerShell   , "pwsh PowerShell"          ) \
+        X(CommandPrompt, "cmd Command Prompt"       ) \
+        X(Bash         , "Bash/Zsh/CMD"             ) \
+        X(Far          , "Far Manager"              ) \
+        X(VTM          , "vtm Recursive connection" ) \
+        X(MC           , "mc  Midnight Commander"   ) \
+        X(Truecolor    , "RGB Truecolor image"      ) \
+        X(RefreshRate  , "fps Refresh rate"         ) \
+        X(Strobe       , "Strobe"                   ) \
+        X(Test         , "Test"                     ) \
+        X(Empty        , "Test Empty window"        )
 
         #define X(a, b) a,
         enum objs { TYPE_LIST count };
@@ -1241,9 +1234,6 @@ utility like ctags is used to locate the definitions.
         #undef X
         #undef TYPE_LIST
 
-        objs current_default = objs::Test;
-        auto current_default_ptr = &current_default; //todo unify
-        static bool    stobe_state = true;
         static iota    max_count = 20;// 50;
         static iota    max_vtm = 3;
         static iota    vtm_count = 0;
@@ -1252,86 +1242,147 @@ utility like ctags is used to locate the definitions.
         using slot = ui::slot;
         using axis = ui::axis;
         using axes = ui::axes;
-        auto scroll_bars = [](auto layers, auto master)
+
+        const static auto c7 = cell{}.bgc(whitedk).fgc(blackdk);
+        const static auto c6 = cell{}.bgc(action_color).fgc(whitelt);
+        const static auto x6 = cell{ c6 }.bga(0x00).fga(0x00);
+        const static auto c5 = cell{}.bgc(danger_color).fgc(whitelt);
+        const static auto x5 = cell{ c5 }.bga(0x00).fga(0x00);
+        const static auto c4 = cell{}.bgc(highlight_color);
+        const static auto x4 = cell{ c4 }.bga(0x00);
+        const static auto c3 = cell{}.bgc(highlight_color).fgc(0xFFffffff);
+        const static auto x3 = cell{ c3 }.bga(0x00).fga(0x00);
+        const static auto c2 = cell{}.bgc(warning_color).fgc(whitelt);
+        const static auto x2 = cell{ c2 }.bga(0x00);
+        const static auto c1 = cell{}.bgc(danger_color).fgc(whitelt);
+        const static auto x1 = cell{ c1 }.bga(0x00);
+
+        auto scroll_bars = [](auto master)
         {
-            auto scroll_bars = layers->template attach<ui::fork>();
-                auto scroll_down = scroll_bars->template attach<slot::_1, ui::fork>(axis::Y);
-                    auto hz = scroll_down->template attach<slot::_2, ui::grip<axis::X>>(master);
-                    auto vt = scroll_bars->template attach<slot::_2, ui::grip<axis::Y>>(master);
+            auto scroll_bars = base::create<ui::fork>();
+                auto scroll_down = scroll_bars->attach<slot::_1, ui::fork>(axis::Y);
+                    auto hz = scroll_down->attach<slot::_2, ui::grip<axis::X>>(master);
+                    auto vt = scroll_bars->attach<slot::_2, ui::grip<axis::Y>>(master);
+            return scroll_bars;
         };
-        auto scroll_bars_left = [](auto layers, auto master)
+        auto scroll_bars_term = [](auto master)
         {
-            auto scroll_bars = layers->template attach<ui::fork>();
-                auto scroll_down = scroll_bars->template attach<slot::_2, ui::fork>(axis::Y);
-                    //auto hz = scroll_down->template attach<slot::_2, ui::grip<axis::X>>(master);
-                    auto vt = scroll_bars->template attach<slot::_1, ui::grip<axis::Y>>(master);
+            auto scroll_bars = base::create<ui::fork>();
+                auto scroll_head = scroll_bars->attach<slot::_1, ui::fork>(axis::Y);
+                    auto hz = scroll_head->attach<slot::_1, ui::grip<axis::X>>(master);
+                    auto vt = scroll_bars->attach<slot::_2, ui::grip<axis::Y>>(master);
+            return scroll_bars;
         };
-        auto scroll_bars_term = [](auto layers, auto master)
+        auto main_menu = [&]()
         {
-            auto scroll_bars = layers->template attach<ui::fork>();
-                auto scroll_head = scroll_bars->template attach<slot::_1, ui::fork>(axis::Y);
-                    auto hz = scroll_head->template attach<slot::_1, ui::grip<axis::X>>(master);
-                    auto vt = scroll_bars->template attach<slot::_2, ui::grip<axis::Y>>(master);
-        };
-        auto main_menu = [&](auto master)
-        {
-            auto menu_area = master->template attach<slot::_1, ui::fork>();
+            auto menu_area = base::create<ui::fork>();
                 auto inner_pads = dent{ 1,2,1,1 };
                 auto menu_items = {
-                    std::pair{ " ≡"s,                                       dent{ 0 } },
-                    std::pair{ ansi::und(true) + "F" + ansi::nil() + "ile", dent{ 1 } },
-                    std::pair{ ansi::und(true) + "E" + ansi::nil() + "dit", dent{ 1 } },
-                    std::pair{ ansi::und(true) + "V" + ansi::nil() + "iew", dent{ 1 } },
-                    std::pair{ ansi::und(true) + "D" + ansi::nil() + "ata", dent{ 1 } },
-                    std::pair{ ansi::und(true) + "H" + ansi::nil() + "elp", dent{ 1 } } };
-                auto c3 = cell{ whitespace }.bgc(danger_color);
-                auto x3 = c3; x3.alpha(0x00);
-                auto c2 = cell{ whitespace }.bgc(highlight_color);
-                auto x2 = c2; x2.alpha(0x00);
-                auto menu_list = menu_area->template attach<slot::_1, ui::fork>()
-                                          ->template attach<slot::_1, ui::list>(axis::X);
-                for (auto& body : menu_items) menu_list->template attach<ui::pads>(inner_pads, body.second)
-                                                       ->template plugin<pro::mouse>()
-                                                       ->template plugin<pro::fader>(x2, c2, 150ms)
-                                                       ->template attach<ui::item>(body.first, faux, true);
-                auto close_hndl = [&](auto& boss)
-                        {
-                             // MSVC 16.9.4 don't get it inline, use close_hndl (possible compiler bug, todo investigate)
-                             boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
+                    ansi::und(true) + "F" + ansi::nil() + "ile",
+                    ansi::und(true) + "E" + ansi::nil() + "dit",
+                    ansi::und(true) + "V" + ansi::nil() + "iew",
+                    ansi::und(true) + "D" + ansi::nil() + "ata",
+                    ansi::und(true) + "H" + ansi::nil() + "elp" };
+                auto menu_list = menu_area->attach<slot::_1, ui::fork>()
+                                          ->attach<slot::_1, ui::list>(axis::X);
+                menu_list->attach<ui::pads>(inner_pads, dent{ 0 })
+                         ->plugin<pro::fader>(x3, c3, 150ms)
+                         ->invoke([&](ui::pads& boss){
+                             boss.SUBMIT(e2::release, e2::hids::mouse::button::dblclick::left, gear)
                              {
-                                 log(" CLOSE clicked!");
-                                 boss.base::template riseup<e2::release, e2::form::proceed::detach>(boss.This());
+                                auto backup = boss.This();
+                                boss.base::template riseup<e2::release, e2::form::proceed::detach>(backup);
+                                gear.dismiss();
                              };
-                        };
-                menu_area->template attach<slot::_2, ui::pads>(dent{ 2,2,1,1 }, dent{})
-                         ->template plugin<pro::mouse>()
-                         ->template plugin<pro::fader>(x3, c3, 150ms)
-                         ->invoke(close_hndl)
-                         ->template attach<ui::item>("✕");
-            menu_area->base::reflow();
+                         })
+                         ->attach<ui::item>(" ≡", faux, true);
+                for (auto& body : menu_items) menu_list->attach<ui::pads>(inner_pads, dent{ 1 })
+                                                       ->plugin<pro::fader>(x3, c3, 150ms)
+                                                       ->attach<ui::item>(body, faux, true);
+                menu_area->attach<slot::_2, ui::pads>(dent{ 2,2,1,1 }, dent{})
+                         ->plugin<pro::fader>(x1, c1, 150ms)
+                         ->invoke([&](auto& boss)
+                            {
+                                boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
+                                {
+                                    auto backup = boss.This();
+                                    boss.base::template riseup<e2::release, e2::form::proceed::detach>(backup);
+                                };
+                            })
+                         ->attach<ui::item>("✕");
+            return menu_area;
         };
 
         //todo use XAML for that
         auto create = [&](objs type, auto location) -> auto
         {
-            //auto window = world->attach<ui::mold>();
-            auto window = base::create<ui::mold>();
-            window->extend(location);
+            sptr<ui::mold> window = base::create<ui::mold>()
+                            ->plugin<pro::limit>(dot_11, twod{ 400,200 }) //todo unify, set via config
+                            ->plugin<pro::align>()
+                            ->plugin<pro::sizer>()
+                            ->plugin<pro::frame>()
+                            ->invoke([&](ui::mold& boss){
+                                boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
+                                {
+                                    auto square = boss.base::square();
+                                    if (!square.size.inside(gear.coord))
+                                    {
+                                        auto center = square.coor + (square.size / 2);
+                                        bell::getref(gear.id)->
+                                            SIGNAL(e2::release, e2::form::layout::shift, center);
+                                    }
+                                    boss.base::deface();
+                                };
+                                boss.SUBMIT(e2::release, e2::hids::mouse::button::click::leftright, gear)
+                                {
+                                    auto backup = boss.This();
+                                    boss.base::detach();
+                                    gear.dismiss();
+                                };
+                                boss.SUBMIT(e2::release, e2::hids::mouse::button::click::middle, gear)
+                                {
+                                    auto backup = boss.This();
+                                    boss.base::detach();
+                                    gear.dismiss();
+                                };
+                                boss.SUBMIT(e2::release, e2::form::proceed::detach, backup)
+                                {
+                                    boss.base::detach(); // The object kills itself.
+                                };
+                                boss.SUBMIT(e2::release, e2::hids::mouse::button::dblclick::left, gear)
+                                {
+                                    auto& align = boss.plugins<pro::align>();
+                                    auto size = boss.base::size.get();
+                                    if (size.inside(gear.coord))
+                                    {
+                                        if (align.seized(gear.id)) align.unbind();
+                                        else                       align.follow(gear.id, dot_00);
+                                        gear.dismiss();
+                                    }
+                                };
+                            });
 
-            auto winsz = window->get_region().size;
+            window->extend(location);
 
             switch (type)
             {
                 default:
                 case Test:
                 {
-                    auto layers = window->attach<ui::cake>();
+                    window->plugin<pro::title>(ansi::jet(bias::center) + "Test Page");
+                    auto object0 = window->attach<ui::fork>(axis::Y)
+                                        ->plugin<pro::color>(whitelt, 0x60DB3700);
+                        auto menu = object0->attach<slot::_1>(main_menu())
+                                          ->plugin<pro::color>(0, 0) //todo mouse tracking
+                                          ->plugin<pro::mover>(window);
+                    auto test_stat_area = object0->attach<slot::_2, ui::fork>(axis::Y);
+                        auto layers = test_stat_area->attach<slot::_1, ui::cake>();
                     auto scroll = layers->attach<ui::rail>()
                                         ->plugin<pro::color>(cyanlt, bluedk)
+                                        ->plugin<pro::mover>(window)
                                         ->config(true, true);
                     auto object = scroll->attach<ui::post>()
                                         ->upload(topic)
-                                        ->plugin<pro::mouse>()
                                         ->invoke([&](auto& self) {
                                             self.SUBMIT(e2::release, e2::form::upon::redrawn, canvas)
                                             {
@@ -1341,12 +1392,14 @@ utility like ctags is used to locate the definitions.
                                                 self.content(test_topic_vars::object2) = textclr + " inlined #2: " + canvas.area().size.str() + " ";
                                                 self.content(test_topic_vars::object3) = textclr + " inlined #3: " + canvas.full().coor.str() + " ";
                                             };
-                                            self.SUBMIT(e2::general, e2::form::canvas, canvas_ptr)
-                                            {
-                                                self.content(test_topic_vars::dynamix1).lyric = self.content(test_topic_vars::dynamix2).lyric;
-                                                self.content(test_topic_vars::dynamix2).lyric = self.content(test_topic_vars::dynamix3).lyric;
-                                                self.content(test_topic_vars::dynamix3).lyric = canvas_ptr;
-                                            }; });
+                                            //todo
+                                            //self.SUBMIT(e2::general, e2::form::canvas, canvas_ptr)
+                                            //{
+                                            //    self.content(test_topic_vars::dynamix1).lyric = self.content(test_topic_vars::dynamix2).lyric;
+                                            //    self.content(test_topic_vars::dynamix2).lyric = self.content(test_topic_vars::dynamix3).lyric;
+                                            //    self.content(test_topic_vars::dynamix3).lyric = canvas_ptr;
+                                            //};
+                                        });
                         auto& a = object->lyric(test_topic_vars::canvas1);
                             a.mark().fgc(0xFF000000);
                             a.size({ 40, 9 });
@@ -1359,184 +1412,165 @@ utility like ctags is used to locate the definitions.
                             b.grad(rgba{ 0xFFFFFF00 }, rgba{ 0x40FFFFFF });
                             b[{5, 0}].alpha(0);
                             b[{5, 1}].alpha(0);
-                    scroll_bars(layers, scroll);
+                    auto scroll_bars = layers->attach<ui::fork>();
+                        auto vt = scroll_bars->attach<slot::_2, ui::grip<axis::Y>>(scroll);
+                        auto hz = test_stat_area->attach<slot::_2, ui::grip<axis::X>>(scroll);
                     break;
                 }
                 case PowerShell:
                 {
-                    window->header(ansi::jet(bias::center) + "PowerShell");
-                    auto layers = window->attach<ui::cake>();
+                    window->plugin<pro::title>("Term \nPowerShell");
+                    auto object = window->attach<ui::fork>(axis::Y)
+                                        ->plugin<pro::color>(whitelt, 0x60303030);
+                        auto menu = object->attach<slot::_1>(main_menu())
+                                          ->plugin<pro::color>(0, 0) //todo mouse tracking
+                                          ->plugin<pro::mover>(window);
+                    auto layers = object->attach<slot::_2, ui::cake>()
+                                        ->plugin<pro::limit>(dot_11, twod{ 400,200 });
                     auto scroll = layers->attach<ui::rail>()
+                                        ->plugin<pro::mover>(window)
                                         ->plugin<pro::color>(whitelt, 0xFF560000);
-                        scroll->attach<ui::term>(winsz, "powershell")
+                        scroll->attach<ui::term>("powershell")
                               ->plugin<pro::color>(whitelt, 0xFF562401);
-                    scroll_bars_term(layers, scroll);
+                    layers->attach(scroll_bars_term(scroll));
                     break;
                 }
                 case CommandPrompt:
                 {
-                    window->header(ansi::jet(bias::center) + "Command Prompt");
-                    auto layers = window->attach<ui::cake>();
-                    auto scroll = layers->attach<ui::rail>();
-
-                        #if defined(_WIN32)
-                            auto object = scroll->attach<ui::term>(winsz, "cmd");
-                        #elif defined(__linux__)
-                            auto object = scroll->attach<ui::term>(winsz, "bash");
-                        #elif defined(__APPLE__)
-                            auto object = scroll->attach<ui::term>(winsz, "zsh");
-                        #endif
-
+                    window->plugin<pro::title>("Term \nCommand Prompt");
+                    auto object0 = window->attach<ui::fork>(axis::Y)
+                                        ->plugin<pro::color>(whitelt, 0x60303030);
+                        auto menu = object0->attach<slot::_1>(main_menu())
+                                          ->plugin<pro::color>(0, 0) //todo mouse tracking
+                                          ->plugin<pro::mover>(window);
+                    auto layers = object0->attach<slot::_2, ui::cake>()
+                                         ->plugin<pro::limit>(dot_11, twod{ 400,200 });
+                    auto scroll = layers->attach<ui::rail>()
+                                        ->plugin<pro::mover>(window);
                         #ifdef DEMO
                             twod minsz = { 20,1 }; // mc crashes when window is too small
-                            winsz = std::max(winsz, minsz);
-                            object->limits(minsz);
+                            scroll->limits(minsz);
                         #endif
-                        object->color(whitelt, blackdk);
 
-                    scroll_bars_term(layers, scroll);
+                        #if defined(_WIN32)
+                            auto object = scroll->attach<ui::term>("cmd");
+                        #elif defined(__linux__)
+                            auto object = scroll->attach<ui::term>("bash");
+                        #elif defined(__APPLE__)
+                            auto object = scroll->attach<ui::term>("zsh");
+                        #endif
+
+                        object->plugin<pro::color>(whitelt, blackdk);
+
+                    layers->attach(scroll_bars_term(scroll));
                     break;
                 }
                 case Strobe:
                 {
-                    window->header(ansi::jet(bias::center) + "Strobe");
-                    auto strob = window->attach<ui::pane>();
-                    strob->color(0x0, 0x0);
-                    strob->SUBMIT_BYVAL(e2::general, e2::timer::tick, now)  //gcc: use SUBMIT_BYVAL to capture in lambda by value
+                    window->plugin<pro::title>(ansi::jet(bias::center) + "Strobe");
+                    auto strob = window->attach<ui::mock>()
+                                       ->plugin<pro::mover>(window);
+                    auto strob_shadow = ptr::shadow(strob);
+                    bool stobe_state = true;
+                    strob->SUBMIT_BYVAL(e2::general, e2::timer::tick, now)
                     {
-                        strob->canvas.mark().bgc(stobe_state ? 0xFF000000 : 0xFFFFFFFF);
-                        strob->deface();
+                        stobe_state = !stobe_state;
+                        if (auto strob = strob_shadow.lock())
+                        {
+                            strob->color(0x0, stobe_state ? 0xFF000000 : 0xFFFFFFFF);
+                            strob->deface();
+                        }
                     };
                     break;
                 }
                 case RefreshRate:
                 {
-                    window->header("Frame rate adjustment");
+                    window->plugin<pro::title>("Frame rate adjustment");
                     window->attach<ui::stem_rate<e2::general, e2::timer::fps>>("Set frame rate", 1, 200, "fps")
-                         ->color(0xFFFFFFFF, bluedk);
+                          ->color(0xFFFFFFFF, bluedk);
                     break;
                 }
-                /*case Transparency:
-                {
-                    frame->header("Window Transparency");
-                    auto block = frame->attach<
-                        stem_rate<e2::general, e2::form::global::lucidity>>
-                        ("Alpha channel", 0, 255, "rgb");
-                                    block->color(0xFFFFFF, bluedk);
-                    break;
-                }*/
                 case Truecolor:
                 {
-                    window->header(ansi::jet(bias::right) + "True color ANSI/ASCII image test");
+                    window->plugin<pro::title>(ansi::jet(bias::right) + "True color ANSI/ASCII image test");
                     window->blurred = true;
-                    auto layers = window->attach<ui::cake>();
+                    auto object = window->attach<ui::fork>(axis::Y)
+                                        ->plugin<pro::color>(whitelt, 0x601F0FC4);
+                        auto menu = object->attach<slot::_1>(main_menu())
+                                          ->plugin<pro::color>(0, 0) //todo mouse tracking
+                                          ->plugin<pro::mover>(window);
+                        auto test_stat_area = object->attach<slot::_2, ui::fork>(axis::Y);
+                        auto layers = test_stat_area->attach<slot::_1, ui::cake>();
                     auto scroll = layers->attach<ui::rail>()
+                                        ->plugin<pro::mover>(window)
                                         ->config(true, true)
                                         ->plugin<pro::color>(whitelt, reddk);
-                    auto object = scroll->attach<ui::post>()
+                                  scroll->attach<ui::post>()
                                         ->upload(truecolor);
-                    scroll_bars(layers, scroll);
+                    auto scroll_bars = layers->attach<ui::fork>();
+                        auto vt = scroll_bars->attach<slot::_2, ui::grip<axis::Y>>(scroll);
+                        auto hz = test_stat_area->attach<slot::_2, ui::grip<axis::X>>(scroll);
                     break;
                 }
                 case Empty:
                 {
+                    window->plugin<pro::title>(ansi::mgl(1).mgr(1) + "Empty Instance \nid: " + std::to_string(window->id));
                     window->blurred = true;
-                    auto object = window->attach<ui::pane>();
-                    object->canvas.mark().txt(whitespace);
+                    auto object = window->attach<ui::mock>()
+                                        ->plugin<pro::color>(0,0) //todo mouse tracking
+                                        ->plugin<pro::mover>(window);
                     break;
                 }
                 case Shop:
                 {
-                    //window->header(ansi::jet_or(bias::right) + objs_desc[Shop]);
-                    window->header("Desktopio App Store", faux);
+                    window->plugin<pro::title>("Desktopio App Store", faux);
                     window->color(whitelt, 0x60000000);
                     window->blurred = true;
                     window->highlight_center = faux;
-
-                    auto object = window
-                        ->attach<ui::fork>(axis::Y)
-                        ->plugin<pro::color>(whitelt, 0);
+                    auto object = window->attach<ui::fork>(axis::Y)
+                                        ->plugin<pro::color>(whitelt, 0);
                         object->attach<slot::_1, ui::post>()
                               ->plugin<pro::limit>(twod{ 37,-1 }, twod{ -1,-1 })
-                              ->upload(appstore_head);
-
+                              ->upload(appstore_head)
+                              ->plugin<pro::color>(0, 0) //todo mouse tracking
+                              ->plugin<pro::mover>(window);
                         auto layers = object->attach<slot::_2, ui::cake>();
-                        auto scroll = layers
-                            ->attach<ui::rail>()
-                            ->plugin<pro::color>(whitedk, 0xFF0f0f0f)
-                            ->plugin<pro::limit>(twod{ -1,2 }, twod{ -1,-1 })
-                            ->config(true, true);
-
-                            auto c2 = cell{ whitespace }.fgc(tint::whitelt)
-                                                        .bgc(highlight_color);
-                            auto c1 = c2; c1.alpha(0x00);
-
+                        auto scroll = layers->attach<ui::rail>()
+                                            ->plugin<pro::color>(whitedk, 0xFF0f0f0f)
+                                            ->plugin<pro::limit>(twod{ -1,2 }, twod{ -1,-1 })
+                                            ->config(true, true);
                             auto items = scroll->attach<ui::list>();
                             for (auto& body : appstore_body) items->attach<ui::post>()
                                                                   ->upload(body)
                                                                   ->plugin<pro::grade>()
-                                                                  ->plugin<pro::mouse>()
-                                                                  ->plugin<pro::fader>(c1, c2, 250ms);
+                                                                  ->plugin<pro::fader>(x3, c3, 250ms);
                             items->attach<ui::post>()
                                  ->upload(desktopio_body)
-                                 ->plugin<pro::grade>()
-                                 ->plugin<pro::mouse>();
+                                 ->plugin<pro::grade>();
                             items->base::reflow();
-                    scroll_bars(layers, scroll);
+                    layers->attach(scroll_bars(scroll));
                     break;
                 }
-                //case Cellatix:
                 case Calc:
                 {
-                    //todo XAML converter
-                   /* Calc Interface Layout (pseudocode, a bit outdated):
-                    *
-                    *...window<mold>
-                    *      window: object<fork(v)>
-                    *         object(1): menu<..lambda>
-                    *         object(2): all_stat<fork(v)>
-                    *            all_stat(1): func_body_pad<pads({ -1,-1 })>
-                    *               func_body_pad: func_body<fork(v)>
-                    *                  func_body(1): func_line<fork(h)>
-                    *                     func_line(1): fx_sum<fork(h)>
-                    *                        fx_sum(1): fx<post> = "Fx"
-                    *                        fx_sum(2): sum<post> = "SUM ..."
-                    *                     func_line(2): ellipsis<post> = "..."
-                    *                  func_body(2): body_area<fork(v)>
-                    *                     body_area(1): corner_cols<fork(h)>
-                    *                        corner_cols(1): corner<post> = "[   ]"
-                    *                        corner_cols(2): cols_area<rail>
-                    *                           cols_area: cols<post> = "A B C D E..."
-                    *                     body_area(2): rows_body<fork(h)>
-                    *                        rows_body(1): rows_area<rail>
-                    *                           rows_area: rows<post> = "1 \n2 \n3 \n4..."
-                    *                        rows_body(2): layers<cake>
-                    *                           layers: scroll<rail>
-                    *                              scroll: grid<post> = "..cell_array.."
-                    *            all_stat(2): status_area<post> = "Sheet1 [+]"
-                    */
-                    window->header(ansi::jet(bias::center) + "Spreadsheet");
+                    static iota i = 0; i++;
+                    window->plugin<pro::title>(ansi::jet(bias::right) + "Spreadsheet\n ~/Untitled " + std::to_string(i) + ".ods");
                     window->color(whitelt, 0x601A5f00);
                     window->limits({ -1,-1 },{ 136,105 });
                     window->blurred = true;
                     window->highlight_center = faux;
-                    window->set_border(dot_00);
-                    auto object = window
-                        ->attach<ui::fork>(axis::Y)
-                        ->plugin<pro::color>(whitelt, 0);
-                        main_menu(object);
-                        auto c2 = cell{ whitespace }.fgc(whitelt).bgc(highlight_color);
-                        auto c1 = cell{ whitespace }.fgc(blackdk).bgc(whitedk);
-                        auto c0 = c2; c0.alpha(0x00);
+                    auto object = window->attach<ui::fork>(axis::Y)
+                                        ->plugin<pro::color>(whitelt, 0);
+                        auto menu = object->attach<slot::_1>(main_menu())
+                                          ->plugin<pro::color>(0, 0) //todo mouse tracking
+                                          ->plugin<pro::mover>(window);
                         auto all_stat = object->attach<slot::_2, ui::fork>(axis::Y);
-                            auto func_body_pad = all_stat->attach<slot::_1, ui::pads>(dent{ 1,1 })
-                                                         ->plugin<pro::mouse>();
+                            auto func_body_pad = all_stat->attach<slot::_1, ui::pads>(dent{ 1,1 });
                                 auto func_body = func_body_pad->attach<ui::fork>(axis::Y);
                                     auto func_line = func_body->attach<slot::_1, ui::fork>();
                                         auto fx_sum = func_line->attach<slot::_1, ui::fork>();
                                             auto fx = fx_sum->attach<slot::_1, ui::post>()
-                                                            ->plugin<pro::mouse>()
-                                                            ->plugin<pro::fader>(c1, c2, 150ms)
+                                                            ->plugin<pro::fader>(c7, c3, 150ms)
                                                             ->plugin<pro::limit>(twod{ 3,-1 }, twod{ 4,-1 })
                                                             ->upload(ansi::wrp(wrap::off)
                                                               + " Fx ");
@@ -1545,8 +1579,7 @@ utility like ctags is used to locate the definitions.
                                                              ->upload(ansi::bgc(whitelt).fgc(blacklt)
                                                                + " =SUM(B1:B10) ");
                                         auto ellipsis = func_line->attach<slot::_2, ui::post>()
-                                                                 ->plugin<pro::mouse>()
-                                                                 ->plugin<pro::fader>(c1, c2, 150ms)
+                                                                 ->plugin<pro::fader>(c7, c3, 150ms)
                                                                  ->plugin<pro::limit>(twod{ -1,1 }, twod{ 3,-1 })
                                                                  ->upload(ansi::wrp(wrap::off) + " ⋯ ");
                                     auto body_area = func_body->attach<slot::_2, ui::fork>(axis::Y);
@@ -1561,7 +1594,6 @@ utility like ctags is used to locate the definitions.
                                                                 ->plugin<pro::limit>(twod{ -1,1 }, twod{ -1,-1 })
                                                                 ->config(true, true);
                                                 auto grid = scroll->attach<ui::post>()
-                                                                  ->plugin<pro::mouse>()
                                                                   ->plugin<pro::color>(0xFF000000, 0xFFffffff)
                                                                   ->upload(cellatix_text);
                                             auto cols_area = corner_cols->attach<slot::_2, ui::rail>(axes::ONLY_X, axes::ONLY_X)
@@ -1586,35 +1618,33 @@ utility like ctags is used to locate the definitions.
                                                              + " Sheet1 ");
                                     auto plus_pad = sheet_plus->attach<slot::_2, ui::fork>();
                                         auto plus = plus_pad->attach<slot::_1, ui::post>()
-                                                            ->plugin<pro::mouse>()
-                                                            ->plugin<pro::fader>(c1, c2, 150ms)
+                                                            ->plugin<pro::fader>(c7, c3, 150ms)
                                                             ->plugin<pro::limit>(twod{ 2,-1 }, twod{ 2,-1 })
                                                             ->upload(ansi::wrp(wrap::off)
                                                               + "＋");
                                         auto pad = plus_pad->attach<slot::_2, ui::mock>()
                                                            ->plugin<pro::limit>(twod{ 1,1 }, twod{ 1,1 });
-                            scroll_bars(layers, scroll);
+                            layers->attach(scroll_bars(scroll));
                     break;
                 }
-                //case Textancy:
                 case Text:
                 {
-                    window->color(whitelt, 0x605f1A00);
-                    window->header(ansi::jet(bias::center) + "Text Editor");
-                    window->blurred = true;
-                    window->highlight_center = faux;
-                    window->set_border(dot_00);
+                    static iota i = 0; i++;
+                    window->plugin<pro::title>(ansi::jet(bias::center) + "Text Editor\n ~/Untitled " + std::to_string(i) + ".txt");
+                    //window->color(whitelt, 0x605f1A00);
+                    //window->blurred = true;
+                    //window->highlight_center = faux;
                     auto object = window->attach<ui::fork>(axis::Y)
-                                        ->plugin<pro::color>(whitelt, 0);
-                        main_menu(object);
+                                        ->plugin<pro::color>(whitelt, 0x605f1A00);
+                        auto menu = object->attach<slot::_1>(main_menu())
+                                          ->plugin<pro::color>(0, 0) //todo mouse tracking
+                                          ->plugin<pro::mover>(window);
                         auto body_area = object->attach<slot::_2, ui::fork>(axis::Y);
-                        auto fields = body_area->attach<slot::_1, ui::pads>(dent{ 1,1 })
-                                               ->plugin<pro::mouse>();
+                        auto fields = body_area->attach<slot::_1, ui::pads>(dent{ 1,1 });
                         auto layers = fields->attach<ui::cake>();
                         auto scroll = layers->attach<ui::rail>()
                                             ->plugin<pro::limit>(twod{ 4,3 }, twod{ -1,-1 });
                         auto edit_box = scroll->attach<ui::post>(true)
-                                              ->plugin<pro::mouse>()
                                               ->plugin<pro::caret>(true, twod{ 25,1 })
                                               ->plugin<pro::color>(blackdk, whitelt)
                                               ->upload(ansi::wrp(wrap::off).mgl(1)
@@ -1625,18 +1655,24 @@ utility like ctags is used to locate the definitions.
                                                     ->plugin<pro::limit>(twod{ 1,1 }, twod{ -1,1 })
                                                     ->upload(ansi::wrp(wrap::off).mgl(1).mgr(1).jet(bias::right).fgc(whitedk)
                                                         + "INS  Sel: 0:0  Col: 26  Ln: 2/148" + ansi::nil());
-                    scroll_bars(layers, scroll);
+                    layers->attach(scroll_bars(scroll));
                     break;
                 }
                 case VTM:
                 {
-                    window->header(ansi::jet(bias::center) + objs_desc[VTM]);
-                    auto layers = window->attach<ui::cake>();
+                    window->plugin<pro::title>("Term \n" + objs_desc[VTM]);
+                    auto object = window->attach<ui::fork>(axis::Y)
+                                        ->plugin<pro::color>(whitelt, 0x60303030);
+                        auto menu = object->attach<slot::_1>(main_menu())
+                                          ->plugin<pro::color>(0, 0) //todo mouse tracking
+                                          ->plugin<pro::mover>(window);
+                    auto layers = object->attach<slot::_2, ui::cake>()
+                                        ->plugin<pro::limit>(dot_11, twod{ 400,200 });
                     auto scroll = layers->attach<ui::rail>();
                     if (vtm_count < max_vtm)
                     {
                         auto c = &vtm_count; (*c)++;
-                        scroll->attach<ui::term>(winsz, "vtm")
+                        scroll->attach<ui::term>("vtm")
                               ->plugin<pro::color>(whitelt, blackdk)
                               ->SUBMIT_BYVAL(e2::release, e2::dtor, dummy)
                                 {
@@ -1647,90 +1683,114 @@ utility like ctags is used to locate the definitions.
                     else
                     {
                         scroll->attach<ui::post>()
-                              ->plugin<pro::mouse>()
                               ->plugin<pro::color>(whitelt, blackdk)
                               ->upload(ansi::fgc(yellowlt).mgl(4).mgr(4).wrp(wrap::off)
                                      + "\n\nconnection rejected\n\n"
                                      + ansi::nil().wrp(wrap::on)
                                      + "Reached the limit of recursive connections, destroy existing recursive instances to create new ones.");
                     }
-                    scroll_bars(layers, scroll);
+                    layers->attach(scroll_bars(scroll));
                     break;
                 }
                 case Far:
                 {
-                    window->header(ansi::jet(bias::center) + objs_desc[Far]);
-                    auto layers = window->attach<ui::cake>();
+                    window->plugin<pro::title>("Term \n" + objs_desc[Far]);
+                    auto object = window->attach<ui::fork>(axis::Y)
+                                        ->plugin<pro::color>(whitelt, 0x60303030);
+                        auto menu = object->attach<slot::_1>(main_menu())
+                                          ->plugin<pro::color>(0, 0) //todo mouse tracking
+                                          ->plugin<pro::mover>(window);
+                    auto layers = object->attach<slot::_2, ui::cake>()
+                                        ->plugin<pro::limit>(dot_11, twod{ 400,200 });
                     auto scroll = layers->attach<ui::rail>();
-                    scroll->attach<ui::term>(winsz, "far")
+                    scroll->attach<ui::term>("far")
                           ->plugin<pro::color>(whitelt, blackdk);
-                    scroll_bars_term(layers, scroll);
+                    layers->attach(scroll_bars_term(scroll));
                     break;
                 }
                 case MC:
                 {
-                    window->header(ansi::jet(bias::center) + objs_desc[MC]);
-                    twod minsz = { 10,1 }; // mc crashes when window is too small
-                    winsz = std::max(winsz, minsz);
-                    auto layers = window->attach<ui::cake>();
+                    window->plugin<pro::title>("Term \n" + objs_desc[MC]);
+                    auto object = window->attach<ui::fork>(axis::Y)
+                                        ->plugin<pro::color>(whitelt, 0x60303030);
+                        auto menu = object->attach<slot::_1>(main_menu())
+                                          ->plugin<pro::color>(0, 0) //todo mouse tracking
+                                          ->plugin<pro::mover>(window);
+                    auto layers = object->attach<slot::_2, ui::cake>()
+                                        ->plugin<pro::limit>(dot_11, twod{ 400,200 });
                     auto scroll = layers->attach<ui::rail>();
+                    twod minsz = { 10,1 }; // mc crashes when window is too small
+                    scroll->limits(minsz);
                     // -c -- force color support
                     // -x -- force xtrem functionality
 
                     #if defined(_WIN32)
 
-                        auto object = scroll->attach<ui::term>(winsz, "wsl mc");
+                        auto inst = scroll->attach<ui::term>("wsl mc");
 
                     #elif defined(__linux__)
-                        #ifdef DEMO
-                            auto object = scroll->attach<ui::term>(winsz, "bash -c 'LC_ALL=en_US.UTF-8 mc -c -x -d'");
+                        #ifndef PROD
+                            auto inst = scroll->attach<ui::term>("bash -c 'LC_ALL=en_US.UTF-8 mc -c -x -d'");
                          #else
-                            auto object = scroll->attach<ui::term>(winsz, "bash -c 'LC_ALL=en_US.UTF-8 mc -c -x'");
+                            auto inst = scroll->attach<ui::term>("bash -c 'LC_ALL=en_US.UTF-8 mc -c -x'");
                         #endif
                     #elif defined(__APPLE__)
 
-                         auto object = scroll->attach<ui::term>(winsz, "zsh -c 'LC_ALL=en_US.UTF-8 mc -c -x'");
+                         auto inst = scroll->attach<ui::term>("zsh -c 'LC_ALL=en_US.UTF-8 mc -c -x'");
 
                     #endif
 
-                    object->color(whitelt, blackdk);
-                    object->limits(minsz);
-
-                    scroll_bars(layers, scroll);
+                    inst->plugin<pro::color>(whitelt, blackdk);
+                    layers->attach(scroll_bars(scroll));
                     break;
                 }
                 case Bash:
                 case Term:
                 {
-                    window->header(ansi::jet(bias::center) + objs_desc[Bash]);
-                    auto layers = window->attach<ui::cake>();
-                    auto scroll = layers->attach<ui::rail>();
+                    window->plugin<pro::title>("Term \n" + objs_desc[Bash]);
+                    auto object = window->attach<ui::fork>(axis::Y)
+                                        ->plugin<pro::color>(whitelt, 0x60303030);
+                        auto menu = object->attach<slot::_1>(main_menu())
+                                          ->plugin<pro::color>(0, 0) //todo mouse tracking
+                                          ->plugin<pro::mover>(window);
+                    auto term_stat_area = object->attach<slot::_2, ui::fork>(axis::Y);
+                        auto layers = term_stat_area->attach<slot::_1, ui::cake>()
+                                                    ->plugin<pro::limit>(dot_11, twod{ 400,200 });
+                        auto scroll = layers->attach<ui::rail>();
                     {
-                        #if defined(_WIN32)
-                            auto object = scroll->attach<ui::term>(winsz, "bash");
-                        #elif defined(__linux__)
-                            auto object = scroll->attach<ui::term>(winsz, "bash");
-                        #elif defined(__APPLE__)
-                            auto object = scroll->attach<term>(winsz, "zsh");
-                        #endif
-
-                        object->color(whitelt, blackdk);
                         #ifdef DEMO
                             twod minsz = { 20,1 }; // mc crashes when window is too small
-                            winsz = std::max(winsz, minsz);
-                            object->limits(minsz);
+                            scroll->limits(minsz);
                         #endif
+
+                        #if defined(_WIN32)
+                            auto inst = scroll->attach<ui::term>("bash");
+                        #elif defined(__linux__)
+                            auto inst = scroll->attach<ui::term>("bash");
+                        #elif defined(__APPLE__)
+                            auto inst = scroll->attach<ui::term>("zsh");
+                        #endif
+
+                        inst->plugin<pro::color>(whitelt, blackdk);
                     }
-                    scroll_bars_term(layers, scroll);
+                    auto scroll_bars = layers->attach<ui::fork>();
+                        auto vt = scroll_bars->attach<slot::_2, ui::grip<axis::Y>>(scroll);
+                        auto hz = term_stat_area->attach<slot::_2, ui::grip<axis::X>>(scroll);
                     break;
                 }
                 case Logs:
                 {
-                    window->header("VT monitoring tool");
-                    auto layers = window->attach<ui::cake>();
-                    auto scroll = layers->attach<ui::rail>();
+                    window->plugin<pro::title>("Logs \nVT monitoring tool");
+                    auto object = window->attach<ui::fork>(axis::Y)
+                                        ->plugin<pro::color>(whitelt, 0x60303030);
+                        auto menu = object->attach<slot::_1>(main_menu())
+                                          ->plugin<pro::color>(0, 0) //todo mouse tracking
+                                          ->plugin<pro::mover>(window);
+                    auto layers = object->attach<slot::_2, ui::cake>();
+                    auto scroll = layers->attach<ui::rail>()
+                                        ->plugin<pro::mover>(window);
 
-                    #ifdef DEMO
+                    #ifndef PROD
                         scroll->attach<ui::post>()
                               ->plugin<pro::color>(whitelt, blackdk)
                               ->upload(ansi::fgc(yellowlt).mgl(4).mgr(4).wrp(wrap::off)
@@ -1742,22 +1802,31 @@ utility like ctags is used to locate the definitions.
                               ->plugin<pro::color>(whitelt, blackdk);
                     #endif
 
-                    scroll_bars(layers, scroll);
+                    layers->attach(scroll_bars(scroll));
+                    break;
+                }
+                case View:
+                {
+                    static iota i = 0; i++;
+                    window->plugin<pro::title>(ansi::jet(bias::center) + "View \n Region " + std::to_string(i));
+                    window->only_frame = true;
+                    window->invoke([&](auto& boss){
+                        auto& sizer = boss.template plugins<pro::sizer>();
+                        sizer.props(dent{ 2,2,1,1 }, dent{ -4,-4,-2,-2 });
+                        boss.SIGNAL(e2::preview, e2::form::prop::zorder, Z_order::backmost);
+                    });
                     break;
                 }
             }
-
-            world->brunch(type, window);
-
+            world->branch(type, window);
             return window;
         };
 
-        auto creator = [&, insts_count = 0]
-        (objs obj_type, rect area) mutable -> auto
+        auto creator = [&, insts_count = 0](objs obj_type, rect area) mutable -> auto
         {
             insts_count++;
             auto frame = create(obj_type, area);
-            #ifdef DEMO
+            #ifndef PROD
             if (insts_count > max_count)
             {
                 log("inst: max count reached");
@@ -1810,141 +1879,60 @@ utility like ctags is used to locate the definitions.
             }
             else
             {
-                auto frame = creator(current_default, location);
-
                 //todo unify
-                gear.kb_focus_taken = faux;
-                frame->SIGNAL(e2::release, e2::form::upevent::kboffer, gear);
+                if (auto gate_ptr = bell::getref(gear.id))
+                {
+                    auto& gate = *gate_ptr;
+                    iota data = 0;
+                    gate.SIGNAL(e2::request, e2::data::changed, data);
+                    auto current_default = static_cast<objs>(data);
+                    auto frame = creator(current_default, location);
+
+                    gear.kb_focus_taken = faux;
+                    frame->SIGNAL(e2::release, e2::form::upevent::kboffer, gear);
+                }
             }
         };
 
-        world->SUBMIT(e2::general, e2::timer::tick, now)
-        {
-            stobe_state = !stobe_state;
-        };
-
         { // Init registry/menu list.
-            registry_t menu_list;
+            sptr<registry_t> menu_list_ptr;
+            world->SIGNAL(e2::request, e2::bindings::list::apps, menu_list_ptr);
+            auto& menu_list = *menu_list_ptr;
             iota i = objs::count;
             while (i--) menu_list[i];
-            world->SIGNAL(e2::preview, e2::bindings::list::apps, menu_list);
         }
 
-        #ifndef PROD
-            auto sub_pos = twod{12, 0};
-            creator(objs::Test, { twod{ 22,1 } + sub_pos,{ 70,21 } })
-                ->header(ansi::jet(bias::center) + "Welcome");
-            creator(objs::Shop, { twod{ 4 ,6  } + sub_pos,{ 80,38 } });
-            creator(objs::Calc, { twod{ 15,13 } + sub_pos,{ 65,23 } });
-            creator(objs::Text, { twod{ 30,20 } + sub_pos,{ 59,26 } });
-            creator(objs::MC,   { twod{ 49,26 } + sub_pos,{ 63,22 } });
-            creator(objs::Term, { twod{ 34,34 } + sub_pos,{ 57,15 } });
-            creator(objs::Term, { twod{ 44 + 85,35 } + sub_pos,{ 57,15 } });
-            creator(objs::Term, { twod{ 40 + 85,38 } + sub_pos,{ 57,15 } });
+        #ifdef DEMO
+            auto sub_pos = twod{ 12+17, 0 };
+            creator(objs::Test, { twod{ 22, 1  } + sub_pos, { 70, 21 } });
+            creator(objs::Shop, { twod{ 4 , 6  } + sub_pos, { 80, 38 } });
+            creator(objs::Calc, { twod{ 15, 15 } + sub_pos, { 65, 23 } });
+            creator(objs::Text, { twod{ 30, 22 } + sub_pos, { 59, 26 } });
+            creator(objs::MC,   { twod{ 49, 26 } + sub_pos, { 63, 22 } });
+            creator(objs::Term, { twod{ 34, 34 } + sub_pos, { 57, 15 } });
+            creator(objs::Term, { twod{ 44 + 85, 35 } + sub_pos, { 57, 15 } });
+            creator(objs::Term, { twod{ 40 + 85, 42 } + sub_pos, { 57, 15 } });
+
+            creator(objs::View, { twod{ 0, 7 } + twod{ -120, 60 }, { 120, 52 } });
+            creator(objs::View, { twod{ 0,-1 } + sub_pos, { 120, 52 } });
 
             sub_pos = twod{-120, 60};
-            creator(objs::Truecolor,   { twod{ 20,15 } + sub_pos,{ 70,30 } });
-            creator(objs::Logs,        { twod{ 52,33 } + sub_pos,{ 45,12 } });
-            creator(objs::RefreshRate, { twod{ 60,41 } + sub_pos,{ 35,10 } });
-        #endif
-        #ifndef DEMO
-            creator(objs::CommandPrompt,   { { 10,5 },{ 80,25 } });
+            creator(objs::Truecolor,   { twod{ 20, 15 } + sub_pos, { 70, 30 } });
+            creator(objs::Logs,        { twod{ 52, 33 } + sub_pos, { 45, 12 } });
+            creator(objs::RefreshRate, { twod{ 60, 41 } + sub_pos, { 35, 10 } });
         #endif
 
-        //creator(objs::Far,   { { 49,26 },{ 63,22 } });
+        world->SIGNAL(e2::general, e2::timer::fps, 60);
 
-        //#ifdef DEMO
-        //			std::thread([&]()
-        //				{
-        //					std::this_thread::sleep_for(5000ms);
-        //					creator(objs::VTM, { { 95,4 },{ 12,6 } });
-        //				}).detach();
-        //#endif /// DEMO
-
-        //#ifdef DEMO
-        //			std::thread([&]() {
-        //					std::this_thread::sleep_for(500ms);
-        //					creator(objs::MC, { { 3,22 },{ 75,20 } });
-        //				}).detach();
-        //#endif /// DEMO
-
+        iota usr_count = 0;
         auto user = os::user();
         auto path = utf::concat("monotty_", user);
         log("user: ", user);
         log("pipe: ", path);
 
-        { // Menu
-            auto frame = world->attach<ui::mold>(objs::Menu);
-            frame->liquid(faux);
-            frame->strong(true);
-            frame->header(ansi::jet_or(bias::center) + "Menu");
-
-            //frame->color(whitelt, 0xA0000000);//.alpha(0x50));
-            frame->color(whitelt, 0xA0202020);//.alpha(0x50));
-            frame->acryl = 100;
-            frame->nosize = true; // disable footer
-
-            {
-                auto block = frame->attach<ui::stem_bsu>(); // stem_bsu == deprecated menu control
-                auto size = block->create_list(objs_desc, dot_00, 2, 3, 0);
-                block->SUBMIT(e2::release, e2::data::changed, data)
-                {
-                    current_default = static_cast<objs>(data);
-                };
-
-                //todo unify
-                rect btn_pos;
-                btn_pos.coor.x = 0;
-                btn_pos.coor.y = size.y + 1;
-                btn_pos.size = twod{ size.x / 2 + 1,3 };
-                auto logout = block->attach<ui::button>(" Disconnect");
-                logout->extend(btn_pos);
-                logout->SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
-                {
-                    if (auto owner = base::getref(gear.id))
-                    {
-                        owner->SIGNAL(e2::release, e2::term::quit, "main logout by button");
-                    }
-                };
-
-                btn_pos.coor.x = 2 + size.x - btn_pos.size.x;
-                auto shutdn = block->attach<ui::button>("Shutdown");
-                shutdn->extend(btn_pos);
-                shutdn->SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
-                {
-                    //todo unify, see system.h:1614
-                    #if defined(__APPLE__)
-                    path = "/tmp/" + path + ".sock";
-                    ::unlink(path.c_str());
-                    #endif
-                    os::exit(0, "main: shutdown by button");
-                };
-
-                btn_pos.size.x = 0;
-                btn_pos.size.y += 1;
-                frame->extend({ { 85,12 }, size + dot_22 + btn_pos.size });
-
-                current_default = objs::Term;
-                block->SIGNAL(e2::release, e2::data::changed, current_default);
-            }
-
-            wptr<ui::mold> weak = frame;
-            frame->SUBMIT_BYVAL(e2::general, e2::form::global::ctxmenu, newpos)
-            {
-                if (auto b = weak.lock())
-                {
-                    b->SIGNAL(e2::preview, e2::form::layout::appear, newpos);
-                }
-            };
-        }
-
-        world->SIGNAL(e2::general, e2::timer::fps, 60);
-
-        iota usr_count = 0;
-        
         if (auto link = os::ipc::open<os::server>(path))
         {
-            log("sock: listen socket ", link);
+            log("sock: listening socket ", link);
 
             while (auto peer = link->meet())
             {
@@ -1975,334 +1963,411 @@ utility like ctags is used to locate the definitions.
 
                 //todo distinguish users by config, enumerate if no config
                 _name = "[" + _name + ":" + std::to_string(usr_count++) + "]";
-                log("main: spawn a new thread for client: ", _name);
+                log("main: creating a new thread for user ", _name);
 
-                std::thread{ [//=
-                    /*MSVC don't capture it*/
-                    &objs_desc
-                    , peer
-                    , c_ip
-                    , c_port
-                    , _region
-                    , danger_color
-                    , highlight_color
-                    , warning_color
-                    , current_default_ptr
-                    , background_color
-                    , user_coor
-                    , action_color
-                    , world
-                    ]
+                std::thread{ [=]
                 {
                     iota uibar_full_size = 32;
-                    log("main: peer using socket ", peer);
+                    log("user: session name ", peer);
 
-                    #ifdef DEMO
+                    #ifndef PROD
                         auto username = "[User." + utf::remain(c_ip) + ":" + c_port + "]";
                     #else
                         auto username = _name;
                     #endif
-                   /* Task Panel Layout pseudocode: (a bit outdated)
-                    *
-                    * world<host>
-                    *    world: client<gate(username)>
-                    *       client: window<cake>
-                    *          window: menu_area<fork(h)>
-                    *             menu_area: menu<fork(v)>
-                    *                menu(1): items_area<rail>
-                    *                   items_area: items<list>
-                    *                      items: app_title<post> = "Apps"
-                    *                      items: apps_area<rail>
-                    *                         apps_area: apps<list>
-                    *                            apps: app_1<item>
-                    *                               ...
-                    *                            apps: app_n<item>
-                    *                      items: hr<mock> = "----"
-                    *                      items: usr_title<post> = "TTYs"
-                    *                      items: users_area<rail>
-                    *                         users_area: users<list>
-                    *                            users: user_1<item>
-                    *                               ...
-                    *                            users: user_n<item>
-                    *                menu(2): items_bttns<fork(h)>
-                    *                   items_bttns(1): bttns<fork(h)>
-                    *                      bttns(1): disonnect_area<pads>
-                    *                         disonnect_area: disconnect<item>
-                    *                      bttns(2): shutdown_area<pads>
-                    *                         shutdown_area: shutdown<item>
-                    *
-                    */
 
-                    //todo MSVC 16.9.4 don't capture x3,c3 by & (possible a compiler bug)
-                    auto c6 = cell{}.bgc(action_color).fgc(whitelt);
-                    auto x6 = c6; x6.bga(0x00).fga(0x00);
-                    auto c5 = cell{}.bgc(danger_color).fgc(whitelt);
-                    auto x5 = c5; x5.bga(0x00).fga(0x00);
-                    auto c4 = cell{}.bgc(highlight_color);
-                    auto x4 = c4; x4.bga(0x00);
-                    auto c3 = cell{}.bgc(highlight_color).fgc(0xFFffffff);
-                    auto x3 = c3; x3.bga(0x00).fga(0x00);
-                    auto c2 = cell{}.bgc(warning_color).fgc(whitelt);
-                    auto x2 = c2; x2.bga(0x00);
-                    auto c1 = cell{}.bgc(danger_color).fgc(whitelt);
-                    auto x1 = c1; x1.bga(0x00);
+                    sptr<ui::gate> client;
+                    {
+                        e2::sync lock;
+                        client = world->invite<ui::gate>(username);
+                        auto client_shadow = ptr::shadow(client);
 
-                    auto client = world->invite<ui::gate>(username);
-
-                    auto app_template = [c4, x4, x5, c5](auto& data_src, auto const& utf8){
-                        auto item_area = base::template create<ui::pads>(dent{ 1,0,1,0 }, dent{ 0,0,0,1 })
-                                             ->template plugin<pro::mouse>(faux)
-                                             ->template plugin<pro::fader>(x4, c4, 0ms)//150ms)
-                                             ->invoke([&](auto& boss) {
-                                                auto data_src_shadow = std::weak_ptr{ data_src };
-                                                boss.SUBMIT_BYVAL(e2::release, e2::hids::mouse::button::click::left, gear)
-                                                {
-                                                    if(auto data_src = data_src_shadow.lock())
-                                                    {
-                                                        auto& inst = *data_src;
-                                                        //todo make it via events (pro::frame)
-                                                        if (auto parent_ptr = inst.parent.lock()) // Expose window.
-                                                        {
-                                                            parent_ptr->SIGNAL(e2::release, e2::form::layout::expose, inst);
-                                                        }
-
-                                                        auto square = inst.base::square();
-                                                        auto center = square.coor + (square.size / 2);
-                                                        bell::getref(gear.id)->
-                                                            SIGNAL(e2::release, e2::form::layout::shift, center);  // Goto to the window.
-                                                        gear.dismiss();
-                                                    }
-                                                };
-                                                boss.SUBMIT_BYVAL(e2::release, e2::hids::mouse::button::click::right, gear)
-                                                {
-                                                    if(auto data_src = data_src_shadow.lock())
-                                                    {
-                                                        auto& inst = *data_src;
-                                                        //todo make it via events (pro::frame)
-                                                        if (auto parent_ptr = inst.parent.lock()) // Expose window.
-                                                        {
-                                                            parent_ptr->SIGNAL(e2::release, e2::form::layout::expose, inst);
-                                                        }
-                                                        auto square = gear.area();
-                                                        auto center = square.coor + (square.size / 2);
-                                                        inst.SIGNAL(e2::preview, e2::form::layout::appear, center); // Pull window.
-                                                        gear.dismiss();
-                                                    }
-                                                };
-                                                boss.SUBMIT_BYVAL(e2::release, e2::form::state::mouse, hits)
-                                                {
-                                                    if(auto data_src = data_src_shadow.lock())
-                                                    {
-                                                        data_src->SIGNAL(e2::release, e2::form::highlight::any, !!hits);
-                                                    }
-                                                };
-                                            });
-                        { // Active label
-                            auto label_area = item_area->template attach<ui::fork>();
-                                auto mark_app = label_area->template attach<slot::_1, ui::fork>();
-                                    auto mark = mark_app->template attach<slot::_1, ui::pads>(dent{ 2,1,0,0 }, dent{ 0,0,0,0 })
-                                                        ->template attach<ui::item>(
-                                                            ansi::fgc4(0xFF00ff00) + "‣", faux);
-                                    auto app_label = mark_app->template attach<slot::_2, ui::item>(
-                                                ansi::fgc(whitelt)
-                                                + utf8 + ansi::mgl(0).wrp(wrap::off).jet(bias::left), true, true);
-                                auto app_close_area = label_area->template attach<slot::_2, ui::pads>(dent{ 0,0,0,0 }, dent{ 0,0,1,1 })
-                                            ->template plugin<pro::mouse>()
-                                             ->template plugin<pro::fader>(x5, c5, 150ms)
-                                            ->invoke([&](auto& boss) {
-                                                auto data_src_shadow = std::weak_ptr{ data_src };
-                                                boss.SUBMIT_BYVAL(e2::release, e2::hids::mouse::button::click::left, gear)
-                                                {
-                                                    if(auto data_src = data_src_shadow.lock())
-                                                    {
-                                                        data_src->SIGNAL(e2::release, e2::form::proceed::detach, data_src);
-                                                        gear.dismiss();
-                                                    }
-                                                };
-                                            });
-                                auto app_close = app_close_area->template attach<ui::item>("  ✕  ", faux);
-                        } // Active label
-                        return item_area;
-                    };
-                    auto apps_template = [&, c3, x3, app_template](auto& data_src, auto& apps_map){
-                        auto apps = base::create<ui::list>();
-                        //todo loops are not compatible with Declarative UI
-                        for(auto const& [class_id, inst_ptr_list] : apps_map)
+                        // Taskbar Layout (PoC)
+                        auto current_default = objs::Term;
+                        client->SUBMIT(e2::request, e2::data::changed, data)
                         {
-                            auto id = class_id;
-                            if (inst_ptr_list.size())
-                            {
-                                auto selected = class_id == *current_default_ptr;
-                                auto item_area = apps->template attach<ui::pads>(dent{ 0,0,0,1 }, dent{ 0,0,1,0 })
-                                                     ->template plugin<pro::mouse>(faux)
-                                                     ->template plugin<pro::fader>(x3, c3, 0ms)
-                                                     ->depend_on_collection(inst_ptr_list)
-                                                     ->invoke([&](auto& boss) {
-                                                         auto data_src_shadow = std::weak_ptr{ data_src };
-                                                         auto id2 = id; // MSVC dci
-                                                         boss.SUBMIT_BYVAL(e2::release, e2::hids::mouse::button::click::left, gear)
-                                                         {
-                                                             log("CLICK id=", id2);
-                                                             if(auto data_src = data_src_shadow.lock())
-                                                             {
-                                                                 //...
-                                                                 gear.dismiss();
-                                                             }
-                                                         };
-                                                     });
-                                    auto block = item_area->template attach<ui::fork>(axis::Y);
-                                        auto head_area = block->template attach<slot::_1, ui::pads>(dent{ 0,0,0,0 }, dent{ 0,0,1,1 })
-                                                              ->template plugin<pro::mouse>();
-                                            auto head = head_area->template attach<ui::item>(
-                                                    //ansi::fgc4(0xFF00FF00) + 
-                                                    objs_desc[class_id], true);
-                                                    //ansi::bgc4(selected ? 0xFF00FF00 : 0x7F000000) + "  "
-                                                    //+ ansi::nil() + " " + objs_desc[class_id], true);
-                                        auto list_pads = block->template attach<slot::_2, ui::pads>(dent{ 0,0,0,0 }, dent{ 0,0,0,0 })
-                                                         ->template plugin<pro::mouse>();
-                                auto insts = list_pads->template attach<ui::list>()
-                                                 ->template attach_collection<e2::form::prop::header>(inst_ptr_list, app_template);
-                            }
-                        }
-                        return apps;
-                    };
-                    auto user_template = [c3, x3, my_id = client->id](auto& data_src, auto const& utf8){
-                        auto item_area = base::template create<ui::pads>(dent{ 1,0,0,1 }, dent{ 0,0,1,0 })
-                                             ->template plugin<pro::mouse>()
-                                             ->template plugin<pro::fader>(x3, c3, 150ms);
-                            auto user = item_area->template attach<ui::item>(
-                            //ansi::fgc4(data_src->id == my_id ? 0xFFffff00 : 0xFFff0000)
-                            + "🔗" + ansi::nil() + " "
-                            + ansi::fgc4(data_src->id == my_id ? rgba::color256[whitelt] : 0x00) + utf8, true);
-                            //+ " ‣" + ansi::nil() + " " + utf8, true);
-                        return item_area;
-                    };
-                    auto brunch_template = [=](auto& data_src, auto& usr_list){
-                        auto users = base::create<ui::list>()
-                            ->attach_collection<e2::form::prop::header>(usr_list, user_template);
-                        return users;
-                    };
-                    auto window = client->attach<ui::cake>();
-                        auto menu = window->attach<ui::fork>(axis::X)
-                                          ->attach<slot::_1, ui::fork>(axis::Y)
-                                          ->plugin<pro::color>(whitedk, 0xA0202020)
-                                          ->plugin<pro::limit>(twod{ 4,-1 }, twod{ 4,-1 })
-                                          ->invoke([&](auto& boss) mutable {
-                                                        boss.SUBMIT(e2::release, e2::form::state::mouse, active)
+                            data = current_default;
+                        };
+                        client->SUBMIT(e2::release, e2::data::changed, data)
+                        {
+                            current_default = static_cast<objs>(data);
+                        };
+
+                        auto app_template = [&](auto& data_src, auto const& utf8){
+                            auto item_area = base::create<ui::pads>(dent{ 1,0,1,0 }, dent{ 0,0,0,1 })
+                                                ->plugin<pro::fader>(x4, c4, 0ms)//150ms)
+                                                ->invoke([&](auto& boss) {
+                                                    auto data_src_shadow = ptr::shadow(data_src);
+                                                    boss.SUBMIT_BYVAL(e2::release, e2::hids::mouse::button::click::left, gear)
+                                                    {
+                                                        if(auto data_src = data_src_shadow.lock())
                                                         {
-                                                            auto size = active ? uibar_full_size : std::min(uibar_full_size, 4);
-                                                            auto lims = twod{ size,-1 };
-                                                            boss.base::limits(lims, lims);
-                                                            boss.base::reflow();
+                                                            auto& inst = *data_src;
+                                                            inst.SIGNAL(e2::preview, e2::form::layout::expose, inst);
+                                                            auto square = inst.base::square();
+                                                            auto center = square.coor + (square.size / 2);
+                                                            bell::getref(gear.id)->
+                                                                SIGNAL(e2::release, e2::form::layout::shift, center);  // Goto to the window.
+                                                            gear.dismiss();
+                                                        }
+                                                    };
+                                                    boss.SUBMIT_BYVAL(e2::release, e2::hids::mouse::button::click::right, gear)
+                                                    {
+                                                        if(auto data_src = data_src_shadow.lock())
+                                                        {
+                                                            auto& inst = *data_src;
+                                                            inst.SIGNAL(e2::preview, e2::form::layout::expose, inst);
+                                                            auto square = gear.area();
+                                                            auto center = square.coor + (square.size / 2);
+                                                            inst.SIGNAL(e2::preview, e2::form::layout::appear, center); // Pull window.
+                                                            gear.dismiss();
+                                                        }
+                                                    };
+                                                    boss.SUBMIT_BYVAL(e2::release, e2::form::state::mouse, hits)
+                                                    {
+                                                        if(auto data_src = data_src_shadow.lock())
+                                                        {
+                                                            data_src->SIGNAL(e2::release, e2::form::highlight::any, !!hits);
+                                                        }
+                                                    };
+                                                });
+                                auto label_area = item_area->template attach<ui::fork>();
+                                    auto mark_app = label_area->template attach<slot::_1, ui::fork>();
+                                        auto mark = mark_app->template attach<slot::_1, ui::pads>(dent{ 2,1,0,0 }, dent{ 0,0,0,0 })
+                                                            ->template attach<ui::item>(
+                                                                ansi::fgc4(0xFF00ff00) + "‣", faux);
+                                        auto app_label = mark_app->template attach<slot::_2, ui::item>(
+                                                    ansi::fgc(whitelt)
+                                                    + utf8 + ansi::mgl(0).wrp(wrap::off).jet(bias::left), true, true);
+                                    auto app_close_area = label_area->template attach<slot::_2, ui::pads>(dent{ 0,0,0,0 }, dent{ 0,0,1,1 })
+                                                                    ->template plugin<pro::fader>(x5, c5, 150ms)
+                                                                    ->invoke([&](auto& boss) {
+                                                                    auto data_src_shadow = ptr::shadow(data_src);
+                                                                    boss.SUBMIT_BYVAL(e2::release, e2::hids::mouse::button::click::left, gear)
+                                                                    {
+                                                                        if(auto data_src = data_src_shadow.lock())
+                                                                        {
+                                                                            data_src->SIGNAL(e2::release, e2::form::proceed::detach, data_src);
+                                                                            gear.dismiss();
+                                                                        }
+                                                                    };
+                                                                    });
+                                    auto app_close = app_close_area->template attach<ui::item>("  ✕  ", faux);
+                            return item_area;
+                        };
+                        auto apps_template = [&](auto& data_src, auto& apps_map){
+                            auto apps = base::create<ui::list>();
+                            //todo loops are not compatible with Declarative UI
+                            for(auto const& [class_id, inst_ptr_list] : *apps_map)
+                            {
+                                auto id = class_id;
+                                if (inst_ptr_list.size())
+                                {
+                                    auto selected = class_id == current_default;
+                                    auto item_area = apps->template attach<ui::pads>(dent{ 0,0,0,1 }, dent{ 0,0,1,0 })
+                                                        ->template plugin<pro::fader>(x3, c3, 0ms)
+                                                        ->depend_on_collection(inst_ptr_list)
+                                                        ->invoke([&](auto& boss) {
+                                                            boss.mouse.take_all_events(faux);
+                                                            auto data_src_shadow = ptr::shadow(data_src);
+                                                            boss.SUBMIT_BYVAL(e2::release, e2::hids::mouse::button::click::left, gear)
+                                                            {
+                                                                if(auto data_src = data_src_shadow.lock())
+                                                                {
+                                                                    sptr<registry_t> registry_ptr;
+                                                                    data_src->SIGNAL(e2::request, e2::bindings::list::apps, registry_ptr);
+                                                                    auto& app_list = (*registry_ptr)[id];
+                                                                    // Rotate list forward.
+                                                                    app_list.push_back(app_list.front());
+                                                                    app_list.pop_front();
+                                                                    // Expose window.
+                                                                    auto& inst = *app_list.back(); 
+                                                                    inst.SIGNAL(e2::preview, e2::form::layout::expose, inst);
+                                                                    auto square = inst.base::square();
+                                                                    auto center = square.coor + (square.size / 2);
+                                                                    bell::getref(gear.id)->
+                                                                    SIGNAL(e2::release, e2::form::layout::shift, center);  // Goto to the window.
+                                                                    gear.dismiss();
+                                                                }
+                                                            };
+                                                            boss.SUBMIT_BYVAL(e2::release, e2::hids::mouse::button::click::right, gear)
+                                                            {
+                                                                if(auto data_src = data_src_shadow.lock())
+                                                                {
+                                                                    sptr<registry_t> registry_ptr;
+                                                                    data_src->SIGNAL(e2::request, e2::bindings::list::apps, registry_ptr);
+                                                                    auto& app_list = (*registry_ptr)[id];
+                                                                    // Rotate list forward.
+                                                                    app_list.push_front(app_list.back());
+                                                                    app_list.pop_back();
+                                                                    // Expose window.
+                                                                    auto& inst = *app_list.back(); 
+                                                                    inst.SIGNAL(e2::preview, e2::form::layout::expose, inst);
+                                                                    auto square = inst.base::square();
+                                                                    auto center = square.coor + (square.size / 2);
+                                                                    bell::getref(gear.id)->
+                                                                    SIGNAL(e2::release, e2::form::layout::shift, center);  // Goto to the window.
+                                                                    gear.dismiss();
+                                                                }
+                                                            };
+                                                        });
+                                        auto block = item_area->template attach<ui::fork>(axis::Y);
+                                            auto head_area = block->template attach<slot::_1, ui::pads>(dent{ 0,0,0,0 }, dent{ 0,0,1,1 });
+                                                auto head = head_area->template attach<ui::item>(objs_desc[class_id], true);
+                                            auto list_pads = block->template attach<slot::_2, ui::pads>(dent{ 0,0,0,0 }, dent{ 0,0,0,0 });
+                                    auto insts = list_pads->template attach<ui::list>()
+                                                    ->template attach_collection<e2::form::prop::header>(inst_ptr_list, app_template);
+                                }
+                            }
+                            return apps;
+                        };
+                        auto menuitems_template = [&, client_shadow](auto& data_src, auto& apps_map){
+                            auto menuitems = base::create<ui::list>();
+                            //todo loops are not compatible with Declarative UI
+                            for(auto const& [class_id, inst_ptr_list] : *apps_map)
+                            {
+                                auto id = class_id;
+                                auto selected = class_id == current_default;
+                                auto item_area = menuitems->attach<ui::pads>(dent{ 0,0,0,1 }, dent{ 0,0,1,0 })
+                                                        ->plugin<pro::fader>(x3, c3, 0ms)
+                                                        ->invoke([&](auto& boss) {
+                                                            boss.mouse.take_all_events(faux);
+                                                            boss.SUBMIT_BYVAL(e2::release, e2::hids::mouse::button::click::left, gear)
+                                                            {
+                                                                if (auto client = client_shadow.lock())
+                                                                {
+                                                                    client->SIGNAL(e2::release, e2::data::changed, id);
+                                                                    gear.dismiss();
+                                                                }
+                                                            };
+                                                            boss.SUBMIT_BYVAL(e2::release, e2::hids::mouse::button::dblclick::left, gear)
+                                                            {
+                                                                static iota random = 0;
+                                                                random = (random + 2) % 10;
+                                                                auto offset = twod{ random * 2, random };
+                                                                auto viewport = gear.area();
+                                                                gear.slot.coor = viewport.coor + viewport.size / 4 + offset;
+                                                                gear.slot.size = viewport.size / 2;
+                                                                world->SIGNAL(e2::release, e2::form::proceed::createby, gear);
+                                                            };
+                                                        });
+                                    auto block = item_area->template attach<ui::fork>(axis::X);
+                                        auto mark_area = block->template attach<slot::_1, ui::pads>(dent{ 1,1,0,0 }, dent{ 0,0,0,0 });
+                                            auto mark = mark_area->template attach<ui::item>(
+                                                        ansi::bgc4(selected ? 0xFF00ff00 : 0xFF000000)
+                                                        + "  ", faux)
+                                                ->invoke([&](auto& boss) {
+                                                    if (auto client = client_shadow.lock())
+                                                    {
+                                                        auto mark_shadow = ptr::shadow(boss.template This<ui::item>());
+                                                        client->SUBMIT_BYVAL_T(e2::release, e2::data::changed, boss.memo, data)
+                                                        {
+                                                            auto selected = id == data;
+                                                            if(auto mark = mark_shadow.lock())
+                                                            {
+                                                                mark->set(ansi::bgc4(selected ? 0xFF00ff00 : 0xFF000000)
+                                                                        + "  ");
+                                                            }
                                                         };
-                                                        boss.SUBMIT(e2::release, e2::message(e2::form::drag::pull::any, sysmouse::left), gear)
-                                                        {
-                                                            auto limits = boss.base::limits();
-                                                            limits.min.x += gear.delta.get().x;
-                                                            limits.max.x = uibar_full_size = limits.min.x;
-                                                            boss.base::limits(limits.min, limits.max);
-                                                            boss.base::reflow();
-                                                        }; 
-                                                    });
-                        menu->mouse.draggable<sysmouse::left>();
-                        {
-                            auto apps_users_fork = menu->attach<slot::_1, ui::fork>(axis::Y);
-                            {
-                                auto apps_area = apps_users_fork->attach<slot::_1, ui::fork>(axis::Y);
-                                {
-                                    auto label_pads = apps_area->attach<slot::_1, ui::pads>(dent{ 0,0,1,1 }, dent{ 0,0,0,0 })
-                                                              ->plugin<pro::mouse>()
-                                                              ->plugin<pro::fader>(x3, c3, 150ms);
-                                        auto label_bttn = label_pads->attach<ui::fork>();
-                                            auto label = label_bttn->attach<slot::_1, ui::item>(
-                                                                ansi::fgc(whitelt) + "Apps", faux, faux);
-                                            auto bttn_area = label_bttn->attach<slot::_2, ui::fork>();
-                                                auto bttn_pads = bttn_area->attach<slot::_2, ui::pads>(dent{ 2,2,0,0 }, dent{ 0,0,1,1 })
-                                                            ->plugin<pro::mouse>()
-                                                            ->plugin<pro::fader>(x6, c6, 150ms);
-                                                    auto bttn = bttn_pads->attach<ui::item>("⮞", faux); //⮟
-                                    auto applist_area = apps_area->attach<slot::_2, ui::cake>();
-                                        auto items_scrl = applist_area->attach<ui::rail>(axes::ONLY_Y)
-                                                                      ->plugin<pro::color>(0x00, 0x00); //todo mouse events passthrough
-                                            auto items = items_scrl->attach<ui::list>();
-                                                auto apps = items->attach_element<e2::bindings::list::apps>(world, apps_template);
-                                    //todo make some sort of highlighting at the bottom and top
-                                    //scroll_bars_left(items_area, items_scrl);
-                                }
-                                auto users_area = apps_users_fork->attach<slot::_2, ui::fork>(axis::Y);
-                                {
-                                    auto label_pads = users_area->attach<slot::_1, ui::pads>(dent{ 0,0,1,1 }, dent{ 0,0,0,0 })
-                                                              ->plugin<pro::mouse>()
-                                                              ->plugin<pro::fader>(x3, c3, 150ms);
-                                        auto label_bttn = label_pads->attach<ui::fork>();
-                                            auto label = label_bttn->attach<slot::_1, ui::item>(
-                                                            ansi::fgc(whitelt) + "TTYs", faux, faux);
-                                            auto bttn_area = label_bttn->attach<slot::_2, ui::fork>();
-                                                auto bttn_pads = bttn_area->attach<slot::_2, ui::pads>(dent{ 2,2,0,0 }, dent{ 0,0,1,1 })
-                                                            ->plugin<pro::mouse>()
-                                                            ->plugin<pro::fader>(x6, c6, 150ms);
-                                                    auto bttn = bttn_pads->attach<ui::item>("⮟", faux);
-                                    auto userlist_area = users_area->attach<slot::_2, ui::pads>();
-                                        auto users = userlist_area->attach_element<e2::bindings::list::users>(world, brunch_template);
-                                }
+                                                    }
+                                                });
+                                        auto label_area = block->template attach<slot::_2, ui::pads>(dent{ 1,1,0,0 }, dent{ 0,0,0,0 });
+                                            auto label = label_area->template attach<ui::item>(
+                                                ansi::fgc4(0xFFffffff)
+                                                + objs_desc[class_id], true, true);
                             }
-                            auto bttns_area = menu->attach<slot::_2, ui::fork>(axis::X);
-                            {
-                                auto bttns = bttns_area->attach<slot::_1, ui::fork>(axis::X);
-                                    auto disconnect_area = bttns->attach<slot::_1, ui::pads>(dent{ 2,3,1,1 })
-                                                                ->plugin<pro::mouse>()
-                                                                ->plugin<pro::fader>(x2, c2, 150ms)
+                            return menuitems;
+                        };
+                        auto user_template = [&, my_id = client->id](auto& data_src, auto const& utf8){
+                            auto item_area = base::create<ui::pads>(dent{ 1,0,0,1 }, dent{ 0,0,1,0 })
+                                                ->plugin<pro::fader>(x3, c3, 150ms);
+                                auto user = item_area->attach<ui::item>(
+                                + "🔗" + ansi::nil() + " "
+                                + ansi::fgc4(data_src->id == my_id ? rgba::color256[whitelt] : 0x00) + utf8, true);
+                            return item_area;
+                        };
+                        auto branch_template = [&](auto& data_src, auto& usr_list){
+                            auto users = base::create<ui::list>()
+                                ->attach_collection<e2::form::prop::header>(*usr_list, user_template);
+                            return users;
+                        };
+                        auto window = client->attach<ui::cake>();
+                            auto taskbar = window->attach<ui::fork>(axis::X)
+                                                ->attach<slot::_1, ui::fork>(axis::Y)
+                                                ->plugin<pro::color>(whitedk, 0xD0202020)
+                                                ->plugin<pro::limit>(twod{ 4,-1 }, twod{ 4,-1 })
+                                                ->plugin<pro::timer>()
+                                                ->invoke([&](auto& boss) mutable {
+                                                            boss.mouse.template draggable<sysmouse::left>();
+                                                            boss.SUBMIT(e2::release, e2::message(e2::form::drag::pull::any, sysmouse::left), gear)
+                                                            {
+                                                                auto limits = boss.base::limits();
+                                                                limits.min.x += gear.delta.get().x;
+                                                                limits.max.x = uibar_full_size = limits.min.x;
+                                                                boss.base::limits(limits.min, limits.max);
+                                                                boss.base::reflow();
+                                                            }; 
+                                                            boss.SUBMIT(e2::release, e2::form::state::mouse, active)
+                                                            {
+                                                                auto apply = [&](auto active)
+                                                                {
+                                                                    auto size = active ? uibar_full_size : std::min(uibar_full_size, 4);
+                                                                    auto lims = twod{ size,-1 };
+                                                                    boss.base::limits(lims, lims);
+                                                                    boss.base::reflow();
+                                                                    return faux; // One shot call.
+                                                                };
+                                                                auto& timer = boss.template plugins<pro::timer>();
+                                                                timer.pacify(faux);
+                                                                if (active) apply(true);
+                                                                else timer.actify(faux, MENU_TIMEOUT, apply);
+                                                            };
+                                                            
+                                                        });
+                                auto apps_users_fork = taskbar->attach<slot::_1, ui::fork>(axis::Y);
+                                    auto apps_area = apps_users_fork->attach<slot::_1, ui::fork>(axis::Y);
+                                    {
+                                        auto label_pads = apps_area->attach<slot::_1, ui::pads>(dent{ 0,0,1,1 }, dent{ 0,0,0,0 })
+                                                                ->plugin<pro::fader>(x3, c3, 150ms);
+                                            auto label_bttn = label_pads->attach<ui::fork>();
+                                                auto label = label_bttn->attach<slot::_1, ui::item>(
+                                                                    ansi::fgc(whitelt) + "  ≡ ", faux, faux);
+                                                auto bttn_area = label_bttn->attach<slot::_2, ui::fork>();
+                                                    //auto defapp_pads = bttn_area->attach<slot::_1, ui::post>()
+                                                    //                            ->upload(ansi::jet(bias::center) + "[ Term ]");
+                                                    auto bttn_pads = bttn_area->attach<slot::_2, ui::pads>(dent{ 2,2,0,0 }, dent{ 0,0,1,1 })
+                                                                ->plugin<pro::fader>(x6, c6, 150ms);
+                                                        auto bttn = bttn_pads->attach<ui::item>("⮟", faux);
+                                        auto applist_area = apps_area->attach<slot::_2, ui::pads>(dent{ 0,0,1,0 }, dent{})
+                                                                    ->attach<ui::cake>();
+                                            auto task_menu_area = applist_area->attach<ui::fork>(axis::Y, 0, 0);
+                                                auto menu_scrl = task_menu_area->attach<slot::_1, ui::rail>(axes::ONLY_Y)
+                                                                            ->plugin<pro::color>(0x00, 0x00); //todo mouse events passthrough
+                                                    auto menuitems = menu_scrl->attach_element<e2::bindings::list::apps>(world, menuitems_template);
+                                                auto tasks_scrl = task_menu_area->attach<slot::_2, ui::rail>(axes::ONLY_Y)
+                                                                                ->plugin<pro::color>(0x00, 0x00); //todo mouse events passthrough
+                                                    auto apps = tasks_scrl->attach_element<e2::bindings::list::apps>(world, apps_template);
+                                        label_pads->invoke([&](auto& boss) {
+                                            auto task_menu_area_shadow = ptr::shadow(task_menu_area);
+                                            auto bttn_shadow = ptr::shadow(bttn);
+                                            boss.SUBMIT_BYVAL(e2::release, e2::hids::mouse::button::click::left, gear)
+                                            {
+                                                if(auto bttn = bttn_shadow.lock())
+                                                if(auto task_menu_area = task_menu_area_shadow.lock())
+                                                {
+                                                    auto state = task_menu_area->get_ratio();
+                                                    bttn->set(state ? "⮝" : "⮟");
+                                                    task_menu_area->config(state ? 0 : 100);
+                                                    gear.dismiss();
+                                                }
+                                            };
+                                        });
+                                        apps_area->invoke([&](auto& boss) {
+                                            auto task_menu_area_shadow = ptr::shadow(task_menu_area);
+                                            auto bttn_shadow = ptr::shadow(bttn);
+                                            boss.SUBMIT_BYVAL(e2::release, e2::form::state::mouse, active)
+                                            {
+                                                if (!active)
+                                                if(auto bttn = bttn_shadow.lock())
+                                                if(auto task_menu_area = task_menu_area_shadow.lock())
+                                                {
+                                                    if (auto state = task_menu_area->get_ratio())
+                                                    {
+                                                        bttn->set("⮝");
+                                                        task_menu_area->config(0);
+                                                    }
+                                                }
+                                            };
+                                        });
+                                        //todo make some sort of highlighting at the bottom and top
+                                        //scroll_bars_left(items_area, items_scrl);
+                                    }
+                                    auto users_area = apps_users_fork->attach<slot::_2, ui::fork>(axis::Y);
+                                    {
+                                        auto label_pads = users_area->attach<slot::_1, ui::pads>(dent{ 0,0,1,1 }, dent{ 0,0,0,0 })
+                                                                    ->plugin<pro::fader>(x3, c3, 150ms);
+                                            auto label_bttn = label_pads->attach<ui::fork>();
+                                                auto label = label_bttn->attach<slot::_1, ui::item>(
+                                                                ansi::fgc(whitelt) + "TTYs", faux, faux);
+                                                auto bttn_area = label_bttn->attach<slot::_2, ui::fork>();
+                                                    auto bttn_pads = bttn_area->attach<slot::_2, ui::pads>(dent{ 2,2,0,0 }, dent{ 0,0,1,1 })
+                                                                            ->plugin<pro::fader>(x6, c6, 150ms);
+                                                        auto bttn = bttn_pads->attach<ui::item>("⮝", faux);
+                                        auto userlist_area = users_area->attach<slot::_2, ui::pads>();
+                                            auto users = userlist_area->attach_element<e2::bindings::list::users>(world, branch_template);
+                                        //todo unify
+                                        bttn_pads->invoke([&](auto& boss) {
+                                            auto userlist_area_shadow = ptr::shadow(userlist_area);
+                                            auto bttn_shadow = ptr::shadow(bttn);
+                                            boss.SUBMIT_BYVAL(e2::release, e2::hids::mouse::button::click::left, gear)
+                                            {
+                                                static bool state = faux;
+                                                if(auto bttn = bttn_shadow.lock())
+                                                if(auto userlist = userlist_area_shadow.lock())
+                                                {
+                                                    state = !state;
+                                                    bttn->set(state ? "⮟" : "⮝");
+                                                    auto lims = userlist->base::limits();
+                                                    lims.min.y = lims.max.y = state ? 0 : -1;
+                                                    userlist->base::limits(lims);
+                                                    userlist->base::reflow();
+                                                }
+                                            };
+                                        });
+                                    }
+                                auto bttns_area = taskbar->attach<slot::_2, ui::fork>(axis::X);
+                                {
+                                    auto bttns = bttns_area->attach<slot::_1, ui::fork>(axis::X);
+                                        auto disconnect_area = bttns->attach<slot::_1, ui::pads>(dent{ 2,3,1,1 })
+                                                                    ->plugin<pro::fader>(x2, c2, 150ms)
+                                                                    ->invoke([&](auto& boss) {
+                                                                            boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
+                                                                            {
+                                                                                if (auto owner = base::getref(gear.id))
+                                                                                {
+                                                                                    owner->SIGNAL(e2::release, e2::term::quit, "taskbar: logout by button");
+                                                                                }
+                                                                            };
+                                                                        });
+                                            auto disconnect = disconnect_area->attach<ui::item>("✕ Disconnect");
+                                        auto shutdown_area = bttns->attach<slot::_2, ui::pads>(dent{ 2,3,1,1 })
+                                                                ->plugin<pro::fader>(x1, c1, 150ms)
                                                                 ->invoke([&](auto& boss) {
                                                                         boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
                                                                         {
-                                                                            if (auto owner = base::getref(gear.id))
-                                                                            {
-                                                                                owner->SIGNAL(e2::release, e2::term::quit, "sidebar: logout by button");
-                                                                            }
+                                                                            //todo unify, see system.h:1614
+                                                                            #if defined(__APPLE__)
+                                                                            auto path2 = "/tmp/" + path + ".sock";
+                                                                            ::unlink(path2.c_str());
+                                                                            #endif
+                                                                            os::exit(0, "taskbar: shutdown by button");
                                                                         };
                                                                     });
-                                        auto disconnect = disconnect_area->attach<ui::item>("✕ Disconnect");
-                                    auto shutdown_area = bttns->attach<slot::_2, ui::pads>(dent{ 2,3,1,1 })
-                                                              ->plugin<pro::mouse>()
-                                                              ->plugin<pro::fader>(x1, c1, 150ms)
-                                                              ->invoke([&](auto& boss) {
-                                                                      boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
-                                                                      {
-                                                                          //todo unify, see system.h:1614
-                                                                          #if defined(__APPLE__)
-                                                                          path = "/tmp/" + path + ".sock";
-                                                                          ::unlink(path.c_str());
-                                                                          #endif
-                                                                          os::exit(0, "sidebar: shutdown by button");
-                                                                      };
-                                                                  });
-                                        auto shutdown = shutdown_area->attach<ui::item>("✕ Shutdown");
-                            }
-                        }
-                    client->color(background_color.fgc(), background_color.bgc());
-                    //text header = ansi::jet(bias::center).mgr(0).mgl(0)
-                    //    + username;
-                    text header = username;
-                    text footer = ansi::mgr(1).mgl(1)
-                        + MONOTTY_VER;
-                    client->SIGNAL(e2::preview, e2::form::prop::header, header);
-                    client->SIGNAL(e2::preview, e2::form::prop::footer, footer);
-                    client->base::moveby(user_coor);
+                                            auto shutdown = shutdown_area->attach<ui::item>("✕ Shutdown");
+                                }
+                        client->color(background_color.fgc(), background_color.bgc());
+                        text header = username;
+                        text footer = ansi::mgr(1).mgl(1) + MONOTTY_VER;
+                        client->SIGNAL(e2::preview, e2::form::prop::header, header);
+                        client->SIGNAL(e2::preview, e2::form::prop::footer, footer);
+                        client->base::moveby(user_coor);
+                    }
+                    log("user: new gate for ", peer);
 
-                    log("main: new gate created on ", peer);
-
-                    #ifdef DEMO
+                    #ifndef PROD
                     client->proceed(peer, _region);
                     #else
                     client->proceed(peer, username);
                     #endif
 
-                    log("main: proceed complete on ", peer);
+                    e2::sync lock;
+                    log("user: ", peer, " has logged out");
                     client->detach();
-                    log("main: exit from the threads sync on ", peer);
+                    log("user: ", peer, " is diconnected");
+                    client.reset();
                 } }.detach();
 
-                log("main: new thread is running on ", peer);
+                log("main: new thread constructed for ", peer);
             }
 
             world->SIGNAL(e2::general, e2::timer::fps, 0);

@@ -2281,12 +2281,11 @@ namespace netxs::os
 
     class cons
     {
-        os::ipc socket{ 0, faux ,true };
-
         testy<twod> consize;
 
         #if defined(_WIN32)
 
+            os::ipc socket{ 0, 0, true };
             //todo make it as an os::pty class with os::ipc socket;
             HPCON  hPC     { INVALID_HANDLE_VALUE };
             HANDLE hProcess{ INVALID_HANDLE_VALUE };
@@ -2294,6 +2293,7 @@ namespace netxs::os
 
         #elif defined(__linux__) || defined(__APPLE__)
 
+            os::ipc socket{ 0, faux, true };
             pid_t pid = 0;
 
         #endif

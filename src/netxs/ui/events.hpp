@@ -184,8 +184,8 @@ namespace netxs::events
             public:
             struct list { enum : type {
                     any = bindings::_list,
-                    users       = any | (1 << _level1), // list of connected users (arg: std::list<sptr<base>>)
-                    apps        = any | (2 << _level1), // list of running apps (arg: std::list<sptr<base>>)
+                    users       = any | (1 << _level1), // list of connected users (arg: sptr<std::list<sptr<base>>>)
+                    apps        = any | (2 << _level1), // list of running apps (arg: sptr<std::map<id_t, std::list<sptr<base>>>>)
                 };
             };
         };
@@ -405,7 +405,7 @@ namespace netxs::events
         };
         struct form { enum : type {
                 any = e2::_form,
-                //_focus      = any | (1 << _level0),
+                _draggable  = any | (1 << _level0), // signal to the form to enable draggablity for specified mouse button (arg: bool)
                 _layout     = any | (2 << _level0),
                 _highlight  = any | (3 << _level0),
                 _upon       = any | (4 << _level0),
@@ -415,7 +415,6 @@ namespace netxs::events
                 _animate    = any | (8 << _level0),
                 _drag       = any | (9 << _level0),
                 _prop       = any | (10<< _level0),
-                //_client     = any | (11<< _level0),
                 _upevent    = any | (11<< _level0), // eventss streamed up (to children) of the visual tree by base::
                 _global     = any | (12<< _level0),
                 _state      = any | (13<< _level0),
@@ -515,26 +514,21 @@ namespace netxs::events
                     any = form::_upevent,
                     kboffer     = any | (1 << _level1), // inform nested objects that the keybd focus should be taken (arg: hids)
             };};
-            //struct client { enum : type {
-            //		any = form::_client,
-            //		rect		= any | (1 << _level1), // notify the client area has changed (arg is only release: rect)
-            //		size		= any | (2 << _level1), // notify the client size has changed (arg is only release: twod)
-            //		coor		= any | (3 << _level1), // notify the client coor has changed (arg is only release: twod)
-            //		align		= any | (4 << _level1), //
-            //};};
+            struct draggable { enum : type {
+                    any = form::_draggable,
+                    left        = any | (1 << _level1),
+                    right       = any | (2 << _level1),
+                    leftright   = any | (3 << _level1),
+                    middle      = any | (4 << _level1),
+                    wheel       = any | (5 << _level1),
+                    win         = any | (6 << _level1),
+            };};
             struct prop { enum : type {
                     any = form::_prop,
-                    header      = any | (1 << _level1), // set the form caption header (arg: text)
-                    footer      = any | (2 << _level1), // set the form caption footer (arg: text)
-                    //params      = any | (3 << _level1), // set the form caption params (arg: text)
+                    header      = any | (1 << _level1), // set form caption header (arg: text)
+                    footer      = any | (2 << _level1), // set form caption footer (arg: text)
+                    zorder      = any | (3 << _level1), // set form z-order (arg: iota: -1 backmost, 0 plain, 1 topmost)
             };};
-            //struct mouse { enum : type {
-            //		any = form::_mouse,
-            //		enter		= any | (1 << _level1), // inform the form about the mouse hover (arg: hids)
-            //		leave		= any | (2 << _level1), // inform the form about the mouse leave (arg: hids)
-            //		//capture		= any | (3 << _level), // seize mouse button events flow if positive, and release if negative
-            //		//release		= any | (4 << _level), // release a hook of the mouse events visual tree branch, -1 to release all
-            //};};
             struct animate { enum : type {
                     any = form::_animate,
                     start       = any | (1 << _level1),
@@ -553,9 +547,10 @@ namespace netxs::events
                     cached      = any | (5 << _level1), // inform about camvas is cached (arg: canvas face)
                     wiped       = any | (6 << _level1), // event after wipe the canvas (arg: canvas face)
                     created     = any | (7 << _level1), // event after itself creation (arg: itself bell_sptr)
-                    moved       = any | (8 << _level1), // event after moveto (arg: diff bw old and new coor twod)
+                    moved       = any | (8 << _level1), // release: event after moveto (arg: diff bw old and new coor twod). preview: event after moved by somebody.
                     resized     = any | (9 << _level1), // event after resize (arg: diff bw old and new size twod)
                     _scroll     = any | (10<< _level1), // event after scroll (arg: rack)
+                    dragged     = any | (11<< _level1), // event after drag (arg: hids)
                 };
                 private: static const unsigned int _level2 = _level1 + _width;
                 public:
@@ -608,7 +603,7 @@ namespace netxs::events
                     local       = any | (8 << _level1), // Recursively calculate local coordinate from global (arg: twod)
                     strike      = any | (9 << _level1), // (always preview) inform about the child canvas has changed (arg: modified region rect)
                     bubble      = any | (10<< _level1), // order to popup the requested item through the visual tree (arg: form)
-                    expose      = any | (11<< _level1), // order to bring the requested item on top of the visual tree (arg: base)
+                    expose      = any | (11<< _level1), // order to bring the requested item on top of the visual tree (release: ask parent to expose specified child; preview: ask child to expose itself) (arg: base)
                     //next        = any | (12<< _level1), // request client for next child object (arg is only request: sptr<base>)
                     //prev        = any | (13<< _level1), // request client for prev child object (arg is only request: sptr<base>)
                     // footer     = any | (14<< _level1), // notify the client has changed footer (arg is only release: const rich)
@@ -959,13 +954,13 @@ namespace netxs::events
     public:
         class subs
         {
-            std::vector<hook> memo;
+            std::vector<hook> storage;
 
         public:
-            hook& extra()       { return memo.emplace_back(); }
-            auto  count() const { return memo.size();         }
-            void  clear()       {        memo.clear();        }
-        };
+            hook& extra()       { return storage.emplace_back(); }
+            auto  count() const { return storage.size();         }
+            void  clear()       {        storage.clear();        }
+        } memo;
 
         // bell: Subscribe on a specified event
         //       of specified reaction node by defining an event
@@ -1029,32 +1024,8 @@ namespace netxs::events
         template<class EVENT>
         static auto submit_global(hook& token)
         {
-            //_globals<void>::general.subscribe(EVENT::cause, handler);
             return submit_helper_token_global<EVENT>(token);
         }
-
-        // bell: Change the global ownership of the specified
-        //       event and subscribe to emit the event "gone"
-        //       the next time the owner changes.
-        //template<class EVENT>
-        //void change(hook& token, e2::type gone, typename EVENT::param& p)
-        //{
-        //	if (!token)
-        //	{
-        //		//signal(e2::general, EVENT::cause, p);
-        //		signal<e2::general>(EVENT::cause, p);
-        //		submit<EVENT>(e2::general, token, [&, gone](auto d)
-        //					  {
-        //						  token.reset();
-        //						  //signal(e2::general, gone, d);
-        //						  //signal(e2::preview, gone, d);
-        //						  signal<e2::general>(gone, d);
-        //						  signal<e2::preview>(gone, d);
-        //					  });
-        //		//signal(e2::preview, EVENT::cause, p);
-        //		signal<e2::preview>(EVENT::cause, p);
-        //	}
-        //}
         //todo used only with indexer::create
         // bell: Rise specified evench execution branch on the specified relay node.
         template<class F>
