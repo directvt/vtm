@@ -23,6 +23,46 @@ A text-based desktop environment in your terminal
 - macOS
   - Catalina 10.15
 
+# Building from Source
+
+### GNU/Linux amd64
+
+Build-time dependencies: `gcc` or `clang`
+
+```bash
+git clone https://github.com/netxs-group/VTM.git && cd ./VTM
+mkdir build
+cd ./build
+cmake ../src -DEXECUTABLE_OUTPUT_PATH="../bin" -DCMAKE_BUILD_TYPE="Release" -DCMAKE_CXX_FLAGS="-pthread -s" && cmake --build .
+cd ../bin
+rm -rfv ../build
+```
+
+### Windows
+
+Build-time dependencies: `Visual Studio 2019`
+
+Use `Developer Command Prompt for VS 2019`
+```cmd
+git clone https://github.com/netxs-group/VTM.git && cd ./VTM
+mkdir build
+cd ./build
+cmake ../src -DEXECUTABLE_OUTPUT_PATH=".." -DCMAKE_BUILD_TYPE=Release "-GVisual Studio 16 2019" -DCMAKE_CXX_FLAGS="/DWIN32 /D_WINDOWS /W3 /GR /EHsc /bigobj" && cmake --build . --config Release && cd ../Release
+```
+
+### macOS
+
+Build-time dependencies: `Xcode 12.x series`  
+Xcode project settings: `./src/project.pbxproj`
+
+```
+ ...
+buildSettings = {
+ ...
+  CLANG_CXX_LANGUAGE_STANDARD = "c++2a";
+ ...
+```
+
 # Releases
 
 [![](https://dice.netxs.online/cloud/vtm/status/macos)](https://github.com/netxs-group/VTM/releases/download/latest/vtm_macos.tar.gz)  

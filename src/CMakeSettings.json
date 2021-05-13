@@ -13,13 +13,6 @@
       "inheritEnvironments": [ "linux_x64" ],
       "wslPath": "${defaultWSLPath}",
       "addressSanitizerRuntimeFlags": "detect_leaks=0",
-      "variables": [
-        {
-          "name": "CMAKE_CXX_FLAGS_RELEASE",
-          "value": "-Ofast -pthread",
-          "type": "STRING"
-        }
-      ],
       "remoteCopyUseCompilerDefaults": true,
       "intelliSenseMode": "linux-gcc-x64"
     },
@@ -59,12 +52,12 @@
       "variables": [
         {
           "name": "CMAKE_CXX_FLAGS_RELEASE",
-          "value": "-MT -Os -pthread -s",
+          "value": "-MT -DNDEBUG -Ofast -pthread -s",
           "type": "STRING"
         },
         {
           "name": "CMAKE_CXX_FLAGS_MINSIZEREL",
-          "value": "-Os -DNDEBUG -pthread",
+          "value": "-Ofast -DNDEBUG -pthread",
           "type": "STRING"
         },
         {
