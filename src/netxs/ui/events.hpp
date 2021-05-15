@@ -1128,6 +1128,7 @@ namespace netxs::events
         { }
         ~bell()
         {
+            e2::sync lock;
             signal<e2::release>(e2::dtor, id);
         }
     };

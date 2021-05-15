@@ -160,8 +160,9 @@ namespace netxs::ui
     {
         //todo cache specific
         sptr<face> coreface;
-        sptr<base> client; // mold: Client object.
         face& canvas; // .: Form cache.
+
+        sptr<base> client; // mold: Client object.
     public:
         rgba title_fg_color = 0xFFffffff;
         bool only_frame = faux;
