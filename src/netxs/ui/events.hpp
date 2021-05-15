@@ -172,10 +172,16 @@ namespace netxs::events
             cout        = any | (11<< 0), // Append extra data to output (arg: const text)
 
             _bindings   = any | (12<< 0), // Dynamic Data Bindings.
+            _render     = any | (13<< 0), // release: UI-tree rendering (arg: face).
+            postrender  = any | (14<< 0), // release: UI-tree post-rendering (arg: face).
         };
         //private: static const unsigned int _level = _toplevel + _width;
         private: static const unsigned int _level0 = _width;
         public:
+        struct render { enum : type {
+                any = e2::_render,                  // release: UI-tree default rendering submission (arg: face).
+                prerender   = any | (1 << _level0), // release: UI-tree pre-rendering, used by pro::cache (can interrupt SIGNAL) and any kind of highlighters (arg: face).
+        };};
         struct bindings { enum : type {
                 any = e2::_bindings,
                 _list       = any | (1 << _level0),

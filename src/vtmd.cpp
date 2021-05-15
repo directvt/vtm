@@ -1321,6 +1321,8 @@ utility like ctags is used to locate the definitions.
                             ->plugin<pro::align>()
                             ->plugin<pro::sizer>()
                             ->plugin<pro::frame>()
+                            ->plugin<pro::acryl>()
+                            ->plugin<pro::cache>()
                             ->invoke([&](ui::mold& boss){
                                 boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
                                 {
@@ -1384,7 +1386,7 @@ utility like ctags is used to locate the definitions.
                     auto object = scroll->attach<ui::post>()
                                         ->upload(topic)
                                         ->invoke([&](auto& self) {
-                                            self.SUBMIT(e2::release, e2::form::upon::redrawn, canvas)
+                                            self.SUBMIT(e2::release, e2::postrender, canvas)
                                             {
                                                 static auto counter = 0; counter++;
                                                 static auto textclr =  ansi::bgc(reddk).fgc(whitelt);
@@ -1493,7 +1495,6 @@ utility like ctags is used to locate the definitions.
                 case Truecolor:
                 {
                     window->plugin<pro::title>(ansi::jet(bias::right) + "True color ANSI/ASCII image test");
-                    window->blurred = true;
                     auto object = window->attach<ui::fork>(axis::Y)
                                         ->plugin<pro::color>(whitelt, 0x601F0FC4);
                         auto menu = object->attach<slot::_1>(main_menu())
@@ -1515,7 +1516,6 @@ utility like ctags is used to locate the definitions.
                 case Empty:
                 {
                     window->plugin<pro::title>(ansi::mgl(1).mgr(1) + "Empty Instance \nid: " + std::to_string(window->id));
-                    window->blurred = true;
                     auto object = window->attach<ui::mock>()
                                         ->plugin<pro::color>(0,0) //todo mouse tracking
                                         ->plugin<pro::mover>(window);
@@ -1523,9 +1523,8 @@ utility like ctags is used to locate the definitions.
                 }
                 case Shop:
                 {
-                    window->plugin<pro::title>("Desktopio App Store", faux);
-                    window->color(whitelt, 0x60000000);
-                    window->blurred = true;
+                    window->plugin<pro::title>("Desktopio App Store", faux)
+                          ->plugin<pro::color>(whitelt, 0x60000000);
                     window->highlight_center = faux;
                     auto object = window->attach<ui::fork>(axis::Y)
                                         ->plugin<pro::color>(whitelt, 0);
@@ -1554,10 +1553,9 @@ utility like ctags is used to locate the definitions.
                 case Calc:
                 {
                     static iota i = 0; i++;
-                    window->plugin<pro::title>(ansi::jet(bias::right) + "Spreadsheet\n ~/Untitled " + std::to_string(i) + ".ods");
-                    window->color(whitelt, 0x601A5f00);
-                    window->limits({ -1,-1 },{ 136,105 });
-                    window->blurred = true;
+                    window->plugin<pro::title>(ansi::jet(bias::right) + "Spreadsheet\n ~/Untitled " + std::to_string(i) + ".ods")
+                          ->plugin<pro::color>(whitelt, 0x601A5f00)
+                          ->plugin<pro::limit>(twod{ -1,-1 },twod{ 136,105 });
                     window->highlight_center = faux;
                     auto object = window->attach<ui::fork>(axis::Y)
                                         ->plugin<pro::color>(whitelt, 0);
@@ -1631,8 +1629,6 @@ utility like ctags is used to locate the definitions.
                 {
                     static iota i = 0; i++;
                     window->plugin<pro::title>(ansi::jet(bias::center) + "Text Editor\n ~/Untitled " + std::to_string(i) + ".txt");
-                    //window->color(whitelt, 0x605f1A00);
-                    //window->blurred = true;
                     //window->highlight_center = faux;
                     auto object = window->attach<ui::fork>(axis::Y)
                                         ->plugin<pro::color>(whitelt, 0x605f1A00);
@@ -2197,6 +2193,7 @@ utility like ctags is used to locate the definitions.
                                                 ->plugin<pro::color>(whitedk, 0xD0202020)
                                                 ->plugin<pro::limit>(twod{ 4,-1 }, twod{ 4,-1 })
                                                 ->plugin<pro::timer>()
+                                                ->plugin<pro::cache>()
                                                 ->invoke([&](auto& boss) mutable {
                                                             boss.mouse.template draggable<sysmouse::left>();
                                                             boss.SUBMIT(e2::release, e2::message(e2::form::drag::pull::any, sysmouse::left), gear)

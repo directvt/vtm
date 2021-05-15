@@ -12,6 +12,7 @@ namespace netxs::console
 {
     using namespace std::literals;
     using namespace netxs::ui::atoms;
+    using namespace netxs::events;
     
     using ansi::qiew;
     using ansi::writ;
@@ -1720,8 +1721,8 @@ namespace netxs::console
                 core::back(offset_coor);
                 flow::full(object_area);
 
-                nested.renderproc(*this);
-                nested.postrender(*this);
+                nested.bell::template signal<e2::release>(e2::render::prerender, static_cast<face&&>(*this));
+                nested.bell::template signal<e2::release>(e2::postrender, static_cast<face&&>(*this));
 
                 if constexpr (TRIM) core::view(canvas_view);
                 core::move(canvas_coor);
@@ -1743,8 +1744,8 @@ namespace netxs::console
                 core::view(nested_view);
                 flow::full(object_area);
 
-                object.renderproc(*this);
-                object.postrender(*this);
+                object.bell::template signal<e2::release>(e2::render::prerender, static_cast<face&&>(*this));
+                object.bell::template signal<e2::release>(e2::postrender, static_cast<face&&>(*this));
 
                 core::view(canvas_view);
                 flow::full(parent_area);

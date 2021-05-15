@@ -60,6 +60,10 @@ namespace netxs::console
         EVENT_BIND(e2::timer::tick, moment)
         EVENT_BIND(e2::timer::fps,  iota)
 
+    EVENT_BIND(e2::postrender,  face)
+    EVENT_BIND(e2::render::any, face)
+        EVENT_BIND(e2::render::prerender, face)
+
     EVENT_BIND(e2::quit, const view)
     EVENT_BIND(e2::dtor, const id_t)
     EVENT_BIND(e2::radio, iota)
@@ -1312,20 +1316,16 @@ namespace netxs::console
         {
             return base::brush;
         }
-        // base: Draw the form composition on the specified canvas.
-        virtual void renderproc (face& parent_canvas)
-        {
-            if (base::brush.wdt())
-                parent_canvas.fill([&](cell& c) { c.fusefull(base::brush); });
-        }
-        // base: Draw the glow over the form.
-        virtual void postrender (face& parent_canvas)
-        { }
 
     protected:
         virtual ~base() = default;
         base()
         {
+            SUBMIT(e2::release, e2::render::any, parent_canvas)
+            {
+                if (base::brush.wdt())
+                    parent_canvas.fill([&](cell& c) { c.fusefull(base::brush); });
+            };
             SUBMIT(e2::release, e2::form::upon::vtree::attached, parent_ptr)
             {
                 parent_shadow = parent_ptr;
@@ -1778,7 +1778,7 @@ namespace netxs::console
                   inner{ inner_rect    },
                   width{ outer - inner }
             {
-                boss.SUBMIT_T(e2::release, e2::form::upon::redrawn, memo, canvas)
+                boss.SUBMIT_T(e2::release, e2::postrender, memo, canvas)
                 {
                     auto area = rect{dot_00,boss.size.get()} + outer;
                     area.coor += canvas.full().coor;
@@ -2532,7 +2532,7 @@ namespace netxs::console
                     handle_stop(gear);
                 };
 
-                boss.SUBMIT_T(e2::release, e2::form::upon::redrawn, memo, canvas)
+                boss.SUBMIT_T(e2::release, e2::postrender, memo, canvas)
                 {
                     for (auto const& [key, data] : slots)
                     {
@@ -2664,7 +2664,7 @@ namespace netxs::console
                             boss.SIGNAL(e2::preview, e2::form::layout::strike, body);
                         }
                     };
-                    boss.SUBMIT_T(e2::release, e2::form::upon::redrawn, memo, canvas)
+                    boss.SUBMIT_T(e2::release, e2::postrender, memo, canvas)
                     {
                         done = live;
                         if (live)
@@ -2795,7 +2795,7 @@ namespace netxs::console
                 stress = cell{}.fgc(whitelt);
                 alerts = cell{}.fgc(rgba{ 0xFFd0d0FFu });
 
-                status.style.wrp(wrap::on).jet(bias::left).rlf(feed::rev);
+                status.style.wrp(wrap::on).jet(bias::left).rlf(feed::rev).mgl(4);
                 status.current().locus.cup(dot_00).cnl(2);
 
                 auto maxlen = 0_sz;
@@ -2810,7 +2810,7 @@ namespace netxs::console
                         + ansi::idx(attr++).nop().nil().eol();
                 }
 
-                boss.SUBMIT_T(e2::release, e2::form::upon::redrawn, memo, canvas)
+                boss.SUBMIT_T(e2::release, e2::postrender, memo, canvas)
                 {
                     status[prop::render_ns].set(track.output > 12ms ? alerts : stress) =
                         utf::adjust(utf::format(track.output.count()), 11, " ", true) + "ns";
@@ -3010,7 +3010,7 @@ namespace netxs::console
                 {
                     recalc(new_size);
                 };
-                boss.SUBMIT_T(e2::release, e2::form::upon::redrawn, memo, canvas)
+                boss.SUBMIT_T(e2::release, e2::postrender, memo, canvas)
                 {
                     if (live)
                     {
@@ -3229,7 +3229,7 @@ namespace netxs::console
 
                 void postrender(face& canvas)
                 {
-                    object->postrender(canvas);
+                    object->SIGNAL(e2::release, e2::postrender, canvas);
                 }
             };
 
@@ -3867,7 +3867,7 @@ namespace netxs::console
             grade(base&&) = delete;
             grade(base& boss) : skill{ boss }
             {
-                boss.SUBMIT_T(e2::release, e2::form::upon::redrawn, memo, parent_canvas)
+                boss.SUBMIT_T(e2::release, e2::postrender, memo, parent_canvas)
                 {
                     iota size = 5; // grade: Vertical gradient size.
                     iota step = 2; // grade: Vertical gradient step.
@@ -3984,6 +3984,67 @@ namespace netxs::console
             limit(base& boss, twod const& min_size, twod const& max_size = -dot_11) : skill{ boss }
             {
                 boss.base::limits(min_size, max_size);
+            }
+        };
+
+        // pro: UI-control cache.
+        class cache
+            : public skill
+        {
+            using skill::boss,
+                  skill::memo;
+
+            sptr<face> coreface;
+            face& canvas; // cache: Bitmap cache.
+
+        public:
+            cache(base&&) = delete;
+            cache(base& boss)
+                : skill{ boss },
+                  canvas{*(coreface = std::make_shared<face>())}
+            {
+                canvas.link(boss.bell::id);
+                boss.SUBMIT_T(e2::release, e2::form::upon::vtree::attached, memo, parent_ptr)
+                {
+                    boss.SIGNAL(e2::general, e2::form::canvas, canvas.shared_from_this());
+                };
+                boss.SUBMIT_T(e2::release, base::move_event, memo, new_xy) { canvas.move(new_xy); };
+                boss.SUBMIT_T(e2::release, base::size_event, memo, new_sz) { canvas.size(new_sz); };
+                boss.SUBMIT_T(e2::request, e2::form::canvas, memo, canvas) { canvas = coreface; };
+                boss.SUBMIT_T(e2::release, e2::render::prerender, memo, parent_canvas)
+                {
+                    if (boss.base::status.invalid)
+                    {
+                        canvas.wipe();
+                        boss.SIGNAL(e2::release, e2::render::any, canvas);
+                        boss.base::status.invalid = faux;
+                    }
+                    parent_canvas.plot(canvas);
+                    boss.bell::expire(e2::release);
+                };
+            }
+        };
+
+        // pro: Acrylic blur.
+        class acryl
+            : public skill
+        {
+            using skill::boss,
+                  skill::memo;
+
+            iota width; // acryl: Blur radius.
+
+        public:
+            acryl(base&&) = delete;
+            acryl(base& boss, iota size = 5)
+                : skill{ boss },
+                  width{ size }
+            {
+                boss.SUBMIT_T(e2::release, e2::render::prerender, memo, parent_canvas)
+                {
+                    if (boss.base::brush.wdt()) parent_canvas.blur(width, [&](cell& c) { c.fuse(boss.base::brush); });
+                    else                        parent_canvas.blur(width);
+                };
             }
         };
     }
@@ -5245,8 +5306,8 @@ again:
                             input.fire(e2::hids::mouse::move);
                         #endif // DEBUG_OVERLAY
 
-                        // in order to draw debug overlay, maker, titles, etc
-                        this->SIGNAL(e2::release, e2::form::upon::redrawn, canvas);
+                        // Draw debug overlay, maker, titles, etc.
+                        this->SIGNAL(e2::release, e2::postrender, canvas);
                         #ifdef DEBUG_OVERLAY
                             if ((yield = paint.commit(canvas)))
                             {
@@ -5368,76 +5429,74 @@ again:
             {
                 if (uibar) uibar->base::resize(newsz);
             };
-        }
 
-        // gate: Draw the form composition on the specified canvas.
-        virtual void renderproc (face& parent_canvas)
-        {
-            //base::renderproc(parent_canvas);
-
-            // Draw a shadow of user's terminal window for other users (spectators)
-            // see pro::scene.
-            if (&parent_canvas != &canvas)
+            // gate: Draw the form composition on the specified canvas.
+            SUBMIT(e2::release, e2::render::any, parent_canvas)
             {
-                auto area = canvas.area();
-                area.coor-= parent_canvas.area().coor;
-
-                //todo revise
-                auto mark = skin::color(tone::shadow);
-                mark.bga(mark.bga() / 2);
-                parent_canvas.fill(area, [&](cell& c){ c.fuse(mark); });
-            }
-        }
-        // gate: .
-        virtual void postrender (face& parent_canvas)
-        {
-            if (&parent_canvas != &canvas)
-            {
-                auto area = canvas.area();
-                area.coor -= parent_canvas.area().coor;
-
-                area.coor += input.coord;
-                area.size = dot_11;
-                cell brush;
-                if (input.push)
+                // Draw a shadow of user's terminal window for other users (spectators)
+                // see pro::scene.
+                if (&parent_canvas != &canvas)
                 {
-                    brush.txt(64 + input.push).bgc(reddk).fgc(whitelt);
+                    auto area = canvas.area();
+                    area.coor-= parent_canvas.area().coor;
+
+                    //todo revise
+                    auto mark = skin::color(tone::shadow);
+                    mark.bga(mark.bga() / 2);
+                    parent_canvas.fill(area, [&](cell& c){ c.fuse(mark); });
+                }
+            };
+            SUBMIT(e2::release, e2::postrender, parent_canvas)
+            {
+                if (&parent_canvas != &canvas)
+                {
+                    auto area = canvas.area();
+                    area.coor -= parent_canvas.area().coor;
+
+                    area.coor += input.coord;
+                    area.size = dot_11;
+                    cell brush;
+                    if (input.push)
+                    {
+                        brush.txt(64 + input.push).bgc(reddk).fgc(whitelt);
+                    }
+                    else
+                    {
+                        brush.txt(whitespace).bgc(greenlt);
+                    }
+                    parent_canvas.fill(area, brush);
+
+                    //if (parent.test(area.coor))
+                    //{
+                    //	auto hover_id = parent[area.coor].link();
+                    //	log ("---- hover id ", hover_id);
+                    //}
+                    //auto& header = *title.header().lyric;
+                    auto& header = *uname.lyric;
+                    area.coor += parent_canvas.area().coor;
+                    area.coor.y--;
+                    area.coor.x -= (iota)header.size().x / 2;
+                    //todo unify header coords
+                    header.move(area.coor);
+                    parent_canvas.fill(header);
                 }
                 else
                 {
-                    brush.txt(whitespace).bgc(greenlt);
+                    if (uibar) parent_canvas.render(uibar, base::coor.get());
                 }
-                parent_canvas.fill(area, brush);
 
-                //if (parent.test(area.coor))
-                //{
-                //	auto hover_id = parent[area.coor].link();
-                //	log ("---- hover id ", hover_id);
-                //}
-                //auto& header = *title.header().lyric;
-                auto& header = *uname.lyric;
-                area.coor += parent_canvas.area().coor;
-                area.coor.y--;
-                area.coor.x -= (iota)header.size().x / 2;
-                //todo unify header coords
-                header.move(area.coor);
-                parent_canvas.fill(header);
-            }
-            else
-            {
-                if (uibar) parent_canvas.render(uibar, base::coor.get());
-            }
-
-            #ifdef REGIONS
-            parent_canvas.each([](cell& c){
-                auto mark = rgba{ rgba::color256[c.link() % 256] };
-                auto bgc = c.bgc();
-                mark.alpha(64);
-                bgc.mix(mark);
-                c.bgc(bgc);
-            });
-            #endif
+                #ifdef REGIONS
+                parent_canvas.each([](cell& c){
+                    auto mark = rgba{ rgba::color256[c.link() % 256] };
+                    auto bgc = c.bgc();
+                    mark.alpha(64);
+                    bgc.mix(mark);
+                    c.bgc(bgc);
+                });
+                #endif
+            };
         }
+
     public:
         // gate: Attach a new item.
         template<class T>
