@@ -1256,6 +1256,7 @@ utility like ctags is used to locate the definitions.
         const static auto x2 = cell{ c2 }.bga(0x00);
         const static auto c1 = cell{}.bgc(danger_color).fgc(whitelt);
         const static auto x1 = cell{ c1 }.bga(0x00);
+        const static auto term_menu_bg = rgba{ 0x80404040 };
 
         auto scroll_bars = [](auto master)
         {
@@ -1321,8 +1322,6 @@ utility like ctags is used to locate the definitions.
                             ->plugin<pro::align>()
                             ->plugin<pro::sizer>()
                             ->plugin<pro::frame>()
-                            ->plugin<pro::acryl>()
-                            ->plugin<pro::cache>()
                             ->invoke([&](ui::mold& boss){
                                 boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
                                 {
@@ -1371,9 +1370,11 @@ utility like ctags is used to locate the definitions.
                 default:
                 case Test:
                 {
-                    window->plugin<pro::title>(ansi::jet(bias::center) + "Test Page");
+                    window->plugin<pro::title>(ansi::jet(bias::center) + "Test Page")
+                          ->plugin<pro::acryl>()
+                          ->plugin<pro::cache>();
                     auto object0 = window->attach<ui::fork>(axis::Y)
-                                        ->plugin<pro::color>(whitelt, 0x60DB3700);
+                                        ->plugin<pro::color>(whitelt, 0xA0db3700);
                         auto menu = object0->attach<slot::_1>(main_menu())
                                           ->plugin<pro::color>(0, 0) //todo mouse tracking
                                           ->plugin<pro::mover>(window);
@@ -1421,9 +1422,11 @@ utility like ctags is used to locate the definitions.
                 }
                 case PowerShell:
                 {
-                    window->plugin<pro::title>("Term \nPowerShell");
+                    window->plugin<pro::title>("Term \nPowerShell")
+                          ->plugin<pro::acryl>()
+                          ->plugin<pro::cache>();
                     auto object = window->attach<ui::fork>(axis::Y)
-                                        ->plugin<pro::color>(whitelt, 0x60303030);
+                                        ->plugin<pro::color>(whitelt, term_menu_bg);
                         auto menu = object->attach<slot::_1>(main_menu())
                                           ->plugin<pro::color>(0, 0) //todo mouse tracking
                                           ->plugin<pro::mover>(window);
@@ -1439,14 +1442,16 @@ utility like ctags is used to locate the definitions.
                 }
                 case CommandPrompt:
                 {
-                    window->plugin<pro::title>("Term \nCommand Prompt");
-                    auto object0 = window->attach<ui::fork>(axis::Y)
-                                        ->plugin<pro::color>(whitelt, 0x60303030);
-                        auto menu = object0->attach<slot::_1>(main_menu())
+                    window->plugin<pro::title>("Term \nCommand Prompt")
+                          ->plugin<pro::acryl>()
+                          ->plugin<pro::cache>();
+                    auto object = window->attach<ui::fork>(axis::Y)
+                                        ->plugin<pro::color>(whitelt, term_menu_bg);
+                        auto menu = object->attach<slot::_1>(main_menu())
                                           ->plugin<pro::color>(0, 0) //todo mouse tracking
                                           ->plugin<pro::mover>(window);
-                    auto layers = object0->attach<slot::_2, ui::cake>()
-                                         ->plugin<pro::limit>(dot_11, twod{ 400,200 });
+                    auto layers = object->attach<slot::_2, ui::cake>()
+                                        ->plugin<pro::limit>(dot_11, twod{ 400,200 });
                     auto scroll = layers->attach<ui::rail>()
                                         ->plugin<pro::mover>(window);
                         #ifdef DEMO
@@ -1455,14 +1460,14 @@ utility like ctags is used to locate the definitions.
                         #endif
 
                         #if defined(_WIN32)
-                            auto object = scroll->attach<ui::term>("cmd");
+                            auto inst = scroll->attach<ui::term>("cmd");
                         #elif defined(__linux__)
-                            auto object = scroll->attach<ui::term>("bash");
+                            auto inst = scroll->attach<ui::term>("bash");
                         #elif defined(__APPLE__)
-                            auto object = scroll->attach<ui::term>("zsh");
+                            auto inst = scroll->attach<ui::term>("zsh");
                         #endif
 
-                        object->plugin<pro::color>(whitelt, blackdk);
+                        inst->plugin<pro::color>(whitelt, blackdk);
 
                     layers->attach(scroll_bars_term(scroll));
                     break;
@@ -1494,9 +1499,11 @@ utility like ctags is used to locate the definitions.
                 }
                 case Truecolor:
                 {
-                    window->plugin<pro::title>(ansi::jet(bias::right) + "True color ANSI/ASCII image test");
+                    window->plugin<pro::title>(ansi::jet(bias::right) + "True color ANSI/ASCII image test")
+                          ->plugin<pro::acryl>()
+                          ->plugin<pro::cache>();
                     auto object = window->attach<ui::fork>(axis::Y)
-                                        ->plugin<pro::color>(whitelt, 0x601F0FC4);
+                                        ->plugin<pro::color>(whitelt, 0xA01f0fc4);
                         auto menu = object->attach<slot::_1>(main_menu())
                                           ->plugin<pro::color>(0, 0) //todo mouse tracking
                                           ->plugin<pro::mover>(window);
@@ -1515,7 +1522,8 @@ utility like ctags is used to locate the definitions.
                 }
                 case Empty:
                 {
-                    window->plugin<pro::title>(ansi::mgl(1).mgr(1) + "Empty Instance \nid: " + std::to_string(window->id));
+                    window->plugin<pro::title>(ansi::mgl(1).mgr(1) + "Empty Instance \nid: " + std::to_string(window->id))
+                          ->plugin<pro::acryl>();
                     auto object = window->attach<ui::mock>()
                                         ->plugin<pro::color>(0,0) //todo mouse tracking
                                         ->plugin<pro::mover>(window);
@@ -1524,7 +1532,9 @@ utility like ctags is used to locate the definitions.
                 case Shop:
                 {
                     window->plugin<pro::title>("Desktopio App Store", faux)
-                          ->plugin<pro::color>(whitelt, 0x60000000);
+                          ->plugin<pro::color>(whitelt, 0x60000000)
+                          ->plugin<pro::acryl>()
+                          ->plugin<pro::cache>();
                     window->highlight_center = faux;
                     auto object = window->attach<ui::fork>(axis::Y)
                                         ->plugin<pro::color>(whitelt, 0);
@@ -1555,7 +1565,9 @@ utility like ctags is used to locate the definitions.
                     static iota i = 0; i++;
                     window->plugin<pro::title>(ansi::jet(bias::right) + "Spreadsheet\n ~/Untitled " + std::to_string(i) + ".ods")
                           ->plugin<pro::color>(whitelt, 0x601A5f00)
-                          ->plugin<pro::limit>(twod{ -1,-1 },twod{ 136,105 });
+                          ->plugin<pro::limit>(twod{ -1,-1 },twod{ 136,105 })
+                          ->plugin<pro::acryl>()
+                          ->plugin<pro::cache>();
                     window->highlight_center = faux;
                     auto object = window->attach<ui::fork>(axis::Y)
                                         ->plugin<pro::color>(whitelt, 0);
@@ -1628,10 +1640,12 @@ utility like ctags is used to locate the definitions.
                 case Text:
                 {
                     static iota i = 0; i++;
-                    window->plugin<pro::title>(ansi::jet(bias::center) + "Text Editor\n ~/Untitled " + std::to_string(i) + ".txt");
+                    window->plugin<pro::title>(ansi::jet(bias::center) + "Text Editor\n ~/Untitled " + std::to_string(i) + ".txt")
+                          ->plugin<pro::acryl>()
+                          ->plugin<pro::cache>();
                     //window->highlight_center = faux;
                     auto object = window->attach<ui::fork>(axis::Y)
-                                        ->plugin<pro::color>(whitelt, 0x605f1A00);
+                                        ->plugin<pro::color>(whitelt, 0xA05f1a00);
                         auto menu = object->attach<slot::_1>(main_menu())
                                           ->plugin<pro::color>(0, 0) //todo mouse tracking
                                           ->plugin<pro::mover>(window);
@@ -1656,9 +1670,11 @@ utility like ctags is used to locate the definitions.
                 }
                 case VTM:
                 {
-                    window->plugin<pro::title>("Term \n" + objs_desc[VTM]);
+                    window->plugin<pro::title>("Term \n" + objs_desc[VTM])
+                          ->plugin<pro::acryl>()
+                          ->plugin<pro::cache>();
                     auto object = window->attach<ui::fork>(axis::Y)
-                                        ->plugin<pro::color>(whitelt, 0x60303030);
+                                        ->plugin<pro::color>(whitelt, term_menu_bg);
                         auto menu = object->attach<slot::_1>(main_menu())
                                           ->plugin<pro::color>(0, 0) //todo mouse tracking
                                           ->plugin<pro::mover>(window);
@@ -1690,9 +1706,11 @@ utility like ctags is used to locate the definitions.
                 }
                 case Far:
                 {
-                    window->plugin<pro::title>("Term \n" + objs_desc[Far]);
+                    window->plugin<pro::title>("Term \n" + objs_desc[Far])
+                          ->plugin<pro::acryl>()
+                          ->plugin<pro::cache>();
                     auto object = window->attach<ui::fork>(axis::Y)
-                                        ->plugin<pro::color>(whitelt, 0x60303030);
+                                        ->plugin<pro::color>(whitelt, term_menu_bg);
                         auto menu = object->attach<slot::_1>(main_menu())
                                           ->plugin<pro::color>(0, 0) //todo mouse tracking
                                           ->plugin<pro::mover>(window);
@@ -1706,9 +1724,11 @@ utility like ctags is used to locate the definitions.
                 }
                 case MC:
                 {
-                    window->plugin<pro::title>("Term \n" + objs_desc[MC]);
+                    window->plugin<pro::title>("Term \n" + objs_desc[MC])
+                          ->plugin<pro::acryl>()
+                          ->plugin<pro::cache>();
                     auto object = window->attach<ui::fork>(axis::Y)
-                                        ->plugin<pro::color>(whitelt, 0x60303030);
+                                        ->plugin<pro::color>(whitelt, term_menu_bg);
                         auto menu = object->attach<slot::_1>(main_menu())
                                           ->plugin<pro::color>(0, 0) //todo mouse tracking
                                           ->plugin<pro::mover>(window);
@@ -1743,9 +1763,11 @@ utility like ctags is used to locate the definitions.
                 case Bash:
                 case Term:
                 {
-                    window->plugin<pro::title>("Term \n" + objs_desc[Bash]);
+                    window->plugin<pro::title>("Term \n" + objs_desc[Bash])
+                          ->plugin<pro::acryl>()
+                          ->plugin<pro::cache>();
                     auto object = window->attach<ui::fork>(axis::Y)
-                                        ->plugin<pro::color>(whitelt, 0x60303030);
+                                        ->plugin<pro::color>(whitelt, term_menu_bg);
                         auto menu = object->attach<slot::_1>(main_menu())
                                           ->plugin<pro::color>(0, 0) //todo mouse tracking
                                           ->plugin<pro::mover>(window);
@@ -1776,9 +1798,11 @@ utility like ctags is used to locate the definitions.
                 }
                 case Logs:
                 {
-                    window->plugin<pro::title>("Logs \nVT monitoring tool");
+                    window->plugin<pro::title>("Logs \nVT monitoring tool")
+                          ->plugin<pro::acryl>()
+                          ->plugin<pro::cache>();
                     auto object = window->attach<ui::fork>(axis::Y)
-                                        ->plugin<pro::color>(whitelt, 0x60303030);
+                                        ->plugin<pro::color>(whitelt, term_menu_bg);
                         auto menu = object->attach<slot::_1>(main_menu())
                                           ->plugin<pro::color>(0, 0) //todo mouse tracking
                                           ->plugin<pro::mover>(window);

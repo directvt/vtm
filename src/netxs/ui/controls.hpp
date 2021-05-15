@@ -2172,8 +2172,6 @@ namespace netxs::ui
                 if (base::status.invalid)
                 {
                     canvas.wipe();
-                    //base::renderproc(canvas);
-                    //redraw();
                     canvas.wipe(base::brush);
                     canvas.output(topic);
                     auto cp = canvas.cp();
@@ -2181,14 +2179,12 @@ namespace netxs::ui
                     cp.y -= 3;
                     grip_ctl->base::moveto(cp);
                     canvas.render(grip_ctl, base::coor.get());
-                    //this->SIGNAL(e2::release, e2::form::upon::redrawn, canvas);
                 }
             };
             SUBMIT(e2::release, e2::postrender, parent_canvas)
             {
                 if (base::status.invalid)
                 {
-                    //base::postrender(canvas);
                     base::status.invalid = faux;
                 }
                 parent_canvas.plot(canvas);

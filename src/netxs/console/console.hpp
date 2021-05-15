@@ -4004,6 +4004,8 @@ namespace netxs::console
                   canvas{*(coreface = std::make_shared<face>())}
             {
                 canvas.link(boss.bell::id);
+                canvas.move(boss.base::coor.get());
+                canvas.size(boss.base::size.get());
                 boss.SUBMIT_T(e2::release, e2::form::upon::vtree::attached, memo, parent_ptr)
                 {
                     boss.SIGNAL(e2::general, e2::form::canvas, canvas.shared_from_this());
