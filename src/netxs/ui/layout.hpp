@@ -1100,6 +1100,7 @@ namespace netxs::ui::atoms
         auto   area        ()              const { return size.x * size.y;                  }
         twod   map         (twod const& p) const { return p - coor;                         }
         rect   shift       (twod const& p) const { return { coor + p, size };               }
+        auto&  shift_itself(twod const& p)       { coor += p; return *this;                 }
         rect   operator &  (rect const& r) const { return clip(r);                          }
         rect   operator +  (rect const& r) const { return { coor + r.coor, size + r.size }; }
         rect   operator -  (rect const& r) const { return { coor - r.coor, size - r.size }; }
@@ -1193,7 +1194,7 @@ namespace netxs::ui::atoms
 
             return r;
         }
-        void normalize_itself()
+        auto& normalize_itself()
         {
             if (size.x < 0)
             {
@@ -1216,6 +1217,7 @@ namespace netxs::ui::atoms
                 coor.y = coor.y;
                 size.y = size.y;
             }
+            return *this;
         }
         // rect: Intersect the rect with rect{ dot_00, edge }.
         rect trunc(twod const& edge) const
@@ -1514,19 +1516,19 @@ namespace netxs::ui::atoms
             head = q(0);
             foot = q(0);
         }
-        // dent: Return size without padding.
+        // dent: Return size with padding.
         friend auto operator + (twod const& size, dent const& pad)
         {
             return twod{ std::max(0, size.x + (pad.west.step + pad.east.step)),
                          std::max(0, size.y + (pad.head.step + pad.foot.step)) };
         }
-        // dent: Return size with padding.
+        // dent: Return size without padding.
         friend auto operator - (twod const& size, dent const& pad)
         {
             return twod{ std::max(0, size.x - (pad.west.step + pad.east.step)),
                          std::max(0, size.y - (pad.head.step + pad.foot.step)) };
         }
-        // dent: Return area without padding.
+        // dent: Return area with padding.
         friend auto operator + (rect const& area, dent const& pad)
         {
             return rect{{ area.coor.x - pad.west.step,
@@ -1534,7 +1536,7 @@ namespace netxs::ui::atoms
                         { std::max(0, area.size.x + (pad.west.step + pad.east.step)),
                           std::max(0, area.size.y + (pad.head.step + pad.foot.step)) }};
         }
-        // dent: Return area with padding.
+        // dent: Return area without padding.
         friend auto operator - (rect const& area, dent const& pad)
         {
             return rect{ { area.coor.x + pad.west.step,

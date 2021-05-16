@@ -90,7 +90,7 @@ namespace netxs::ui
             if (child) backup->T::attach(child, std::forward<Args>(args)...);
             return backup;
         }
-        // form: Boss will be detached when the master is dtor'ed.
+        // form: UI-control will be detached when the master is detached.
         auto depend(sptr<base> master_ptr)
         {
             auto& master = *master_ptr;
@@ -103,7 +103,7 @@ namespace netxs::ui
             };
             return This<T>();
         }
-        // form: Boss will be detached when the last item of collection is dtor'ed.
+        // form: UI-control will be detached when the last item of collection is detached.
         template<class S>
         auto depend_on_collection(S data_collection_src)
         {
@@ -457,7 +457,8 @@ namespace netxs::ui
             if (client_1 == item_ptr ? (client_1.reset(), true) :
                 client_2 == item_ptr ? (client_2.reset(), true) : faux)
             {
-                item_ptr->SIGNAL(e2::release, e2::form::upon::vtree::detached, This());
+                auto backup = This();
+                item_ptr->SIGNAL(e2::release, e2::form::upon::vtree::detached, backup);
             }
         }
     };
@@ -568,8 +569,9 @@ namespace netxs::ui
             auto item = std::find_if(head, tail, [&](auto& c){ return c.first == item_ptr; });
             if (item != tail)
             {
+                auto backup = This();
                 subset.erase(item);
-                item_ptr->SIGNAL(e2::release, e2::form::upon::vtree::detached, This());
+                item_ptr->SIGNAL(e2::release, e2::form::upon::vtree::detached, backup);
             }
         }
         // list: Update nested object.
@@ -581,10 +583,11 @@ namespace netxs::ui
             auto item = std::find_if(head, tail, [&](auto& c){ return c.first == old_item_ptr; });
             if (item != tail)
             {
+                auto backup = This();
                 auto pos = subset.erase(item);
-                old_item_ptr->SIGNAL(e2::release, e2::form::upon::vtree::detached, This());
+                old_item_ptr->SIGNAL(e2::release, e2::form::upon::vtree::detached, backup);
                 subset.insert(pos, std::pair{ new_item_ptr, 0 });
-                new_item_ptr->SIGNAL(e2::release, e2::form::upon::vtree::attached, This());
+                new_item_ptr->SIGNAL(e2::release, e2::form::upon::vtree::attached, backup);
             }
         }
     };
@@ -653,8 +656,9 @@ namespace netxs::ui
             auto item = std::find_if(head, tail, [&](auto& c){ return c == item_ptr; });
             if (item != tail)
             {
+                auto backup = This();
                 subset.erase(item);
-                item_ptr->SIGNAL(e2::release, e2::form::upon::vtree::detached, This());
+                item_ptr->SIGNAL(e2::release, e2::form::upon::vtree::detached, backup);
             }
         }
     };
@@ -1167,17 +1171,19 @@ namespace netxs::ui
         {
             if (client == item_ptr)
             {
+                auto backup = This();
                 client.reset();
-                item_ptr->SIGNAL(e2::release, e2::form::upon::vtree::detached, This());
+                item_ptr->SIGNAL(e2::release, e2::form::upon::vtree::detached, backup);
             }
         }
         // rail: Update nested object.
         template<class T, class S>
         void update(T old_item_ptr, S new_item_ptr)
         {
+            auto backup = This();
             client = new_item_ptr;
-            old_item_ptr->SIGNAL(e2::release, e2::form::upon::vtree::detached, This());
-            new_item_ptr->SIGNAL(e2::release, e2::form::upon::vtree::attached, This());
+            old_item_ptr->SIGNAL(e2::release, e2::form::upon::vtree::detached, backup);
+            new_item_ptr->SIGNAL(e2::release, e2::form::upon::vtree::attached, backup);
         }
     };
 
@@ -1619,17 +1625,19 @@ namespace netxs::ui
         {
             if (client == item_ptr)
             {
+                auto backup = This();
                 client.reset();
-                item_ptr->SIGNAL(e2::release, e2::form::upon::vtree::detached, This());
+                item_ptr->SIGNAL(e2::release, e2::form::upon::vtree::detached, backup);
             }
         }
         // pads: Update nested object.
         template<class T, class S>
         void update(T old_item_ptr, S new_item_ptr)
         {
+            auto backup = This();
             client = new_item_ptr;
-            old_item_ptr->SIGNAL(e2::release, e2::form::upon::vtree::detached, This());
-            new_item_ptr->SIGNAL(e2::release, e2::form::upon::vtree::attached, This());
+            old_item_ptr->SIGNAL(e2::release, e2::form::upon::vtree::detached, backup);
+            new_item_ptr->SIGNAL(e2::release, e2::form::upon::vtree::attached, backup);
         }
     };
 

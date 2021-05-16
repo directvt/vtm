@@ -2227,7 +2227,7 @@ utility like ctags is used to locate the definitions.
                                 + ansi::fgc4(data_src->id == my_id ? rgba::color256[whitelt] : 0x00) + utf8, true);
                             return item_area;
                         };
-                        auto branch_template = [&](auto& data_src, auto& usr_list){
+                        auto branch_template = [&, user_template](auto& data_src, auto& usr_list){
                             auto users = base::create<ui::list>()
                                 ->attach_collection<e2::form::prop::header>(*usr_list, user_template);
                             return users;

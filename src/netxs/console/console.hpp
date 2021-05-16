@@ -1572,7 +1572,6 @@ namespace netxs::console
                 twod dtcoor; // sock: The form coor parameter change factor while resizing.
                 twod dtsize; // sock: The form size parameter change factor while resizing.
                 twod sector; // sock: Active quadrant, x,y = {-1|+1}. Border widths.
-                twod corner; // sock: Coordinates of the active corner.
                 rect hzgrip; // sock: Horizontal grip.
                 rect vtgrip; // sock: Vertical grip.
                 twod widths; // sock: Grip's widths.
@@ -1586,11 +1585,15 @@ namespace netxs::console
                       seized{ faux }
                 { }
                 operator bool(){ return inside || seized; }
-                auto grab(twod const& curpos)
+                auto corner(twod const& length)
+                {
+                    return dtcoor.less(dot_11, length, dot_00);
+                }
+                auto grab(base const& master, twod curpos, dent const& outer)
                 {
                     if (inside)
                     {
-                        origin = curpos - corner;
+                        origin = curpos - corner(master.base::size.get() + outer);
                         seized = true;
                     }
                     return seized;
@@ -1613,28 +1616,26 @@ namespace netxs::console
                         widths = sector.less(dot_00, twod{-border.east.step,-border.foot.step },
                                                      twod{ border.west.step, border.head.step });
                     }
-                    corner = dtcoor.less(dot_11, length, dot_00);
-                    auto l = sector * (curpos - corner);
+                    auto l = sector * (curpos - corner(length));
                     auto a = center * l / center;
                     auto b = center *~l /~center;
                     auto s = sector * std::max(a - b + center, dot_00);
 
-                    hzgrip.coor = corner;
-                    hzgrip.coor.x+= widths.x;
+                    hzgrip.coor.x = widths.x;
+                    hzgrip.coor.y = 0;
                     hzgrip.size.y = widths.y;
                     hzgrip.size.x = s.x;
-                    hzgrip.normalize_itself();
 
-                    vtgrip.coor = corner;
+                    vtgrip.coor = dot_00;
                     vtgrip.size = widths;
                     vtgrip.size.y += s.y;
-                    vtgrip.normalize_itself();
                 }
-                auto drag(base& master, twod const& curpos)
+                auto drag(base& master, twod const& curpos, dent const& outer)
                 {
                     if (seized)
                     {
-                        auto delta = curpos - corner - origin;
+                        auto width = master.base::size.get() + outer;
+                        auto delta = curpos - corner(width) - origin;
                         if (auto dxdy = master.base::sizeby(delta * dtsize))
                         {
                             master.base::moveby(-dxdy * dtcoor);
@@ -1655,14 +1656,22 @@ namespace netxs::console
             dent inner;
             dent width;
 
+            template<bool CONST_WARN = true>
             auto& take(hids& gear)
             {
                 for (auto& item : items) // Linear search, because a few items.
                     if (item.id == gear.id)
                         return item;
 
-                log("pro::sizer: error: access to unregistered input device, id:", gear.id);
+                if constexpr (CONST_WARN)
+                    log("pro::sizer: error: access to unregistered input device, id:", gear.id);
                 return items.emplace_back(gear.id);
+            }
+            template<class P>
+            void each(P proc)
+            {
+                for (auto& item : items)
+                    if (item) proc(item);
             }
 
         public:
@@ -1681,43 +1690,32 @@ namespace netxs::console
             {
                 boss.SUBMIT_T(e2::release, e2::postrender, memo, canvas)
                 {
-                    auto area = rect{dot_00,boss.size.get()} + outer;
-                    area.coor += canvas.full().coor;
-                    canvas.cage(area, width, [&](cell& c){ c.link(boss.id); });
+                    auto area = canvas.full() + outer;
                     auto fuse = [&](cell& c){ c.xlight(); };
-                    for (auto& item : items)
-                        if (item)
-                        {
-                            auto area = canvas.full() + outer;
-                            auto side_x = item.hzgrip.shift(area.coor).clip(area);
-                            auto side_y = item.vtgrip.shift(area.coor).clip(area);
+                    canvas.cage(area, width, [&](cell& c){ c.link(boss.id); });
+                    each([&](sock& item){
+                            auto corner = item.corner(area.size);
+                            auto side_x = item.hzgrip.shift(corner).normalize_itself()
+                                                     .shift_itself(area.coor).clip(area);
+                            auto side_y = item.vtgrip.shift(corner).normalize_itself()
+                                                     .shift_itself(area.coor).clip(area);
                             canvas.fill(side_x, fuse);
                             canvas.fill(side_y, fuse);
-                        }
+                        });
                 };
                 boss.SUBMIT_T(e2::release, e2::form::notify::mouse::enter, memo, gear)
                 {
-                    for (auto& item : items) // Linear search, because a few items.
-                        if (item.id == gear.id)
-                        {
-                            ++item.count;
-                            return;
-                        }
-                    auto& item = items.emplace_back(gear.id);
+                    auto& item = take<faux>(gear);
                     ++item.count;
                 };
                 boss.SUBMIT_T(e2::release, e2::form::notify::mouse::leave, memo, gear)
                 {
-                    for (auto& item : items) // Linear search, because a few items.
-                        if (item.id == gear.id)
-                        {
-                            if (--item.count < 1) // item.count could but equal to 0 due to unregistered access.
-                            {
-                                if (items.size() > 1) item = items.back(); // Remove an item without allocations.
-                                items.pop_back();
-                            }
-                            return;
-                        }
+                    auto& item = take(gear);
+                    if (--item.count < 1) // item.count could but equal to 0 due to unregistered access.
+                    {
+                        if (items.size() > 1) item = items.back(); // Remove an item without allocations.
+                        items.pop_back();
+                    }
                 };
                 engage<sysmouse::left>();
             }
@@ -1733,12 +1731,12 @@ namespace netxs::console
                 };
                 boss.SUBMIT(e2::release, e2::message(e2::form::drag::start::any, button), gear)
                 {
-                    if (take(gear).grab(gear.coord))
+                    if (take(gear).grab(boss, gear.coord, outer))
                         gear.dismiss();
                 };
                 boss.SUBMIT(e2::release, e2::message(e2::form::drag::pull::any, button), gear)
                 {
-                    if (take(gear).drag(boss, gear.coord))
+                    if (take(gear).drag(boss, gear.coord, outer))
                         gear.dismiss();
                 };
                 boss.SUBMIT(e2::release, e2::message(e2::form::drag::cancel::any, button), gear)
@@ -5421,6 +5419,8 @@ again:
         {
             //todo cache specific
             canvas.link(bell::id);
+            canvas.move(base::coor.get());
+            canvas.size(base::size.get());
             SUBMIT(e2::release, base::size_event, new_sz) { canvas.mark(base::brush); canvas.size(new_sz); };
             SUBMIT(e2::release, base::move_event, new_xy) { canvas.move(new_xy); };
             SUBMIT(e2::request, e2::form::canvas, canvas) { canvas = coreface; };
@@ -5520,7 +5520,7 @@ again:
             };
 
             // gate: Draw the form composition on the specified canvas.
-            SUBMIT(e2::release, e2::render::any, parent_canvas)
+            SUBMIT(e2::release, e2::render::prerender, parent_canvas)
             {
                 // Draw a shadow of user's terminal window for other users (spectators)
                 // see pro::scene.
@@ -5534,6 +5534,7 @@ again:
                     mark.bga(mark.bga() / 2);
                     parent_canvas.fill(area, [&](cell& c){ c.fuse(mark); });
                 }
+                bell::expire(e2::release); // In order to disable base::render for gate.
             };
             SUBMIT(e2::release, e2::postrender, parent_canvas)
             {
@@ -5561,13 +5562,17 @@ again:
                     //	log ("---- hover id ", hover_id);
                     //}
                     //auto& header = *title.header().lyric;
-                    auto& header = *uname.lyric;
-                    area.coor += parent_canvas.area().coor;
-                    area.coor.y--;
-                    area.coor.x -= (iota)header.size().x / 2;
-                    //todo unify header coords
-                    header.move(area.coor);
-                    parent_canvas.fill(header);
+                    if (uname.lyric)
+                    {
+                        auto& header = *uname.lyric;
+                        area.coor += parent_canvas.area().coor;
+                        area.coor.y--;
+                        area.coor.x -= (iota)header.size().x / 2;
+                        //todo unify header coords
+                        header.move(area.coor);
+                        parent_canvas.fill(header);
+                    }
+                    else log("gate: username undefined");
                 }
                 else
                 {
