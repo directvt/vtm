@@ -154,167 +154,6 @@ namespace netxs::ui
         }
     };
 
-    // controls: Floating window.
-    class mold
-        : public form<mold>
-    {
-        sptr<base> client; // mold: Client object.
-
-    public:
-        rgba title_fg_color = 0xFFffffff;
-        bool only_frame = faux;
-        bool highlight_center = true;
-        bool highlighted = faux;
-        bool active = faux; // mold: Keyboard focus.
-
-        ~mold()
-        {
-            if (client) client->base::detach();
-        }
-        mold()
-        {
-            SUBMIT(e2::release, e2::form::state::keybd, status)
-            {
-                active = status;
-                base::deface();
-            };
-            SUBMIT(e2::release, e2::form::highlight::any, state)
-            {
-                highlighted = state;
-                base::deface();
-            };
-
-            SUBMIT(e2::preview, e2::form::layout::size, new_size)
-            {
-                if (client)
-                    client->SIGNAL(e2::preview, e2::form::layout::size, new_size);
-            };
-            SUBMIT(e2::release, e2::form::layout::size, new_size)
-            {
-                if (client)
-                    client->SIGNAL(e2::release, e2::form::layout::size, new_size);
-            };
-
-            SUBMIT(e2::release, e2::render::any, parent_canvas)
-            {
-                auto normal = base::brush;
-                auto fuse_normal = [&](cell& c) { c.fuse(normal); };
-                //todo unify - make pro::theme
-                //acryl = 5;// 100;
-
-                // Draw highlighting
-                if (highlighted)
-                {
-                    // Draw the border around
-                    auto area = parent_canvas.full();
-                    auto mark = skin::color(tone::brighter);
-                    mark.fgc(title_fg_color); //todo unify, make it more contrast
-                    auto fill = [&](cell& c) { c.fuse(mark); };
-                    parent_canvas.fill(area, fill);
-                }
-
-                //todo revise
-                // Draw only frame. It is used in View only
-                if (only_frame)
-                {
-                    auto area = parent_canvas.full();
-                    auto mark = skin::color(tone::shadower);
-                    mark.fgc(title_fg_color).link(bell::id);
-                    auto fill = [&](cell& c) { c.fusefull(mark); };
-                    parent_canvas.cage(area, dot_21, fill);
-                    //this->SIGNAL(e2::release, e2::form::upon::redrawn, parent_canvas); // to draw the title and footer
-                    return;
-                }
-
-                if (!active)
-                {
-                    if (base::brush.bga() == 0xFF) parent_canvas.fill(fuse_normal);
-                    //if (!blurred || base::brush.bga() == 0xFF) parent_canvas.fill(fuse_normal);
-                    //else if (base::brush.wdt())                parent_canvas.blur(acryl, fuse_normal);
-                    //else                                       parent_canvas.blur(acryl);
-                }
-                else
-                {
-                    auto bright = skin::color(tone::brighter);
-                    auto shadow = skin::color(tone::shadower);
-
-                    //todo unify, make it more contrast
-                    shadow.alpha(0x80);
-                    bright.fgc(title_fg_color);
-                    shadow.fgc(title_fg_color);
-
-                    bool isnorm = !active;
-                        //!active && guests.end() == std::find_if(guests.begin(), guests.end(),
-                        //                            [](auto& a) { return a.wholly; });
-                    //auto guides = [&](auto bright)
-                    //{
-                    //    for (auto& grip : guests)
-                    //            grip.draw(*this, parent_canvas, bright);
-                    //};
-                    auto fillup = [&](auto bright, auto shadow)
-                    {
-                        parent_canvas.fill(shadow);
-                        //guides(bright);
-                    };
-                    auto fuse_bright = [&](cell& c) { c.fuse(normal); c.fuse(bright); };
-                    auto fuse_shadow = [&](cell& c) { c.fuse(normal); c.fuse(shadow); };
-
-                    auto only_bright = [&](cell& c) { c.fuse(bright); };
-                    auto only_shadow = [&](cell& c) { c.fuse(shadow); };
-
-                    //if (blurred && !isnorm) bright.alpha(highlight_center ? bright.bga() >> 1 : 0); // too bright when selected
-                    if (!isnorm) bright.alpha(highlight_center ? bright.bga() >> 1 : 0); // too bright when selected
-                    if (normal.bgc().alpha())
-                    {
-                        if (isnorm) fillup(fuse_bright, fuse_normal);
-                        else        fillup(fuse_shadow, fuse_bright);
-                    }
-                    else
-                    {
-                        if (isnorm) ;//guides(fuse_bright);
-                        else        fillup(only_shadow, only_bright);
-                    }
-
-                    // Draw kb focus
-                    if (active)
-                    {
-                        // Draw the border around
-                        auto area = parent_canvas.full();
-                        auto mark = skin::color(tone::kb_focus);
-                        mark.fgc(title_fg_color); //todo unify, make it more contrast
-                        auto fill = [&](cell& c) { c.fuse(mark); };
-                        parent_canvas.cage(area, dot_11, fill);
-                    }
-                }
-
-                parent_canvas.render(client, base::coor.get());
-            };
-        }
-        // mold: Attach specified item.
-        template<class T>
-        auto attach(sptr<T> item)
-        {
-            client = item;
-            item->SIGNAL(e2::release, e2::form::upon::vtree::attached, This());
-            return item;
-        }
-        // mold: Create a new item of the specified subtype and attach it.
-        template<class T, class ...Args>
-        auto attach(Args&&... args)
-        {
-            return attach(base::create<T>(std::forward<Args>(args)...));
-        }
-        // mold: Remove nested object by it's ptr.
-        void remove(sptr<base> item_ptr)
-        {
-            if (client == item_ptr)
-            {
-                client.reset();
-                item_ptr->SIGNAL(e2::release, e2::form::upon::vtree::detached, This());
-            }
-        }
-    };
-
     // controls: Splitter control.
     class fork
         : public form<fork>
@@ -1931,21 +1770,18 @@ namespace netxs::ui
             };
             SUBMIT(e2::release, e2::render::any, parent_canvas)
             {
-                if (base::status.invalid)
+                if (base::invalid)
                 {
                     canvas.wipe();
-                    //base::renderproc(canvas);
-                    //redraw();
                     canvas.wipe();
                     canvas.output(topic);
                 }
             };
             SUBMIT(e2::release, e2::postrender, parent_canvas)
             {
-                if (base::status.invalid)
+                if (base::invalid)
                 {
-                    //base::postrender(canvas);
-                    base::status.invalid = faux;
+                    base::invalid = faux;
                 }
                 parent_canvas.plot(canvas);
             };
@@ -2169,7 +2005,7 @@ namespace netxs::ui
             };
             SUBMIT(e2::release, e2::render::any, parent_canvas)
             {
-                if (base::status.invalid)
+                if (base::invalid)
                 {
                     canvas.wipe();
                     canvas.wipe(base::brush);
@@ -2183,9 +2019,9 @@ namespace netxs::ui
             };
             SUBMIT(e2::release, e2::postrender, parent_canvas)
             {
-                if (base::status.invalid)
+                if (base::invalid)
                 {
-                    base::status.invalid = faux;
+                    base:: invalid = faux;
                 }
                 parent_canvas.plot(canvas);
             };
