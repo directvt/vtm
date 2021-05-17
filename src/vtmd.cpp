@@ -1,7 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#define MONOTTY_VER "Monotty Desktopio Preview v0.3.6"
+#define MONOTTY_VER "Monotty Desktopio Preview v0.3.7"
 // Autostart demo apps.
 //#define DEMO
 // Enable keyboard input and disable exit by single Esc.
@@ -2233,9 +2233,10 @@ utility like ctags is used to locate the definitions.
                     auto window = client->attach<ui::cake>();
                         auto taskbar = window->attach<ui::fork>(axis::X)
                                             ->attach<slot::_1, ui::fork>(axis::Y)
-                                            ->plugin<pro::color>(whitedk, 0xD0202020)
+                                            ->plugin<pro::color>(whitedk, 0x60202020)
                                             ->plugin<pro::limit>(twod{ 4,-1 }, twod{ 4,-1 })
                                             ->plugin<pro::timer>()
+                                            ->plugin<pro::acryl>()
                                             ->plugin<pro::cache>()
                                             ->invoke([&](auto& boss) mutable {
                                                         boss.mouse.template draggable<sysmouse::left>();
