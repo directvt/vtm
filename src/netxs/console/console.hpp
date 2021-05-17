@@ -1556,18 +1556,63 @@ namespace netxs::console
             skill(base&&) = delete;
             skill(base& boss) : boss{ boss } { }
             virtual ~skill() = default; // In order to allow man derived class via base ptr.
+
+            template<class T>
+            struct socks
+            {
+                struct sock : public T
+                {
+                    id_t    id; // sock: Hids ID.
+                    iota count; // sock: Clients count.
+                    sock(id_t ctrl)
+                        :    id{ ctrl },
+                          count{ 0    }
+                    { }
+                    operator bool(){ return T::operator bool(); }
+                };
+
+                std::vector<sock> items;
+
+                template<bool CONST_WARN = true>
+                auto& take(hids& gear)
+                {
+                    for (auto& item : items) // Linear search, because a few items.
+                        if (item.id == gear.id)
+                            return item;
+
+                    if constexpr (CONST_WARN)
+                        log("pro::sizer: error: access to unregistered input device, id:", gear.id);
+                    return items.emplace_back(gear.id);
+                }
+                template<class P>
+                void foreach(P proc)
+                {
+                    for (auto& item : items)
+                        if (item) proc(item);
+                }
+                void add(hids& gear)
+                {
+                    auto& item = take(gear);
+                    ++item.count;
+                }
+                void dec(hids& gear)
+                {
+                    auto& item = take(gear);
+                    if (--item.count < 1) // item.count could but equal to 0 due to unregistered access.
+                    {
+                        if (items.size() > 1) item = items.back(); // Remove an item without allocations.
+                        items.pop_back();
+                    }
+                }
+            };
         };
 
         // pro: Provides resizing by dragging.
         class sizer
             : public skill
         {
-            using skill::boss,
-                  skill::memo;
-
             struct sock
             {
-                id_t     id; // sock: Hids ID.
                 twod origin; // sock: Grab's initial coord info.
                 twod dtcoor; // sock: The form coor parameter change factor while resizing.
                 twod dtsize; // sock: The form size parameter change factor while resizing.
@@ -1577,11 +1622,9 @@ namespace netxs::console
                 twod widths; // sock: Grip's widths.
                 bool inside; // sock: Is active.
                 bool seized; // sock: Is seized.
-                iota count = 0;
 
-                sock(id_t ctrl)
-                    :     id{ ctrl },
-                      inside{ faux },
+                sock()
+                    : inside{ faux },
                       seized{ faux }
                 { }
                 operator bool(){ return inside || seized; }
@@ -1650,29 +1693,13 @@ namespace netxs::console
                 }
             };
 
-            using list = std::vector<sock>;
+            using list = socks<sock>;
+            using skill::boss,
+                  skill::memo;
             list items;
             dent outer;
             dent inner;
             dent width;
-
-            template<bool CONST_WARN = true>
-            auto& take(hids& gear)
-            {
-                for (auto& item : items) // Linear search, because a few items.
-                    if (item.id == gear.id)
-                        return item;
-
-                if constexpr (CONST_WARN)
-                    log("pro::sizer: error: access to unregistered input device, id:", gear.id);
-                return items.emplace_back(gear.id);
-            }
-            template<class P>
-            void each(P proc)
-            {
-                for (auto& item : items)
-                    if (item) proc(item);
-            }
 
         public:
             void props(dent const& outer_rect = {2,2,1,1}, dent const& inner_rect = {})
@@ -1693,29 +1720,24 @@ namespace netxs::console
                     auto area = canvas.full() + outer;
                     auto fuse = [&](cell& c){ c.xlight(); };
                     canvas.cage(area, width, [&](cell& c){ c.link(boss.id); });
-                    each([&](sock& item){
-                            auto corner = item.corner(area.size);
-                            auto side_x = item.hzgrip.shift(corner).normalize_itself()
-                                                     .shift_itself(area.coor).clip(area);
-                            auto side_y = item.vtgrip.shift(corner).normalize_itself()
-                                                     .shift_itself(area.coor).clip(area);
-                            canvas.fill(side_x, fuse);
-                            canvas.fill(side_y, fuse);
-                        });
+                    items.foreach([&](sock& item)
+                    {
+                        auto corner = item.corner(area.size);
+                        auto side_x = item.hzgrip.shift(corner).normalize_itself()
+                                                    .shift_itself(area.coor).clip(area);
+                        auto side_y = item.vtgrip.shift(corner).normalize_itself()
+                                                    .shift_itself(area.coor).clip(area);
+                        canvas.fill(side_x, fuse);
+                        canvas.fill(side_y, fuse);
+                    });
                 };
                 boss.SUBMIT_T(e2::release, e2::form::notify::mouse::enter, memo, gear)
                 {
-                    auto& item = take<faux>(gear);
-                    ++item.count;
+                    items.add(gear);
                 };
                 boss.SUBMIT_T(e2::release, e2::form::notify::mouse::leave, memo, gear)
                 {
-                    auto& item = take(gear);
-                    if (--item.count < 1) // item.count could but equal to 0 due to unregistered access.
-                    {
-                        if (items.size() > 1) item = items.back(); // Remove an item without allocations.
-                        items.pop_back();
-                    }
+                    items.dec(gear);
                 };
                 engage<sysmouse::left>();
             }
@@ -1726,26 +1748,26 @@ namespace netxs::console
                 boss.SIGNAL(e2::release, e2::message(e2::form::draggable::any, button), true);
                 boss.SUBMIT_T(e2::release, e2::hids::mouse::move, memo, gear)
                 {
-                    take(gear).calc(boss, gear.coord, outer, inner, width);
+                    items.take(gear).calc(boss, gear.coord, outer, inner, width);
                     boss.base::deface();
                 };
                 boss.SUBMIT(e2::release, e2::message(e2::form::drag::start::any, button), gear)
                 {
-                    if (take(gear).grab(boss, gear.coord, outer))
+                    if (items.take(gear).grab(boss, gear.coord, outer))
                         gear.dismiss();
                 };
                 boss.SUBMIT(e2::release, e2::message(e2::form::drag::pull::any, button), gear)
                 {
-                    if (take(gear).drag(boss, gear.coord, outer))
+                    if (items.take(gear).drag(boss, gear.coord, outer))
                         gear.dismiss();
                 };
                 boss.SUBMIT(e2::release, e2::message(e2::form::drag::cancel::any, button), gear)
                 {
-                    take(gear).drop();
+                    items.take(gear).drop();
                 };
                 boss.SUBMIT(e2::release, e2::message(e2::form::drag::stop::any, button), gear)
                 {
-                    take(gear).drop();
+                    items.take(gear).drop();
                     boss.SIGNAL(e2::release, e2::form::upon::dragged, gear);
                 };
             }
@@ -1755,18 +1777,9 @@ namespace netxs::console
         class mover
             : public skill
         {
-            using skill::boss,
-                  skill::memo;
-
             struct sock
             {
-                id_t      id; // sock: Hids ID.
                 twod  origin; // sock: Grab's initial coord info.
-                iota count = 0;
-
-                sock(id_t ctrl)
-                    :     id{ ctrl }
-                { }
                 void grab(base const& master, twod const& curpos)
                 {
                     auto center = master.base::size.get() / 2;
@@ -1781,19 +1794,12 @@ namespace netxs::console
                 }
             };
 
-            using list = std::vector<sock>;
-            list       depo;
+            using list = socks<sock>;
+            using skill::boss,
+                  skill::memo;
+            list       items;
             wptr<base> dest_shadow;
             sptr<base> dest_object;
-            auto& take(hids& gear)
-            {
-                for (auto& item : depo) // Linear search, because a few items.
-                    if (item.id == gear.id)
-                        return item;
-
-                log("pro::mover: error: access to unregistered input device, id:", gear.id);
-                return depo.emplace_back(gear.id);
-            }
 
         public:
             mover(base&&) = delete;
@@ -1803,34 +1809,13 @@ namespace netxs::console
             {
                 boss.SUBMIT_T(e2::release, e2::form::notify::mouse::enter, memo, gear)
                 {
-                    for (auto& item : depo) // Linear search, because a few items.
-                        if (item.id == gear.id)
-                        {
-                            ++item.count;
-                            return;
-                        }
-
-                    auto& item = depo.emplace_back(gear.id);
-                    ++item.count;
+                    items.add(gear);
                 };
                 boss.SUBMIT_T(e2::release, e2::form::notify::mouse::leave, memo, gear)
                 {
-                    for (auto& item : depo) // Linear search, because a few items.
-                        if (item.id == gear.id)
-                        {
-                            if (--item.count < 1) // item.count could but equal to 0 due to unregistered access.
-                            {
-                                if (depo.size() > 1) item = depo.back(); // Remove an item without allocations.
-                                depo.pop_back();
-                            }
-                            return;
-                        }
+                    items.dec(gear);
                 };
                 engage<sysmouse::left>();
-            }
-            auto& items()
-            {
-                return depo;
             }
             // pro::mover: Configuring the mouse button to operate.
             template<sysmouse::bttns button>
@@ -1841,7 +1826,7 @@ namespace netxs::console
                 {
                     if ((dest_object = dest_shadow.lock()))
                     {
-                        take(gear).grab(*dest_object, gear.coord);
+                        items.take(gear).grab(*dest_object, gear.coord);
                         gear.dismiss();
                     }
                 };
@@ -1849,7 +1834,7 @@ namespace netxs::console
                 {
                     if (dest_object)
                     {
-                        take(gear).drag(*dest_object, gear.coord);
+                        items.take(gear).drag(*dest_object, gear.coord);
                         auto delta = gear.delta.get();
                         dest_object->SIGNAL(e2::preview, e2::form::upon::moved, delta);
                         gear.dismiss();
@@ -1879,20 +1864,10 @@ namespace netxs::console
         class track
             : public skill
         {
-            using skill::boss,
-                  skill::memo;
-
             struct sock
             {
-                id_t     id; // sock: Hids ID.
-                twod cursor; // sock: Coordinates of the active cursor.
-                bool inside; // sock: Is active.
-                iota count = 0;
-
-                sock(id_t ctrl)
-                    :     id{ ctrl },
-                      inside{ faux }
-                { }
+                twod cursor;        // sock: Coordinates of the active cursor.
+                bool inside = faux; // sock: Is active.
                 operator bool(){ return inside; }
                 auto calc(base const& master, twod curpos)
                 {
@@ -1902,18 +1877,10 @@ namespace netxs::console
                 }
             };
 
-            using list = std::vector<sock>;
+            using list = socks<sock>;
+            using skill::boss,
+                  skill::memo;
             list items;
-
-            auto& take(hids& gear)
-            {
-                for (auto& item : items) // Linear search, because a few items.
-                    if (item.id == gear.id)
-                        return item;
-
-                log("pro::sizer: error: access to unregistered input device, id:", gear.id);
-                return items.emplace_back(gear.id);
-            }
 
         public:
             track(base&&) = delete;
@@ -1922,31 +1889,15 @@ namespace netxs::console
             {
                 boss.SUBMIT_T(e2::release, e2::hids::mouse::move, memo, gear)
                 {
-                    take(gear).calc(boss, gear.coord);
+                    items.take(gear).calc(boss, gear.coord);
                 };   
                 boss.SUBMIT_T(e2::release, e2::form::notify::mouse::enter, memo, gear)
                 {
-                    for (auto& item : items) // Linear search, because a few items.
-                        if (item.id == gear.id)
-                        {
-                            ++item.count;
-                            return;
-                        }
-                    auto& item = items.emplace_back(gear.id);
-                    ++item.count;
+                    items.add(gear);
                 };
                 boss.SUBMIT_T(e2::release, e2::form::notify::mouse::leave, memo, gear)
                 {
-                    for (auto& item : items) // Linear search, because a few items.
-                        if (item.id == gear.id)
-                        {
-                            if (--item.count < 1) // item.count could but equal to 0 due to unregistered access.
-                            {
-                                if (items.size() > 1) item = items.back(); // Remove an item without allocations.
-                                items.pop_back();
-                            }
-                            return;
-                        }
+                    items.dec(gear);
                 };
                 boss.SUBMIT_T(e2::release, e2::render::prerender, memo, parent_canvas)
                 {
@@ -1954,13 +1905,12 @@ namespace netxs::console
                     auto view = parent_canvas.view();
                     auto mark = cell{}.bgc(0xFFffffff);
                     auto fill = [&](cell& c) { c.fuse(mark); };
-                    for (auto& item : items)
-                        if (item)
-                        {
-                            auto area = rect{ item.cursor,dot_00 } + dent{ 6,6,3,3 };
-                            area.coor += full.coor;
-                            parent_canvas.fill(area.clip(full), fill);
-                        }
+                    items.foreach([&](sock& item)
+                    {
+                        auto area = rect{ item.cursor,dot_00 } + dent{ 6,6,3,3 };
+                        area.coor += full.coor;
+                        parent_canvas.fill(area.clip(full), fill);
+                    });
                 };
             }
         };
