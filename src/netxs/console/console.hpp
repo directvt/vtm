@@ -1965,8 +1965,7 @@ namespace netxs::console
             }
         };
 
-        // pro: Provides size-binding functionality for child objects
-        //      after attaching to the parent. Used at the mold only.
+        // pro: Provides size-binding functionality.
         class align
             : public skill
         {
@@ -3759,6 +3758,14 @@ namespace netxs::console
                     }
                 };
             }
+            void reset()
+            {
+                if (full)
+                {
+                    full = 0;
+                    soul.reset();
+                }
+            }
             void take_all_events(bool b)
             {
                 omni = b;
@@ -5358,19 +5365,15 @@ again:
                 SUBMIT_T(e2::release, e2::term::quit, token, msg)
                 {
                     log("gate: stop byemsg: ", msg);
+                    mouse.reset(); // Reset active mouse clients to avoid hanging pointers.
                     conio.shutdown();
                 };
-
-                //SUBMIT_T(e2::preview, e2::form::prop::header, token, newheader)
                 SUBMIT_T(e2::release, e2::form::state::header, token, newheader)
                 {
-                    //para tmp{ newheader };
                     text title;
                     newheader.lyric->each([&](auto c) { title += c.txt(); });
                     conio.output(ansi::tag(title));
-                    //log("title preview: ", title);
                 };
-
                 SUBMIT_T(e2::release, e2::cout, token, extra_data)
                 {
                     paint.append(extra_data);
