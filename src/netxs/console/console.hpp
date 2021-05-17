@@ -1592,7 +1592,7 @@ namespace netxs::console
                 }
                 void add(hids& gear)
                 {
-                    auto& item = take(gear);
+                    auto& item = take<faux>(gear);
                     ++item.count;
                 }
                 void dec(hids& gear)
