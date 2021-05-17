@@ -99,6 +99,7 @@ double `LeftClick`    | Menu: Create new window<br>Window: Maximize/restore wind
 
 - `▀▄ Term` Terminal emulator
 - `▀▄ Logs` VT monitoring tool
+- `▀▄ View` Desktop named regions
 - `▀▄ Task` Task manager (desktopio) _(not ready)_
 - `▀▄ Hood` Configuration utility _(not ready)_
 - `▀▄ Info` Documentation browser _(not ready)_
@@ -139,6 +140,9 @@ double `LeftClick`    | Menu: Create new window<br>Window: Maximize/restore wind
 
  - `▀▄ Logs`
   - Reset by double `RightClick`
+
+ - `▀▄ View`
+  - Serves for quick navigation through the desktop space using cyclic selection (left click on group title) in the `View` group on the taskbar.
 
  - `▀▄ Hood`
   - ...

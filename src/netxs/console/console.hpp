@@ -1581,7 +1581,7 @@ namespace netxs::console
                             return item;
 
                     if constexpr (CONST_WARN)
-                        log("pro::sizer: error: access to unregistered input device, id:", gear.id);
+                        log("sock: error: access to unregistered input device, id:", gear.id);
                     return items.emplace_back(gear.id);
                 }
                 template<class P>
