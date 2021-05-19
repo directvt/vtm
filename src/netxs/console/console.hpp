@@ -66,8 +66,13 @@ namespace netxs::console
 
     EVENT_BIND(e2::quit, const view)
     EVENT_BIND(e2::dtor, const id_t)
-    EVENT_BIND(e2::radio, iota)
     EVENT_BIND(e2::cout, const text)
+
+    EVENT_BIND(e2::size::any, twod)
+        EVENT_BIND(e2::size::set, twod)
+
+    EVENT_BIND(e2::coor::any, twod)
+        EVENT_BIND(e2::coor::set, twod)
 
     EVENT_BIND(e2::debug::any, const view)
         EVENT_BIND(e2::debug::logs   , const view)
@@ -160,8 +165,6 @@ namespace netxs::console
                 EVENT_SAME(e2::form::drag::any, e2::form::drag::stop::win)
 
         EVENT_BIND(e2::form::layout::any, const twod)
-            EVENT_BIND(e2::form::layout::move  , twod)
-            EVENT_BIND(e2::form::layout::size  , twod)
             EVENT_BIND(e2::form::layout::shift , const twod)
             EVENT_BIND(e2::form::layout::convey, cube)
             EVENT_BIND(e2::form::layout::local , twod)
@@ -187,8 +190,7 @@ namespace netxs::console
             EVENT_BIND(e2::form::upon::cached     , face)
             EVENT_BIND(e2::form::upon::wiped      , face)
             EVENT_BIND(e2::form::upon::created    , sptr<base>)
-            EVENT_BIND(e2::form::upon::moved      , twod)
-            EVENT_BIND(e2::form::upon::resized    , twod)
+            EVENT_BIND(e2::form::upon::changed    , twod)
             EVENT_BIND(e2::form::upon::dragged    , hids)
 
             EVENT_BIND(e2::form::upon::scroll::any, rack)
@@ -225,6 +227,7 @@ namespace netxs::console
             EVENT_SAME(e2::hids::any, e2::hids::mouse::move)
             EVENT_SAME(e2::hids::any, e2::hids::mouse::shuffle)
             EVENT_SAME(e2::hids::any, e2::hids::mouse::focus)
+            EVENT_SAME(e2::hids::any, e2::hids::mouse::gone)
 
             EVENT_SAME(e2::hids::any, e2::hids::mouse::button::any)
                 EVENT_SAME(e2::hids::any, e2::hids::mouse::button::up::any)
@@ -725,8 +728,7 @@ namespace netxs::console
                           : locks & ~(1 << index);
             if (!locks) swift = {};
         }
-        //todo revise
-        // mouse: Bit buttons. Used only for foreign mouse pointer in the gate (pro::input).
+        // mouse: Bit buttons. Used only for foreign mouse pointer in the gate (pro::input) and at the ui::term::mtrack.
         iota buttons ()
         {
             iota bitfield = 0;
@@ -811,8 +813,9 @@ namespace netxs::console
         { }
         ~hids()
         {
-            mouse_leave(mouse::hover, mouse::start);
+            mouse_leave();
             clear_kb_focus();
+            bell::signal_global(e2::hids::mouse::gone, *this);
         }
 
         // hids: Stop handeling this event.
@@ -868,6 +871,11 @@ namespace netxs::console
                 }
                 else log("hids: error condition: Clients count is broken, dangling id ", last_id);
             }
+        }
+        void mouse_leave()
+        {
+            log("hids: mouse_leave, id ", id);
+            mouse_leave(mouse::hover, mouse::start);
         }
         void take_mouse_focus(bell& boss)
         {
@@ -1188,88 +1196,8 @@ namespace netxs::console
     class base
         : public bell, public std::enable_shared_from_this<base>
     {
-        using wptr = std::weak_ptr<base>;
-
-        //console: Dependency property container
-        //         (can validate parameters before applying and forward it further).
-        template<e2::type EVENT>
-        class bind
-        {
-            using type = ARGTYPE(EVENT);
-
-            bell& owner;
-            type  value;
-
-        public:
-            bind(bell& master)
-                : owner{ master }
-            {
-                owner.SUBMIT(e2::release, EVENT, new_value) { value = new_value; };
-                owner.SUBMIT(e2::request, EVENT, empty_var) { empty_var = value; };
-            }
-
-            //bind: Get the const reference of the current value.
-            type const& get() const
-            {
-                return value;
-            }
-            //bind: Set (preview then release) new value,
-            //      override argument, and return the
-            //      difference with old value.
-            type set(type& new_value)
-            {
-                auto oldval = value;
-                owner.SIGNAL(e2::preview, EVENT, new_value);
-                owner.SIGNAL(e2::release, EVENT, new_value);
-
-                //owner.SIGNAL(e2::preview, EVENT, new_value);
-                //if (value != new_value)
-                //{
-                //    owner.SIGNAL(e2::release, EVENT, new_value);
-                //}
-                return value - oldval;
-            }
-            // bind: Dry run (preview then release) current value.
-            type dry()
-            {
-                auto new_value = value;
-                auto old_value = value;
-                owner.SIGNAL(e2::preview, EVENT, new_value);
-                owner.SIGNAL(e2::release, EVENT, new_value);
-                // We should fire release even without changes of the value
-                //if (value != new_value)
-                //{
-                //	owner.SIGNAL(e2::release, EVENT, new_value);
-                //}
-                return value - old_value;
-            }
-
-            type const& operator =  (type& newval) { set(newval); return value; }
-            type const& operator += (type const& p) { auto tmp = value + p; set(tmp); return value; }
-            operator type const& () const { return get(); }
-        };
-
     public:
-        constexpr static e2::type size_event = e2::form::layout::size;
-        constexpr static e2::type move_event = e2::form::layout::move;
-
-        bind<move_event> coor {*this };
-        bind<size_event> size {*this };
-
-        //todo pro::limit specific
-        struct limit_t
-        {
-            static constexpr twod min_value = dot_00;
-            static constexpr twod max_value = twod{ 2000, 1000 };
-            twod min = min_value;
-            twod max = max_value;
-            void set(limit_t const& new_limits)
-            {
-                min = new_limits.min.less(dot_00, min_value, new_limits.min);
-                max = new_limits.max.less(dot_00, max_value, new_limits.max);
-            }
-        }
-        limit;
+        using wptr = std::weak_ptr<base>;
 
         bool visual_root = faux; // Whether the size is tied to the size of the clients.
         wptr parent_shadow; // base: Parental visual tree weak-pointer.
@@ -1277,6 +1205,7 @@ namespace netxs::console
         twod anchor; // base: Object balance point. Center point for any transform (on preview).
         bool invalid = true; // base: Should the object be redrawn.
         hook kb_offer;
+        rect square;
 
         template<class T = base>
         auto This() { return std::static_pointer_cast<typename std::remove_reference<T>::type>(shared_from_this()); }
@@ -1311,11 +1240,14 @@ namespace netxs::console
                 if (base::brush.wdt())
                     parent_canvas.fill([&](cell& c) { c.fusefull(base::brush); });
             };
+            SUBMIT(e2::release, e2::coor::set, new_coor) { square.coor = new_coor; };
+            SUBMIT(e2::request, e2::coor::set, coor_var) { coor_var = square.coor; };
+            SUBMIT(e2::release, e2::size::set, new_size) { square.size = new_size; };
+            SUBMIT(e2::request, e2::size::set, size_var) { size_var = square.size; };
 
             SUBMIT(e2::release, e2::form::upon::vtree::attached, parent_ptr)
             {
                 parent_shadow = parent_ptr;
-
                 // Propagate form events up to the visual branch.
                 // Exec after all subscriptions.
                 parent_ptr->SUBMIT_T(e2::release, e2::form::upevent::any, kb_offer, gear)
@@ -1335,7 +1267,6 @@ namespace netxs::console
                         }
                     }
                 };
-
             };
             SUBMIT(e2::release, e2::form::upon::vtree::any, parent_ptr)
             {
@@ -1359,27 +1290,10 @@ namespace netxs::console
                 }
                 //strike();
             };
-
-            //todo pro::limit specific
-            // Validate the new size.
-            SUBMIT(e2::preview, base::size_event, check_size)
-            {
-                check_size = std::clamp(check_size, limit.min, limit.max);
-            };
-
             SUBMIT(e2::preview, e2::form::layout::strike, region)
             {
-                //todo check child's region
-                deface();
-            };
-            // Invalide old region (before resize).
-            SUBMIT(e2::release, base::size_event, apply_size)
-            {
-                deface();
-            };
-            // Invalide old region (before moveto).
-            SUBMIT(e2::release, base::move_event, apply_coor)
-            {
+                //todo combine with child region
+                invalid = true;
                 strike();
             };
             // Recursively calculate global coordinate.
@@ -1390,95 +1304,100 @@ namespace netxs::console
         }
 
     public:
-        // base: Return the rectangle of the canvas.
-        auto square () const
-        {
-            auto& s = base::size.get();
-            auto& c = base::coor.get();
-            return rect{ c, s };
-        }
-        // base: Mark the visual subtree as requiring redrawing.
-        void strike ()
-        {
-            if (auto parent_ptr = parent_shadow.lock())
-            {
-                parent_ptr->SIGNAL(e2::preview, e2::form::layout::strike, square());
-            }
-        }
-        // base: Mark the form and its subtree as requiring redrawing.
-        void deface ()
-        {
-            invalid = true;
-            strike();
-        }
+        auto& coor() const { return square.coor; }
+        auto& size() const { return square.size; }
+        auto& area() const { return square; }
         // base: Move the form to a new place, and return the delta.
-        auto moveto (twod newcoor)
+        auto moveto(twod new_coor)
         {
-            auto delta = base::coor.set(newcoor);
-            if (delta)
-            {
-                SIGNAL(e2::release, e2::form::upon::moved, delta);
-            }
-            //todo strike set
+            auto old_coor = square.coor;
+            SIGNAL(e2::release, e2::coor::set, new_coor);
+            auto delta = square.coor - old_coor;
             return delta;
+        }
+        // base: Resize the form, and return the size delta.
+        auto resize(twod new_size)
+        {
+            auto old_size = square.size;
+            SIGNAL(e2::preview, e2::size::set, new_size);
+            SIGNAL(e2::release, e2::size::set, new_size);
+            return square.size - old_size;
+        }
+        // base: Resize the form relative the center point.
+        //       Return center point offset.
+        //       The object is responsible for correcting
+        //       the center point during resizing.
+        auto resize(twod newsize, twod point)
+        {
+            point -= square.coor;
+            anchor = point;
+            resize(newsize);
+            return point - anchor;
+        }
+        // base: Dry run (preview then release) current value.
+        auto resize()
+        {
+            auto new_value = square.size;
+            return resize(new_value);
         }
         // base: Move the form by the specified step and return the coor delta.
         auto moveby(twod const& step)
         {
-            auto delta = moveto(base::coor.get() + step);
+            auto delta = moveto(square.coor + step);
             return delta;
         }
-        // base: Resize the form, and return the size delta.
-        auto resize (twod newsize)
+        // base: Resize the form by step, and return delta.
+        auto sizeby(twod const& step)
         {
-            auto delta = base::size.set(newsize);
-            if (delta)
+            auto delta = resize(square.size + step);
+            return delta;
+        }
+        // base: Resize and move the form, and return delta.
+        auto extend(rect newloc)
+        {
+            return rect{ moveto(newloc.coor), resize(newloc.size) };
+        }
+        // base: Mark the visual subtree as requiring redrawing.
+        void strike(rect const& region)
+        {
+            if (auto parent_ptr = parent_shadow.lock())
             {
-                SIGNAL(e2::release, e2::form::upon::resized, delta);
+                parent_ptr->SIGNAL(e2::preview, e2::form::layout::strike, region);
             }
-            //todo strike set
-            return delta;
         }
-        // base: Resize the form relative the center point.
-        //       Return the offset of the center point.
-        //       The object is responsible for correcting
-        //       the center point during resizing.
-        auto resize (twod newsize, twod point)
+        // base: Mark the visual subtree as requiring redrawing.
+        void strike()
         {
-            point -= base::coor.get();
-            base::anchor = point;
-            base::resize(newsize);
-            return point - base::anchor;
+            strike(square);
+        }
+        // base: Mark the form and its subtree as requiring redrawing.
+        void deface(rect const& region)
+        {
+            SIGNAL(e2::preview, e2::form::layout::strike, region);
+        }
+        // base: Mark the form and its subtree as requiring redrawing.
+        void deface()
+        {
+            deface(square);
         }
         // base: Going to rebuild visual tree. Retest current size, ask parent if it is linked.
-        void reflow ()
+        void reflow()
         {
             auto parent_ptr = parent_shadow.lock();
             if (parent_ptr && !visual_root)
             {
-                parent_ptr->base::reflow();
+                parent_ptr->reflow();
             }
             else
             {
-                if (auto delta = base::size.dry())
+                if (auto delta = resize())
                 {
-                    SIGNAL(e2::release, e2::form::upon::resized, delta);
+                    //SIGNAL(e2::release, e2::form::upon::resized, delta);
                 }
             }
         }
-        // base: Resize the form by step, and return delta.
-        auto sizeby (twod const& step)
-        {
-            auto delta = resize(base::size.get() + step);
-            return delta;
-        }
-        // base: Resize and move the form, and return delta.
-        auto extend (rect newloc)
-        {
-            return rect{ moveto(newloc.coor), resize(newloc.size) };
-        }
         // base: Remove the form from the visual tree.
-        void detach ()
+        void detach()
         {
             if (auto parent_ptr = parent_shadow.lock())
             {
@@ -1491,7 +1410,7 @@ namespace netxs::console
         // base: Recursively calculate global coordinate.
         void global(twod& coor)
         {
-            coor -= base::coor.get();
+            coor -= square.coor;
             if (auto parent_ptr = parent_shadow.lock())
             {
                 parent_ptr->SIGNAL(e2::request, e2::form::layout::local, coor);
@@ -1508,28 +1427,6 @@ namespace netxs::console
                 proc(*parent_ptr);
             }
         }
-
-        //todo pro::limit specific
-        // base: Set size limits (min, max).
-        //       Preserve current value if specified arg less than 0
-        void limits(twod const& min_size, twod const& max_size = -dot_11)
-        {
-            //todo revise
-            limit.min = min_size.less(dot_00, limit.min_value, min_size);
-            limit.max = max_size.less(dot_00, limit.max_value, max_size);
-        }
-        // base: Set resize limits (min, max).
-        //       Preserve current value if specified arg less than 0
-        void limits(decltype(limit) const& new_limits)
-        {
-            limit.set(new_limits);
-        }
-        // base: Return current limits.
-        auto& limits() const
-        {
-            return limit;
-        }
-
         // base: Fire an event on yourself and pass it parent if not handled.
         // Usage example:
         //          base::riseup<e2::preview, e2::form::prop::header>(txt);
@@ -1538,9 +1435,10 @@ namespace netxs::console
         {
             if (!SIGNAL(TIER, EVENT, data))
             {
-                base::toboss([&](auto& boss) {
+                base::toboss([&](auto& boss)
+                {
                     boss.base::template riseup<TIER, EVENT>(std::forward<T>(data));
-                    });
+                });
             }
         }
     };
@@ -1571,8 +1469,22 @@ namespace netxs::console
                     operator bool(){ return T::operator bool(); }
                 };
 
-                std::vector<sock> items;
+                std::vector<sock> items; // sock: Registered hids.
+                hook              token; // sock: Hids dtor submission.
 
+                socks()
+                {
+                    SUBMIT_GLOBAL(e2::hids::mouse::gone, token, gear)
+                    {
+                        for (auto& item : items) // Linear search, because a few items.
+                            if (item.id == gear.id)
+                            {
+                                if (items.size() > 1) item = items.back(); // Remove an item without allocations.
+                                items.pop_back();
+                                return;
+                            }
+                    };
+                }
                 template<bool CONST_WARN = true>
                 auto& take(hids& gear)
                 {
@@ -1636,14 +1548,14 @@ namespace netxs::console
                 {
                     if (inside)
                     {
-                        origin = curpos - corner(master.base::size.get() + outer);
+                        origin = curpos - corner(master.base::size() + outer);
                         seized = true;
                     }
                     return seized;
                 }
                 auto calc(base const& master, twod curpos, dent const& outer, dent const& inner, dent const& border)
                 {
-                    auto area = rect{ dot_00, master.base::size.get() };
+                    auto area = rect{ dot_00, master.base::size() };
                     auto inner_rect = area + inner;
                     auto outer_rect = area + outer;
                     inside = !inner_rect.hittest(curpos)
@@ -1677,12 +1589,12 @@ namespace netxs::console
                 {
                     if (seized)
                     {
-                        auto width = master.base::size.get() + outer;
+                        auto width = master.base::size() + outer;
                         auto delta = curpos - corner(width) - origin;
                         if (auto dxdy = master.base::sizeby(delta * dtsize))
                         {
                             master.base::moveby(-dxdy * dtcoor);
-                            master.SIGNAL(e2::preview, e2::form::upon::resized, dxdy);
+                            master.SIGNAL(e2::preview, e2::form::upon::changed, dxdy);
                         }
                     }
                     return seized;
@@ -1751,21 +1663,21 @@ namespace netxs::console
                     items.take(gear).calc(boss, gear.coord, outer, inner, width);
                     boss.base::deface();
                 };
-                boss.SUBMIT(e2::release, e2::message(e2::form::drag::start::any, button), gear)
+                boss.SUBMIT_T(e2::release, e2::message(e2::form::drag::start::any, button), memo, gear)
                 {
                     if (items.take(gear).grab(boss, gear.coord, outer))
                         gear.dismiss();
                 };
-                boss.SUBMIT(e2::release, e2::message(e2::form::drag::pull::any, button), gear)
+                boss.SUBMIT_T(e2::release, e2::message(e2::form::drag::pull::any, button), memo, gear)
                 {
                     if (items.take(gear).drag(boss, gear.coord, outer))
                         gear.dismiss();
                 };
-                boss.SUBMIT(e2::release, e2::message(e2::form::drag::cancel::any, button), gear)
+                boss.SUBMIT_T(e2::release, e2::message(e2::form::drag::cancel::any, button), memo, gear)
                 {
                     items.take(gear).drop();
                 };
-                boss.SUBMIT(e2::release, e2::message(e2::form::drag::stop::any, button), gear)
+                boss.SUBMIT_T(e2::release, e2::message(e2::form::drag::stop::any, button), memo, gear)
                 {
                     items.take(gear).drop();
                     boss.SIGNAL(e2::release, e2::form::upon::dragged, gear);
@@ -1782,13 +1694,13 @@ namespace netxs::console
                 twod  origin; // sock: Grab's initial coord info.
                 void grab(base const& master, twod const& curpos)
                 {
-                    auto center = master.base::size.get() / 2;
+                    auto center = master.base::size() / 2;
                     origin = curpos - center;
                 }
                 void drag(base& master, twod const& coord)
                 {
                     auto delta = coord - origin;
-                    auto center = master.base::size.get() / 2;
+                    auto center = master.base::size() / 2;
                     delta -= center;
                     master.base::moveby(delta);
                 }
@@ -1822,7 +1734,7 @@ namespace netxs::console
             void engage()
             {
                 boss.SIGNAL(e2::release, e2::message(e2::form::draggable::any, button), true);
-                boss.SUBMIT(e2::release, e2::message(e2::form::drag::start::any, button), gear)
+                boss.SUBMIT_T(e2::release, e2::message(e2::form::drag::start::any, button), memo, gear)
                 {
                     if ((dest_object = dest_shadow.lock()))
                     {
@@ -1830,17 +1742,17 @@ namespace netxs::console
                         gear.dismiss();
                     }
                 };
-                boss.SUBMIT(e2::release, e2::message(e2::form::drag::pull::any, button), gear)
+                boss.SUBMIT_T(e2::release, e2::message(e2::form::drag::pull::any, button), memo, gear)
                 {
                     if (dest_object)
                     {
                         items.take(gear).drag(*dest_object, gear.coord);
                         auto delta = gear.delta.get();
-                        dest_object->SIGNAL(e2::preview, e2::form::upon::moved, delta);
+                        dest_object->SIGNAL(e2::preview, e2::form::upon::changed, delta);
                         gear.dismiss();
                     }
                 };
-                boss.SUBMIT(e2::release, e2::message(e2::form::drag::cancel::any, button), gear)
+                boss.SUBMIT_T(e2::release, e2::message(e2::form::drag::cancel::any, button), memo, gear)
                 {
                     if (dest_object)
                     {
@@ -1848,7 +1760,7 @@ namespace netxs::console
                         gear.dismiss();
                     }
                 };
-                boss.SUBMIT(e2::release, e2::message(e2::form::drag::stop::any, button), gear)
+                boss.SUBMIT_T(e2::release, e2::message(e2::form::drag::stop::any, button), memo, gear)
                 {
                     if (dest_object)
                     {
@@ -1871,7 +1783,7 @@ namespace netxs::console
                 operator bool(){ return inside; }
                 auto calc(base const& master, twod curpos)
                 {
-                    auto area = rect{ dot_00, master.base::size.get() };
+                    auto area = rect{ dot_00, master.base::size() };
                     cursor = curpos;
                     inside = area.hittest(curpos);
                 }
@@ -1947,9 +1859,9 @@ namespace netxs::console
                     auto& gate = *gate_ptr;
 
                     rect area;
-                    gate.SIGNAL(e2::request, e2::form::layout::size, area.size);
-                    gate.SIGNAL(e2::request, e2::form::layout::move, area.coor);
-                    last = boss.base::square();
+                    gate.SIGNAL(e2::request, e2::size::set, area.size);
+                    gate.SIGNAL(e2::request, e2::coor::set, area.coor);
+                    last = boss.base::area();
                     area.coor -= pads;
                     area.size += pads * 2;
                     body = {}; // In oder to unbind previous subscription if it is.
@@ -1961,12 +1873,12 @@ namespace netxs::console
                     boss.SIGNAL(e2::request, e2::form::prop::header, newhead);
                     gate.SIGNAL(e2::preview, e2::form::prop::header, newhead);
 
-                    gate.SUBMIT_T(e2::release, e2::form::layout::size, memo, size)
+                    gate.SUBMIT_T(e2::release, e2::size::set, memo, size)
                     {
                         body.size = size + pads * 2;
                         boss.base::resize(body.size);
                     };
-                    gate.SUBMIT_T(e2::release, e2::form::layout::move, memo, coor)
+                    gate.SUBMIT_T(e2::release, e2::coor::set, memo, coor)
                     {
                         unbind();
                     };
@@ -1975,11 +1887,11 @@ namespace netxs::console
                         unbind();
                     };
 
-                    boss.SUBMIT_T(e2::release, e2::form::layout::size, memo, size)
+                    boss.SUBMIT_T(e2::release, e2::size::set, memo, size)
                     {
                         if (weak && body.size != size) unbind(faux);
                     };
-                    boss.SUBMIT_T(e2::release, e2::form::layout::move, memo, coor)
+                    boss.SUBMIT_T(e2::release, e2::coor::set, memo, coor)
                     {
                         if (weak && body.coor != coor) unbind();
                     };
@@ -2164,7 +2076,8 @@ namespace netxs::console
                     };
                     parent->SUBMIT_T(e2::preview, e2::form::layout::shift, link, delta)
                     {
-                        boss.base::coor += delta;
+                        //boss.base::coor += delta;
+                        boss.moveby(delta);
                     };
                     parent->SUBMIT_T(e2::preview, e2::form::upon::vtree::detached, link, p)
                     {
@@ -2189,11 +2102,11 @@ namespace netxs::console
                 {
                     appear(newpos);
                 };
-                boss.SUBMIT_T(e2::preview, e2::form::upon::moved, memo, delta)
-                {
-                    bubble();
-                };
-                boss.SUBMIT_T(e2::preview, e2::form::upon::resized, memo, delta)
+                //boss.SUBMIT_T(e2::preview, e2::form::upon::moved, memo, delta)
+                //{
+                //    bubble();
+                //};
+                boss.SUBMIT_T(e2::preview, e2::form::upon::changed, memo, delta)
                 {
                     bubble();
                 };
@@ -2207,7 +2120,7 @@ namespace netxs::console
                     {
                         auto delta = gear.delta.get();
                         boss.base::moveby(delta);
-                        boss.SIGNAL(e2::preview, e2::form::upon::moved, delta);
+                        boss.SIGNAL(e2::preview, e2::form::upon::changed, delta);
                         gear.dismiss();
                     }
                 };
@@ -2218,6 +2131,7 @@ namespace netxs::console
                         robo.actify(gear.fader<quadratic<twod>>(2s), [&](auto x)
                             {
                                 boss.base::moveby(x);
+                                boss.strike();
                             });
                     }
                     else
@@ -2226,14 +2140,15 @@ namespace netxs::console
                         robo.actify(gear.fader<quadratic<twod>>(2s), [&, boundary](auto x)
                         {
                             convey(x, boundary);
+                            boss.strike();
                         });
                     }
                 };
                 boss.SUBMIT_T(e2::release, e2::hids::mouse::button::click::right, memo, gear)
                 {
-                    auto square = boss.base::square();
-                    auto coord = gear.coord + square.coor;
-                    if (!square.hittest(coord))
+                    auto& area = boss.base::area();
+                    auto coord = gear.coord + area.coor;
+                    if (!area.hittest(coord))
                     {
                         appear(coord);
                     }
@@ -2244,16 +2159,16 @@ namespace netxs::console
             // pro::frame: Fly to the specified position.
             void appear(twod const& target)
             {
-                auto screen = boss.base::square();
-                auto oldpos = screen.coor;
-                auto newpos = target - screen.size / 2;;
+                auto& screen = boss.base::area();
+                auto  oldpos = screen.coor;
+                auto  newpos = target - screen.size / 2;;
 
                 auto path = newpos - oldpos;
                 iota time = SWITCHING_TIME;
                 auto func = constlinearAtoB<twod>(path, time, now<iota>());
 
                 robo.pacify();
-                robo.actify(func, [&](twod& x) { boss.base::moveby(x); });
+                robo.actify(func, [&](twod& x) { boss.base::moveby(x); boss.strike(); });
             }
             /*
             // pro::frame: Search for a non-overlapping form position in
@@ -2294,7 +2209,7 @@ namespace netxs::console
             // pro::frame: Move the form no further than the parent canvas.
             void convey (twod const& delta, rect const& boundary)//, bool notify = true)
             {
-                auto r0 = boss.base::square();
+                auto& r0 = boss.base::area();
                 if (delta && r0.clip(boundary))
                 {
                     auto r1 = r0;
@@ -2308,11 +2223,11 @@ namespace netxs::console
                     {
                         c.coor = std::clamp(c.coor + delta, dot_00, s);
                         auto newcoor = c.normalize().coor + r2.coor;
-                        boss.base::coor.set(newcoor);
+                        boss.moveto(newcoor);
                     }
                     else if (!r2.clip(r0))
                     {
-                        boss.base::coor += delta;
+                        boss.moveby(delta);
                     }
                 }
             }
@@ -2474,6 +2389,11 @@ namespace netxs::console
                     handle_stop(gear);
                 };
 
+                boss.SUBMIT_T(e2::general, e2::hids::mouse::gone, memo, gear)
+                {
+                    handle_drop(gear);
+                };
+
                 boss.SUBMIT_T(e2::release, e2::postrender, memo, canvas)
                 {
                     for (auto const& [key, data] : slots)
@@ -2613,7 +2533,7 @@ namespace netxs::console
                         {
                             auto field = canvas.core::view();
                             auto point = body;
-                            point.coor += field.coor + boss.base::coor.get();
+                            point.coor += field.coor + boss.base::coor();
                             if (auto area = field.clip(point))
                             {
                                 canvas.fill(area, [](cell& c) { c.und(!c.und()); });
@@ -2797,7 +2717,7 @@ namespace netxs::console
                     update(focusstate);
                     boss.base::strike(); // to update debug info
                 };
-                boss.SUBMIT_T(e2::release, e2::form::layout::size, memo, newsize)
+                boss.SUBMIT_T(e2::release, e2::size::set, memo, newsize)
                 {
                     update(newsize);
                 };
@@ -2948,7 +2868,7 @@ namespace netxs::console
             }
             void init()
             {
-                boss.SUBMIT_T(e2::release, e2::form::layout::size, memo, new_size)
+                boss.SUBMIT_T(e2::release, e2::size::set, memo, new_size)
                 {
                     recalc(new_size);
                 };
@@ -2959,7 +2879,7 @@ namespace netxs::console
                         auto saved_context = canvas.bump(dent{ 0,0,head_size.y,foot_size.y });
                         canvas.cup(dot_00);
                         canvas.output(head_page);
-                        canvas.cup({ 0, head_size.y + boss.size.get().y });
+                        canvas.cup({ 0, head_size.y + boss.size().y });
                         canvas.output(foot_page);
                         canvas.bump(saved_context);
                     }
@@ -3093,11 +3013,11 @@ namespace netxs::console
                     {
                         z_order = order;
                     };
-                    inst.SUBMIT(e2::release, e2::form::layout::size, size)
+                    inst.SUBMIT(e2::release, e2::size::set, size)
                     {
                         region.size = size;
                     };
-                    inst.SUBMIT(e2::release, e2::form::layout::move, coor)
+                    inst.SUBMIT(e2::release, e2::coor::set, coor)
                     {
                         region.coor = coor;
                     };
@@ -3118,8 +3038,8 @@ namespace netxs::console
                         header.color = color;
                     };
 
-                    inst.SIGNAL(e2::request, e2::form::layout::size,  region.size);
-                    inst.SIGNAL(e2::request, e2::form::layout::move,  region.coor);
+                    inst.SIGNAL(e2::request, e2::size::set,  region.size);
+                    inst.SIGNAL(e2::request, e2::coor::set,  region.coor);
                     inst.SIGNAL(e2::request, e2::form::state::mouse,  header.active);
                     inst.SIGNAL(e2::request, e2::form::state::header, header.basis);
                     inst.SIGNAL(e2::request, e2::form::state::color,  header.color);
@@ -3651,7 +3571,7 @@ namespace netxs::console
                 // pro::mouse: Forward preview to all parents.
                 boss.SUBMIT_T(e2::preview, e2::hids::mouse::any, memo, gear)
                 {
-                    auto& offset = boss.base::coor.get();
+                    auto& offset = boss.base::coor();
                     gear.pass<e2::preview>(boss.parent_shadow.lock(), offset);
 
                     if (gear) gear.okay(boss);
@@ -3662,7 +3582,7 @@ namespace netxs::console
                 {
                     if (gear && !gear.locks)
                     {
-                        auto& offset = boss.base::coor.get();
+                        auto& offset = boss.base::coor();
                         gear.pass<e2::release>(boss.parent_shadow.lock(), offset);
                     }
                 };
@@ -3712,6 +3632,7 @@ namespace netxs::console
             {
                 if (full)
                 {
+                    log("pro::mouse: device is in the entered state, count = ", full);
                     full = 0;
                     soul.reset();
                 }
@@ -3752,6 +3673,15 @@ namespace netxs::console
                             gear.dismiss();
                         }
                     };
+                    boss.SUBMIT(e2::general, e2::hids::mouse::gone, gear)
+                    {
+                        if (gear.captured(boss.bell::id))
+                        {
+                            boss.SIGNAL(e2::release, e2::message(e2::form::drag::cancel::any, button), gear);
+                            gear.release();
+                            gear.dismiss();
+                        }
+                    };
                     boss.SUBMIT(e2::release, e2::message(e2::hids::mouse::button::drag::stop::any, button), gear)
                     {
                         if (gear.captured(boss.bell::id))
@@ -3779,11 +3709,11 @@ namespace netxs::console
             input(base&&) = delete;
             input(base& boss) : skill{ boss }, hids{ boss, xmap }
             {
-                boss.SUBMIT_T(e2::release, e2::form::layout::size, memo, newsize)
+                boss.SUBMIT_T(e2::release, e2::size::set, memo, newsize)
                 {
                     xmap.size(newsize);
                 };
-                boss.SUBMIT_T(e2::release, e2::form::layout::move, memo, newcoor)
+                boss.SUBMIT_T(e2::release, e2::coor::set, memo, newcoor)
                 {
                     xmap.move(newcoor);
                 };
@@ -3828,7 +3758,7 @@ namespace netxs::console
                     //todo optimize - don't fill the head and foot twice
                     auto area = parent_canvas.view();
                     auto n = std::clamp(size, 0, area.size.y / 2) + 1;
-                    //auto n = std::clamp(size, 0, boss.base::size.get().y / 2) + 1;
+                    //auto n = std::clamp(size, 0, boss.base::size().y / 2) + 1;
 
                     auto head = area;
                     head.size.y = 1;
@@ -3926,13 +3856,42 @@ namespace netxs::console
         class limit
             : public skill
         {
+            static constexpr auto min_value = dot_00;
+            static constexpr auto max_value = twod{ 2000, 1000 }; //todo unify
             using skill::boss,
                   skill::memo;
+            struct lims_t
+            {
+                twod min = min_value;
+                twod max = max_value;
+            }
+            lims;
+
         public:
             limit(base&&) = delete;
-            limit(base& boss, twod const& min_size, twod const& max_size = -dot_11) : skill{ boss }
+            limit(base& boss, twod const& min_size = -dot_11, twod const& max_size = -dot_11)
+                : skill{ boss }
             {
-                boss.base::limits(min_size, max_size);
+                set(min_size, max_size);
+                boss.SUBMIT_T(e2::preview, e2::size::any, memo, new_size)
+                {
+                    new_size = std::clamp(new_size, lims.min, lims.max);
+                };
+            }
+            // pro::limit: Set size limits (min, max). Preserve current value if specified arg less than 0.
+            void set(twod const& min_size, twod const& max_size = -dot_11)
+            {
+                lims.min = min_size.less(dot_00, min_value, min_size);
+                lims.max = max_size.less(dot_00, max_value, max_size);
+            }
+            // pro::limit: Set resize limits (min, max). Preserve current value if specified arg less than 0.
+            void set(lims_t const& new_limits)
+            {
+                set(new_limits.min, new_limits.max);
+            }
+            auto& get() const
+            {
+                return lims;
             }
         };
 
@@ -3953,14 +3912,14 @@ namespace netxs::console
                   canvas{*(coreface = std::make_shared<face>())}
             {
                 canvas.link(boss.bell::id);
-                canvas.move(boss.base::coor.get());
-                canvas.size(boss.base::size.get());
+                canvas.move(boss.base::coor());
+                canvas.size(boss.base::size());
                 boss.SUBMIT_T(e2::release, e2::form::upon::vtree::attached, memo, parent_ptr)
                 {
                     boss.SIGNAL(e2::general, e2::form::canvas, canvas.shared_from_this());
                 };
-                boss.SUBMIT_T(e2::release, base::move_event, memo, new_xy) { canvas.move(new_xy); };
-                boss.SUBMIT_T(e2::release, base::size_event, memo, new_sz) { canvas.size(new_sz); };
+                boss.SUBMIT_T(e2::release, e2::coor::set, memo, new_xy) { canvas.move(new_xy); };
+                boss.SUBMIT_T(e2::release, e2::size::set, memo, new_sz) { canvas.size(new_sz); };
                 boss.SUBMIT_T(e2::request, e2::form::canvas, memo, canvas) { canvas = coreface; };
                 boss.SUBMIT_T(e2::release, e2::render::prerender, memo, parent_canvas)
                 {
@@ -4176,10 +4135,19 @@ namespace netxs::console
                 {
                     auto data = cube{ gear.mouse::delta.get(), gear.area() };
                     this->SIGNAL(e2::preview, e2::form::layout::convey, data);
+                    deface(rect{ dot_00, dot_11 }); //todo unify, deface all world
                     gear.dismiss();
                 }
             };
             SUBMIT(e2::release, bttn::drag::cancel::left, gear)
+            {
+                if (gear.captured(bell::id))
+                {
+                    gear.release();
+                    gear.dismiss();
+                }
+            };
+            SUBMIT(e2::general, e2::hids::mouse::gone, gear)
             {
                 if (gear.captured(bell::id))
                 {
@@ -4197,6 +4165,7 @@ namespace netxs::console
                                  {
                                      auto data = cube{ x, boundary };
                                      this->SIGNAL(e2::preview, e2::form::layout::convey, data);
+                                     deface(rect{ dot_00, dot_11 }); //todo unify, deface all world
                                  });
                     gear.dismiss();
                 }
@@ -4820,6 +4789,7 @@ again:
         lock  mutex; // diff: Mutex between renderer and committer threads.
         cond  synch; // diff: The synchronization mechanism between the renderer and the committer.
 
+        /*
         //todo deprecate bsu/esu
         //todo unify bsu/esu
         enum mode_type { none, escp, decs, last };
@@ -4827,7 +4797,7 @@ again:
         std::vector<std::vector<text>> bsuesu;
         lock  bsu_mutex; // diff: Mutex between renderer and committer threads.
         iota  smode; // diff: synchronous mode
-
+        */
         grid& cache; // diff: The current content buffer which going to be checked and processed.
         grid  front; // diff: The Shadow copy of the terminal/screen.
 
@@ -5209,7 +5179,7 @@ again:
               cache{ cache }
         {
             log("diff: ctor start");
-
+            /*
             bsuesu.resize(4);
             bsuesu[mode_type::none].resize(2);
             bsuesu[mode_type::escp].resize(2);
@@ -5231,7 +5201,7 @@ again:
                     smode = std::min<iota>(mode, mode_type::last);
                 }
             };
-
+            */
             paint = work([&] { render(); });
             log("diff: ctor complete");
         }
@@ -5315,7 +5285,6 @@ again:
                 SUBMIT_T(e2::release, e2::term::quit, token, msg)
                 {
                     log("gate: stop byemsg: ", msg);
-                    mouse.reset(); // Reset active mouse clients to avoid hanging pointers.
                     conio.shutdown();
                 };
                 SUBMIT_T(e2::release, e2::form::state::header, token, newheader)
@@ -5363,6 +5332,7 @@ again:
                 };
 
                 conio.session(title);
+                mouse.reset(); // Reset active mouse clients to avoid hanging pointers.
             }
         }
 
@@ -5372,10 +5342,10 @@ again:
         {
             //todo cache specific
             canvas.link(bell::id);
-            canvas.move(base::coor.get());
-            canvas.size(base::size.get());
-            SUBMIT(e2::release, base::size_event, new_sz) { canvas.mark(base::brush); canvas.size(new_sz); };
-            SUBMIT(e2::release, base::move_event, new_xy) { canvas.move(new_xy); };
+            canvas.move(base::coor());
+            canvas.size(base::size());
+            SUBMIT(e2::release, e2::size::set, new_sz) { canvas.mark(base::brush); canvas.size(new_sz); };
+            SUBMIT(e2::release, e2::coor::set, new_xy) { canvas.move(new_xy); };
             SUBMIT(e2::request, e2::form::canvas, canvas) { canvas = coreface; };
 
             //todo unify
@@ -5389,6 +5359,7 @@ again:
             SUBMIT(e2::release, e2::form::drag::pull::leftright, gear)
             {
                 base::moveby(-gear.delta.get());
+                base::deface();
             };
             SUBMIT(e2::release, e2::form::drag::stop::leftright, gear)
             {
@@ -5396,6 +5367,7 @@ again:
                 robot.actify(gear.mouse::fader<quadratic<twod>>(2s), [&](auto& x)
                              {
                                 base::moveby(-x);
+                                base::deface();
                              });
             };
             //todo unify (use uibar)
@@ -5408,7 +5380,7 @@ again:
             {
                 if (auto world = parent_shadow.lock())
                 {
-                    region.coor += base::coor.get();
+                    region.coor += base::coor();
                     world->SIGNAL(e2::release, e2::form::proceed::create, region);
                 }
             };
@@ -5416,7 +5388,7 @@ again:
             {
                 if (auto world = parent_shadow.lock())
                 {
-                    gear.slot.coor += base::coor.get();
+                    gear.slot.coor += base::coor();
                     world->SIGNAL(e2::release, e2::form::proceed::createby, gear);
                 }
             };
@@ -5439,8 +5411,8 @@ again:
                             if (item_ptr)
                             {
                                 auto& item = *item_ptr;
-                                auto square = item.square();
-                                auto center = square.coor + (square.size / 2);
+                                auto& area = item.area();
+                                auto center = area.coor + (area.size / 2);
                                 this->SIGNAL(e2::release, e2::form::layout::shift, center);
 
                                 //todo unify
@@ -5464,10 +5436,11 @@ again:
 
                 robot.pacify();
                 robot.actify(func, [&](auto& x) {
-                                     moveby(-x);
+                                     base::moveby(-x);
+                                     base::strike();
                                  });
             };
-            SUBMIT(e2::release, e2::form::layout::size, newsz)
+            SUBMIT(e2::release, e2::size::set, newsz)
             {
                 if (uibar) uibar->base::resize(newsz);
             };
@@ -5529,7 +5502,7 @@ again:
                 }
                 else
                 {
-                    if (uibar) parent_canvas.render(uibar, base::coor.get());
+                    if (uibar) parent_canvas.render(uibar, base::coor());
                 }
 
                 #ifdef REGIONS

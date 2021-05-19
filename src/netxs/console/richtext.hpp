@@ -1710,7 +1710,7 @@ namespace netxs::console
             auto canvas_view = core::view();
             auto parent_area = flow::full();
 
-            auto object_area = nested.square();
+            auto object_area = nested.area();
             object_area.coor+= parent_area.coor;
 
             auto nested_view = canvas_view.clip(object_area);
@@ -1736,7 +1736,7 @@ namespace netxs::console
             auto canvas_view = core::view();
             auto parent_area = flow::full();
 
-            auto object_area = object.square();
+            auto object_area = object.area();
             object_area.coor-= core::coor();
 
             if (auto nested_view = canvas_view.clip(object_area))

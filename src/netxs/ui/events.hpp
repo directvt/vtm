@@ -168,16 +168,26 @@ namespace netxs::events
             dtor        = any | (9 << 0), // Notify about object destruction, release only (arg: const id_t)
 
             //todo unify
-            radio       = any | (10<< 0), // return active radio id_t (arg: const id_t)
-            cout        = any | (11<< 0), // Append extra data to output (arg: const text)
+            //radio       = any | (10<< 0), // return active radio id_t (arg: const id_t)
+            cout        = any | (10<< 0), // Append extra data to output (arg: const text)
 
-            _bindings   = any | (12<< 0), // Dynamic Data Bindings.
-            _render     = any | (13<< 0), // release: UI-tree rendering (arg: face).
-            postrender  = any | (14<< 0), // release: UI-tree post-rendering (arg: face).
+            _bindings   = any | (11<< 0), // Dynamic Data Bindings.
+            _render     = any | (12<< 0), // release: UI-tree rendering (arg: face).
+            postrender  = any | (13<< 0), // release: UI-tree post-rendering (arg: face).
+            _size       = any | (14<< 0), // release: Object size (arg: twod).
+            _coor       = any | (15<< 0), // release: Object coor (arg: twod).
         };
         //private: static const unsigned int _level = _toplevel + _width;
         private: static const unsigned int _level0 = _width;
         public:
+        struct size { enum : type {
+                any = e2::_size,                    // preview: checking by pro::limit (arg: twod).
+                set         = any | (1 << _level0), // preview: checking by object; release: apply to object (arg: twod).
+        };};
+        struct coor { enum : type {
+                any = e2::_coor,                    // preview: checking by pro::limit (arg: twod).
+                set         = any | (1 << _level0), // preview: checking by object; release: apply to object (arg: twod).
+        };};
         struct render { enum : type {
                 any = e2::_render,                  // release: UI-tree default rendering submission (arg: face).
                 prerender   = any | (1 << _level0), // release: UI-tree pre-rendering, used by pro::cache (can interrupt SIGNAL) and any kind of highlighters (arg: face).
@@ -305,7 +315,7 @@ namespace netxs::events
                     shuffle     = any | (3 << _level1), // movement within one cell
                     _scroll     = any | (4 << _level1),
                     focus       = any | (5 << _level1),
-                    hover       = any | (6 << _level1),
+                    gone        = any | (6 << _level1), // release::global: Notify about the mouse controller is gone (args: hids).
                 };
                 private: static const unsigned int _level2 = _level1 + _width;
                 public:
@@ -553,8 +563,8 @@ namespace netxs::events
                     cached      = any | (5 << _level1), // inform about camvas is cached (arg: canvas face)
                     wiped       = any | (6 << _level1), // event after wipe the canvas (arg: canvas face)
                     created     = any | (7 << _level1), // event after itself creation (arg: itself bell_sptr)
-                    moved       = any | (8 << _level1), // release: event after moveto (arg: diff bw old and new coor twod). preview: event after moved by somebody.
-                    resized     = any | (9 << _level1), // event after resize (arg: diff bw old and new size twod)
+                    //moved       = any | (8 << _level1), // release: event after moveto (arg: diff bw old and new coor twod). preview: event after moved by somebody.
+                    changed     = any | (9 << _level1), // event after resize (arg: diff bw old and new size twod)
                     _scroll     = any | (10<< _level1), // event after scroll (arg: rack)
                     dragged     = any | (11<< _level1), // event after drag (arg: hids)
                 };
@@ -598,8 +608,8 @@ namespace netxs::events
             //};};
             struct layout { enum : type {
                     any = form::_layout,
-                    move        = any | (1 << _level1), // return client rect coor (preview: subject to change)
-                    size        = any | (2 << _level1), // return client rect size (preview: subject to change)
+                    //coor        = any | (1 << _level1), // return client rect coor (preview: subject to change)
+                    //size        = any | (2 << _level1), // return client rect size (preview: subject to change)
                     //rect        = any | (3 << _level1), // return client rect (preview: subject to change)
                     //show        = any | (3 << _level1), // order to make it visible (arg: bool notify or not)
                     //hide        = any | (4 << _level1), // order to make it hidden (arg: bool notify or not)

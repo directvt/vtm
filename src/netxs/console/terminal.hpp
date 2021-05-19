@@ -502,26 +502,35 @@ namespace netxs::ui
             void enable (mode m)
             {
                 state |= m;
-                if (state && !token) // Do not subscribe if it is already subscribed
+                if (state && !token.count()) // Do not subscribe if it is already subscribed
                 {
                     owner.SUBMIT_T(e2::release, e2::hids::mouse::any, token, gear)
                     {
                         moved = coord((state & mode::over) ? gear.coord
                                                            : std::clamp(gear.coord, dot_00, owner.viewport.size - dot_11));
-                        if (proto == sgr) serialize<sgr>(gear);
-                        else              serialize<x11>(gear);
+                        auto cause = owner.bell::protos<e2::release>();
+                        if (proto == sgr) serialize<sgr>(gear, cause);
+                        else              serialize<x11>(gear, cause);
+                        owner.write(queue);
+                    };
+                    owner.SUBMIT_T(e2::general, e2::hids::mouse::gone, token, gear)
+                    {
+                        log("term: e2::hids::mouse::gone, id = ", gear.id);
+                        auto cause = e2::hids::mouse::gone;
+                        if (proto == sgr) serialize<sgr>(gear, cause);
+                        else              serialize<x11>(gear, cause);
                         owner.write(queue);
                     };
                 }
             }
-            void disable(mode m) { state &= ~(m); if (!state) token.reset(); }
+            void disable(mode m) { state &= ~(m); if (!state) token.clear(); }
             void setmode(prot p) { proto = p; }
 
         private:
             term&       owner;
             testy<twod> coord;
             ansi::esc   queue; // mtracking: Buffer.
-            hook        token; // mtracking: Subscription token.
+            subs        token; // mtracking: Subscription token.
             bool        moved = faux;
             iota        proto = prot::x11;
             iota        state = mode::none;
@@ -551,7 +560,7 @@ namespace netxs::ui
             }
             // mtracking: Serialize mouse state.
             template<prot PROT>
-            void serialize(hids& gear)
+            void serialize(hids& gear, id_t cause)
             {
                 using m = e2::hids::mouse;
                 using b = e2::hids::mouse::button;
@@ -568,7 +577,7 @@ namespace netxs::ui
 
                 auto ismove = moved && state & mode::move;
                 auto isdrag = moved && state & mode::drag;
-                switch (owner.bell::protos<e2::release>())
+                switch (cause)
                 {
                     // Move
                     case b::drag::pull::leftright:
@@ -589,6 +598,17 @@ namespace netxs::ui
                     // Wheel
                     case m::scroll::up  : proceed<PROT>(gear, wheel_up, true); break;
                     case m::scroll::down: proceed<PROT>(gear, wheel_dn, true); break;
+                    // Gone
+                    case m::gone:
+                        release(gear);
+                        if (auto buttons = gear.buttons())
+                        {
+                            // Release pressed mouse buttons.
+                            if (buttons | sysmouse::left)   proceed<PROT>(gear, up_left);
+                            if (buttons | sysmouse::middle) proceed<PROT>(gear, up_mddl);
+                            if (buttons | sysmouse::right)  proceed<PROT>(gear, up_rght);
+                        }
+                        break;
                     default:
                         break;
                 }
@@ -1469,21 +1489,21 @@ namespace netxs::ui
                     if (caret_seeable && !viewport.hittest(caret_xy))
                     {
                         auto delta = caret_xy - old_caret_pos;
-                        auto new_coor = base::coor.get() - delta;
-                        SIGNAL(e2::release, base::move_event, new_coor);
+                        auto new_coor = base::coor() - delta;
+                        SIGNAL(e2::release, e2::coor::set, new_coor);
                     }
                     //if (caret_seeable)// && !viewport.hittest(caret_xy))
                     //{
                     //    if (auto delta = old_caret_pos - viewport.clip(caret.coor()))
                     //    {
                     //        auto v0 = viewport; v0.coor.x = 0;
-                    //        auto new_coor = base::coor.get() - delta;
+                    //        auto new_coor = base::coor() - delta;
                     //        if (v0.hittest(caret.coor())) new_coor.x = 0;
                     //        SIGNAL(e2::release, base::move_event, new_coor);
                     //    }
                     //}
 
-                    SIGNAL(e2::release, base::size_event, target->frame_size());
+                    SIGNAL(e2::release, e2::size::set, target->frame_size());
 
                     update_status();
                     //log(" 2. target content: ", target->get_content());
@@ -1512,13 +1532,13 @@ namespace netxs::ui
             SUBMIT(e2::release, e2::form::upon::vtree::attached, parent)
             {
                 this->base::riseup<e2::request, e2::form::prop::header>(winprops.get(ansi::OSC_TITLE));
-                this->SUBMIT_T(e2::release, e2::form::layout::size, oneshot_resize_token, new_size)
+                this->SUBMIT_T(e2::release, e2::size::set, oneshot_resize_token, new_size)
                 {
                     if (new_size.y > 0)
                     {
                         oneshot_resize_token.reset();
                         altbuf.resize<faux>(new_size.y);
-                        this->SUBMIT(e2::preview, e2::form::layout::size, new_size)
+                        this->SUBMIT(e2::preview, e2::size::set, new_size)
                         {
                             new_size = std::max(new_size, dot_11);
                             auto old_caret_pos = caret.coor();
@@ -1541,9 +1561,9 @@ namespace netxs::ui
                                 if (auto delta = old_caret_pos - viewport.clip(caret.coor()))
                                 {
                                     auto v0 = viewport; v0.coor.x = 0;
-                                    auto new_coor = base::coor.get() - delta;
+                                    auto new_coor = base::coor() - delta;
                                     if (v0.hittest(caret.coor())) new_coor.x = 0;
-                                    this->SIGNAL(e2::release, base::move_event, new_coor);
+                                    this->SIGNAL(e2::release, e2::coor::set, new_coor);
                                 }
                             }
 
@@ -1563,8 +1583,8 @@ namespace netxs::ui
                     //todo revise
                     auto old_caret_pos = viewport.coor + viewport.size - dot_11;
                     auto anchor_delta = caret_xy - old_caret_pos;
-                    auto new_coor = base::coor.get() - anchor_delta;
-                    this->SIGNAL(e2::release, base::move_event, new_coor);
+                    auto new_coor = base::coor() - anchor_delta;
+                    this->SIGNAL(e2::release, e2::coor::set, new_coor);
                 }
 
                 //todo optimize/unify
@@ -1599,7 +1619,7 @@ namespace netxs::ui
                     log("key strokes bin: ", d.str());
                 #endif
             };
-            SUBMIT(e2::release, e2::form::layout::move, new_coor)
+            SUBMIT(e2::release, e2::coor::set, new_coor)
             {
                 viewport.coor = -new_coor;
             };
