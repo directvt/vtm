@@ -23,11 +23,51 @@ A text-based desktop environment in your terminal
 - macOS
   - Catalina 10.15
 
+# Building from Source
+
+### GNU/Linux amd64
+
+Build-time dependencies: `gcc` or `clang`
+
+```bash
+git clone https://github.com/netxs-group/VTM.git && cd ./VTM
+mkdir build
+cd ./build
+cmake ../src -DEXECUTABLE_OUTPUT_PATH="../bin" -DCMAKE_BUILD_TYPE="Release" -DCMAKE_CXX_FLAGS="-pthread -s" && cmake --build .
+cd ../bin
+rm -rfv ../build
+```
+
+### Windows
+
+Build-time dependencies: `Visual Studio 2019`
+
+Use `Developer Command Prompt for VS 2019`
+```cmd
+git clone https://github.com/netxs-group/VTM.git && cd ./VTM
+mkdir build
+cd ./build
+cmake ../src -DEXECUTABLE_OUTPUT_PATH=".." -DCMAKE_BUILD_TYPE=Release "-GVisual Studio 16 2019" -DCMAKE_CXX_FLAGS="/DWIN32 /D_WINDOWS /W3 /GR /EHsc /bigobj" && cmake --build . --config Release && cd ../Release
+```
+
+### macOS
+
+Build-time dependencies: `Xcode 12.x series`  
+Xcode project settings: `./src/project.pbxproj`
+
+```
+ ...
+buildSettings = {
+ ...
+  CLANG_CXX_LANGUAGE_STANDARD = "c++2a";
+ ...
+```
+
 # Releases
 
-[![](https://dice.netxs.online/cloud/vtm/status/macos)](https://github.com/netxs-group/VTM/releases/download/latest/vtm_macos.tar.gz)  
-[![](https://dice.netxs.online/cloud/vtm/status/linux)](https://github.com/netxs-group/VTM/releases/download/latest/vtm_linux_amd64.tar.gz)  
-[![](https://dice.netxs.online/cloud/vtm/status/windows)](https://github.com/netxs-group/VTM/releases/download/latest/vtm_windows_64.zip)  
+[![](https://dice.netxs.online/cloud/vtm/status/macos)](https://github.com/netxs-group/VTM/releases/latest/download/vtm_macos.tar.gz)  
+[![](https://dice.netxs.online/cloud/vtm/status/linux)](https://github.com/netxs-group/VTM/releases/latest/download/vtm_linux_amd64.tar.gz)  
+[![](https://dice.netxs.online/cloud/vtm/status/windows)](https://github.com/netxs-group/VTM/releases/latest/download/vtm_windows_64.zip)  
 
 ---
 
@@ -59,6 +99,7 @@ double `LeftClick`    | Menu: Create new window<br>Window: Maximize/restore wind
 
 - `▀▄ Term` Terminal emulator
 - `▀▄ Logs` VT monitoring tool
+- `▀▄ View` Desktop named regions
 - `▀▄ Task` Task manager (desktopio) _(not ready)_
 - `▀▄ Hood` Configuration utility _(not ready)_
 - `▀▄ Info` Documentation browser _(not ready)_
@@ -99,6 +140,9 @@ double `LeftClick`    | Menu: Create new window<br>Window: Maximize/restore wind
 
  - `▀▄ Logs`
   - Reset by double `RightClick`
+
+ - `▀▄ View`
+  - Serves for quick navigation through the desktop space using cyclic selection (left click on group title) in the `View` group on the taskbar.
 
  - `▀▄ Hood`
   - ...

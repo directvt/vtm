@@ -1603,14 +1603,10 @@ namespace netxs::ui
             {
                 viewport.coor = -new_coor;
             };
-        }
-
-        // term/base: Output to the canvas.
-        virtual void renderproc (face& parent_canvas)
-        {
-            base::renderproc(parent_canvas);
-            target->output(parent_canvas);
-            SIGNAL(e2::release, e2::form::upon::redrawn, parent_canvas); // in order to show cursor/caret
+            SUBMIT(e2::release, e2::render::any, parent_canvas)
+            {
+                target->output(parent_canvas);
+            };
         }
         // term/base: Set default fg/bg-colors.
         virtual void color(rgba const& fg_color, rgba const& bg_color)

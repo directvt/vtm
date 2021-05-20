@@ -1,7 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#define MONOTTY_VER "Monotty Desktopio Preview v0.3.6"
+#define MONOTTY_VER "Monotty Desktopio Preview v0.3.7"
 // Autostart demo apps.
 //#define DEMO
 // Enable keyboard input and disable exit by single Esc.
@@ -1256,6 +1256,7 @@ utility like ctags is used to locate the definitions.
         const static auto x2 = cell{ c2 }.bga(0x00);
         const static auto c1 = cell{}.bgc(danger_color).fgc(whitelt);
         const static auto x1 = cell{ c1 }.bga(0x00);
+        const static auto term_menu_bg = rgba{ 0x80404040 };
 
         auto scroll_bars = [](auto master)
         {
@@ -1316,12 +1317,14 @@ utility like ctags is used to locate the definitions.
         //todo use XAML for that
         auto create = [&](objs type, auto location) -> auto
         {
-            sptr<ui::mold> window = base::create<ui::mold>()
+            sptr<ui::cake> window = base::create<ui::cake>()
                             ->plugin<pro::limit>(dot_11, twod{ 400,200 }) //todo unify, set via config
                             ->plugin<pro::align>()
                             ->plugin<pro::sizer>()
                             ->plugin<pro::frame>()
-                            ->invoke([&](ui::mold& boss){
+                            ->plugin<pro::light>()
+                            ->plugin<pro::focus>()
+                            ->invoke([&](ui::cake& boss){
                                 boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
                                 {
                                     auto square = boss.base::square();
@@ -1369,9 +1372,12 @@ utility like ctags is used to locate the definitions.
                 default:
                 case Test:
                 {
-                    window->plugin<pro::title>(ansi::jet(bias::center) + "Test Page");
+                    window->plugin<pro::title>(ansi::jet(bias::center) + "Test Page")
+                          ->plugin<pro::track>()
+                          ->plugin<pro::acryl>()
+                          ->plugin<pro::cache>();
                     auto object0 = window->attach<ui::fork>(axis::Y)
-                                        ->plugin<pro::color>(whitelt, 0x60DB3700);
+                                        ->plugin<pro::color>(whitelt, 0xA0db3700);
                         auto menu = object0->attach<slot::_1>(main_menu())
                                           ->plugin<pro::color>(0, 0) //todo mouse tracking
                                           ->plugin<pro::mover>(window);
@@ -1384,7 +1390,7 @@ utility like ctags is used to locate the definitions.
                     auto object = scroll->attach<ui::post>()
                                         ->upload(topic)
                                         ->invoke([&](auto& self) {
-                                            self.SUBMIT(e2::release, e2::form::upon::redrawn, canvas)
+                                            self.SUBMIT(e2::release, e2::postrender, canvas)
                                             {
                                                 static auto counter = 0; counter++;
                                                 static auto textclr =  ansi::bgc(reddk).fgc(whitelt);
@@ -1419,9 +1425,12 @@ utility like ctags is used to locate the definitions.
                 }
                 case PowerShell:
                 {
-                    window->plugin<pro::title>("Term \nPowerShell");
+                    window->plugin<pro::title>("Term \nPowerShell")
+                          ->plugin<pro::track>()
+                          ->plugin<pro::acryl>()
+                          ->plugin<pro::cache>();
                     auto object = window->attach<ui::fork>(axis::Y)
-                                        ->plugin<pro::color>(whitelt, 0x60303030);
+                                        ->plugin<pro::color>(whitelt, term_menu_bg);
                         auto menu = object->attach<slot::_1>(main_menu())
                                           ->plugin<pro::color>(0, 0) //todo mouse tracking
                                           ->plugin<pro::mover>(window);
@@ -1437,14 +1446,17 @@ utility like ctags is used to locate the definitions.
                 }
                 case CommandPrompt:
                 {
-                    window->plugin<pro::title>("Term \nCommand Prompt");
-                    auto object0 = window->attach<ui::fork>(axis::Y)
-                                        ->plugin<pro::color>(whitelt, 0x60303030);
-                        auto menu = object0->attach<slot::_1>(main_menu())
+                    window->plugin<pro::title>("Term \nCommand Prompt")
+                          ->plugin<pro::track>()
+                          ->plugin<pro::acryl>()
+                          ->plugin<pro::cache>();
+                    auto object = window->attach<ui::fork>(axis::Y)
+                                        ->plugin<pro::color>(whitelt, term_menu_bg);
+                        auto menu = object->attach<slot::_1>(main_menu())
                                           ->plugin<pro::color>(0, 0) //todo mouse tracking
                                           ->plugin<pro::mover>(window);
-                    auto layers = object0->attach<slot::_2, ui::cake>()
-                                         ->plugin<pro::limit>(dot_11, twod{ 400,200 });
+                    auto layers = object->attach<slot::_2, ui::cake>()
+                                        ->plugin<pro::limit>(dot_11, twod{ 400,200 });
                     auto scroll = layers->attach<ui::rail>()
                                         ->plugin<pro::mover>(window);
                         #ifdef DEMO
@@ -1453,14 +1465,14 @@ utility like ctags is used to locate the definitions.
                         #endif
 
                         #if defined(_WIN32)
-                            auto object = scroll->attach<ui::term>("cmd");
+                            auto inst = scroll->attach<ui::term>("cmd");
                         #elif defined(__linux__)
-                            auto object = scroll->attach<ui::term>("bash");
+                            auto inst = scroll->attach<ui::term>("bash");
                         #elif defined(__APPLE__)
-                            auto object = scroll->attach<ui::term>("zsh");
+                            auto inst = scroll->attach<ui::term>("zsh");
                         #endif
 
-                        object->plugin<pro::color>(whitelt, blackdk);
+                        inst->plugin<pro::color>(whitelt, blackdk);
 
                     layers->attach(scroll_bars_term(scroll));
                     break;
@@ -1492,10 +1504,12 @@ utility like ctags is used to locate the definitions.
                 }
                 case Truecolor:
                 {
-                    window->plugin<pro::title>(ansi::jet(bias::right) + "True color ANSI/ASCII image test");
-                    window->blurred = true;
+                    window->plugin<pro::title>(ansi::jet(bias::right) + "True color ANSI/ASCII image test")
+                          ->plugin<pro::track>()
+                          ->plugin<pro::acryl>()
+                          ->plugin<pro::cache>();
                     auto object = window->attach<ui::fork>(axis::Y)
-                                        ->plugin<pro::color>(whitelt, 0x601F0FC4);
+                                        ->plugin<pro::color>(whitelt, 0xA01f0fc4);
                         auto menu = object->attach<slot::_1>(main_menu())
                                           ->plugin<pro::color>(0, 0) //todo mouse tracking
                                           ->plugin<pro::mover>(window);
@@ -1514,8 +1528,9 @@ utility like ctags is used to locate the definitions.
                 }
                 case Empty:
                 {
-                    window->plugin<pro::title>(ansi::mgl(1).mgr(1) + "Empty Instance \nid: " + std::to_string(window->id));
-                    window->blurred = true;
+                    window->plugin<pro::title>(ansi::mgl(1).mgr(1) + "Empty Instance \nid: " + std::to_string(window->id))
+                          ->plugin<pro::track>()
+                          ->plugin<pro::acryl>();
                     auto object = window->attach<ui::mock>()
                                         ->plugin<pro::color>(0,0) //todo mouse tracking
                                         ->plugin<pro::mover>(window);
@@ -1523,10 +1538,11 @@ utility like ctags is used to locate the definitions.
                 }
                 case Shop:
                 {
-                    window->plugin<pro::title>("Desktopio App Store", faux);
-                    window->color(whitelt, 0x60000000);
-                    window->blurred = true;
-                    window->highlight_center = faux;
+                    window->plugin<pro::title>("Desktopio App Store", faux)
+                          ->plugin<pro::color>(whitelt, 0x60000000)
+                          ->plugin<pro::track>()
+                          ->plugin<pro::acryl>()
+                          ->plugin<pro::cache>();
                     auto object = window->attach<ui::fork>(axis::Y)
                                         ->plugin<pro::color>(whitelt, 0);
                         object->attach<slot::_1, ui::post>()
@@ -1554,11 +1570,12 @@ utility like ctags is used to locate the definitions.
                 case Calc:
                 {
                     static iota i = 0; i++;
-                    window->plugin<pro::title>(ansi::jet(bias::right) + "Spreadsheet\n ~/Untitled " + std::to_string(i) + ".ods");
-                    window->color(whitelt, 0x601A5f00);
-                    window->limits({ -1,-1 },{ 136,105 });
-                    window->blurred = true;
-                    window->highlight_center = faux;
+                    window->plugin<pro::title>(ansi::jet(bias::right) + "Spreadsheet\n ~/Untitled " + std::to_string(i) + ".ods")
+                          ->plugin<pro::color>(whitelt, 0x601A5f00)
+                          ->plugin<pro::limit>(twod{ -1,-1 },twod{ 136,105 })
+                          ->plugin<pro::track>()
+                          ->plugin<pro::acryl>()
+                          ->plugin<pro::cache>();
                     auto object = window->attach<ui::fork>(axis::Y)
                                         ->plugin<pro::color>(whitelt, 0);
                         auto menu = object->attach<slot::_1>(main_menu())
@@ -1630,12 +1647,13 @@ utility like ctags is used to locate the definitions.
                 case Text:
                 {
                     static iota i = 0; i++;
-                    window->plugin<pro::title>(ansi::jet(bias::center) + "Text Editor\n ~/Untitled " + std::to_string(i) + ".txt");
-                    //window->color(whitelt, 0x605f1A00);
-                    //window->blurred = true;
+                    window->plugin<pro::title>(ansi::jet(bias::center) + "Text Editor\n ~/Untitled " + std::to_string(i) + ".txt")
+                          ->plugin<pro::track>()
+                          ->plugin<pro::acryl>()
+                          ->plugin<pro::cache>();
                     //window->highlight_center = faux;
                     auto object = window->attach<ui::fork>(axis::Y)
-                                        ->plugin<pro::color>(whitelt, 0x605f1A00);
+                                        ->plugin<pro::color>(whitelt, 0xA05f1a00);
                         auto menu = object->attach<slot::_1>(main_menu())
                                           ->plugin<pro::color>(0, 0) //todo mouse tracking
                                           ->plugin<pro::mover>(window);
@@ -1660,9 +1678,12 @@ utility like ctags is used to locate the definitions.
                 }
                 case VTM:
                 {
-                    window->plugin<pro::title>("Term \n" + objs_desc[VTM]);
+                    window->plugin<pro::title>("Term \n" + objs_desc[VTM])
+                          ->plugin<pro::track>()
+                          ->plugin<pro::acryl>()
+                          ->plugin<pro::cache>();
                     auto object = window->attach<ui::fork>(axis::Y)
-                                        ->plugin<pro::color>(whitelt, 0x60303030);
+                                        ->plugin<pro::color>(whitelt, term_menu_bg);
                         auto menu = object->attach<slot::_1>(main_menu())
                                           ->plugin<pro::color>(0, 0) //todo mouse tracking
                                           ->plugin<pro::mover>(window);
@@ -1694,9 +1715,12 @@ utility like ctags is used to locate the definitions.
                 }
                 case Far:
                 {
-                    window->plugin<pro::title>("Term \n" + objs_desc[Far]);
+                    window->plugin<pro::title>("Term \n" + objs_desc[Far])
+                          ->plugin<pro::track>()
+                          ->plugin<pro::acryl>()
+                          ->plugin<pro::cache>();
                     auto object = window->attach<ui::fork>(axis::Y)
-                                        ->plugin<pro::color>(whitelt, 0x60303030);
+                                        ->plugin<pro::color>(whitelt, term_menu_bg);
                         auto menu = object->attach<slot::_1>(main_menu())
                                           ->plugin<pro::color>(0, 0) //todo mouse tracking
                                           ->plugin<pro::mover>(window);
@@ -1710,9 +1734,12 @@ utility like ctags is used to locate the definitions.
                 }
                 case MC:
                 {
-                    window->plugin<pro::title>("Term \n" + objs_desc[MC]);
+                    window->plugin<pro::title>("Term \n" + objs_desc[MC])
+                          ->plugin<pro::track>()
+                          ->plugin<pro::acryl>()
+                          ->plugin<pro::cache>();
                     auto object = window->attach<ui::fork>(axis::Y)
-                                        ->plugin<pro::color>(whitelt, 0x60303030);
+                                        ->plugin<pro::color>(whitelt, term_menu_bg);
                         auto menu = object->attach<slot::_1>(main_menu())
                                           ->plugin<pro::color>(0, 0) //todo mouse tracking
                                           ->plugin<pro::mover>(window);
@@ -1747,9 +1774,12 @@ utility like ctags is used to locate the definitions.
                 case Bash:
                 case Term:
                 {
-                    window->plugin<pro::title>("Term \n" + objs_desc[Bash]);
+                    window->plugin<pro::title>("Term \n" + objs_desc[Bash])
+                          ->plugin<pro::track>()
+                          ->plugin<pro::acryl>()
+                          ->plugin<pro::cache>();
                     auto object = window->attach<ui::fork>(axis::Y)
-                                        ->plugin<pro::color>(whitelt, 0x60303030);
+                                        ->plugin<pro::color>(whitelt, term_menu_bg);
                         auto menu = object->attach<slot::_1>(main_menu())
                                           ->plugin<pro::color>(0, 0) //todo mouse tracking
                                           ->plugin<pro::mover>(window);
@@ -1780,9 +1810,12 @@ utility like ctags is used to locate the definitions.
                 }
                 case Logs:
                 {
-                    window->plugin<pro::title>("Logs \nVT monitoring tool");
+                    window->plugin<pro::title>("Logs \nVT monitoring tool")
+                          ->plugin<pro::track>()
+                          ->plugin<pro::acryl>()
+                          ->plugin<pro::cache>();
                     auto object = window->attach<ui::fork>(axis::Y)
-                                        ->plugin<pro::color>(whitelt, 0x60303030);
+                                        ->plugin<pro::color>(whitelt, term_menu_bg);
                         auto menu = object->attach<slot::_1>(main_menu())
                                           ->plugin<pro::color>(0, 0) //todo mouse tracking
                                           ->plugin<pro::mover>(window);
@@ -1809,11 +1842,19 @@ utility like ctags is used to locate the definitions.
                 {
                     static iota i = 0; i++;
                     window->plugin<pro::title>(ansi::jet(bias::center) + "View \n Region " + std::to_string(i));
-                    window->only_frame = true;
                     window->invoke([&](auto& boss){
                         auto& sizer = boss.template plugins<pro::sizer>();
                         sizer.props(dent{ 2,2,1,1 }, dent{ -4,-4,-2,-2 });
                         boss.SIGNAL(e2::preview, e2::form::prop::zorder, Z_order::backmost);
+                        boss.SUBMIT(e2::release, e2::render::prerender, parent_canvas)
+                        {
+                            rgba title_fg_color = 0xFFffffff;
+                            auto area = parent_canvas.full();
+                            auto mark = skin::color(tone::shadower);
+                            mark.fgc(title_fg_color).link(boss.bell::id);
+                            auto fill = [&](cell& c) { c.fusefull(mark); };
+                            parent_canvas.cage(area, dot_21, fill);
+                        };
                     });
                     break;
                 }
@@ -1831,7 +1872,7 @@ utility like ctags is used to locate the definitions.
             {
                 log("inst: max count reached");
                 auto timeout = tempus::now() + del_timeout;
-                auto w_frame = wptr<ui::mold>{ frame };
+                auto w_frame = wptr<ui::cake>{ frame };
                 frame->SUBMIT_BYVAL(e2::general, e2::timer::tick, timestamp)
                 {
                     if (timestamp > timeout)
@@ -1976,382 +2017,382 @@ utility like ctags is used to locate the definitions.
                         auto username = _name;
                     #endif
 
-                    sptr<ui::gate> client;
+                    auto lock = std::make_unique<e2::sync>();
+                    auto client = world->invite<ui::gate>(username);
+                    auto client_shadow = ptr::shadow(client);
+
+                    // Taskbar Layout (PoC)
+                    auto current_default = objs::Term;
+                    client->SUBMIT(e2::request, e2::data::changed, data)
                     {
-                        e2::sync lock;
-                        client = world->invite<ui::gate>(username);
-                        auto client_shadow = ptr::shadow(client);
+                        data = current_default;
+                    };
+                    client->SUBMIT(e2::release, e2::data::changed, data)
+                    {
+                        current_default = static_cast<objs>(data);
+                    };
 
-                        // Taskbar Layout (PoC)
-                        auto current_default = objs::Term;
-                        client->SUBMIT(e2::request, e2::data::changed, data)
-                        {
-                            data = current_default;
-                        };
-                        client->SUBMIT(e2::release, e2::data::changed, data)
-                        {
-                            current_default = static_cast<objs>(data);
-                        };
-
-                        auto app_template = [&](auto& data_src, auto const& utf8){
-                            auto item_area = base::create<ui::pads>(dent{ 1,0,1,0 }, dent{ 0,0,0,1 })
-                                                ->plugin<pro::fader>(x4, c4, 0ms)//150ms)
-                                                ->invoke([&](auto& boss) {
-                                                    auto data_src_shadow = ptr::shadow(data_src);
-                                                    boss.SUBMIT_BYVAL(e2::release, e2::hids::mouse::button::click::left, gear)
+                    auto app_template = [&](auto& data_src, auto const& utf8){
+                        auto item_area = base::create<ui::pads>(dent{ 1,0,1,0 }, dent{ 0,0,0,1 })
+                                            ->plugin<pro::fader>(x4, c4, 0ms)//150ms)
+                                            ->invoke([&](auto& boss) {
+                                                auto data_src_shadow = ptr::shadow(data_src);
+                                                boss.SUBMIT_BYVAL(e2::release, e2::hids::mouse::button::click::left, gear)
+                                                {
+                                                    if(auto data_src = data_src_shadow.lock())
                                                     {
-                                                        if(auto data_src = data_src_shadow.lock())
-                                                        {
-                                                            auto& inst = *data_src;
-                                                            inst.SIGNAL(e2::preview, e2::form::layout::expose, inst);
-                                                            auto square = inst.base::square();
-                                                            auto center = square.coor + (square.size / 2);
-                                                            bell::getref(gear.id)->
-                                                                SIGNAL(e2::release, e2::form::layout::shift, center);  // Goto to the window.
-                                                            gear.dismiss();
-                                                        }
-                                                    };
-                                                    boss.SUBMIT_BYVAL(e2::release, e2::hids::mouse::button::click::right, gear)
+                                                        auto& inst = *data_src;
+                                                        inst.SIGNAL(e2::preview, e2::form::layout::expose, inst);
+                                                        auto square = inst.base::square();
+                                                        auto center = square.coor + (square.size / 2);
+                                                        bell::getref(gear.id)->
+                                                            SIGNAL(e2::release, e2::form::layout::shift, center);  // Goto to the window.
+                                                        gear.dismiss();
+                                                    }
+                                                };
+                                                boss.SUBMIT_BYVAL(e2::release, e2::hids::mouse::button::click::right, gear)
+                                                {
+                                                    if(auto data_src = data_src_shadow.lock())
                                                     {
-                                                        if(auto data_src = data_src_shadow.lock())
-                                                        {
-                                                            auto& inst = *data_src;
-                                                            inst.SIGNAL(e2::preview, e2::form::layout::expose, inst);
-                                                            auto square = gear.area();
-                                                            auto center = square.coor + (square.size / 2);
-                                                            inst.SIGNAL(e2::preview, e2::form::layout::appear, center); // Pull window.
-                                                            gear.dismiss();
-                                                        }
-                                                    };
-                                                    boss.SUBMIT_BYVAL(e2::release, e2::form::state::mouse, hits)
+                                                        auto& inst = *data_src;
+                                                        inst.SIGNAL(e2::preview, e2::form::layout::expose, inst);
+                                                        auto square = gear.area();
+                                                        auto center = square.coor + (square.size / 2);
+                                                        inst.SIGNAL(e2::preview, e2::form::layout::appear, center); // Pull window.
+                                                        gear.dismiss();
+                                                    }
+                                                };
+                                                boss.SUBMIT_BYVAL(e2::release, e2::form::state::mouse, hits)
+                                                {
+                                                    if(auto data_src = data_src_shadow.lock())
                                                     {
-                                                        if(auto data_src = data_src_shadow.lock())
-                                                        {
-                                                            data_src->SIGNAL(e2::release, e2::form::highlight::any, !!hits);
-                                                        }
-                                                    };
-                                                });
-                                auto label_area = item_area->template attach<ui::fork>();
-                                    auto mark_app = label_area->template attach<slot::_1, ui::fork>();
-                                        auto mark = mark_app->template attach<slot::_1, ui::pads>(dent{ 2,1,0,0 }, dent{ 0,0,0,0 })
-                                                            ->template attach<ui::item>(
-                                                                ansi::fgc4(0xFF00ff00) + "‣", faux);
-                                        auto app_label = mark_app->template attach<slot::_2, ui::item>(
-                                                    ansi::fgc(whitelt)
-                                                    + utf8 + ansi::mgl(0).wrp(wrap::off).jet(bias::left), true, true);
-                                    auto app_close_area = label_area->template attach<slot::_2, ui::pads>(dent{ 0,0,0,0 }, dent{ 0,0,1,1 })
-                                                                    ->template plugin<pro::fader>(x5, c5, 150ms)
-                                                                    ->invoke([&](auto& boss) {
-                                                                    auto data_src_shadow = ptr::shadow(data_src);
-                                                                    boss.SUBMIT_BYVAL(e2::release, e2::hids::mouse::button::click::left, gear)
+                                                        data_src->SIGNAL(e2::release, e2::form::highlight::any, !!hits);
+                                                    }
+                                                };
+                                            });
+                            auto label_area = item_area->template attach<ui::fork>();
+                                auto mark_app = label_area->template attach<slot::_1, ui::fork>();
+                                    auto mark = mark_app->template attach<slot::_1, ui::pads>(dent{ 2,1,0,0 }, dent{ 0,0,0,0 })
+                                                        ->template attach<ui::item>(
+                                                            ansi::fgc4(0xFF00ff00) + "‣", faux);
+                                    auto app_label = mark_app->template attach<slot::_2, ui::item>(
+                                                ansi::fgc(whitelt)
+                                                + utf8 + ansi::mgl(0).wrp(wrap::off).jet(bias::left), true, true);
+                                auto app_close_area = label_area->template attach<slot::_2, ui::pads>(dent{ 0,0,0,0 }, dent{ 0,0,1,1 })
+                                                                ->template plugin<pro::fader>(x5, c5, 150ms)
+                                                                ->invoke([&](auto& boss) {
+                                                                auto data_src_shadow = ptr::shadow(data_src);
+                                                                boss.SUBMIT_BYVAL(e2::release, e2::hids::mouse::button::click::left, gear)
+                                                                {
+                                                                    if(auto data_src = data_src_shadow.lock())
                                                                     {
-                                                                        if(auto data_src = data_src_shadow.lock())
-                                                                        {
-                                                                            data_src->SIGNAL(e2::release, e2::form::proceed::detach, data_src);
-                                                                            gear.dismiss();
-                                                                        }
-                                                                    };
-                                                                    });
-                                    auto app_close = app_close_area->template attach<ui::item>("  ✕  ", faux);
-                            return item_area;
-                        };
-                        auto apps_template = [&](auto& data_src, auto& apps_map){
-                            auto apps = base::create<ui::list>();
-                            //todo loops are not compatible with Declarative UI
-                            for(auto const& [class_id, inst_ptr_list] : *apps_map)
+                                                                        data_src->SIGNAL(e2::release, e2::form::proceed::detach, data_src);
+                                                                        gear.dismiss();
+                                                                    }
+                                                                };
+                                                                });
+                                auto app_close = app_close_area->template attach<ui::item>("  ✕  ", faux);
+                        return item_area;
+                    };
+                    auto apps_template = [&](auto& data_src, auto& apps_map){
+                        auto apps = base::create<ui::list>();
+                        //todo loops are not compatible with Declarative UI
+                        for(auto const& [class_id, inst_ptr_list] : *apps_map)
+                        {
+                            auto id = class_id;
+                            if (inst_ptr_list.size())
                             {
-                                auto id = class_id;
-                                if (inst_ptr_list.size())
-                                {
-                                    auto selected = class_id == current_default;
-                                    auto item_area = apps->template attach<ui::pads>(dent{ 0,0,0,1 }, dent{ 0,0,1,0 })
-                                                        ->template plugin<pro::fader>(x3, c3, 0ms)
-                                                        ->depend_on_collection(inst_ptr_list)
-                                                        ->invoke([&](auto& boss) {
-                                                            boss.mouse.take_all_events(faux);
-                                                            auto data_src_shadow = ptr::shadow(data_src);
-                                                            boss.SUBMIT_BYVAL(e2::release, e2::hids::mouse::button::click::left, gear)
-                                                            {
-                                                                if(auto data_src = data_src_shadow.lock())
-                                                                {
-                                                                    sptr<registry_t> registry_ptr;
-                                                                    data_src->SIGNAL(e2::request, e2::bindings::list::apps, registry_ptr);
-                                                                    auto& app_list = (*registry_ptr)[id];
-                                                                    // Rotate list forward.
-                                                                    app_list.push_back(app_list.front());
-                                                                    app_list.pop_front();
-                                                                    // Expose window.
-                                                                    auto& inst = *app_list.back(); 
-                                                                    inst.SIGNAL(e2::preview, e2::form::layout::expose, inst);
-                                                                    auto square = inst.base::square();
-                                                                    auto center = square.coor + (square.size / 2);
-                                                                    bell::getref(gear.id)->
-                                                                    SIGNAL(e2::release, e2::form::layout::shift, center);  // Goto to the window.
-                                                                    gear.dismiss();
-                                                                }
-                                                            };
-                                                            boss.SUBMIT_BYVAL(e2::release, e2::hids::mouse::button::click::right, gear)
-                                                            {
-                                                                if(auto data_src = data_src_shadow.lock())
-                                                                {
-                                                                    sptr<registry_t> registry_ptr;
-                                                                    data_src->SIGNAL(e2::request, e2::bindings::list::apps, registry_ptr);
-                                                                    auto& app_list = (*registry_ptr)[id];
-                                                                    // Rotate list forward.
-                                                                    app_list.push_front(app_list.back());
-                                                                    app_list.pop_back();
-                                                                    // Expose window.
-                                                                    auto& inst = *app_list.back(); 
-                                                                    inst.SIGNAL(e2::preview, e2::form::layout::expose, inst);
-                                                                    auto square = inst.base::square();
-                                                                    auto center = square.coor + (square.size / 2);
-                                                                    bell::getref(gear.id)->
-                                                                    SIGNAL(e2::release, e2::form::layout::shift, center);  // Goto to the window.
-                                                                    gear.dismiss();
-                                                                }
-                                                            };
-                                                        });
-                                        auto block = item_area->template attach<ui::fork>(axis::Y);
-                                            auto head_area = block->template attach<slot::_1, ui::pads>(dent{ 0,0,0,0 }, dent{ 0,0,1,1 });
-                                                auto head = head_area->template attach<ui::item>(objs_desc[class_id], true);
-                                            auto list_pads = block->template attach<slot::_2, ui::pads>(dent{ 0,0,0,0 }, dent{ 0,0,0,0 });
-                                    auto insts = list_pads->template attach<ui::list>()
-                                                    ->template attach_collection<e2::form::prop::header>(inst_ptr_list, app_template);
-                                }
-                            }
-                            return apps;
-                        };
-                        auto menuitems_template = [&, client_shadow](auto& data_src, auto& apps_map){
-                            auto menuitems = base::create<ui::list>();
-                            //todo loops are not compatible with Declarative UI
-                            for(auto const& [class_id, inst_ptr_list] : *apps_map)
-                            {
-                                auto id = class_id;
                                 auto selected = class_id == current_default;
-                                auto item_area = menuitems->attach<ui::pads>(dent{ 0,0,0,1 }, dent{ 0,0,1,0 })
-                                                        ->plugin<pro::fader>(x3, c3, 0ms)
-                                                        ->invoke([&](auto& boss) {
-                                                            boss.mouse.take_all_events(faux);
-                                                            boss.SUBMIT_BYVAL(e2::release, e2::hids::mouse::button::click::left, gear)
-                                                            {
-                                                                if (auto client = client_shadow.lock())
-                                                                {
-                                                                    client->SIGNAL(e2::release, e2::data::changed, id);
-                                                                    gear.dismiss();
-                                                                }
-                                                            };
-                                                            boss.SUBMIT_BYVAL(e2::release, e2::hids::mouse::button::dblclick::left, gear)
-                                                            {
-                                                                static iota random = 0;
-                                                                random = (random + 2) % 10;
-                                                                auto offset = twod{ random * 2, random };
-                                                                auto viewport = gear.area();
-                                                                gear.slot.coor = viewport.coor + viewport.size / 4 + offset;
-                                                                gear.slot.size = viewport.size / 2;
-                                                                world->SIGNAL(e2::release, e2::form::proceed::createby, gear);
-                                                            };
-                                                        });
-                                    auto block = item_area->template attach<ui::fork>(axis::X);
-                                        auto mark_area = block->template attach<slot::_1, ui::pads>(dent{ 1,1,0,0 }, dent{ 0,0,0,0 });
-                                            auto mark = mark_area->template attach<ui::item>(
-                                                        ansi::bgc4(selected ? 0xFF00ff00 : 0xFF000000)
-                                                        + "  ", faux)
-                                                ->invoke([&](auto& boss) {
-                                                    if (auto client = client_shadow.lock())
-                                                    {
-                                                        auto mark_shadow = ptr::shadow(boss.template This<ui::item>());
-                                                        client->SUBMIT_BYVAL_T(e2::release, e2::data::changed, boss.memo, data)
+                                auto item_area = apps->template attach<ui::pads>(dent{ 0,0,0,1 }, dent{ 0,0,1,0 })
+                                                    ->template plugin<pro::fader>(x3, c3, 0ms)
+                                                    ->depend_on_collection(inst_ptr_list)
+                                                    ->invoke([&](auto& boss) {
+                                                        boss.mouse.take_all_events(faux);
+                                                        auto data_src_shadow = ptr::shadow(data_src);
+                                                        boss.SUBMIT_BYVAL(e2::release, e2::hids::mouse::button::click::left, gear)
                                                         {
-                                                            auto selected = id == data;
-                                                            if(auto mark = mark_shadow.lock())
+                                                            if(auto data_src = data_src_shadow.lock())
                                                             {
-                                                                mark->set(ansi::bgc4(selected ? 0xFF00ff00 : 0xFF000000)
-                                                                        + "  ");
+                                                                sptr<registry_t> registry_ptr;
+                                                                data_src->SIGNAL(e2::request, e2::bindings::list::apps, registry_ptr);
+                                                                auto& app_list = (*registry_ptr)[id];
+                                                                // Rotate list forward.
+                                                                app_list.push_back(app_list.front());
+                                                                app_list.pop_front();
+                                                                // Expose window.
+                                                                auto& inst = *app_list.back();
+                                                                inst.SIGNAL(e2::preview, e2::form::layout::expose, inst);
+                                                                auto square = inst.base::square();
+                                                                auto center = square.coor + (square.size / 2);
+                                                                bell::getref(gear.id)->
+                                                                SIGNAL(e2::release, e2::form::layout::shift, center);  // Goto to the window.
+                                                                gear.dismiss();
                                                             }
                                                         };
-                                                    }
-                                                });
-                                        auto label_area = block->template attach<slot::_2, ui::pads>(dent{ 1,1,0,0 }, dent{ 0,0,0,0 });
-                                            auto label = label_area->template attach<ui::item>(
-                                                ansi::fgc4(0xFFffffff)
-                                                + objs_desc[class_id], true, true);
+                                                        boss.SUBMIT_BYVAL(e2::release, e2::hids::mouse::button::click::right, gear)
+                                                        {
+                                                            if(auto data_src = data_src_shadow.lock())
+                                                            {
+                                                                sptr<registry_t> registry_ptr;
+                                                                data_src->SIGNAL(e2::request, e2::bindings::list::apps, registry_ptr);
+                                                                auto& app_list = (*registry_ptr)[id];
+                                                                // Rotate list forward.
+                                                                app_list.push_front(app_list.back());
+                                                                app_list.pop_back();
+                                                                // Expose window.
+                                                                auto& inst = *app_list.back();
+                                                                inst.SIGNAL(e2::preview, e2::form::layout::expose, inst);
+                                                                auto square = inst.base::square();
+                                                                auto center = square.coor + (square.size / 2);
+                                                                bell::getref(gear.id)->
+                                                                SIGNAL(e2::release, e2::form::layout::shift, center);  // Goto to the window.
+                                                                gear.dismiss();
+                                                            }
+                                                        };
+                                                    });
+                                    auto block = item_area->template attach<ui::fork>(axis::Y);
+                                        auto head_area = block->template attach<slot::_1, ui::pads>(dent{ 0,0,0,0 }, dent{ 0,0,1,1 });
+                                            auto head = head_area->template attach<ui::item>(objs_desc[class_id], true);
+                                        auto list_pads = block->template attach<slot::_2, ui::pads>(dent{ 0,0,0,0 }, dent{ 0,0,0,0 });
+                                auto insts = list_pads->template attach<ui::list>()
+                                                ->template attach_collection<e2::form::prop::header>(inst_ptr_list, app_template);
                             }
-                            return menuitems;
-                        };
-                        auto user_template = [&, my_id = client->id](auto& data_src, auto const& utf8){
-                            auto item_area = base::create<ui::pads>(dent{ 1,0,0,1 }, dent{ 0,0,1,0 })
-                                                ->plugin<pro::fader>(x3, c3, 150ms);
-                                auto user = item_area->attach<ui::item>(
-                                + "🔗" + ansi::nil() + " "
-                                + ansi::fgc4(data_src->id == my_id ? rgba::color256[whitelt] : 0x00) + utf8, true);
-                            return item_area;
-                        };
-                        auto branch_template = [&](auto& data_src, auto& usr_list){
-                            auto users = base::create<ui::list>()
-                                ->attach_collection<e2::form::prop::header>(*usr_list, user_template);
-                            return users;
-                        };
-                        auto window = client->attach<ui::cake>();
-                            auto taskbar = window->attach<ui::fork>(axis::X)
-                                                ->attach<slot::_1, ui::fork>(axis::Y)
-                                                ->plugin<pro::color>(whitedk, 0xD0202020)
-                                                ->plugin<pro::limit>(twod{ 4,-1 }, twod{ 4,-1 })
-                                                ->plugin<pro::timer>()
-                                                ->invoke([&](auto& boss) mutable {
-                                                            boss.mouse.template draggable<sysmouse::left>();
-                                                            boss.SUBMIT(e2::release, e2::message(e2::form::drag::pull::any, sysmouse::left), gear)
+                        }
+                        return apps;
+                    };
+                    auto menuitems_template = [&, client_shadow](auto& data_src, auto& apps_map){
+                        auto menuitems = base::create<ui::list>();
+                        //todo loops are not compatible with Declarative UI
+                        for(auto const& [class_id, inst_ptr_list] : *apps_map)
+                        {
+                            auto id = class_id;
+                            auto selected = class_id == current_default;
+                            auto item_area = menuitems->attach<ui::pads>(dent{ 0,0,0,1 }, dent{ 0,0,1,0 })
+                                                    ->plugin<pro::fader>(x3, c3, 0ms)
+                                                    ->invoke([&](auto& boss) {
+                                                        boss.mouse.take_all_events(faux);
+                                                        boss.SUBMIT_BYVAL(e2::release, e2::hids::mouse::button::click::left, gear)
+                                                        {
+                                                            if (auto client = client_shadow.lock())
                                                             {
-                                                                auto limits = boss.base::limits();
-                                                                limits.min.x += gear.delta.get().x;
-                                                                limits.max.x = uibar_full_size = limits.min.x;
-                                                                boss.base::limits(limits.min, limits.max);
-                                                                boss.base::reflow();
-                                                            }; 
-                                                            boss.SUBMIT(e2::release, e2::form::state::mouse, active)
-                                                            {
-                                                                auto apply = [&](auto active)
-                                                                {
-                                                                    auto size = active ? uibar_full_size : std::min(uibar_full_size, 4);
-                                                                    auto lims = twod{ size,-1 };
-                                                                    boss.base::limits(lims, lims);
-                                                                    boss.base::reflow();
-                                                                    return faux; // One shot call.
-                                                                };
-                                                                auto& timer = boss.template plugins<pro::timer>();
-                                                                timer.pacify(faux);
-                                                                if (active) apply(true);
-                                                                else timer.actify(faux, MENU_TIMEOUT, apply);
-                                                            };
-                                                            
-                                                        });
-                                auto apps_users_fork = taskbar->attach<slot::_1, ui::fork>(axis::Y);
-                                    auto apps_area = apps_users_fork->attach<slot::_1, ui::fork>(axis::Y);
-                                    {
-                                        auto label_pads = apps_area->attach<slot::_1, ui::pads>(dent{ 0,0,1,1 }, dent{ 0,0,0,0 })
-                                                                ->plugin<pro::fader>(x3, c3, 150ms);
-                                            auto label_bttn = label_pads->attach<ui::fork>();
-                                                auto label = label_bttn->attach<slot::_1, ui::item>(
-                                                                    ansi::fgc(whitelt) + "  ≡ ", faux, faux);
-                                                auto bttn_area = label_bttn->attach<slot::_2, ui::fork>();
-                                                    //auto defapp_pads = bttn_area->attach<slot::_1, ui::post>()
-                                                    //                            ->upload(ansi::jet(bias::center) + "[ Term ]");
-                                                    auto bttn_pads = bttn_area->attach<slot::_2, ui::pads>(dent{ 2,2,0,0 }, dent{ 0,0,1,1 })
-                                                                ->plugin<pro::fader>(x6, c6, 150ms);
-                                                        auto bttn = bttn_pads->attach<ui::item>("⮟", faux);
-                                        auto applist_area = apps_area->attach<slot::_2, ui::pads>(dent{ 0,0,1,0 }, dent{})
-                                                                    ->attach<ui::cake>();
-                                            auto task_menu_area = applist_area->attach<ui::fork>(axis::Y, 0, 0);
-                                                auto menu_scrl = task_menu_area->attach<slot::_1, ui::rail>(axes::ONLY_Y)
-                                                                            ->plugin<pro::color>(0x00, 0x00); //todo mouse events passthrough
-                                                    auto menuitems = menu_scrl->attach_element<e2::bindings::list::apps>(world, menuitems_template);
-                                                auto tasks_scrl = task_menu_area->attach<slot::_2, ui::rail>(axes::ONLY_Y)
-                                                                                ->plugin<pro::color>(0x00, 0x00); //todo mouse events passthrough
-                                                    auto apps = tasks_scrl->attach_element<e2::bindings::list::apps>(world, apps_template);
-                                        label_pads->invoke([&](auto& boss) {
-                                            auto task_menu_area_shadow = ptr::shadow(task_menu_area);
-                                            auto bttn_shadow = ptr::shadow(bttn);
-                                            boss.SUBMIT_BYVAL(e2::release, e2::hids::mouse::button::click::left, gear)
-                                            {
-                                                if(auto bttn = bttn_shadow.lock())
-                                                if(auto task_menu_area = task_menu_area_shadow.lock())
+                                                                client->SIGNAL(e2::release, e2::data::changed, id);
+                                                                gear.dismiss();
+                                                            }
+                                                        };
+                                                        boss.SUBMIT_BYVAL(e2::release, e2::hids::mouse::button::dblclick::left, gear)
+                                                        {
+                                                            static iota random = 0;
+                                                            random = (random + 2) % 10;
+                                                            auto offset = twod{ random * 2, random };
+                                                            auto viewport = gear.area();
+                                                            gear.slot.coor = viewport.coor + viewport.size / 4 + offset;
+                                                            gear.slot.size = viewport.size / 2;
+                                                            world->SIGNAL(e2::release, e2::form::proceed::createby, gear);
+                                                        };
+                                                    });
+                                auto block = item_area->template attach<ui::fork>(axis::X);
+                                    auto mark_area = block->template attach<slot::_1, ui::pads>(dent{ 1,1,0,0 }, dent{ 0,0,0,0 });
+                                        auto mark = mark_area->template attach<ui::item>(
+                                                    ansi::bgc4(selected ? 0xFF00ff00 : 0xFF000000)
+                                                    + "  ", faux)
+                                            ->invoke([&](auto& boss) {
+                                                if (auto client = client_shadow.lock())
                                                 {
-                                                    auto state = task_menu_area->get_ratio();
-                                                    bttn->set(state ? "⮝" : "⮟");
-                                                    task_menu_area->config(state ? 0 : 100);
-                                                    gear.dismiss();
-                                                }
-                                            };
-                                        });
-                                        apps_area->invoke([&](auto& boss) {
-                                            auto task_menu_area_shadow = ptr::shadow(task_menu_area);
-                                            auto bttn_shadow = ptr::shadow(bttn);
-                                            boss.SUBMIT_BYVAL(e2::release, e2::form::state::mouse, active)
-                                            {
-                                                if (!active)
-                                                if(auto bttn = bttn_shadow.lock())
-                                                if(auto task_menu_area = task_menu_area_shadow.lock())
-                                                {
-                                                    if (auto state = task_menu_area->get_ratio())
+                                                    auto mark_shadow = ptr::shadow(boss.template This<ui::item>());
+                                                    client->SUBMIT_BYVAL_T(e2::release, e2::data::changed, boss.memo, data)
                                                     {
-                                                        bttn->set("⮝");
-                                                        task_menu_area->config(0);
-                                                    }
+                                                        auto selected = id == data;
+                                                        if(auto mark = mark_shadow.lock())
+                                                        {
+                                                            mark->set(ansi::bgc4(selected ? 0xFF00ff00 : 0xFF000000)
+                                                                    + "  ");
+                                                        }
+                                                    };
                                                 }
-                                            };
-                                        });
-                                        //todo make some sort of highlighting at the bottom and top
-                                        //scroll_bars_left(items_area, items_scrl);
-                                    }
-                                    auto users_area = apps_users_fork->attach<slot::_2, ui::fork>(axis::Y);
-                                    {
-                                        auto label_pads = users_area->attach<slot::_1, ui::pads>(dent{ 0,0,1,1 }, dent{ 0,0,0,0 })
-                                                                    ->plugin<pro::fader>(x3, c3, 150ms);
-                                            auto label_bttn = label_pads->attach<ui::fork>();
-                                                auto label = label_bttn->attach<slot::_1, ui::item>(
-                                                                ansi::fgc(whitelt) + "TTYs", faux, faux);
-                                                auto bttn_area = label_bttn->attach<slot::_2, ui::fork>();
-                                                    auto bttn_pads = bttn_area->attach<slot::_2, ui::pads>(dent{ 2,2,0,0 }, dent{ 0,0,1,1 })
-                                                                            ->plugin<pro::fader>(x6, c6, 150ms);
-                                                        auto bttn = bttn_pads->attach<ui::item>("⮝", faux);
-                                        auto userlist_area = users_area->attach<slot::_2, ui::pads>();
-                                            auto users = userlist_area->attach_element<e2::bindings::list::users>(world, branch_template);
-                                        //todo unify
-                                        bttn_pads->invoke([&](auto& boss) {
-                                            auto userlist_area_shadow = ptr::shadow(userlist_area);
-                                            auto bttn_shadow = ptr::shadow(bttn);
-                                            boss.SUBMIT_BYVAL(e2::release, e2::hids::mouse::button::click::left, gear)
-                                            {
-                                                static bool state = faux;
-                                                if(auto bttn = bttn_shadow.lock())
-                                                if(auto userlist = userlist_area_shadow.lock())
-                                                {
-                                                    state = !state;
-                                                    bttn->set(state ? "⮟" : "⮝");
-                                                    auto lims = userlist->base::limits();
-                                                    lims.min.y = lims.max.y = state ? 0 : -1;
-                                                    userlist->base::limits(lims);
-                                                    userlist->base::reflow();
-                                                }
-                                            };
-                                        });
-                                    }
-                                auto bttns_area = taskbar->attach<slot::_2, ui::fork>(axis::X);
+                                            });
+                                    auto label_area = block->template attach<slot::_2, ui::pads>(dent{ 1,1,0,0 }, dent{ 0,0,0,0 });
+                                        auto label = label_area->template attach<ui::item>(
+                                            ansi::fgc4(0xFFffffff)
+                                            + objs_desc[class_id], true, true);
+                        }
+                        return menuitems;
+                    };
+                    auto user_template = [&, my_id = client->id](auto& data_src, auto const& utf8){
+                        auto item_area = base::create<ui::pads>(dent{ 1,0,0,1 }, dent{ 0,0,1,0 })
+                                            ->plugin<pro::fader>(x3, c3, 150ms);
+                            auto user = item_area->attach<ui::item>(
+                            + "🔗" + ansi::nil() + " "
+                            + ansi::fgc4(data_src->id == my_id ? rgba::color256[whitelt] : 0x00) + utf8, true);
+                        return item_area;
+                    };
+                    auto branch_template = [&](auto& data_src, auto& usr_list){
+                        auto users = base::create<ui::list>()
+                            ->attach_collection<e2::form::prop::header>(*usr_list, user_template);
+                        return users;
+                    };
+                    auto window = client->attach<ui::cake>();
+                        auto taskbar = window->attach<ui::fork>(axis::X)
+                                            ->attach<slot::_1, ui::fork>(axis::Y)
+                                            ->plugin<pro::color>(whitedk, 0x60202020)
+                                            ->plugin<pro::limit>(twod{ 4,-1 }, twod{ 4,-1 })
+                                            ->plugin<pro::timer>()
+                                            ->plugin<pro::acryl>()
+                                            ->plugin<pro::cache>()
+                                            ->invoke([&](auto& boss) mutable {
+                                                        boss.mouse.template draggable<sysmouse::left>();
+                                                        boss.SUBMIT(e2::release, e2::message(e2::form::drag::pull::any, sysmouse::left), gear)
+                                                        {
+                                                            auto limits = boss.base::limits();
+                                                            limits.min.x += gear.delta.get().x;
+                                                            limits.max.x = uibar_full_size = limits.min.x;
+                                                            boss.base::limits(limits.min, limits.max);
+                                                            boss.base::reflow();
+                                                        };
+                                                        boss.SUBMIT(e2::release, e2::form::state::mouse, active)
+                                                        {
+                                                            auto apply = [&](auto active)
+                                                            {
+                                                                auto size = active ? uibar_full_size : std::min(uibar_full_size, 4);
+                                                                auto lims = twod{ size,-1 };
+                                                                boss.base::limits(lims, lims);
+                                                                boss.base::reflow();
+                                                                return faux; // One shot call.
+                                                            };
+                                                            auto& timer = boss.template plugins<pro::timer>();
+                                                            timer.pacify(faux);
+                                                            if (active) apply(true);
+                                                            else timer.actify(faux, MENU_TIMEOUT, apply);
+                                                        };
+                                                    });
+                            auto apps_users_fork = taskbar->attach<slot::_1, ui::fork>(axis::Y);
+                                auto apps_area = apps_users_fork->attach<slot::_1, ui::fork>(axis::Y);
                                 {
-                                    auto bttns = bttns_area->attach<slot::_1, ui::fork>(axis::X);
-                                        auto disconnect_area = bttns->attach<slot::_1, ui::pads>(dent{ 2,3,1,1 })
-                                                                    ->plugin<pro::fader>(x2, c2, 150ms)
-                                                                    ->invoke([&](auto& boss) {
-                                                                            boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
-                                                                            {
-                                                                                if (auto owner = base::getref(gear.id))
-                                                                                {
-                                                                                    owner->SIGNAL(e2::release, e2::term::quit, "taskbar: logout by button");
-                                                                                }
-                                                                            };
-                                                                        });
-                                            auto disconnect = disconnect_area->attach<ui::item>("✕ Disconnect");
-                                        auto shutdown_area = bttns->attach<slot::_2, ui::pads>(dent{ 2,3,1,1 })
-                                                                ->plugin<pro::fader>(x1, c1, 150ms)
+                                    auto label_pads = apps_area->attach<slot::_1, ui::pads>(dent{ 0,0,1,1 }, dent{ 0,0,0,0 })
+                                                            ->plugin<pro::fader>(x3, c3, 150ms);
+                                        auto label_bttn = label_pads->attach<ui::fork>();
+                                            auto label = label_bttn->attach<slot::_1, ui::item>(
+                                                                ansi::fgc(whitelt) + "  ≡ ", faux, faux);
+                                            auto bttn_area = label_bttn->attach<slot::_2, ui::fork>();
+                                                //auto defapp_pads = bttn_area->attach<slot::_1, ui::post>()
+                                                //                            ->upload(ansi::jet(bias::center) + "[ Term ]");
+                                                auto bttn_pads = bttn_area->attach<slot::_2, ui::pads>(dent{ 2,2,0,0 }, dent{ 0,0,1,1 })
+                                                            ->plugin<pro::fader>(x6, c6, 150ms);
+                                                    auto bttn = bttn_pads->attach<ui::item>("⮟", faux);
+                                    auto applist_area = apps_area->attach<slot::_2, ui::pads>(dent{ 0,0,1,0 }, dent{})
+                                                                ->attach<ui::cake>();
+                                        auto task_menu_area = applist_area->attach<ui::fork>(axis::Y, 0, 0);
+                                            auto menu_scrl = task_menu_area->attach<slot::_1, ui::rail>(axes::ONLY_Y)
+                                                                        ->plugin<pro::color>(0x00, 0x00); //todo mouse events passthrough
+                                                auto menuitems = menu_scrl->attach_element<e2::bindings::list::apps>(world, menuitems_template);
+                                            auto tasks_scrl = task_menu_area->attach<slot::_2, ui::rail>(axes::ONLY_Y)
+                                                                            ->plugin<pro::color>(0x00, 0x00); //todo mouse events passthrough
+                                                auto apps = tasks_scrl->attach_element<e2::bindings::list::apps>(world, apps_template);
+                                    label_pads->invoke([&](auto& boss) {
+                                        auto task_menu_area_shadow = ptr::shadow(task_menu_area);
+                                        auto bttn_shadow = ptr::shadow(bttn);
+                                        boss.SUBMIT_BYVAL(e2::release, e2::hids::mouse::button::click::left, gear)
+                                        {
+                                            if(auto bttn = bttn_shadow.lock())
+                                            if(auto task_menu_area = task_menu_area_shadow.lock())
+                                            {
+                                                auto state = task_menu_area->get_ratio();
+                                                bttn->set(state ? "⮝" : "⮟");
+                                                task_menu_area->config(state ? 0 : 100);
+                                                gear.dismiss();
+                                            }
+                                        };
+                                    });
+                                    apps_area->invoke([&](auto& boss) {
+                                        auto task_menu_area_shadow = ptr::shadow(task_menu_area);
+                                        auto bttn_shadow = ptr::shadow(bttn);
+                                        boss.SUBMIT_BYVAL(e2::release, e2::form::state::mouse, active)
+                                        {
+                                            if (!active)
+                                            if(auto bttn = bttn_shadow.lock())
+                                            if(auto task_menu_area = task_menu_area_shadow.lock())
+                                            {
+                                                if (auto state = task_menu_area->get_ratio())
+                                                {
+                                                    bttn->set("⮝");
+                                                    task_menu_area->config(0);
+                                                }
+                                            }
+                                        };
+                                    });
+                                    //todo make some sort of highlighting at the bottom and top
+                                    //scroll_bars_left(items_area, items_scrl);
+                                }
+                                auto users_area = apps_users_fork->attach<slot::_2, ui::fork>(axis::Y);
+                                {
+                                    auto label_pads = users_area->attach<slot::_1, ui::pads>(dent{ 0,0,1,1 }, dent{ 0,0,0,0 })
+                                                                ->plugin<pro::fader>(x3, c3, 150ms);
+                                        auto label_bttn = label_pads->attach<ui::fork>();
+                                            auto label = label_bttn->attach<slot::_1, ui::item>(
+                                                            ansi::fgc(whitelt) + "TTYs", faux, faux);
+                                            auto bttn_area = label_bttn->attach<slot::_2, ui::fork>();
+                                                auto bttn_pads = bttn_area->attach<slot::_2, ui::pads>(dent{ 2,2,0,0 }, dent{ 0,0,1,1 })
+                                                                        ->plugin<pro::fader>(x6, c6, 150ms);
+                                                    auto bttn = bttn_pads->attach<ui::item>("⮝", faux);
+                                    auto userlist_area = users_area->attach<slot::_2, ui::pads>();
+                                        auto users = userlist_area->attach_element<e2::bindings::list::users>(world, branch_template);
+                                    //todo unify
+                                    bttn_pads->invoke([&](auto& boss) {
+                                        auto userlist_area_shadow = ptr::shadow(userlist_area);
+                                        auto bttn_shadow = ptr::shadow(bttn);
+                                        boss.SUBMIT_BYVAL(e2::release, e2::hids::mouse::button::click::left, gear)
+                                        {
+                                            static bool state = faux;
+                                            if(auto bttn = bttn_shadow.lock())
+                                            if(auto userlist = userlist_area_shadow.lock())
+                                            {
+                                                state = !state;
+                                                bttn->set(state ? "⮟" : "⮝");
+                                                auto lims = userlist->base::limits();
+                                                lims.min.y = lims.max.y = state ? 0 : -1;
+                                                userlist->base::limits(lims);
+                                                userlist->base::reflow();
+                                            }
+                                        };
+                                    });
+                                }
+                            auto bttns_area = taskbar->attach<slot::_2, ui::fork>(axis::X);
+                            {
+                                auto bttns = bttns_area->attach<slot::_1, ui::fork>(axis::X);
+                                    auto disconnect_area = bttns->attach<slot::_1, ui::pads>(dent{ 2,3,1,1 })
+                                                                ->plugin<pro::fader>(x2, c2, 150ms)
                                                                 ->invoke([&](auto& boss) {
                                                                         boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
                                                                         {
-                                                                            //todo unify, see system.h:1614
-                                                                            #if defined(__APPLE__)
-                                                                            auto path2 = "/tmp/" + path + ".sock";
-                                                                            ::unlink(path2.c_str());
-                                                                            #endif
-                                                                            os::exit(0, "taskbar: shutdown by button");
+                                                                            if (auto owner = base::getref(gear.id))
+                                                                            {
+                                                                                owner->SIGNAL(e2::release, e2::term::quit, "taskbar: logout by button");
+                                                                                gear.dismiss();
+                                                                            }
                                                                         };
                                                                     });
-                                            auto shutdown = shutdown_area->attach<ui::item>("✕ Shutdown");
-                                }
-                        client->color(background_color.fgc(), background_color.bgc());
-                        text header = username;
-                        text footer = ansi::mgr(1).mgl(1) + MONOTTY_VER;
-                        client->SIGNAL(e2::preview, e2::form::prop::header, header);
-                        client->SIGNAL(e2::preview, e2::form::prop::footer, footer);
-                        client->base::moveby(user_coor);
-                    }
+                                        auto disconnect = disconnect_area->attach<ui::item>("✕ Disconnect");
+                                    auto shutdown_area = bttns->attach<slot::_2, ui::pads>(dent{ 2,3,1,1 })
+                                                            ->plugin<pro::fader>(x1, c1, 150ms)
+                                                            ->invoke([&](auto& boss) {
+                                                                    boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
+                                                                    {
+                                                                        //todo unify, see system.h:1614
+                                                                        #if defined(__APPLE__)
+                                                                        auto path2 = "/tmp/" + path + ".sock";
+                                                                        ::unlink(path2.c_str());
+                                                                        #endif
+                                                                        os::exit(0, "taskbar: shutdown by button");
+                                                                    };
+                                                                });
+                                        auto shutdown = shutdown_area->attach<ui::item>("✕ Shutdown");
+                            }
+                    client->color(background_color.fgc(), background_color.bgc());
+                    text header = username;
+                    text footer = ansi::mgr(1).mgl(1) + MONOTTY_VER;
+                    client->SIGNAL(e2::preview, e2::form::prop::header, header);
+                    client->SIGNAL(e2::preview, e2::form::prop::footer, footer);
+                    client->base::moveby(user_coor);
+                    lock.reset();
                     log("user: new gate for ", peer);
 
                     #ifndef PROD
@@ -2360,7 +2401,7 @@ utility like ctags is used to locate the definitions.
                     client->proceed(peer, username);
                     #endif
 
-                    e2::sync lock;
+                    lock = std::unique_ptr<e2::sync>();
                     log("user: ", peer, " has logged out");
                     client->detach();
                     log("user: ", peer, " is diconnected");

@@ -1860,6 +1860,13 @@ namespace netxs::os
                         case SIGWINCH:
                             resize_handler();
                             break;
+                        case SIGTERM:
+                            log("tty : SIGTERM");
+                            sock->shut();
+                            log("tty : sock->xipc::shut called");
+                            ::signal (signal, SIG_DFL);
+                            ::raise (signal);
+                            break;
                         default:
                             break;
                     }
@@ -2232,6 +2239,9 @@ namespace netxs::os
                 }
                 ok(::signal(SIGPIPE,  SIG_IGN )); // Disable sigpipe.
                 ok(::signal(SIGWINCH, sig_hndl)); // Set resize handler.
+                log("tty : Set termination handler.");
+                ok(::signal(SIGTERM, sig_hndl));   // Set termination handler.
+                log("tty : Raise resize event.");
                 ok(::raise (SIGWINCH));           // Get current terminal window size.
 
             #endif

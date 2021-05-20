@@ -90,7 +90,7 @@ namespace netxs::ui
             if (child) backup->T::attach(child, std::forward<Args>(args)...);
             return backup;
         }
-        // form: Boss will be detached when the master is dtor'ed.
+        // form: UI-control will be detached when the master is detached.
         auto depend(sptr<base> master_ptr)
         {
             auto& master = *master_ptr;
@@ -103,7 +103,7 @@ namespace netxs::ui
             };
             return This<T>();
         }
-        // form: Boss will be detached when the last item of collection is dtor'ed.
+        // form: UI-control will be detached when the last item of collection is detached.
         template<class S>
         auto depend_on_collection(S data_collection_src)
         {
@@ -151,206 +151,6 @@ namespace netxs::ui
                 attach_element<PROPERTY>(data_src, item_template);
             }
             return backup;
-        }
-    };
-
-    // controls: Floating window.
-    class mold
-        : public form<mold>
-    {
-        //todo cache specific
-        sptr<face> coreface;
-        sptr<base> client; // mold: Client object.
-        face& canvas; // .: Form cache.
-    public:
-        rgba title_fg_color = 0xFFffffff;
-        bool only_frame = faux;
-        iota acryl = 0; // mold: Blur radius.
-        bool blurred = faux; // mold: Use acryllic background.
-        bool highlight_center = true;
-        bool highlighted = faux;
-        bool active = faux; // mold: Keyboard focus.
-
-        ~mold()
-        {
-            if (client) client->base::detach();
-        }
-        mold()
-            : canvas{*(coreface = std::make_shared<face>())}
-        {
-            canvas.link(bell::id);
-            SUBMIT(e2::release, base::size_event, new_sz) { canvas.size(new_sz); };
-            SUBMIT(e2::release, base::move_event, new_xy) { canvas.move(new_xy); };
-            SUBMIT(e2::request, e2::form::canvas, canvas) { canvas = coreface; };
-
-            SUBMIT(e2::release, e2::form::state::keybd, status)
-            {
-                active = status;
-                base::deface();
-            };
-            SUBMIT(e2::release, e2::form::highlight::any, state)
-            {
-                highlighted = state;
-                base::deface();
-            };
-
-            SUBMIT(e2::preview, e2::form::layout::size, new_size)
-            {
-                if (client)
-                    client->SIGNAL(e2::preview, e2::form::layout::size, new_size);
-            };
-            SUBMIT(e2::release, e2::form::layout::size, new_size)
-            {
-                if (client)
-                    client->SIGNAL(e2::release, e2::form::layout::size, new_size);
-            };
-        }
-        virtual void postrender (face& parent_canvas)
-        {
-            if (!only_frame)
-            {
-                //form::postrender(parent_canvas);
-                if (base::status.invalid)
-                {
-                    base::postrender(canvas);
-                    base::status.invalid = faux;
-                }
-                parent_canvas.plot(canvas);
-            }
-        }
-        // mold: Draw client window.
-        virtual void renderproc (face& parent_canvas)
-        {
-            auto normal = base::brush;
-            auto fuse_normal = [&](cell& c) { c.fuse(normal); };
-            //todo unify - make pro::theme
-            acryl = 5;// 100;
-
-            // Draw highlighting
-            if (highlighted)
-            {
-                // Draw the border around
-                auto area = parent_canvas.full();
-                auto mark = skin::color(tone::brighter);
-                mark.fgc(title_fg_color); //todo unify, make it more contrast
-                auto fill = [&](cell& c) { c.fuse(mark); };
-                parent_canvas.fill(area, fill);
-            }
-
-            //todo revise
-            // Draw only frame. It is used in View only
-            if (only_frame)
-            {
-                auto area = parent_canvas.full();
-                auto mark = skin::color(tone::shadower);
-                mark.fgc(title_fg_color).link(bell::id);
-                auto fill = [&](cell& c) { c.fusefull(mark); };
-                parent_canvas.cage(area, dot_21, fill);
-                SIGNAL(e2::release, e2::form::upon::redrawn, parent_canvas); // to draw the title and footer
-                return;
-            }
-
-            if (!active)
-            {
-                if (!blurred || base::brush.bga() == 0xFF) parent_canvas.fill(fuse_normal);
-                else if (base::brush.wdt())                parent_canvas.blur(acryl, fuse_normal);
-                else                                       parent_canvas.blur(acryl);
-            }
-            else
-            {
-                auto bright = skin::color(tone::brighter);
-                auto shadow = skin::color(tone::shadower);
-
-                //todo unify, make it more contrast
-                shadow.alpha(0x80);
-                bright.fgc(title_fg_color);
-                shadow.fgc(title_fg_color);
-
-                bool isnorm = !active;
-                    //!active && guests.end() == std::find_if(guests.begin(), guests.end(),
-                    //                            [](auto& a) { return a.wholly; });
-                //auto guides = [&](auto bright)
-                //{
-                //    for (auto& grip : guests)
-                //            grip.draw(*this, parent_canvas, bright);
-                //};
-                auto fillup = [&](auto bright, auto shadow)
-                {
-                    parent_canvas.fill(shadow);
-                    //guides(bright);
-                };
-                auto fuse_bright = [&](cell& c) { c.fuse(normal); c.fuse(bright); };
-                auto fuse_shadow = [&](cell& c) { c.fuse(normal); c.fuse(shadow); };
-
-                auto only_bright = [&](cell& c) { c.fuse(bright); };
-                auto only_shadow = [&](cell& c) { c.fuse(shadow); };
-
-                if (blurred && !isnorm) bright.alpha(highlight_center ? bright.bga() >> 1 : 0); // too bright when selected
-                if (normal.bgc().alpha())
-                {
-                    if (isnorm) fillup(fuse_bright, fuse_normal);
-                    else        fillup(fuse_shadow, fuse_bright);
-                }
-                else
-                {
-                    if (isnorm) ;//guides(fuse_bright);
-                    else        fillup(only_shadow, only_bright);
-                }
-
-                // Draw kb focus
-                if (active)
-                {
-                    // Draw the border around
-                    auto area = parent_canvas.full();
-                    auto mark = skin::color(tone::kb_focus);
-                    mark.fgc(title_fg_color); //todo unify, make it more contrast
-                    auto fill = [&](cell& c) { c.fuse(mark); };
-                    parent_canvas.cage(area, dot_11, fill);
-                }
-
-                //if (base::brush.bga() != 0xFF)
-                if (blurred)
-                {
-                    parent_canvas.blur(acryl);
-                }
-
-            }
-
-            if (base::status.invalid)
-            {
-                canvas.wipe();
-                canvas.render(client, base::coor.get());
-                //SIGNAL(e2::release, e2::form::upon::redrawn, canvas); // to draw the title and footer
-            }
-            parent_canvas.plot(canvas);
-            SIGNAL(e2::release, e2::form::upon::redrawn, parent_canvas); // to draw the title and footer
-        }
-        // mold: Attach specified item.
-        template<class T>
-        auto attach(sptr<T> item)
-        {
-            client = item;
-            item->SIGNAL(e2::release, e2::form::upon::vtree::attached, This());
-
-            //todo cache specific
-            SIGNAL(e2::general, e2::form::canvas, canvas.shared_from_this());
-
-            return item;
-        }
-        // mold: Create a new item of the specified subtype and attach it.
-        template<class T, class ...Args>
-        auto attach(Args&&... args)
-        {
-            return attach(base::create<T>(std::forward<Args>(args)...));
-        }
-        // mold: Remove nested object by it's ptr.
-        void remove(sptr<base> item_ptr)
-        {
-            if (client == item_ptr)
-            {
-                client.reset();
-                item_ptr->SIGNAL(e2::release, e2::form::upon::vtree::detached, This());
-            }
         }
     };
 
@@ -449,7 +249,18 @@ namespace netxs::ui
                     client_2->SIGNAL(e2::release, e2::form::layout::size, size2);
                 }
             };
-            
+            SUBMIT(e2::release, e2::render::any, parent_canvas)
+            {
+                auto basis = base::coor.get();
+                if (client_1) parent_canvas.render(client_1, basis);
+                if (client_2) parent_canvas.render(client_2, basis);
+
+                if (width)
+                {
+                    //todo draw grips
+                }
+            };
+
             _config(alignment, thickness, scale);
             //  case WM_SIZE:
             //  	entity->resize({ GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) });
@@ -491,21 +302,6 @@ namespace netxs::ui
             //  	}
             //  	return 0;
         }
-        // base (virtual, auto): Draw the form composition on the specified canvas.
-        virtual void renderproc (face& parent_canvas)
-        {
-            base::renderproc(parent_canvas);
-
-            auto basis = base::coor.get();
-            if (client_1) parent_canvas.render(client_1, basis);
-            if (client_2) parent_canvas.render(client_2, basis);
-
-            if (width)
-            {
-                //todo draw grips
-            }
-        }
-
         void rotate()
         {
             updown = !updown;
@@ -661,7 +457,8 @@ namespace netxs::ui
             if (client_1 == item_ptr ? (client_1.reset(), true) :
                 client_2 == item_ptr ? (client_2.reset(), true) : faux)
             {
-                item_ptr->SIGNAL(e2::release, e2::form::upon::vtree::detached, This());
+                auto backup = This();
+                item_ptr->SIGNAL(e2::release, e2::form::upon::vtree::detached, backup);
             }
         }
     };
@@ -741,16 +538,14 @@ namespace netxs::ui
                     y_coor+= client.second;
                 }
             };
-        }
-        // list (virtual, auto): Draw the form composition on the specified canvas.
-        virtual void renderproc (face& parent_canvas)
-        {
-            base::renderproc(parent_canvas);
-            auto basis = base::coor.get();
-            for (auto& client : subset)
+            SUBMIT(e2::release, e2::render::any, parent_canvas)
             {
-                parent_canvas.render(client.first, basis);
-            }
+                auto basis = base::coor.get();
+                for (auto& client : subset)
+                {
+                    parent_canvas.render(client.first, basis);
+                }
+            };
         }
         // list: Attach specified item.
         template<class T>
@@ -767,7 +562,6 @@ namespace netxs::ui
             return attach(create<T>(std::forward<Args>(args)...));
         }
         // list: Remove nested object.
-        //template<class T>
         void remove(sptr<base> item_ptr)
         {
             auto head = subset.begin();
@@ -775,8 +569,9 @@ namespace netxs::ui
             auto item = std::find_if(head, tail, [&](auto& c){ return c.first == item_ptr; });
             if (item != tail)
             {
+                auto backup = This();
                 subset.erase(item);
-                item_ptr->SIGNAL(e2::release, e2::form::upon::vtree::detached, This());
+                item_ptr->SIGNAL(e2::release, e2::form::upon::vtree::detached, backup);
             }
         }
         // list: Update nested object.
@@ -788,10 +583,11 @@ namespace netxs::ui
             auto item = std::find_if(head, tail, [&](auto& c){ return c.first == old_item_ptr; });
             if (item != tail)
             {
+                auto backup = This();
                 auto pos = subset.erase(item);
-                old_item_ptr->SIGNAL(e2::release, e2::form::upon::vtree::detached, This());
+                old_item_ptr->SIGNAL(e2::release, e2::form::upon::vtree::detached, backup);
                 subset.insert(pos, std::pair{ new_item_ptr, 0 });
-                new_item_ptr->SIGNAL(e2::release, e2::form::upon::vtree::attached, This());
+                new_item_ptr->SIGNAL(e2::release, e2::form::upon::vtree::attached, backup);
             }
         }
     };
@@ -800,8 +596,6 @@ namespace netxs::ui
     class cake
         : public form<cake>
     {
-        //pro::mouse<cake> mouse{*this }; // cake: Mouse controller.
-
         std::list<sptr<base>> subset;
 
     public:
@@ -831,18 +625,15 @@ namespace netxs::ui
                         client->SIGNAL(e2::release, e2::form::layout::size, newsz);
                 }
             };
-        }
-        // cake (virtual, auto): Draw the form composition on the specified canvas.
-        virtual void renderproc (face& parent_canvas)
-        {
-            base::renderproc(parent_canvas);
-            auto basis = base::coor.get();
-            for (auto& client : subset)
+            SUBMIT(e2::release, e2::render::any, parent_canvas)
             {
-                parent_canvas.render(client, basis);
-            }
+                auto basis = base::coor.get();
+                for (auto& client : subset)
+                {
+                    parent_canvas.render(client, basis);
+                }
+            };
         }
-
         // cake: Create a new item of the specified subtype and attach it.
         template<class T>
         auto attach(sptr<T> item)
@@ -858,7 +649,6 @@ namespace netxs::ui
             return attach(create<T>(std::forward<Args>(args)...));
         }
         // cake: Remove nested object.
-        //template<class T>
         void remove(sptr<base> item_ptr)
         {
             auto head = subset.begin();
@@ -866,8 +656,9 @@ namespace netxs::ui
             auto item = std::find_if(head, tail, [&](auto& c){ return c == item_ptr; });
             if (item != tail)
             {
+                auto backup = This();
                 subset.erase(item);
-                item_ptr->SIGNAL(e2::release, e2::form::upon::vtree::detached, This());
+                item_ptr->SIGNAL(e2::release, e2::form::upon::vtree::detached, backup);
             }
         }
     };
@@ -1015,19 +806,14 @@ namespace netxs::ui
                 //}
                 width = size;
             };
-        }
+            SUBMIT(e2::release, e2::render::any, parent_canvas)
+            {
+                output(parent_canvas);
 
-        // post: Render base and output topic content.
-        virtual void renderproc (face& parent_canvas)
-        {
-            base::renderproc(parent_canvas);
-            output(parent_canvas);
-
-            SIGNAL(e2::release, e2::form::upon::redrawn, parent_canvas);
-
-            //auto mark = rect{ base::anchor + base::coor.get(), {10,5} };
-            //mark.coor += parent_canvas.view().coor; // Set client's basis
-            //parent_canvas.fill(mark, [](cell& c) { c.alpha(0x80).bgc().chan.r = 0xff; });
+                //auto mark = rect{ base::anchor + base::coor.get(), {10,5} };
+                //mark.coor += parent_canvas.view().coor; // Set client's basis
+                //parent_canvas.fill(mark, [](cell& c) { c.alpha(0x80).bgc().chan.r = 0xff; });
+            };
         }
     };
 
@@ -1232,6 +1018,11 @@ namespace netxs::ui
                 }
                 deface();
             };
+            SUBMIT(e2::release, e2::render::any, parent_canvas)
+            {
+                if (client)
+                    parent_canvas.render<faux>(client, base::coor.get());
+            };
         }
         template<axis AXIS>
         void wheels(bool dir)
@@ -1343,12 +1134,6 @@ namespace netxs::ui
 
             return inside;
         }
-        // rail (virtual, auto): Draw the form composition on the specified canvas.
-        virtual void renderproc (face& parent_canvas)
-        {
-            base::renderproc(parent_canvas);
-            if (client) parent_canvas.render<faux>(client, base::coor.get());
-        }
         // rail: Attach specified item.
         template<class T>
         auto attach(sptr<T> item)
@@ -1386,17 +1171,19 @@ namespace netxs::ui
         {
             if (client == item_ptr)
             {
+                auto backup = This();
                 client.reset();
-                item_ptr->SIGNAL(e2::release, e2::form::upon::vtree::detached, This());
+                item_ptr->SIGNAL(e2::release, e2::form::upon::vtree::detached, backup);
             }
         }
         // rail: Update nested object.
         template<class T, class S>
         void update(T old_item_ptr, S new_item_ptr)
         {
+            auto backup = This();
             client = new_item_ptr;
-            old_item_ptr->SIGNAL(e2::release, e2::form::upon::vtree::detached, This());
-            new_item_ptr->SIGNAL(e2::release, e2::form::upon::vtree::attached, This());
+            old_item_ptr->SIGNAL(e2::release, e2::form::upon::vtree::detached, backup);
+            new_item_ptr->SIGNAL(e2::release, e2::form::upon::vtree::attached, backup);
         }
     };
 
@@ -1741,36 +1528,34 @@ namespace netxs::ui
             //	apply(activity::mouse_hover);
             //	timer.template actify<activity::mouse_leave>(ACTIVE_TIMEOUT, apply);
             //};
-        }
-        // grip (virtual, auto): Draw the form composition on the specified canvas.
-        virtual void renderproc (face& parent_canvas)
-        {
-            base::renderproc(parent_canvas);
-            auto region = parent_canvas.view();
-            auto handle = region;
-
-            calc.commit(handle);
-
-            auto& handle_len = xy(handle.size);
-            auto& region_len = xy(region.size);
-
-            handle = region.clip(handle);
-            handle_len = std::max(1, handle_len);
-
-            if (handle_len != region_len) // Show only if it is oversized.
+            SUBMIT(e2::release, e2::render::any, parent_canvas)
             {
-                // Brightener isn't suitable for white backgrounds.
-                //auto bright = skin::color(tone::brighter);
-                //bright.bga(bright.bga() / 2).fga(0);
-                //bright.link(bell::id);
+                auto region = parent_canvas.view();
+                auto handle = region;
 
-                if (wide) // Draw full scrollbar on mouse hover
+                calc.commit(handle);
+
+                auto& handle_len = xy(handle.size);
+                auto& region_len = xy(region.size);
+
+                handle = region.clip(handle);
+                handle_len = std::max(1, handle_len);
+
+                if (handle_len != region_len) // Show only if it is oversized.
                 {
-                    parent_canvas.fill([&](cell& c) { c.link(bell::id).xlight(); });
+                    // Brightener isn't suitable for white backgrounds.
+                    //auto bright = skin::color(tone::brighter);
+                    //bright.bga(bright.bga() / 2).fga(0);
+                    //bright.link(bell::id);
+
+                    if (wide) // Draw full scrollbar on mouse hover
+                    {
+                        parent_canvas.fill([&](cell& c) { c.link(bell::id).xlight(); });
+                    }
+                    //parent_canvas.fill(handle, [&](cell& c) { c.fusefull(bright); });
+                    parent_canvas.fill(handle, [&](cell& c) { c.link(bell::id).xlight(); });
                 }
-                //parent_canvas.fill(handle, [&](cell& c) { c.fusefull(bright); });
-                parent_canvas.fill(handle, [&](cell& c) { c.link(bell::id).xlight(); });
-            }
+            };
         }
     };
 
@@ -1810,16 +1595,16 @@ namespace netxs::ui
                     client->SIGNAL(e2::release, e2::form::layout::move, client_coor);
                 }
             };
-        }
-        // pads: Draw background and client.
-        virtual void renderproc(face& parent_canvas)
-        {
-            auto view = parent_canvas.view();
-            parent_canvas.view(view + margins);
-            base::renderproc(parent_canvas);
-            parent_canvas.view(view);
-            if (client)
-                parent_canvas.render(client, base::coor.get());
+            SUBMIT(e2::release, e2::render::prerender, parent_canvas)
+            {
+                auto view = parent_canvas.view();
+                parent_canvas.view(view + margins);
+                this->SIGNAL(e2::release, e2::render::any, parent_canvas);
+                parent_canvas.view(view);
+                if (client)
+                    parent_canvas.render(client, base::coor.get());
+                bell::expire(e2::release);
+            };
         }
         // pads: Attach specified item.
         template<class T>
@@ -1836,22 +1621,23 @@ namespace netxs::ui
             return attach(create<T>(std::forward<Args>(args)...));
         }
         // pads: Remove item.
-        //template<class T>
         void remove(sptr<base> item_ptr)
         {
             if (client == item_ptr)
             {
+                auto backup = This();
                 client.reset();
-                item_ptr->SIGNAL(e2::release, e2::form::upon::vtree::detached, This());
+                item_ptr->SIGNAL(e2::release, e2::form::upon::vtree::detached, backup);
             }
         }
         // pads: Update nested object.
         template<class T, class S>
         void update(T old_item_ptr, S new_item_ptr)
         {
+            auto backup = This();
             client = new_item_ptr;
-            old_item_ptr->SIGNAL(e2::release, e2::form::upon::vtree::detached, This());
-            new_item_ptr->SIGNAL(e2::release, e2::form::upon::vtree::attached, This());
+            old_item_ptr->SIGNAL(e2::release, e2::form::upon::vtree::detached, backup);
+            new_item_ptr->SIGNAL(e2::release, e2::form::upon::vtree::attached, backup);
         }
     };
 
@@ -1883,6 +1669,21 @@ namespace netxs::ui
               test{ check_size }
         {
             recalc();
+            SUBMIT(e2::release, e2::render::any, parent_canvas)
+            {
+                parent_canvas.cup(dot_00);
+                parent_canvas.output(name);
+                if (test)
+                {
+                    auto area = parent_canvas.view();
+                    auto size = name.size();
+                    if (area.size.x > 0 && area.size.x < size.x)
+                    {
+                        auto coor = area.coor + area.size - dot_11;
+                        parent_canvas.core::data(coor)->txt(dots);
+                    }
+                }
+            };
         }
         item(text const& label_text, bool flexible = faux, bool check_size = faux)
             : item(para{ label_text }, flexible, check_size)
@@ -1891,23 +1692,6 @@ namespace netxs::ui
         {
             name = label_text;
             recalc();
-        }
-        // item: Render base and output content.
-        virtual void renderproc (face& parent_canvas)
-        {
-            base::renderproc(parent_canvas);
-            parent_canvas.cup(dot_00);
-            parent_canvas.output(name);
-            if (test)
-            {
-                auto area = parent_canvas.view();
-                auto size = name.size();
-                if (area.size.x > 0 && area.size.x < size.x)
-                {
-                    auto coor = area.coor + area.size - dot_11;
-                    parent_canvas.core::data(coor)->txt(dots);
-                }
-            }
         }
     };
 
@@ -1992,33 +1776,23 @@ namespace netxs::ui
                 set_pen(active ? 80 : 0);
                 recalc();
             };
-        }
-
-        virtual void redraw()
-        {
-            canvas.wipe();
-            canvas.output(topic);
-        }
-        // cache: Draw the form composition on the specified canvas.
-        virtual void renderproc (face& parent_canvas)
-        {
-            if (base::status.invalid)
+            SUBMIT(e2::release, e2::render::any, parent_canvas)
             {
-                canvas.wipe();
-                base::renderproc(canvas);
-                redraw();
-            }
-        }
-        // cache: Draw the form composition on the specified canvas.
-        //        Executed right after the renderproc().
-        virtual void postrender (face& parent_canvas)
-        {
-            if (base::status.invalid)
+                if (base::invalid)
+                {
+                    canvas.wipe();
+                    canvas.wipe();
+                    canvas.output(topic);
+                }
+            };
+            SUBMIT(e2::release, e2::postrender, parent_canvas)
             {
-                base::postrender(canvas);
-                base::status.invalid = faux;
-            }
-            parent_canvas.plot(canvas);
+                if (base::invalid)
+                {
+                    base::invalid = faux;
+                }
+                parent_canvas.plot(canvas);
+            };
         }
     };
 
@@ -2237,38 +2011,28 @@ namespace netxs::ui
                 move_grip(cur_val + 10);
                 gear.dismiss();
             };
-        }
-        virtual void redraw()
-        {
-            canvas.wipe(base::brush);
-            canvas.output(topic);
-            auto cp = canvas.cp();
-            cp.x = pin_pos;
-            cp.y -= 3;
-            grip_ctl->base::moveto(cp);
-            canvas.render(grip_ctl, base::coor.get());
-            SIGNAL(e2::release, e2::form::upon::redrawn, canvas);
-        }
-        // cache: Draw the form composition on the specified canvas.
-        virtual void renderproc (face& parent_canvas)
-        {
-            if (base::status.invalid)
+            SUBMIT(e2::release, e2::render::any, parent_canvas)
             {
-                canvas.wipe();
-                base::renderproc(canvas);
-                redraw();
-            }
-        }
-        // cache: Draw the form composition on the specified canvas.
-        //        Executed right after the renderproc().
-        virtual void postrender (face& parent_canvas)
-        {
-            if (base::status.invalid)
+                if (base::invalid)
+                {
+                    canvas.wipe();
+                    canvas.wipe(base::brush);
+                    canvas.output(topic);
+                    auto cp = canvas.cp();
+                    cp.x = pin_pos;
+                    cp.y -= 3;
+                    grip_ctl->base::moveto(cp);
+                    canvas.render(grip_ctl, base::coor.get());
+                }
+            };
+            SUBMIT(e2::release, e2::postrender, parent_canvas)
             {
-                base::postrender(canvas);
-                base::status.invalid = faux;
-            }
-            parent_canvas.plot(canvas);
+                if (base::invalid)
+                {
+                    base:: invalid = faux;
+                }
+                parent_canvas.plot(canvas);
+            };
         }
     };
 }

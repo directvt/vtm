@@ -172,10 +172,16 @@ namespace netxs::events
             cout        = any | (11<< 0), // Append extra data to output (arg: const text)
 
             _bindings   = any | (12<< 0), // Dynamic Data Bindings.
+            _render     = any | (13<< 0), // release: UI-tree rendering (arg: face).
+            postrender  = any | (14<< 0), // release: UI-tree post-rendering (arg: face).
         };
         //private: static const unsigned int _level = _toplevel + _width;
         private: static const unsigned int _level0 = _width;
         public:
+        struct render { enum : type {
+                any = e2::_render,                  // release: UI-tree default rendering submission (arg: face).
+                prerender   = any | (1 << _level0), // release: UI-tree pre-rendering, used by pro::cache (can interrupt SIGNAL) and any kind of highlighters (arg: face).
+        };};
         struct bindings { enum : type {
                 any = e2::_bindings,
                 _list       = any | (1 << _level0),
@@ -543,7 +549,7 @@ namespace netxs::events
                     _vtree      = any | (1 << _level1), // visual tree events (arg: parent base_sptr)
                     //detached    = any | (2 << _level1), // inform that subject is detached (arg: parent bell_sptr)
                     redrawn     = any | (3 << _level1), // inform about camvas is completely redrawn (arg: canvas face)
-                    invalidated = any | (4 << _level1),
+                    //invalidated = any | (4 << _level1),
                     cached      = any | (5 << _level1), // inform about camvas is cached (arg: canvas face)
                     wiped       = any | (6 << _level1), // event after wipe the canvas (arg: canvas face)
                     created     = any | (7 << _level1), // event after itself creation (arg: itself bell_sptr)
@@ -595,8 +601,8 @@ namespace netxs::events
                     move        = any | (1 << _level1), // return client rect coor (preview: subject to change)
                     size        = any | (2 << _level1), // return client rect size (preview: subject to change)
                     //rect        = any | (3 << _level1), // return client rect (preview: subject to change)
-                    show        = any | (3 << _level1), // order to make it visible (arg: bool notify or not)
-                    hide        = any | (4 << _level1), // order to make it hidden (arg: bool notify or not)
+                    //show        = any | (3 << _level1), // order to make it visible (arg: bool notify or not)
+                    //hide        = any | (4 << _level1), // order to make it hidden (arg: bool notify or not)
                     shift       = any | (5 << _level1), // request a global shifting  with delta (const twod)
                     convey      = any | (6 << _level1), // request a global conveying with delta (Inform all children to be conveyed) (arg: cube)
                     order       = any | (7 << _level1), // return
@@ -840,6 +846,7 @@ namespace netxs::events
         template<class TT, class ...Args>
         static auto create(Args&&... args)
         {
+            // Enables the use of a protected ctor by std::make_shared<TT>.
             struct make_shared_enabler : public TT
             {
                 make_shared_enabler(Args&&... args)
@@ -849,12 +856,11 @@ namespace netxs::events
 
             e2::sync lock;
             sptr<TT> inst = std::make_shared<make_shared_enabler>(std::forward<Args>(args)...);
+
             inst->_actuate(inst);
 
-            //todo move to the bell
             sptr<T> item = inst;
             inst->T::signal_direct(e2::release, e2::form::upon::created, item);
-            //item->T::signal<e2::release>(e2::form::upon::created, item);
             return inst;
         }
     };
@@ -1128,6 +1134,7 @@ namespace netxs::events
         { }
         ~bell()
         {
+            e2::sync lock;
             signal<e2::release>(e2::dtor, id);
         }
     };
