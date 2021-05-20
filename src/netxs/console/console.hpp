@@ -103,6 +103,7 @@ namespace netxs::console
         EVENT_BIND(e2::data::request, iota)
         EVENT_BIND(e2::data::disable, iota)
         EVENT_BIND(e2::data::flush  , iota)
+        EVENT_BIND(e2::data::text   , const text)
 
     EVENT_BIND(e2::form::any, bool)
         EVENT_BIND(e2::form::upevent::any, hids)
@@ -1476,13 +1477,7 @@ namespace netxs::console
                 {
                     SUBMIT_GLOBAL(e2::hids::mouse::gone, token, gear)
                     {
-                        for (auto& item : items) // Linear search, because a few items.
-                            if (item.id == gear.id)
-                            {
-                                if (items.size() > 1) item = items.back(); // Remove an item without allocations.
-                                items.pop_back();
-                                return;
-                            }
+                        del(gear);
                     };
                 }
                 template<bool CONST_WARN = true>
@@ -1515,6 +1510,16 @@ namespace netxs::console
                         if (items.size() > 1) item = items.back(); // Remove an item without allocations.
                         items.pop_back();
                     }
+                }
+                void del(hids& gear)
+                {
+                    for (auto& item : items) // Linear search, because a few items.
+                        if (item.id == gear.id)
+                        {
+                            if (items.size() > 1) item = items.back(); // Remove an item without allocations.
+                            items.pop_back();
+                            return;
+                        }
                 }
             };
         };
@@ -3866,28 +3871,37 @@ namespace netxs::console
                 twod max = max_value;
             }
             lims;
+            bool sure; // limit: Reepeat size checking afetr all.
 
         public:
             limit(base&&) = delete;
-            limit(base& boss, twod const& min_size = -dot_11, twod const& max_size = -dot_11)
+            limit(base& boss, twod const& min_size = -dot_11, twod const& max_size = -dot_11, bool forced = faux)
                 : skill{ boss }
             {
-                set(min_size, max_size);
+                set(min_size, max_size, forced);
+                // Clamping before all.
                 boss.SUBMIT_T(e2::preview, e2::size::any, memo, new_size)
                 {
                     new_size = std::clamp(new_size, lims.min, lims.max);
                 };
+                // Clamping after all.
+                boss.SUBMIT_T(e2::preview, e2::size::set, memo, new_size)
+                {
+                    if (sure)
+                        new_size = std::clamp(new_size, lims.min, lims.max);
+                };
             }
             // pro::limit: Set size limits (min, max). Preserve current value if specified arg less than 0.
-            void set(twod const& min_size, twod const& max_size = -dot_11)
+            void set(twod const& min_size, twod const& max_size = -dot_11, bool forced = faux)
             {
+                sure = forced;
                 lims.min = min_size.less(dot_00, min_value, min_size);
                 lims.max = max_size.less(dot_00, max_value, max_size);
             }
             // pro::limit: Set resize limits (min, max). Preserve current value if specified arg less than 0.
-            void set(lims_t const& new_limits)
+            void set(lims_t const& new_limits, bool forced = faux)
             {
-                set(new_limits.min, new_limits.max);
+                set(new_limits.min, new_limits.max, forced);
             }
             auto& get() const
             {
@@ -3992,6 +4006,194 @@ namespace netxs::console
             }
         };
 
+        //todo PoC, unify, too hacky
+        // pro: Cell Highlighter.
+        class cell_highlight
+            : public skill
+        {
+            struct sock
+            {
+                twod curpos; // sock: Current coor.
+                bool inside; // sock: Is active.
+                bool seized; // sock: Is seized.
+                rect region; // sock: Selected region.
+
+                sock()
+                    : inside{ faux },
+                      seized{ faux }
+                { }
+                operator bool(){ return inside || seized || region.size; }
+                auto grab(twod const& coord, bool resume)
+                {
+                    if (inside)
+                    {
+                        if (!(region.size && resume))
+                        {
+                            region.coor = coord;
+                            region.size = dot_00;
+                        }
+                        seized = true;
+                    }
+                    return seized;
+                }
+                auto calc(base const& boss, twod const& coord)
+                {
+                    curpos = coord;
+                    auto area = boss.size();
+                    area.x += boss.oversize.r;
+                    inside = area.inside(curpos);
+                }
+                auto drag(twod const& coord)
+                {
+                    if (seized)
+                    {
+                        region.size = coord - region.coor;
+                    }
+                    return seized;
+                }
+                void drop()
+                {
+                    seized = faux;
+                }
+            };
+            using list = socks<sock>;
+            using skill::boss,
+                  skill::memo;
+
+            list items;
+        
+        public:
+            cell_highlight(base&&) = delete;
+            cell_highlight(base& boss)
+                : skill{ boss }
+            {
+                boss.SUBMIT_T(e2::release, e2::postrender, memo, parent_canvas)
+                {
+                    auto full = parent_canvas.full();
+                    auto view = parent_canvas.view();
+                    auto mark = cell{}.bgc(bluelt).bga(0x40);
+                    auto fill = [&](cell& c) { c.fuse(mark); };
+                    auto step = twod{ 5, 1 };
+                    auto area = full;
+                    area.size.x += boss.oversize.r;
+                    items.foreach([&](sock& item)
+                    {
+                        if (item.region.size)
+                        {
+                            auto region = item.region.normalize();
+                            auto pos1 = region.coor / step * step;
+                            auto pos2 = (region.coor + region.size + step) / step * step;
+                            auto pick = rect{ full.coor + pos1, pos2 - pos1 }.clip(area).clip(view);
+                            parent_canvas.fill(pick, fill);
+                        }
+                        if (item.inside)
+                        {
+                            auto pos1 = item.curpos / step * step;
+                            auto pick = rect{ full.coor + pos1, step }.clip(view);
+                            parent_canvas.fill(pick, fill);
+                        }
+                    });
+                };
+                boss.SUBMIT_T(e2::release, e2::hids::mouse::button::click::any, memo, gear)
+                {
+                    auto& item = items.take(gear);
+                    if (item.region.size)
+                    {
+                        if (gear.meta(hids::ANYCTRL)) item.region.size = gear.coord - item.region.coor;
+                        else                          item.region.size = dot_00;
+                    }
+                    recalc();
+                };
+                boss.SUBMIT_T(e2::general, e2::hids::mouse::gone, memo, gear)
+                {
+                    recalc();
+                    boss.deface();
+                };
+                boss.SUBMIT_T(e2::release, e2::form::notify::mouse::enter, memo, gear)
+                {
+                    items.add(gear);
+                };
+                boss.SUBMIT_T(e2::release, e2::form::notify::mouse::leave, memo, gear)
+                {
+                    auto& item = items.take(gear);
+                    if (item.region.size)
+                    {
+                        item.inside = faux;
+                    }
+                    else items.del(gear);
+                    recalc();
+                };
+                engage<sysmouse::left>();
+            }
+            void recalc()
+            {
+                text data;
+                auto step = twod{ 5, 1 };
+                auto size = boss.size();
+                size.x += boss.oversize.r;
+                items.foreach([&](sock& item)
+                {
+                    if (item.region.size)
+                    {
+                        auto region = item.region.normalize();
+                        auto pos1 = region.coor / step;
+                        auto pos2 = (region.coor + region.size) / step;
+                        pos1 = std::clamp(pos1, dot_00, twod{ 25, 98 } );
+                        pos2 = std::clamp(pos2, dot_00, twod{ 25, 98 } );
+                        data += 'A'+ (char)pos1.x;
+                        data += std::to_string(pos1.y + 1);
+                        data += ':';
+                        data += 'A' + (char)pos2.x;
+                        data += std::to_string(pos2.y + 1);
+                        data += ", ";
+                    }
+                });
+                if (data.size())
+                {
+                    data.pop_back(); // pop", "
+                    data.pop_back(); // pop", "
+                    data = " =SUM(" + ansi::fgc(bluedk) + data + ansi::fgc(blacklt) + ")";
+                }
+                else data = " =SUM(" + ansi::itc(true).fgc(reddk) + "select region" + ansi::itc(faux).fgc(blacklt) + ")";
+                log("calc: DATA ", data);                        
+                boss.SIGNAL(e2::release, e2::data::text, data);
+            }
+            // pro::cell_highlight: Configuring the mouse button to operate.
+            template<sysmouse::bttns button>
+            void engage()
+            {
+                boss.SIGNAL(e2::release, e2::message(e2::form::draggable::any, button), true);
+                boss.SUBMIT_T(e2::release, e2::hids::mouse::move, memo, gear)
+                {
+                    items.take(gear).calc(boss, gear.coord);
+                    boss.base::deface();
+                };
+                boss.SUBMIT_T(e2::release, e2::message(e2::form::drag::start::any, button), memo, gear)
+                {
+                    if (items.take(gear).grab(gear.coord, gear.meta(hids::ANYCTRL)))
+                        gear.dismiss();
+                };
+                boss.SUBMIT_T(e2::release, e2::message(e2::form::drag::pull::any, button), memo, gear)
+                {
+                    if (items.take(gear).drag(gear.coord))
+                    {
+                        recalc();
+                        gear.dismiss();
+                    }
+                };
+                boss.SUBMIT_T(e2::release, e2::message(e2::form::drag::cancel::any, button), memo, gear)
+                {
+                    items.take(gear).drop();
+                    recalc();
+                };
+                boss.SUBMIT_T(e2::release, e2::message(e2::form::drag::stop::any, button), memo, gear)
+                {
+                    items.take(gear).drop();
+                    recalc();
+                };
+            }
+        };
+        
         // pro: Keyboard focus highlighter.
         class focus
             : public skill

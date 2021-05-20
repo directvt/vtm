@@ -1360,6 +1360,8 @@ namespace netxs::ui::atoms
         auto height() const { return b - t; }
         // side: Return width.
         auto width() const { return r - l; }
+        // side: Return square.
+        auto area() const { return rect{ { l, t }, { r - l, b - t } } ; }
         // side: Textify.
         auto str() const
         {

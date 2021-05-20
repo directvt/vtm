@@ -1,7 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#define MONOTTY_VER "Monotty Desktopio Preview v0.3.7"
+#define MONOTTY_VER "Monotty Desktopio Preview v0.3.8"
 // Autostart demo apps.
 //#define DEMO
 // Enable keyboard input and disable exit by single Esc.
@@ -1630,10 +1630,6 @@ utility like ctags is used to locate the definitions.
                                                             ->plugin<pro::limit>(twod{ 3,-1 }, twod{ 4,-1 })
                                                             ->upload(ansi::wrp(wrap::off)
                                                               + " Fx ");
-                                            auto sum = fx_sum->attach<slot::_2, ui::post>()
-                                                             ->plugin<pro::color>(0, whitelt)
-                                                             ->upload(ansi::bgc(whitelt).fgc(blacklt)
-                                                               + " =SUM(B1:B10) ");
                                         auto ellipsis = func_line->attach<slot::_2, ui::post>()
                                                                  ->plugin<pro::fader>(c7, c3, 150ms)
                                                                  ->plugin<pro::limit>(twod{ -1,1 }, twod{ 3,-1 })
@@ -1651,7 +1647,19 @@ utility like ctags is used to locate the definitions.
                                                                 ->config(true, true);
                                                 auto grid = scroll->attach<ui::post>()
                                                                   ->plugin<pro::color>(0xFF000000, 0xFFffffff)
+                                                                  ->plugin<pro::cell_highlight>()
                                                                   ->upload(cellatix_text);
+                                            auto sum = fx_sum->attach<slot::_2, ui::post>()
+                                                             ->plugin<pro::color>(0, whitelt)
+                                                             ->upload(ansi::bgc(whitelt).fgc(blacklt)
+                                                               + " =SUM(" + ansi::itc(true).fgc(reddk) + "select region" + ansi::itc(faux).fgc(blacklt) + ")")
+                                                             ->invoke([&](ui::post& boss)
+                                                             {
+                                                                 grid->SUBMIT(e2::release, e2::data::text, data)
+                                                                 {
+                                                                    boss.upload(ansi::bgc(whitelt).fgc(blacklt) + data);
+                                                                 };
+                                                             });
                                             auto cols_area = corner_cols->attach<slot::_2, ui::rail>(axes::ONLY_X, axes::ONLY_X)
                                                                         ->follow<axis::X>(scroll);
                                                 auto cols = cols_area->attach<ui::post>()
@@ -2389,6 +2397,8 @@ utility like ctags is used to locate the definitions.
                                     auto userlist_area = users_area->attach<slot::_2, ui::pads>()
                                                                    ->plugin<pro::limit>();
                                         auto users = userlist_area->attach_element<e2::bindings::list::users>(world, branch_template);
+                                        //auto users_rail = userlist_area->attach<ui::rail>();
+                                        //auto users = users_rail->attach_element<e2::bindings::list::users>(world, branch_template);
                                     //todo unify
                                     bttn_pads->invoke([&](auto& boss)
                                                 {
@@ -2405,7 +2415,7 @@ utility like ctags is used to locate the definitions.
                                                             auto& limits = userlist->plugins<pro::limit>();
                                                             auto lims = limits.get();
                                                             lims.min.y = lims.max.y = state ? 0 : -1;
-                                                            limits.set(lims);
+                                                            limits.set(lims, true);
                                                             userlist->base::reflow();
                                                         }
                                                     };

@@ -642,6 +642,7 @@ namespace netxs::events
                 request     = any | (2 << _level0),
                 disable     = any | (3 << _level0),
                 flush       = any | (4 << _level0),
+                text        = any | (5 << _level0), // release: signaling with a text string (args: const text).
         };};
     };
 
