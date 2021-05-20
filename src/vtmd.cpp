@@ -581,7 +581,7 @@ int main(int argc, char* argv[])
                 + ansi::jet(bias::center).wrp(wrap::off).fgc(whitelt).mgl(1).mgr(0)
                 + "Test Samples\n\n"
                 + ansi::jet(bias::left).wrp(wrap::off).fgc(whitelt).mgl(1).mgr(0)
-                + "User Interface Commands\n"
+                + "User Interface Commands (outdated)\n"
                 + ansi::jet(bias::left).mgl(1).mgr(0).wrp(wrap::off) + "\n"
                 + ansi::fgc(whitelt).bld(true)
                 + "Mouse:" + ansi::nil() + "\n"
@@ -644,6 +644,14 @@ int main(int argc, char* argv[])
                     + l2 + ansi::wrp(wrap::on)
                     + "inside the object:\n"
                         + l3 + "- destroy the object (except menu window).\n"
+                + l1 + ansi::wrp(wrap::off)
+                + "wheel" + ansi::nil().wrp(wrap::off) + "\n"
+                    + l2 + ansi::fgc(blackdk).bgc(clr).wrp(wrap::off)
+                    + "scroll " + ansi::nil().wrp(wrap::on) + "\n"
+                        + l3 + "- vertical scrolling.\n"
+                    + l2 + ansi::wrp(wrap::on)
+                    + "scroll + ctrl\n"
+                        + l3 + "- horizontal scrolling.\n"
                     + l2
 
                 + ansi::mgl(1).mgr(0)
@@ -652,19 +660,15 @@ int main(int argc, char* argv[])
                 + "    " + ansi::fgc(whitelt).und(true) + "Ctrl" + ansi::nil().wrp(wrap::on) + " - Combine with the left mouse button to set/unset keyboard focus; combining with dragging right/middle mouse buttons copies the selected area to the clipboard.\n"
                 + "    " + ansi::fgc(whitelt).und(true) + "Ctrl + PgUp/PgDn" + ansi::nil().wrp(wrap::on) + " - Navigation between windows.\n"
                 + "\n"
-                + ansi::fgc(whitelt).bld(true) + "Menu:" + ansi::nil().wrp(wrap::off) + "\n"
+                + ansi::fgc(whitelt).bld(true) + "Taskbar menu:" + ansi::nil().wrp(wrap::off) + " (outdated)\n"
                 + "    " + ansi::fgc(whitelt).und(true) + "Midnight Commander" + ansi::nil().wrp(wrap::off) + " - live instance of Midnight Commander.\n"
-                + "       " + ansi::fgc(whitelt).und(true) + "Truecolor image" + ansi::nil().wrp(wrap::off) + " - true color ANSI/ASCII image, ANSI art.\n"
-                + "          " + ansi::fgc(whitelt).und(true) + "Refresh Rate" + ansi::nil().wrp(wrap::off) + " - terminal screen refresh rate selector, applies to\n"
-                + "                      "                                                                  + "   all connected users.\n"
-                + "                " + ansi::fgc(whitelt).und(true) + "Strobe" + ansi::nil().wrp(wrap::off) + " - an empty resizable window that changes background color\n"
-                + "                      "                                                                  + "   when drawing each new frame (stroboscopic object).\n"
-                + "  " + ansi::fgc(whitelt).und(true) + "Recursive connection" + ansi::nil().wrp(wrap::off) + " - limited to 3 connections.\n"
+                + "       " + ansi::fgc(whitelt).und(true) + "Truecolor image" + ansi::nil().wrp(wrap::off) + " - true color ANSI/ASCII image.\n"
+                + "          " + ansi::fgc(whitelt).und(true) + "Refresh Rate" + ansi::nil().wrp(wrap::off) + " - terminal screen refresh rate selector (all users affected).\n"
+                + "                " + ansi::fgc(whitelt).und(true) + "Strobe" + ansi::nil().wrp(wrap::off) + " - an empty resizable window that changes background color every frame.\n"
+                + "  " + ansi::fgc(whitelt).und(true) + "Recursive connection" + ansi::nil().wrp(wrap::off) + " - is limited to 3 connections in Demo mode.\n"
                 + "\n"
-                + "    " + ansi::fgc(whitelt).und(true) + "Disconnect" + ansi::nil().wrp(wrap::off) + " - disconnects the current user.\n"
-                + "    " + ansi::fgc(whitelt).und(true) + "Shutdown" + ansi::nil().wrp(wrap::off) + "   - disconnects all connected users and restarts\n"
-                + "            "                                                                  + "     the desktop environment (auto-fire if there are\n"
-                + "            "                                                                  + "     no mouse clicks for 5 minutes).\n\n"
+                + "    " + ansi::fgc(whitelt).und(true) + "Disconnect" + ansi::nil().wrp(wrap::off) + " - Disconnect current user.\n"
+                + "    " + ansi::fgc(whitelt).und(true) + "Shutdown" + ansi::nil().wrp(wrap::off) + "   - Disconnect all connected users and shutdown.\n\n"
                 + "\n"
                 + ansi::wrp(wrap::on).mgl(0).mgr(0) + "\n"
                 + "\n";

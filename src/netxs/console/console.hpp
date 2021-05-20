@@ -1993,7 +1993,7 @@ namespace netxs::console
             // pro::robot: Check activity by id.
             bool active(id_t id)
             {
-                return memo.find(id) != memo.end(); //todo use ::contains (C++20)
+                return memo.contains(id);
             }
             // pro::robot: Check any activity.
             operator bool ()
@@ -2044,7 +2044,7 @@ namespace netxs::console
             // pro::timer: Check activity by id.
             bool active(id_t id)
             {
-                return memo.find(id) != memo.end(); //todo use ::contains (C++20)
+                return memo.contains(id);
             }
             // pro::timer: Check any activity.
             operator bool ()
@@ -4103,6 +4103,16 @@ namespace netxs::console
                         else                          item.region.size = dot_00;
                     }
                     recalc();
+                };
+                boss.SUBMIT_T(e2::release, e2::hids::mouse::button::dblclick::any, memo, gear)
+                {
+                    auto& item = items.take(gear);
+                    auto area = boss.size();
+                    area.x += boss.oversize.r;
+                    item.region.coor = dot_00;
+                    item.region.size = area;
+                    recalc();
+                    gear.dismiss();
                 };
                 boss.SUBMIT_T(e2::general, e2::hids::mouse::gone, memo, gear)
                 {
