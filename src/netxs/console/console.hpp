@@ -1202,7 +1202,7 @@ namespace netxs::console
 
         bool visual_root = faux; // Whether the size is tied to the size of the clients.
         wptr parent_shadow; // base: Parental visual tree weak-pointer.
-        side oversize; // base: Oversize, margin. Used by scroll/rail only.
+        side oversize; // base: Oversize, margin.
         twod anchor; // base: Object balance point. Center point for any transform (on preview).
         bool invalid = true; // base: Should the object be redrawn.
         hook kb_offer;
@@ -1241,6 +1241,7 @@ namespace netxs::console
                 if (base::brush.wdt())
                     parent_canvas.fill([&](cell& c) { c.fusefull(base::brush); });
             };
+
             SUBMIT(e2::release, e2::coor::set, new_coor) { square.coor = new_coor; };
             SUBMIT(e2::request, e2::coor::set, coor_var) { coor_var = square.coor; };
             SUBMIT(e2::release, e2::size::set, new_size) { square.size = new_size; };
@@ -3930,11 +3931,12 @@ namespace netxs::console
                   skill::memo;
 
             sptr<face> coreface;
-            face& canvas; // cache: Bitmap cache.
 
         public:
+            face& canvas; // cache: Bitmap cache.
+
             cache(base&&) = delete;
-            cache(base& boss)
+            cache(base& boss, bool rendered = true)
                 : skill{ boss },
                   canvas{*(coreface = std::make_shared<face>())}
             {
@@ -3948,17 +3950,20 @@ namespace netxs::console
                 boss.SUBMIT_T(e2::release, e2::coor::set, memo, new_xy) { canvas.move(new_xy); };
                 boss.SUBMIT_T(e2::release, e2::size::set, memo, new_sz) { canvas.size(new_sz); };
                 boss.SUBMIT_T(e2::request, e2::form::canvas, memo, canvas) { canvas = coreface; };
-                boss.SUBMIT_T(e2::release, e2::render::prerender, memo, parent_canvas)
+                if (rendered)
                 {
-                    if (boss.base::invalid)
+                    boss.SUBMIT_T(e2::release, e2::render::prerender, memo, parent_canvas)
                     {
-                        canvas.wipe();
-                        boss.SIGNAL(e2::release, e2::render::any, canvas);
-                        boss.base::invalid = faux;
-                    }
-                    parent_canvas.plot(canvas);
-                    boss.bell::expire(e2::release);
-                };
+                        if (boss.base::invalid)
+                        {
+                            canvas.wipe();
+                            boss.SIGNAL(e2::release, e2::render::any, canvas);
+                            boss.base::invalid = faux;
+                        }
+                        parent_canvas.plot(canvas);
+                        boss.bell::expire(e2::release);
+                    };
+                }
             }
         };
 
@@ -5464,6 +5469,7 @@ again:
         pro::guard guard{*this }; // gate: Watch dog against robots and single Esc detector.
         pro::input input{*this }; // gate: User input event handler.
         pro::align align{*this }; // gate: Size binding controller.
+        pro::cache cache{*this, faux }; // gate: Object map.
         #ifdef DEBUG_OVERLAY
         pro::debug debug{*this }; // gate: Debug telemetry controller.
         #endif
@@ -5471,10 +5477,6 @@ again:
         using pair = std::optional<std::pair<period, iota>>;
         pair  yield; // gate: Indicator that the current frame has been successfully STDOUT.
         para uname; // gate: Client name.
-
-        //todo cache specific
-        sptr<face> coreface;
-        face& canvas; // .: Form cache.
 
     public:
         // todo unify
@@ -5526,10 +5528,9 @@ again:
                 world->SUBMIT_T(e2::release, e2::form::proceed::render, token, render_scene)
                 {
                     auto stamp = tempus::now();
-                    //if (render_scene(form::canvas, gate::title.titles()) || !yield) // Put the world on my canvas
-                    if (render_scene(canvas, watermark) || !yield) // Put the world on my canvas
+                    if (render_scene(cache.canvas, watermark) || !yield) // Put the world to the my canvas.
                     {
-                        // Update objects under mouse cursor
+                        // Update objects under mouse cursor.
                         //input.fire(e2::hids::mouse::hover);
                         #ifdef DEBUG_OVERLAY
                             debug.bypass = true;
@@ -5541,7 +5542,7 @@ again:
                         #endif // DEBUG_OVERLAY
 
                         // Draw debug overlay, maker, titles, etc.
-                        this->SIGNAL(e2::release, e2::postrender, canvas);
+                        this->SIGNAL(e2::release, e2::postrender, cache.canvas);
                         #ifdef DEBUG_OVERLAY
                             if ((yield = paint.commit(canvas)))
                             {
@@ -5551,7 +5552,7 @@ again:
                             }
                             debug.update(stamp);
                         #else
-                            yield = paint.commit(canvas); // Try output my canvas to the my console.
+                            yield = paint.commit(cache.canvas); // Try output my canvas to the my console.
                         #endif // DEBUG_OVERLAY
                     }
                 };
@@ -5563,16 +5564,7 @@ again:
 
     protected:
         gate(view user_name)
-            : canvas{*(coreface = std::make_shared<face>())}
         {
-            //todo cache specific
-            canvas.link(bell::id);
-            canvas.move(base::coor());
-            canvas.size(base::size());
-            SUBMIT(e2::release, e2::size::set, new_sz) { canvas.mark(base::brush); canvas.size(new_sz); };
-            SUBMIT(e2::release, e2::coor::set, new_xy) { canvas.move(new_xy); };
-            SUBMIT(e2::request, e2::form::canvas, canvas) { canvas = coreface; };
-
             //todo unify
             uname = user_name;
             title.live = faux;
@@ -5652,8 +5644,8 @@ again:
             };
             SUBMIT(e2::release, e2::form::layout::shift, newpos)
             {
-                auto window = canvas.area();
-                auto oldpos = window.coor + (window.size / 2);
+                auto& window = base::area();
+                auto  oldpos = window.coor + (window.size / 2);
 
                 auto path = oldpos - newpos;
                 iota time = SWITCHING_TIME;
@@ -5667,17 +5659,18 @@ again:
             };
             SUBMIT(e2::release, e2::size::set, newsz)
             {
+                //todo update colors via pro::color
+                cache.canvas.mark(base::brush);
+
                 if (uibar) uibar->base::resize(newsz);
             };
-
-            // gate: Draw the form composition on the specified canvas.
             SUBMIT(e2::release, e2::render::prerender, parent_canvas)
             {
-                // Draw a shadow of user's terminal window for other users (spectators)
+                // Draw a shadow of user's terminal window for other users (spectators).
                 // see pro::scene.
-                if (&parent_canvas != &canvas)
+                if (&parent_canvas != &cache.canvas)
                 {
-                    auto area = canvas.area();
+                    auto area = base::area();
                     area.coor-= parent_canvas.area().coor;
 
                     //todo revise
@@ -5689,9 +5682,9 @@ again:
             };
             SUBMIT(e2::release, e2::postrender, parent_canvas)
             {
-                if (&parent_canvas != &canvas)
+                if (&parent_canvas != &cache.canvas)
                 {
-                    auto area = canvas.area();
+                    auto area = base::area();
                     area.coor -= parent_canvas.area().coor;
 
                     area.coor += input.coord;
