@@ -2427,6 +2427,7 @@ namespace netxs::os
                             wait_child();
                             shutdown(exit_code);
                         }
+                        log("cons: client_exit_waiter exit");
                     });
                     socket.set(m_pipe_r, m_pipe_w, true);
                     alive = true;
@@ -2511,7 +2512,7 @@ namespace netxs::os
 
                     ClosePseudoConsole(hPC);
                     socket.shut();
-                    DWORD code;
+                    DWORD code = 0;
                     if (GetExitCodeProcess(hProcess, &code) == FALSE) log("cons: child GetExitCodeProcess() error: ", GetLastError());
                     else if (code == STILL_ACTIVE)                    log("cons: child process still running");
                     else                                              log("cons: child process exit code ", code);
@@ -2537,6 +2538,7 @@ namespace netxs::os
                     }
 
                 #endif
+                log("cons: wait_child() exit");
             }
         }
         void read_socket_thread()

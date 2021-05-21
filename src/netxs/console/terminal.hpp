@@ -1294,6 +1294,7 @@ namespace netxs::ui
         hook oneshot_resize_token; // term: First resize subscription token.
         text cmdline;
         hook shut_down_token; // term: One shot shutdown token.
+        bool alive = true;
 
         static constexpr iota default_size = 20000;
         static constexpr iota default_step = 0;
@@ -1468,7 +1469,7 @@ namespace netxs::ui
         }
         void input_hndl(view shadow)
         {
-            while (true)
+            while (alive)
             {
                 e2::try_sync guard;
                 if (guard)
@@ -1531,9 +1532,8 @@ namespace netxs::ui
                 };
             }
         }
-        //bool dead = faux;
     public:
-        //~term(){ dead = true; }
+        ~term(){ alive = faux; }
         term(text cmd_line, iota max_scrollback_size = default_size, iota grow_step = default_step)
             : mtracker{ *this },
               ftracker{ *this },
