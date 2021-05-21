@@ -1293,6 +1293,7 @@ namespace netxs::ui
         os::cons ptycon; // term: PTY device.
         hook oneshot_resize_token; // term: First resize subscription token.
         text cmdline;
+        hook shut_down_token; // term: One shot shutdown token.
 
         static constexpr iota default_size = 20000;
         static constexpr iota default_step = 0;
@@ -1467,7 +1468,7 @@ namespace netxs::ui
         }
         void input_hndl(view shadow)
         {
-            while (ptycon)
+            while (true)
             {
                 e2::try_sync guard;
                 if (guard)
@@ -1512,8 +1513,27 @@ namespace netxs::ui
                 else std::this_thread::yield();
             }
         }
-
+        void shutdown_hndl(iota code)
+        {
+            log("term: exit code ", code);
+            if (code)
+            {
+                text error = ansi::bgc(reddk).fgc(whitelt) + "\nterm: exit code " + std::to_string(code) + " ";
+                input_hndl(error);
+            }
+            else
+            {
+                log("term: submit for destruction on next frame/tick");
+                SUBMIT_T(e2::general, e2::timer::tick, shut_down_token, t)
+                {
+                    shut_down_token.reset();
+                    base::destroy();
+                };
+            }
+        }
+        //bool dead = faux;
     public:
+        //~term(){ dead = true; }
         term(text cmd_line, iota max_scrollback_size = default_size, iota grow_step = default_step)
             : mtracker{ *this },
               ftracker{ *this },
@@ -1570,7 +1590,8 @@ namespace netxs::ui
                             update_status();
                             ptycon.resize(viewport.size);
                         };
-                        ptycon.start(cmdline, new_size, [&](auto utf8_shadow) { input_hndl(utf8_shadow); });
+                        ptycon.start(cmdline, new_size, [&](auto utf8_shadow) { input_hndl(utf8_shadow); }
+                                                      , [&](auto exit_code) { shutdown_hndl(exit_code); });
                     }
                 };
             };

@@ -2300,6 +2300,7 @@ namespace netxs::os
             HPCON  hPC     { INVALID_HANDLE_VALUE };
             HANDLE hProcess{ INVALID_HANDLE_VALUE };
             HANDLE hThread { INVALID_HANDLE_VALUE };
+            std::thread client_exit_waiter;
 
         #elif defined(__linux__) || defined(__APPLE__)
 
@@ -2311,22 +2312,38 @@ namespace netxs::os
         text        stdin_text;
         text        ready_text;
         std::thread std_input;
-        bool        alive; // cons: Read input loop state.
-
-        //todo may be a list of functions?
+        bool        alive = faux; // cons: Read input loop state.
+        iota        exit_code = 0 ;
         std::function<void(view)> receiver;
+        std::function<void(iota)> shutdown;
 
     public:
         ~cons()
         {
-            close();
+            log("cons: dtor started");
+            wait_child();
+            if (std_input.joinable())
+            {
+                log("cons: input thread joining");
+                std_input.join();
+            }
+            #if defined(_WIN32)
+                if (client_exit_waiter.joinable())
+                {
+                    log("cons: client_exit_waiter thread joining");
+                    client_exit_waiter.join();
+                }
+                log("cons: client_exit_waiter thread joined");
+            #endif
         }
         
         operator bool () { return alive; }
 
-        void start(text cmdline, twod winsz, std::function<void(view)> input_hndl)
+        void start(text cmdline, twod winsz, std::function<void(view)> input_hndl
+                                           , std::function<void(iota)> shutdown_hndl)
         {
             receiver = input_hndl;
+            shutdown = shutdown_hndl;
             log("cons: new process: ", cmdline);
 
             #if defined(_WIN32)
@@ -2398,6 +2415,19 @@ namespace netxs::os
                     hProcess = procs_info.hProcess;
                     hThread  = procs_info.hThread;
 
+                    client_exit_waiter = std::thread([&]
+                    {
+                        if (WAIT_FAILED == WaitForSingleObject(hProcess, INFINITE))
+                        {
+                            log("cons: client_exit_waiter error");
+                        }
+                        log("cons: client_exit_waiter finished");
+                        if (alive)
+                        {
+                            wait_child();
+                            shutdown(exit_code);
+                        }
+                    });
                     socket.set(m_pipe_r, m_pipe_w, true);
                     alive = true;
                 }
@@ -2470,48 +2500,63 @@ namespace netxs::os
             std_input = std::thread([&] { read_socket_thread(); });
         }
 
-        void read_socket_thread ()
+        void wait_child()
+        {
+            if (alive)
+            {
+                alive = faux;
+                log("cons: wait child process");
+
+                #if defined(_WIN32)
+
+                    ClosePseudoConsole(hPC);
+                    socket.shut();
+                    DWORD code;
+                    if (GetExitCodeProcess(hProcess, &code) == FALSE) log("cons: child GetExitCodeProcess() error: ", GetLastError());
+                    else if (code == STILL_ACTIVE)                    log("cons: child process still running");
+                    else                                              log("cons: child process exit code ", code);
+                    exit_code = code;
+                    CloseHandle(hProcess);
+                    CloseHandle(hThread);
+
+                #elif defined(__linux__) || defined(__APPLE__)
+
+                    int status;
+                    socket.shut();
+                    ::kill(pid, SIGKILL);
+                    ::waitpid (pid, &status, 0); // Wait for the child to avoid zombies.
+                    if (WIFEXITED(status))
+                    {
+                        exit_code = WEXITSTATUS(status);
+                        log("cons: child process exit code ", exit_code);
+                    }
+                    else
+                    {
+                        exit_code = 0;
+                        log("cons: error: child process exit code not detected");
+                    }
+
+                #endif
+            }
+        }
+        void read_socket_thread()
         {
             text content;
             qiew data;
-
-            //log("cons: read_socket_thread started");
 
             while (alive && (data = socket.recv()))
             {
                 content += data;
                 auto shadow = ansi::purify(content);
                 receiver(shadow);
-
                 content.erase(0, shadow.size()); // Delete processed data.
             }
-            //log("cons: read_socket_thread ended");
-        }
-        void close()
-        {
-            alive = faux;
-
-            #if defined(_WIN32)
-
-                ClosePseudoConsole(hPC);
-                socket.shut();
-                CloseHandle(hProcess);
-                CloseHandle(hThread);
-
-            #elif defined(__linux__) || defined(__APPLE__)
-
-                socket.shut();
-                ::kill(pid, SIGKILL);
-                ::waitpid (pid, 0, 0); // Wait for the child to avoid zombies.
-
-            #endif
-
-            if (std_input.joinable())
+            if (alive)
             {
-                log("cons: input thread joining");
-                std_input.join();
+                log("cons: read_socket_thread ended");
+                wait_child();
+                shutdown(exit_code);
             }
-            log("cons: input thread joined");
         }
         void resize(twod newsize)
         {
@@ -2536,7 +2581,6 @@ namespace netxs::os
         }
         void write(view data)
         {
-            //if (alive) socket.send(data);
             socket.send(data);
         }
     };

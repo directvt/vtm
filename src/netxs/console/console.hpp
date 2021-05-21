@@ -1408,6 +1408,16 @@ namespace netxs::console
                 //parent_strike();
             }
         }
+        // base: Remove visual tree branch.
+        void destroy()
+        {
+            auto shadow = This();
+            if (auto parent_ptr = parent_shadow.lock())
+            {
+                parent_ptr->destroy();
+            }
+            detach();
+        }
         // base: Recursively calculate global coordinate.
         void global(twod& coor)
         {
@@ -3254,6 +3264,7 @@ namespace netxs::console
                     denote(users.remove(inst.id));
 
                     //todo unify
+                    bool found = faux;
                     // Remove from active app registry.
                     for (auto& [class_id, app_list] : *app_registry)
                     {
@@ -3263,6 +3274,7 @@ namespace netxs::console
                         if (iter != tail)
                         {
                             app_list.erase(iter);
+                            found = true;
                             break;
                         }
                     }
@@ -3274,10 +3286,11 @@ namespace netxs::console
                         if (item != tail)
                         {
                             subset.erase(item);
+                            found = true;
                         }
                     }
-
-                    inst.SIGNAL(e2::release, e2::form::upon::vtree::detached, boss.This());
+                    if (found)
+                        inst.SIGNAL(e2::release, e2::form::upon::vtree::detached, boss.This());
                 };
                 boss.SUBMIT_T(e2::preview, e2::form::layout::strike, memo, region)
                 {
@@ -4164,7 +4177,7 @@ namespace netxs::console
                     data.pop_back(); // pop", "
                     data = " =SUM(" + ansi::fgc(bluedk) + data + ansi::fgc(blacklt) + ")";
                 }
-                else data = " =SUM(" + ansi::itc(true).fgc(reddk) + "select region" + ansi::itc(faux).fgc(blacklt) + ")";
+                else data = " =SUM(" + ansi::itc(true).fgc(reddk) + "select cells by dragging" + ansi::itc(faux).fgc(blacklt) + ")";
                 log("calc: DATA ", data);                        
                 boss.SIGNAL(e2::release, e2::data::text, data);
             }

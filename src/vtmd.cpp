@@ -1,7 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#define MONOTTY_VER "Monotty Desktopio Preview v0.3.8"
+#define MONOTTY_VER "Monotty Desktopio Preview v0.3.9"
 // Autostart demo apps.
 //#define DEMO
 // Enable keyboard input and disable exit by single Esc.
@@ -1656,7 +1656,7 @@ utility like ctags is used to locate the definitions.
                                             auto sum = fx_sum->attach<slot::_2, ui::post>()
                                                              ->plugin<pro::color>(0, whitelt)
                                                              ->upload(ansi::bgc(whitelt).fgc(blacklt)
-                                                               + " =SUM(" + ansi::itc(true).fgc(reddk) + "select region" + ansi::itc(faux).fgc(blacklt) + ")")
+                                                               + " =SUM(" + ansi::itc(true).fgc(reddk) + "select cells by dragging" + ansi::itc(faux).fgc(blacklt) + ")")
                                                              ->invoke([&](ui::post& boss)
                                                              {
                                                                  grid->SUBMIT(e2::release, e2::data::text, data)
