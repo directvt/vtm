@@ -1276,7 +1276,8 @@ utility like ctags is used to locate the definitions.
         };
         auto main_menu = [&]()
         {
-            auto menu_area = base::create<ui::fork>();
+            auto menu_area = base::create<ui::fork>()
+                                 ->active();
                 auto inner_pads = dent{ 1,2,1,1 };
                 auto menu_items =
                 {
@@ -1318,7 +1319,8 @@ utility like ctags is used to locate the definitions.
         };
         auto shop_menu = [&]()
         {
-            auto menu_area = base::create<ui::fork>();
+            auto menu_area = base::create<ui::fork>()
+                                 ->active();
                 auto inner_pads = dent{ 1,2,1,1 };
                 auto menu_items =
                 {
@@ -1419,14 +1421,13 @@ utility like ctags is used to locate the definitions.
                           ->plugin<pro::acryl>()
                           ->plugin<pro::cache>();
                     auto object0 = window->attach<ui::fork>(axis::Y)
-                                         ->plugin<pro::color>(whitelt, 0xA0db3700);
+                                         ->colors(whitelt, 0xA0db3700);
                         auto menu = object0->attach<slot::_1>(main_menu())
-                                           ->plugin<pro::color>(0, 0) //todo mouse tracking
                                            ->plugin<pro::mover>(window);
                         auto test_stat_area = object0->attach<slot::_2, ui::fork>(axis::Y);
                             auto layers = test_stat_area->attach<slot::_1, ui::cake>();
                                 auto scroll = layers->attach<ui::rail>()
-                                                    ->plugin<pro::color>(cyanlt, bluedk)
+                                                    ->colors(cyanlt, bluedk)
                                                     ->plugin<pro::mover>(window)
                                                     ->config(true, true);
                                     auto object = scroll->attach<ui::post>()
@@ -1473,17 +1474,16 @@ utility like ctags is used to locate the definitions.
                           ->plugin<pro::acryl>()
                           ->plugin<pro::cache>();
                     auto object = window->attach<ui::fork>(axis::Y)
-                                        ->plugin<pro::color>(whitelt, term_menu_bg);
+                                        ->colors(whitelt, term_menu_bg);
                         auto menu = object->attach<slot::_1>(main_menu())
-                                          ->plugin<pro::color>(0, 0) //todo mouse tracking
                                           ->plugin<pro::mover>(window);
                         auto layers = object->attach<slot::_2, ui::cake>()
                                             ->plugin<pro::limit>(dot_11, twod{ 400,200 });
                             auto scroll = layers->attach<ui::rail>()
                                                 ->plugin<pro::mover>(window)
-                                                ->plugin<pro::color>(whitelt, 0xFF560000);
+                                                ->colors(whitelt, 0xFF560000);
                                 scroll->attach<ui::term>("powershell")
-                                      ->plugin<pro::color>(whitelt, 0xFF562401);
+                                      ->colors(whitelt, 0xFF562401);
                         layers->attach(scroll_bars_term(scroll));
                     break;
                 }
@@ -1494,9 +1494,8 @@ utility like ctags is used to locate the definitions.
                           ->plugin<pro::acryl>()
                           ->plugin<pro::cache>();
                     auto object = window->attach<ui::fork>(axis::Y)
-                                        ->plugin<pro::color>(whitelt, term_menu_bg);
+                                        ->colors(whitelt, term_menu_bg);
                         auto menu = object->attach<slot::_1>(main_menu())
-                                          ->plugin<pro::color>(0, 0) //todo mouse tracking
                                           ->plugin<pro::mover>(window);
                         auto layers = object->attach<slot::_2, ui::cake>()
                                             ->plugin<pro::limit>(dot_11, twod{ 400,200 });
@@ -1514,7 +1513,7 @@ utility like ctags is used to locate the definitions.
                                 auto inst = scroll->attach<ui::term>("zsh");
                             #endif
 
-                                inst->plugin<pro::color>(whitelt, blackdk);
+                                inst->colors(whitelt, blackdk);
 
                         layers->attach(scroll_bars_term(scroll));
                     break;
@@ -1531,7 +1530,7 @@ utility like ctags is used to locate the definitions.
                         stobe_state = !stobe_state;
                         if (auto strob = strob_shadow.lock())
                         {
-                            strob->color(0x0, stobe_state ? 0xFF000000 : 0xFFFFFFFF);
+                            strob->color(0x00, stobe_state ? 0xFF000000 : 0xFFFFFFFF);
                             strob->deface();
                         }
                     };
@@ -1551,16 +1550,15 @@ utility like ctags is used to locate the definitions.
                           ->plugin<pro::acryl>()
                           ->plugin<pro::cache>();
                     auto object = window->attach<ui::fork>(axis::Y)
-                                        ->plugin<pro::color>(whitelt, 0xA01f0fc4);
+                                        ->colors(whitelt, 0xA01f0fc4);
                         auto menu = object->attach<slot::_1>(main_menu())
-                                          ->plugin<pro::color>(0, 0) //todo mouse tracking
                                           ->plugin<pro::mover>(window);
                         auto test_stat_area = object->attach<slot::_2, ui::fork>(axis::Y);
                             auto layers = test_stat_area->attach<slot::_1, ui::cake>();
                                 auto scroll = layers->attach<ui::rail>()
                                                     ->plugin<pro::mover>(window)
                                                     ->config(true, true)
-                                                    ->plugin<pro::color>(whitelt, reddk);
+                                                    ->colors(whitelt, reddk);
                                             scroll->attach<ui::post>()
                                                   ->upload(truecolor);
                                 auto scroll_bars = layers->attach<ui::fork>();
@@ -1574,29 +1572,29 @@ utility like ctags is used to locate the definitions.
                           ->plugin<pro::track>()
                           ->plugin<pro::acryl>();
                     auto object = window->attach<ui::mock>()
-                                        ->plugin<pro::color>(0,0) //todo mouse tracking
+                                        ->colors(0,0) //todo mouse tracking
                                         ->plugin<pro::mover>(window);
                     break;
                 }
                 case Shop:
                 {
                     window->plugin<pro::title>("Desktopio App Store", faux)
-                          ->plugin<pro::color>(whitelt, 0x60000000)
+                          ->colors(whitelt, 0x60000000)
                           ->plugin<pro::track>()
                           ->plugin<pro::acryl>()
                           ->plugin<pro::cache>();
                     auto object = window->attach<ui::fork>(axis::Y)
-                                        ->plugin<pro::color>(whitelt, 0);
+                                        ->colors(whitelt, 0);
                         auto menu_object = object->attach<slot::_1, ui::fork>(axis::Y);
                             menu_object->attach<slot::_1>(shop_menu());
                             menu_object->attach<slot::_2, ui::post>()
                                        ->plugin<pro::limit>(twod{ 37,-1 }, twod{ -1,-1 })
                                        ->upload(appstore_head)
-                                       ->plugin<pro::color>(0, 0) //todo mouse tracking
-                                       ->plugin<pro::mover>(window);
+                                       ->plugin<pro::mover>(window)
+                                       ->active();
                         auto layers = object->attach<slot::_2, ui::cake>();
                             auto scroll = layers->attach<ui::rail>()
-                                                ->plugin<pro::color>(whitedk, 0xFF0f0f0f)
+                                                ->colors(whitedk, 0xFF0f0f0f)
                                                 ->plugin<pro::limit>(twod{ -1,2 }, twod{ -1,-1 })
                                                 ->config(true, true);
                                 auto items = scroll->attach<ui::list>();
@@ -1614,15 +1612,14 @@ utility like ctags is used to locate the definitions.
                 {
                     static iota i = 0; i++;
                     window->plugin<pro::title>(ansi::jet(bias::right) + "Spreadsheet\n ~/Untitled " + std::to_string(i) + ".ods")
-                          ->plugin<pro::color>(whitelt, 0x601A5f00)
+                          ->colors(whitelt, 0x601A5f00)
                           ->plugin<pro::limit>(twod{ -1,-1 },twod{ 136,105 })
                           ->plugin<pro::track>()
                           ->plugin<pro::acryl>()
                           ->plugin<pro::cache>();
                     auto object = window->attach<ui::fork>(axis::Y)
-                                        ->plugin<pro::color>(whitelt, 0);
+                                        ->colors(whitelt, 0);
                         auto menu = object->attach<slot::_1>(main_menu())
-                                          ->plugin<pro::color>(0, 0) //todo mouse tracking
                                           ->plugin<pro::mover>(window);
                         auto all_stat = object->attach<slot::_2, ui::fork>(axis::Y);
                             auto func_body_pad = all_stat->attach<slot::_1, ui::pads>(dent{ 1,1 });
@@ -1650,11 +1647,11 @@ utility like ctags is used to locate the definitions.
                                                                 ->plugin<pro::limit>(twod{ -1,1 }, twod{ -1,-1 })
                                                                 ->config(true, true);
                                                 auto grid = scroll->attach<ui::post>()
-                                                                  ->plugin<pro::color>(0xFF000000, 0xFFffffff)
+                                                                  ->colors(0xFF000000, 0xFFffffff)
                                                                   ->plugin<pro::cell_highlight>()
                                                                   ->upload(cellatix_text);
                                             auto sum = fx_sum->attach<slot::_2, ui::post>()
-                                                             ->plugin<pro::color>(0, whitelt)
+                                                             ->colors(0, whitelt)
                                                              ->upload(ansi::bgc(whitelt).fgc(blacklt)
                                                                + " =SUM(" + ansi::itc(true).fgc(reddk) + "select cells by dragging" + ansi::itc(faux).fgc(blacklt) + ")")
                                                              ->invoke([&](ui::post& boss)
@@ -1703,9 +1700,8 @@ utility like ctags is used to locate the definitions.
                           ->plugin<pro::acryl>()
                           ->plugin<pro::cache>();
                     auto object = window->attach<ui::fork>(axis::Y)
-                                        ->plugin<pro::color>(whitelt, 0xA05f1a00);
+                                        ->colors(whitelt, 0xA05f1a00);
                         auto menu = object->attach<slot::_1>(main_menu())
-                                          ->plugin<pro::color>(0, 0) //todo mouse tracking
                                           ->plugin<pro::mover>(window);
                         auto body_area = object->attach<slot::_2, ui::fork>(axis::Y);
                             auto fields = body_area->attach<slot::_1, ui::pads>(dent{ 1,1 });
@@ -1714,7 +1710,7 @@ utility like ctags is used to locate the definitions.
                                                         ->plugin<pro::limit>(twod{ 4,3 }, twod{ -1,-1 });
                                         auto edit_box = scroll->attach<ui::post>(true)
                                                               ->plugin<pro::caret>(true, twod{ 25,1 })
-                                                              ->plugin<pro::color>(blackdk, whitelt)
+                                                              ->colors(blackdk, whitelt)
                                                               ->upload(ansi::wrp(wrap::off).mgl(1)
                                                                 + topic3
                                                                 + ansi::fgc(highlight_color)
@@ -1733,9 +1729,8 @@ utility like ctags is used to locate the definitions.
                           ->plugin<pro::acryl>()
                           ->plugin<pro::cache>();
                     auto object = window->attach<ui::fork>(axis::Y)
-                                        ->plugin<pro::color>(whitelt, term_menu_bg);
+                                        ->colors(whitelt, term_menu_bg);
                         auto menu = object->attach<slot::_1>(main_menu())
-                                          ->plugin<pro::color>(0, 0) //todo mouse tracking
                                           ->plugin<pro::mover>(window);
                         auto layers = object->attach<slot::_2, ui::cake>()
                                             ->plugin<pro::limit>(dot_11, twod{ 400,200 });
@@ -1744,7 +1739,7 @@ utility like ctags is used to locate the definitions.
                             {
                                 auto c = &vtm_count; (*c)++;
                                 scroll->attach<ui::term>("vtm")
-                                      ->plugin<pro::color>(whitelt, blackdk)
+                                      ->colors(whitelt, blackdk)
                                       ->SUBMIT_BYVAL(e2::release, e2::dtor, dummy)
                                         {
                                             (*c)--;
@@ -1754,7 +1749,7 @@ utility like ctags is used to locate the definitions.
                             else
                             {
                                 scroll->attach<ui::post>()
-                                      ->plugin<pro::color>(whitelt, blackdk)
+                                      ->colors(whitelt, blackdk)
                                       ->upload(ansi::fgc(yellowlt).mgl(4).mgr(4).wrp(wrap::off)
                                         + "\n\nconnection rejected\n\n"
                                         + ansi::nil().wrp(wrap::on)
@@ -1770,15 +1765,14 @@ utility like ctags is used to locate the definitions.
                           ->plugin<pro::acryl>()
                           ->plugin<pro::cache>();
                     auto object = window->attach<ui::fork>(axis::Y)
-                                        ->plugin<pro::color>(whitelt, term_menu_bg);
+                                        ->colors(whitelt, term_menu_bg);
                         auto menu = object->attach<slot::_1>(main_menu())
-                                          ->plugin<pro::color>(0, 0) //todo mouse tracking
                                           ->plugin<pro::mover>(window);
                         auto layers = object->attach<slot::_2, ui::cake>()
                                             ->plugin<pro::limit>(dot_11, twod{ 400,200 });
                             auto scroll = layers->attach<ui::rail>();
                             scroll->attach<ui::term>("far")
-                                  ->plugin<pro::color>(whitelt, blackdk);
+                                  ->colors(whitelt, blackdk);
                         layers->attach(scroll_bars_term(scroll));
                     break;
                 }
@@ -1789,9 +1783,8 @@ utility like ctags is used to locate the definitions.
                           ->plugin<pro::acryl>()
                           ->plugin<pro::cache>();
                     auto object = window->attach<ui::fork>(axis::Y)
-                                        ->plugin<pro::color>(whitelt, term_menu_bg);
+                                        ->colors(whitelt, term_menu_bg);
                         auto menu = object->attach<slot::_1>(main_menu())
-                                          ->plugin<pro::color>(0, 0) //todo mouse tracking
                                           ->plugin<pro::mover>(window);
                         auto layers = object->attach<slot::_2, ui::cake>()
                                             ->plugin<pro::limit>(dot_11, twod{ 400,200 });
@@ -1816,7 +1809,7 @@ utility like ctags is used to locate the definitions.
 
                             #endif
 
-                            inst->plugin<pro::color>(whitelt, blackdk);
+                            inst->colors(whitelt, blackdk);
                         layers->attach(scroll_bars(scroll));
                     break;
                 }
@@ -1828,9 +1821,8 @@ utility like ctags is used to locate the definitions.
                           ->plugin<pro::acryl>()
                           ->plugin<pro::cache>();
                     auto object = window->attach<ui::fork>(axis::Y)
-                                        ->plugin<pro::color>(whitelt, term_menu_bg);
+                                        ->colors(whitelt, term_menu_bg);
                         auto menu = object->attach<slot::_1>(main_menu())
-                                          ->plugin<pro::color>(0, 0) //todo mouse tracking
                                           ->plugin<pro::mover>(window);
                         auto term_stat_area = object->attach<slot::_2, ui::fork>(axis::Y);
                             auto layers = term_stat_area->attach<slot::_1, ui::cake>()
@@ -1849,7 +1841,7 @@ utility like ctags is used to locate the definitions.
                                         auto inst = scroll->attach<ui::term>("zsh");
                                     #endif
 
-                                    inst->plugin<pro::color>(whitelt, blackdk);
+                                    inst->colors(whitelt, blackdk);
                                 }
                             auto scroll_bars = layers->attach<ui::fork>();
                                 auto vt = scroll_bars->attach<slot::_2, ui::grip<axis::Y>>(scroll);
@@ -1863,23 +1855,22 @@ utility like ctags is used to locate the definitions.
                           ->plugin<pro::acryl>()
                           ->plugin<pro::cache>();
                     auto object = window->attach<ui::fork>(axis::Y)
-                                        ->plugin<pro::color>(whitelt, term_menu_bg);
+                                        ->colors(whitelt, term_menu_bg);
                         auto menu = object->attach<slot::_1>(main_menu())
-                                          ->plugin<pro::color>(0, 0) //todo mouse tracking
                                           ->plugin<pro::mover>(window);
                         auto layers = object->attach<slot::_2, ui::cake>();
                             auto scroll = layers->attach<ui::rail>()
                                                 ->plugin<pro::mover>(window);
                             #ifndef PROD
                             scroll->attach<ui::post>()
-                                  ->plugin<pro::color>(whitelt, blackdk)
+                                  ->colors(whitelt, blackdk)
                                   ->upload(ansi::fgc(yellowlt).mgl(4).mgr(4).wrp(wrap::off)
                                     + "\n\nLogs is not availabe in DEMO mode\n\n"
                                     + ansi::nil().wrp(wrap::on)
                                     + "Use the full version of VTM to run Logs.");
                             #else
                             scroll->attach<post_logs>()
-                                  ->plugin<pro::color>(whitelt, blackdk);
+                                  ->colors(whitelt, blackdk);
                             #endif
                         layers->attach(scroll_bars(scroll));
                     break;
@@ -2292,7 +2283,7 @@ utility like ctags is used to locate the definitions.
                     auto window = client->attach<ui::cake>();
                         auto taskbar = window->attach<ui::fork>(axis::X)
                                             ->attach<slot::_1, ui::fork>(axis::Y)
-                                            ->plugin<pro::color>(whitedk, 0x60202020)
+                                            ->colors(whitedk, 0x60202020)
                                             ->plugin<pro::limit>(twod{ 4,-1 }, twod{ 4,-1 })
                                             ->plugin<pro::timer>()
                                             ->plugin<pro::acryl>()
@@ -2345,10 +2336,10 @@ utility like ctags is used to locate the definitions.
                                                                  ->attach<ui::cake>();
                                         auto task_menu_area = applist_area->attach<ui::fork>(axis::Y, 0, 0);
                                             auto menu_scrl = task_menu_area->attach<slot::_1, ui::rail>(axes::ONLY_Y)
-                                                                           ->plugin<pro::color>(0x00, 0x00); //todo mouse events passthrough
+                                                                           ->colors(0x00, 0x00); //todo mouse events passthrough
                                                 auto menuitems = menu_scrl->attach_element<e2::bindings::list::apps>(world, menuitems_template);
                                             auto tasks_scrl = task_menu_area->attach<slot::_2, ui::rail>(axes::ONLY_Y)
-                                                                            ->plugin<pro::color>(0x00, 0x00); //todo mouse events passthrough
+                                                                            ->colors(0x00, 0x00); //todo mouse events passthrough
                                                 auto apps = tasks_scrl->attach_element<e2::bindings::list::apps>(world, apps_template);
                                     label_pads->invoke([&](auto& boss)
                                                 {

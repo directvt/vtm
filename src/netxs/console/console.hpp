@@ -134,6 +134,7 @@ namespace netxs::console
             EVENT_BIND(e2::form::prop::header, text)
             EVENT_BIND(e2::form::prop::footer, text)
             EVENT_BIND(e2::form::prop::zorder, iota)
+            EVENT_BIND(e2::form::prop::brush, const cell)
 
         EVENT_BIND(e2::form::drag::any, hids)
             EVENT_SAME(e2::form::drag::any, e2::form::drag::cancel::any)
@@ -1197,51 +1198,23 @@ namespace netxs::console
     class base
         : public bell, public std::enable_shared_from_this<base>
     {
-    public:
         using wptr = std::weak_ptr<base>;
 
+        cell brush;
+        rect square;
+        bool invalid = true; // base: Should the object be redrawn.
         bool visual_root = faux; // Whether the size is tied to the size of the clients.
         wptr parent_shadow; // base: Parental visual tree weak-pointer.
+        hook kb_offer;
+
+    public:
         side oversize; // base: Oversize, margin.
         twod anchor; // base: Object balance point. Center point for any transform (on preview).
-        bool invalid = true; // base: Should the object be redrawn.
-        hook kb_offer;
-        rect square;
-
-        template<class T = base>
-        auto This() { return std::static_pointer_cast<typename std::remove_reference<T>::type>(shared_from_this()); }
-
-        //todo pro::color specific
-        cell brush;
-        virtual void color(rgba const& fg_color, rgba const& bg_color)
-        {
-            // To make an object transparent to mouse events,
-            // no id (cell::id = 0) is used by default in the brush.
-            // The bell::id is configurable only with pro::mouse.
-            base::brush.bgc(bg_color)
-                       .fgc(fg_color)
-                       .txt(whitespace);
-        }
-        void color(cell const& c)
-        {
-            base::brush = c;
-        }
-        auto& color()
-        {
-            return base::brush;
-        }
 
     protected:
         virtual ~base() = default;
         base()
         {
-            //todo pro::color specific
-            SUBMIT(e2::release, e2::render::any, parent_canvas)
-            {
-                if (base::brush.wdt())
-                    parent_canvas.fill([&](cell& c) { c.fusefull(base::brush); });
-            };
-
             SUBMIT(e2::release, e2::coor::set, new_coor) { square.coor = new_coor; };
             SUBMIT(e2::request, e2::coor::set, coor_var) { coor_var = square.coor; };
             SUBMIT(e2::release, e2::size::set, new_size) { square.size = new_size; };
@@ -1294,7 +1267,7 @@ namespace netxs::console
             };
             SUBMIT(e2::preview, e2::form::layout::strike, region)
             {
-                //todo combine with child region
+                //todo combine with a child region
                 invalid = true;
                 strike();
             };
@@ -1303,12 +1276,39 @@ namespace netxs::console
             {
                 global(coor);
             };
+            SUBMIT(e2::release, e2::render::any, parent_canvas)
+            {
+                if (base::brush.wdt())
+                    parent_canvas.fill([&](cell& c) { c.fusefull(base::brush); });
+            };
         }
 
     public:
+        template<class T = base>
+        auto  This()       { return std::static_pointer_cast<typename std::remove_reference<T>::type>(shared_from_this()); }
         auto& coor() const { return square.coor; }
         auto& size() const { return square.size; }
         auto& area() const { return square; }
+        auto parent()      { return parent_shadow.lock(); }
+        void isroot(bool state) { visual_root = state; }
+        void ruined(bool state) { invalid = state; }
+        auto ruined() const { return invalid; }
+        auto color() const { return brush; }
+        void color(rgba const& fg_color, rgba const& bg_color)
+        {
+            // To make an object transparent to mouse events,
+            // no id (cell::id = 0) is used by default in the brush.
+            // The bell::id is configurable only with pro::mouse.
+            base::brush.bgc(bg_color)
+                       .fgc(fg_color)
+                       .txt(whitespace);
+            SIGNAL(e2::release, e2::form::prop::brush, brush);
+        }
+        void color(cell const& new_brush)
+        {
+            base::brush = new_brush;
+            SIGNAL(e2::release, e2::form::prop::brush, brush);
+        }
         // base: Move the form to a new place, and return the delta.
         auto moveto(twod new_coor)
         {
@@ -1362,7 +1362,7 @@ namespace netxs::console
         // base: Mark the visual subtree as requiring redrawing.
         void strike(rect const& region)
         {
-            if (auto parent_ptr = parent_shadow.lock())
+            if (auto parent_ptr = parent())
             {
                 parent_ptr->SIGNAL(e2::preview, e2::form::layout::strike, region);
             }
@@ -1385,7 +1385,7 @@ namespace netxs::console
         // base: Going to rebuild visual tree. Retest current size, ask parent if it is linked.
         void reflow()
         {
-            auto parent_ptr = parent_shadow.lock();
+            auto parent_ptr = parent();
             if (parent_ptr && !visual_root)
             {
                 parent_ptr->reflow();
@@ -1401,7 +1401,7 @@ namespace netxs::console
         // base: Remove the form from the visual tree.
         void detach()
         {
-            if (auto parent_ptr = parent_shadow.lock())
+            if (auto parent_ptr = parent())
             {
                 auto shadow = This();
                 parent_ptr->SIGNAL(e2::preview, e2::form::proceed::detach, shadow);
@@ -1413,7 +1413,7 @@ namespace netxs::console
         void destroy()
         {
             auto shadow = This();
-            if (auto parent_ptr = parent_shadow.lock())
+            if (auto parent_ptr = parent())
             {
                 parent_ptr->destroy();
             }
@@ -1423,7 +1423,7 @@ namespace netxs::console
         void global(twod& coor)
         {
             coor -= square.coor;
-            if (auto parent_ptr = parent_shadow.lock())
+            if (auto parent_ptr = parent())
             {
                 parent_ptr->SIGNAL(e2::request, e2::form::layout::local, coor);
             }
@@ -1434,7 +1434,7 @@ namespace netxs::console
         template<class T>
         void toboss(T proc)
         {
-            if (auto parent_ptr = parent_shadow.lock())
+            if (auto parent_ptr = parent())
             {
                 proc(*parent_ptr);
             }
@@ -2252,7 +2252,7 @@ namespace netxs::console
             //             Return "true" if it is NOT under the rest.
             void expose (bool subsequent = faux)
             {
-                if (auto parent_ptr = boss.parent_shadow.lock())
+                if (auto parent_ptr = boss.parent())
                 {
                     parent_ptr->SIGNAL(e2::release, e2::form::layout::expose, boss);
                 }
@@ -2262,7 +2262,7 @@ namespace netxs::console
             //             among neighbors.
             void bubble ()
             {
-                if (auto parent_ptr = boss.parent_shadow.lock())
+                if (auto parent_ptr = boss.parent())
                 {
                     parent_ptr->SIGNAL(e2::release, e2::form::layout::bubble, boss);
                 }
@@ -3353,7 +3353,7 @@ namespace netxs::console
             auto branch(id_t class_id, sptr<S> item)
             {
                 items.append(item);
-                item->base::visual_root = true;
+                item->base::isroot(true);
                 (*app_registry)[class_id].push_back(item);
                 item->SIGNAL(e2::release, e2::form::upon::vtree::attached, boss.base::This());
 
@@ -3377,7 +3377,7 @@ namespace netxs::console
                 auto user = boss.indexer<bell>::create<S>(std::forward<Args>(args)...);
                 users.append(user);
                 usr_registry->push_back(user);
-                user->base::visual_root = true;
+                user->base::isroot(true);
                 user->SIGNAL(e2::release, e2::form::upon::vtree::attached, boss.base::This());
 
                 //todo unify
@@ -3586,12 +3586,13 @@ namespace netxs::console
                 full{ 0               },
                 drag{ 0               }
             {
-                boss.base::color().link(boss.bell::id);
+                auto brush = boss.base::color();
+                boss.base::color(brush.link(boss.bell::id));
                 // pro::mouse: Forward preview to all parents.
                 boss.SUBMIT_T(e2::preview, e2::hids::mouse::any, memo, gear)
                 {
                     auto& offset = boss.base::coor();
-                    gear.pass<e2::preview>(boss.parent_shadow.lock(), offset);
+                    gear.pass<e2::preview>(boss.parent(), offset);
 
                     if (gear) gear.okay(boss);
                     else      boss.bell::expire(e2::preview);
@@ -3602,7 +3603,7 @@ namespace netxs::console
                     if (gear && !gear.locks)
                     {
                         auto& offset = boss.base::coor();
-                        gear.pass<e2::release>(boss.parent_shadow.lock(), offset);
+                        gear.pass<e2::release>(boss.parent(), offset);
                     }
                 };
                 // pro::mouse: Notify form::state::active when the number of clients is positive.
@@ -3815,7 +3816,9 @@ namespace netxs::console
             //todo use lambda
             void work(iota transit)
             {
-                boss.base::color().avg(c1, c2, transit);
+                auto brush = boss.base::color();
+                brush.avg(c1, c2, transit);
+                boss.base::color(brush);
                 boss.base::deface();
             }
 
@@ -3854,20 +3857,6 @@ namespace netxs::console
                         else work(transit = 0);
                     }
                 };
-            }
-        };
-
-        // pro: Color manager.
-        class color
-            : public skill
-        {
-            using skill::boss,
-                  skill::memo;
-        public:
-            color(base&&) = delete;
-            color(base& boss, rgba fg_color, rgba bg_color) : skill{ boss }
-            {
-                boss.base::color(fg_color, bg_color);
             }
         };
 
@@ -3954,11 +3943,11 @@ namespace netxs::console
                 {
                     boss.SUBMIT_T(e2::release, e2::render::prerender, memo, parent_canvas)
                     {
-                        if (boss.base::invalid)
+                        if (boss.base::ruined())
                         {
                             canvas.wipe();
                             boss.SIGNAL(e2::release, e2::render::any, canvas);
-                            boss.base::invalid = faux;
+                            boss.base::ruined(faux);
                         }
                         parent_canvas.plot(canvas);
                         boss.bell::expire(e2::release);
@@ -3984,8 +3973,9 @@ namespace netxs::console
             {
                 boss.SUBMIT_T(e2::release, e2::render::prerender, memo, parent_canvas)
                 {
-                    if (boss.base::brush.wdt()) parent_canvas.blur(width, [&](cell& c) { c.fuse(boss.base::brush); });
-                    else                        parent_canvas.blur(width);
+                    auto brush = boss.base::color();
+                    if (brush.wdt()) parent_canvas.blur(width, [&](cell& c) { c.fuse(brush); });
+                    else             parent_canvas.blur(width);
                 };
             }
         };
@@ -4245,7 +4235,7 @@ namespace netxs::console
                 boss.SUBMIT_T(e2::release, e2::render::prerender, memo, parent_canvas)
                 {
                     //todo revise, too many fillings (mold's artifacts)
-                    auto normal = boss.base::brush;
+                    auto normal = boss.base::color();
                     if (active)
                     {
                         auto bright = skin::color(tone::brighter);
@@ -5486,7 +5476,7 @@ again:
         // Main loop.
         void proceed(xipc media /*session socket*/, text title)
         {
-            if (auto world = parent_shadow.lock())
+            if (auto world = base::parent())
             {
                 link conio{ *this, media };          // gate: Terminal IO.
                 diff paint{ conio, input.freeze() }; // gate: Rendering loop.
@@ -5595,7 +5585,7 @@ again:
             //todo unify creation (delete simple create wo gear)
             SUBMIT(e2::preview, e2::form::proceed::create, region)
             {
-                if (auto world = parent_shadow.lock())
+                if (auto world = base::parent())
                 {
                     region.coor += base::coor();
                     world->SIGNAL(e2::release, e2::form::proceed::create, region);
@@ -5603,7 +5593,7 @@ again:
             };
             SUBMIT(e2::preview, e2::form::proceed::createby, gear)
             {
-                if (auto world = parent_shadow.lock())
+                if (auto world = base::parent())
                 {
                     gear.slot.coor += base::coor();
                     world->SIGNAL(e2::release, e2::form::proceed::createby, gear);
@@ -5619,7 +5609,7 @@ again:
                     auto pgdn = gear.keystrokes == "\033[6;5~"s;
                     if (pgup || pgdn)
                     {
-                        if (auto world = parent_shadow.lock())
+                        if (auto world = base::parent())
                         {
                             sptr<base> item_ptr;
                             if (pgdn) world->SIGNAL(e2::request, e2::form::proceed::detach, item_ptr); // Take prev item
@@ -5657,11 +5647,12 @@ again:
                                      base::strike();
                                  });
             };
+            SUBMIT(e2::release, e2::form::prop::brush, brush)
+            {
+                cache.canvas.mark(brush);
+            };
             SUBMIT(e2::release, e2::size::set, newsz)
             {
-                //todo update colors via pro::color
-                cache.canvas.mark(base::brush);
-
                 if (uibar) uibar->base::resize(newsz);
             };
             SUBMIT(e2::release, e2::render::prerender, parent_canvas)

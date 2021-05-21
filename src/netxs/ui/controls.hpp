@@ -67,6 +67,20 @@ namespace netxs::ui
             base::reflow();
             return backup;
         }
+        // form: Set colors and return itself.
+        template<class ...Args>
+        auto colors(Args&&... args)
+        {
+            base::color(std::forward<Args>(args)...);
+            return This<T>();
+        }
+        // form: Set the form visible for mouse.
+        auto active(bool visible = true)
+        {
+            auto brush = base::color();
+            if (!brush.wdt()) base::color(brush.txt(whitespace));
+            return This<T>();
+        }
         // form: Return plugin reference of specified type.
         template<class S>
         auto& plugins()
@@ -1798,18 +1812,11 @@ namespace netxs::ui
             };
             SUBMIT(e2::release, e2::render::any, parent_canvas)
             {
-                if (base::invalid)
+                if (base::ruined())
                 {
-                    canvas.wipe();
                     canvas.wipe();
                     canvas.output(topic);
-                }
-            };
-            SUBMIT(e2::release, e2::postrender, parent_canvas)
-            {
-                if (base::invalid)
-                {
-                    base::invalid = faux;
+                    base::ruined(faux);
                 }
                 parent_canvas.plot(canvas);
             };
@@ -2042,23 +2049,16 @@ namespace netxs::ui
             };
             SUBMIT(e2::release, e2::render::any, parent_canvas)
             {
-                if (base::invalid)
+                if (base::ruined())
                 {
-                    canvas.wipe();
-                    canvas.wipe(base::brush);
+                    canvas.wipe(base::color());
                     canvas.output(topic);
                     auto cp = canvas.cp();
                     cp.x = pin_pos;
                     cp.y -= 3;
                     grip_ctl->base::moveto(cp);
                     canvas.render(grip_ctl, base::coor());
-                }
-            };
-            SUBMIT(e2::release, e2::postrender, parent_canvas)
-            {
-                if (base::invalid)
-                {
-                    base:: invalid = faux;
+                    base::ruined(faux);
                 }
                 parent_canvas.plot(canvas);
             };

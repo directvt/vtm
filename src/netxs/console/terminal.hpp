@@ -118,7 +118,7 @@ namespace netxs::ui
         iota        basis; // rods: Index of O(0, 0).
 
     public:
-        mark        brush; // rods: Current brush for parser.
+        mark        brush; // rods: Current brush for parser (default fg/bg-colors).
         deco        style; // rods: Parser style state.
         bool        caret; // rods: Text caret visibility.
 
@@ -1644,16 +1644,14 @@ namespace netxs::ui
             {
                 viewport.coor = -new_coor;
             };
+            SUBMIT(e2::release, e2::form::prop::brush, brush)
+            {
+                target->brush.reset(brush);
+            };
             SUBMIT(e2::release, e2::render::any, parent_canvas)
             {
                 target->output(parent_canvas);
             };
-        }
-        // term/base: Set default fg/bg-colors.
-        virtual void color(rgba const& fg_color, rgba const& bg_color)
-        {
-            base::color(fg_color, bg_color);
-            target->brush.reset(base::color());
         }
     };
 }
