@@ -1317,15 +1317,11 @@ utility like ctags is used to locate the definitions.
                          ->attach<ui::item>("✕");
             return menu_area;
         };
-        auto shop_menu = [&]()
+        auto custom_menu = [&](std::list<std::pair<text, std::function<void(ui::pads&)>>> menu_items)
         {
             auto menu_area = base::create<ui::fork>()
                                  ->active();
                 auto inner_pads = dent{ 1,2,1,1 };
-                auto menu_items =
-                {
-                    ansi::und(true) + "D" + ansi::nil() + "esktopio App Store",
-                };
                 auto menu_list = menu_area->attach<slot::_1, ui::fork>()
                                           ->attach<slot::_1, ui::list>(axis::X);
                     menu_list->attach<ui::pads>(inner_pads, dent{ 0 })
@@ -1339,10 +1335,11 @@ utility like ctags is used to locate the definitions.
                                         gear.dismiss();
                                     };
                                 })
-                            ->attach<ui::item>(" ≡", faux, true);
+                            ->template attach<ui::item>(" ≡", faux, true);
                 for (auto& body : menu_items) menu_list->attach<ui::pads>(inner_pads, dent{ 1 })
                                                        ->plugin<pro::fader>(x3, c3, 150ms)
-                                                       ->attach<ui::item>(body, faux, true);
+                                                       ->invoke(body.second)
+                                                       ->attach<ui::item>(body.first, faux, true);
                 menu_area->attach<slot::_2, ui::pads>(dent{ 2,2,1,1 }, dent{})
                          ->plugin<pro::fader>(x1, c1, 150ms)
                          ->invoke([&](auto& boss)
@@ -1353,7 +1350,7 @@ utility like ctags is used to locate the definitions.
                                     boss.base::template riseup<e2::release, e2::form::proceed::detach>(backup);
                                 };
                             })
-                         ->attach<ui::item>("✕");
+                         ->template attach<ui::item>("✕");
             return menu_area;
         };
 
@@ -1586,7 +1583,10 @@ utility like ctags is used to locate the definitions.
                     auto object = window->attach<ui::fork>(axis::Y)
                                         ->colors(whitelt, 0);
                         auto menu_object = object->attach<slot::_1, ui::fork>(axis::Y);
-                            menu_object->attach<slot::_1>(shop_menu());
+                            menu_object->attach<slot::_1>(custom_menu(
+                                std::list{
+                                    std::pair<text, std::function<void(ui::pads&)>>{ ansi::und(true) + "D" + ansi::nil() + "esktopio App Store",[](ui::pads& p){}}
+                                }));
                             menu_object->attach<slot::_2, ui::post>()
                                        ->plugin<pro::limit>(twod{ 37,-1 }, twod{ -1,-1 })
                                        ->upload(appstore_head)
@@ -1822,8 +1822,28 @@ utility like ctags is used to locate the definitions.
                           ->plugin<pro::cache>();
                     auto object = window->attach<ui::fork>(axis::Y)
                                         ->colors(whitelt, term_menu_bg);
-                        auto menu = object->attach<slot::_1>(main_menu())
+                        auto menu = object->attach<slot::_1>(custom_menu(
+                            std::list{
+                                    std::pair<text, std::function<void(ui::pads&)>>{ ansi::und(true) + "U" + ansi::nil() + "ser cmd",
+                                    [](ui::pads& boss)
+                                    {
+                                        boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
+                                        {
+                                            #ifdef DEMO
+                                            auto data = "ping ::1 -c 3\n"s;
+                                            #else
+                                            auto data = utf::repeat("\n", 15); // it is just a test.
+                                            #endif
+                                            //boss.BROADCAST(e2::release, e2::command::text, data);
+                                            boss.base::broadcast->SIGNAL(e2::release, e2::data::text, data);
+                                            log(" main: bcast signaled ", data.length());
+                                            gear.dismiss();
+                                            gear.nodbl = true;
+                                        };
+                                    }}
+                                }))
                                           ->plugin<pro::mover>(window);
+
                         auto term_stat_area = object->attach<slot::_2, ui::fork>(axis::Y);
                             auto layers = term_stat_area->attach<slot::_1, ui::cake>()
                                                         ->plugin<pro::limit>(dot_11, twod{ 400,200 });
@@ -2249,7 +2269,7 @@ utility like ctags is used to locate the definitions.
                                                         if (auto client = client_shadow.lock())
                                                         {
                                                             auto mark_shadow = ptr::shadow(boss.template This<ui::item>());
-                                                            client->SUBMIT_BYVAL_T(e2::release, e2::data::changed, boss.memo, data)
+                                                            client->SUBMIT_BYVAL_T(e2::release, e2::data::changed, boss.tracker, data)
                                                             {
                                                                 auto selected = id == data;
                                                                 if(auto mark = mark_shadow.lock())

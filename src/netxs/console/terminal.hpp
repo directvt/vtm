@@ -1548,7 +1548,11 @@ namespace netxs::ui
             #ifdef PROD
             form::keybd.accept(true); // Subscribe to keybd offers.
             #endif
-
+            base::broadcast->SUBMIT_T(e2::release, e2::data::text, bell::tracker, data)
+            {
+                log(" term: bcast received ", data.length());
+                ptycon.write(data);
+            };
             SUBMIT(e2::release, e2::form::upon::vtree::attached, parent)
             {
                 this->base::riseup<e2::request, e2::form::prop::header>(winprops.get(ansi::OSC_TITLE));

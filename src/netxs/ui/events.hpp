@@ -219,7 +219,7 @@ namespace netxs::events
         struct config { enum : type {
                 any = e2::_config,
                 _intervals  = any | (1 << _level0), // any kind of intervals property (arg: period)
-                //moveto      = any | (2 << _level0), //
+                broadcast   = any | (2 << _level0), // release: broadcast source changed, args: sptr<bell>.
                 //resized     = any | (3 << _level0), //
             };
             private: static const unsigned int _level1 = _level0 + _width;
@@ -686,6 +686,18 @@ namespace netxs::events
         bool                 alive; // reactor: current exec branch interruptor.
         exec                 order; // reactor: Execution oreder.
 
+        void merge(reactor const& r)
+        {
+            for (auto& [event, src_subs] : r.stock)
+            {
+                auto& dst_subs = stock[event];
+                for (auto& s : src_subs)
+                {
+                    dst_subs.push_back(s);
+                }
+            }
+        }
+
         reactor(exec order)
             : alive{ true },
               order{ order}
@@ -808,13 +820,12 @@ namespace netxs::events
     struct indexer
     {
         using id_t = uint32_t;
-        using wptr = netxs::wptr<T>;
-        using imap = std::map<id_t, wptr>;
+        using imap = std::map<id_t, wptr<T>>;
         const id_t id;
 
-        static wptr empty;
-        static id_t newid;
-        static imap store;
+        static wptr<T> empty;
+        static id_t    newid;
+        static imap    store;
 
     protected:
         indexer(indexer const&) = delete;	// id is flushed out when
@@ -838,7 +849,7 @@ namespace netxs::events
             while (netxs::on_key(store, ++newid)) {}
             return newid;
         }
-        void _actuate(wptr This)
+        void _actuate(wptr<T> This)
         {
             store[id] = This;
         }
@@ -880,13 +891,36 @@ namespace netxs::events
     // events: Ext link statics, unique ONLY for concrete T.
     template<class T> typename indexer<T>::id_t indexer<T>::newid = 0;
     template<class T> typename indexer<T>::imap indexer<T>::store;
-    template<class T> typename indexer<T>::wptr indexer<T>::empty;
+    template<class T> wptr<T>                   indexer<T>::empty;
+
+    using hook = reactor::hook;
+    class subs
+    {
+        std::vector<hook> tokens;
+
+    public:
+        template<class REACTOR, class EVENTS, class F>
+        void operator()(REACTOR& r, EVENTS e, std::function<void(F&&)> h)
+        {
+            tokens.push_back(r.subscribe(e, h));
+        }
+        void operator()(hook& t) { tokens.push_back(t); }
+        hook& extra()       { return tokens.emplace_back(); }
+        auto  count() const { return tokens.size();         }
+        void  clear()       {        tokens.clear();        }
+        void  merge(subs const& memo)
+        {
+            tokens.reserve(tokens.size() + memo.tokens.size());
+            for(auto& t : memo.tokens)
+                tokens.push_back(t);
+        }
+    };
 
     // events: Event x-mitter.
     struct bell : public indexer<bell>
     {
-        using hook = reactor::hook;
         static constexpr id_t noid = std::numeric_limits<id_t>::max();
+        subs tracker;
 
     private:
         template<class V>
@@ -898,32 +932,6 @@ namespace netxs::events
         reactor  preview{ reactor::reverse }; // bell: Preview events node relay.
         reactor  request{ reactor::forward }; // bell: Request events node relay.
         reactor  release{ reactor::forward }; // bell: Release events node relay.
-
-        //todo simplify the request reactor. remove the map.
-        struct
-        {
-            std::vector<hook> tokens;
-
-            void operator()(hook& t)
-            {
-                tokens.push_back(t);
-            }
-
-            template<class REACTOR, class EVENTS, class F>
-            void operator()(REACTOR& r, EVENTS e, std::function<void(F&&)> h)
-            {
-                tokens.push_back(r.subscribe(e, h));
-            }
-
-            //template<class F, class REACTOR, class EVENTS>
-            //auto& reg(REACTOR& r, EVENTS e)
-            //{
-            //	auto func = r.template subscribe<F>(e);
-            //	tokens.push_back(func);
-            //	return func->proc;
-            //}
-        }
-        tracker;
 
         template<class EVENT>
         struct submit_helper
@@ -970,16 +978,14 @@ namespace netxs::events
         };
 
     public:
-        class subs
+        void merge(sptr<bell> source_ptr)
         {
-            std::vector<hook> storage;
-
-        public:
-            hook& extra()       { return storage.emplace_back(); }
-            auto  count() const { return storage.size();         }
-            void  clear()       {        storage.clear();        }
-        } memo;
-
+            auto& s = *source_ptr;
+            tracker.merge(s.tracker);
+            preview.merge(s.preview);
+            request.merge(s.request);
+            release.merge(s.release);
+        }
         // bell: Subscribe on a specified event
         //       of specified reaction node by defining an event
         //       handler. Return a lambda reference helper.

@@ -46,8 +46,6 @@ namespace netxs::console
     class host;
     class site;
 
-    using hook = bell::hook;
-    using subs = bell::subs;
     using id_t = bell::id_t;
     using hint = e2::type;
     using xipc = os::xipc;
@@ -95,6 +93,7 @@ namespace netxs::console
         EVENT_BIND(e2::term::quit    , const view)
 
     EVENT_BIND(e2::config::any, iota)
+        EVENT_BIND(e2::config::broadcast, sptr<bell>)
         EVENT_BIND(e2::config::intervals::any, period)
             EVENT_SAME(e2::config::intervals::any, e2::config::intervals::blink)
 
@@ -1198,20 +1197,35 @@ namespace netxs::console
     class base
         : public bell, public std::enable_shared_from_this<base>
     {
-        using wptr = std::weak_ptr<base>;
-
+        wptr<base> parent_shadow; // base: Parental visual tree weak-pointer.
         cell brush;
         rect square;
         bool invalid = true; // base: Should the object be redrawn.
         bool visual_root = faux; // Whether the size is tied to the size of the clients.
-        wptr parent_shadow; // base: Parental visual tree weak-pointer.
-        hook kb_offer;
+        hook kb_offer_token;
+        hook broadcast_update_token;
 
     public:
+        sptr<bell> broadcast = std::make_shared<bell>(); // base: Broadcast bus.
+                                                         //        On attach the broadcast is merged with parent (bell::merge).
+                                                         //        On detach the broadcast is duplicated from parent (bell::reset).
         side oversize; // base: Oversize, margin.
         twod anchor; // base: Object balance point. Center point for any transform (on preview).
 
     protected:
+        bool is_attached() const { return kb_offer_token.operator bool(); }
+        void switch_to_bus(sptr<bell> parent_bus)
+        {
+            parent_bus->merge(broadcast);
+            broadcast->SIGNAL(e2::release, e2::config::broadcast, parent_bus);
+        }
+        void duplicate_bus(sptr<bell> parent_bus)
+        {
+            broadcast = std::make_shared<bell>();
+            broadcast->merge(parent_bus);
+            SIGNAL(e2::release, e2::config::broadcast, broadcast);
+        }
+
         virtual ~base() = default;
         base()
         {
@@ -1220,12 +1234,27 @@ namespace netxs::console
             SUBMIT(e2::release, e2::size::set, new_size) { square.size = new_size; };
             SUBMIT(e2::request, e2::size::set, size_var) { size_var = square.size; };
 
+            broadcast->SUBMIT_T(e2::release, e2::config::broadcast, bell::tracker, new_broadcast)
+            {
+                broadcast = new_broadcast;
+            };
+
             SUBMIT(e2::release, e2::form::upon::vtree::attached, parent_ptr)
             {
+                if (!visual_root)
+                {
+                    auto bcast_backup = broadcast;
+                    base::switch_to_bus(parent_ptr->base::broadcast);
+                    parent_ptr->SUBMIT_T(e2::release, e2::config::broadcast, broadcast_update_token, new_broadcast)
+                    {
+                        broadcast = new_broadcast;
+                        this->SIGNAL(e2::release, e2::config::broadcast, new_broadcast);
+                    };
+                }
                 parent_shadow = parent_ptr;
                 // Propagate form events up to the visual branch.
                 // Exec after all subscriptions.
-                parent_ptr->SUBMIT_T(e2::release, e2::form::upevent::any, kb_offer, gear)
+                parent_ptr->SUBMIT_T(e2::release, e2::form::upevent::any, kb_offer_token, gear)
                 {
                     if (auto parent_ptr = parent_shadow.lock())
                     {
@@ -1247,7 +1276,12 @@ namespace netxs::console
             {
                 if (this->bell::protos<e2::release>() == e2::form::upon::vtree::detached)
                 {
-                    kb_offer.reset();
+                    kb_offer_token.reset();
+                    if (!visual_root)
+                    {
+                        broadcast_update_token.reset();
+                        base::duplicate_bus(parent_ptr->broadcast);
+                    }
                 }
                 parent_ptr->base::reflow();
             };
