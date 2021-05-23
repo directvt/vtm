@@ -1479,33 +1479,51 @@ namespace netxs::ui
                     SIGNAL(e2::general, e2::debug::output, shadow); // For the Logs.
 
                     auto old_caret_pos = caret.coor();
-                    auto caret_seeable = caret && viewport.hittest(old_caret_pos);
+                    //auto caret_seeable = caret && viewport.hittest(old_caret_pos);
+                    auto caret_seeable = viewport.coor.y == base::size().y - viewport.size.y;
 
                     ansi::parse(shadow, target); // Append target using current insertion point.
 
                     oversize.set(target->recalc_pads());
                     caret.set(target->get_caret());
 
-                    //viewport.set(...);
-                    auto caret_xy = caret.coor();
-                    if (caret_seeable && !viewport.hittest(caret_xy))
-                    {
-                        auto delta = caret_xy - old_caret_pos;
-                        auto new_coor = base::coor() - delta;
-                        SIGNAL(e2::release, e2::coor::set, new_coor);
-                    }
-                    //if (caret_seeable)// && !viewport.hittest(caret_xy))
-                    //{
-                    //    if (auto delta = old_caret_pos - viewport.clip(caret.coor()))
-                    //    {
-                    //        auto v0 = viewport; v0.coor.x = 0;
-                    //        auto new_coor = base::coor() - delta;
-                    //        if (v0.hittest(caret.coor())) new_coor.x = 0;
-                    //        SIGNAL(e2::release, base::move_event, new_coor);
-                    //    }
-                    //}
+                    // //viewport.set(...);
+                    // auto caret_xy = caret.coor();
+                    // if (caret_seeable)
+                    // {
+                    //     auto orig_viewport = rect{ {0, base::size().y - viewport.size.y}, viewport.size };
+                    //     //if (orig_viewport.hittest(caret_xy))
+                    //     //{
+                    //     //    log(" term: HITS ORIG VIEWPORT ", caret_xy, " orig_viewport ", orig_viewport);
+                    //     //    auto new_coor = -orig_viewport.coor;
+                    //     //    this->SIGNAL(e2::release, e2::coor::set, new_coor);
+                    //     //}
+                    //     //else 
+                    //     //if (!viewport.hittest(caret_xy))
+                    //     {
+                    //         //log(" term: HITS outside", caret_xy, " orig_viewport ", orig_viewport);
+                    //         auto delta = caret_xy - old_caret_pos;
+                    //         auto new_coor = base::coor() - delta;
+                    //         this->SIGNAL(e2::release, e2::coor::set, new_coor);
+                    //     }
+                    // }
+                    // //if (caret_seeable)// && !viewport.hittest(caret_xy))
+                    // //{
+                    // //    if (auto delta = old_caret_pos - viewport.clip(caret.coor()))
+                    // //    {
+                    // //        auto v0 = viewport; v0.coor.x = 0;
+                    // //        auto new_coor = base::coor() - delta;
+                    // //        if (v0.hittest(caret.coor())) new_coor.x = 0;
+                    // //        SIGNAL(e2::release, base::move_event, new_coor);
+                    // //    }
+                    // //}
 
-                    SIGNAL(e2::release, e2::size::set, target->frame_size());
+                    
+                    auto scrollback_size = target->frame_size();
+                    auto new_size = base::size();
+                    new_size.y = std::max(viewport.size.y, scrollback_size.y);
+                    if (caret_seeable) reset_scroll_pos(new_size);
+                    SIGNAL(e2::release, e2::size::set, scrollback_size);
 
                     update_status();
                     //log(" 2. target content: ", target->get_content());
@@ -1532,6 +1550,27 @@ namespace netxs::ui
                 };
             }
         }
+        void reset_scroll_pos(twod const& new_size)
+        {
+            // //todo reset scroll position on keypress
+            // auto caret_xy = caret.coor();
+            // if (!viewport.hittest(caret_xy))
+            // {
+            //     //todo revise
+            //     auto old_caret_pos = viewport.coor + viewport.size - dot_11;
+            //     auto anchor_delta = caret_xy - old_caret_pos;
+            //     auto new_coor = base::coor() - anchor_delta;
+            //     this->SIGNAL(e2::release, e2::coor::set, new_coor);
+            // }
+            auto caret_xy = caret.coor();
+            auto orig_viewport = rect{ {0, new_size.y - viewport.size.y}, viewport.size };
+            auto new_coor = -orig_viewport.coor;
+            this->SIGNAL(e2::release, e2::coor::set, new_coor);
+        }
+        void reset_scroll_pos()
+        {
+            reset_scroll_pos(base::size());
+        }
     public:
         ~term(){ alive = faux; }
         term(text cmd_line, iota max_scrollback_size = default_size, iota grow_step = default_step)
@@ -1551,6 +1590,7 @@ namespace netxs::ui
             base::broadcast->SUBMIT_T(e2::release, e2::data::text, bell::tracker, data)
             {
                 log(" term: bcast received ", data.length());
+                reset_scroll_pos();
                 ptycon.write(data);
             };
             SUBMIT(e2::release, e2::form::upon::vtree::attached, parent)
@@ -1562,11 +1602,13 @@ namespace netxs::ui
                     {
                         oneshot_resize_token.reset();
                         altbuf.resize<faux>(new_size.y);
+
                         this->SUBMIT(e2::preview, e2::size::set, new_size)
                         {
                             new_size = std::max(new_size, dot_11);
                             auto old_caret_pos = caret.coor();
-                            auto caret_seeable = caret && viewport.hittest(old_caret_pos);
+                            //auto caret_seeable = caret && viewport.hittest(old_caret_pos);
+                            auto caret_seeable = viewport.coor.y == base::size().y - viewport.size.y;
                             viewport.size = new_size;
                             altbuf.resize<faux>(new_size.y);
 
@@ -1579,18 +1621,27 @@ namespace netxs::ui
                             new_size.y = std::max(new_size.y, scrollback_size.y);
                             target->rebuild_viewport();
 
-                            //viewport.set(...);
-                            if (caret_seeable)// && !viewport.hittest(caret_xy))
-                            {
-                                if (auto delta = old_caret_pos - viewport.clip(caret.coor()))
-                                {
-                                    auto v0 = viewport; v0.coor.x = 0;
-                                    auto new_coor = base::coor() - delta;
-                                    if (v0.hittest(caret.coor())) new_coor.x = 0;
-                                    this->SIGNAL(e2::release, e2::coor::set, new_coor);
-                                }
-                            }
-
+                            ////viewport.set(...);
+                            ////if (caret_seeable)// && !viewport.hittest(caret_xy))
+                            //{
+                            //    auto caret_xy = caret.coor();
+                            //    auto orig_viewport = rect{ {0, new_size.y - viewport.size.y}, viewport.size };
+                            //    //if (orig_viewport.hittest(caret_xy))
+                            //    {
+                            //        //log(" term resize: HITS ORIG VIEWPORT ", caret_xy, " orig_viewport ", orig_viewport);
+                            //        auto new_coor = -orig_viewport.coor;
+                            //        this->SIGNAL(e2::release, e2::coor::set, new_coor);
+                            //    }
+                            //    //else if (auto delta = old_caret_pos - viewport.clip(caret_xy))
+                            //    //{
+                            //    //    //log(" term resize: HITS outside ", caret_xy, " orig_viewport ", orig_viewport);
+                            //    //    auto v0 = viewport; v0.coor.x = 0;
+                            //    //    auto new_coor = base::coor() - delta;
+                            //    //    if (v0.hittest(caret_xy)) new_coor.x = 0;
+                            //    //    this->SIGNAL(e2::release, e2::coor::set, new_coor);
+                            //    //}
+                            //}
+                            if (caret_seeable) reset_scroll_pos(new_size);
                             update_status();
                             ptycon.resize(viewport.size);
                         };
@@ -1601,17 +1652,7 @@ namespace netxs::ui
             };
             SUBMIT(e2::release, e2::hids::keybd::any, gear)
             {
-                //todo reset scroll position on keypress
-                auto caret_xy = caret.coor();
-                if (!viewport.hittest(caret_xy))
-                {
-                    //todo revise
-                    auto old_caret_pos = viewport.coor + viewport.size - dot_11;
-                    auto anchor_delta = caret_xy - old_caret_pos;
-                    auto new_coor = base::coor() - anchor_delta;
-                    this->SIGNAL(e2::release, e2::coor::set, new_coor);
-                }
-
+                reset_scroll_pos();
                 //todo optimize/unify
                 auto data = gear.keystrokes;
                 if (!bracketed_paste_mode)

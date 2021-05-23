@@ -3,9 +3,9 @@
 
 #define MONOTTY_VER "Monotty Desktopio Preview v0.3.9"
 // Autostart demo apps.
-//#define DEMO
+#define DEMO
 // Enable keyboard input and disable exit by single Esc.
-#define PROD
+//#define PROD
 
 // Terminal's default line wrapping mode.
 #define WRAPPING (wrap::on)
@@ -1824,23 +1824,67 @@ utility like ctags is used to locate the definitions.
                                         ->colors(whitelt, term_menu_bg);
                         auto menu = object->attach<slot::_1>(custom_menu(
                             std::list{
-                                    std::pair<text, std::function<void(ui::pads&)>>{ ansi::und(true) + "U" + ansi::nil() + "ser cmd",
+                                    std::pair<text, std::function<void(ui::pads&)>>{ "Test" + ansi::und(true) + "1" + ansi::nil(),
+                                    [](ui::pads& boss)
+                                    {
+                                        boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
+                                        {
+                                            auto data = "ls /bin\n"s;
+                                            //boss.BROADCAST(e2::release, e2::command::text, data);
+                                            boss.base::broadcast->SIGNAL(e2::release, e2::data::text, data);
+                                            log(" main: TEST1 bcast signaled ", data.length());
+                                            gear.dismiss();
+                                            gear.nodbl = true;
+                                        };
+                                    }},
+                                    std::pair<text, std::function<void(ui::pads&)>>{ "Test" + ansi::und(true) + "2" + ansi::nil(),
+                                    [](ui::pads& boss)
+                                    {
+                                        boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
+                                        {
+                                            auto data = "ping ::1 -c 3 | ccze -A\n"s;
+                                            //boss.BROADCAST(e2::release, e2::command::text, data);
+                                            boss.base::broadcast->SIGNAL(e2::release, e2::data::text, data);
+                                            log(" main: TEST2 bcast signaled ", data.length());
+                                            gear.dismiss();
+                                            gear.nodbl = true;
+                                        };
+                                    }},
+                                    std::pair<text, std::function<void(ui::pads&)>>{ "Test" + ansi::und(true) + "3" + ansi::nil(),
+                                    [](ui::pads& boss)
+                                    {
+                                        boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
+                                        {
+                                            auto data = "\\\nno_wrap=\"\\e[12:2p\"; "
+                                                        "\\\nprintf $no_wrap;    "
+                                                        "\\\ncurl wttr.in;       "
+                                                        "\\\ndefmode=\"\\e[1p\";    "
+                                                        "\\\nprintf $defmode;    "
+                                                        "\\\n\n"s;
+                                            //boss.BROADCAST(e2::release, e2::command::text, data);
+                                            boss.base::broadcast->SIGNAL(e2::release, e2::data::text, data);
+                                            log(" main: TEST3 bcast signaled ", data.length());
+                                            gear.dismiss();
+                                            gear.nodbl = true;
+                                        };
+                                    }},
+                                    std::pair<text, std::function<void(ui::pads&)>>{ ansi::und(true) + "R" + ansi::nil() + "eset",
                                     [](ui::pads& boss)
                                     {
                                         boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
                                         {
                                             #ifdef DEMO
-                                            auto data = "ping ::1 -c 3\n"s;
+                                            auto data = "reset\n"s;
+                                            log(" main: RESET bcast signaled ", data.length());
                                             #else
                                             auto data = utf::repeat("\n", 15); // it is just a test.
                                             #endif
                                             //boss.BROADCAST(e2::release, e2::command::text, data);
                                             boss.base::broadcast->SIGNAL(e2::release, e2::data::text, data);
-                                            log(" main: bcast signaled ", data.length());
                                             gear.dismiss();
                                             gear.nodbl = true;
                                         };
-                                    }}
+                                    }},
                                 }))
                                           ->plugin<pro::mover>(window);
 
@@ -2009,7 +2053,7 @@ utility like ctags is used to locate the definitions.
             creator(objs::Calc, { twod{ 15, 15 } + sub_pos, { 65, 23 } });
             creator(objs::Text, { twod{ 30, 22 } + sub_pos, { 59, 26 } });
             creator(objs::MC,   { twod{ 49, 26 } + sub_pos, { 63, 22 } });
-            creator(objs::Term, { twod{ 34, 34 } + sub_pos, { 57, 15 } });
+            creator(objs::Term, { twod{ 34, 38 } + sub_pos, { 57, 16 } });
             creator(objs::Term, { twod{ 44 + 85, 35 } + sub_pos, { 57, 15 } });
             creator(objs::Term, { twod{ 40 + 85, 42 } + sub_pos, { 57, 15 } });
 
