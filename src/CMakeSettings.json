@@ -32,7 +32,7 @@
       "variables": [
         {
           "name": "CMAKE_CXX_FLAGS_DEBUG",
-          "value": "-g -Og -pthread",
+          "value": "-g -O0 -pthread",
           "type": "STRING"
         }
       ],

@@ -1589,7 +1589,6 @@ namespace netxs::ui
             #endif
             base::broadcast->SUBMIT_T(e2::release, e2::data::text, bell::tracker, data)
             {
-                log(" term: bcast received ", data.length());
                 reset_scroll_pos();
                 ptycon.write(data);
             };

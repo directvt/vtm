@@ -56,8 +56,8 @@ namespace netxs::events
 
             operator bool() { return lock.owns_lock(); }
 
-            try_sync() : lock(_globals<void>::mutex, std::try_to_lock) {}
-            ~try_sync() {}
+            try_sync() : lock(_globals<void>::mutex, std::try_to_lock) { }
+           ~try_sync() { }
         };
 
         /*************************************************************************************************
@@ -981,7 +981,7 @@ namespace netxs::events
         void merge(sptr<bell> source_ptr)
         {
             auto& s = *source_ptr;
-            tracker.merge(s.tracker);
+            tracker.merge(s.tracker); //todo deprecate tokens copying
             preview.merge(s.preview);
             request.merge(s.request);
             release.merge(s.release);

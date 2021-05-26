@@ -814,6 +814,7 @@ namespace netxs::console
         { }
         ~hids()
         {
+            e2::sync lock;
             mouse_leave();
             clear_kb_focus();
             bell::signal_global(e2::hids::mouse::gone, *this);
@@ -1219,12 +1220,6 @@ namespace netxs::console
             parent_bus->merge(broadcast);
             broadcast->SIGNAL(e2::release, e2::config::broadcast, parent_bus);
         }
-        void duplicate_bus(sptr<bell> parent_bus)
-        {
-            broadcast = std::make_shared<bell>();
-            broadcast->merge(parent_bus);
-            SIGNAL(e2::release, e2::config::broadcast, broadcast);
-        }
 
         virtual ~base() = default;
         base()
@@ -1280,7 +1275,6 @@ namespace netxs::console
                     if (!visual_root)
                     {
                         broadcast_update_token.reset();
-                        base::duplicate_bus(parent_ptr->broadcast);
                     }
                 }
                 parent_ptr->base::reflow();
@@ -1435,17 +1429,17 @@ namespace netxs::console
         // base: Remove the form from the visual tree.
         void detach()
         {
+            //e2::sync lock;
             if (auto parent_ptr = parent())
             {
-                auto shadow = This();
-                parent_ptr->SIGNAL(e2::preview, e2::form::proceed::detach, shadow);
                 strike();
-                //parent_strike();
+                parent_ptr->SIGNAL(e2::preview, e2::form::proceed::detach, This());
             }
         }
         // base: Remove visual tree branch.
         void destroy()
         {
+            e2::sync lock;
             auto shadow = This();
             if (auto parent_ptr = parent())
             {
@@ -3684,9 +3678,9 @@ namespace netxs::console
             }
             void reset()
             {
+                e2::sync lock;
                 if (full)
                 {
-                    log("pro::mouse: device is in the entered state, count = ", full);
                     full = 0;
                     soul.reset();
                 }
@@ -3972,7 +3966,7 @@ namespace netxs::console
                 };
                 boss.SUBMIT_T(e2::release, e2::coor::set, memo, new_xy) { canvas.move(new_xy); };
                 boss.SUBMIT_T(e2::release, e2::size::set, memo, new_sz) { canvas.size(new_sz); };
-                boss.SUBMIT_T(e2::request, e2::form::canvas, memo, canvas) { canvas = coreface; };
+                boss.SUBMIT_T(e2::request, e2::form::canvas, memo, canvas_ptr) { canvas_ptr = coreface; };
                 if (rendered)
                 {
                     boss.SUBMIT_T(e2::release, e2::render::prerender, memo, parent_canvas)

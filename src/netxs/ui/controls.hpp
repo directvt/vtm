@@ -111,7 +111,6 @@ namespace netxs::ui
             master.SUBMIT_T(e2::release, e2::form::upon::vtree::detached, memomap[master.id], parent_ptr)
             {
                 auto backup = This<T>();
-                memomap[master.id].clear();
                 memomap.erase(master.id);
                 if (memomap.empty()) base::detach();
             };
@@ -130,23 +129,23 @@ namespace netxs::ui
         }
         // form: Create and attach a new item using a template and dynamic datasource.
         template<e2::type PROPERTY, class C, class P>
-        auto attach_element(C data_src, P item_template)
+        auto attach_element(C& data_src_sptr, P item_template)
         {
             auto backup = This<T>();
-            ARGTYPE(PROPERTY) arg;
-            data_src->SIGNAL(e2::request, PROPERTY, arg);
-            auto new_item = item_template(data_src, arg)
-                                 ->depend(data_src);
+            ARGTYPE(PROPERTY) arg_value;
+            data_src_sptr->SIGNAL(e2::request, PROPERTY, arg_value);
+            auto new_item = item_template(data_src_sptr, arg_value)
+                                 ->depend(data_src_sptr);
             auto item_shadow = ptr::shadow(new_item);
-            auto data_shadow = ptr::shadow(data_src);
+            auto data_shadow = ptr::shadow(data_src_sptr);
             auto boss_shadow = ptr::shadow(backup);
-            data_src->SUBMIT_BYVAL_T(e2::release, PROPERTY, memomap[data_src->id], new_arg_value)
+            data_src_sptr->SUBMIT_BYVAL_T(e2::release, PROPERTY, memomap[data_src_sptr->id], arg_new_value)
             {
                 if (auto boss_ptr = boss_shadow.lock())
                 if (auto data_src = data_shadow.lock())
                 if (auto old_item = item_shadow.lock())
                 {
-                    auto new_item = item_template(data_src, new_arg_value)
+                    auto new_item = item_template(data_src, arg_new_value)
                                          ->depend(data_src);
                     item_shadow = ptr::shadow(new_item); // Update current item shadow.
                     boss_ptr->update(old_item, new_item);
@@ -157,12 +156,12 @@ namespace netxs::ui
         }
         // form: Create and attach a new item using a template and dynamic datasource.
         template<e2::type PROPERTY, class S, class P>
-        auto attach_collection(S data_collection_src, P item_template)
+        auto attach_collection(S& data_collection_src, P item_template)
         {
             auto backup = This<T>();
-            for(auto& data_src : data_collection_src)
+            for(auto& data_src_sptr : data_collection_src)
             {
-                attach_element<PROPERTY>(data_src, item_template);
+                attach_element<PROPERTY>(data_src_sptr, item_template);
             }
             return backup;
         }
@@ -235,6 +234,7 @@ namespace netxs::ui
 
         ~fork()
         {
+            e2::sync lock;
             if (client_1) client_1->base::detach();
             if (client_2) client_2->base::detach();
         }
@@ -488,6 +488,7 @@ namespace netxs::ui
     public:
         ~list()
         {
+            e2::sync lock;
             while (subset.size())
             {
                 subset.back().first->base::detach();
@@ -615,6 +616,7 @@ namespace netxs::ui
     public:
         ~cake()
         {
+            e2::sync lock;
             while (subset.size())
             {
                 subset.back()->base::detach();

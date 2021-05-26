@@ -3,9 +3,9 @@
 
 #define MONOTTY_VER "Monotty Desktopio Preview v0.3.9"
 // Autostart demo apps.
-#define DEMO
+//#define DEMO
 // Enable keyboard input and disable exit by single Esc.
-//#define PROD
+#define PROD
 
 // Terminal's default line wrapping mode.
 #define WRAPPING (wrap::on)
@@ -1740,7 +1740,7 @@ utility like ctags is used to locate the definitions.
                                 auto c = &vtm_count; (*c)++;
                                 scroll->attach<ui::term>("vtm")
                                       ->colors(whitelt, blackdk)
-                                      ->SUBMIT_BYVAL(e2::release, e2::dtor, dummy)
+                                      ->SUBMIT_BYVAL(e2::release, e2::dtor, item_id)
                                         {
                                             (*c)--;
                                             log ("main: vtm recursive conn destoyed");
@@ -2319,6 +2319,7 @@ utility like ctags is used to locate the definitions.
                                                                 if(auto mark = mark_shadow.lock())
                                                                 {
                                                                     mark->set(ansi::bgc4(selected ? 0xFF00ff00 : 0xFF000000) + "  ");
+                                                                    mark->deface();
                                                                 }
                                                             };
                                                         }
@@ -2344,6 +2345,7 @@ utility like ctags is used to locate the definitions.
                             ->attach_collection<e2::form::prop::header>(*usr_list, user_template);
                         return users;
                     };
+                    {
                     auto window = client->attach<ui::cake>();
                         auto taskbar = window->attach<ui::fork>(axis::X)
                                             ->attach<slot::_1, ui::fork>(axis::Y)
@@ -2381,7 +2383,7 @@ utility like ctags is used to locate the definitions.
                                                     else timer.actify(faux, MENU_TIMEOUT, apply);
                                                 };
                                             });
-                            auto apps_users = taskbar->attach<slot::_1, ui::fork>(axis::Y);
+                            auto apps_users = taskbar->attach<slot::_1, ui::fork>(axis::Y, 0, 100);
                             {
                                 auto apps_area = apps_users->attach<slot::_1, ui::fork>(axis::Y);
                                 {
@@ -2514,6 +2516,7 @@ utility like ctags is used to locate the definitions.
                                                             });
                                         auto shutdown = shutdown_area->attach<ui::item>("✕ Shutdown");
                             }
+                    }
                     client->color(background_color.fgc(), background_color.bgc());
                     text header = username;
                     text footer = ansi::mgr(1).mgl(1) + MONOTTY_VER;
@@ -2533,7 +2536,9 @@ utility like ctags is used to locate the definitions.
                     log("user: ", peer, " has logged out");
                     client->detach();
                     log("user: ", peer, " is diconnected");
-                    log("user: client.use_count() = ", client.use_count());
+                    log("user: client.use_count() ", client.use_count());
+                    client.reset();
+                    lock.reset();
                 } }.detach();
 
                 log("main: new thread constructed for ", peer);
