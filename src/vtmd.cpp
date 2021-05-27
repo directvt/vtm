@@ -1877,7 +1877,7 @@ utility like ctags is used to locate the definitions.
                                             auto data = "reset\n"s;
                                             log(" main: RESET bcast signaled ", data.length());
                                             #else
-                                            auto data = utf::repeat("\n", 15); // it is just a test.
+                                            auto data = utf::repeat("\n", 30) + utf::repeat("-", 80) + "\n"; // it is just a test.
                                             #endif
                                             //boss.BROADCAST(e2::release, e2::command::text, data);
                                             boss.base::broadcast->SIGNAL(e2::release, e2::data::text, data);

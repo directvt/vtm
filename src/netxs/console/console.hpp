@@ -5095,8 +5095,10 @@ again:
                     log("diff: frame resize: ", field);
 
                     rhash = dhash;
-                    front = cache;
-
+                    {
+                        e2::sync lock; // link::session()::while may emit a signal(mouse::event) causing the cache to resize
+                        front = cache;
+                    }
                     auto src = front.data();
                     auto end = src + front.size();
                     auto row = 0;
