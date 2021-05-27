@@ -246,10 +246,18 @@ class post_logs
             while (alive)
             {
                 auto utf8 = queue.pop();
-                if (!alive) break;
-                auto shadow = view{ utf8 };
-                auto parsed = read(shadow);
-                SIGNAL(e2::release, e2::debug::parsed, parsed);
+                bool not_procesed = true;
+                while (not_procesed && alive)
+                {
+                    if (auto lock = e2::try_sync())
+                    {
+                        not_procesed = faux;
+                        auto shadow = view{ utf8 };
+                        auto parsed = read(shadow);
+                        SIGNAL(e2::release, e2::debug::parsed, parsed);
+                    }
+                    else std::this_thread::yield();
+                }
             }
         }
         page read(view shadow)

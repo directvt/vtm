@@ -3757,6 +3757,8 @@ namespace netxs::console
             input(base&&) = delete;
             input(base& boss) : skill{ boss }, hids{ boss, xmap }
             {
+                xmap.move(boss.base::coor());
+                xmap.size(boss.base::size());
                 boss.SUBMIT_T(e2::release, e2::size::set, memo, newsize)
                 {
                     xmap.size(newsize);
@@ -5052,7 +5054,6 @@ again:
         iota  rhash; // diff: Rendered buffer genus. The genus changes when the size of the buffer changes.
         iota  dhash; // diff: Unchecked buffer genus. The genus changes when the size of the buffer changes.
         twod  field; // diff: Current terminal/screen window size.
-        twod  midst; // diff: Current terminal/screen window center.
         span  watch; // diff: Duration of the STDOUT rendering.
         iota  delta; // diff: Last ansi-rendered frame size.
         ansi  frame; // diff: Text screen representation.
@@ -5092,13 +5093,7 @@ again:
 
                 if (rhash != dhash)
                 {
-                    log("diff: frame resize: ", field);
-
                     rhash = dhash;
-                    {
-                        e2::sync lock; // link::session()::while may emit a signal(mouse::event) causing the cache to resize
-                        front = cache;
-                    }
                     auto src = front.data();
                     auto end = src + front.size();
                     auto row = 0;
@@ -5107,8 +5102,8 @@ again:
                     while (row++ < field.y)
                     {
                         frame.locate(1, row);
-                        auto end = src + field.x;
-                        while (src != end)
+                        auto end_line = src + field.x;
+                        while (src != end_line)
                         {
                             //src++->scan(state, frame);
 
@@ -5121,7 +5116,7 @@ again:
                             {
                                 if (c.wdt() == 2)
                                 {
-                                    if (src != end)
+                                    if (src != end_line)
                                     {
                                         auto& d = *(src++);
                                         if (d.wdt() < 3)
@@ -5398,10 +5393,9 @@ again:
             if (guard.owns_lock())
             {
                 dhash = canvas.hash();
-                field = canvas.swap(cache); // Use one surface for reading, one for writing.
+                field = canvas.swap(cache); // Use one surface for reading (cache), one for writing (canvas).
                 //field = canvas.copy(cache);
-                //midst = field / 2;
-                midst = field;
+                if (rhash != dhash) front = cache; // Cache may be further resized before it rendered.
                 debug = { watch, delta };
 
                 if (extra.length())
