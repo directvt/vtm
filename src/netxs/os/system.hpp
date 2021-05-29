@@ -1855,21 +1855,30 @@ namespace netxs::os
                 }
                 static void signal_handler(int signal)
                 {
+                    auto shutdown = [&](auto signal)
+                    {
+                        sock->shut();
+                        log("tty : sock->xipc::shut called");
+                        ::signal(signal, SIG_DFL);
+                        ::raise(signal);
+                    };
                     switch (signal)
                     {
                         case SIGWINCH:
                             resize_handler();
+                            return;
+                        case SIGHUP:
+                            log("tty : SIGHUP");
+                            shutdown(signal);
                             break;
                         case SIGTERM:
                             log("tty : SIGTERM");
-                            sock->shut();
-                            log("tty : sock->xipc::shut called");
-                            ::signal (signal, SIG_DFL);
-                            ::raise (signal);
+                            shutdown(signal);
                             break;
                         default:
                             break;
                     }
+                    log(" tty : signal_handler, signal=", signal);
                 }
                 static void default_mode()
                 {
@@ -2241,6 +2250,8 @@ namespace netxs::os
                 ok(::signal(SIGWINCH, sig_hndl)); // Set resize handler.
                 log("tty : Set termination handler.");
                 ok(::signal(SIGTERM, sig_hndl));   // Set termination handler.
+                log("tty : Set hangup handler.");
+                ok(::signal(SIGHUP, sig_hndl));   // Set hangup handler.
                 log("tty : Raise resize event.");
                 ok(::raise (SIGWINCH));           // Get current terminal window size.
 
