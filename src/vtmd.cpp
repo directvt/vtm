@@ -1,11 +1,11 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#define MONOTTY_VER "Monotty Desktopio Preview v0.3.9"
+#define MONOTTY_VER "Monotty Desktopio Preview v0.3.10"
 // Autostart demo apps.
-//#define DEMO
+#define DEMO
 // Enable keyboard input and disable exit by single Esc.
-#define PROD
+//#define PROD
 
 // Terminal's default line wrapping mode.
 #define WRAPPING (wrap::on)

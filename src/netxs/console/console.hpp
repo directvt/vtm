@@ -3747,20 +3747,23 @@ namespace netxs::console
         class input
             : public skill, public hids
         {
+            using lock = std::recursive_mutex;
             using skill::boss,
                   skill::memo;
-            face xmap;
-
         public:
+            core xmap;
+            lock sync;
             iota push = 0; // input: Mouse pressed buttons bits (Used only for foreign mouse pointer in the gate).
 
             input(base&&) = delete;
-            input(base& boss) : skill{ boss }, hids{ boss, xmap }
+            input(base& boss)
+                : skill{ boss }, hids{ boss, xmap }
             {
                 xmap.move(boss.base::coor());
                 xmap.size(boss.base::size());
                 boss.SUBMIT_T(e2::release, e2::size::set, memo, newsize)
                 {
+                    std::unique_lock guard(sync); // Syncing with diff::render thread.
                     xmap.size(newsize);
                 };
                 boss.SUBMIT_T(e2::release, e2::coor::set, memo, newcoor)
@@ -3778,12 +3781,6 @@ namespace netxs::console
                     boss.strike();
                 };
             };
-
-            // pro::input: Return read-only canvas grid reference.
-            auto& freeze()
-            {
-                return xmap.pick();
-            }
         };
 
         // pro: Glow gradient filter.
@@ -5036,18 +5033,9 @@ again:
         using pair = std::optional<std::pair<span, iota>>;
 
         link& conio;
-        lock  mutex; // diff: Mutex between renderer and committer threads.
-        cond  synch; // diff: The synchronization mechanism between the renderer and the committer.
+        lock& mutex; // diff: Mutex between renderer and committer threads.
+        cond  synch; // diff: Synchronization between renderer and committer.
 
-        /*
-        //todo deprecate bsu/esu
-        //todo unify bsu/esu
-        enum mode_type { none, escp, decs, last };
-        enum mode_cmd { bsu, esu };
-        std::vector<std::vector<text>> bsuesu;
-        lock  bsu_mutex; // diff: Mutex between renderer and committer threads.
-        iota  smode; // diff: synchronous mode
-        */
         grid& cache; // diff: The current content buffer which going to be checked and processed.
         grid  front; // diff: The Shadow copy of the terminal/screen.
 
@@ -5057,14 +5045,13 @@ again:
         span  watch; // diff: Duration of the STDOUT rendering.
         iota  delta; // diff: Last ansi-rendered frame size.
         ansi  frame; // diff: Text screen representation.
-        iota  empty;
         bool  alive; // diff: Working loop state.
         bool  ready; // diff: Conditional variable to avoid spurious wakeup.
-        bell  radio;
         work  paint; // diff: Rendering thread.
         pair  debug; // diff: Debug info.
 
         text  extra; // diff: Extra data to cout.
+        text  extra_cached; // diff: Cached extra data to cout.
 
         // diff: Render current buffer to the screen.
         void render()
@@ -5091,6 +5078,12 @@ again:
                 ready = faux;
                 start = tempus::now();
 
+                if (extra_cached.length())
+                {
+                    frame.add(extra_cached);
+                    extra_cached.clear();
+                }
+
                 if (rhash != dhash)
                 {
                     rhash = dhash;
@@ -5098,15 +5091,13 @@ again:
                     auto end = src + front.size();
                     auto row = 0;
 
-                    frame.scroll_wipe().autowr(faux); // Smooth resize
+                    frame.scroll_wipe().autowr(faux); // Smooth resize.
                     while (row++ < field.y)
                     {
                         frame.locate(1, row);
                         auto end_line = src + field.x;
                         while (src != end_line)
                         {
-                            //src++->scan(state, frame);
-
                             auto& c = *(src++);
                             if (c.wdt() < 2)
                             {
@@ -5121,30 +5112,26 @@ again:
                                         auto& d = *(src++);
                                         if (d.wdt() < 3)
                                         {
-                                            /// Left part alone
-                                            fallback(c, state, frame);
-                                            src--; /// Repeat all for d again
+                                            fallback(c, state, frame); // Left part alone.
+                                            src--; // Repeat all for d again.
                                         }
                                         else
                                         {
                                             if (!c.scan(d, state, frame))
                                             {
-                                                /// Left part alone
-                                                fallback(c, state, frame);
-                                                src--; /// Repeat all for d again
+                                                fallback(c, state, frame); // Left part alone.
+                                                src--; // Repeat all for d again.
                                             }
                                         }
                                     }
                                     else
                                     {
-                                        /// Left part alone
-                                        fallback(c, state, frame);
+                                        fallback(c, state, frame); // Left part alone.
                                     }
                                 }
                                 else
                                 {
-                                    /// Right part alone
-                                    fallback(c, state, frame);
+                                    fallback(c, state, frame); // Right part alone.
                                 }
                             }
                         }
@@ -5194,7 +5181,7 @@ again:
                                                 fore.scan(state, frame);
                                             }
                                         }
-                                        else if (w == 2) /// Check left part
+                                        else if (w == 2) // Check left part.
                                         {
                                             if (src != end)
                                             {
@@ -5207,19 +5194,16 @@ again:
                                                     {
                                                         if (d.wdt() < 3)
                                                         {
-                                                            /// Left part alone
-                                                            fallback(fore, state, frame);
-                                                            src--; /// Repeat all for d again
-                                                            dst--; /// Repeat all for g again
+                                                            fallback(fore, state, frame); // Left part alone.
+                                                            src--; // Repeat all for d again.
+                                                            dst--; // Repeat all for g again.
                                                         }
-                                                        else /// d.wdt() == 3
+                                                        else // d.wdt() == 3
                                                         {
                                                             if (!fore.scan(d, state, frame))
                                                             {
-                                                                /// Left part alone
-                                                                fallback(fore, state, frame);
-                                                                /// Right part alone
-                                                                fallback(d, state, frame);
+                                                                fallback(fore, state, frame); // Left part alone.
+                                                                fallback(d,    state, frame); // Right part alone.
                                                             }
                                                             g = d;
                                                         }
@@ -5233,19 +5217,16 @@ again:
                                                     auto& g = *(dst++);
                                                     if (d.wdt() < 3)
                                                     {
-                                                        /// Left part alone
-                                                        fallback(fore, state, frame);
-                                                        src--; /// Repeat all for d again
-                                                        dst--; /// Repeat all for g again
+                                                        fallback(fore, state, frame); // Left part alone.
+                                                        src--; // Repeat all for d again.
+                                                        dst--; // Repeat all for g again.
                                                     }
-                                                    else /// d.wdt() == 3
+                                                    else // d.wdt() == 3
                                                     {
                                                         if (!fore.scan(d, state, frame))
                                                         {
-                                                            /// Left part alone
-                                                            fallback(fore, state, frame);
-                                                            /// Right part alone
-                                                            fallback(d, state, frame);
+                                                            fallback(fore, state, frame); // Left part alone.
+                                                            fallback(d, state, frame); // Right part alone.
                                                         }
                                                         g = d;
                                                     }
@@ -5254,15 +5235,13 @@ again:
                                             else
                                             {
                                                 if (back != fore) back = fore;
-                                                /// Left part alone
-                                                fallback(fore, state, frame);
+                                                fallback(fore, state, frame); // Left part alone.
                                             }
                                         }
-                                        else /// w == 3
+                                        else // w == 3
                                         {
                                             if (back != fore) back = fore;
-                                            /// Right part alone
-                                            fallback(fore, state, frame);
+                                            fallback(fore, state, frame); // Right part alone.
                                         }
                                     }
                                     /* optimizations */
@@ -5270,7 +5249,7 @@ again:
                             }
                             else
                             {
-                                if (w == 2) /// Left part has changed
+                                if (w == 2) // Left part has changed.
                                 {
                                     if (back != fore)
                                     {
@@ -5285,30 +5264,27 @@ again:
                                             auto& g = *(dst++);
                                             if (d.wdt() < 3)
                                             {
-                                                /// Left part alone
-                                                fallback(fore, state, frame);
-                                                src--; /// Repeat all for d again
-                                                dst--; /// Repeat all for g again
+                                                fallback(fore, state, frame); // Left part alone.
+                                                src--; // Repeat all for d again.
+                                                dst--; // Repeat all for g again.
                                             }
-                                            else /// d.wdt() == 3
+                                            else // d.wdt() == 3
                                             {
                                                 if (!fore.scan(d, state, frame))
                                                 {
-                                                    /// Left part alone
-                                                    fallback(fore, state, frame);
-                                                    /// Right part alone
-                                                    fallback(d, state, frame);
+                                                    
+                                                    fallback(fore, state, frame); // Left part alone.
+                                                    fallback(d, state, frame); // Right part alone.
                                                 }
                                                 g = d;
                                             }
                                         }
                                         else
                                         {
-                                            /// Left part alone
-                                            fallback(fore, state, frame);
+                                            fallback(fore, state, frame); // Left part alone.
                                         }
                                     }
-                                    else /// Check right part
+                                    else // Check right part.
                                     {
                                         if (src != end)
                                         {
@@ -5318,10 +5294,9 @@ again:
                                             {
                                                 auto col = static_cast<iota>(src - beg - 1);
                                                 frame.locate(col, row);
-                                                /// Left part alone
-                                                fallback(fore, state, frame);
-                                                src--; /// Repeat all for d again
-                                                dst--; /// Repeat all for g again
+                                                fallback(fore, state, frame); // Left part alone.
+                                                src--; // Repeat all for d again.
+                                                dst--; // Repeat all for g again.
                                             }
                                             else /// d.wdt() == 3
                                             {
@@ -5333,10 +5308,8 @@ again:
 
                                                     if (!fore.scan(d, state, frame))
                                                     {
-                                                        /// Left part alone
-                                                        fallback(fore, state, frame);
-                                                        /// Right part alone
-                                                        fallback(d, state, frame);
+                                                        fallback(fore, state, frame); // Left part alone.
+                                                        fallback(d, state, frame); // Right part alone.
                                                     }
                                                 }
                                             }
@@ -5345,42 +5318,32 @@ again:
                                         {
                                             auto col = static_cast<iota>(src - beg);
                                             frame.locate(col, row);
-                                            /// Left part alone
-                                            fallback(fore, state, frame);
+                                            fallback(fore, state, frame); // Left part alone.
                                         }
                                     }
                                 }
-                                else /// w == 3 /// Right part has changed
+                                else // w == 3 // Right part has changed.
                                 {
                                     auto col = static_cast<iota>(src - beg);
                                     frame.locate(col, row);
                                     back = fore;
-                                    /// Right part alone
-                                    fallback(fore, state, frame);
+                                    fallback(fore, state, frame); // Right part alone.
                                 }
                             }
                         }
-
                         beg += field.x;
                     }
                 }
 
                 auto size = static_cast<iota>(frame.size());
-                if (size != empty)
+                if (size)
                 {
-                    delta = size;
-                    //todo deprecate BSU/ESU
-                    //frame.locate(midst + twod{ 0,1 });
-                    //auto& synch_sfx = bsuesu[smode];
-                    //frame.add(synch_sfx[mode_cmd::esu]);
+                    guard.unlock();
                     conio.output(frame);
                     frame.clear();
-                    //frame.locate(midst);
-                    //frame.add(synch_sfx[mode_cmd::bsu]);
-
-                    empty = static_cast<iota>(frame.size());
+                    guard.lock();
                 }
-
+                delta = size;
                 watch = tempus::now() - start;
             }
         }
@@ -5400,7 +5363,7 @@ again:
 
                 if (extra.length())
                 {
-                    frame.add(extra);
+                    extra_cached += extra;
                     extra.clear();
                 }
 
@@ -5411,41 +5374,18 @@ again:
             return std::nullopt;
         }
 
-        diff(link& conio, grid& cache)
+        diff(link& conio, pro::input& input)
             : rhash{ 0 },
               dhash{ 0 },
               delta{ 0 },
               watch{ 0 },
-              empty{ 0 },
               alive{ true },
               ready{ faux },
               conio{ conio },
-              cache{ cache }
+              mutex{ input.sync },
+              cache{ input.xmap.pick() }
         {
             log("diff: ctor start");
-            /*
-            bsuesu.resize(4);
-            bsuesu[mode_type::none].resize(2);
-            bsuesu[mode_type::escp].resize(2);
-            bsuesu[mode_type::decs].resize(2);
-            bsuesu[mode_type::last].resize(2);
-            bsuesu[mode_type::escp][mode_cmd::bsu] = "\033P=1s\033\\";
-            bsuesu[mode_type::escp][mode_cmd::esu] = "\033P=2s\033\\";
-            bsuesu[mode_type::decs][mode_cmd::bsu] = "\033[?2026h";
-            bsuesu[mode_type::decs][mode_cmd::esu] = "\033[?2026l";
-            bsuesu[mode_type::last][mode_cmd::bsu] = "=BSU";
-            bsuesu[mode_type::last][mode_cmd::esu] = "=ESU";
-
-            smode = -1;
-            radio.SIGNAL(e2::general, e2::radio, smode);
-            radio.SUBMIT(e2::general, e2::radio, mode)
-            {
-                if (mode >= 0)
-                {
-                    smode = std::min<iota>(mode, mode_type::last);
-                }
-            };
-            */
             paint = work([&] { render(); });
             log("diff: ctor complete");
         }
@@ -5502,9 +5442,9 @@ again:
         {
             if (auto world = base::parent())
             {
-                link conio{ *this, media };          // gate: Terminal IO.
-                diff paint{ conio, input.freeze() }; // gate: Rendering loop.
-                subs token;                          // gate: Subscription tokens array.
+                link conio{ *this, media }; // gate: Terminal IO.
+                diff paint{ conio, input }; // gate: Rendering loop.
+                subs token;                 // gate: Subscription tokens array.
 
                 // conio events.
                 SUBMIT_T(e2::release, e2::term::size, token, newsize)
@@ -5553,12 +5493,12 @@ again:
                             debug.bypass = faux;
                         #else
                             input.fire(e2::hids::mouse::move);
-                        #endif // DEBUG_OVERLAY
+                        #endif
 
                         // Draw debug overlay, maker, titles, etc.
                         this->SIGNAL(e2::release, e2::postrender, cache.canvas);
                         #ifdef DEBUG_OVERLAY
-                            if ((yield = paint.commit(canvas)))
+                            if ((yield = paint.commit(cache.canvas)))
                             {
                                 auto& watch = yield.value().first;
                                 auto& delta = yield.value().second;
@@ -5567,7 +5507,7 @@ again:
                             debug.update(stamp);
                         #else
                             yield = paint.commit(cache.canvas); // Try output my canvas to the my console.
-                        #endif // DEBUG_OVERLAY
+                        #endif
                     }
                 };
 

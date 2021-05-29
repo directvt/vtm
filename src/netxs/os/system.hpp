@@ -1525,7 +1525,7 @@ namespace netxs::os
                     }
                     else
                     {
-                        fail("xipc: error write to socket=", *this);
+                        fail("xipc: error write to socket=", *this, " count=", count, " size=", size, " IS_TTY=", IS_TTY ?"true":"faux");
                         return faux;
                     }
                 }
