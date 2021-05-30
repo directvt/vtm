@@ -1199,21 +1199,6 @@ utility like ctags is used to locate the definitions.
             }
         };
 
-        // BSU/ESU init.
-        //iota current_mode = 0;
-        //world->SIGNAL(e2::general, e2::radio, current_mode);
-        //world->SUBMIT(e2::general, e2::radio, mode)
-        //{
-        //    if (mode == -1)
-        //    {
-        //        mode = current_mode;
-        //    }
-        //    else
-        //    {
-        //        current_mode = mode;
-        //    }
-        //};
-
         #define TYPE_LIST                             \
         X(Term         , "Term"                     ) \
         X(Text         , "Text"                     ) \
@@ -1470,57 +1455,6 @@ utility like ctags is used to locate the definitions.
                             b.grad(rgba{ 0xFFFFFF00 }, rgba{ 0x40FFFFFF });
                             b[{5, 0}].alpha(0);
                             b[{5, 1}].alpha(0);
-                    break;
-                }
-                case PowerShell:
-                {
-                    window->plugin<pro::title>("Term \nPowerShell")
-                          ->plugin<pro::track>()
-                          ->plugin<pro::acryl>()
-                          ->plugin<pro::cache>();
-                    auto object = window->attach<ui::fork>(axis::Y)
-                                        ->colors(whitelt, term_menu_bg);
-                        auto menu = object->attach<slot::_1>(main_menu())
-                                          ->plugin<pro::mover>(window);
-                        auto layers = object->attach<slot::_2, ui::cake>()
-                                            ->plugin<pro::limit>(dot_11, twod{ 400,200 });
-                            auto scroll = layers->attach<ui::rail>()
-                                                ->plugin<pro::mover>(window)
-                                                ->colors(whitelt, 0xFF560000);
-                                scroll->attach<ui::term>("powershell")
-                                      ->colors(whitelt, 0xFF562401);
-                        layers->attach(scroll_bars_term(scroll));
-                    break;
-                }
-                case CommandPrompt:
-                {
-                    window->plugin<pro::title>("Term \nCommand Prompt")
-                          ->plugin<pro::track>()
-                          ->plugin<pro::acryl>()
-                          ->plugin<pro::cache>();
-                    auto object = window->attach<ui::fork>(axis::Y)
-                                        ->colors(whitelt, term_menu_bg);
-                        auto menu = object->attach<slot::_1>(main_menu())
-                                          ->plugin<pro::mover>(window);
-                        auto layers = object->attach<slot::_2, ui::cake>()
-                                            ->plugin<pro::limit>(dot_11, twod{ 400,200 });
-                            auto scroll = layers->attach<ui::rail>()
-                                                ->plugin<pro::mover>(window);
-                        #ifdef DEMO
-                            scroll->plugin<pro::limit>(twod{ 20,1 }); // mc crashes when window is too small
-                        #endif
-
-                            #if defined(_WIN32)
-                                auto inst = scroll->attach<ui::term>("cmd");
-                            #elif defined(__linux__)
-                                auto inst = scroll->attach<ui::term>("bash");
-                            #elif defined(__APPLE__)
-                                auto inst = scroll->attach<ui::term>("zsh");
-                            #endif
-
-                                inst->colors(whitelt, blackdk);
-
-                        layers->attach(scroll_bars_term(scroll));
                     break;
                 }
                 case Strobe:
@@ -1920,6 +1854,57 @@ utility like ctags is used to locate the definitions.
                                 auto hz = term_stat_area->attach<slot::_2, ui::grip<axis::X>>(scroll);
                     break;
                 }
+                case PowerShell:
+                {
+                    window->plugin<pro::title>("Term \nPowerShell")
+                          ->plugin<pro::track>()
+                          ->plugin<pro::acryl>()
+                          ->plugin<pro::cache>();
+                    auto object = window->attach<ui::fork>(axis::Y)
+                                        ->colors(whitelt, term_menu_bg);
+                        auto menu = object->attach<slot::_1>(main_menu())
+                                          ->plugin<pro::mover>(window);
+                        auto layers = object->attach<slot::_2, ui::cake>()
+                                            ->plugin<pro::limit>(dot_11, twod{ 400,200 });
+                            auto scroll = layers->attach<ui::rail>()
+                                                ->plugin<pro::mover>(window)
+                                                ->colors(whitelt, 0xFF560000);
+                                scroll->attach<ui::term>("powershell")
+                                      ->colors(whitelt, 0xFF562401);
+                        layers->attach(scroll_bars_term(scroll));
+                    break;
+                }
+                case CommandPrompt:
+                {
+                    window->plugin<pro::title>("Term \nCommand Prompt")
+                          ->plugin<pro::track>()
+                          ->plugin<pro::acryl>()
+                          ->plugin<pro::cache>();
+                    auto object = window->attach<ui::fork>(axis::Y)
+                                        ->colors(whitelt, term_menu_bg);
+                        auto menu = object->attach<slot::_1>(main_menu())
+                                          ->plugin<pro::mover>(window);
+                        auto layers = object->attach<slot::_2, ui::cake>()
+                                            ->plugin<pro::limit>(dot_11, twod{ 400,200 });
+                            auto scroll = layers->attach<ui::rail>()
+                                                ->plugin<pro::mover>(window);
+                        #ifdef DEMO
+                            scroll->plugin<pro::limit>(twod{ 20,1 }); // mc crashes when window is too small
+                        #endif
+
+                            #if defined(_WIN32)
+                                auto inst = scroll->attach<ui::term>("cmd");
+                            #elif defined(__linux__)
+                                auto inst = scroll->attach<ui::term>("bash");
+                            #elif defined(__APPLE__)
+                                auto inst = scroll->attach<ui::term>("zsh");
+                            #endif
+
+                                inst->colors(whitelt, blackdk);
+
+                        layers->attach(scroll_bars_term(scroll));
+                    break;
+                }
                 case Logs:
                 {
                     window->plugin<pro::title>("Logs \nVT monitoring tool")
@@ -2135,7 +2120,12 @@ utility like ctags is used to locate the definitions.
                     auto my_id = client->id;
 
                     // Taskbar Layout (PoC)
-                    auto current_default = objs::Term;
+
+                    #ifdef _WIN32
+                        auto current_default = objs::CommandPrompt;
+                    #else
+                        auto current_default = objs::Term;
+                    #endif
                     client->SUBMIT(e2::request, e2::data::changed, data)
                     {
                         data = current_default;
