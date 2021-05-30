@@ -2,3 +2,10 @@
 /.vscode
 /src/build
 /bin
+
+# Xcode specific
+/vtm.xcodeproj/project.xcworkspace/xcuserdata
+/vtm.xcodeproj/xcuserdata
+.DS_Store
+.Trashes
+*.swp

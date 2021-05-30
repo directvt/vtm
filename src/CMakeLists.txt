@@ -10,7 +10,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Reason: Anti-virus program (Windows Defender) may lock and scan `vtm(d).exe` file before embedding the manifest.
 #         mt.exe: general error c101008d: Failed to write the updated manifest to the resource of file...
 IF (WIN32)
-    set(CMAKE_EXE_LINKER_FLAGS /MANIFEST:NO)
+#    set(CMAKE_EXE_LINKER_FLAGS /MANIFEST:NO)
 ENDIF (WIN32)
 
 add_executable (vtmd "vtmd.cpp")
