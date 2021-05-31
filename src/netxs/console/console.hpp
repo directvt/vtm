@@ -2438,6 +2438,7 @@ namespace netxs::console
 
                 boss.SUBMIT_T(e2::release, e2::postrender, memo, canvas)
                 {
+                    //todo Highlighted area drawn twice
                     auto offset = boss.coor() - canvas.coor();
                     for (auto const& [key, data] : slots)
                     {
@@ -2471,8 +2472,12 @@ namespace netxs::console
 
                                 auto size = para(ansi::wrp(wrap::off).fgc(b > 130 ? 0xFF000000
                                                                                   : 0xFFFFFFFF) + "capture area: " + slot.str());
-                                canvas.cup(area.coor);
-                                canvas.output(size);
+                                //canvas.cup(area.coor);
+                                //canvas.output(size);
+
+                                auto header = *size.lyric;
+                                header.move(area.coor + canvas.coor());
+                                canvas.fill(header);
                             }
                             else
                             {
