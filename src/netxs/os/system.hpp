@@ -1067,6 +1067,7 @@ namespace netxs::os
 
     public:
         using vect = std::vector<char>;
+        bool alive = true; // sock: Used by the os::tty.
 
         #if defined(_WIN32)
 
@@ -1098,25 +1099,25 @@ namespace netxs::os
 
     private:
             text pipepath;
-            type r_handle; // sock: socket file descriptor
-            type w_handle; // sock: socket file descriptor
+            type r_handle; // sock: Socket file descriptor.
+            type w_handle; // sock: Socket file descriptor.
 
         #elif defined(__linux__) || defined(__APPLE__)
 
             using type = int; // typename std::invoke_result<::socket, int, int, int>::type;
             static constexpr type INVALID_FD = -1;
-            type handle; // sock: socket file descriptor
-            type charge_w; // sock: pipe for events (instead of eventfd)
+            type handle; // sock: Socket file descriptor.
+            type charge_w; // sock: Pipe for events (instead of eventfd).
 
             //using lock = std::recursive_mutex;
             //lock      mutex; // pipe: Thread sync mutex.
 
         #endif
 
-        vect buffer; // sock: receive buffer
-        type charge; // sock: descriptor for reading interrupt
-        bool sealed; // sock: provide autoclosing
-        text path; // sock: Socket path (in order to unlink)
+        vect buffer; // sock: Receive buffer.
+        type charge; // sock: Descriptor for reading interrupt.
+        bool sealed; // sock: Provide autoclosing.
+        text path; // sock: Socket path (in order to unlink).
 
         void init(iota buff_size = PIPE_BUF) { buffer.resize(buff_size); }
 
@@ -1556,6 +1557,7 @@ namespace netxs::os
         }
         auto shut() -> bool
         {
+            alive = faux;
             #if defined(_WIN32)
 
                 if (sealed)
@@ -1846,43 +1848,42 @@ namespace netxs::os
             #elif defined(__linux__) || defined(__APPLE__)
 
                 static ::termios mode;
-
+                static void default_mode()
+                {
+                    ::tcsetattr(0, TCSANOW, &mode);
+                }
                 static void resize_handler()
                 {
                     struct winsize size;
                     ::ioctl(1, TIOCGWINSZ, &size);
                     sock->send(console::ansi::win({ size.ws_col, size.ws_row }));
                 }
+                static void shutdown_handler(int signal)
+                {
+                    sock->shut();
+                    log(" tty: sock->xipc::shut called");
+                    ::signal(signal, SIG_DFL);
+                    ::raise(signal);
+                }
                 static void signal_handler(int signal)
                 {
-                    auto shutdown = [&](auto signal)
-                    {
-                        sock->shut();
-                        log("tty : sock->xipc::shut called");
-                        ::signal(signal, SIG_DFL);
-                        ::raise(signal);
-                    };
                     switch (signal)
                     {
                         case SIGWINCH:
                             resize_handler();
                             return;
                         case SIGHUP:
-                            log("tty : SIGHUP");
-                            shutdown(signal);
+                            log(" tty: SIGHUP");
+                            shutdown_handler(signal);
                             break;
                         case SIGTERM:
-                            log("tty : SIGTERM");
-                            shutdown(signal);
+                            log(" tty: SIGTERM");
+                            shutdown_handler(signal);
                             break;
                         default:
                             break;
                     }
-                    log(" tty : signal_handler, signal=", signal);
-                }
-                static void default_mode()
-                {
-                    ::tcsetattr(0, TCSANOW, &mode);
+                    log(" tty: signal_handler, signal=", signal);
                 }
 
             #endif
@@ -1915,7 +1916,7 @@ namespace netxs::os
 
         static void defeat(text msg = "")
         {
-            log("proxy: platform specific error: ", msg, " ",
+            log(" tty: platform specific error: ", msg, " ",
                 #if defined(_WIN32)
                     GetLastError()
                 #elif defined(__linux__) || defined(__APPLE__)
@@ -1942,6 +1943,8 @@ namespace netxs::os
         }
         void reader()
         {
+            log(" tty: reader thread started");
+
             #if defined(_WIN32)
 
             auto& board = _globals<void>::board;
@@ -1973,7 +1976,7 @@ namespace netxs::os
                     // 233 (0xE9)
                     // No process is on the other end of the pipe.
                     //defeat("GetNumberOfConsoleInputEvents error");
-                    os::exit(-1, "GetNumberOfConsoleInputEvents error ", GetLastError());
+                    os::exit(-1, " tty: GetNumberOfConsoleInputEvents error ", GetLastError());
                     break;
                 }
                 else if (count)
@@ -1984,7 +1987,7 @@ namespace netxs::os
                     {
                         //ERROR_PIPE_NOT_CONNECTED = 0xE9 - it's means that the console is gone/crashed
                         //defeat("ReadConsoleInput error");
-                        os::exit(-1, "ReadConsoleInput error ", GetLastError());
+                        os::exit(-1, " tty: ReadConsoleInput error ", GetLastError());
                         break;
                     }
                     else
@@ -2111,10 +2114,14 @@ namespace netxs::os
             #elif defined(__linux__) || defined(__APPLE__)
 
                 auto& sock = *_globals<void>::sock;
-
-                while (sock.send(in_fd.pick())) { }
+                while (sock.alive)
+                {
+                    sock.send(in_fd.pick());
+                }
 
             #endif
+
+            log(" tty: reader thread completed");
         }
         void stop()
         {
@@ -2125,6 +2132,8 @@ namespace netxs::os
 
             #elif defined(__linux__) || defined(__APPLE__)
 
+                auto& sock = *_globals<void>::sock;
+                sock.alive = faux;
                 in_fd.fire(); // Unblock reading thread.
 
             #endif
@@ -2248,11 +2257,11 @@ namespace netxs::os
                 }
                 ok(::signal(SIGPIPE,  SIG_IGN )); // Disable sigpipe.
                 ok(::signal(SIGWINCH, sig_hndl)); // Set resize handler.
-                log("tty : Set termination handler.");
+                log(" tty: Set termination handler.");
                 ok(::signal(SIGTERM, sig_hndl));   // Set termination handler.
-                log("tty : Set hangup handler.");
+                log(" tty: Set hangup handler.");
                 ok(::signal(SIGHUP, sig_hndl));   // Set hangup handler.
-                log("tty : Raise resize event.");
+                log(" tty: Raise resize event.");
                 ok(::raise (SIGWINCH));           // Get current terminal window size.
 
             #endif
