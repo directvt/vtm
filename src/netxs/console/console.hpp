@@ -2275,8 +2275,7 @@ namespace netxs::console
                     }
                 }
             }
-            // pro::frame: Check if it is under the rest, and moves it to the
-            //             top of the visual tree.
+            // pro::frame: Check if it is under the rest, and moves it to the top of the visual tree.
             //             Return "true" if it is NOT under the rest.
             void expose (bool subsequent = faux)
             {
@@ -2286,8 +2285,7 @@ namespace netxs::console
                 }
                 //return boss.status.exposed;
             }
-            // pro::frame: Place the form in front of the visual tree
-            //             among neighbors.
+            // pro::frame: Place the form in front of the visual tree among neighbors.
             void bubble ()
             {
                 if (auto parent_ptr = boss.parent())
@@ -2440,17 +2438,19 @@ namespace netxs::console
 
                 boss.SUBMIT_T(e2::release, e2::postrender, memo, canvas)
                 {
+                    auto offset = boss.coor() - canvas.coor();
                     for (auto const& [key, data] : slots)
                     {
-                        if (auto slot = data.slot)
+                        auto slot = data.slot;
+                        slot.coor += offset;
+                        if (auto area = canvas.area().clip<true>(slot))
                         {
-                            auto area = canvas.area().clip<true>(slot);
                             if (data.ctrl)
                             {
                                 area.coor -= dot_11;
                                 area.size += dot_22;
 
-                                // Calc average bg brightness
+                                // Calc average bg brightness.
                                 auto count = 0;
                                 auto light = 0;
                                 auto sumfx = [&](cell& c)
@@ -2464,13 +2464,13 @@ namespace netxs::console
                                 canvas.each(head, sumfx);
                                 auto b = count ? light / (count * 3) : 0;
 
-                                // Draw the frame
+                                // Draw the frame.
                                 auto mark = skin::color(tone::kb_focus);
                                 auto fill = [&](cell& c) { c.fuse(mark); };
                                 canvas.cage(area, dot_11, fill);
 
-                                auto size = para(ansi::fgc(b > 130 ? 0xFF000000
-                                                                   : 0xFFFFFFFF) + "capture area: " + slot.str());
+                                auto size = para(ansi::wrp(wrap::off).fgc(b > 130 ? 0xFF000000
+                                                                                  : 0xFFFFFFFF) + "capture area: " + slot.str());
                                 canvas.cup(area.coor);
                                 canvas.output(size);
                             }

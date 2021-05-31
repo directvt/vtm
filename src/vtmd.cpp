@@ -1815,18 +1815,28 @@ utility like ctags is used to locate the definitions.
                                     {
                                         boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
                                         {
-                                            #ifdef DEMO
                                             auto data = "reset\n"s;
                                             log(" main: RESET bcast signaled ", data.length());
-                                            #else
-                                            auto data = utf::repeat("\n", 30) + utf::repeat("-", 80) + "\n"; // it is just a test.
-                                            #endif
                                             //boss.BROADCAST(e2::release, e2::command::text, data);
                                             boss.base::broadcast->SIGNAL(e2::release, e2::data::text, data);
                                             gear.dismiss();
                                             gear.nodbl = true;
                                         };
                                     }},
+                                    #ifdef PROD
+                                        std::pair<text, std::function<void(ui::pads&)>>{ ansi::und(true) + "C" + ansi::nil() + "ommit",
+                                        [](ui::pads& boss)
+                                        {
+                                            boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
+                                            {
+                                                auto data = utf::repeat("\n", 30) + utf::repeat("-", 80) + "\n"; // it is just a test.
+                                                //boss.BROADCAST(e2::release, e2::command::text, data);
+                                                boss.base::broadcast->SIGNAL(e2::release, e2::data::text, data);
+                                                gear.dismiss();
+                                                gear.nodbl = true;
+                                            };
+                                        }},
+                                    #endif
                                 }))
                                           ->plugin<pro::mover>(window);
 
