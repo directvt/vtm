@@ -135,6 +135,8 @@ namespace netxs::console
             EVENT_BIND(e2::form::prop::footer, text)
             EVENT_BIND(e2::form::prop::zorder, iota)
             EVENT_BIND(e2::form::prop::brush, const cell)
+            EVENT_BIND(e2::form::prop::fullscreen, bool)
+            EVENT_BIND(e2::form::prop::name, text)
 
         EVENT_BIND(e2::form::drag::any, hids)
             EVENT_SAME(e2::form::drag::any, e2::form::drag::cancel::any)
@@ -1917,6 +1919,7 @@ namespace netxs::console
                     gate.SIGNAL(e2::request, e2::form::prop::header, head);
                     boss.SIGNAL(e2::request, e2::form::prop::header, newhead);
                     gate.SIGNAL(e2::preview, e2::form::prop::header, newhead);
+                    gate.SIGNAL(e2::release, e2::form::prop::fullscreen, true);
 
                     gate.SUBMIT_T(e2::release, e2::size::set, memo, size)
                     {
@@ -1960,6 +1963,7 @@ namespace netxs::console
                     if (auto gate_ptr = bell::getref(weak))
                     {
                         gate_ptr->SIGNAL(e2::preview, e2::form::prop::header, head);
+                        gate_ptr->SIGNAL(e2::release, e2::form::prop::fullscreen, faux);
                     }
                 }
                 weak = {};
@@ -5444,7 +5448,9 @@ again:
         using pair = std::optional<std::pair<period, iota>>;
         pair  yield; // gate: Indicator that the current frame has been successfully STDOUT.
         para uname; // gate: Client name.
+        text uname_txt; // gate: Client name (original).
         bool native = faux; //gate: Extended functionality support.
+        bool fullscreen = faux; //gate: Fullscreen mode.
 
     public:
         // todo unify
@@ -5553,7 +5559,7 @@ again:
         gate(view user_name)
         {
             //todo unify
-            uname = user_name;
+            uname = uname_txt = user_name;
             title.live = faux;
             mouse.draggable<sysmouse::leftright>();
             SUBMIT(e2::release, e2::form::drag::start::leftright, gear)
@@ -5579,6 +5585,15 @@ again:
             {
                 watermark = ansi::cup(dot_00).rlf(feed::rev).jet(bias::right) + newfooter;
             };
+            SUBMIT(e2::release, e2::form::prop::fullscreen, state)
+            {
+                fullscreen = state;
+            };
+            SUBMIT(e2::request, e2::form::prop::name, user_name)
+            {
+                user_name = uname_txt;
+            };
+
             //todo unify creation (delete simple create wo gear)
             SUBMIT(e2::preview, e2::form::proceed::create, region)
             {
@@ -5708,7 +5723,7 @@ again:
                 }
                 else
                 {
-                    if (uibar) parent_canvas.render(uibar, base::coor());
+                    if (uibar && !fullscreen) parent_canvas.render(uibar, base::coor());
                 }
 
                 #ifdef REGIONS

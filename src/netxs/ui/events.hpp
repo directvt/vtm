@@ -546,6 +546,8 @@ namespace netxs::events
                     footer      = any | (2 << _level1), // set form caption footer (arg: text)
                     zorder      = any | (3 << _level1), // set form z-order (arg: iota: -1 backmost, 0 plain, 1 topmost)
                     brush       = any | (4 << _level1), // set form brush/color (arg: cell)
+                    fullscreen  = any | (5 << _level1), // set fullscreen flag (arg: bool)
+                    name        = any | (6 << _level1), // user name (arg: text)
             };};
             struct animate { enum : type {
                     any = form::_animate,

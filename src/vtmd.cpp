@@ -2350,7 +2350,7 @@ utility like ctags is used to locate the definitions.
                     auto branch_template = [&](auto& data_src, auto& usr_list)
                     {
                         auto users = base::create<ui::list>()
-                            ->attach_collection<e2::form::prop::header>(*usr_list, user_template);
+                            ->attach_collection<e2::form::prop::name>(*usr_list, user_template);
                         return users;
                     };
                     {
@@ -2528,6 +2528,7 @@ utility like ctags is used to locate the definitions.
                     client->color(background_color.fgc(), background_color.bgc());
                     text header = username;
                     text footer = ansi::mgr(1).mgl(1) + MONOTTY_VER;
+                    client->SIGNAL(e2::release, e2::form::prop::name, header);
                     client->SIGNAL(e2::preview, e2::form::prop::header, header);
                     client->SIGNAL(e2::preview, e2::form::prop::footer, footer);
                     client->base::moveby(user_coor);
