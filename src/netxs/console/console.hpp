@@ -1886,18 +1886,35 @@ namespace netxs::console
             id_t weak; // pro::align: Master id.
             rect body; // pro::align: For current coor/size tracking.
             twod pads; // pro::align: Owner's borders.
-
-        public:
-            align(base&&) = delete;
-            align(base& boss) : skill{ boss },
-                weak{}
-            { }
-            ~align() { unbind(faux); }
+            hook maxs; // pro::align: Maximize on dblclick token.
 
             auto seized(id_t master)
             {
                 return weak == master;
             }
+
+        public:
+            align(base&&) = delete;
+            align(base& boss, bool maximize = true) : skill{ boss },
+                weak{}
+            {
+                if (maximize)
+                {
+                    boss.SUBMIT_T(e2::release, e2::hids::mouse::button::dblclick::left, maxs, gear)
+                    {
+                        //auto& align = boss.plugins<pro::align>();
+                        auto size = boss.base::size();
+                        if (size.inside(gear.coord))
+                        {
+                            if (seized(gear.id)) unbind();
+                            else                 follow(gear.id, dot_00);
+                            gear.dismiss();
+                        }
+                    };
+                }
+            }
+            ~align() { unbind(faux); }
+
             void follow(id_t master, twod const& borders)
             {
                 pads = borders;
@@ -5439,7 +5456,7 @@ again:
         pro::title title{*this }; // gate: Logo watermark.
         pro::guard guard{*this }; // gate: Watch dog against robots and single Esc detector.
         pro::input input{*this }; // gate: User input event handler.
-        pro::align align{*this }; // gate: Size binding controller.
+        pro::align align{*this, faux }; // gate: Size binding controller.
         pro::cache cache{*this, faux }; // gate: Object map.
         #ifdef DEBUG_OVERLAY
         pro::debug debug{*this }; // gate: Debug telemetry controller.

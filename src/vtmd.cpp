@@ -3,9 +3,9 @@
 
 #define MONOTTY_VER "Monotty Desktopio Preview v0.3.12"
 // Autostart demo apps.
-//#define DEMO
+#define DEMO
 // Enable keyboard input and disable exit by single Esc.
-#define PROD
+//#define PROD
 
 // Terminal's default line wrapping mode.
 #define WRAPPING (wrap::on)
@@ -1352,7 +1352,6 @@ utility like ctags is used to locate the definitions.
         {
             sptr<ui::cake> window = base::create<ui::cake>()
                 ->plugin<pro::limit>(dot_11, twod{ 400,200 }) //todo unify, set via config
-                ->plugin<pro::align>()
                 ->plugin<pro::sizer>()
                 ->plugin<pro::frame>()
                 ->plugin<pro::light>()
@@ -1386,17 +1385,6 @@ utility like ctags is used to locate the definitions.
                     {
                         boss.base::detach(); // The object kills itself.
                     };
-                    boss.SUBMIT(e2::release, e2::hids::mouse::button::dblclick::left, gear)
-                    {
-                        auto& align = boss.plugins<pro::align>();
-                        auto size = boss.base::size();
-                        if (size.inside(gear.coord))
-                        {
-                            if (align.seized(gear.id)) align.unbind();
-                            else                       align.follow(gear.id, dot_00);
-                            gear.dismiss();
-                        }
-                    };
                 });
 
             window->extend(location);
@@ -1408,6 +1396,7 @@ utility like ctags is used to locate the definitions.
                 {
                     window->plugin<pro::title>(ansi::jet(bias::center) + "Test Page")
                           ->plugin<pro::track>()
+                          ->plugin<pro::align>()
                           ->plugin<pro::acryl>()
                           ->plugin<pro::cache>();
                     auto object0 = window->attach<ui::fork>(axis::Y)
@@ -1459,7 +1448,8 @@ utility like ctags is used to locate the definitions.
                 }
                 case Strobe:
                 {
-                    window->plugin<pro::title>(ansi::jet(bias::center) + "Strobe");
+                    window->plugin<pro::title>(ansi::jet(bias::center) + "Strobe")
+                          ->plugin<pro::align>();
                     auto strob = window->attach<ui::mock>()
                                        ->plugin<pro::mover>(window);
                     auto strob_shadow = ptr::shadow(strob);
@@ -1477,7 +1467,8 @@ utility like ctags is used to locate the definitions.
                 }
                 case RefreshRate:
                 {
-                    window->plugin<pro::title>("Frame rate adjustment");
+                    window->plugin<pro::title>("Frame rate adjustment")
+                          ->plugin<pro::align>();
                     window->attach<ui::stem_rate<e2::general, e2::timer::fps>>("Set frame rate", 1, 200, "fps")
                           ->color(0xFFFFFFFF, bluedk);
                     break;
@@ -1486,6 +1477,7 @@ utility like ctags is used to locate the definitions.
                 {
                     window->plugin<pro::title>(ansi::jet(bias::right) + "True color ANSI/ASCII image test")
                           ->plugin<pro::track>()
+                          ->plugin<pro::align>()
                           ->plugin<pro::acryl>()
                           ->plugin<pro::cache>();
                     auto object = window->attach<ui::fork>(axis::Y)
@@ -1509,6 +1501,7 @@ utility like ctags is used to locate the definitions.
                 {
                     window->plugin<pro::title>(ansi::mgl(1).mgr(1) + "Empty Instance \nid: " + std::to_string(window->id))
                           ->plugin<pro::track>()
+                          ->plugin<pro::align>()
                           ->plugin<pro::acryl>();
                     auto object = window->attach<ui::mock>()
                                         ->colors(0,0) //todo mouse tracking
@@ -1520,6 +1513,7 @@ utility like ctags is used to locate the definitions.
                     window->plugin<pro::title>("Desktopio App Store", faux)
                           ->colors(whitelt, 0x60000000)
                           ->plugin<pro::track>()
+                          ->plugin<pro::align>()
                           ->plugin<pro::acryl>()
                           ->plugin<pro::cache>();
                     auto object = window->attach<ui::fork>(axis::Y)
@@ -1557,6 +1551,7 @@ utility like ctags is used to locate the definitions.
                           ->colors(whitelt, 0x601A5f00)
                           ->plugin<pro::limit>(twod{ -1,-1 },twod{ 136,105 })
                           ->plugin<pro::track>()
+                          ->plugin<pro::align>()
                           ->plugin<pro::acryl>()
                           ->plugin<pro::cache>();
                     auto object = window->attach<ui::fork>(axis::Y)
@@ -1639,6 +1634,7 @@ utility like ctags is used to locate the definitions.
                     static iota i = 0; i++;
                     window->plugin<pro::title>(ansi::jet(bias::center) + "Text Editor\n ~/Untitled " + std::to_string(i) + ".txt")
                           ->plugin<pro::track>()
+                          ->plugin<pro::align>()
                           ->plugin<pro::acryl>()
                           ->plugin<pro::cache>();
                     auto object = window->attach<ui::fork>(axis::Y)
@@ -1668,6 +1664,7 @@ utility like ctags is used to locate the definitions.
                 {
                     window->plugin<pro::title>("Term \n" + objs_desc[VTM])
                           ->plugin<pro::track>()
+                          ->plugin<pro::align>()
                           ->plugin<pro::acryl>()
                           ->plugin<pro::cache>();
                     auto object = window->attach<ui::fork>(axis::Y)
@@ -1704,6 +1701,7 @@ utility like ctags is used to locate the definitions.
                 {
                     window->plugin<pro::title>("Term \n" + objs_desc[Far])
                           ->plugin<pro::track>()
+                          ->plugin<pro::align>()
                           ->plugin<pro::acryl>()
                           ->plugin<pro::cache>();
                     auto object = window->attach<ui::fork>(axis::Y)
@@ -1722,6 +1720,7 @@ utility like ctags is used to locate the definitions.
                 {
                     window->plugin<pro::title>("Term \n" + objs_desc[MC])
                           ->plugin<pro::track>()
+                          ->plugin<pro::align>()
                           ->plugin<pro::acryl>()
                           ->plugin<pro::cache>();
                     auto object = window->attach<ui::fork>(axis::Y)
@@ -1760,6 +1759,7 @@ utility like ctags is used to locate the definitions.
                 {
                     window->plugin<pro::title>("Term \n" + objs_desc[Bash])
                           ->plugin<pro::track>()
+                          ->plugin<pro::align>()
                           ->plugin<pro::acryl>()
                           ->plugin<pro::cache>();
                     auto object = window->attach<ui::fork>(axis::Y)
@@ -1868,6 +1868,7 @@ utility like ctags is used to locate the definitions.
                 {
                     window->plugin<pro::title>("Term \nPowerShell")
                           ->plugin<pro::track>()
+                          ->plugin<pro::align>()
                           ->plugin<pro::acryl>()
                           ->plugin<pro::cache>();
                     auto object = window->attach<ui::fork>(axis::Y)
@@ -1888,6 +1889,7 @@ utility like ctags is used to locate the definitions.
                 {
                     window->plugin<pro::title>("Term \nCommand Prompt")
                           ->plugin<pro::track>()
+                          ->plugin<pro::align>()
                           ->plugin<pro::acryl>()
                           ->plugin<pro::cache>();
                     auto object = window->attach<ui::fork>(axis::Y)
@@ -1919,6 +1921,7 @@ utility like ctags is used to locate the definitions.
                 {
                     window->plugin<pro::title>("Logs \nVT monitoring tool")
                           ->plugin<pro::track>()
+                          ->plugin<pro::align>()
                           ->plugin<pro::acryl>()
                           ->plugin<pro::cache>();
                     auto object = window->attach<ui::fork>(axis::Y)
