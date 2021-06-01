@@ -236,12 +236,13 @@ namespace netxs::events
                 error       = any | (2 << _level0),	// return error code
                 focus       = any | (3 << _level0), // order to change focus (arg: bool)
                 key         = any | (4 << _level0), // keybd activity (arg: syskeybd)
-                //menu        = any | (5 << _level0),
+                native      = any | (5 << _level0), // extended functionality (arg: bool)
                 mouse       = any | (6 << _level0), // mouse activity (arg: sysmouse)
                 size        = any | (7 << _level0), // order to update terminal primary overlay (arg: newsize twod)
                 layout      = any | (8 << _level0),
                 preclose    = any | (9 << _level0), // signal to quit after idle timeout (arg: bool - ready to shutdown)
                 quit        = any | (10<< _level0), // quit (arg: text - bye msg)
+                //menu      = any | (11 << _level0),
         };};
         struct hids { enum : type {
                 any = e2::_hids,

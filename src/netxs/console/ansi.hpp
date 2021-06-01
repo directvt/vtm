@@ -191,6 +191,7 @@ namespace netxs::console::ansi
     static const iota CCC_CHY    = 22 ; // CSI 22: y       p  - cursor V absolute position 0-based.
     static const iota CCC_REF    = 23 ; // CSI 23: id      p  - create the reference to the existing paragraph.
     static const iota CCC_SBS    = 24 ; // CSI 24: n: m    p  - define scrollback size: n: max size, m: grow_by step.
+    static const iota CCC_EXT    = 25 ; // CSI 25: b       p  - extended functionality support.
     //static const iota CCC_WIN = 20 ; // CSI 20: x: y    p    terminal window resize.
 
     // ansi: Escaped sequences accumulator.
@@ -351,6 +352,7 @@ namespace netxs::console::ansi
 
         esc& idx (iota i)        { add("\033[19:"+ str(i  ) + CSI_CCC); return *this; } // esc: Split the text run and associate the fragment with an id.
         esc& ref (iota i)        { add("\033[23:"+ str(i  ) + CSI_CCC); return *this; } // esc: Create the reference to the existing paragraph.
+        esc& ext (bool b)        { add("\033[25:"); add(b ? "1" : "0"); add(CSI_CCC); return *this; } // esc: Extended functionality support.
         //todo unify
         //esc& win (twod const& p){ add("\033[20:" + str(p.x) + ":"                       // esc: Terminal window resize report.
         //                                         + str(p.y) + CSI_CCC); return *this; }
@@ -440,6 +442,7 @@ namespace netxs::console::ansi
     static esc mgr (iota n)          { return esc{}.mgr (n); } // ansi: Right margin.
     static esc mgt (iota n)          { return esc{}.mgt (n); } // ansi: Top margin.
     static esc mgb (iota n)          { return esc{}.mgb (n); } // ansi: Bottom margin.
+    static esc ext (bool b)          { return esc{}.ext (b); } // ansi: Extended functionality.
 
     static esc jet (iota n)          { return esc{}.jet (n); } // ansi: Text alignment.
     static esc wrp (iota n)          { return esc{}.wrp (n); } // ansi: Text wrapping.
@@ -699,6 +702,7 @@ namespace netxs::console::ansi
                     csi_ccc[CCC_IDX] = nullptr;
                     csi_ccc[CCC_REF] = nullptr;
                     csi_ccc[CCC_SBS] = nullptr;
+                    csi_ccc[CCC_EXT] = nullptr;
 
                 auto& csi_sgr = table[CSI_SGR].resize(0x100);
                 csi_sgr.enable_multi_arg();

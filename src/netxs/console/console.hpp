@@ -88,6 +88,7 @@ namespace netxs::console
         EVENT_BIND(e2::term::mouse   , sysmouse)
         EVENT_BIND(e2::term::key     , syskeybd)
         EVENT_BIND(e2::term::size    , twod)
+        EVENT_BIND(e2::term::native  , bool)
         EVENT_BIND(e2::term::layout  , const twod)
         EVENT_BIND(e2::term::preclose, const bool)
         EVENT_BIND(e2::term::quit    , const view)
@@ -4531,6 +4532,7 @@ namespace netxs::console
 
             input = std::thread([&] { reader(); });
 
+            output(ansi::ext(true));
             if (title.size()) output(ansi::tag(title));
 
             while ((void)synch.wait(guard, [&] { return ready; }), alive)
@@ -4928,6 +4930,12 @@ again:
                                         }
                                         else pos++; // pop '_'
                                     }
+                                }
+                                else if (event_id == ansi::CCC_EXT && l > 2 
+                                    && tmp.at(0) == ':' && tmp.at(2) == 'p')
+                                {
+                                    pos += 5 /* 25:1p */;
+                                    owner.SIGNAL(e2::release, e2::term::native, tmp.at(1) == '1');
                                 }
                                 else
                                 {
@@ -5436,6 +5444,7 @@ again:
         using pair = std::optional<std::pair<period, iota>>;
         pair  yield; // gate: Indicator that the current frame has been successfully STDOUT.
         para uname; // gate: Client name.
+        bool native = faux; //gate: Extended functionality support.
 
     public:
         // todo unify
@@ -5462,6 +5471,10 @@ again:
                 SUBMIT_T(e2::release, e2::term::focus, token, unkstate)
                 {
                 };
+                SUBMIT_T(e2::release, e2::term::native, token, extended)
+                {
+                    native = extended;
+                };
                 SUBMIT_T(e2::release, e2::term::error, token, errcode)
                 {
                     text msg = "\n\rgate: Term error: " + std::to_string(errcode) + "\r\n";
@@ -5473,10 +5486,25 @@ again:
                     log("gate: stop byemsg: ", msg);
                     conio.shutdown();
                 };
-                SUBMIT_T(e2::release, e2::form::state::header, token, newheader)
+                //SUBMIT_T(e2::release, e2::form::state::header, token, newheader)
+                //{
+                //    text title;
+                //    newheader.lyric->each([&](auto c) { title += c.txt(); });
+                //    conio.output(ansi::tag(title));
+                //};
+                SUBMIT_T(e2::release, e2::form::prop::header, token, newheader)
                 {
                     text title;
-                    newheader.lyric->each([&](auto c) { title += c.txt(); });
+                    title.reserve(newheader.length());
+                    if (native)
+                    {
+                        title = newheader;
+                    }
+                    else
+                    {
+                        para{ newheader }.lyric->each([&](auto c) { title += c.txt(); });
+                    }
+                    log("gate: title changed to '", title, ansi::nil() + "'");
                     conio.output(ansi::tag(title));
                 };
                 SUBMIT_T(e2::release, e2::cout, token, extra_data)

@@ -815,6 +815,7 @@ namespace netxs::ui
 
                     vt::csier.table[CSI_CCC][CCC_RST] = VT_PROC{ p->style.glb();    };  // fx_ccc_rst
                     vt::csier.table[CSI_CCC][CCC_SBS] = VT_PROC{ p->boss.resize(q); };  // CCC_SBS: Set scrollback size
+                    vt::csier.table[CSI_CCC][CCC_EXT] = VT_PROC{ p->boss.native(q(1)); };  // CCC_EXT: Setup extended functionality.
 
                     vt::intro[ctrl::ESC]['M']= VT_PROC{ p->ri(); }; // ESC M  Reverse index
                     vt::intro[ctrl::ESC]['H']= VT_PROC{ p->na("ESC H  Place tabstop at the current caret posistion"); }; // ESC H  Place tabstop at the current caret posistion
@@ -1452,6 +1453,12 @@ namespace netxs::ui
             iota max_scrollback_size = q(default_size);
             iota grow_step           = q(default_step);
             normal.resize<faux>(max_scrollback_size, grow_step);
+        }
+        // term: Extended functionality response.
+        void native(bool b)
+        {
+            auto response = ansi::ext(b);
+            write(response);
         }
         // term: Write tty data and flush the queue.
         void write(text& queue)
