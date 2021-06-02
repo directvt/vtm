@@ -3,9 +3,9 @@
 
 #define MONOTTY_VER "Monotty Desktopio Preview v0.3.12"
 // Autostart demo apps.
-#define DEMO
+//#define DEMO
 // Enable keyboard input and disable exit by single Esc.
-//#define PROD
+#define PROD
 
 // Terminal's default line wrapping mode.
 #define WRAPPING (wrap::on)
@@ -1549,7 +1549,6 @@ utility like ctags is used to locate the definitions.
                     static iota i = 0; i++;
                     window->plugin<pro::title>(ansi::jet(bias::right) + "Spreadsheet\n ~/Untitled " + std::to_string(i) + ".ods")
                           ->colors(whitelt, 0x601A5f00)
-                          ->plugin<pro::limit>(twod{ -1,-1 },twod{ 136,105 })
                           ->plugin<pro::track>()
                           ->plugin<pro::align>()
                           ->plugin<pro::acryl>()
@@ -1558,7 +1557,9 @@ utility like ctags is used to locate the definitions.
                                         ->colors(whitelt, 0);
                         auto menu = object->attach<slot::_1>(main_menu())
                                           ->plugin<pro::mover>(window);
-                        auto all_stat = object->attach<slot::_2, ui::fork>(axis::Y);
+                        auto all_rail = object->attach<slot::_2, ui::rail>();
+                        auto all_stat = all_rail->attach<ui::fork>(axis::Y)
+                                                ->plugin<pro::limit>(twod{ -1,-1 },twod{ 136,102 });
                             auto func_body_pad = all_stat->attach<slot::_1, ui::pads>(dent{ 1,1 });
                                 auto func_body = func_body_pad->attach<ui::fork>(axis::Y);
                                     auto func_line = func_body->attach<slot::_1, ui::fork>();
