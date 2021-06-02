@@ -1727,6 +1727,7 @@ namespace netxs::os
 
                 struct sockaddr_un addr = {};
                 addr.sun_family = AF_UNIX;
+                auto sock_addr_len = sizeof(addr) - (sizeof(sockaddr_un::sun_path) - path.size() - 1);
 
             #if defined(__linux__)
 
@@ -1751,7 +1752,7 @@ namespace netxs::os
                     // For unlink on exit (file system socket).
                     sock_ptr->path = path;
 
-                    if (::bind(sock, (struct sockaddr*)&addr, sizeof(addr)) == -1)
+                    if (::bind(sock, (struct sockaddr*)&addr, sock_addr_len) == -1)
                         return fail("error unix socket bind for ", path);
 
                     if (::listen(sock, 5) == -1)
@@ -1760,7 +1761,7 @@ namespace netxs::os
                 else if constexpr (ROLE == role::client)
                 {
                     auto play = [&]() {
-                        return -1 != ::connect(sock, (struct sockaddr*)&addr, sizeof(addr)); };
+                        return -1 != ::connect(sock, (struct sockaddr*)&addr, sock_addr_len); };
 
                     auto done = play();
                     if (!done)

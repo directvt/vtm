@@ -1877,14 +1877,18 @@ utility like ctags is used to locate the definitions.
                                         ->colors(whitelt, term_menu_bg);
                         auto menu = object->attach<slot::_1>(main_menu())
                                           ->plugin<pro::mover>(window);
-                        auto layers = object->attach<slot::_2, ui::cake>()
-                                            ->plugin<pro::limit>(dot_11, twod{ 400,200 });
-                            auto scroll = layers->attach<ui::rail>()
-                                                ->plugin<pro::mover>(window)
-                                                ->colors(whitelt, 0xFF560000);
-                                scroll->attach<ui::term>("powershell")
-                                      ->colors(whitelt, 0xFF562401);
-                        layers->attach(scroll_bars_term(scroll));
+                        auto term_stat_area = object->attach<slot::_2, ui::fork>(axis::Y);
+                            auto layers = term_stat_area->attach<slot::_1, ui::cake>()
+                                                ->plugin<pro::limit>(dot_11, twod{ 400,200 });
+                                auto scroll = layers->attach<ui::rail>()
+                                                    ->plugin<pro::mover>(window)
+                                                    ->colors(whitelt, 0xFF560000);
+                                    scroll->attach<ui::term>("powershell")
+                                        ->colors(whitelt, 0xFF562401);
+                            //layers->attach(scroll_bars_term(scroll));
+                            auto scroll_bars = layers->attach<ui::fork>();
+                                auto vt = scroll_bars->attach<slot::_2, ui::grip<axis::Y>>(scroll);
+                                auto hz = term_stat_area->attach<slot::_2, ui::grip<axis::X>>(scroll);
                     break;
                 }
                 case CommandPrompt:
@@ -1898,10 +1902,11 @@ utility like ctags is used to locate the definitions.
                                         ->colors(whitelt, term_menu_bg);
                         auto menu = object->attach<slot::_1>(main_menu())
                                           ->plugin<pro::mover>(window);
-                        auto layers = object->attach<slot::_2, ui::cake>()
-                                            ->plugin<pro::limit>(dot_11, twod{ 400,200 });
-                            auto scroll = layers->attach<ui::rail>()
-                                                ->plugin<pro::mover>(window);
+                        auto term_stat_area = object->attach<slot::_2, ui::fork>(axis::Y);
+                            auto layers = term_stat_area->attach<slot::_1, ui::cake>()
+                                                ->plugin<pro::limit>(dot_11, twod{ 400,200 });
+                                auto scroll = layers->attach<ui::rail>()
+                                                    ->plugin<pro::mover>(window);
                         #ifdef DEMO
                             scroll->plugin<pro::limit>(twod{ 20,1 }); // mc crashes when window is too small
                         #endif
@@ -1916,7 +1921,10 @@ utility like ctags is used to locate the definitions.
 
                                 inst->colors(whitelt, blackdk);
 
-                        layers->attach(scroll_bars_term(scroll));
+                        //layers->attach(scroll_bars_term(scroll));
+                        auto scroll_bars = layers->attach<ui::fork>();
+                            auto vt = scroll_bars->attach<slot::_2, ui::grip<axis::Y>>(scroll);
+                            auto hz = term_stat_area->attach<slot::_2, ui::grip<axis::X>>(scroll);
                     break;
                 }
                 case Logs:
