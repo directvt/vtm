@@ -1,7 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#define MONOTTY_VER "Monotty Desktopio Preview v0.3.12"
+#define MONOTTY_VER "Monotty Desktopio Preview v0.3.13"
 // Autostart demo apps.
 //#define DEMO
 // Enable keyboard input and disable exit by single Esc.
@@ -1549,6 +1549,7 @@ utility like ctags is used to locate the definitions.
                     static iota i = 0; i++;
                     window->plugin<pro::title>(ansi::jet(bias::right) + "Spreadsheet\n ~/Untitled " + std::to_string(i) + ".ods")
                           ->colors(whitelt, 0x601A5f00)
+                          ->plugin<pro::limit>(twod{ 10,7 },twod{ -1,-1 })
                           ->plugin<pro::track>()
                           ->plugin<pro::align>()
                           ->plugin<pro::acryl>()

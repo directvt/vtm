@@ -171,7 +171,9 @@ namespace netxs::ui
             twod size;
             align_basis();
             size.x = panel.x;
-            size.y = basis + std::max(panel.y, batch.size - basis);
+            //todo unify
+            //size.y = basis + std::max(panel.y, batch.size - basis); // Allow overscroll at the bottom.
+            size.y = std::max(panel.y, batch.size);
             if (caret)
             {
                 auto coor = cp();
