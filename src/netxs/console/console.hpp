@@ -1902,7 +1902,6 @@ namespace netxs::console
                 {
                     boss.SUBMIT_T(e2::release, e2::hids::mouse::button::dblclick::left, maxs, gear)
                     {
-                        //auto& align = boss.plugins<pro::align>();
                         auto size = boss.base::size();
                         if (size.inside(gear.coord))
                         {
@@ -4576,22 +4575,23 @@ namespace netxs::console
 
                 view strv = total;
 
+                #ifdef KEYLOG
+                log("link: input data (", chunk.size(), " bytes):\n", utf::debase(chunk));
+                #endif
+
                 #ifndef PROD
                 if (close)
                 {
                     close = faux;
                     owner.SIGNAL(e2::release, e2::term::preclose, close);
-                    if (strv.front() == '\x1b') // two consecutive escapes
+                    if (chunk.front() == '\x1b') // two consecutive escapes
                     {
                         log("\t - two consecutive escapes: \n\tstrv:        ", strv);
-
                         owner.SIGNAL(e2::release, e2::term::quit, "pipe two consecutive escapes");
                         return;
                     }
                 }
                 #endif
-                //int g = 0;
-
 
                 //todo unify (it is just a proof of concept)
                 while (auto len = strv.size())
@@ -4622,7 +4622,7 @@ namespace netxs::console
                         #else
                         if (pos == len) // the only one esc
                         {
-                            ///  Pass Esc
+                            // Pass Esc.
                             keybd.textline = strv.substr(0, 1);
                             owner.SIGNAL(e2::release, e2::term::key, keybd);
                             total.clear();
@@ -4631,7 +4631,7 @@ namespace netxs::console
                         }
                         else if (strv.at(pos) == '\x1b') // two consecutive escapes
                         {
-                            ///  Pass Esc
+                            //  Pass Esc.
                             keybd.textline = strv.substr(0, 1);
                             owner.SIGNAL(e2::release, e2::term::key, keybd);
                             total = strv.substr(1);
