@@ -1,7 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#define MONOTTY_VER "Monotty Desktopio Preview v0.3.13"
+#define MONOTTY_VER "Monotty Desktopio Preview v0.3.14"
 // Autostart demo apps.
 //#define DEMO
 // Enable keyboard input and disable exit by single Esc.
@@ -1961,20 +1961,23 @@ utility like ctags is used to locate the definitions.
                     window->plugin<pro::title>(ansi::jet(bias::center) + "View \n Region " + std::to_string(i));
                     window->invoke([&](auto& boss)
                     {
+                        auto outer = dent{ 2,2,1,1 };
+                        auto inner = dent{ -4,-4,-2,-2 };
                         auto& sizer = boss.template plugins<pro::sizer>();
-                        sizer.props(dent{ 2,2,1,1 }, dent{ -4,-4,-2,-2 });
+                        sizer.props(outer, inner);
                         boss.SIGNAL(e2::preview, e2::form::prop::zorder, Z_order::backmost);
                         boss.SUBMIT(e2::release, e2::hids::mouse::button::dblclick::left, gear)
                         {
-                            if (boss.base::size().inside(gear.coord))
+                            auto& sizer = boss.template plugins<pro::sizer>();
+                            auto [outer, inner] = sizer.get_props();
+                            auto actual_rect = rect{ dot_00, boss.base::size() } + outer;
+                            if (actual_rect.hittest(gear.coord))
                             {
                                 if (auto gate_ptr = bell::getref(gear.id))
                                 {
-                                    rect area;
-                                    auto& gate = *gate_ptr;
-                                    gate.SIGNAL(e2::request, e2::size::set, area.size);
-                                    gate.SIGNAL(e2::request, e2::coor::set, area.coor);
-                                    boss.base::extend(area);
+                                    rect viewport;
+                                    gate_ptr->SIGNAL(e2::request, e2::form::prop::viewport, viewport);
+                                    boss.base::extend(viewport);
                                 }
                                 gear.dismiss();
                             }
@@ -2142,6 +2145,7 @@ utility like ctags is used to locate the definitions.
 
                 std::thread{ [=]
                 {
+                    iota uibar_min_size = 4;
                     iota uibar_full_size = 32;
                     log("user: session name ", peer);
 
@@ -2383,10 +2387,17 @@ utility like ctags is used to locate the definitions.
                     };
                     {
                     auto window = client->attach<ui::cake>();
-                        auto taskbar = window->attach<ui::fork>(axis::X)
-                                            ->attach<slot::_1, ui::fork>(axis::Y)
+                        auto taskbar_viewport = window->attach<ui::fork>(axis::X)
+                                                ->invoke([&](auto& boss)
+                                                {
+                                                    boss.broadcast->SUBMIT(e2::request, e2::form::prop::viewport, viewport)
+                                                    {
+                                                        viewport = boss.base::area();
+                                                    };
+                                                });
+                        auto taskbar = taskbar_viewport->attach<slot::_1, ui::fork>(axis::Y)
                                             ->colors(whitedk, 0x60202020)
-                                            ->plugin<pro::limit>(twod{ 4,-1 }, twod{ 4,-1 })
+                                            ->plugin<pro::limit>(twod{ uibar_min_size,-1 }, twod{ uibar_min_size,-1 })
                                             ->plugin<pro::timer>()
                                             ->plugin<pro::acryl>()
                                             ->plugin<pro::cache>()
@@ -2407,7 +2418,7 @@ utility like ctags is used to locate the definitions.
                                                     auto apply = [&](auto active)
                                                     {
                                                         auto& limits = boss.template plugins<pro::limit>();
-                                                        auto size = active ? uibar_full_size : std::min(uibar_full_size, 4);
+                                                        auto size = active ? uibar_full_size : std::min(uibar_full_size, uibar_min_size);
                                                         auto lims = twod{ size,-1 };
                                                         limits.set(lims, lims);
                                                         boss.base::reflow();
@@ -2417,6 +2428,11 @@ utility like ctags is used to locate the definitions.
                                                     timer.pacify(faux);
                                                     if (active) apply(true);
                                                     else timer.actify(faux, MENU_TIMEOUT, apply);
+                                                };
+                                                boss.broadcast->SUBMIT(e2::request, e2::form::prop::viewport, viewport)
+                                                {
+                                                    viewport.coor.x += uibar_min_size;
+                                                    viewport.size.x -= uibar_min_size;
                                                 };
                                             });
                             auto apps_users = taskbar->attach<slot::_1, ui::fork>(axis::Y, 0, 100);

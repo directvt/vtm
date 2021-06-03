@@ -548,6 +548,7 @@ namespace netxs::events
                     brush       = any | (4 << _level1), // set form brush/color (arg: cell)
                     fullscreen  = any | (5 << _level1), // set fullscreen flag (arg: bool)
                     name        = any | (6 << _level1), // user name (arg: text)
+                    viewport    = any | (7 << _level1), // request: return form actual viewport (arg: rect)
             };};
             struct animate { enum : type {
                     any = form::_animate,

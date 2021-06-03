@@ -137,6 +137,7 @@ namespace netxs::console
             EVENT_BIND(e2::form::prop::brush, const cell)
             EVENT_BIND(e2::form::prop::fullscreen, bool)
             EVENT_BIND(e2::form::prop::name, text)
+            EVENT_BIND(e2::form::prop::viewport, rect)
 
         EVENT_BIND(e2::form::drag::any, hids)
             EVENT_SAME(e2::form::drag::any, e2::form::drag::cancel::any)
@@ -1666,6 +1667,10 @@ namespace netxs::console
                 outer = outer_rect;
                 inner = inner_rect;
                 width = outer - inner;
+            }
+            auto get_props()
+            {
+                return std::pair{ outer, inner };
             }
             sizer(base&&) = delete;
             sizer(base& boss, dent const& outer_rect = {2,2,1,1}, dent const& inner_rect = {})
@@ -5609,7 +5614,11 @@ again:
             {
                 user_name = uname_txt;
             };
-
+            SUBMIT(e2::request, e2::form::prop::viewport, viewport)
+            {
+                broadcast->SIGNAL(e2::request, e2::form::prop::viewport, viewport);
+                viewport.coor += base::coor();
+            };
             //todo unify creation (delete simple create wo gear)
             SUBMIT(e2::preview, e2::form::proceed::create, region)
             {
@@ -5662,8 +5671,9 @@ again:
             };
             SUBMIT(e2::release, e2::form::layout::shift, newpos)
             {
-                auto& window = base::area();
-                auto  oldpos = window.coor + (window.size / 2);
+                rect viewport;
+                SIGNAL(e2::request, e2::form::prop::viewport, viewport);
+                auto oldpos = viewport.coor + (viewport.size / 2);
 
                 auto path = oldpos - newpos;
                 iota time = SWITCHING_TIME;
