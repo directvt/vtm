@@ -5672,7 +5672,7 @@ again:
             SUBMIT(e2::release, e2::form::layout::shift, newpos)
             {
                 rect viewport;
-                SIGNAL(e2::request, e2::form::prop::viewport, viewport);
+                this->SIGNAL(e2::request, e2::form::prop::viewport, viewport);
                 auto oldpos = viewport.coor + (viewport.size / 2);
 
                 auto path = oldpos - newpos;
