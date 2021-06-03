@@ -1964,6 +1964,21 @@ utility like ctags is used to locate the definitions.
                         auto& sizer = boss.template plugins<pro::sizer>();
                         sizer.props(dent{ 2,2,1,1 }, dent{ -4,-4,-2,-2 });
                         boss.SIGNAL(e2::preview, e2::form::prop::zorder, Z_order::backmost);
+                        boss.SUBMIT(e2::release, e2::hids::mouse::button::dblclick::left, gear)
+                        {
+                            if (boss.base::size().inside(gear.coord))
+                            {
+                                if (auto gate_ptr = bell::getref(gear.id))
+                                {
+                                    rect area;
+                                    auto& gate = *gate_ptr;
+                                    gate.SIGNAL(e2::request, e2::size::set, area.size);
+                                    gate.SIGNAL(e2::request, e2::coor::set, area.coor);
+                                    boss.base::extend(area);
+                                }
+                                gear.dismiss();
+                            }
+                        };
                         boss.SUBMIT(e2::release, e2::render::prerender, parent_canvas)
                         {
                             rgba title_fg_color = 0xFFffffff;

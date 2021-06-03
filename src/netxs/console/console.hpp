@@ -5456,14 +5456,13 @@ again:
         pro::title title{*this }; // gate: Logo watermark.
         pro::guard guard{*this }; // gate: Watch dog against robots and single Esc detector.
         pro::input input{*this }; // gate: User input event handler.
-        pro::align align{*this, faux }; // gate: Size binding controller.
         pro::cache cache{*this, faux }; // gate: Object map.
         #ifdef DEBUG_OVERLAY
         pro::debug debug{*this }; // gate: Debug telemetry controller.
         #endif
 
         using pair = std::optional<std::pair<period, iota>>;
-        pair  yield; // gate: Indicator that the current frame has been successfully STDOUT.
+        pair yield; // gate: Indicator that the current frame has been successfully STDOUT'd.
         para uname; // gate: Client name.
         text uname_txt; // gate: Client name (original).
         bool native = faux; //gate: Extended functionality support.
@@ -5705,9 +5704,7 @@ again:
                 if (&parent_canvas != &cache.canvas)
                 {
                     auto area = base::area();
-                    area.coor -= parent_canvas.area().coor;
-
-                    area.coor += input.coord;
+                    area.coor += input.coord - parent_canvas.area().coor;
                     area.size = dot_11;
                     cell brush;
                     if (input.push)
@@ -5736,7 +5733,6 @@ again:
                         header.move(area.coor);
                         parent_canvas.fill(header);
                     }
-                    else log("gate: username undefined");
                 }
                 else
                 {
