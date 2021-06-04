@@ -911,6 +911,7 @@ namespace netxs::console
         bool   busy() const { return length() || !proto.empty() || brush.busy(); } // para: Is it filled.
         void   ease()   { brush.nil(); lyric->each([&](auto& c) { c.clr(brush); });  } // para: Reset color for all text.
         void   link(id_t id)         { lyric->each([&](auto& c) { c.link(id);   });  } // para: Set object ID for each cell.
+        void   open()                { bossid = selfid;  } // para: Set paragraph open(uncovered, ie not covered by the lines above).
         void   wipe(cell c = cell{}) // para: Clear the text and locus, and reset SGR attributes.
         {
             width = 0;

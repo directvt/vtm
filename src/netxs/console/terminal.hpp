@@ -48,6 +48,12 @@ namespace netxs::ui
                        style.adjust == bias::right ? type::rghtside :
                                                      type::centered ;
             }
+            void wipe(cell const& brush)
+            {
+                para::wipe(brush);
+                cur_size = 0;
+                cur_type = type::leftside;
+            }
         };
 
         struct rama
@@ -137,9 +143,10 @@ namespace netxs::ui
         }
         auto status()
         {
-            return "size=" + std::to_string(batch.size) + ' '
-                 + "peak=" + std::to_string(batch.peak) + ' '
-                 + "type=" + (batch.step ? "unlimited, grow by " + std::to_string(batch.step) : "fixed");
+            return "size=" + std::to_string(batch.size)
+                + " peak=" + std::to_string(batch.peak)
+                + " type=" + (batch.step ? "unlimited, grow by " + std::to_string(batch.step) : "fixed")
+                + " area=" + panel.str();
         }
         auto recalc_pads()
         {
@@ -223,8 +230,10 @@ namespace netxs::ui
         }
         void align_basis()
         {
-            auto new_basis = batch.length() - panel.y;
-            if (new_basis > basis) basis = new_basis; // Move basis down if scrollback grows
+            //auto new_basis = batch.length() - panel.y;
+            //if (new_basis > basis) basis = new_basis; // Move basis down if scrollback grows
+
+            basis = std::max(0, batch.length() - panel.y);
         }
         void add_lines(iota amount)
         {
@@ -290,6 +299,8 @@ namespace netxs::ui
             auto caret = batch.get();
             if (new_height > old_height)
             {
+                //todo scroll region checking
+
                 // Add empty lines if needed
                 auto overflow = caret + new_height - batch.length();
                 if (overflow > 0) add_lines(overflow);
@@ -385,19 +396,26 @@ namespace netxs::ui
                 flow::go(batch[coor.y], canvas);
             }
         }
-        void remove_empties()
+        void test_basis(face& canvas)
         {
-            auto head = batch.begin();
-            auto tail = batch.end();
-            //while(head != --tail && tail->length() == 0) batch.pop();
-            while(head != --tail
-               && tail->length() == 0
-               && tail->selfid == tail->bossid) batch.pop();
+            para p{ansi::bgc(redlt) + " " + ansi::nil()};
+            auto coor = twod{ 0, basis };
+            flow::ac(coor);
+            flow::go(p, canvas);
         }
+        //void remove_empties()
+        //{
+        //    auto head = batch.begin();
+        //    auto tail = batch.end();
+        //    //while(head != --tail && tail->length() == 0) batch.pop();
+        //    while(head != --tail
+        //       && tail->length() == 0
+        //       && tail->selfid == tail->bossid) batch.pop();
+        //}
         // rods: Trim all lines above and current line.
         void trim_to_current()
         {
-            auto cur_index = batch.get();
+            auto cur_index = std::min(batch.length() - 1, basis + coord.y);
             auto line_iter = batch.begin() + cur_index;
             auto master_id = line_iter->bossid;
             auto mas_index = get_line_index_by_id(master_id);
@@ -415,8 +433,21 @@ namespace netxs::ui
         // rods: Remove all lines below except the current.
         void del_below()
         {
-            auto cur_index = batch.get();
-            pop_lines(batch.length() - (cur_index + 1));
+            //auto cur_index = batch.get();
+            //pop_lines(batch.length() - (cur_index + 1));
+
+            // "ED2 Erase viewport" MUST keep empty lines.
+            auto cur_index = std::min(batch.length() - 1, basis + coord.y); //batch.get();
+            auto begin = batch.begin();
+            auto end = batch.end();
+            auto current = begin + cur_index;
+            while(current != end)
+            {
+                auto& lyric = *current++;
+                lyric.wipe(brush.spare);
+                lyric.open();
+            }
+            set_coord();
         }
         void clear_above()
         {
@@ -950,7 +981,8 @@ namespace netxs::ui
                     auto tail = head + n;
                     while(head != tail)
                     {
-                        (*head++).trim_to(0);
+                        //(*head++).trim_to(0);
+                        (*head++).wipe(brush.spare);
                     }
                 }
                 else if (n < 0) // Scroll up (move text up).
@@ -971,7 +1003,8 @@ namespace netxs::ui
                     auto tail = head - n;
                     while(head != tail)
                     {
-                        (*head--).trim_to(0);
+                        //(*head--).trim_to(0);
+                        (*head--).wipe(brush.spare);
                     }
                 }
                 rebuild_upto_id(bossid);
@@ -1191,7 +1224,7 @@ namespace netxs::ui
                 coord-= dot_11;
                 set_coord();
             }
-            // scrollbuff: Line feed up.
+            // scrollbuff: Line reverse feed (move caret up).
             void up(iota n)
             {
                 finalize();
@@ -1207,7 +1240,7 @@ namespace netxs::ui
                 coord.y -= n;
                 set_coord();
             }
-            // scrollbuff: Line feed down.
+            // scrollbuff: Line feed (move caret down).
             void dn(iota n)
             {
                 finalize();
@@ -1601,7 +1634,7 @@ namespace netxs::ui
                             viewport.size = new_size;
                             altbuf.resize<faux>(new_size.y);
 
-                            if (target == &normal) target->remove_empties();
+                            //if (target == &normal) target->remove_empties();
 
                             oversize.set(target->recalc_pads());
                             caret.set(target->get_caret());
@@ -1665,6 +1698,7 @@ namespace netxs::ui
             SUBMIT(e2::release, e2::render::any, parent_canvas)
             {
                 target->output(parent_canvas);
+                //target->test_basis(parent_canvas);
             };
         }
     };
