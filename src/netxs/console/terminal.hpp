@@ -299,7 +299,16 @@ namespace netxs::ui
             auto caret = batch.get();
             if (new_height > old_height)
             {
-                //todo scroll region checking
+                //Scroll current region if needed (same as in scrollbuffer::dn())
+                auto n = new_height - old_height;
+                auto[top, end] = get_scroll_limits();
+                if (n > 0 && using_regions() && coord.y <= end
+                                             && coord.y + n > end)
+                {
+                    n -= end - coord.y;
+                    coord.y = end;
+                    scroll_region(-n);
+                }
 
                 // Add empty lines if needed
                 auto overflow = caret + new_height - batch.length();
@@ -507,6 +516,65 @@ namespace netxs::ui
                 yield += l.get_utf8();
             }
             return yield;
+        }
+        // rods: Scroll current region
+        void scroll_region(iota n)
+        {
+            auto[top, end] = get_scroll_limits();
+            auto scroll_top_index = rods::basis + top;
+            auto scroll_end_index = rods::basis + end;
+            auto bossid = batch[scroll_top_index].bossid;
+            auto height = end - top + 1;
+            if (scroll_end_index >= batch.length())
+            {
+                auto delta = scroll_end_index - (batch.length() - 1);
+                rods::add_lines(delta);
+            }
+            if (n > 0) // Scroll down (move text down).
+            {
+                n = std::min(n, height);
+                // Move down by n all below the current
+                // one by one from the bottom.
+                auto dst = batch.begin() + scroll_end_index;
+                auto src = dst - n;
+                auto s = height - n;
+                while(s--)
+                {
+                    (*dst--).move(std::move(*src--));
+                }
+                // Clear n first lines.
+                auto head = batch.begin() + scroll_top_index;
+                auto tail = head + n;
+                while(head != tail)
+                {
+                    //(*head++).trim_to(0);
+                    (*head++).wipe(brush.spare);
+                }
+            }
+            else if (n < 0) // Scroll up (move text up).
+            {
+                n = -n;
+                n = std::min(n, height);
+                // Move up by n=-n all below the current
+                // one by one from the top.
+                auto dst = batch.begin() + scroll_top_index;
+                auto src = dst + n;
+                auto s = height - n;
+                while(s--)
+                {
+                    (*dst++).move(std::move(*src++));
+                }
+                // Clear n last lines.
+                auto head = batch.begin() + scroll_end_index;
+                auto tail = head - n;
+                while(head != tail)
+                {
+                    //(*head--).trim_to(0);
+                    (*head--).wipe(brush.spare);
+                }
+            }
+            rebuild_upto_id(bossid);
+            set_coord();
         }
     };
 
@@ -954,61 +1022,7 @@ namespace netxs::ui
             void scl(iota n)
             {
                 finalize();
-                auto[top, end] = get_scroll_limits();
-                auto scroll_top_index = rods::basis + top;
-                auto scroll_end_index = rods::basis + end;
-                auto bossid = batch[scroll_top_index].bossid;
-                auto height = end - top + 1;
-                if (scroll_end_index >= batch.length())
-                {
-                    auto delta = scroll_end_index - (batch.length() - 1);
-                    rods::add_lines(delta);
-                }
-                if (n > 0) // Scroll down (move text down).
-                {
-                    n = std::min(n, height);
-                    // Move down by n all below the current
-                    // one by one from the bottom.
-                    auto dst = batch.begin() + scroll_end_index;
-                    auto src = dst - n;
-                    auto s = height - n;
-                    while(s--)
-                    {
-                        (*dst--).move(std::move(*src--));
-                    }
-                    // Clear n first lines.
-                    auto head = batch.begin() + scroll_top_index;
-                    auto tail = head + n;
-                    while(head != tail)
-                    {
-                        //(*head++).trim_to(0);
-                        (*head++).wipe(brush.spare);
-                    }
-                }
-                else if (n < 0) // Scroll up (move text up).
-                {
-                    n = -n;
-                    n = std::min(n, height);
-                    // Move up by n=-n all below the current
-                    // one by one from the top.
-                    auto dst = batch.begin() + scroll_top_index;
-                    auto src = dst + n;
-                    auto s = height - n;
-                    while(s--)
-                    {
-                        (*dst++).move(std::move(*src++));
-                    }
-                    // Clear n last lines.
-                    auto head = batch.begin() + scroll_end_index;
-                    auto tail = head - n;
-                    while(head != tail)
-                    {
-                        //(*head--).trim_to(0);
-                        (*head--).wipe(brush.spare);
-                    }
-                }
-                rebuild_upto_id(bossid);
-                set_coord();
+                scroll_region(n);
             }
             // scrollbuff: CSI n L  Insert n lines. Place caret to the begining of the current.
             void il(iota n)
@@ -1021,7 +1035,7 @@ namespace netxs::ui
                 {
                     auto old_top = sctop;
                     sctop = coord.y + 1;
-                    scl(n);
+                    scroll_region(n);
                     sctop = old_top;
                     coord.x = 0;
                     set_coord();
@@ -1038,7 +1052,7 @@ namespace netxs::ui
                 {
                     auto old_top = sctop;
                     sctop = coord.y + 1;
-                    scl(-n);
+                    scroll_region(-n);
                     sctop = old_top;
                     coord.x = 0;
                     set_coord();
@@ -1059,7 +1073,7 @@ namespace netxs::ui
                     coord.y--;
                     set_coord();
                 }
-                else scl(1);
+                else scroll_region(1);
             }
             // scrollbuff: CSI t;b r - Set scrolling region (t/b: top+bottom).
             void scr(fifo& queue)
@@ -1253,7 +1267,7 @@ namespace netxs::ui
                 {
                     n -= end - coord.y;
                     coord.y = end;
-                    scl(-n);
+                    scroll_region(-n);
                 }
                 else
                 {
