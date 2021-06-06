@@ -62,9 +62,12 @@ namespace netxs::console
     EVENT_BIND(e2::render::any, face)
         EVENT_BIND(e2::render::prerender, face)
 
-    EVENT_BIND(e2::quit, const view)
     EVENT_BIND(e2::dtor, const id_t)
-    EVENT_BIND(e2::cout, const text)
+
+    EVENT_BIND(e2::command::any, iota)
+        EVENT_BIND(e2::command::quit, const view)
+        EVENT_BIND(e2::command::cout, const text)
+        EVENT_BIND(e2::command::custom, iota)
 
     EVENT_BIND(e2::size::any, twod)
         EVENT_BIND(e2::size::set, twod)
@@ -3496,7 +3499,7 @@ namespace netxs::console
             using skill::boss,
                   skill::memo;
             constexpr static e2::type EXCUSE_MSG = e2::hids::mouse::any;
-            constexpr static e2::type QUIT_MSG   = e2::quit;
+            constexpr static e2::type QUIT_MSG   = e2::command::quit;
             //todo unify
             constexpr static int LIMIT = 60 * 10; // watch: Idle timeout in seconds.
 
@@ -3870,13 +3873,16 @@ namespace netxs::console
             iota transit;
             cell c1;
             cell c2;
+            bool fake = faux;
 
             //todo use lambda
             void work(iota transit)
             {
                 auto brush = boss.base::color();
                 brush.avg(c1, c2, transit);
+                fake = true;
                 boss.base::color(brush);
+                fake = faux;
                 boss.base::deface();
             }
 
@@ -3891,6 +3897,15 @@ namespace netxs::console
                 transit{ 0 }
             {
                 boss.base::color(c1.fgc(), c1.bgc());
+                boss.SUBMIT(e2::release, e2::form::prop::brush, brush)
+                {
+                    if (!fake)
+                    {
+                        c1.fgc(brush.fgc());
+                        c1.bgc(brush.bgc());
+                        work(transit);
+                    }
+                };
                 boss.SUBMIT_T(e2::release, e2::form::state::mouse, memo, active)
                 {
                     robo.pacify();
@@ -4464,7 +4479,7 @@ namespace netxs::console
                     synch.cancel();
                 }
             };
-            SUBMIT(e2::release, e2::quit, reason)
+            SUBMIT(e2::release, e2::command::quit, reason)
             {
                 if (close)
                 {
@@ -5534,7 +5549,7 @@ again:
                     log("gate: title changed to '", title, ansi::nil() + "'");
                     conio.output(ansi::tag(title));
                 };
-                SUBMIT_T(e2::release, e2::cout, token, extra_data)
+                SUBMIT_T(e2::release, e2::command::cout, token, extra_data)
                 {
                     paint.append(extra_data);
                 };

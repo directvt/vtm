@@ -164,13 +164,9 @@ namespace netxs::events
             //_rect       = any | (6 << 0), // rectangle modification event group
             _debug      = any | (6 << 0), // return info struct with telemtry data
             _config     = any | (7 << 0), // set/notify/get/global_set configuration data (e2::preview/e2::release/e2::request/e2::general)
-            quit        = any | (8 << 0), // return bye msg //errcode (arg: const view)
+            _command    = any | (8 << 0), // exec UI command (arg: iota)
             dtor        = any | (9 << 0), // Notify about object destruction, release only (arg: const id_t)
-
-            //todo unify
             //radio       = any | (10<< 0), // return active radio id_t (arg: const id_t)
-            cout        = any | (10<< 0), // Append extra data to output (arg: const text)
-
             _bindings   = any | (11<< 0), // Dynamic Data Bindings.
             _render     = any | (12<< 0), // release: UI-tree rendering (arg: face).
             postrender  = any | (13<< 0), // release: UI-tree post-rendering (arg: face).
@@ -642,12 +638,18 @@ namespace netxs::events
             };};
         };
         struct data { enum : type {
-                any = e2::_data,                    // return digest
+                any = e2::_data,
                 changed     = any | (1 << _level0), // return digest
                 request     = any | (2 << _level0),
                 disable     = any | (3 << _level0),
                 flush       = any | (4 << _level0),
                 text        = any | (5 << _level0), // release: signaling with a text string (args: const text).
+        };};
+        struct command { enum : type {
+                any = e2::_command,
+                quit        = any | (1 << _level0), // return bye msg //errcode (arg: const view)
+                cout        = any | (2 << _level0), // Append extra data to output (arg: const text)
+                custom      = any | (3 << _level0), // Custom command (arg: cmd_id iota)
         };};
     };
 

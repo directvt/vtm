@@ -20,10 +20,6 @@
 // Highlight region ownership.
 //#define REGIONS
 
-// Show codepoint by the "Logs".
-#define SHOW_CPOINTS faux
-//#define SHOW_CPOINTS true
-
 #pragma clang diagnostic ignored "-Wunused-variable"
 #pragma clang diagnostic ignored "-Wunused-function"
 
@@ -212,7 +208,8 @@ class post_logs
     pro::caret caret{ *this }; // post_logs: Text caret controller.
 
     text label;
-    hook token;
+    subs token;
+    bool itsme = faux;
 
     struct log_parser
         : public bell
@@ -221,8 +218,7 @@ class post_logs
         ansi::esc             yield;
         netxs::mt_queue<text> queue;
         bool                  alive = true;
-        bool show_codepoints = SHOW_CPOINTS; //todo unify
-
+        bool show_codepoints = faux;
         ~log_parser()
         {
             alive = faux;
@@ -240,7 +236,15 @@ class post_logs
             };
             input = std::thread{ [&]() { worker(); } };
         }
-
+        void enable_codepoints(bool s)
+        {
+            show_codepoints = s;
+            auto msg = ansi::bgc(s ? greendk : yellowdk).fgc(whitelt)
+                + " show codepoints: "
+                + (s ? "on":"off" ) + "\n" + ansi::nil();
+            SIGNAL(e2::general, e2::debug::logs, msg);
+            SIGNAL(e2::release, e2::command::custom, s ? 1 : 2);
+        }
         void worker()
         {
             while (alive)
@@ -323,6 +327,13 @@ class post_logs
 
         caret.coor(new_cp);
     }
+    void clear()
+    {
+        topic.clear();
+        topic += "cleared...\n";
+        topic += label;
+        update();
+    }
 
 public:
     sptr<log_parser> worker = netxs::shared_singleton<log_parser>();
@@ -347,12 +358,38 @@ public:
 
         SUBMIT(e2::release, e2::hids::mouse::button::dblclick::right, gear)
         {
-            topic.clear();
-            topic += "cleared...\n";
-            topic += label;
-            update();
+            clear();
             gear.dismiss();
         };
+        broadcast->SUBMIT(e2::request, e2::command::custom, status)
+        {
+            switch(status)
+            {
+                case 1:
+                    status = worker->show_codepoints ? 1 : 2;
+                    break;
+                default:
+                    break;
+            }
+        };
+        broadcast->SUBMIT(e2::preview, e2::command::custom, cmd_id)
+        {
+            switch(cmd_id)
+            {
+                case 0:
+                    clear();
+                    break;
+                case 1:
+                case 2:
+                    itsme = true;
+                    worker->enable_codepoints(cmd_id == 1 ? true : faux);
+                    itsme = faux;
+                    break;
+                default:
+                    break;
+            }
+        };
+        broadcast->SIGNAL(e2::release, e2::command::custom, worker->show_codepoints ? 1 : 2);
         SUBMIT(e2::preview, e2::size::set, newsize)
         {
             caret.coor(flow::cp());
@@ -362,7 +399,10 @@ public:
             topic += utf8;
             update();
         };
-
+        worker->SUBMIT_T(e2::release, e2::command::custom, token, status)
+        {
+            broadcast->SIGNAL(e2::release, e2::command::custom, status);
+        };
         worker->SUBMIT_T(e2::release, e2::debug::parsed, token, parsed_page)
         {
             topic += parsed_page;
@@ -1210,7 +1250,7 @@ utility like ctags is used to locate the definitions.
         X(CommandPrompt, "cmd Command Prompt"       ) \
         X(Bash         , "Bash/Zsh/CMD"             ) \
         X(Far          , "Far Manager"              ) \
-        X(VTM          , "vtm Recursive connection" ) \
+        X(VTM          , "vtm (recursively)"        ) \
         X(MC           , "mc  Midnight Commander"   ) \
         X(Truecolor    , "RGB Truecolor image"      ) \
         X(RefreshRate  , "fps Refresh rate"         ) \
@@ -1929,14 +1969,43 @@ utility like ctags is used to locate the definitions.
                 }
                 case Logs:
                 {
-                    window->plugin<pro::title>("Logs \nVT monitoring tool")
+                    window->plugin<pro::title>("Logs \nDebug output console")
                           ->plugin<pro::track>()
                           ->plugin<pro::align>()
                           ->plugin<pro::acryl>()
                           ->plugin<pro::cache>();
                     auto object = window->attach<ui::fork>(axis::Y)
                                         ->colors(whitelt, term_menu_bg);
-                        auto menu = object->attach<slot::_1>(main_menu())
+                        auto menu = object->attach<slot::_1>(custom_menu(
+                            std::list{
+                                    std::pair<text, std::function<void(ui::pads&)>>{ "Codepoint" + ansi::und(true) + "s" + ansi::nil(),
+                                    [](ui::pads& boss)
+                                    {
+                                        boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
+                                        {
+                                            iota status = 1;
+                                            boss.base::broadcast->SIGNAL(e2::request, e2::command::custom, status);
+                                            boss.base::broadcast->SIGNAL(e2::preview, e2::command::custom, status == 2 ? 1/*show*/ : 2/*hide*/);
+                                            gear.dismiss();
+                                            gear.nodbl = true;
+                                        };
+                                        boss.base::broadcast->SUBMIT(e2::release, e2::command::custom, status)
+                                        {
+                                            //todo unify, get boss base colors, don't use x3
+                                            boss.color(status == 1 ? 0xFF00ff00 : x3.fgc(), x3.bgc());
+                                        };
+                                    }},
+                                    std::pair<text, std::function<void(ui::pads&)>>{ "C" + ansi::und(true) + "l" + ansi::nil() + "ear",
+                                    [](ui::pads& boss)
+                                    {
+                                        boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
+                                        {
+                                            boss.base::broadcast->SIGNAL(e2::preview, e2::command::custom, 0);
+                                            gear.dismiss();
+                                            gear.nodbl = true;
+                                        };
+                                    }},
+                                }))
                                           ->plugin<pro::mover>(window);
                         auto layers = object->attach<slot::_2, ui::cake>();
                             auto scroll = layers->attach<ui::rail>()
@@ -2049,7 +2118,7 @@ utility like ctags is used to locate the definitions.
                         auto data = canvas.meta(location);
                         if (data.length())
                         {
-                            gate.SIGNAL(e2::release, e2::cout, ansi::setbuf(data));
+                            gate.SIGNAL(e2::release, e2::command::cout, ansi::setbuf(data));
                         }
                     }
                 }
@@ -2076,8 +2145,20 @@ utility like ctags is used to locate the definitions.
             sptr<registry_t> menu_list_ptr;
             world->SIGNAL(e2::request, e2::bindings::list::apps, menu_list_ptr);
             auto& menu_list = *menu_list_ptr;
-            iota i = objs::count;
-            while (i--) menu_list[i];
+            #ifdef DEMO
+                iota i = objs::count;
+                while (i--) menu_list[i];
+            #else
+                #ifdef _WIN32
+                    menu_list[objs::CommandPrompt];
+                #else
+                    menu_list[objs::Term];
+                #endif
+                menu_list[objs::Logs];
+                menu_list[objs::View];
+                menu_list[objs::VTM];
+                menu_list[objs::RefreshRate];
+            #endif
         }
 
         #ifdef DEMO

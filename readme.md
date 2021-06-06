@@ -53,15 +53,9 @@ cmake ../src -DEXECUTABLE_OUTPUT_PATH=".." -DCMAKE_BUILD_TYPE=Release "-GVisual 
 ### macOS
 
 Build-time dependencies: `Xcode 12.x series`  
-Xcode project settings: `./src/project.pbxproj`
+Xcode project folder: `./VTM/vtm.xcodeproj`
 
-```
- ...
-buildSettings = {
- ...
-  CLANG_CXX_LANGUAGE_STANDARD = "c++2a";
- ...
-```
+To build this project, use `Xcode` to open the project folder and go to the menu `Product` -> `Build`.
 
 # Releases
 
@@ -98,8 +92,8 @@ double `LeftClick`    | Menu: Create new window<br>Window: Maximize/restore wind
 # Built-in Applications
 
 - `▀▄ Term` Terminal emulator
-- `▀▄ Logs` VT monitoring tool
-- `▀▄ View` Desktop named regions
+- `▀▄ Logs` Debug output console
+- `▀▄ View` Workspace navigation helper
 - `▀▄ Task` Task manager (desktopio) _(not ready)_
 - `▀▄ Hood` Configuration utility _(not ready)_
 - `▀▄ Info` Documentation browser _(not ready)_
@@ -139,7 +133,7 @@ double `LeftClick`    | Menu: Create new window<br>Window: Maximize/restore wind
       `CCC_RTL`    | `CSI` 13 : n `p`                 | Set text right-to-left mode, _default is Off_<br>`n = 0` default<br>`n = 1` On<br>`n = 2` Off
 
  - `▀▄ Logs`
-  - Reset by double `RightClick`
+  - Debug output console. Use double `RightClick` to clear scrollback.
 
  - `▀▄ View`
   - Serves for quick navigation through the desktop space using cyclic selection (left click on group title) in the `View` group on the taskbar.
