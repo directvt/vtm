@@ -1808,6 +1808,7 @@ utility like ctags is used to locate the definitions.
                                         ->colors(whitelt, term_menu_bg);
                         auto menu = object->attach<slot::_1>(custom_menu(
                             std::list{
+                                #ifdef DEMO
                                     std::pair<text, std::function<void(ui::pads&)>>{ "Test" + ansi::und(true) + "1" + ansi::nil(),
                                     [](ui::pads& boss)
                                     {
@@ -1852,6 +1853,21 @@ utility like ctags is used to locate the definitions.
                                             gear.nodbl = true;
                                         };
                                     }},
+                                #endif
+                                #ifdef PROD
+                                    std::pair<text, std::function<void(ui::pads&)>>{ "Clear",
+                                    [](ui::pads& boss)
+                                    {
+                                        boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
+                                        {
+                                            auto data = "\033[2J";
+                                            //boss.BROADCAST(e2::release, e2::command::text, data);
+                                            boss.base::broadcast->SIGNAL(e2::preview, e2::data::text, data);
+                                            gear.dismiss();
+                                            gear.nodbl = true;
+                                        };
+                                    }},
+                                #endif
                                     std::pair<text, std::function<void(ui::pads&)>>{ ansi::und(true) + "R" + ansi::nil() + "eset",
                                     [](ui::pads& boss)
                                     {
@@ -1865,20 +1881,6 @@ utility like ctags is used to locate the definitions.
                                             gear.nodbl = true;
                                         };
                                     }},
-                                    #ifdef PROD
-                                        std::pair<text, std::function<void(ui::pads&)>>{ ansi::und(true) + "C" + ansi::nil() + "ommit",
-                                        [](ui::pads& boss)
-                                        {
-                                            boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
-                                            {
-                                                auto data = utf::repeat("\n", 30) + utf::repeat("-", 80) + "\n"; // it is just a test.
-                                                //boss.BROADCAST(e2::release, e2::command::text, data);
-                                                boss.base::broadcast->SIGNAL(e2::release, e2::data::text, data);
-                                                gear.dismiss();
-                                                gear.nodbl = true;
-                                            };
-                                        }},
-                                    #endif
                                 }))
                                           ->plugin<pro::mover>(window);
 
@@ -2156,8 +2158,8 @@ utility like ctags is used to locate the definitions.
                 #endif
                 menu_list[objs::Logs];
                 menu_list[objs::View];
-                menu_list[objs::VTM];
                 menu_list[objs::RefreshRate];
+                menu_list[objs::VTM];
             #endif
         }
 

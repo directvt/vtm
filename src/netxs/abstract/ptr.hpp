@@ -86,6 +86,38 @@ namespace netxs
 
         return  thing;
     }
+
+    namespace ptr
+    {
+        // ptr: Move block to the specified destination. If begin_it > end_it decrement is used.
+        template<class SRC, class DST, class P>
+        void move_block(SRC begin_it, SRC end_it, DST dest_it, P move_proc)
+        {
+            if (auto direction = end_it - begin_it)
+            {
+                if (direction > 0)
+                {
+                    do
+                    {
+                        move_proc(*begin_it, *dest_it);
+                        ++begin_it;
+                        ++dest_it;
+                    }
+                    while(begin_it != end_it);
+                }
+                else
+                {
+                    do
+                    {
+                        move_proc(*begin_it, *dest_it);
+                        --begin_it;
+                        --dest_it;
+                    }
+                    while(begin_it != end_it);
+                }
+            }
+        }
+    }
 }
 
 #endif // NETXS_PTR_HPP

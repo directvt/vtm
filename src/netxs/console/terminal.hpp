@@ -54,13 +54,13 @@ namespace netxs::ui
                 cur_size = 0;
                 cur_type = type::leftside;
             }
-            void move(line&& p)
+            void resite(line& p)
             {
                 cur_size = p.cur_size;
                 cur_type = p.cur_type;
                 p.cur_size = 0;
                 p.cur_type = type::leftside;
-                para::move(std::forward<para>(p));
+                para::resite(p);
             }
         };
 
@@ -216,8 +216,8 @@ namespace netxs::ui
             }
             else return 1;
         }
-        // rods: Return 0-based scroll region (pair).
-        auto get_scroll_limits()
+        // rods: Return 0-based scroll region pair, inclusive.
+        auto get_scroll_region()
         {
             auto top = sctop ? sctop - 1 : 0;
             auto end = scend ? scend - 1 : panel.y - 1;
@@ -225,15 +225,8 @@ namespace netxs::ui
             top = std::clamp(top, 0, end);
             return std::pair{ top, end };
         }
-        auto using_regions()
-        {
-            return sctop || scend;
-        }
-        void clear_regions()
-        {
-            sctop = scend = 0;
-        }
-        void set_regions(iota top, iota bottom)
+        // rods: Set the scrolling region using 1-based top and bottom. Use 0 to reset.
+        void set_scroll_region(iota top, iota bottom)
         {
             sctop = top;
             scend = bottom;
@@ -243,10 +236,10 @@ namespace netxs::ui
             }
             cache.resize(std::max(0, top - 1));
         }
-        auto inside_scroll_region()
+        // rods: Return true if the scrolling region is set.
+        auto scroll_region_used()
         {
-            auto[top, end] = get_scroll_limits();
-            return coord.y >= top && coord.y <= end;
+            return scend || sctop;
         }
         void align_basis()
         {
@@ -321,9 +314,9 @@ namespace netxs::ui
             {
                 //Scroll current region if needed (same as in scrollbuffer::dn())
                 auto n = new_height - old_height;
-                auto[top, end] = get_scroll_limits();
-                if (n > 0 && using_regions() && coord.y <= end
-                                             && coord.y + n > end)
+                auto[top, end] = get_scroll_region();
+                if (n > 0 && scroll_region_used() && coord.y <= end
+                                                  && coord.y + n > end)
                 {
                     n -= end - coord.y;
                     coord.y = end;
@@ -406,7 +399,7 @@ namespace netxs::ui
         void resize(iota newsize, iota grow_by = 0)
         {
             batch.resize<BOTTOM_ANCHORED>(newsize, grow_by);
-            clear_regions();
+            set_scroll_region(0, 0);
             align_basis();
         }
         void output(face& canvas)
@@ -503,7 +496,7 @@ namespace netxs::ui
         void rebuild_upto_id(iota top_id)
         {
             auto tail = batch.end();
-            auto head = tail - (batch.length() - get_line_index_by_id(top_id));
+            auto head = tail - (batch.length() - std::max(0, get_line_index_by_id(top_id)));
             do
             {
                 auto& line =*--tail;
@@ -537,93 +530,84 @@ namespace netxs::ui
             }
             return yield;
         }
-        // rods: Scroll current region
-        void scroll_region(iota n)
+        // rods: Dissect auto-wrapped lines at the specified iterator.
+        void dissect(buff::iter at_it)
         {
-            auto[top, end] = get_scroll_limits();
-            auto scroll_top_index = basis + top;
-            auto scroll_end_index = basis + end;
-            auto bossid = batch[scroll_top_index].bossid;
-            auto height = end - top + 1;
-            if (scroll_end_index >= batch.length())
+
+        }
+        // rods: Move block to the specified destination. If begin_it > end_it decrement is used.
+        template<class SRC, class DST>
+        void move_to(SRC begin_it, SRC end_it, DST dest_it)
+        {
+            ptr::move_block(begin_it, end_it, dest_it, [](auto& s, auto& d) { d.resite(s); });
+        }
+        template<class SRC>
+        void zeroise(SRC begin_it, SRC end_it)
+        {
+            while(begin_it != end_it)
             {
-                auto delta = scroll_end_index - (batch.length() - 1);
-                rods::add_lines(delta);
+                (*begin_it).wipe(brush.spare);
+                ++begin_it;
             }
-            if (n > 0) // Scroll down (move text down).
+        }
+        // rods: Shift by n the scroll region.
+        void scroll_region(iota n, bool push_to_scrollback = true)
+        {
+            if (n)
             {
-                n = std::min(n, height);
-                // Move down by n all below the current one by one from the bottom.
-                auto dst = batch.begin() + scroll_end_index;
-                auto src = dst - n;
-                auto s = height - n;
-                while(s--)
+                auto[top, end] = get_scroll_region();
+                auto all_it = batch.begin() + basis;
+                auto end_it = all_it + end;
+                auto top_it = all_it + top;
+                auto bossid = all_it->bossid;
+                auto height = end - top + 1;
+                auto footer = batch.end() - end_it - 1;
+                if (footer < 0)
                 {
-                    (*dst--).move(std::move(*src--));
+                    rods::add_lines(-footer);
+                    footer = 0;
                 }
-                // Clear n first lines.
-                auto head = batch.begin() + scroll_top_index;
-                auto tail = head + n;
-                while(head != tail)
+                if (n > 0) // Scroll down (move down the text block).
                 {
-                    (*head++).wipe(brush.spare);
+                    n = std::min(n, height);
+                    auto a = top_it - 1;
+                    auto b = end_it - n;
+                    dissect(b + 1); dissect(top_it);
+                    move_to(b, a, end_it);
+                    zeroise(top_it, top_it + n);
                 }
+                else // Scroll up (move up the text block).
+                {
+                    n = std::min(-n, height);
+                    if (push_to_scrollback)
+                    {
+                        if (top)
+                        {
+                            auto buffer = cache.begin();
+                            dissect(all_it);
+                            dissect(top_it);
+                            dissect(top_it + n);
+                            move_to(all_it, top_it,       buffer    ); // Move fixed header block to the temporary cache.
+                            move_to(top_it, top_it + n,   all_it    ); // Move up by the "top" the first n lines of scrolling region.
+                            move_to(buffer, buffer + top, all_it + n); // Move back fixed header block from the temporary cache.
+                        }
+                        add_lines(n);
+                        auto bottom = batch.end() - (n + 1);
+                        dissect(bottom - footer + 1);
+                        move_to(bottom, bottom - footer, bottom + n); // Move down footer block by n.
+                    }
+                    else
+                    {
+                        auto a = top_it + n;
+                        auto b = end_it + 1;
+                        dissect(a); dissect(b);
+                        move_to(a, b, top_it);
+                        zeroise(b - n, b);
+                    }
+                }
+                rebuild_upto_id(bossid);
+                set_coord();
             }
-            else if (n < 0) // Scroll up (move text up).
-            {
-                n = std::min(-n, height);
-                if (auto header_size = std::max(0, top - 1))
-                {
-                    // Move fixed header block to the temporary cache.
-                    {
-                        auto dst = cache.begin();
-                        auto src = batch.begin() + basis;
-                        auto s = header_size;
-                        while(s--)
-                        {
-                            (*dst++).move(std::move(*src++));
-                        }
-                    }
-                    // Move first n lines of scrolling region up by header_size.
-                    {
-                        auto src = batch.begin() + scroll_top_index;
-                        auto dst = batch.begin() + basis;
-                        auto s = n;
-                        while(s--)
-                        {
-                            (*dst++).move(std::move(*src++));
-                        }
-                    }
-                    // Move back fixed header block from the temporary cache.
-                    {
-                        auto src = cache.begin();
-                        auto dst = batch.begin() + basis + n;
-                        auto s = header_size;
-                        while(s--)
-                        {
-                            (*dst++).move(std::move(*src++));
-                        }
-                    }
-                }
-                // Move footer block down by n.
-                auto s = batch.length() - 1 - scroll_end_index;
-                rods::add_lines(n);
-                // Move down by n all below the current one by one from the bottom.
-                auto dst = batch.end() - 1;
-                auto src = dst - n;
-                while(s--)
-                {
-                    (*dst--).move(std::move(*src--));
-                }
-                // Clear n lines before the footer block.
-                s = n;
-                while(s--)
-                {
-                    (*dst--).wipe(brush.spare);
-                }
-            }
-            rebuild_upto_id(bossid);
-            set_coord();
         }
     };
 
@@ -1067,7 +1051,7 @@ namespace netxs::ui
                 coord = saved;
                 set_coord();
             }
-            // scrollbuff: CSI n T/S  Scroll down/up, scrolled out lines are lost.
+            // scrollbuff: CSI n T/S  Scroll down/up, scrolled up lines are pushed to the scrollback buffer.
             void scl(iota n)
             {
                 finalize();
@@ -1080,11 +1064,12 @@ namespace netxs::ui
                 * Inserts n lines at the current row and removes n lines at the scroll bottom.
                 */
                 finalize();
-                if (n > 0 && inside_scroll_region())
+                auto[top, end] = get_scroll_region();
+                if (n > 0 && coord.y >= top && coord.y <= end)
                 {
                     auto old_top = sctop;
                     sctop = coord.y + 1;
-                    scroll_region(n);
+                    scroll_region(n, faux);
                     sctop = old_top;
                     coord.x = 0;
                     set_coord();
@@ -1097,11 +1082,12 @@ namespace netxs::ui
                 * Deletes n lines at the current row and add n lines at the scroll bottom.
                 */
                 finalize();
-                if (n > 0 && inside_scroll_region())
+                auto[top, end] = get_scroll_region();
+                if (n > 0 && coord.y >= top && coord.y <= end)
                 {
                     auto old_top = sctop;
                     sctop = coord.y + 1;
-                    scroll_region(-n);
+                    scroll_region(-n, faux);
                     sctop = old_top;
                     coord.x = 0;
                     set_coord();
@@ -1116,7 +1102,7 @@ namespace netxs::ui
                  * - one line scroll down if caret is on the top line of scroll region.
                  */
                 finalize();
-                auto[top, end] = get_scroll_limits();
+                auto[top, end] = get_scroll_region();
                 if (coord.y != top)
                 {
                     coord.y--;
@@ -1129,7 +1115,7 @@ namespace netxs::ui
             {
                 auto top = queue(0);
                 auto end = queue(0);
-                set_regions(top, end);
+                set_scroll_region(top, end);
             }
             // scrollbuff: CSI n @  Insert n blanks after cursor. Don't change cursor pos.
             void ich(iota n)
@@ -1311,8 +1297,8 @@ namespace netxs::ui
                 if (batch->style.wrapln == wrap::on
                     && coord.x == panel.x) coord.x = 0;
                 // Scroll regions up if coord.y == scend and scroll region are defined.
-                auto[top, end] = get_scroll_limits();
-                if (n > 0 && using_regions() && coord.y <= end
+                auto[top, end] = get_scroll_region();
+                if (n > 0 && scroll_region_used() && coord.y <= end
                                              && coord.y + n > end)
                 {
                     n -= end - coord.y;
@@ -1675,6 +1661,11 @@ namespace netxs::ui
             #ifdef PROD
             form::keybd.accept(true); // Subscribe to keybd offers.
             #endif
+            base::broadcast->SUBMIT_T(e2::preview, e2::data::text, bell::tracker, data)
+            {
+                reset_scroll_pos();
+                input_hndl(data);
+            };
             base::broadcast->SUBMIT_T(e2::release, e2::data::text, bell::tracker, data)
             {
                 reset_scroll_pos();

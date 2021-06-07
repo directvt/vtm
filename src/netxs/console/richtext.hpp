@@ -885,8 +885,8 @@ namespace netxs::console
             wipe(brush);
             return operator += (utf8);
         }
-
-        void move(para&& p)
+        // para: Move all from p.
+        void resite(para& p)
         {
             width = p.width;
             caret = p.caret;
