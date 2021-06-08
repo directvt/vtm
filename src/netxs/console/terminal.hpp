@@ -307,7 +307,8 @@ namespace netxs::ui
             cur_line1.style = style;
             auto old_height = line_height(cur_line1);
                               cur_line1.cook();
-                              cur_line1.trim(brush.spare, max_line_len);
+                              //todo revise
+                              //cur_line1.trim(brush.spare, max_line_len);
             auto new_height = line_height(cur_line1);
             auto caret = batch.get();
             if (new_height > old_height)
@@ -447,7 +448,7 @@ namespace netxs::ui
             {
                 auto required_len = (cur_index - mas_index) * panel.x + coord.x; // todo optimize
                 auto& line = *head;
-                line.trim_to(required_len);
+                line.trimto(required_len);
                 mas_index++;
             }
             while(head++ != tail);
@@ -500,6 +501,7 @@ namespace netxs::ui
             do
             {
                 auto& line =*--tail;
+                line.trim(brush.spare, max_line_len);
                 auto below = tail + (line_height(line) - 1);
                 auto over = below - batch.end();
                 if (over >= 0) add_lines(++over);
@@ -531,9 +533,30 @@ namespace netxs::ui
             return yield;
         }
         // rods: Dissect auto-wrapped lines at the specified iterator.
-        void dissect(buff::iter at_it)
+        void dissect(buff::iter line_iter)
         {
-
+            auto& trim_line = *line_iter;
+            if (trim_line.bossid != trim_line.selfid)
+            {
+                auto mas_index = get_line_index_by_id(trim_line.bossid);
+                auto max_width = iota{ 0 };
+                auto head_iter = batch.begin() + mas_index;
+                do
+                {
+                    auto& line_inst = *--line_iter;
+                    max_width += panel.x;
+                    if (line_inst.style.wrapln == wrap::on)
+                    {
+                        auto remainder = line_inst.length() - max_width;
+                        if (remainder > 0)
+                        {
+                            trim_line.insert(0, line_inst.substr(max_width, remainder));
+                            line_inst.trimto(max_width);
+                        }
+                    }
+                }
+                while (line_iter != head_iter);
+            }
         }
         // rods: Move block to the specified destination. If begin_it > end_it decrement is used.
         template<class SRC, class DST>
@@ -572,7 +595,9 @@ namespace netxs::ui
                     n = std::min(n, height);
                     auto a = top_it - 1;
                     auto b = end_it - n;
-                    dissect(b + 1); dissect(top_it);
+                    dissect(b + 1);
+                    dissect(top_it);
+                    if (footer) dissect(end_it + 1);
                     move_to(b, a, end_it);
                     zeroise(top_it, top_it + n);
                 }
@@ -584,7 +609,7 @@ namespace netxs::ui
                         if (top)
                         {
                             auto buffer = cache.begin();
-                            dissect(all_it);
+                            if (basis) dissect(all_it);
                             dissect(top_it);
                             dissect(top_it + n);
                             move_to(all_it, top_it,       buffer    ); // Move fixed header block to the temporary cache.
@@ -600,13 +625,13 @@ namespace netxs::ui
                     {
                         auto a = top_it + n;
                         auto b = end_it + 1;
-                        dissect(a); dissect(b);
+                        dissect(a);
+                        if (footer) dissect(b);
                         move_to(a, b, top_it);
                         zeroise(b - n, b);
                     }
                 }
                 rebuild_upto_id(bossid);
-                set_coord();
             }
         }
     };
@@ -1056,6 +1081,7 @@ namespace netxs::ui
             {
                 finalize();
                 scroll_region(n);
+                set_coord();
             }
             // scrollbuff: CSI n L  Insert n lines. Place caret to the begining of the current.
             void il(iota n)
@@ -1106,9 +1132,9 @@ namespace netxs::ui
                 if (coord.y != top)
                 {
                     coord.y--;
-                    set_coord();
                 }
                 else scroll_region(1);
+                set_coord();
             }
             // scrollbuff: CSI t;b r - Set scrolling region (t/b: top+bottom).
             void scr(fifo& queue)
@@ -1308,8 +1334,8 @@ namespace netxs::ui
                 else
                 {
                     coord.y += n;
-                    set_coord();
                 }
+                set_coord();
             }
             // scrollbuff: '\r'  Go to home of visible line instead of home of para.
             void home()

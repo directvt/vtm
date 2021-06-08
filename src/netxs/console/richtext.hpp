@@ -767,8 +767,8 @@ namespace netxs::console
         constexpr
         shot(core const& basis, iota begin, iota piece)
             : basis{ basis },
-              start{ std::max(begin, 0) },
-              width{ std::min(std::max(piece, 0), basis.size().x - start) }
+              start{ std::max(0, begin) },
+              width{ std::min(std::max(0, piece), basis.size().x - start) }
         {
             if (basis.size().x <= start)
             {
@@ -1071,7 +1071,7 @@ namespace netxs::console
             else caret = new_pos; 
         }
 
-        void trim_to(iota max_width)
+        void trimto(iota max_width)
         {
             if (length() > max_width)
             {
@@ -1143,6 +1143,23 @@ namespace netxs::console
         {
             brush.set(c);
             return *this;
+        }
+        //todo make it 2D
+        // para: Insert fragment at the specified position.
+        void insert(iota at, shot const& fragment)
+        {
+            auto& line = *lyric;
+            auto  size = fragment.length();
+            auto  full = at + size;
+            if   (full > length()) line.crop(full);
+            auto& data = line.pick();
+            auto  head = data.begin() + at;
+            auto  tail = head + size;
+            auto  frag = fragment.data();
+            while(head != tail)
+            {
+                 *head++ = *frag++;
+            }
         }
     };
 
