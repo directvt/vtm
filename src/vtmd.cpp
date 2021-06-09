@@ -1,7 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#define MONOTTY_VER "Monotty Desktopio Preview v0.3.16"
+#define MONOTTY_VER "Monotty Desktopio v0.4.0"
 // Autostart demo apps.
 //#define DEMO
 // Enable keyboard input and disable exit by single Esc.
@@ -1253,7 +1253,7 @@ utility like ctags is used to locate the definitions.
         X(VTM          , "vtm (recursively)"        ) \
         X(MC           , "mc  Midnight Commander"   ) \
         X(Truecolor    , "RGB Truecolor image"      ) \
-        X(RefreshRate  , "fps Refresh rate"         ) \
+        X(RefreshRate  , "FPS Refresh rate"         ) \
         X(Strobe       , "Strobe"                   ) \
         X(Test         , "Test"                     ) \
         X(Empty        , "Test Empty window"        )
@@ -1441,8 +1441,8 @@ utility like ctags is used to locate the definitions.
                           ->plugin<pro::cache>();
                     auto object0 = window->attach<ui::fork>(axis::Y)
                                          ->colors(whitelt, 0xA0db3700);
-                        auto menu = object0->attach<slot::_1>(main_menu())
-                                           ->plugin<pro::mover>(window);
+                        auto menu = object0->attach<slot::_1>(custom_menu({}))
+                                          ->plugin<pro::mover>(window);
                         auto test_stat_area = object0->attach<slot::_2, ui::fork>(axis::Y);
                             auto layers = test_stat_area->attach<slot::_1, ui::cake>();
                                 auto scroll = layers->attach<ui::rail>()
@@ -1522,7 +1522,7 @@ utility like ctags is used to locate the definitions.
                           ->plugin<pro::cache>();
                     auto object = window->attach<ui::fork>(axis::Y)
                                         ->colors(whitelt, 0xA01f0fc4);
-                        auto menu = object->attach<slot::_1>(main_menu())
+                        auto menu = object->attach<slot::_1>(custom_menu({}))
                                           ->plugin<pro::mover>(window);
                         auto test_stat_area = object->attach<slot::_2, ui::fork>(axis::Y);
                             auto layers = test_stat_area->attach<slot::_1, ui::cake>();
@@ -1711,7 +1711,7 @@ utility like ctags is used to locate the definitions.
                           ->plugin<pro::cache>();
                     auto object = window->attach<ui::fork>(axis::Y)
                                         ->colors(whitelt, term_menu_bg);
-                        auto menu = object->attach<slot::_1>(main_menu())
+                        auto menu = object->attach<slot::_1>(custom_menu({}))
                                           ->plugin<pro::mover>(window);
                         auto layers = object->attach<slot::_2, ui::cake>()
                                             ->plugin<pro::limit>(dot_11, twod{ 400,200 });
@@ -1748,7 +1748,7 @@ utility like ctags is used to locate the definitions.
                           ->plugin<pro::cache>();
                     auto object = window->attach<ui::fork>(axis::Y)
                                         ->colors(whitelt, term_menu_bg);
-                        auto menu = object->attach<slot::_1>(main_menu())
+                        auto menu = object->attach<slot::_1>(custom_menu({}))
                                           ->plugin<pro::mover>(window);
                         auto layers = object->attach<slot::_2, ui::cake>()
                                             ->plugin<pro::limit>(dot_11, twod{ 400,200 });
@@ -1767,7 +1767,7 @@ utility like ctags is used to locate the definitions.
                           ->plugin<pro::cache>();
                     auto object = window->attach<ui::fork>(axis::Y)
                                         ->colors(whitelt, term_menu_bg);
-                        auto menu = object->attach<slot::_1>(main_menu())
+                        auto menu = object->attach<slot::_1>(custom_menu({}))
                                           ->plugin<pro::mover>(window);
                         auto layers = object->attach<slot::_2, ui::cake>()
                                             ->plugin<pro::limit>(dot_11, twod{ 400,200 });
@@ -1917,7 +1917,32 @@ utility like ctags is used to locate the definitions.
                           ->plugin<pro::cache>();
                     auto object = window->attach<ui::fork>(axis::Y)
                                         ->colors(whitelt, term_menu_bg);
-                        auto menu = object->attach<slot::_1>(main_menu())
+                        auto menu = object->attach<slot::_1>(custom_menu(
+                            std::list{
+                                    std::pair<text, std::function<void(ui::pads&)>>{ "C" + ansi::und(true) + "l" + ansi::nil() + "ear",
+                                    [](ui::pads& boss)
+                                    {
+                                        boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
+                                        {
+                                            auto data = "\033[2J";
+                                            //boss.BROADCAST(e2::release, e2::command::text, data);
+                                            boss.base::broadcast->SIGNAL(e2::preview, e2::data::text, data);
+                                            gear.dismiss();
+                                            gear.nodbl = true;
+                                        };
+                                    }},
+                                    std::pair<text, std::function<void(ui::pads&)>>{ "R" + ansi::und(true) + "e" + ansi::nil() + "set",
+                                    [](ui::pads& boss)
+                                    {
+                                        boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
+                                        {
+                                            auto data = "\033[3J";
+                                            boss.base::broadcast->SIGNAL(e2::preview, e2::data::text, data);
+                                            gear.dismiss();
+                                            gear.nodbl = true;
+                                        };
+                                    }},
+                                }))
                                           ->plugin<pro::mover>(window);
                         auto term_stat_area = object->attach<slot::_2, ui::fork>(axis::Y);
                             auto layers = term_stat_area->attach<slot::_1, ui::cake>()
@@ -1942,7 +1967,32 @@ utility like ctags is used to locate the definitions.
                           ->plugin<pro::cache>();
                     auto object = window->attach<ui::fork>(axis::Y)
                                         ->colors(whitelt, term_menu_bg);
-                        auto menu = object->attach<slot::_1>(main_menu())
+                        auto menu = object->attach<slot::_1>(custom_menu(
+                            std::list{
+                                    std::pair<text, std::function<void(ui::pads&)>>{ "C" + ansi::und(true) + "l" + ansi::nil() + "ear",
+                                    [](ui::pads& boss)
+                                    {
+                                        boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
+                                        {
+                                            auto data = "\033[2J";
+                                            //boss.BROADCAST(e2::release, e2::command::text, data);
+                                            boss.base::broadcast->SIGNAL(e2::preview, e2::data::text, data);
+                                            gear.dismiss();
+                                            gear.nodbl = true;
+                                        };
+                                    }},
+                                    std::pair<text, std::function<void(ui::pads&)>>{ "R" + ansi::und(true) + "e" + ansi::nil() + "set",
+                                    [](ui::pads& boss)
+                                    {
+                                        boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
+                                        {
+                                            auto data = "\033[3J";
+                                            boss.base::broadcast->SIGNAL(e2::preview, e2::data::text, data);
+                                            gear.dismiss();
+                                            gear.nodbl = true;
+                                        };
+                                    }},
+                                }))
                                           ->plugin<pro::mover>(window);
                         auto term_stat_area = object->attach<slot::_2, ui::fork>(axis::Y);
                             auto layers = term_stat_area->attach<slot::_1, ui::cake>()
@@ -2153,6 +2203,7 @@ utility like ctags is used to locate the definitions.
             #else
                 #ifdef _WIN32
                     menu_list[objs::CommandPrompt];
+                    menu_list[objs::PowerShell];
                 #else
                     menu_list[objs::Term];
                 #endif
@@ -2248,6 +2299,7 @@ utility like ctags is used to locate the definitions.
 
                     #ifdef _WIN32
                         auto current_default = objs::CommandPrompt;
+                        //auto current_default = objs::PowerShell;
                     #else
                         auto current_default = objs::Term;
                     #endif

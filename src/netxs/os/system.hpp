@@ -1907,7 +1907,6 @@ namespace netxs::os
                 return yield;
             }
 
-
         #elif defined(__linux__) || defined(__APPLE__)
 
             ipc in_fd { STDIN_FILENO  , faux, true };
@@ -2321,6 +2320,7 @@ namespace netxs::os
             HPCON  hPC     { INVALID_HANDLE_VALUE };
             HANDLE hProcess{ INVALID_HANDLE_VALUE };
             HANDLE hThread { INVALID_HANDLE_VALUE };
+            HANDLE gameover{ INVALID_HANDLE_VALUE };
             std::thread client_exit_waiter;
 
         #elif defined(__linux__) || defined(__APPLE__)
@@ -2435,14 +2435,20 @@ namespace netxs::os
                 {
                     hProcess = procs_info.hProcess;
                     hThread  = procs_info.hThread;
-
+                    gameover = CreateEvent(
+                        NULL,   // security attributes
+                        FALSE,  // auto-reset
+                        FALSE,  // initial state
+                        NULL);
                     client_exit_waiter = std::thread([&]
                     {
-                        if (WAIT_FAILED == WaitForSingleObject(hProcess, INFINITE))
+                        HANDLE signals[] = { hProcess, gameover };
+                        if (WAIT_OBJECT_0 != WaitForMultipleObjects(2, signals, FALSE, INFINITE))
                         {
                             log("cons: client_exit_waiter error");
                         }
                         log("cons: client_exit_waiter finished");
+                        CloseHandle(gameover);
                         if (alive)
                         {
                             wait_child();
@@ -2538,6 +2544,7 @@ namespace netxs::os
                     else if (code == STILL_ACTIVE)                    log("cons: child process still running");
                     else                                              log("cons: child process exit code ", code);
                     exit_code = code;
+                    SetEvent(gameover); // Signaling to client_exit_waiter thread.
                     CloseHandle(hProcess);
                     CloseHandle(hThread);
 

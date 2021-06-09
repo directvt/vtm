@@ -5146,6 +5146,7 @@ again:
                     auto row = 0;
 
                     frame.scroll_wipe().autowr(faux); // Smooth resize.
+                    //frame.scroll_wipe();
                     while (row++ < field.y)
                     {
                         frame.locate(1, row);

@@ -41,6 +41,7 @@ namespace netxs::console::ansi
 
     static const char CSI_CUU = 'A'; // CSI n      A  — Caret Up.
     static const char CSI_CUD = 'B'; // CSI n      B  — Caret Down.
+    static const char CSI_CUD2= 'e'; // CSI n      e  — Caret Down.
     static const char CSI_CUF = 'C'; // CSI n      C  — Caret Forward.
     static const char CSI_CUB = 'D'; // CSI n      D  — Caret Back.
     static const char CSI_CNL = 'E'; // CSI n      E  — Caret Next Line.
@@ -59,8 +60,8 @@ namespace netxs::console::ansi
     static const char CSI__DL = 'M'; // CSI n      M  — Delete n lines.
     static const char CSI_DCH = 'P'; // CSI n      P  — Delete n character(s).
     static const char CSI__SD = 'T'; // CSI n      T  — Scroll down by n lines, scrolled out lines are lost.
-    static const char CSI_WIN = 't'; // CSI n;m;k  t  — XTWINOPS, Terminal window props.
     static const char CSI__SU = 'S'; // CSI n      S  — Scroll   up by n lines, scrolled out lines are lost.
+    static const char CSI_WIN = 't'; // CSI n;m;k  t  — XTWINOPS, Terminal window props.
     static const char CSI_ECH = 'X'; // CSI n      X  — Erase n character(s) ? difference with delete ?
     static const char CSI_ICH = '@'; // CSI n      @  — Insert/wedge n character(s).
     static const char DECSET  = 'h'; // CSI ? n    h  — DECSET.

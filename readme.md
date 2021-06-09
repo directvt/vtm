@@ -1,4 +1,4 @@
-# Monotty Desktopio Preview
+# Monotty Desktopio
 
 A text-based desktop environment in your terminal
 ![image](https://dice.netxs.online/cloud/vtm/mde_banner_v1.13.png)
