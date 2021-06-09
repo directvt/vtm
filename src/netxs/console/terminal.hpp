@@ -693,9 +693,12 @@ namespace netxs::ui
                 state |= m;
                 if (state && !token.count()) // Do not subscribe if it is already subscribed
                 {
+                    owner.SUBMIT_T(e2::release, e2::hids::mouse::scroll::any, token, gear)
+                    {
+                        gear.dismiss();
+                    };
                     owner.SUBMIT_T(e2::release, e2::hids::mouse::any, token, gear)
                     {
-                        //auto c = gear.coord + owner.base::coor();
                         auto c = gear.coord - (owner.base::size() - owner.viewport.size);
                         moved = coord((state & mode::over) ? c
                                                            : std::clamp(c, dot_00, owner.viewport.size - dot_11));
@@ -1669,7 +1672,6 @@ namespace netxs::ui
                     orig_view = rect{ base::size() - viewport.size, viewport.size };
                     auto& coor = visibility_coor.second;
                     if (!orig_view.hittest(coor))
-                    //if (visibility_coor.first && !orig_view.hittest(coor))
                     {
                         coor = std::clamp(coor, orig_view.coor, orig_view.coor + orig_view.size - dot_11);
                         target->set_coord(coor - orig_view.coor);
@@ -1747,7 +1749,6 @@ namespace netxs::ui
                     {
                         oneshot_resize_token.reset();
                         altbuf.resize<faux>(new_size.y);
-
                         this->SUBMIT(e2::preview, e2::size::set, new_size)
                         {
                             new_size = std::max(new_size, dot_11);
@@ -1770,7 +1771,7 @@ namespace netxs::ui
                             new_size.y = std::max(new_size.y, scrollback_size.y);
                             target->rebuild_viewport();
 
-                             if (caret_seeable) reset_scroll_pos(new_size);
+                            if (caret_seeable) reset_scroll_pos(new_size);
                             update_status();
                             ptycon.resize(viewport.size);
                         };

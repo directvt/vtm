@@ -2597,6 +2597,7 @@ namespace netxs::os
                     COORD size;
                     size.X = newsize.x;
                     size.Y = newsize.y;
+                    //todo possible ConPTY bug: ConPTY does not apply the new size when it changes quickly
                     auto hr = ResizePseudoConsole(hPC, size);
 
                 #elif defined(__linux__) || defined(__APPLE__)

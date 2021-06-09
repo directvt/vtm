@@ -2204,13 +2204,16 @@ utility like ctags is used to locate the definitions.
                 #ifdef _WIN32
                     menu_list[objs::CommandPrompt];
                     menu_list[objs::PowerShell];
+                    menu_list[objs::Logs];
+                    menu_list[objs::View];
+                    menu_list[objs::RefreshRate];
                 #else
                     menu_list[objs::Term];
+                    menu_list[objs::Logs];
+                    menu_list[objs::View];
+                    menu_list[objs::RefreshRate];
+                    menu_list[objs::VTM];
                 #endif
-                menu_list[objs::Logs];
-                menu_list[objs::View];
-                menu_list[objs::RefreshRate];
-                menu_list[objs::VTM];
             #endif
         }
 
