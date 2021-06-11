@@ -1545,7 +1545,8 @@ namespace netxs::os
         {
             return send(&c, 1);
         }
-        auto line(char delim) const /*Read line*/
+        // ipc: Read until the delimeter appears.
+        auto line(char delim) const
         {
             char c;
             text crop;
@@ -2262,7 +2263,9 @@ namespace netxs::os
                 log(" tty: Set hangup handler.");
                 ok(::signal(SIGHUP, sig_hndl));   // Set hangup handler.
                 log(" tty: Raise resize event.");
-                ok(::raise (SIGWINCH));           // Get current terminal window size.
+
+                // Get current terminal window size.
+                _globals<void>::resize_handler();
 
             #endif
         }
