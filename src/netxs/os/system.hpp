@@ -1728,7 +1728,7 @@ namespace netxs::os
 
                 struct sockaddr_un addr = {};
                 addr.sun_family = AF_UNIX;
-                auto sock_addr_len = sizeof(addr) - (sizeof(sockaddr_un::sun_path) - path.size() - 1);
+                auto sock_addr_len = (socklen_t)(sizeof(addr) - (sizeof(sockaddr_un::sun_path) - path.size() - 1));
 
             #if defined(__linux__)
 
