@@ -3,16 +3,16 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 50;
+	objectVersion = 54;
 	objects = {
 
 /* Begin PBXBuildFile section */
-		46106E282583EE7800FA59A3 /* vtm.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 46106E222583EE6D00FA59A3 /* vtm.cpp */; };
-		46896A082584CD21008471A1 /* vtmd.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 46896A072584CD21008471A1 /* vtmd.cpp */; };
+		46E49B122663D1D400864FE0 /* vtm.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 46E49B102663D1D300864FE0 /* vtm.cpp */; };
+		46E49B242663D22700864FE0 /* vtmd.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 46E49B0F2663D1D200864FE0 /* vtmd.cpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
-		46106E152583D91700FA59A3 /* CopyFiles */ = {
+		46E49AFC2663D0AD00864FE0 /* CopyFiles */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
 			dstPath = /usr/share/man/man1/;
@@ -21,7 +21,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 1;
 		};
-		46106E2D2583F00000FA59A3 /* CopyFiles */ = {
+		46E49B172663D1F100864FE0 /* CopyFiles */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
 			dstPath = /usr/share/man/man1/;
@@ -33,25 +33,22 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		46106E172583D91700FA59A3 /* vtm */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = vtm; sourceTree = BUILT_PRODUCTS_DIR; };
-		46106E222583EE6D00FA59A3 /* vtm.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = vtm.cpp; sourceTree = "<group>"; };
-		46106E232583EE6E00FA59A3 /* vtm.conf */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = vtm.conf; sourceTree = "<group>"; };
-		46106E252583EE7400FA59A3 /* netxs */ = {isa = PBXFileReference; lastKnownFileType = folder; path = netxs; sourceTree = "<group>"; };
-		46106E2F2583F00000FA59A3 /* vtmd */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = vtmd; sourceTree = BUILT_PRODUCTS_DIR; };
-		468969FE2584CC55008471A1 /* netxs */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = netxs; path = vtm/netxs; sourceTree = SOURCE_ROOT; };
-		468969FF2584CC55008471A1 /* terminal.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = terminal.h; path = vtm/terminal.h; sourceTree = SOURCE_ROOT; };
-		46896A072584CD21008471A1 /* vtmd.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = vtmd.cpp; path = vtm/vtmd.cpp; sourceTree = SOURCE_ROOT; };
+		46E49AFE2663D0AD00864FE0 /* vtm */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = vtm; sourceTree = BUILT_PRODUCTS_DIR; };
+		46E49B0E2663D1D200864FE0 /* netxs */ = {isa = PBXFileReference; lastKnownFileType = folder; name = netxs; path = src/netxs; sourceTree = "<group>"; };
+		46E49B0F2663D1D200864FE0 /* vtmd.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = vtmd.cpp; path = src/vtmd.cpp; sourceTree = "<group>"; };
+		46E49B102663D1D300864FE0 /* vtm.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = vtm.cpp; path = src/vtm.cpp; sourceTree = "<group>"; };
+		46E49B192663D1F100864FE0 /* vtmd */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = vtmd; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
-		46106E142583D91700FA59A3 /* Frameworks */ = {
+		46E49AFB2663D0AD00864FE0 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		46106E2C2583F00000FA59A3 /* Frameworks */ = {
+		46E49B162663D1F100864FE0 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -61,54 +58,35 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		46106E0E2583D91600FA59A3 = {
+		46E49AF52663D0AD00864FE0 = {
 			isa = PBXGroup;
 			children = (
-				46106E192583D91700FA59A3 /* vtm */,
-				46106E302583F00000FA59A3 /* vtmd */,
-				46106E182583D91700FA59A3 /* Products */,
+				46E49B0E2663D1D200864FE0 /* netxs */,
+				46E49B102663D1D300864FE0 /* vtm.cpp */,
+				46E49B0F2663D1D200864FE0 /* vtmd.cpp */,
+				46E49AFF2663D0AD00864FE0 /* Products */,
 			);
 			sourceTree = "<group>";
 		};
-		46106E182583D91700FA59A3 /* Products */ = {
+		46E49AFF2663D0AD00864FE0 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				46106E172583D91700FA59A3 /* vtm */,
-				46106E2F2583F00000FA59A3 /* vtmd */,
+				46E49AFE2663D0AD00864FE0 /* vtm */,
+				46E49B192663D1F100864FE0 /* vtmd */,
 			);
 			name = Products;
-			sourceTree = "<group>";
-		};
-		46106E192583D91700FA59A3 /* vtm */ = {
-			isa = PBXGroup;
-			children = (
-				46106E252583EE7400FA59A3 /* netxs */,
-				46106E232583EE6E00FA59A3 /* vtm.conf */,
-				46106E222583EE6D00FA59A3 /* vtm.cpp */,
-			);
-			path = vtm;
-			sourceTree = "<group>";
-		};
-		46106E302583F00000FA59A3 /* vtmd */ = {
-			isa = PBXGroup;
-			children = (
-				46896A072584CD21008471A1 /* vtmd.cpp */,
-				468969FE2584CC55008471A1 /* netxs */,
-				468969FF2584CC55008471A1 /* terminal.h */,
-			);
-			path = vtmd;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		46106E162583D91700FA59A3 /* vtm */ = {
+		46E49AFD2663D0AD00864FE0 /* vtm */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 46106E1E2583D91700FA59A3 /* Build configuration list for PBXNativeTarget "vtm" */;
+			buildConfigurationList = 46E49B052663D0AD00864FE0 /* Build configuration list for PBXNativeTarget "vtm" */;
 			buildPhases = (
-				46106E132583D91700FA59A3 /* Sources */,
-				46106E142583D91700FA59A3 /* Frameworks */,
-				46106E152583D91700FA59A3 /* CopyFiles */,
+				46E49AFA2663D0AD00864FE0 /* Sources */,
+				46E49AFB2663D0AD00864FE0 /* Frameworks */,
+				46E49AFC2663D0AD00864FE0 /* CopyFiles */,
 			);
 			buildRules = (
 			);
@@ -116,16 +94,16 @@
 			);
 			name = vtm;
 			productName = vtm;
-			productReference = 46106E172583D91700FA59A3 /* vtm */;
+			productReference = 46E49AFE2663D0AD00864FE0 /* vtm */;
 			productType = "com.apple.product-type.tool";
 		};
-		46106E2E2583F00000FA59A3 /* vtmd */ = {
+		46E49B182663D1F100864FE0 /* vtmd */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 46106E332583F00000FA59A3 /* Build configuration list for PBXNativeTarget "vtmd" */;
+			buildConfigurationList = 46E49B1D2663D1F100864FE0 /* Build configuration list for PBXNativeTarget "vtmd" */;
 			buildPhases = (
-				46106E2B2583F00000FA59A3 /* Sources */,
-				46106E2C2583F00000FA59A3 /* Frameworks */,
-				46106E2D2583F00000FA59A3 /* CopyFiles */,
+				46E49B152663D1F100864FE0 /* Sources */,
+				46E49B162663D1F100864FE0 /* Frameworks */,
+				46E49B172663D1F100864FE0 /* CopyFiles */,
 			);
 			buildRules = (
 			);
@@ -133,65 +111,65 @@
 			);
 			name = vtmd;
 			productName = vtmd;
-			productReference = 46106E2F2583F00000FA59A3 /* vtmd */;
+			productReference = 46E49B192663D1F100864FE0 /* vtmd */;
 			productType = "com.apple.product-type.tool";
 		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
-		46106E0F2583D91600FA59A3 /* Project object */ = {
+		46E49AF62663D0AD00864FE0 /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
 				LastUpgradeCheck = 1220;
 				TargetAttributes = {
-					46106E162583D91700FA59A3 = {
+					46E49AFD2663D0AD00864FE0 = {
 						CreatedOnToolsVersion = 12.2;
 					};
-					46106E2E2583F00000FA59A3 = {
+					46E49B182663D1F100864FE0 = {
 						CreatedOnToolsVersion = 12.2;
 					};
 				};
 			};
-			buildConfigurationList = 46106E122583D91600FA59A3 /* Build configuration list for PBXProject "vtm" */;
-			compatibilityVersion = "Xcode 9.3";
+			buildConfigurationList = 46E49AF92663D0AD00864FE0 /* Build configuration list for PBXProject "vtm" */;
+			compatibilityVersion = "Xcode 12.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				en,
 				Base,
 			);
-			mainGroup = 46106E0E2583D91600FA59A3;
-			productRefGroup = 46106E182583D91700FA59A3 /* Products */;
+			mainGroup = 46E49AF52663D0AD00864FE0;
+			productRefGroup = 46E49AFF2663D0AD00864FE0 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				46106E162583D91700FA59A3 /* vtm */,
-				46106E2E2583F00000FA59A3 /* vtmd */,
+				46E49AFD2663D0AD00864FE0 /* vtm */,
+				46E49B182663D1F100864FE0 /* vtmd */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXSourcesBuildPhase section */
-		46106E132583D91700FA59A3 /* Sources */ = {
+		46E49AFA2663D0AD00864FE0 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				46106E282583EE7800FA59A3 /* vtm.cpp in Sources */,
+				46E49B122663D1D400864FE0 /* vtm.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		46106E2B2583F00000FA59A3 /* Sources */ = {
+		46E49B152663D1F100864FE0 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				46896A082584CD21008471A1 /* vtmd.cpp in Sources */,
+				46E49B242663D22700864FE0 /* vtmd.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
-		46106E1C2583D91700FA59A3 /* Debug */ = {
+		46E49B032663D0AD00864FE0 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -225,7 +203,6 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
@@ -248,11 +225,10 @@
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = macosx;
-				USER_HEADER_SEARCH_PATHS = "";
 			};
 			name = Debug;
 		};
-		46106E1D2583D91700FA59A3 /* Release */ = {
+		46E49B042663D0AD00864FE0 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -286,7 +262,6 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -302,79 +277,72 @@
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				SDKROOT = macosx;
-				USER_HEADER_SEARCH_PATHS = "";
 			};
 			name = Release;
 		};
-		46106E1F2583D91700FA59A3 /* Debug */ = {
+		46E49B062663D0AD00864FE0 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				HEADER_SEARCH_PATHS = "";
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				USER_HEADER_SEARCH_PATHS = netxs/;
 			};
 			name = Debug;
 		};
-		46106E202583D91700FA59A3 /* Release */ = {
+		46E49B072663D0AD00864FE0 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				HEADER_SEARCH_PATHS = "";
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				USER_HEADER_SEARCH_PATHS = netxs/;
 			};
 			name = Release;
 		};
-		46106E342583F00000FA59A3 /* Debug */ = {
+		46E49B1E2663D1F100864FE0 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				USER_HEADER_SEARCH_PATHS = "";
 			};
 			name = Debug;
 		};
-		46106E352583F00000FA59A3 /* Release */ = {
+		46E49B1F2663D1F100864FE0 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				USER_HEADER_SEARCH_PATHS = "";
 			};
 			name = Release;
 		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		46106E122583D91600FA59A3 /* Build configuration list for PBXProject "vtm" */ = {
+		46E49AF92663D0AD00864FE0 /* Build configuration list for PBXProject "vtm" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				46106E1C2583D91700FA59A3 /* Debug */,
-				46106E1D2583D91700FA59A3 /* Release */,
+				46E49B032663D0AD00864FE0 /* Debug */,
+				46E49B042663D0AD00864FE0 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		46106E1E2583D91700FA59A3 /* Build configuration list for PBXNativeTarget "vtm" */ = {
+		46E49B052663D0AD00864FE0 /* Build configuration list for PBXNativeTarget "vtm" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				46106E1F2583D91700FA59A3 /* Debug */,
-				46106E202583D91700FA59A3 /* Release */,
+				46E49B062663D0AD00864FE0 /* Debug */,
+				46E49B072663D0AD00864FE0 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		46106E332583F00000FA59A3 /* Build configuration list for PBXNativeTarget "vtmd" */ = {
+		46E49B1D2663D1F100864FE0 /* Build configuration list for PBXNativeTarget "vtmd" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				46106E342583F00000FA59A3 /* Debug */,
-				46106E352583F00000FA59A3 /* Release */,
+				46E49B1E2663D1F100864FE0 /* Debug */,
+				46E49B1F2663D1F100864FE0 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};
-	rootObject = 46106E0F2583D91600FA59A3 /* Project object */;
+	rootObject = 46E49AF62663D0AD00864FE0 /* Project object */;
 }

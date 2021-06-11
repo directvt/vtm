@@ -31,28 +31,37 @@ namespace netxs::console::ansi
     static const char G0SET = '('; // ESC (
     static const char DELIM = ';'; // ESC ;
 
-    static const char CSI_CUU = 'A'; // CSI n      A  — Cursor Up.
-    static const char CSI_CUD = 'B'; // CSI n      B  — Cursor Down.
-    static const char CSI_CUF = 'C'; // CSI n      C  — Cursor Forward.
-    static const char CSI_CUB = 'D'; // CSI n      D  — Cursor Back.
-    static const char CSI_CNL = 'E'; // CSI n      E  — Cursor Next Line.
-    static const char CSI_CPL = 'F'; // CSI n      F  — Cursor Previous Line.
-    static const char CSI_CHX = 'G'; // CSI n      G  — Cursor Horizontal Absolute.
-    static const char CSI_CHY = 'd'; // CSI n      d  — Cursor Vertical Absolute.
-    static const char CSI_CUP = 'H'; // CSI n ; m  H  — Cursor Position.
+    static const char ESC_SC  = '7'; // ESC 7         Save caret Position.
+    static const char ESC_RC  = '8'; // ESC 8         Restore caret Position.
+    static const char ESC_HTS = 'H'; // ESC H         Tab stop at the caret.
+    static const char ESC_NEL = 'E'; // ESC E         Move caret down and CR.
+    static const char ESC_IND = 'D'; // ESC D         Caret Down.
+    static const char ESC_IR  = 'M'; // ESC M         Caret Up.
+    static const char ESC_DCS = 'P'; // ESC P ... ST  DCS start
+
+    static const char CSI_CUU = 'A'; // CSI n      A  — Caret Up.
+    static const char CSI_CUD = 'B'; // CSI n      B  — Caret Down.
+    static const char CSI_CUD2= 'e'; // CSI n      e  — Caret Down.
+    static const char CSI_CUF = 'C'; // CSI n      C  — Caret Forward.
+    static const char CSI_CUB = 'D'; // CSI n      D  — Caret Back.
+    static const char CSI_CNL = 'E'; // CSI n      E  — Caret Next Line.
+    static const char CSI_CPL = 'F'; // CSI n      F  — Caret Previous Line.
+    static const char CSI_CHX = 'G'; // CSI n      G  — Caret Horizontal Absolute.
+    static const char CSI_CHY = 'd'; // CSI n      d  — Caret Vertical Absolute.
+    static const char CSI_CUP = 'H'; // CSI n ; m  H  — Caret Position.
     static const char CSI_HVP = 'f'; // CSI n ; m  f  — Horizontal and Vertical Position.
     static const char CSI_SGR = 'm'; // CSI n [;k] m  — Select Graphic Rendition.
     static const char DECSTBM = 'r'; // CSI t ; b  r  — Set scrolling region (t/b: top + bottom).
-    static const char CSI_SCP = 's'; // CSI        s  — Save Cursor Position.
-    static const char CSI_RCP = 'u'; // CSI        u  — Restore Cursor Position.
-    static const char CSI__EL = 'K'; // CSI n      K  — Erase 0: from cursor to end, 1: from begin to cursor, 2: all line.
+    static const char CSI_SCP = 's'; // CSI        s  — Save caret Position.
+    static const char CSI_RCP = 'u'; // CSI        u  — Restore caret Position.
+    static const char CSI__EL = 'K'; // CSI n      K  — Erase 0: from caret to end, 1: from begin to caret, 2: all line.
     static const char CSI__IL = 'L'; // CSI n      L  — Insert n blank lines.
-    static const char CSI__ED = 'J'; // CSI n      J  — Erase 0: from cursor to end of screen, 1: from begin to cursor, 2: all screen.
+    static const char CSI__ED = 'J'; // CSI n      J  — Erase 0: from caret to end of screen, 1: from begin to caret, 2: all screen.
     static const char CSI__DL = 'M'; // CSI n      M  — Delete n lines.
     static const char CSI_DCH = 'P'; // CSI n      P  — Delete n character(s).
     static const char CSI__SD = 'T'; // CSI n      T  — Scroll down by n lines, scrolled out lines are lost.
-    static const char CSI_WIN = 't'; // CSI n;m;k  t  — XTWINOPS, Terminal window props.
     static const char CSI__SU = 'S'; // CSI n      S  — Scroll   up by n lines, scrolled out lines are lost.
+    static const char CSI_WIN = 't'; // CSI n;m;k  t  — XTWINOPS, Terminal window props.
     static const char CSI_ECH = 'X'; // CSI n      X  — Erase n character(s) ? difference with delete ?
     static const char CSI_ICH = '@'; // CSI n      @  — Insert/wedge n character(s).
     static const char DECSET  = 'h'; // CSI ? n    h  — DECSET.
@@ -60,7 +69,7 @@ namespace netxs::console::ansi
     static const char CSI_hRM = 'h'; // CSI n      h  — Reset mode (always Replace mode n=4).
     static const char CSI_lRM = 'l'; // CSI n      l  — Reset mode (always Replace mode n=4).
     static const char DECSTR  = 'p'; // CSI !      p  — Reset terminal to initial state.
-    static const char CSI_CCC = 'p'; // CSI n [; x1; x2; ...; xn ] p — Custom Cursor Command.
+    static const char CSI_CCC = 'p'; // CSI n [; x1; x2; ...; xn ] p — Custom Caret Command.
     static const char W32_INP = '_'; // CSI EVENT_TYPEn [; x1; x2; ...; xn ] _ — win32-input-mode.
 
     static const char C0_NUL = '\x00'; // Null                - Originally used to allow gaps to be left on paper tape for edits. Later used for padding after a code that might take a terminal some time to process (e.g. a carriage return or line feed on a printing terminal). Now often used as a string terminator, especially in the programming language C.
@@ -71,12 +80,12 @@ namespace netxs::console::ansi
     static const char C0_ENQ = '\x05'; // Enquiry             - Signal intended to trigger a response at the receiving end, to see if it is still present.
     static const char C0_ACK = '\x06'; // Acknowledge         - Response to an ENQ, or an indication of successful receipt of a message.
     static const char C0_BEL = '\x07'; // Bell, Alert     \a  - Originally used to sound a bell on the terminal. Later used for a beep on systems that didn't have a physical bell. May also quickly turn on and off inverse video (a visual bell).
-    static const char C0_BS  = '\x08'; // Backspace       \b  - Move the cursor one position leftwards. On input, this may delete the character to the left of the cursor. On output, where in early computer technology a character once printed could not be erased, the backspace was sometimes used to generate accented characters in ASCII. For example, à could be produced using the three character sequence a BS ` (or, using the characters’ hex values, 0x61 0x08 0x60). This usage is now deprecated and generally not supported. To provide disambiguation between the two potential uses of backspace, the cancel character control code was made part of the standard C1 control set.
+    static const char C0_BS  = '\x08'; // Backspace       \b  - Move the caret one position leftwards. On input, this may delete the character to the left of the caret. On output, where in early computer technology a character once printed could not be erased, the backspace was sometimes used to generate accented characters in ASCII. For example, à could be produced using the three character sequence a BS ` (or, using the characters’ hex values, 0x61 0x08 0x60). This usage is now deprecated and generally not supported. To provide disambiguation between the two potential uses of backspace, the cancel character control code was made part of the standard C1 control set.
     static const char C0_HT  = '\x09'; // Character       \t  - Tabulation, Horizontal Tabulation	\t	Position to the next character tab stop.
-    static const char C0_LF  = '\x0A'; // Line Feed       \n  - On typewriters, printers, and some terminal emulators, moves the cursor down one row without affecting its column position. On Unix, used to mark end-of-line. In DOS, Windows, and various network standards, LF is used following CR as part of the end-of-line mark.
+    static const char C0_LF  = '\x0A'; // Line Feed       \n  - On typewriters, printers, and some terminal emulators, moves the caret down one row without affecting its column position. On Unix, used to mark end-of-line. In DOS, Windows, and various network standards, LF is used following CR as part of the end-of-line mark.
     static const char C0_VT  = '\x0B'; // Line Tab,VTab   \v  - Position the form at the next line tab stop.
     static const char C0_FF  = '\x0C'; // Form Feed       \f  - On printers, load the next page. Treated as whitespace in many programming languages, and may be used to separate logical divisions in code. In some terminal emulators, it clears the screen. It still appears in some common plain text files as a page break character, such as the RFCs published by IETF.
-    static const char C0_CR  = '\x0D'; // Carriage Return \r  - Originally used to move the cursor to column zero while staying on the same line. On classic Mac OS (pre-Mac OS X), as well as in earlier systems such as the Apple II and Commodore 64, used to mark end-of-line. In DOS, Windows, and various network standards, it is used preceding LF as part of the end-of-line mark. The Enter or Return key on a keyboard will send this character, but it may be converted to a different end-of-line sequence by a terminal program.
+    static const char C0_CR  = '\x0D'; // Carriage Return \r  - Originally used to move the caret to column zero while staying on the same line. On classic Mac OS (pre-Mac OS X), as well as in earlier systems such as the Apple II and Commodore 64, used to mark end-of-line. In DOS, Windows, and various network standards, it is used preceding LF as part of the end-of-line mark. The Enter or Return key on a keyboard will send this character, but it may be converted to a different end-of-line sequence by a terminal program.
     static const char C0_SO  = '\x0E'; // Shift Out           - Switch to an alternative character set.
     static const char C0_SI  = '\x0F'; // Shift In            - Return to regular character set after Shift Out.
     static const char C0_DLE = '\x10'; // Data Link Escape    - Cause the following octets to be interpreted as raw data, not as control codes or graphic characters. Returning to normal usage would be implementation dependent.
@@ -165,9 +174,9 @@ namespace netxs::console::ansi
 
     static const iota CCC_NOP    = 0  ; // CSI             p  - no operation.
     static const iota CCC_RST    = 1  ; // CSI 1           p  - reset to zero all params (zz).
-    static const iota CCC_CPP    = 2  ; // CSI 2 : x [: y] p  - cursor percent position.
-    static const iota CCC_CPX    = 3  ; // CSI 3 : x       p  - cursor H percent position.
-    static const iota CCC_CPY    = 4  ; // CSI 4 : y       p  - cursor V percent position.
+    static const iota CCC_CPP    = 2  ; // CSI 2 : x [: y] p  - caret percent position.
+    static const iota CCC_CPX    = 3  ; // CSI 3 : x       p  - caret H percent position.
+    static const iota CCC_CPY    = 4  ; // CSI 4 : y       p  - caret V percent position.
     static const iota CCC_TBS    = 5  ; // CSI 5 : n       p  - tab step length.
     static const iota CCC_MGN    = 6  ; // CSI 6 : l:r:t:b p  - margin left, right, top, bottom.
     static const iota CCC_MGL    = 7  ; // CSI 7 : n       p  - margin left   ╮
@@ -186,11 +195,12 @@ namespace netxs::console::ansi
     static const iota CCC_RLF_or = 18 ; // CSI 18: n       p  - set reverse line feed none/on/off if it is not set.
 
     static const iota CCC_IDX    = 19 ; // CSI 19: id      p  - Split the text run and associate the fragment with an id.
-    static const iota CCC_CUP    = 20 ; // CSI 20: x [: y] p  - cursor absolute position 0-based.
-    static const iota CCC_CHX    = 21 ; // CSI 21: x       p  - cursor H absolute position 0-based.
-    static const iota CCC_CHY    = 22 ; // CSI 22: y       p  - cursor V absolute position 0-based.
+    static const iota CCC_CUP    = 20 ; // CSI 20: x [: y] p  - caret absolute position 0-based.
+    static const iota CCC_CHX    = 21 ; // CSI 21: x       p  - caret H absolute position 0-based.
+    static const iota CCC_CHY    = 22 ; // CSI 22: y       p  - caret V absolute position 0-based.
     static const iota CCC_REF    = 23 ; // CSI 23: id      p  - create the reference to the existing paragraph.
     static const iota CCC_SBS    = 24 ; // CSI 24: n: m    p  - define scrollback size: n: max size, m: grow_by step.
+    static const iota CCC_EXT    = 25 ; // CSI 25: b       p  - extended functionality support.
     //static const iota CCC_WIN = 20 ; // CSI 20: x: y    p    terminal window resize.
 
     // ansi: Escaped sequences accumulator.
@@ -210,27 +220,27 @@ namespace netxs::console::ansi
 
         auto& add(char t) { operator+=(t); return *this; }
 
-        esc& locate(iota x, iota y) { add("\033[" + str(y) + ";" // esc: 1-Based cursor position.
+        esc& locate(iota x, iota y) { add("\033[" + str(y) + ";" // esc: 1-Based caret position.
                                                   + str(x) + "H");    return *this; }
-        esc& locate(twod const& p)  { add("\033[" + str(p.y + 1) + ";" // esc: 0-Based cursor position.
+        esc& locate(twod const& p)  { add("\033[" + str(p.y + 1) + ";" // esc: 0-Based caret position.
                                                   + str(p.x + 1) + "H"); return *this; }
         esc& vmouse (bool b) { add(b ? "\033[?1002;1003;1004;1006;10060h" : "\033[?1002;1003;1004;1006;10060l"); return *this; } // esc: Focus and Mouse position reporting/tracking.
         esc& locate_wipe ()  { add("\033[r");                           return *this; } // esc: Enable scrolling for entire display (clear screen).
-        esc& locate_call ()  { add("\033[6n");                          return *this; } // esc: Report cursor position.
+        esc& locate_call ()  { add("\033[6n");                          return *this; } // esc: Report caret position.
         esc& screen_wipe ()  { add("\033[!p");                          return *this; } // esc: Reset certain terminal settings to their defaults. Also resets the mouse tracking mode in VTE.
         esc& scroll_wipe ()  { add("\033[3J");                          return *this; } // esc: Erase scrollback.
         esc& tag (view t)    { add("\033]2;" + text(t) + "\07");        return *this; } // esc: Window title.
         esc& setutf (bool b) { add(b ? "\033%G"      : "\033%@");       return *this; } // esc: Select UTF-8 character set (true) or default (faux).
         esc& setbuf (view t) { add("\033]52;;" + utf::base64(t) + C0_BEL);  return *this; } // esc: Set clipboard.
         esc& altbuf (bool b) { add(b ? "\033[?1049h" : "\033[?1049l");  return *this; } // esc: Alternative buffer.
-        esc& cursor (bool b) { add(b ? "\033[?25h"   : "\033[?25l");    return *this; } // esc: Cursor visibility.
-        esc& appkey (bool b) { add(b ? "\033[?1h"    : "\033[?1l");     return *this; } // ansi: Application(=on)/ANSI(=off) Cursor Keys (DECCKM).
+        esc& cursor (bool b) { add(b ? "\033[?25h"   : "\033[?25l");    return *this; } // esc: Caret visibility.
+        esc& appkey (bool b) { add(b ? "\033[?1h"    : "\033[?1l");     return *this; } // ansi: Application(=on)/ANSI(=off) Caret Keys (DECCKM).
         esc& bpmode (bool b) { add(b ? "\033[?2004h" : "\033[?2004l");  return *this; } // esc: Set bracketed paste mode.
         esc& autowr (bool b) { add(b ? "\033[?7h"    : "\033[?7l");     return *this; } // esc: Set autowrap mode.
         esc& save_title ()   { add("\033[22;0t");                       return *this; } // esc: Save terminal window title.
         esc& load_title ()   { add("\033[23;0t");                       return *this; } // esc: Restore terminal window title.
 
-        esc& w32input (bool b) { add(b ? "\033[?9001h" : "\033[?9001l");        return *this; } // ansi: Application Cursor Keys (DECCKM).
+        esc& w32input (bool b) { add(b ? "\033[?9001h" : "\033[?9001l");        return *this; } // ansi: Application Caret Keys (DECCKM).
         esc& w32begin () { clear(); add("\033["); return *this; }
         esc& w32close ()
         {
@@ -281,20 +291,20 @@ namespace netxs::console::ansi
             return *this;
         }
 
-       //esc& ocp (twod const& p)   { add("\033[" + str(p.y) + ";" + str(p.x) + "H"); return *this; }    // esc: 1-Based cursor position.
-        esc& cup (twod const& p) { add("\033[20:" + str(p.y) + ":" + str(p.x) + CSI_CCC); return *this; } // esc: 0-Based cursor position.
-        esc& cuu (iota n)        { add(n == 1 ? "\033[A" : "\033[" + str(n) + "A"); return *this; } // esc: Cursor up.
-        esc& cud (iota n)        { add(n == 1 ? "\033[B" : "\033[" + str(n) + "B"); return *this; } // esc: Cursor down.
-        esc& cuf (iota n)        { add(n == 1 ? "\033[C" : "\033[" + str(n) + "C"); return *this; } // esc: Cursor forward.
-        esc& cub (iota n)        { add(n == 1 ? "\033[D" : "\033[" + str(n) + "D"); return *this; } // esc: Cursor backward.
-        esc& cnl (iota n)        { add("\033[" + str(n) + "E");        return *this; } // esc: cursor next line.
-        esc& cpl (iota n)        { add("\033[" + str(n) + "F");        return *this; } // esc: Cursor previous line.
-        esc& ocx (iota n)        { add("\033[" + str(n) + "G");        return *this; } // esc: Cursor 1-based horizontal absolute.
-        esc& ocy (iota n)        { add("\033[" + str(n) + "d");        return *this; } // esc: Cursor 1-based vertical absolute.
-        esc& chx (iota n)        { add("\033[21:" + str(n) + CSI_CCC); return *this; } // esc: Cursor 0-based horizontal absolute.
-        esc& chy (iota n)        { add("\033[22:" + str(n) + CSI_CCC); return *this; } // esc: Cursor 0-based vertical absolute.
-        esc& scp ()              { add("\033[s");                      return *this; } // esc: Save cursor position in memory.
-        esc& rcp ()              { add("\033[u");                      return *this; } // esc: Restore cursor position from memory.
+       //esc& ocp (twod const& p)   { add("\033[" + str(p.y) + ";" + str(p.x) + "H"); return *this; }    // esc: 1-Based caret position.
+        esc& cup (twod const& p) { add("\033[20:" + str(p.y) + ":" + str(p.x) + CSI_CCC); return *this; } // esc: 0-Based caret position.
+        esc& cuu (iota n)        { add(n == 1 ? "\033[A" : "\033[" + str(n) + "A"); return *this; } // esc: Caret up.
+        esc& cud (iota n)        { add(n == 1 ? "\033[B" : "\033[" + str(n) + "B"); return *this; } // esc: Caret down.
+        esc& cuf (iota n)        { add(n == 1 ? "\033[C" : "\033[" + str(n) + "C"); return *this; } // esc: Caret forward.
+        esc& cub (iota n)        { add(n == 1 ? "\033[D" : "\033[" + str(n) + "D"); return *this; } // esc: Caret backward.
+        esc& cnl (iota n)        { add("\033[" + str(n) + "E");        return *this; } // esc: caret next line.
+        esc& cpl (iota n)        { add("\033[" + str(n) + "F");        return *this; } // esc: Caret previous line.
+        esc& ocx (iota n)        { add("\033[" + str(n) + "G");        return *this; } // esc: Caret 1-based horizontal absolute.
+        esc& ocy (iota n)        { add("\033[" + str(n) + "d");        return *this; } // esc: Caret 1-based vertical absolute.
+        esc& chx (iota n)        { add("\033[21:" + str(n) + CSI_CCC); return *this; } // esc: Caret 0-based horizontal absolute.
+        esc& chy (iota n)        { add("\033[22:" + str(n) + CSI_CCC); return *this; } // esc: Caret 0-based vertical absolute.
+        esc& scp ()              { add("\033[s");                      return *this; } // esc: Save caret position in memory.
+        esc& rcp ()              { add("\033[u");                      return *this; } // esc: Restore caret position from memory.
         esc& bld (bool b = true) { add(b ? "\033[1m" : "\033[22m");    return *this; } // esc: SGR 𝗕𝗼𝗹𝗱 attribute.
         esc& und (bool b = true) { add(b ? "\033[4m" : "\033[24m");    return *this; } // esc: SGR 𝗨𝗻𝗱𝗲𝗿𝗹𝗶𝗻𝗲 attribute.
         esc& inv (bool b = true) { add(b ? "\033[7m" : "\033[27m");    return *this; } // esc: SGR 𝗡𝗲𝗴𝗮𝘁𝗶𝘃𝗲 attribute.
@@ -326,10 +336,10 @@ namespace netxs::console::ansi
         esc& nil ()              { add("\033[m");                       return *this; } // esc: Reset SGR attributes to zero.
         esc& nop ()              { add("\033["   + str(CSI_CCC));       return *this; } // esc: No operation. Split the text run.
         esc& rst ()              { add("\033[1"  + str(CSI_CCC));       return *this; } // esc: Reset formatting parameters.
-        esc& cpp (twod const& p) { add("\033[2:" + str(p.x) + ":"                       // esc: Cursor percent position.
+        esc& cpp (twod const& p) { add("\033[2:" + str(p.x) + ":"                       // esc: Caret percent position.
                                                  + str(p.y) + CSI_CCC); return *this; }
-        esc& cpx (iota n)        { add("\033[3:" + str(n  ) + CSI_CCC); return *this; } // esc: Cursor horizontal percent position.
-        esc& cpy (iota n)        { add("\033[4:" + str(n  ) + CSI_CCC); return *this; } // esc: Cursor vertical percent position.
+        esc& cpx (iota n)        { add("\033[3:" + str(n  ) + CSI_CCC); return *this; } // esc: Caret horizontal percent position.
+        esc& cpy (iota n)        { add("\033[4:" + str(n  ) + CSI_CCC); return *this; } // esc: Caret vertical percent position.
         esc& tbs (iota n)        { add("\033[5:" + str(n  ) + CSI_CCC); return *this; } // esc: Tabulation step length.
         esc& mgn (side const& n) { add("\033[6:" + str(n.l) + ":"                       // esc: Margin (left, right, top, bottom).
                                                  + str(n.r) + ":"
@@ -351,6 +361,7 @@ namespace netxs::console::ansi
 
         esc& idx (iota i)        { add("\033[19:"+ str(i  ) + CSI_CCC); return *this; } // esc: Split the text run and associate the fragment with an id.
         esc& ref (iota i)        { add("\033[23:"+ str(i  ) + CSI_CCC); return *this; } // esc: Create the reference to the existing paragraph.
+        esc& ext (bool b)        { add("\033[25:"); add(b ? "1" : "0"); add(CSI_CCC); return *this; } // esc: Extended functionality support.
         //todo unify
         //esc& win (twod const& p){ add("\033[20:" + str(p.x) + ":"                       // esc: Terminal window resize report.
         //                                         + str(p.y) + CSI_CCC); return *this; }
@@ -379,14 +390,14 @@ namespace netxs::console::ansi
 
     //static esc screen_wipe ()        { return esc{}.screen_wipe(); } // esc: Reset certain terminal settings to their defaults. Also resets the mouse tracking mode in VTE.
     static esc vmouse (bool b)       { return esc{}.vmouse(b);     } // ansi: Mouse position reporting/tracking.
-    static esc locate(twod const& n) { return esc{}.locate(n);     } // ansi: 1-Based cursor position.
+    static esc locate(twod const& n) { return esc{}.locate(n);     } // ansi: 1-Based caret position.
     static esc locate_wipe ()        { return esc{}.locate_wipe(); } // ansi: Enable scrolling for entire display (clear screen).
-    static esc locate_call ()        { return esc{}.locate_call(); } // ansi: Report cursor position.
+    static esc locate_call ()        { return esc{}.locate_call(); } // ansi: Report caret position.
     static esc setutf (bool b)       { return esc{}.setutf(b);     } // ansi: Select UTF-8 character set.
     static esc tag (view t)          { return esc{}.tag(t);        } // ansi: Window title.
     static esc altbuf (bool b)       { return esc{}.altbuf(b);     } // ansi: Alternative buffer.
-    static esc cursor (bool b)       { return esc{}.cursor(b);     } // ansi: Cursor visibility.
-    static esc appkey (bool b)       { return esc{}.appkey(b);     } // ansi: Application Cursor Keys (DECCKM).
+    static esc cursor (bool b)       { return esc{}.cursor(b);     } // ansi: Caret visibility.
+    static esc appkey (bool b)       { return esc{}.appkey(b);     } // ansi: Application Caret Keys (DECCKM).
     static esc setbuf (view t)       { return esc{}.setbuf(t);     } // ansi: Set clipboard.
 
     static esc w32input (bool b)     { return esc{}.w32input(b); } // ansi: Turn on w32-input-mode (Microsoft specific, not released yet).
@@ -399,19 +410,19 @@ namespace netxs::console::ansi
     template<class ...Args>
     static esc w32winsz (Args&&... p){ return esc{}.w32winsz(std::forward<Args>(p)...); } // ansi: win32-input-mode sequence (window resize).
 
-    static esc cup (twod const& n)   { return esc{}.cup (n); } // ansi: 0-Based cursor position.
-    static esc cuu (iota n)          { return esc{}.cuu (n); } // ansi: Cursor up.
-    static esc cud (iota n)          { return esc{}.cud (n); } // ansi: Cursor down.
-    static esc cuf (iota n)          { return esc{}.cuf (n); } // ansi: Cursor forward.
-    static esc cub (iota n)          { return esc{}.cub (n); } // ansi: Cursor backward.
-    static esc cnl (iota n)          { return esc{}.cnl (n); } // ansi: Cursor next line.
-    static esc cpl (iota n)          { return esc{}.cpl (n); } // ansi: Cursor previous line.
+    static esc cup (twod const& n)   { return esc{}.cup (n); } // ansi: 0-Based caret position.
+    static esc cuu (iota n)          { return esc{}.cuu (n); } // ansi: Caret up.
+    static esc cud (iota n)          { return esc{}.cud (n); } // ansi: Caret down.
+    static esc cuf (iota n)          { return esc{}.cuf (n); } // ansi: Caret forward.
+    static esc cub (iota n)          { return esc{}.cub (n); } // ansi: Caret backward.
+    static esc cnl (iota n)          { return esc{}.cnl (n); } // ansi: Caret next line.
+    static esc cpl (iota n)          { return esc{}.cpl (n); } // ansi: Caret previous line.
 
-    static esc ocx (iota n)          { return esc{}.ocx (n); } // ansi: Cursor 1-based horizontal absolute.
-    static esc ocy (iota n)          { return esc{}.ocy (n); } // ansi: Cursor 1-based vertical absolute.
+    static esc ocx (iota n)          { return esc{}.ocx (n); } // ansi: Caret 1-based horizontal absolute.
+    static esc ocy (iota n)          { return esc{}.ocy (n); } // ansi: Caret 1-based vertical absolute.
 
-    static esc chx (iota n)          { return esc{}.chx (n); } // ansi: Cursor 0-based horizontal absolute.
-    static esc chy (iota n)          { return esc{}.chy (n); } // ansi: Cursor 0-based vertical absolute.
+    static esc chx (iota n)          { return esc{}.chx (n); } // ansi: Caret 0-based horizontal absolute.
+    static esc chy (iota n)          { return esc{}.chy (n); } // ansi: Caret 0-based vertical absolute.
 
     static esc bld (bool b = true)   { return esc{}.bld (b); } // ansi: SGR 𝗕𝗼𝗹𝗱 attribute.
     static esc und (bool b = true)   { return esc{}.und (b); } // ansi: SGR 𝗨𝗻𝗱𝗲𝗿𝗹𝗶𝗻𝗲 attribute.
@@ -429,17 +440,18 @@ namespace netxs::console::ansi
     static esc bgc4(rgba const& n)   { return esc{}.bgc4(n); } // ansi: SGR Background color with alpha.
     static esc sav ()                { return esc{}.sav ( ); } // ansi: Save SGR attributes.
     static esc nil ()                { return esc{}.nil ( ); } // ansi: Reset (restore) SGR attributes.
-    static esc scp ()                { return esc{}.scp ( ); } // ansi: Save cursor position in memory.
-    static esc rcp ()                { return esc{}.rcp ( ); } // ansi: Restore cursor position from memory.
-    static esc cpp (twod const& n)   { return esc{}.cpp (n); } // ansi: Cursor percent position.
-    static esc cpx (iota n)          { return esc{}.cpx (n); } // ansi: Cursor horizontal percent position.
-    static esc cpy (iota n)          { return esc{}.cpy (n); } // ansi: Cursor vertical percent position.
+    static esc scp ()                { return esc{}.scp ( ); } // ansi: Save caret position in memory.
+    static esc rcp ()                { return esc{}.rcp ( ); } // ansi: Restore caret position from memory.
+    static esc cpp (twod const& n)   { return esc{}.cpp (n); } // ansi: Caret percent position.
+    static esc cpx (iota n)          { return esc{}.cpx (n); } // ansi: Caret horizontal percent position.
+    static esc cpy (iota n)          { return esc{}.cpy (n); } // ansi: Caret vertical percent position.
     static esc tbs (iota n)          { return esc{}.tbs (n); } // ansi: Tabulation step length.
     static esc mgn (side const& n)   { return esc{}.mgn (n); } // ansi: Margin (left, right, top, bottom).
     static esc mgl (iota n)          { return esc{}.mgl (n); } // ansi: Left margin.
     static esc mgr (iota n)          { return esc{}.mgr (n); } // ansi: Right margin.
     static esc mgt (iota n)          { return esc{}.mgt (n); } // ansi: Top margin.
     static esc mgb (iota n)          { return esc{}.mgb (n); } // ansi: Bottom margin.
+    static esc ext (bool b)          { return esc{}.ext (b); } // ansi: Extended functionality.
 
     static esc jet (iota n)          { return esc{}.jet (n); } // ansi: Text alignment.
     static esc wrp (iota n)          { return esc{}.wrp (n); } // ansi: Text wrapping.
@@ -462,7 +474,7 @@ namespace netxs::console::ansi
     static esc eol ()                { return esc{}.eol ( ); } // ansi: EOL.
     static esc edl ()                { return esc{}.edl ( ); } // ansi: EDL.
 
-    // ansi: Cursor forwarding instructions.
+    // ansi: Caret forwarding instructions.
     // The order is important (see the richtext::flow::exec constexpr).
 
     // todo tie with richtext::flow::exec
@@ -489,8 +501,8 @@ namespace netxs::console::ansi
         //wt, // set top		vertical wrapping field.
         //wb, // set bottom	vertical wrapping field.
 
-        sc, // save cursor position.
-        rc, // load cursor position.
+        sc, // save caret position.
+        rc, // load caret position.
         zz, // all params reset to zero.
 
         // ansi: Paint instructions. The order is important (see the mill).
@@ -500,7 +512,7 @@ namespace netxs::console::ansi
             // Ps = 2  ⇒  Erase All.
             // Ps = 3  ⇒  Erase Scrollback
 
-        // CSI Ps K  Erase in Line (EL), VT100. Cursor position does not change.
+        // CSI Ps K  Erase in Line (EL), VT100. Caret position does not change.
         el, // Ps = 0  ⇒  Erase to Right (default).
             // Ps = 1  ⇒  Erase to Left.
             // Ps = 2  ⇒  Erase All.
@@ -508,7 +520,7 @@ namespace netxs::console::ansi
         fn_count
     };
 
-    // ansi: Cursor control sequence: one command with one argument.
+    // ansi: Caret control sequence: one command with one argument.
     struct rule
     {
         iota cmd;
@@ -699,6 +711,7 @@ namespace netxs::console::ansi
                     csi_ccc[CCC_IDX] = nullptr;
                     csi_ccc[CCC_REF] = nullptr;
                     csi_ccc[CCC_SBS] = nullptr;
+                    csi_ccc[CCC_EXT] = nullptr;
 
                 auto& csi_sgr = table[CSI_SGR].resize(0x100);
                 csi_sgr.enable_multi_arg();
@@ -792,11 +805,13 @@ namespace netxs::console::ansi
             //intro[ctrl::EOL] = exec <fn::nl, 1>;
 
             auto& esc = intro[ctrl::ESC].resize(0x100);
-                esc[CSI  ] = xcsi;
-                esc[OCS  ] = xosc;
-                esc[KEY_A] = keym;
-                esc[KEY_N] = keym;
-                esc[G0SET] = g0__;
+                esc[CSI   ] = xcsi;
+                esc[OCS   ] = xosc;
+                esc[KEY_A ] = keym;
+                esc[KEY_N ] = keym;
+                esc[G0SET ] = g0__;
+                //esc[ESC_SC] = ;
+                //esc[ESC_RC] = ;
                 //esc['M'  ] = __ri;
         }
 
@@ -1025,7 +1040,7 @@ namespace netxs::console::ansi
         }
     };
 
-    // ansi: Cursor manipulation command list.
+    // ansi: Caret manipulation command list.
     struct writ
         : public std::list<ansi::rule>
     {
@@ -1037,22 +1052,22 @@ namespace netxs::console::ansi
         inline writ& kill()    { list::clear();         return *this; } // Clear command list.
 
         writ& rst ()           { push({ fn::zz, 0   }); return *this; } // Reset formatting parameters. Do not clear the command list.
-        writ& cpp (twod p)     { push({ fn::px, p.x });                 // Cursor percent position.
+        writ& cpp (twod p)     { push({ fn::px, p.x });                 // Caret percent position.
                                  push({ fn::py, p.y }); return *this; }
-        writ& cpx (iota x)     { push({ fn::px, x   }); return *this; } // Cursor horizontal percent position.
-        writ& cpy (iota y)     { push({ fn::py, y   }); return *this; } // Cursor vertical percent position.
-        writ& cup (twod p)     { push({ fn::ay, p.y });                 // 0-Based cursor position.
+        writ& cpx (iota x)     { push({ fn::px, x   }); return *this; } // Caret horizontal percent position.
+        writ& cpy (iota y)     { push({ fn::py, y   }); return *this; } // Caret vertical percent position.
+        writ& cup (twod p)     { push({ fn::ay, p.y });                 // 0-Based caret position.
                                  push({ fn::ax, p.x }); return *this; }
-        writ& cuu (iota n = 1) { push({ fn::dy,-n   }); return *this; } // Cursor up.
-        writ& cud (iota n = 1) { push({ fn::dy, n   }); return *this; } // Cursor down.
-        writ& cuf (iota n = 1) { push({ fn::dx, n   }); return *this; } // Cursor forward.
-        writ& cub (iota n = 1) { push({ fn::dx,-n   }); return *this; } // Cursor backward.
-        writ& cnl (iota n = 1) { push({ fn::nl, n   }); return *this; } // Cursor next line.
-        writ& cpl (iota n = 1) { push({ fn::nl,-n   }); return *this; } // Cursor previous line.
-        writ& chx (iota x)     { push({ fn::ax, x   }); return *this; } // Cursor o-based horizontal absolute.
-        writ& chy (iota y)     { push({ fn::ay, y   }); return *this; } // Cursor o-based vertical absolute.
-        writ& scp ()           { push({ fn::sc, 0   }); return *this; } // Save cursor position in memory.
-        writ& rcp ()           { push({ fn::rc, 0   }); return *this; } // Restore cursor position from memory.
+        writ& cuu (iota n = 1) { push({ fn::dy,-n   }); return *this; } // Caret up.
+        writ& cud (iota n = 1) { push({ fn::dy, n   }); return *this; } // Caret down.
+        writ& cuf (iota n = 1) { push({ fn::dx, n   }); return *this; } // Caret forward.
+        writ& cub (iota n = 1) { push({ fn::dx,-n   }); return *this; } // Caret backward.
+        writ& cnl (iota n = 1) { push({ fn::nl, n   }); return *this; } // Caret next line.
+        writ& cpl (iota n = 1) { push({ fn::nl,-n   }); return *this; } // Caret previous line.
+        writ& chx (iota x)     { push({ fn::ax, x   }); return *this; } // Caret o-based horizontal absolute.
+        writ& chy (iota y)     { push({ fn::ay, y   }); return *this; } // Caret o-based vertical absolute.
+        writ& scp ()           { push({ fn::sc, 0   }); return *this; } // Save caret position in memory.
+        writ& rcp ()           { push({ fn::rc, 0   }); return *this; } // Restore caret position from memory.
     };
 
     // ansi: Checking ANSI/UTF-8 integrity and return a valid view.
@@ -1076,7 +1091,7 @@ namespace netxs::console::ansi
         // check ansi integrity
         if (auto size = crop.size())
         {
-            //log ("crop size = ", size);
+            //todo unify the BEL searching
 
             // find ESC \x1b
             while (size && (crop[--size] != 0x1b))
@@ -1090,8 +1105,9 @@ namespace netxs::console::ansi
                 // test single byte after ESC is good: ESC x
                 if (start < crop.size())
                 {
+                    auto c = crop[start];
                     // test CSI: ESC [ pn;...;pn cmd
-                    if (crop[start] == '[')
+                    if (c == '[')
                     {
                         // find CSI command: cmd >= 0x40 && cmd <= 0x7E;
                         while (++start < crop.size())
@@ -1107,7 +1123,7 @@ namespace netxs::console::ansi
                         }
                     }
                     // test OSC: ESC ] ... BEL
-                    else if (crop[start] == ']')
+                    else if (c == ']')
                     {
                         // find BEL
                         while (++start < crop.size())
@@ -1123,9 +1139,78 @@ namespace netxs::console::ansi
                         }
                     }
                     // test G0SET: ESC ( c
-                    else if (crop[start] == '(')
+                    else if (c == '(')
                     {
                         if (++start == crop.size())
+                        {
+                            crop = crop.substr(0, size);
+                            return crop;
+                        }
+                    }
+                    // test ST: ESC \...
+                    else if (c == '\\')
+                    {
+                        if (++start == crop.size())
+                        {
+                            return crop;
+                        }
+                    }
+                    // test Esc+byte: ESC 7 8 D E H M ...
+                    else if (c == '7' ||
+                             c == '8' ||
+                             c == 'D' ||
+                             c == 'E' ||
+                             c == 'H' ||
+                             c == 'M')
+                    {
+                        if (++start == crop.size())
+                        {
+                            return crop;
+                        }
+                    }
+                    // test PM: ESC ^
+                    else if (c == '^')
+                    {
+                        // find BEL
+                        while (++start < crop.size())
+                        {
+                            auto cmd = crop[start];
+                            if (cmd == 0x07) break;
+                        }
+
+                        if (start == crop.size())
+                        {
+                            crop = crop.substr(0, size);
+                            return crop;
+                        }
+                    }
+                    // test APC: ESC _ ... ST
+                    else if (c == '_')
+                    {
+                        // find BEL
+                        while (++start < crop.size())
+                        {
+                            auto cmd = crop[start];
+                            if (cmd == 0x07) break;
+                        }
+
+                        if (start == crop.size())
+                        {
+                            crop = crop.substr(0, size);
+                            return crop;
+                        }
+                    }
+                    // test DCS: ESC P ... ST
+                    else if (c == 'P')
+                    {
+                        // find BEL
+                        while (++start < crop.size())
+                        {
+                            auto cmd = crop[start];
+                            if (cmd == 0x07) break;
+                        }
+
+                        if (start == crop.size())
                         {
                             crop = crop.substr(0, size);
                             return crop;
@@ -1134,7 +1219,7 @@ namespace netxs::console::ansi
                 }
                 else
                 {
-                    //preerve ESC at the end
+                    // preserve ESC at the end
                     crop = crop.substr(0, size);
                     return crop;
                 }

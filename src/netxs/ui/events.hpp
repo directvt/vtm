@@ -56,8 +56,8 @@ namespace netxs::events
 
             operator bool() { return lock.owns_lock(); }
 
-            try_sync() : lock(_globals<void>::mutex, std::try_to_lock) {}
-            ~try_sync() {}
+            try_sync() : lock(_globals<void>::mutex, std::try_to_lock) { }
+           ~try_sync() { }
         };
 
         /*************************************************************************************************
@@ -164,20 +164,26 @@ namespace netxs::events
             //_rect       = any | (6 << 0), // rectangle modification event group
             _debug      = any | (6 << 0), // return info struct with telemtry data
             _config     = any | (7 << 0), // set/notify/get/global_set configuration data (e2::preview/e2::release/e2::request/e2::general)
-            quit        = any | (8 << 0), // return bye msg //errcode (arg: const view)
+            _command    = any | (8 << 0), // exec UI command (arg: iota)
             dtor        = any | (9 << 0), // Notify about object destruction, release only (arg: const id_t)
-
-            //todo unify
-            radio       = any | (10<< 0), // return active radio id_t (arg: const id_t)
-            cout        = any | (11<< 0), // Append extra data to output (arg: const text)
-
-            _bindings   = any | (12<< 0), // Dynamic Data Bindings.
-            _render     = any | (13<< 0), // release: UI-tree rendering (arg: face).
-            postrender  = any | (14<< 0), // release: UI-tree post-rendering (arg: face).
+            //radio       = any | (10<< 0), // return active radio id_t (arg: const id_t)
+            _bindings   = any | (11<< 0), // Dynamic Data Bindings.
+            _render     = any | (12<< 0), // release: UI-tree rendering (arg: face).
+            postrender  = any | (13<< 0), // release: UI-tree post-rendering (arg: face).
+            _size       = any | (14<< 0), // release: Object size (arg: twod).
+            _coor       = any | (15<< 0), // release: Object coor (arg: twod).
         };
         //private: static const unsigned int _level = _toplevel + _width;
         private: static const unsigned int _level0 = _width;
         public:
+        struct size { enum : type {
+                any = e2::_size,                    // preview: checking by pro::limit (arg: twod).
+                set         = any | (1 << _level0), // preview: checking by object; release: apply to object (arg: twod).
+        };};
+        struct coor { enum : type {
+                any = e2::_coor,                    // preview: checking by pro::limit (arg: twod).
+                set         = any | (1 << _level0), // preview: checking by object; release: apply to object (arg: twod).
+        };};
         struct render { enum : type {
                 any = e2::_render,                  // release: UI-tree default rendering submission (arg: face).
                 prerender   = any | (1 << _level0), // release: UI-tree pre-rendering, used by pro::cache (can interrupt SIGNAL) and any kind of highlighters (arg: face).
@@ -209,7 +215,7 @@ namespace netxs::events
         struct config { enum : type {
                 any = e2::_config,
                 _intervals  = any | (1 << _level0), // any kind of intervals property (arg: period)
-                //moveto      = any | (2 << _level0), //
+                broadcast   = any | (2 << _level0), // release: broadcast source changed, args: sptr<bell>.
                 //resized     = any | (3 << _level0), //
             };
             private: static const unsigned int _level1 = _level0 + _width;
@@ -226,12 +232,13 @@ namespace netxs::events
                 error       = any | (2 << _level0),	// return error code
                 focus       = any | (3 << _level0), // order to change focus (arg: bool)
                 key         = any | (4 << _level0), // keybd activity (arg: syskeybd)
-                //menu        = any | (5 << _level0),
+                native      = any | (5 << _level0), // extended functionality (arg: bool)
                 mouse       = any | (6 << _level0), // mouse activity (arg: sysmouse)
                 size        = any | (7 << _level0), // order to update terminal primary overlay (arg: newsize twod)
                 layout      = any | (8 << _level0),
                 preclose    = any | (9 << _level0), // signal to quit after idle timeout (arg: bool - ready to shutdown)
                 quit        = any | (10<< _level0), // quit (arg: text - bye msg)
+                //menu      = any | (11 << _level0),
         };};
         struct hids { enum : type {
                 any = e2::_hids,
@@ -305,7 +312,7 @@ namespace netxs::events
                     shuffle     = any | (3 << _level1), // movement within one cell
                     _scroll     = any | (4 << _level1),
                     focus       = any | (5 << _level1),
-                    hover       = any | (6 << _level1),
+                    gone        = any | (6 << _level1), // release::global: Notify about the mouse controller is gone (args: hids).
                 };
                 private: static const unsigned int _level2 = _level1 + _width;
                 public:
@@ -534,6 +541,10 @@ namespace netxs::events
                     header      = any | (1 << _level1), // set form caption header (arg: text)
                     footer      = any | (2 << _level1), // set form caption footer (arg: text)
                     zorder      = any | (3 << _level1), // set form z-order (arg: iota: -1 backmost, 0 plain, 1 topmost)
+                    brush       = any | (4 << _level1), // set form brush/color (arg: cell)
+                    fullscreen  = any | (5 << _level1), // set fullscreen flag (arg: bool)
+                    name        = any | (6 << _level1), // user name (arg: text)
+                    viewport    = any | (7 << _level1), // request: return form actual viewport (arg: rect)
             };};
             struct animate { enum : type {
                     any = form::_animate,
@@ -553,8 +564,8 @@ namespace netxs::events
                     cached      = any | (5 << _level1), // inform about camvas is cached (arg: canvas face)
                     wiped       = any | (6 << _level1), // event after wipe the canvas (arg: canvas face)
                     created     = any | (7 << _level1), // event after itself creation (arg: itself bell_sptr)
-                    moved       = any | (8 << _level1), // release: event after moveto (arg: diff bw old and new coor twod). preview: event after moved by somebody.
-                    resized     = any | (9 << _level1), // event after resize (arg: diff bw old and new size twod)
+                    //moved       = any | (8 << _level1), // release: event after moveto (arg: diff bw old and new coor twod). preview: event after moved by somebody.
+                    changed     = any | (9 << _level1), // event after resize (arg: diff bw old and new size twod)
                     _scroll     = any | (10<< _level1), // event after scroll (arg: rack)
                     dragged     = any | (11<< _level1), // event after drag (arg: hids)
                 };
@@ -598,8 +609,8 @@ namespace netxs::events
             //};};
             struct layout { enum : type {
                     any = form::_layout,
-                    move        = any | (1 << _level1), // return client rect coor (preview: subject to change)
-                    size        = any | (2 << _level1), // return client rect size (preview: subject to change)
+                    //coor        = any | (1 << _level1), // return client rect coor (preview: subject to change)
+                    //size        = any | (2 << _level1), // return client rect size (preview: subject to change)
                     //rect        = any | (3 << _level1), // return client rect (preview: subject to change)
                     //show        = any | (3 << _level1), // order to make it visible (arg: bool notify or not)
                     //hide        = any | (4 << _level1), // order to make it hidden (arg: bool notify or not)
@@ -627,11 +638,18 @@ namespace netxs::events
             };};
         };
         struct data { enum : type {
-                any = e2::_data,                    // return digest
+                any = e2::_data,
                 changed     = any | (1 << _level0), // return digest
                 request     = any | (2 << _level0),
                 disable     = any | (3 << _level0),
                 flush       = any | (4 << _level0),
+                text        = any | (5 << _level0), // release: signaling with a text string (args: const text).
+        };};
+        struct command { enum : type {
+                any = e2::_command,
+                quit        = any | (1 << _level0), // return bye msg //errcode (arg: const view)
+                cout        = any | (2 << _level0), // Append extra data to output (arg: const text)
+                custom      = any | (3 << _level0), // Custom command (arg: cmd_id iota)
         };};
     };
 
@@ -673,6 +691,18 @@ namespace netxs::events
         vect                 qcopy; // reactor: copy of the current pretenders to exec on current event.
         bool                 alive; // reactor: current exec branch interruptor.
         exec                 order; // reactor: Execution oreder.
+
+        void merge(reactor const& r)
+        {
+            for (auto& [event, src_subs] : r.stock)
+            {
+                auto& dst_subs = stock[event];
+                for (auto& s : src_subs)
+                {
+                    dst_subs.push_back(s);
+                }
+            }
+        }
 
         reactor(exec order)
             : alive{ true },
@@ -796,13 +826,12 @@ namespace netxs::events
     struct indexer
     {
         using id_t = uint32_t;
-        using wptr = netxs::wptr<T>;
-        using imap = std::map<id_t, wptr>;
+        using imap = std::map<id_t, wptr<T>>;
         const id_t id;
 
-        static wptr empty;
-        static id_t newid;
-        static imap store;
+        static wptr<T> empty;
+        static id_t    newid;
+        static imap    store;
 
     protected:
         indexer(indexer const&) = delete;	// id is flushed out when
@@ -826,7 +855,7 @@ namespace netxs::events
             while (netxs::on_key(store, ++newid)) {}
             return newid;
         }
-        void _actuate(wptr This)
+        void _actuate(wptr<T> This)
         {
             store[id] = This;
         }
@@ -868,13 +897,36 @@ namespace netxs::events
     // events: Ext link statics, unique ONLY for concrete T.
     template<class T> typename indexer<T>::id_t indexer<T>::newid = 0;
     template<class T> typename indexer<T>::imap indexer<T>::store;
-    template<class T> typename indexer<T>::wptr indexer<T>::empty;
+    template<class T> wptr<T>                   indexer<T>::empty;
+
+    using hook = reactor::hook;
+    class subs
+    {
+        std::vector<hook> tokens;
+
+    public:
+        template<class REACTOR, class EVENTS, class F>
+        void operator()(REACTOR& r, EVENTS e, std::function<void(F&&)> h)
+        {
+            tokens.push_back(r.subscribe(e, h));
+        }
+        void operator()(hook& t) { tokens.push_back(t); }
+        hook& extra()       { return tokens.emplace_back(); }
+        auto  count() const { return tokens.size();         }
+        void  clear()       {        tokens.clear();        }
+        void  merge(subs const& memo)
+        {
+            tokens.reserve(tokens.size() + memo.tokens.size());
+            for(auto& t : memo.tokens)
+                tokens.push_back(t);
+        }
+    };
 
     // events: Event x-mitter.
     struct bell : public indexer<bell>
     {
-        using hook = reactor::hook;
         static constexpr id_t noid = std::numeric_limits<id_t>::max();
+        subs tracker;
 
     private:
         template<class V>
@@ -886,32 +938,6 @@ namespace netxs::events
         reactor  preview{ reactor::reverse }; // bell: Preview events node relay.
         reactor  request{ reactor::forward }; // bell: Request events node relay.
         reactor  release{ reactor::forward }; // bell: Release events node relay.
-
-        //todo simplify the request reactor. remove the map.
-        struct
-        {
-            std::vector<hook> tokens;
-
-            void operator()(hook& t)
-            {
-                tokens.push_back(t);
-            }
-
-            template<class REACTOR, class EVENTS, class F>
-            void operator()(REACTOR& r, EVENTS e, std::function<void(F&&)> h)
-            {
-                tokens.push_back(r.subscribe(e, h));
-            }
-
-            //template<class F, class REACTOR, class EVENTS>
-            //auto& reg(REACTOR& r, EVENTS e)
-            //{
-            //	auto func = r.template subscribe<F>(e);
-            //	tokens.push_back(func);
-            //	return func->proc;
-            //}
-        }
-        tracker;
 
         template<class EVENT>
         struct submit_helper
@@ -958,16 +984,14 @@ namespace netxs::events
         };
 
     public:
-        class subs
+        void merge(sptr<bell> source_ptr)
         {
-            std::vector<hook> storage;
-
-        public:
-            hook& extra()       { return storage.emplace_back(); }
-            auto  count() const { return storage.size();         }
-            void  clear()       {        storage.clear();        }
-        } memo;
-
+            auto& s = *source_ptr;
+            tracker.merge(s.tracker); //todo deprecate tokens copying
+            preview.merge(s.preview);
+            request.merge(s.request);
+            release.merge(s.release);
+        }
         // bell: Subscribe on a specified event
         //       of specified reaction node by defining an event
         //       handler. Return a lambda reference helper.

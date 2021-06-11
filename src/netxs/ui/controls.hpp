@@ -67,6 +67,20 @@ namespace netxs::ui
             base::reflow();
             return backup;
         }
+        // form: Set colors and return itself.
+        template<class ...Args>
+        auto colors(Args&&... args)
+        {
+            base::color(std::forward<Args>(args)...);
+            return This<T>();
+        }
+        // form: Set the form visible for mouse.
+        auto active(bool visible = true)
+        {
+            auto brush = base::color();
+            if (!brush.wdt()) base::color(brush.txt(whitespace));
+            return This<T>();
+        }
         // form: Return plugin reference of specified type.
         template<class S>
         auto& plugins()
@@ -97,7 +111,6 @@ namespace netxs::ui
             master.SUBMIT_T(e2::release, e2::form::upon::vtree::detached, memomap[master.id], parent_ptr)
             {
                 auto backup = This<T>();
-                memomap[master.id].clear();
                 memomap.erase(master.id);
                 if (memomap.empty()) base::detach();
             };
@@ -116,23 +129,23 @@ namespace netxs::ui
         }
         // form: Create and attach a new item using a template and dynamic datasource.
         template<e2::type PROPERTY, class C, class P>
-        auto attach_element(C data_src, P item_template)
+        auto attach_element(C& data_src_sptr, P item_template)
         {
             auto backup = This<T>();
-            ARGTYPE(PROPERTY) arg;
-            data_src->SIGNAL(e2::request, PROPERTY, arg);
-            auto new_item = item_template(data_src, arg)
-                                 ->depend(data_src);
+            ARGTYPE(PROPERTY) arg_value;
+            data_src_sptr->SIGNAL(e2::request, PROPERTY, arg_value);
+            auto new_item = item_template(data_src_sptr, arg_value)
+                                 ->depend(data_src_sptr);
             auto item_shadow = ptr::shadow(new_item);
-            auto data_shadow = ptr::shadow(data_src);
+            auto data_shadow = ptr::shadow(data_src_sptr);
             auto boss_shadow = ptr::shadow(backup);
-            data_src->SUBMIT_BYVAL_T(e2::release, PROPERTY, memomap[data_src->id], new_arg_value)
+            data_src_sptr->SUBMIT_BYVAL_T(e2::release, PROPERTY, memomap[data_src_sptr->id], arg_new_value)
             {
                 if (auto boss_ptr = boss_shadow.lock())
                 if (auto data_src = data_shadow.lock())
                 if (auto old_item = item_shadow.lock())
                 {
-                    auto new_item = item_template(data_src, new_arg_value)
+                    auto new_item = item_template(data_src, arg_new_value)
                                          ->depend(data_src);
                     item_shadow = ptr::shadow(new_item); // Update current item shadow.
                     boss_ptr->update(old_item, new_item);
@@ -143,12 +156,12 @@ namespace netxs::ui
         }
         // form: Create and attach a new item using a template and dynamic datasource.
         template<e2::type PROPERTY, class S, class P>
-        auto attach_collection(S data_collection_src, P item_template)
+        auto attach_collection(S& data_collection_src, P item_template)
         {
             auto backup = This<T>();
-            for(auto& data_src : data_collection_src)
+            for(auto& data_src_sptr : data_collection_src)
             {
-                attach_element<PROPERTY>(data_src, item_template);
+                attach_element<PROPERTY>(data_src_sptr, item_template);
             }
             return backup;
         }
@@ -171,7 +184,7 @@ namespace netxs::ui
         twod coor2;
 
         tint clr;
-        twod size;
+        //twod size;
         rect stem;
         iota start;
         iota width;
@@ -221,6 +234,7 @@ namespace netxs::ui
 
         ~fork()
         {
+            e2::sync lock;
             if (client_1) client_1->base::detach();
             if (client_2) client_2->base::detach();
         }
@@ -232,26 +246,26 @@ namespace netxs::ui
             updown{ faux },
             ratio{ 0xFFFF >> 1 }
         {
-            SUBMIT(e2::preview, e2::form::layout::size, new_size)
+            SUBMIT(e2::preview, e2::size::set, new_size)
             {
                 fork::size_preview(new_size);
             };
-            SUBMIT(e2::release, e2::form::layout::size, new_size)
+            SUBMIT(e2::release, e2::size::set, new_size)
             {
-                size = new_size;
+                //size = new_size;
                 if (client_1)
                 {
-                    client_1->SIGNAL(e2::release, e2::form::layout::size, size1);
+                    client_1->SIGNAL(e2::release, e2::size::set, size1);
                 }
                 if (client_2)
                 {
-                    client_2->SIGNAL(e2::release, e2::form::layout::move, coor2);
-                    client_2->SIGNAL(e2::release, e2::form::layout::size, size2);
+                    client_2->SIGNAL(e2::release, e2::coor::set, coor2);
+                    client_2->SIGNAL(e2::release, e2::size::set, size2);
                 }
             };
             SUBMIT(e2::release, e2::render::any, parent_canvas)
             {
-                auto basis = base::coor.get();
+                auto& basis = base::coor();
                 if (client_1) parent_canvas.render(client_1, basis);
                 if (client_2) parent_canvas.render(client_2, basis);
 
@@ -343,7 +357,7 @@ namespace netxs::ui
                 if (client_1)
                 {
                     auto& item = *client_1;
-                    item.SIGNAL(e2::preview, e2::form::layout::size, size1);
+                    item.SIGNAL(e2::preview, e2::size::set, size1);
 
                     split = get_x(size1);
                     new_size0.y = get_y(size1);
@@ -354,7 +368,7 @@ namespace netxs::ui
                 if (client_2)
                 {
                     auto& item = *client_2;
-                    item.SIGNAL(e2::preview, e2::form::layout::size, size2);
+                    item.SIGNAL(e2::preview, e2::size::set, size2);
                     split = new_size0.x - width - get_x(size2);
 
                     if (test_size2 != size2) // If size2 doesn't fit.
@@ -364,7 +378,7 @@ namespace netxs::ui
                         if (client_1)
                         {
                             auto& item = *client_1;
-                            item.SIGNAL(e2::preview, e2::form::layout::size, size1);
+                            item.SIGNAL(e2::preview, e2::size::set, size1);
 
                             split = get_x(size1);
                             new_size0.y = get_y(size1);
@@ -373,7 +387,7 @@ namespace netxs::ui
                         if (client_2)
                         {
                             auto& item = *client_2;
-                            item.SIGNAL(e2::preview, e2::form::layout::size, size2);
+                            item.SIGNAL(e2::preview, e2::size::set, size2);
                             new_size0.y = get_y(size2);
                         }
                     }
@@ -474,6 +488,7 @@ namespace netxs::ui
     public:
         ~list()
         {
+            e2::sync lock;
             while (subset.size())
             {
                 subset.back().first->base::detach();
@@ -483,7 +498,7 @@ namespace netxs::ui
         list(axis orientation = axis::Y)
             : updown{ orientation == axis::Y }
         {
-            SUBMIT(e2::preview, e2::form::layout::size, new_sz)
+            SUBMIT(e2::preview, e2::size::set, new_sz)
             {
                 iota  height;
                 auto& y_size = updown ? new_sz.y : new_sz.x;
@@ -496,7 +511,7 @@ namespace netxs::ui
                     for (auto& client : subset)
                     {
                         y_size = 0;
-                        client.first->SIGNAL(e2::preview, e2::form::layout::size, new_sz);
+                        client.first->SIGNAL(e2::preview, e2::size::set, new_sz);
                         client.second = y_size;
                         height += y_size;
                     }
@@ -504,7 +519,7 @@ namespace netxs::ui
                 meter(); if (x_temp != x_size) meter();
                 y_size = height;
             };
-            SUBMIT(e2::release, e2::form::layout::size, new_sz)
+            SUBMIT(e2::release, e2::size::set, new_sz)
             {
                 //todo optimize avoid SIGNAL if size/coor is unchanged
                 auto& y_size = updown ? new_sz.y : new_sz.x;
@@ -524,7 +539,7 @@ namespace netxs::ui
                         {
                             // todo optimize: use the only one axis to hittest
                             // todo detect client during preview, use wptr
-                            auto anker = entry.base::square();
+                            auto& anker = entry.base::area();
                             if (anker.hittest(base::anchor))
                             {
                                 found = true;
@@ -532,15 +547,15 @@ namespace netxs::ui
                             }
                         }
 
-                        entry.SIGNAL(e2::release, e2::form::layout::move, new_xy);
-                        entry.SIGNAL(e2::release, e2::form::layout::size, new_sz);
+                        entry.SIGNAL(e2::release, e2::coor::set, new_xy);
+                        entry.SIGNAL(e2::release, e2::size::set, new_sz);
                     }
                     y_coor+= client.second;
                 }
             };
             SUBMIT(e2::release, e2::render::any, parent_canvas)
             {
-                auto basis = base::coor.get();
+                auto& basis = base::coor();
                 for (auto& client : subset)
                 {
                     parent_canvas.render(client.first, basis);
@@ -601,6 +616,7 @@ namespace netxs::ui
     public:
         ~cake()
         {
+            e2::sync lock;
             while (subset.size())
             {
                 subset.back()->base::detach();
@@ -609,25 +625,25 @@ namespace netxs::ui
         }
         cake()
         {
-            SUBMIT(e2::preview, e2::form::layout::size, newsz)
+            SUBMIT(e2::preview, e2::size::set, newsz)
             {
                 for (auto& client : subset)
                 {
                     if (client)
-                        client->SIGNAL(e2::preview, e2::form::layout::size, newsz);
+                        client->SIGNAL(e2::preview, e2::size::set, newsz);
                 }
             };
-            SUBMIT(e2::release, e2::form::layout::size, newsz)
+            SUBMIT(e2::release, e2::size::set, newsz)
             {
                 for (auto& client : subset)
                 {
                     if (client)
-                        client->SIGNAL(e2::release, e2::form::layout::size, newsz);
+                        client->SIGNAL(e2::release, e2::size::set, newsz);
                 }
             };
             SUBMIT(e2::release, e2::render::any, parent_canvas)
             {
-                auto basis = base::coor.get();
+                auto& basis = base::coor();
                 for (auto& client : subset)
                 {
                     parent_canvas.render(client, basis);
@@ -792,12 +808,12 @@ namespace netxs::ui
             : flow{ width },
               beyond{ scroll_beyond }
         {
-            SUBMIT(e2::preview, e2::form::layout::size, size)
+            SUBMIT(e2::preview, e2::size::set, size)
             {
                 recalc(size);
                 size.y = width.y;
             };
-            SUBMIT(e2::release, e2::form::layout::size, size)
+            SUBMIT(e2::release, e2::size::set, size)
             {
                 //if (width != size)
                 //{
@@ -810,7 +826,7 @@ namespace netxs::ui
             {
                 output(parent_canvas);
 
-                //auto mark = rect{ base::anchor + base::coor.get(), {10,5} };
+                //auto mark = rect{ base::anchor + base::coor(), {10,5} };
                 //mark.coor += parent_canvas.view().coor; // Set client's basis
                 //parent_canvas.fill(mark, [](cell& c) { c.alpha(0x80).bgc().chan.r = 0xff; });
             };
@@ -905,7 +921,7 @@ namespace netxs::ui
                 req_scinfo = scinfo;
             };
 
-            SUBMIT(e2::release, e2::form::layout::size, new_size)
+            SUBMIT(e2::release, e2::size::set, new_size)
             {
                 if (client)
                 {
@@ -962,11 +978,14 @@ namespace netxs::ui
             {
                 if (gear.captured(bell::id))
                 {
-                    cancel<X>();
-                    cancel<Y>();
-                    base::deface();
-                    gear.release();
-                    gear.dismiss();
+                    giveup(gear);
+                }
+            };
+            SUBMIT(e2::general, e2::hids::mouse::gone, gear)
+            {
+                if (gear.captured(bell::id))
+                {
+                    giveup(gear);
                 }
             };
             SUBMIT(e2::release, bttn::drag::stop::right, gear)
@@ -1021,8 +1040,16 @@ namespace netxs::ui
             SUBMIT(e2::release, e2::render::any, parent_canvas)
             {
                 if (client)
-                    parent_canvas.render<faux>(client, base::coor.get());
+                    parent_canvas.render<faux>(client, base::coor());
             };
+        }
+        void giveup(hids& gear)
+        {
+            cancel<X>();
+            cancel<Y>();
+            base::deface();
+            gear.release();
+            gear.dismiss();
         }
         template<axis AXIS>
         void wheels(bool dir)
@@ -1075,17 +1102,16 @@ namespace netxs::ui
             if (client)
             {
                 manual[AXIS] = faux;
-                auto level = AXIS == X;
-                auto block = client->base::square();
-                auto coord = level ? block.coor.x
-                                   : block.coor.y;
-                auto bound = level ? std::min(base::size.get().x - block.size.x, 0)
-                                   : std::min(base::size.get().y - block.size.y, 0);
-                auto newxy = std::clamp(coord, bound, 0);
-
-                auto route = newxy - coord;
-                iota tempo = SWITCHING_TIME;
-                auto fader = constlinearAtoB<iota>(route, tempo, now<iota>());
+                auto& block = client->base::area();
+                auto  level = AXIS == X;
+                auto  coord = level ? block.coor.x
+                                    : block.coor.y;
+                auto  bound = level ? std::min(base::size().x - block.size.x, 0)
+                                    : std::min(base::size().y - block.size.y, 0);
+                auto  newxy = std::clamp(coord, bound, 0);
+                auto  route = newxy - coord;
+                iota  tempo = SWITCHING_TIME;
+                auto  fader = constlinearAtoB<iota>(route, tempo, now<iota>());
                 keepon<AXIS>(fader);
             }
         }
@@ -1097,11 +1123,11 @@ namespace netxs::ui
             if (client)
             {
                 auto& thing = *client;
-                auto  block = thing.base::square();
+                auto  block = thing.base::area();
                 auto  basis = thing.oversize.topleft();
                 block.coor -= basis; // Scroll origin basis.
                 block.size += thing.oversize.summ();
-                auto& frame = base::size.get();
+                auto& frame = base::size();
                 auto  level = AXIS == X;
                 auto  bound = level ? std::min(frame.x - block.size.x, 0)
                                     : std::min(frame.y - block.size.y, 0);
@@ -1140,7 +1166,7 @@ namespace netxs::ui
         {
             client = item;
             tokens.clear();
-            item->SUBMIT_T(e2::release, e2::form::layout::size, tokens.extra(), size)
+            item->SUBMIT_T(e2::release, e2::size::set, tokens.extra(), size)
             {
                 if (!locked)
                 {
@@ -1194,6 +1220,7 @@ namespace netxs::ui
     {
         pro::mouse mouse{*this }; // grip: Mouse events controller.
         pro::timer timer{*this }; // grip: Minimize by timeout.
+        pro::limit limit{*this }; // grip: Size limits.
 
         using wptr = netxs::wptr<bell>;
         using sptr = netxs::sptr<bell>;
@@ -1333,10 +1360,26 @@ namespace netxs::ui
         void config(iota width)
         {
             thin = width;
-            auto limit = twod{ xy({ -1,thin }), yx({ -1,thin }) };
-            base::limits(limit, limit);
+            auto lims = twod{ xy({ -1,thin }), yx({ -1,thin }) };
+            limit.set(lims, lims);
         }
-
+        void giveup(hids& gear)
+        {
+            if (on_pager) gear.dismiss();
+            else
+            {
+                if (gear.captured(bell::id))
+                {
+                    if (this->bell::protos<e2::release>(e2::hids::mouse::button::drag::cancel::right))
+                    {
+                        gohome();
+                    }
+                    base::deface();
+                    gear.release();
+                    gear.dismiss();
+                }
+            }
+        }
         auto pager_repeat()
         {
             if (on_pager && calc.follow())
@@ -1361,7 +1404,7 @@ namespace netxs::ui
                 base::deface();
             };
 
-            SUBMIT(e2::release, e2::form::layout::size, new_size)
+            SUBMIT(e2::release, e2::size::set, new_size)
             {
                 calc.resize(new_size);
             };
@@ -1465,20 +1508,11 @@ namespace netxs::ui
             };
             SUBMIT(e2::release, e2::hids::mouse::button::drag::cancel::any, gear)
             {
-                if (on_pager) gear.dismiss();
-                else
-                {
-                    if (gear.captured(bell::id))
-                    {
-                        if (this->bell::protos<e2::release>(bttn::drag::cancel::right))
-                        {
-                            gohome();
-                        }
-                        base::deface();
-                        gear.release();
-                        gear.dismiss();
-                    }
-                }
+                giveup(gear);
+            };
+            SUBMIT(e2::general, e2::hids::mouse::gone, gear)
+            {
+                giveup(gear);
             };
             SUBMIT(e2::release, e2::hids::mouse::button::drag::stop::any, gear)
             {
@@ -1573,26 +1607,26 @@ namespace netxs::ui
             : padding{ padding_value },
               margins{ margins_value }
         {
-            SUBMIT(e2::preview, e2::form::layout::size, new_size)
+            SUBMIT(e2::preview, e2::size::set, new_size)
             {
                 if (client)
                 {
                     auto client_size = new_size - padding;
-                    client->SIGNAL(e2::preview, e2::form::layout::size, client_size);
+                    client->SIGNAL(e2::preview, e2::size::set, client_size);
                     new_size = client_size + padding;
                     //todo unify
-                    auto lims = base::limits();
-                    new_size = std::clamp(new_size, lims.min, lims.max);
+                    //auto lims = base::limits();
+                    //new_size = std::clamp(new_size, lims.min, lims.max);
                 }
             };
-            SUBMIT(e2::release, e2::form::layout::size, new_size)
+            SUBMIT(e2::release, e2::size::set, new_size)
             {
                 if (client)
                 {
                     auto client_size = new_size - padding;
                     auto client_coor = padding.corner();
-                    client->SIGNAL(e2::release, e2::form::layout::size, client_size);
-                    client->SIGNAL(e2::release, e2::form::layout::move, client_coor);
+                    client->SIGNAL(e2::release, e2::size::set, client_size);
+                    client->SIGNAL(e2::release, e2::coor::set, client_coor);
                 }
             };
             SUBMIT(e2::release, e2::render::prerender, parent_canvas)
@@ -1602,7 +1636,7 @@ namespace netxs::ui
                 this->SIGNAL(e2::release, e2::render::any, parent_canvas);
                 parent_canvas.view(view);
                 if (client)
-                    parent_canvas.render(client, base::coor.get());
+                    parent_canvas.render(client, base::coor());
                 bell::expire(e2::release);
             };
         }
@@ -1650,6 +1684,8 @@ namespace netxs::ui
     class item
         : public form<item>
     {
+        pro::limit limit{ *this }; // item: Size limits.
+
         static constexpr view dots = "‥";
         para name;
         bool flex; // item: Violate or not the label size, default is faux.
@@ -1659,7 +1695,7 @@ namespace netxs::ui
         {
             auto size = name.size();
             auto lims = flex ? twod{ -1,size.y } : size;
-            base::limits(lims, lims);
+            limit.set(lims, lims);
             base::resize(size);
         }
     public:
@@ -1755,8 +1791,8 @@ namespace netxs::ui
         {
             //todo cache specific
             canvas.link(bell::id);
-            SUBMIT(e2::release, base::size_event, new_sz) { canvas.size(new_sz); };
-            SUBMIT(e2::release, base::move_event, new_xy) { canvas.move(new_xy); };
+            SUBMIT(e2::release, e2::size::set, new_sz) { canvas.size(new_sz); };
+            SUBMIT(e2::release, e2::coor::set, new_xy) { canvas.move(new_xy); };
             SUBMIT(e2::request, e2::form::canvas, canvas) { canvas = coreface; };
 
             sfx_len = utf::length(sfx_str);
@@ -1767,7 +1803,7 @@ namespace netxs::ui
 
             set_pen(0);
 
-            SUBMIT(e2::preview, e2::form::layout::size, size)
+            SUBMIT(e2::preview, e2::size::set, size)
             {
                 size = box_len; // Suppress resize.
             };
@@ -1778,18 +1814,11 @@ namespace netxs::ui
             };
             SUBMIT(e2::release, e2::render::any, parent_canvas)
             {
-                if (base::invalid)
+                if (base::ruined())
                 {
-                    canvas.wipe();
                     canvas.wipe();
                     canvas.output(topic);
-                }
-            };
-            SUBMIT(e2::release, e2::postrender, parent_canvas)
-            {
-                if (base::invalid)
-                {
-                    base::invalid = faux;
+                    base::ruined(faux);
                 }
                 parent_canvas.plot(canvas);
             };
@@ -1802,6 +1831,7 @@ namespace netxs::ui
     {
         pro::mouse mouse{*this }; // stem_rate: Mouse controller.
         pro::robot robot{*this }; // stem_rate: Animation controller.
+        pro::limit limit{*this }; // stem_rate: Size limits.
 
         //todo cache specific
         sptr<face> coreface;
@@ -1845,7 +1875,7 @@ namespace netxs::ui
 
         void recalc()
         {
-            bar_len = std::max(0, base::size.get().x - (pad + 1) * 2);
+            bar_len = std::max(0, base::size().x - (pad + 1) * 2);
             auto pin_abs = netxs::divround((bar_len + 1) * (cur_val - min_val),
                 (max_val - min_val));
             text pin_str;
@@ -1888,6 +1918,16 @@ namespace netxs::ui
                 SIGNAL(TIER, EVENT, cur_val);
             }
         }
+        void giveup(hids& gear)
+        {
+            if (gear.captured(grip_ctl->id))
+            {
+                deltas = 0;
+                move_grip(origin);
+                gear.release();
+                gear.dismiss();
+            }
+        }
 
         stem_rate(text const& caption, iota min_value, iota max_value, view suffix)
             : min_val{ min_value },
@@ -1897,14 +1937,14 @@ namespace netxs::ui
         {
             //todo cache specific
             canvas.link(bell::id);
-            SUBMIT(e2::release, base::size_event, new_sz) { canvas.size(new_sz); };
-            SUBMIT(e2::release, base::move_event, new_xy) { canvas.move(new_xy); };
+            SUBMIT(e2::release, e2::size::set, new_sz) { canvas.size(new_sz); };
+            SUBMIT(e2::release, e2::coor::set, new_xy) { canvas.move(new_xy); };
             SUBMIT(e2::request, e2::form::canvas, canvas) { canvas = coreface; };
 
             cur_val = -1;
             SIGNAL(TIER, EVENT, cur_val);
 
-            base::limits({ utf::length(caption) + (pad + 2) * 2,
+            limit.set(twod{ utf::length(caption) + (pad + 2) * 2,
                            10 });
 
             topic = ansi::wrp(wrap::off).jet(bias::left)
@@ -1957,13 +1997,11 @@ namespace netxs::ui
                 };
                 grip_ctl->SUBMIT(e2::release, e2::hids::mouse::button::drag::cancel::left, gear)
                 {
-                    if (gear.captured(grip_ctl->id))
-                    {
-                        deltas = 0;
-                        move_grip(origin);
-                        gear.release();
-                        gear.dismiss();
-                    }
+                    giveup(gear);
+                };
+                grip_ctl->SUBMIT(e2::general, e2::hids::mouse::gone, gear)
+                {
+                    giveup(gear);
                 };
                 grip_ctl->SUBMIT(e2::release, e2::hids::mouse::button::drag::stop::left, gear)
                 {
@@ -1989,7 +2027,7 @@ namespace netxs::ui
                     move_grip(cur_val + 1);
                     gear.dismiss();
                 };
-                this->SUBMIT(e2::release, e2::form::layout::size, size)
+                this->SUBMIT(e2::release, e2::size::set, size)
                 {
                     recalc();
                 };
@@ -2013,23 +2051,16 @@ namespace netxs::ui
             };
             SUBMIT(e2::release, e2::render::any, parent_canvas)
             {
-                if (base::invalid)
+                if (base::ruined())
                 {
-                    canvas.wipe();
-                    canvas.wipe(base::brush);
+                    canvas.wipe(base::color());
                     canvas.output(topic);
                     auto cp = canvas.cp();
                     cp.x = pin_pos;
                     cp.y -= 3;
                     grip_ctl->base::moveto(cp);
-                    canvas.render(grip_ctl, base::coor.get());
-                }
-            };
-            SUBMIT(e2::release, e2::postrender, parent_canvas)
-            {
-                if (base::invalid)
-                {
-                    base:: invalid = faux;
+                    canvas.render(grip_ctl, base::coor());
+                    base::ruined(faux);
                 }
                 parent_canvas.plot(canvas);
             };

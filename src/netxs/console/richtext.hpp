@@ -767,8 +767,8 @@ namespace netxs::console
         constexpr
         shot(core const& basis, iota begin, iota piece)
             : basis{ basis },
-              start{ std::max(begin, 0) },
-              width{ std::min(std::max(piece, 0), basis.size().x - start) }
+              start{ std::max(0, begin) },
+              width{ std::min(std::max(0, piece), basis.size().x - start) }
         {
             if (basis.size().x <= start)
             {
@@ -885,8 +885,8 @@ namespace netxs::console
             wipe(brush);
             return operator += (utf8);
         }
-
-        void move(para&& p)
+        // para: Move all from p.
+        void resite(para& p)
         {
             width = p.width;
             caret = p.caret;
@@ -911,6 +911,7 @@ namespace netxs::console
         bool   busy() const { return length() || !proto.empty() || brush.busy(); } // para: Is it filled.
         void   ease()   { brush.nil(); lyric->each([&](auto& c) { c.clr(brush); });  } // para: Reset color for all text.
         void   link(id_t id)         { lyric->each([&](auto& c) { c.link(id);   });  } // para: Set object ID for each cell.
+        void   open()                { bossid = selfid;  } // para: Set paragraph open(uncovered, ie not covered by the lines above).
         void   wipe(cell c = cell{}) // para: Clear the text and locus, and reset SGR attributes.
         {
             width = 0;
@@ -1070,7 +1071,7 @@ namespace netxs::console
             else caret = new_pos; 
         }
 
-        void trim_to(iota max_width)
+        void trimto(iota max_width)
         {
             if (length() > max_width)
             {
@@ -1142,6 +1143,23 @@ namespace netxs::console
         {
             brush.set(c);
             return *this;
+        }
+        //todo make it 2D
+        // para: Insert fragment at the specified position.
+        void insert(iota at, shot const& fragment)
+        {
+            auto& line = *lyric;
+            auto  size = fragment.length();
+            auto  full = at + size;
+            if   (full > length()) line.crop(full);
+            auto& data = line.pick();
+            auto  head = data.begin() + at;
+            auto  tail = head + size;
+            auto  frag = fragment.data();
+            while(head != tail)
+            {
+                 *head++ = *frag++;
+            }
         }
     };
 
@@ -1710,7 +1728,7 @@ namespace netxs::console
             auto canvas_view = core::view();
             auto parent_area = flow::full();
 
-            auto object_area = nested.square();
+            auto object_area = nested.area();
             object_area.coor+= parent_area.coor;
 
             auto nested_view = canvas_view.clip(object_area);
@@ -1736,7 +1754,7 @@ namespace netxs::console
             auto canvas_view = core::view();
             auto parent_area = flow::full();
 
-            auto object_area = object.square();
+            auto object_area = object.area();
             object_area.coor-= core::coor();
 
             if (auto nested_view = canvas_view.clip(object_area))

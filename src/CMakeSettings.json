@@ -32,7 +32,7 @@
       "variables": [
         {
           "name": "CMAKE_CXX_FLAGS_DEBUG",
-          "value": "-g -Og -pthread",
+          "value": "-g -O0 -pthread",
           "type": "STRING"
         }
       ],
@@ -99,12 +99,12 @@
         },
         {
           "name": "CMAKE_CXX_FLAGS",
-          "value": "/DWIN32 /D_WINDOWS /W3 /GR /EHsc",
+          "value": "/DWIN32 /D_WINDOWS /W3 /GR /EHsc /bigobj",
           "type": "STRING"
         },
         {
           "name": "CMAKE_CXX_FLAGS_RELEASE",
-          "value": "/MD /O2 /Ob2 /DNDEBUG",
+          "value": "/MD /O2 /Ob2 /DNDEBUG /bigobj",
           "type": "STRING"
         },
         {
@@ -167,7 +167,7 @@
       "variables": [
         {
           "name": "CMAKE_CXX_FLAGS_MINSIZEREL",
-          "value": "/MT /O1 /Ob1 /DNDEBUG",
+          "value": "/MT /O1 /Ob1 /DNDEBUG /bigobj",
           "type": "STRING"
         }
       ]
@@ -208,7 +208,7 @@
       "variables": [
         {
           "name": "CMAKE_CXX_FLAGS_MINSIZEREL",
-          "value": "/MT /O1 /Ob1 /DNDEBUG",
+          "value": "/MT /O1 /Ob1 /DNDEBUG /bigobj",
           "type": "STRING"
         }
       ]

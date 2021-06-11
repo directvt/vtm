@@ -1,4 +1,4 @@
-# Monotty Desktopio Preview
+# Monotty Desktopio
 
 A text-based desktop environment in your terminal
 ![image](https://dice.netxs.online/cloud/vtm/mde_banner_v1.13.png)
@@ -53,15 +53,9 @@ cmake ../src -DEXECUTABLE_OUTPUT_PATH=".." -DCMAKE_BUILD_TYPE=Release "-GVisual 
 ### macOS
 
 Build-time dependencies: `Xcode 12.x series`  
-Xcode project settings: `./src/project.pbxproj`
+Xcode project folder: `./VTM/vtm.xcodeproj`
 
-```
- ...
-buildSettings = {
- ...
-  CLANG_CXX_LANGUAGE_STANDARD = "c++2a";
- ...
-```
+To build this project, use `Xcode` to open the project folder and go to the menu `Product` -> `Build`.
 
 # Releases
 
@@ -98,8 +92,8 @@ double `LeftClick`    | Menu: Create new window<br>Window: Maximize/restore wind
 # Built-in Applications
 
 - `▀▄ Term` Terminal emulator
-- `▀▄ Logs` VT monitoring tool
-- `▀▄ View` Desktop named regions
+- `▀▄ Logs` Debug output console
+- `▀▄ View` Workspace navigation helper
 - `▀▄ Task` Task manager (desktopio) _(not ready)_
 - `▀▄ Hood` Configuration utility _(not ready)_
 - `▀▄ Info` Documentation browser _(not ready)_
@@ -131,15 +125,15 @@ double `LeftClick`    | Menu: Create new window<br>Window: Maximize/restore wind
    
       Name         | Sequence                         | Description
       -------------|----------------------------------|-------------
-      `CCC_SBS`    | `CSI` 24 \[ : n \[ : m \] \] `p` | Set scrollback buffer size, `int32_t`<br>`n` Buffer limit in lines, 0 is unlimited, _default is 20.000_<br>`m` Grow step for unlimited buffer, _default is 0_
-      `CCC_RST`    | `CSI`  1           `p`           | Reset all parameters to default
-      `CCC_TBS`    | `CSI`  5 \[ : n \] `p`           | Set tabulation length<br>`n` Length in chars, _max = 256, default is 8_
-      `CCC_JET`    | `CSI` 11 \[ : n \] `p`           | Set text alignment, _default is Left_<br>`n = 0` default<br>`n = 1` Left<br>`n = 2` Right<br>`n = 3` Center
-      `CCC_WRP`    | `CSI` 12 \[ : n \] `p`           | Set text autowrap mode, _default is On_<br>`n = 0` default<br>`n = 1` On<br>`n = 2` Off
-      `CCC_RTL`    | `CSI` 13 \[ : n \] `p`           | Set text right-to-left mode, _default is Off_<br>`n = 0` default<br>`n = 1` On<br>`n = 2` Off
+      `CCC_SBS`    | `CSI` 24 : n : m `p`             | Set scrollback buffer size, `int32_t`<br>`n` Buffer limit in lines, 0 is unlimited, _default is 20.000_<br>`m` Grow step for unlimited buffer, _default is 0_
+      `CCC_RST`    | `CSI` 1 `p`                      | Reset all parameters to default
+      `CCC_TBS`    | `CSI` 5 : n `p`                  | Set tabulation length<br>`n` Length in chars, _max = 256, default is 8_
+      `CCC_JET`    | `CSI` 11 : n `p`                 | Set text alignment, _default is Left_<br>`n = 0` default<br>`n = 1` Left<br>`n = 2` Right<br>`n = 3` Center
+      `CCC_WRP`    | `CSI` 12 : n `p`                 | Set text autowrap mode, _default is On_<br>`n = 0` default<br>`n = 1` On<br>`n = 2` Off (_enable horizontal scrolling_)
+      `CCC_RTL`    | `CSI` 13 : n `p`                 | Set text right-to-left mode, _default is Off_<br>`n = 0` default<br>`n = 1` On<br>`n = 2` Off
 
  - `▀▄ Logs`
-  - Reset by double `RightClick`
+  - Debug output console. Use double `RightClick` to clear scrollback.
 
  - `▀▄ View`
   - Serves for quick navigation through the desktop space using cyclic selection (left click on group title) in the `View` group on the taskbar.
