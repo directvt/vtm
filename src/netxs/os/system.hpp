@@ -2365,6 +2365,7 @@ namespace netxs::os
         {
             receiver = input_hndl;
             shutdown = shutdown_hndl;
+            consize(winsz);
             log("cons: new process: ", cmdline);
 
             #if defined(_WIN32)
@@ -2458,8 +2459,12 @@ namespace netxs::os
                     });
                     socket.set(m_pipe_r, m_pipe_w, true);
                     alive = true;
+                    log("cons: conpty created: ", winsz);
                 }
                 else log("cons: process creation error ", GetLastError());
+
+                //todo workaround, GH#10400 https://github.com/microsoft/terminal/issues/10400
+                std::this_thread::sleep_for(250ms);
 
             #elif defined(__linux__) || defined(__APPLE__)
 
@@ -2599,6 +2604,10 @@ namespace netxs::os
                     size.Y = newsize.y;
                     //todo possible ConPTY bug: ConPTY does not apply the new size when it changes quickly
                     auto hr = ResizePseudoConsole(hPC, size);
+                    if (hr != S_OK)
+                    {
+                        log("cons: conpty resize failed, error code ", hr);
+                    }
 
                 #elif defined(__linux__) || defined(__APPLE__)
 
