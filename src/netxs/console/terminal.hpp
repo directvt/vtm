@@ -985,7 +985,7 @@ namespace netxs::ui
                     vt::csier.table[CSI_CUF] = VT_PROC{ p->cuf( q(1)); };  // CSI n C
                     vt::csier.table[CSI_CUB] = VT_PROC{ p->cuf(-q(1)); };  // CSI n D
 
-                    vt::csier.table[CSI_CUD2]= VT_PROC{ p->dn ( q(1)); };  // CSI n e  Move caret down. Same as CUD
+                    vt::csier.table[CSI_CUD2]= VT_PROC{ p->dn ( q(1)); };  // CSI n e  Move caret down. Same as CUD.
 
                     vt::csier.table[CSI_CNL] = vt::csier.table[CSI_CUD];   // CSI n E
                     vt::csier.table[CSI_CPL] = vt::csier.table[CSI_CUU];   // CSI n F
@@ -1015,17 +1015,18 @@ namespace netxs::ui
                     vt::csier.table[CSI_CCC][CCC_SBS] = VT_PROC{ p->boss.resize(q); };  // CCC_SBS: Set scrollback size.
                     vt::csier.table[CSI_CCC][CCC_EXT] = VT_PROC{ p->boss.native(q(1)); };  // CCC_EXT: Setup extended functionality.
 
-                    vt::intro[ctrl::ESC]['M']= VT_PROC{ p->ri (); }; // ESC M  Reverse index
-                    vt::intro[ctrl::ESC]['H']= VT_PROC{ p->na("ESC H  Place tabstop at the current caret posistion"); }; // ESC H  Place tabstop at the current caret posistion.
-                    vt::intro[ctrl::ESC]['c']= VT_PROC{ p->boss.decstr(); }; // ESC c (same as CSI ! p) Full reset (RIS).
-                    vt::intro[ctrl::ESC]['7']= VT_PROC{ p->scp(); }; // ESC 7 (same as CSI s) Save caret position.
-                    vt::intro[ctrl::ESC]['8']= VT_PROC{ p->rcp(); }; // ESC 8 (same as CSI u) Restore caret position.
+                    vt::intro[ctrl::ESC][ESC_IND]= VT_PROC{ p->dn(1); }; // ESC D  Caret Down.
+                    vt::intro[ctrl::ESC][ESC_IR ]= VT_PROC{ p->ri (); }; // ESC M  Reverse index.
+                    vt::intro[ctrl::ESC][ESC_HTS]= VT_PROC{ p->na("ESC H  Place tabstop at the current caret posistion"); }; // ESC H  Place tabstop at the current caret posistion.
+                    vt::intro[ctrl::ESC][ESC_RIS]= VT_PROC{ p->boss.decstr(); }; // ESC c Reset to initial state (same as DECSTR).
+                    vt::intro[ctrl::ESC][ESC_SC ]= VT_PROC{ p->scp(); }; // ESC 7 (same as CSI s) Save caret position.
+                    vt::intro[ctrl::ESC][ESC_RC ]= VT_PROC{ p->rcp(); }; // ESC 8 (same as CSI u) Restore caret position.
 
-                    vt::intro[ctrl::BS ]     = VT_PROC{ p->cuf(-q.pop_all(ctrl::BS )); };
-                    vt::intro[ctrl::DEL]     = VT_PROC{ p->del( q.pop_all(ctrl::DEL)); };
-                    vt::intro[ctrl::TAB]     = VT_PROC{ p->tab( q.pop_all(ctrl::TAB)); };
-                    vt::intro[ctrl::CR ]     = VT_PROC{ p->home(); };
-                    vt::intro[ctrl::EOL]     = VT_PROC{ p->dn ( q.pop_all(ctrl::EOL)); };
+                    vt::intro[ctrl::BS ] = VT_PROC{ p->cuf(-q.pop_all(ctrl::BS )); };
+                    vt::intro[ctrl::DEL] = VT_PROC{ p->del( q.pop_all(ctrl::DEL)); };
+                    vt::intro[ctrl::TAB] = VT_PROC{ p->tab( q.pop_all(ctrl::TAB)); };
+                    vt::intro[ctrl::CR ] = VT_PROC{ p->home(); };
+                    vt::intro[ctrl::EOL] = VT_PROC{ p->dn ( q.pop_all(ctrl::EOL)); };
 
                     vt::csier.table_quest[DECSET] = VT_PROC{ p->boss.decset(q); };
                     vt::csier.table_quest[DECRST] = VT_PROC{ p->boss.decrst(q); };
@@ -1755,7 +1756,7 @@ namespace netxs::ui
                             if (target == &altbuf || target->scroll_region_used())
                             {
                                 //target->trim_to_size(new_size);
-                                //todo altbuf: trim to size
+                                //todo altbuf: trim all autowrap lines to size
                                 //todo scroll_region_used: scroll region up or down (pull lines from scrollback buffer)
                             }
                             viewport.size = new_size;

@@ -38,6 +38,7 @@ namespace netxs::console::ansi
     static const char ESC_IND = 'D'; // ESC D         Caret Down.
     static const char ESC_IR  = 'M'; // ESC M         Caret Up.
     static const char ESC_DCS = 'P'; // ESC P ... ST  DCS start
+    static const char ESC_RIS = 'c'; // ESC c         Reset terminal to initial state.
 
     static const char CSI_CUU = 'A'; // CSI n      A  — Caret Up.
     static const char CSI_CUD = 'B'; // CSI n      B  — Caret Down.
@@ -1161,7 +1162,8 @@ namespace netxs::console::ansi
                              c == 'D' ||
                              c == 'E' ||
                              c == 'H' ||
-                             c == 'M')
+                             c == 'M' ||
+                             c == 'c')
                     {
                         if (++start == crop.size())
                         {
