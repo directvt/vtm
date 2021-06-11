@@ -1646,8 +1646,6 @@ namespace netxs::ui
                 e2::try_sync guard;
                 if (guard)
                 {
-                    //log(" 1. target content: ", target->get_content());
-
                     SIGNAL(e2::general, e2::debug::output, shadow); // Post for the Logs.
 
                     auto orig_view = rect{ base::size() - viewport.size, viewport.size };
@@ -1679,7 +1677,6 @@ namespace netxs::ui
                     }
 
                     update_status();
-                    //log(" 2. target content: ", target->get_content());
                     break;
                 }
                 else std::this_thread::yield();
