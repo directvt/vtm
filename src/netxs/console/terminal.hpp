@@ -643,6 +643,20 @@ namespace netxs::ui
                 rebuild_upto_id(bossid);
             }
         }
+        // rods: Trim all autowrap lines by the specified size.
+        void trim_to_size(twod const& new_size)
+        {
+            auto start = batch.begin() + (basis ? basis - 1 : 0);
+            auto end = batch.end() - 1 - std::max(0, panel.y - new_size.y);
+            auto width = std::min(new_size.x, panel.x);
+            while (end != start)
+            {
+                dissect(end);
+                auto& line = *end;
+                if (line.style.wrapln == wrap::on) line.trimto(width);
+                --end;
+            }
+        }
     };
 
     // terminal: Built-in terminal app.
@@ -1741,10 +1755,9 @@ namespace netxs::ui
                             auto old_caret_pos = caret.coor();
                             auto caret_seeable = viewport.coor.y == base::size().y - viewport.size.y;
 
-                            if (target == &altbuf || target->scroll_region_used())
+                            if (target == &altbuf)// || target->scroll_region_used())
                             {
-                                //target->trim_to_size(new_size);
-                                //todo altbuf: trim all autowrap lines to size
+                                altbuf.trim_to_size(new_size);
                                 //todo scroll_region_used: scroll region up or down (pull lines from scrollback buffer)
                             }
                             viewport.size = new_size;

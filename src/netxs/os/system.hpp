@@ -2460,7 +2460,7 @@ namespace netxs::os
                 }
                 else log("cons: process creation error ", GetLastError());
 
-                //todo workaround, GH#10400 https://github.com/microsoft/terminal/issues/10400
+                //todo workaround for GH#10400 https://github.com/microsoft/terminal/issues/10400
                 std::this_thread::sleep_for(250ms);
 
             #elif defined(__linux__) || defined(__APPLE__)
@@ -2599,7 +2599,6 @@ namespace netxs::os
                     COORD size;
                     size.X = newsize.x;
                     size.Y = newsize.y;
-                    //todo possible ConPTY bug: ConPTY does not apply the new size when it changes quickly
                     auto hr = ResizePseudoConsole(hPC, size);
                     if (hr != S_OK)
                     {
