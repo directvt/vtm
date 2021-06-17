@@ -259,6 +259,7 @@ namespace netxs::ui
         {
             assert(amount >= 0 && amount < batch.length());
             while(amount--) batch.pop();
+            align_basis();
         }
         auto get_line_index_by_id(iota id)
         {
@@ -541,6 +542,7 @@ namespace netxs::ui
                 auto mas_index = get_line_index_by_id(trim_line.bossid);
                 auto max_width = iota{ 0 };
                 auto head_iter = batch.begin() + mas_index;
+                //todo the case when wrap::on is over the wrap::off and the remainder is wider than panel.x
                 do
                 {
                     auto& line_inst = *--line_iter;
@@ -569,7 +571,9 @@ namespace netxs::ui
         {
             while(begin_it != end_it)
             {
-                (*begin_it).wipe(brush.spare);
+                auto& line = *begin_it;
+                xsize.drop(line);
+                line.wipe(brush.spare);
                 ++begin_it;
             }
         }
@@ -579,7 +583,8 @@ namespace netxs::ui
             if (n)
             {
                 auto[top, end] = get_scroll_region();
-                auto all_it = batch.begin() + basis;
+                auto nul_it = batch.begin();
+                auto all_it = nul_it + basis;
                 auto end_it = all_it + end;
                 auto top_it = all_it + top;
                 auto bossid = all_it->bossid;
@@ -590,29 +595,69 @@ namespace netxs::ui
                     rods::add_lines(-footer);
                     footer = 0;
                 }
+                //todo zeroize dropped lines first of all in order to remove it from oversize manager
                 if (n > 0) // Scroll down (move down the text block).
                 {
-                    if (use_scrollback)
+                    n = std::min(n, height);
+                    // if (use_scrollback && basis)
+                    // {
+                    //     if (n > basis)
+                    //     {
+                    //         auto empty_lines = n - basis;
+                    //         auto a = end_it + 1;
+                    //         auto b = a - n;
+                    //         dissect(b);
+                    //         dissect(a);
+                    //         zeroise(b, a);
+                    //         auto c = top_it - 1;
+                    //         dissect(top_it);
+                    //         auto d = end_it - basis;
+                    //         if (basis) dissect(d + 1);
+                    //         move_to(b - 1, c, d);
+                    //         if (footer)
+                    //         {
+                    //             auto b = batch.end();
+                    //             move_to(a, b, d); // Move up footer block by basis.
+                    //         }
+                    //         if (top)
+                    //         {
+                    //             auto buffer = cache.begin();
+                    //             dissect(all_it);
+                    //             dissect(top_it);
+                    //             move_to(all_it, top_it, buffer); // Move fixed header block to the temporary cache.
+                    //             move_to(all_it - 1, nul_it - 1, c + n);
+                    //             move_to(buffer, buffer + top, nul_it); // Move back fixed header block from the temporary cache.
+                    //         }
+                    //         pop_lines(basis);
+                    //     }
+                    //     else
+                    //     {
+                    //         if (top)
+                    //         {
+                    //             auto buffer = cache.begin();
+                    //             auto a = all_it - 1;
+                    //             auto b = all_it - n;
+                    //             dissect(b);
+                    //             dissect(all_it);
+                    //             dissect(top_it);
+                    //             move_to(all_it, top_it, buffer); // Move fixed header block to the temporary cache.
+                    //             move_to(a, a - n, top_it);
+                    //             move_to(buffer, buffer + top, b); // Move back fixed header block from the temporary cache.
+                    //         }
+                    //         auto a = end_it + 1;
+                    //         auto c = a - n;
+                    //         dissect(c);
+                    //         if (footer)
+                    //         {
+                    //             auto b = batch.end();
+                    //             dissect(a);
+                    //             move_to(a, b, c); // Move up footer block by n.
+                    //         }
+                    //         pop_lines(n);
+                    //     }
+                    // }
+                    // else
                     {
-                        //todo implement
-                        // if (top)
-                        // {
-                        //     auto buffer = cache.begin();
-                        //     if (basis) dissect(all_it);
-                        //     dissect(top_it);
-                        //     dissect(top_it + n);
-                        //     move_to(all_it, top_it,       buffer    ); // Move fixed header block to the temporary cache.
-                        //     move_to(top_it, top_it + n,   all_it    ); // Move up by the "top" the first n lines of scrolling region.
-                        //     move_to(buffer, buffer + top, all_it + n); // Move back fixed header block from the temporary cache.
-                        // }
-                        // add_lines(n);
-                        // auto bottom = batch.end() - (n + 1);
-                        // dissect(bottom - footer + 1);
-                        // move_to(bottom, bottom - footer, bottom + n); // Move down footer block by n.
-                    }
-                    else
-                    {
-                        n = std::min(n, height);
                         auto a = top_it - 1;
                         auto b = end_it - n;
                         dissect(b + 1);
@@ -1015,12 +1060,12 @@ namespace netxs::ui
                     vt::csier.table[CSI_CCC][CCC_SBS] = VT_PROC{ p->boss.resize(q); };  // CCC_SBS: Set scrollback size.
                     vt::csier.table[CSI_CCC][CCC_EXT] = VT_PROC{ p->boss.native(q(1)); };  // CCC_EXT: Setup extended functionality.
 
-                    vt::intro[ctrl::ESC][ESC_IND]= VT_PROC{ p->dn(1); }; // ESC D  Caret Down.
-                    vt::intro[ctrl::ESC][ESC_IR ]= VT_PROC{ p->ri (); }; // ESC M  Reverse index.
-                    vt::intro[ctrl::ESC][ESC_HTS]= VT_PROC{ p->na("ESC H  Place tabstop at the current caret posistion"); }; // ESC H  Place tabstop at the current caret posistion.
-                    vt::intro[ctrl::ESC][ESC_RIS]= VT_PROC{ p->boss.decstr(); }; // ESC c Reset to initial state (same as DECSTR).
-                    vt::intro[ctrl::ESC][ESC_SC ]= VT_PROC{ p->scp(); }; // ESC 7 (same as CSI s) Save caret position.
-                    vt::intro[ctrl::ESC][ESC_RC ]= VT_PROC{ p->rcp(); }; // ESC 8 (same as CSI u) Restore caret position.
+                    vt::intro[ctrl::ESC][ESC_IND] = VT_PROC{ p->dn(1); }; // ESC D  Caret Down.
+                    vt::intro[ctrl::ESC][ESC_IR ] = VT_PROC{ p->ri (); }; // ESC M  Reverse index.
+                    vt::intro[ctrl::ESC][ESC_HTS] = VT_PROC{ p->na("ESC H  Place tabstop at the current caret posistion"); }; // ESC H  Place tabstop at the current caret posistion.
+                    vt::intro[ctrl::ESC][ESC_RIS] = VT_PROC{ p->boss.decstr(); }; // ESC c Reset to initial state (same as DECSTR).
+                    vt::intro[ctrl::ESC][ESC_SC ] = VT_PROC{ p->scp(); }; // ESC 7 (same as CSI s) Save caret position.
+                    vt::intro[ctrl::ESC][ESC_RC ] = VT_PROC{ p->rcp(); }; // ESC 8 (same as CSI u) Restore caret position.
 
                     vt::intro[ctrl::BS ] = VT_PROC{ p->cuf(-q.pop_all(ctrl::BS )); };
                     vt::intro[ctrl::DEL] = VT_PROC{ p->del( q.pop_all(ctrl::DEL)); };

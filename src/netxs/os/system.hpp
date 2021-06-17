@@ -2258,14 +2258,9 @@ namespace netxs::os
                 }
                 ok(::signal(SIGPIPE,  SIG_IGN )); // Disable sigpipe.
                 ok(::signal(SIGWINCH, sig_hndl)); // Set resize handler.
-                log(" tty: Set termination handler.");
-                ok(::signal(SIGTERM, sig_hndl));   // Set termination handler.
-                log(" tty: Set hangup handler.");
+                ok(::signal(SIGTERM, sig_hndl));  // Set termination handler.
                 ok(::signal(SIGHUP, sig_hndl));   // Set hangup handler.
-                log(" tty: Raise resize event.");
-
-                // Get current terminal window size.
-                _globals<void>::resize_handler();
+                _globals<void>::resize_handler(); // Get current terminal window size.
 
             #endif
         }
@@ -2398,7 +2393,6 @@ namespace netxs::os
                 {
                     SIZE_T attr_size = 0;
                     InitializeProcThreadAttributeList(nullptr, 1, 0, &attr_size);
-
                     attrs_buff.resize(attr_size);
                     lpAttributeList =
                         reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(attrs_buff.data());
@@ -2419,9 +2413,9 @@ namespace netxs::os
 
                 HANDLE m_pipe_r{ INVALID_HANDLE_VALUE };
                 HANDLE m_pipe_w{ INVALID_HANDLE_VALUE };
-                STARTUPINFOEX       start_info{ sizeof(STARTUPINFOEX) };
-                PROCESS_INFORMATION procs_info{};
-                std::vector<char>   attrs_buff;
+                STARTUPINFOEX        start_info{ sizeof(STARTUPINFOEX) };
+                PROCESS_INFORMATION  procs_info{};
+                std::vector<uint8_t> attrs_buff;
 
                 if (   create(hPC, winsz, m_pipe_r, m_pipe_w)
                     && fillup(hPC, attrs_buff, start_info.lpAttributeList)
