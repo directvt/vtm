@@ -646,16 +646,19 @@ namespace netxs::ui
         // rods: Trim all autowrap lines by the specified size.
         void trim_to_size(twod const& new_size)
         {
-            auto start = batch.begin() + (basis ? basis - 1 : 0);
-            auto end = batch.end() - 1 - std::max(0, panel.y - new_size.y);
-            auto width = std::min(new_size.x, panel.x);
-            while (end != start)
+            auto head = batch.begin() + basis;
+            auto tail = batch.end() - std::max(0, panel.y - new_size.y);
+            if (new_size.x < panel.x)
             {
-                dissect(end);
-                auto& line = *end;
-                if (line.style.wrapln == wrap::on) line.trimto(width);
-                --end;
+                while (tail != head)
+                {
+                    --tail;
+                    dissect(tail);
+                    auto& line = *tail;
+                    if (line.style.wrapln == wrap::on) line.trimto(new_size.x);
+                }
             }
+            else while (--tail != head) dissect(tail);
         }
     };
 
