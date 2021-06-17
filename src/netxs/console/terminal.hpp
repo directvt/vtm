@@ -595,81 +595,23 @@ namespace netxs::ui
                     rods::add_lines(-footer);
                     footer = 0;
                 }
-                //todo zeroize dropped lines first of all in order to remove it from oversize manager
                 if (n > 0) // Scroll down (move down the text block).
                 {
                     n = std::min(n, height);
-                    // if (use_scrollback && basis)
-                    // {
-                    //     if (n > basis)
-                    //     {
-                    //         auto empty_lines = n - basis;
-                    //         auto a = end_it + 1;
-                    //         auto b = a - n;
-                    //         dissect(b);
-                    //         dissect(a);
-                    //         zeroise(b, a);
-                    //         auto c = top_it - 1;
-                    //         dissect(top_it);
-                    //         auto d = end_it - basis;
-                    //         if (basis) dissect(d + 1);
-                    //         move_to(b - 1, c, d);
-                    //         if (footer)
-                    //         {
-                    //             auto b = batch.end();
-                    //             move_to(a, b, d); // Move up footer block by basis.
-                    //         }
-                    //         if (top)
-                    //         {
-                    //             auto buffer = cache.begin();
-                    //             dissect(all_it);
-                    //             dissect(top_it);
-                    //             move_to(all_it, top_it, buffer); // Move fixed header block to the temporary cache.
-                    //             move_to(all_it - 1, nul_it - 1, c + n);
-                    //             move_to(buffer, buffer + top, nul_it); // Move back fixed header block from the temporary cache.
-                    //         }
-                    //         pop_lines(basis);
-                    //     }
-                    //     else
-                    //     {
-                    //         if (top)
-                    //         {
-                    //             auto buffer = cache.begin();
-                    //             auto a = all_it - 1;
-                    //             auto b = all_it - n;
-                    //             dissect(b);
-                    //             dissect(all_it);
-                    //             dissect(top_it);
-                    //             move_to(all_it, top_it, buffer); // Move fixed header block to the temporary cache.
-                    //             move_to(a, a - n, top_it);
-                    //             move_to(buffer, buffer + top, b); // Move back fixed header block from the temporary cache.
-                    //         }
-                    //         auto a = end_it + 1;
-                    //         auto c = a - n;
-                    //         dissect(c);
-                    //         if (footer)
-                    //         {
-                    //             auto b = batch.end();
-                    //             dissect(a);
-                    //             move_to(a, b, c); // Move up footer block by n.
-                    //         }
-                    //         pop_lines(n);
-                    //     }
-                    // }
-                    // else
-                    {
-                        auto a = top_it - 1;
-                        auto b = end_it - n;
-                        dissect(b + 1);
-                        dissect(top_it);
-                        if (footer) dissect(end_it + 1);
-                        move_to(b, a, end_it);
-                        zeroise(top_it, top_it + n);
-                    }
+                    auto a = top_it - 1;
+                    auto b = end_it - n;
+                    auto c = end_it + 1;
+                    dissect(b + 1);
+                    dissect(top_it);
+                    if (footer) dissect(c);
+                    zeroise(b + 1, c);
+                    move_to(b, a, end_it);
+                    zeroise(top_it, top_it + n);
                 }
                 else // Scroll up (move up the text block).
                 {
                     n = std::min(-n, height);
+                    auto a = top_it + n;
                     if (use_scrollback)
                     {
                         if (top)
@@ -677,24 +619,25 @@ namespace netxs::ui
                             auto buffer = cache.begin();
                             if (basis) dissect(all_it);
                             dissect(top_it);
-                            dissect(top_it + n);
+                            dissect(a);
                             move_to(all_it, top_it,       buffer    ); // Move fixed header block to the temporary cache.
-                            move_to(top_it, top_it + n,   all_it    ); // Move up by the "top" the first n lines of scrolling region.
+                            move_to(top_it, a,            all_it    ); // Move up by the "top" the first n lines of scrolling region.
                             move_to(buffer, buffer + top, all_it + n); // Move back fixed header block from the temporary cache.
                         }
                         add_lines(n);
-                        auto bottom = batch.end() - (n + 1);
-                        dissect(bottom - footer + 1);
-                        move_to(bottom, bottom - footer, bottom + n); // Move down footer block by n.
+                        auto c = batch.end() - 1;
+                        auto b = c - n;
+                        auto d = b - footer;
+                        dissect(d + 1);
+                        move_to(b, d, c); // Move down footer block by n.
                     }
                     else
                     {
-                        auto a = top_it + n;
                         auto b = end_it + 1;
                         dissect(a);
                         if (footer) dissect(b);
+                        zeroise(top_it, a);
                         move_to(a, b, top_it);
-                        zeroise(b - n, b);
                     }
                 }
                 rebuild_upto_id(bossid);
