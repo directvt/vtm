@@ -1731,6 +1731,18 @@ namespace netxs::ui
         }
     };
 
+    // controls: Edit control.
+    class edit
+        : public form<edit>
+    {
+        page data;
+
+    public:
+        edit()
+        {
+        }
+    };
+
     // DEPRECATED STUFF
 
     class stem_rate_grip

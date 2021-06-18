@@ -2363,11 +2363,11 @@ namespace netxs::os
         {
             receiver = input_hndl;
             shutdown = shutdown_hndl;
-            consize(winsz);
             log("cons: new process: ", cmdline);
 
             #if defined(_WIN32)
 
+                consize(winsz);
                 auto create = [](HPCON& hPC, twod winsz,
                     HANDLE& m_pipe_r, HANDLE& m_pipe_w)
                 {
@@ -2460,39 +2460,34 @@ namespace netxs::os
                 }
                 else log("cons: process creation error ", GetLastError());
 
-                //todo workaround for GH#10400 https://github.com/microsoft/terminal/issues/10400
+                //todo workaround for GH#10400 (resolved) https://github.com/microsoft/terminal/issues/10400
                 std::this_thread::sleep_for(250ms);
 
             #elif defined(__linux__) || defined(__APPLE__)
 
-                auto fdm = ::posix_openpt(O_RDWR | O_NOCTTY); // get master pty
-                auto rc1 = ::grantpt     (fdm);          // grant master pty file access
-                auto rc2 = ::unlockpt    (fdm);          // unlock master pty
-                auto fds = ::open(ptsname(fdm), O_RDWR); // open slave pty via string ptsname(fdm)
+                auto fdm = ::posix_openpt(O_RDWR | O_NOCTTY); // Get master PTY.
+                auto rc1 = ::grantpt     (fdm);               // Grant master PTY file access.
+                auto rc2 = ::unlockpt    (fdm);               // Unlock master PTY.
+                auto fds = ::open(ptsname(fdm), O_RDWR);      // Open slave PTY via string ptsname(fdm).
+
+                socket.set(fdm, true);
+                resize(winsz);
+                alive = true;
 
                 pid = ::fork();
-                if (pid == 0) // Child branch
+                if (pid == 0) // Child branch.
                 {
                     ::close(fdm);
-
-                    auto rc = ::setsid(); // Make the current process a new session leader, return process group id
+                    ::setsid(); // Make the current process a new session leader, return process group id.
 
                     // In order to receive WINCH signal make fds the controlling
                     // terminal of the current process.
                     // Current process must be a session leader (::setsid()) and not have
                     // a controlling terminal already.
                     // arg = 0: 1 - to stole fds from another process,
-                    // it doesn't matter here
-                    //if (::ioctl(fds, TIOCSCTTY, 0) == -1)
+                    // it doesn't matter here.
                     if (::ioctl(fds, TIOCSCTTY, 0) == -1)
                         log("cons: assign controlling terminal error ", errno);
-
-                    struct winsize wsize{
-                        static_cast<unsigned short>(winsz.y),
-                        static_cast<unsigned short>(winsz.x) };
-
-                    if (::ioctl(fds, TIOCSWINSZ, &wsize) == -1) // Preset slave tty size
-                        log("cons: ioctl set winsize error ", errno);
 
                     ::signal(SIGINT,  SIG_DFL); // Reset control signals to the default.
                     ::signal(SIGQUIT, SIG_DFL); //
@@ -2507,7 +2502,6 @@ namespace netxs::os
                     ::close(fds);
 
                     auto args = os::split_cmdline(cmdline);
-
                     std::vector<char*> argv;
                     for (auto& c : args)
                     {
@@ -2519,11 +2513,8 @@ namespace netxs::os
                     os::exit(1, "cons: exec error ", errno);
                 }
 
-                // Parent branch
+                // Parent branch.
                 ::close(fds);
-
-                socket.set(fdm, true);
-                alive = true;
 
             #endif
 
