@@ -118,14 +118,15 @@ namespace netxs::os
     using namespace std::chrono_literals;
     using namespace netxs::console;
 
+    static constexpr iota STDIN_BUF = 1024;
+
     #if defined(_WIN32)
 
         using fd_t = HANDLE;
         static const fd_t INVALID_FD = INVALID_HANDLE_VALUE;
         static const fd_t STDIN_FD  = GetStdHandle(STD_INPUT_HANDLE);
         static const fd_t STDOUT_FD = GetStdHandle(STD_OUTPUT_HANDLE);
-        static constexpr iota PIPE_BUF = 65536;
-        static constexpr iota STDIN_BUF = 1024;
+        static const iota PIPE_BUF = 65536;
 
     #elif defined(__linux__) || defined(__APPLE__)
 
@@ -1079,6 +1080,83 @@ namespace netxs::os
 
     using xipc = std::shared_ptr<class ipc>;
 
+    struct nothing
+    {
+        template<class T>
+        operator T () { return T{}; }
+    };
+    template<class ...Args>
+    auto fail(Args&&... msg)
+    {
+        log("xipc: ", msg..., " (", os::error(), ") ");
+        return nothing{};
+    };
+    template<class SIZE_T>
+    auto recv(fd_t fd, char* buff, SIZE_T size)
+    {
+        #if defined(_WIN32)
+
+            DWORD count;
+            auto fSuccess = ReadFile(fd,          // pipe handle
+                                     buff,        // buffer to receive reply
+                                     (DWORD)size, // size of buffer
+                                     &count,      // number of bytes read
+                                     nullptr);    // not overlapped
+            if (!fSuccess) count = 0;
+
+        #elif defined(__linux__) || defined(__APPLE__)
+
+            auto count = ::read(fd, buff, size);
+
+        #endif
+
+        return count > 0 ? qiew{ buff, count }
+                         : qiew{};
+    }
+    template<bool IS_TTY = faux, class SIZE_T>
+    auto send(fd_t fd, char const* buff, SIZE_T size)
+    {
+        while (size)
+        {
+            #if defined(_WIN32)
+
+                DWORD count;
+                auto fSuccess = WriteFile(fd,          // pipe handle
+                                          buff,        // message
+                                          (DWORD)size, // message length
+                                          &count,      // bytes written
+                                          nullptr);    // not overlapped
+
+            #elif defined(__linux__) || defined(__APPLE__)
+
+                auto count = IS_TTY ? ::write(fd, buff, size)
+                                    : ::send (fd, buff, size, MSG_NOSIGNAL); // not work with open_pty
+                                                                             // recursive connection causes sigpipe on destroy when using write(2) despite using ::signal(SIGPIPE, SIG_IGN)
+                //  send(2) does not work with file descriptors, only sockets.
+                // write(2) works with fds as well as sockets.
+
+            #endif
+
+            if (count != size)
+            {
+                if (count > 0)
+                {
+                    log("send: partial writing: socket=", fd,
+                        " total=", size, ", written=", count);
+                    buff += count;
+                    size -= count;
+                }
+                else
+                {
+                    fail("send: error write to socket=", fd, " count=", count, " size=", size, " IS_TTY=", IS_TTY ?"true":"faux");
+                    return faux;
+                }
+            }
+            else return true;
+        }
+        return faux;
+    }
+
     class ipc
     {
     public:
@@ -1088,6 +1166,8 @@ namespace netxs::os
             {
                 fd_t r = INVALID_FD; // link: Read descriptor.
                 fd_t w = INVALID_FD; // link: Write descriptor.
+                fd_t& get_r() { return r; };
+                fd_t& get_w() { return w; };
                 operator bool () { return r != INVALID_FD && w != INVALID_FD; }
                 void close()
                 {
@@ -1126,6 +1206,8 @@ namespace netxs::os
             struct link
             {
                 fd_t h = INVALID_FD; // link: RW descriptor.
+                fd_t& get_r() { return h; };
+                fd_t& get_w() { return h; };
                 operator fd_t () { return h; }
                 operator bool () { return h != INVALID_FD; }
                 void close()
@@ -1137,7 +1219,6 @@ namespace netxs::os
                     return s << handle.h;
                 }
             };
-            fd_t charge_w; // ipc: Pipe for events (instead of eventfd).
 
         #endif
 
@@ -1146,36 +1227,18 @@ namespace netxs::os
         bool active; // ipc: Used by the os::tty.
         link handle; // ipc: Socket file descriptor.
         vect buffer; // ipc: Receive buffer.
-        fd_t charge_r; // ipc: Descriptor for reading interrupt.
         bool sealed; // ipc: Provide autoclosing.
         text scpath; // ipc: Socket path (in order to unlink).
-        bool is_tty; // ipc: Is the socket TTY.
 
         void init(iota buff_size = PIPE_BUF) { buffer.resize(buff_size); }
 
-        struct nothing
-        {
-            template<class T>
-            operator T () { return T{}; }
-        };
-        template<class ...Args>
-        static auto fail(Args&&... msg)
-        {
-            log("xipc: ", msg..., " (", os::error(), ") ");
-            return nothing{};
-        };
-
     public:
-        ipc(link const& descriptor, bool sealed = faux, bool is_tty = faux)
+        ipc(link const& descriptor, bool sealed = faux)
             : handle{ descriptor },
               sealed{ sealed },
-              is_tty{ is_tty },
               active{ true }
         {
             #if defined(_WIN32)
-
-                charge_r = CreateEvent(NULL, TRUE, TRUE, NULL);
-                if (charge_r == INVALID_FD) log("xipc - signalfd error");
 
             #elif defined(__linux__) || defined(__APPLE__)
 
@@ -1184,11 +1247,6 @@ namespace netxs::os
                 {
                     throw;
                 }
-                fd_t eventfd[2];
-                auto isok = ::pipe(eventfd);
-                charge_r = eventfd[0];
-                charge_w = eventfd[1];
-                if (isok < 0) log("xipc - signalfd error");
 
             #endif
 
@@ -1200,12 +1258,7 @@ namespace netxs::os
 
             #if defined(_WIN32)
 
-                CloseHandle(charge_r);
-
             #elif defined(__linux__) || defined(__APPLE__)
-
-                ::close(charge_r);
-                ::close(charge_w);
 
                 #if defined(__APPLE__)
 
@@ -1237,61 +1290,51 @@ namespace netxs::os
         {
             active = faux;
         }
-        //todo implement xplat
         template<class T>
-        auto cred(T id) const // get peer cred
+        auto cred(T id) const // Check peer cred.
         {
             #if defined(_WIN32)
 
-            //todo implement for win32
+                //todo implement for win32
 
-            //#elif defined(__linux__) || defined(__APPLE__)
             #elif defined(__linux__)
 
-            //struct result
-            //{
-            //	long pid, uid, gid;
-            //};
+                struct ucred cred = {};
+                unsigned size = sizeof(cred);
+                auto error = -1 == ::getsockopt(handle.h, SOL_SOCKET, SO_PEERCRED, &cred, &size);
 
-            struct ucred cred = {};
-            unsigned size = sizeof(cred);
-            auto error = -1 == ::getsockopt(handle.h, SOL_SOCKET, SO_PEERCRED, &cred, &size);
+                if (error)
+                {
+                    log("sock: getsockopt error ", errno, ", abort");
+                    return faux;
+                }
+                if (cred.uid && id != cred.uid)
+                {
+                    log("sock: other users are not allowed to the session, abort");
+                    return faux;
+                }
 
-            //return success ? std::optional{ result{ cred.pid, cred.uid, cred.gid } }
-            //               : std::nullopt;
-
-            if (error)
-            {
-                log("sock: getsockopt error ", errno, ", abort");
-                return faux;
-            }
-            if (cred.uid && id != cred.uid) // Deny foreign users except root
-            {
-                log("sock: other users are not allowed to the session, abort");
-                return faux;
-            }
-
-            log("sock: creds from SO_PEERCRED",
-                ":  pid=", cred.pid,
-                ", euid=", cred.uid,
-                ", egid=", cred.gid);
+                log("sock: creds from SO_PEERCRED",
+                    ":  pid=", cred.pid,
+                    ", euid=", cred.uid,
+                    ", egid=", cred.gid);
 
             #elif defined(__APPLE__)
 
-            uid_t euid;
-            gid_t egid;
-            auto error = -1 == ::getpeereid(handle.h, &euid, &egid);
+                uid_t euid;
+                gid_t egid;
+                auto error = -1 == ::getpeereid(handle.h, &euid, &egid);
 
-            if (error || (euid && id != euid)) // Deny foreign users except root
-            {
-                //log("sock: other users are not allowed to the session, abort");
-                return faux;
-            }
+                if (error || (euid && id != euid))
+                {
+                    log("sock: other users are not allowed to the session, abort");
+                    return faux;
+                }
 
-            log("sock: socket owner: ", id);
-            log("sock: peer creds from getpeereid",
-                ", euid=", euid,
-                ", egid=", egid);
+                log("sock: socket owner: ", id);
+                log("sock: peer creds from getpeereid",
+                    ", euid=", euid,
+                    ", egid=", egid);
 
             #endif
 
@@ -1370,136 +1413,35 @@ namespace netxs::os
                 auto s = link{ ::accept(handle.h, 0, 0) };
                 return s ? std::make_shared<ipc>(s, true)
                          : nullptr;
-
             #endif
-
         }
         template<class SIZE_T>
-        auto recv(char* buff, SIZE_T size) const
+        auto recv(char* buff, SIZE_T size)
         {
-            #if defined(_WIN32)
-
-                DWORD count;
-                auto fSuccess = ReadFile(handle.r,    // pipe handle
-                                         buff,        // buffer to receive reply
-                                         (DWORD)size, // size of buffer
-                                         &count,      // number of bytes read
-                                         nullptr);    // not overlapped
-                if (!fSuccess) count = 0;
-
-            #elif defined(__linux__) || defined(__APPLE__)
-
-                auto count = ::read(handle.h, buff, size);
-
-            #endif
-
-            return count > 0 ? qiew{ buff, count }
-                             : qiew{};
+            return os::recv(handle.get_r(), buff, size);
         }
-        auto recv() // It is not thread safe!
+        auto recv() // It's not thread safe!
         {
             return recv(buffer.data(), buffer.size());
         }
-
-        #if defined(__linux__) || defined(__APPLE__)
-        auto pick() // interruptable read from stdin
+        template<bool IS_TTY = faux>
+        auto send(char const* buff, size_t size)
         {
-            fd_set socks;
-
-            FD_ZERO(&socks);
-            FD_SET(handle.h, &socks);
-            FD_SET(charge_r, &socks);
-            auto nfds = std::max(handle.h, charge_r) + 1;
-
-            if (::select(nfds, &socks, 0, 0, 0) > 0)
-            {
-                if (FD_ISSET(charge_r, &socks))
-                {
-                    log("xipc: stop fired on ", *this, " by ctrl=", charge_r);
-                    auto x = 0UL;
-                    auto n = ::read(charge_r, &x, sizeof(x));
-                }
-                else if (FD_ISSET(handle.h, &socks))
-                {
-                    return recv();
-                }
-            }
-            return qiew{};
+            return os::send<IS_TTY>(handle.get_w(), buff, size);
         }
-        #endif
-
-        auto fire() // interrupt reading operation
-        {
-            #if defined(_WIN32)
-
-                SetEvent(charge_r);
-
-            #elif defined(__linux__) || defined(__APPLE__)
-
-                auto x = 1UL;
-                if (-1 == ::write(charge_w, &x, sizeof(x)))
-                {
-                    log("xipc: stop write error on ", *this);
-                }
-
-            #endif
-        }
-        auto send(char const* data, size_t size) const
-        {
-            while (size)
-            {
-                #if defined(_WIN32)
-
-                    DWORD count;
-                    auto fSuccess = WriteFile(handle.w,    // pipe handle
-                                              data,        // message
-                                              (DWORD)size, // message length
-                                              &count,      // bytes written
-                                              nullptr);    // not overlapped
-                    //if (!fSuccess) count = 0;
-
-                #elif defined(__linux__) || defined(__APPLE__)
-
-                    auto count = is_tty ? ::write(handle.h, data, size)
-                                        : ::send (handle.h, data, size, MSG_NOSIGNAL); // not work with open_pty
-                                                                                    // recursive connection causes sigpipe on destroy when using write(2) despite using ::signal(SIGPIPE, SIG_IGN)
-                    //  send(2) does not work with file descriptors, only sockets
-                    // write(2) works with fds as well as sockets
-
-                #endif
-
-                if (count != size)
-                {
-                    if (count > 0)
-                    {
-                        log("xipc: partial writing: socket=", *this,
-                            " total=", size, ", written=", count);
-                        data += count;
-                        size -= count;
-                    }
-                    else
-                    {
-                        fail("xipc: error write to socket=", *this, " count=", count, " size=", size, " IS_TTY=", is_tty ?"true":"faux");
-                        return faux;
-                    }
-                }
-                else return true;
-            }
-            return faux;
-        }
-        template<class T>
-        auto send(T const& buff) const
+        template<bool IS_TTY = faux, class T>
+        auto send(T const& buff)
         {
             auto data = buff.data();
             auto size = buff.size();
-            return send(data, size);
+            return send<IS_TTY>(data, size);
         }
-        auto send(char c) const
+        auto send(char c)
         {
             return send(&c, 1);
         }
         // ipc: Read until the delimeter appears.
-        auto line(char delim) const
+        auto line(char delim)
         {
             char c;
             text crop;
@@ -1516,8 +1458,8 @@ namespace netxs::os
 
                 if (sealed)
                 { // Disconnection order does matter
-                    if (handle.w != INVALID_FD) DisconnectNamedPipe(handle.w);
-                    if (handle.r != INVALID_FD) DisconnectNamedPipe(handle.r);
+                    if (handle.get_w() != INVALID_FD) DisconnectNamedPipe(handle.get_w());
+                    if (handle.get_r() != INVALID_FD) DisconnectNamedPipe(handle.get_r());
                 }
                 return true;
 
@@ -1568,8 +1510,8 @@ namespace netxs::os
             //security_descriptor pipe_acl(security_descriptor_string);
             //log("pipe: DACL=", pipe_acl.security_string);
 
-                auto& r_sock = sock_ptr->handle.r;
-                auto& w_sock = sock_ptr->handle.w;
+                auto& r_sock = sock_ptr->handle.get_r();
+                auto& w_sock = sock_ptr->handle.get_w();
 
                 sock_ptr->scpath = path;
                 auto to_server = "\\\\.\\pipe\\r_" + path;
@@ -1663,7 +1605,7 @@ namespace netxs::os
 
             #elif defined(__linux__) || defined(__APPLE__)
 
-                auto& sock = sock_ptr->handle.h;
+                auto& sock = sock_ptr->handle.get_w();
 
                 #if defined(__APPLE__)
                 //todo unify see vtmd.cpp:1564, file system socket
@@ -1781,12 +1723,12 @@ namespace netxs::os
     {
         #if defined(_WIN32)
 
-            ipc out_fd{ { STDIN_FD, STDOUT_FD }, faux, true };
+            fd_t reset;
 
         #elif defined(__linux__) || defined(__APPLE__)
 
-            ipc in_fd { { STDIN_FD  }, faux, true };
-            ipc out_fd{ { STDOUT_FD }, faux, true };
+            fd_t reset_r; // tty: Descriptor for reading interrupt.
+            fd_t reset_w; // tty: Descriptor for reading interrupt.
 
         #endif
 
@@ -1799,15 +1741,15 @@ namespace netxs::os
 
                 static DWORD       omode;
                 static DWORD       imode;
-                static HANDLE      reset;
                 static testy<twod> winsz;
 
             #elif defined(__linux__) || defined(__APPLE__)
 
                 static ::termios mode;
+
                 static void default_mode()
                 {
-                    ::tcsetattr(0, TCSANOW, &mode);
+                    ::tcsetattr(STDIN_FD, TCSANOW, &mode);
                 }
                 static void resize_handler()
                 {
@@ -1860,7 +1802,7 @@ namespace netxs::os
             #elif defined(__linux__) || defined(__APPLE__)
 
                 winsize size;
-                if(ok(::ioctl(1, TIOCGWINSZ, &size)))
+                if(ok(::ioctl(STDOUT_FD, TIOCGWINSZ, &size)))
                 {
                     winsz = { size.ws_col, size.ws_row };
                 }
@@ -1896,6 +1838,7 @@ namespace netxs::os
             else return true;
 
         }
+
         void reader()
         {
             log(" tty: reader thread started");
@@ -1904,9 +1847,7 @@ namespace netxs::os
 
             auto& omode = _globals<void>::omode;
             auto& imode = _globals<void>::imode;
-            auto& reset = _globals<void>::reset;
             auto& winsz = _globals<void>::winsz;
-
             auto& sock = *_globals<void>::sock;
 
             // The input codepage to UTF-8 is severely broken in all Windows versions.
@@ -1915,11 +1856,11 @@ namespace netxs::os
             std::vector<INPUT_RECORD> reply(1);
             DWORD                     count;
             HANDLE                    waits[2] = { STDIN_FD, reset };
+            ansi::esc                 yield;
+            std::vector<wchar_t>      slide(STDIN_BUF);
 
             #ifdef VTM_USE_CLASSICAL_WIN32_INPUT
 
-            ansi::esc            yield;
-            std::vector<wchar_t> slide(STDIN_BUF);
             while (WAIT_OBJECT_0 == WaitForMultipleObjects(2, waits, FALSE, INFINITE))
             {
                 if (!GetNumberOfConsoleInputEvents(STDIN_FD, &count))
@@ -1992,8 +1933,6 @@ namespace netxs::os
 
             #else
 
-            text                      yield;
-            std::vector<wchar_t>      slide(ipc::STDIN_BUF);
             while (WAIT_OBJECT_0 == WaitForMultipleObjects(2, waits, FALSE, INFINITE))
             {
                 if (!GetNumberOfConsoleInputEvents(STDIN_FD, &count))
@@ -2065,10 +2004,32 @@ namespace netxs::os
 
             #elif defined(__linux__) || defined(__APPLE__)
 
+                std::vector<char> slide(STDIN_BUF);
                 auto& sock = *_globals<void>::sock;
                 while (sock)
                 {
-                    sock.send(in_fd.pick());
+                    fd_set socks;
+
+                    FD_ZERO(&socks);
+                    FD_SET(STDIN_FD, &socks);
+                    FD_SET(reset_r, &socks);
+                    auto nfds = std::max(STDIN_FD, reset_r) + 1;
+
+                    if (::select(nfds, &socks, 0, 0, 0) > 0)
+                    {
+                        if (FD_ISSET(reset_r, &socks))
+                        {
+                            log("xipc: stop fired, by ctrl=", reset_r);
+                            auto x = 0UL;
+                            auto n = ::read(reset_r, &x, sizeof(x));
+                        }
+                        else if (FD_ISSET(STDIN_FD, &socks))
+                        {
+                            auto data = os::recv(STDIN_FD, slide.data(), slide.size());
+                            log("---- received: size=", data.size(), " data=", data);
+                            sock.send(data);
+                        }
+                    }
                 }
 
             #endif
@@ -2079,14 +2040,20 @@ namespace netxs::os
         {
             #if defined(_WIN32)
 
-                auto& reset = _globals<void>::reset;
                 ok(SetEvent(reset), "SetEvent error");
 
             #elif defined(__linux__) || defined(__APPLE__)
 
                 auto& sock = *_globals<void>::sock;
                 sock.reset();
-                in_fd.fire(); // Unblock reading thread.
+
+                //in_fd.fire();
+                // Unblock reading thread.
+                auto x = 1UL;
+                if (-1 == ::write(reset_w, &x, sizeof(x)))
+                {
+                    log(" tty: stop write error on ", reset_w);
+                }
 
             #endif
         }
@@ -2094,6 +2061,15 @@ namespace netxs::os
         tty(xipc link)
         {
             _globals<void>::sock = link;
+
+            #if defined(_WIN32)
+            #elif defined(__linux__) || defined(__APPLE__)
+                fd_t eventfd[2];
+                auto isok = ::pipe(eventfd);
+                reset_r = eventfd[0];
+                reset_w = eventfd[1];
+                if (isok < 0) log(" tty: signalfd error");
+            #endif
         }
 
     public:
@@ -2103,7 +2079,8 @@ namespace netxs::os
         }
         bool output(view text)
         {
-            return out_fd.send(text);
+            //return out_fd.send(text);
+            return os::send<true>(STDOUT_FD, text.data(), text.size());
         }
         void ignite()
         {
@@ -2111,7 +2088,6 @@ namespace netxs::os
 
                 auto& omode = _globals<void>::omode;
                 auto& imode = _globals<void>::imode;
-                auto& reset = _globals<void>::reset;
                 auto& winsz = _globals<void>::winsz;
                 auto& sock = *_globals<void>::sock;
 
@@ -2179,11 +2155,11 @@ namespace netxs::os
                 auto& sig_hndl = _globals<void>::signal_handler;
                 auto& def_mode = _globals<void>::default_mode;
 
-                if (ok(::tcgetattr(0, &cur_mode))) // Set stdin raw mode.
+                if (ok(::tcgetattr(STDIN_FD, &cur_mode))) // Set stdin raw mode.
                 {
                     ::termios raw_mode = cur_mode;
                     ::cfmakeraw(&raw_mode);
-                    if (ok(::tcsetattr(0, TCSANOW, &raw_mode)))
+                    if (ok(::tcsetattr(STDIN_FD, TCSANOW, &raw_mode)))
                         ok(::atexit(def_mode));
                 }
                 ok(::signal(SIGPIPE , SIG_IGN )); // Disable sigpipe.
@@ -2213,36 +2189,34 @@ namespace netxs::os
 
                 ok(SetConsoleMode(STDOUT_FD, _globals<void>::omode), "SetConsoleMode error (revert_o)");
                 ok(SetConsoleMode(STDIN_FD,  _globals<void>::imode), "SetConsoleMode error (revert_i)");
+                CloseHandle(reset);
 
             #elif defined(__linux__) || defined(__APPLE__)
+
+                ::close(reset_r);
+                ::close(reset_w);
 
             #endif
         }
     };
 
+        template<class V> xipc        tty::_globals<V>::sock;
     #if defined(_WIN32)
-
-    template<class V> DWORD       tty::_globals<V>::omode;
-    template<class V> DWORD       tty::_globals<V>::imode;
-    template<class V> HANDLE      tty::_globals<V>::reset;
-    template<class V> testy<twod> tty::_globals<V>::winsz;
-
+        template<class V> DWORD       tty::_globals<V>::omode;
+        template<class V> DWORD       tty::_globals<V>::imode;
+        template<class V> testy<twod> tty::_globals<V>::winsz;
     #elif defined(__linux__) || defined(__APPLE__)
-
-    template<class V> ::termios tty::_globals<V>::mode;
-
+        template<class V> ::termios   tty::_globals<V>::mode;
     #endif
-
-    template<class V> xipc tty::_globals<V>::sock;
 
     class cons
     {
         #if defined(_WIN32)
 
-            HPCON   hPC     { INVALID_FD };
-            HANDLE  hProcess{ INVALID_FD };
-            HANDLE  hThread { INVALID_FD };
-            HANDLE  gameover{ INVALID_FD };
+            HPCON  hPC      { INVALID_FD };
+            HANDLE hProcess { INVALID_FD };
+            HANDLE hThread  { INVALID_FD };
+            HANDLE gameover { INVALID_FD };
             std::thread client_exit_waiter;
 
         #elif defined(__linux__) || defined(__APPLE__)
@@ -2251,7 +2225,7 @@ namespace netxs::os
 
         #endif
 
-        os::ipc     socket = { {}, true, true  };
+        os::ipc     socket = { {}, true  };
         testy<twod> consize;
         std::thread std_input;
         std::function<void(view)> receiver;
@@ -2522,7 +2496,7 @@ namespace netxs::os
         }
         void write(view data)
         {
-            socket.send(data);
+            socket.send<true>(data);
         }
     };
 }
