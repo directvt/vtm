@@ -1,9 +1,6 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#pragma clang diagnostic ignored "-Wunused-variable"
-#pragma clang diagnostic ignored "-Wunused-function"
-
 #include "netxs/os/system.hpp"
 
 #include <fstream> // std::ifstream
@@ -32,7 +29,7 @@ int main(int argc, char* argv[])
         os::exit(1, error);
     }
 
-    //[Demo] get current region from ~./vtm/vtm.conf
+    // Demo: get current region from ~./vtm/vtm.conf
     utf::text spot;
     {
         std::ifstream config;
@@ -63,13 +60,13 @@ int main(int argc, char* argv[])
 
     auto gate = os::tty::proxy(link);
     ansi::esc mode;
-    mode.save_title(). // Push current title onto the stack.
-         altbuf(true). // Switch to alternate buffer.
-         vmouse(true). // Turn mouse reporting on/off.
-         cursor(faux). // Set the caret visibility.
-         bpmode(true). // Enable bracketed paste mode.
-         setutf(true); // Set UTF-8 character set.
     gate.ignite();
+    mode.save_title().
+         altbuf(true).
+         vmouse(true).
+         cursor(faux).
+         bpmode(true).
+         setutf(true);
     gate.output(mode);
     
     gate.splice();
@@ -81,7 +78,6 @@ int main(int argc, char* argv[])
          bpmode(faux).
          load_title();
     gate.output(mode);
-    gate.revert();
 
     // Pause to consume/receive buffered input (e.g. mouse tracking)
     // that has just been canceled.

@@ -20,9 +20,6 @@
 // Highlight region ownership.
 //#define REGIONS
 
-#pragma clang diagnostic ignored "-Wunused-variable"
-#pragma clang diagnostic ignored "-Wunused-function"
-
 #include "netxs/os/system.hpp"
 #include "netxs/text/utf.hpp"
 #include "netxs/console/terminal.hpp"
