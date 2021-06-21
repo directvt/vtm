@@ -45,13 +45,13 @@ int main(int argc, char* argv[])
     auto user = os::user();
     auto path = utf::concat("monotty_", user); //todo unify, use vtm.conf
 
-    auto link = os::ipc::open<os::client>(path, 10s, [&]() {
-        log("main: no desktop for user ", user);
-        log("main: spawning desktop environment");
-        return os::exec("vtmd", "-d");
+    auto link = os::ipc::open<os::client>(path, 10s, [&]()
+        {
+            log("main: new desktop environment for user ", user);
+            return os::exec("vtmd", "-d");
         });
 
-    if (!link) os::exit(-1, "main: open server link error");
+    if (!link) os::exit(-1, "main: desktop server connection error");
 
     link->send(utf::concat(spot, ";",
                            host, ";",
@@ -79,7 +79,7 @@ int main(int argc, char* argv[])
          load_title();
     gate.output(mode);
 
-    // Pause to consume/receive buffered input (e.g. mouse tracking)
+    // Pause to complete consuming/receiving buffered input (e.g. mouse tracking)
     // that has just been canceled.
     std::this_thread::sleep_for(200ms);
 }
