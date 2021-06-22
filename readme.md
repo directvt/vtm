@@ -1,6 +1,6 @@
 # Monotty Desktopio
 
-A text-based desktop environment in your terminal
+Remote text-based desktop environment in your terminal
 ![image](https://dice.netxs.online/cloud/vtm/mde_banner_v1.13.png)
 
 # Demo
@@ -16,16 +16,16 @@ A text-based desktop environment in your terminal
 
 # Supported Platforms
 
-- GNU/Linux amd64
+- Linux
 - Windows
-  - Windows 10 (32/64)
-  - Windows Server 2019 (32/64)
+  - Windows 10
+  - Windows Server 2019
 - macOS
   - Catalina 10.15
 
 # Building from Source
 
-### GNU/Linux amd64
+### Linux
 
 Build-time dependencies: `gcc` or `clang`
 
@@ -94,19 +94,6 @@ double `LeftClick`    | Menu: Create new window<br>Window: Maximize/restore wind
 - `▀▄ Term` Terminal emulator
 - `▀▄ Logs` Debug output console
 - `▀▄ View` Workspace navigation helper
-- `▀▄ Task` Task manager (desktopio) _(not ready)_
-- `▀▄ Hood` Configuration utility _(not ready)_
-- `▀▄ Info` Documentation browser _(not ready)_
-- `▀▄ Shop` TUIs distribution platform _(not ready)_
-- `▀▄ Text` ANSI/VT Text editor _(not ready)_
-- `▀▄ Calc` Spreadsheet calculator _(not ready)_
-- `▀▄ Draw` ANSI-artwork editor _(not ready)_
-- `▀▄ File` File manager _(not ready)_
-- `▀▄ Goto` Internet/SSH browser _(not ready)_
-- `▀▄ Clip` Clipboard manager _(not ready)_
-- `▀▄ Char` Unicode codepoints browser _(not ready)_
-- `▀▄ Time` Calendar application _(not ready)_
-- `▀▄ Doom` Doom Ⅱ source port _(not ready)_
 
 <details><summary>show details...</summary><p>
 
@@ -137,45 +124,6 @@ double `LeftClick`    | Menu: Create new window<br>Window: Maximize/restore wind
 
  - `▀▄ View`
   - Serves for quick navigation through the desktop space using cyclic selection (left click on group title) in the `View` group on the taskbar.
-
- - `▀▄ Hood`
-  - ...
-
- - `▀▄ Info`
-  - ...
-
- - `▀▄ Shop`
-  - Just a sketch
-
- - `▀▄ Text`
-  - User interface only
-
- - `▀▄ Calc`
-  - User interface only
-
- - `▀▄ Clip`
-  - ...
-
- - `▀▄ Draw`
-  - ...
-
- - `▀▄ Task`
-  - ...
-
- - `▀▄ Char`
-  - ...
-
- - `▀▄ File`
-  - ...
-
- - `▀▄ Time`
-  - ...
-
- - `▀▄ Goto`
-  - ...
-
- - `▀▄ Doom`
-  - ...
 
 </p></details>
 
