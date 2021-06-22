@@ -2015,7 +2015,6 @@ namespace netxs::os
                         else if (FD_ISSET(STDIN_FD, &socks))
                         {
                             auto data = os::recv(STDIN_FD, buff.data(), buff.size());
-                            log("---- received: size=", data.size(), " data=", data);
                             ipcio.send<faux>(data);
                         }
                     }
