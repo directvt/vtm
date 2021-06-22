@@ -72,7 +72,8 @@ int main(int argc, char* argv[])
     gate.splice();
     
     mode.clear();
-    mode.vmouse(faux).
+    mode.scrn_reset().
+         vmouse(faux).
          cursor(true).
          altbuf(faux).
          bpmode(faux).
