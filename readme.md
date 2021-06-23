@@ -1,18 +1,18 @@
 # Monotty Desktopio
 
-A text-based desktop in your terminal*
+A text-based desktop environment in your terminal*
 ![image](https://dice.netxs.online/cloud/vtm/mde_banner_v1.13.png)
 
 #### * Terminal Requirements
 
- - 24-bit True Color, https://gist.github.com/XVilka/8346728
- - xterm-style Mouse Reporting, https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h2-Mouse-Tracking
- - Grapheme Clustering, https://unicode.org/reports/tr29/#Grapheme_Cluster_Boundaries
- - Unicode/UTF-8, https://www.cl.cam.ac.uk/~mgk25/unicode.html
+ - [24-bit True Color](https://gist.github.com/XVilka/8346728)
+ - [xterm-style Mouse Reporting](https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h2-Mouse-Tracking)
+ - [Grapheme Clustering](https://unicode.org/reports/tr29/#Grapheme_Cluster_Boundaries)
+ - [Unicode/UTF-8](https://www.cl.cam.ac.uk/~mgk25/unicode.html)
 
 #### Tested Terminals
 
- - [Windows Command Prompt](https://github.com/microsoft/terminal): requires Windows 10 or later
+ - [Windows Command Prompt](https://github.com/microsoft/terminal): Windows 10 or later required
  - [Ultimate++ Terminal widget](https://github.com/ismail-yilmaz/upp-components/tree/master/CtrlLib/Terminal)
  - [Windows Terminal](https://github.com/microsoft/terminal)
  - [Gnome Terminal](https://wiki.gnome.org/Apps/Terminal)
@@ -129,7 +129,7 @@ double `LeftClick`    | Menu: Create new window<br>Window: Maximize/restore wind
    - Mouse tracking `DECSET 1000/1002/1003/1006 SGR` mode
    - Mouse tracking `DECSET 10060 Extended SGR` mode, mouse reporting outside of the terminal viewport (outside + negative arguments) #62
    - Configurable using VT-sequences
-   
+
       Name         | Sequence                         | Description
       -------------|----------------------------------|-------------
       `CCC_SBS`    | `CSI` 24 : n : m `p`             | Set scrollback buffer size, `int32_t`<br>`n` Buffer limit in lines, 0 is unlimited, _default is 20.000_<br>`m` Grow step for unlimited buffer, _default is 0_
@@ -140,10 +140,10 @@ double `LeftClick`    | Menu: Create new window<br>Window: Maximize/restore wind
       `CCC_RTL`    | `CSI` 13 : n `p`                 | Set text right-to-left mode, _default is Off_<br>`n = 0` default<br>`n = 1` On<br>`n = 2` Off
 
  - `▀▄ Logs`
-  - Debug output console. Use double `RightClick` to clear scrollback.
+   - Debug output console. Use double `RightClick` to clear scrollback.
 
  - `▀▄ View`
-  - Serves for quick navigation through the desktop space using cyclic selection (left click on group title) in the `View` group on the taskbar.
+   - Serves for quick navigation through the desktop space using cyclic selection (left click on group title) in the `View` group on the taskbar.
 
 </p></details>
 
