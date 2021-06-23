@@ -38,6 +38,7 @@ namespace netxs::console::ansi
     static const char ESC_IND = 'D'; // ESC D         Caret Down.
     static const char ESC_IR  = 'M'; // ESC M         Caret Up.
     static const char ESC_DCS = 'P'; // ESC P ... ST  DCS start
+    static const char ESC_RIS = 'c'; // ESC c         Reset terminal to initial state.
 
     static const char CSI_CUU = 'A'; // CSI n      A  — Caret Up.
     static const char CSI_CUD = 'B'; // CSI n      B  — Caret Down.
@@ -227,7 +228,6 @@ namespace netxs::console::ansi
         esc& vmouse (bool b) { add(b ? "\033[?1002;1003;1004;1006;10060h" : "\033[?1002;1003;1004;1006;10060l"); return *this; } // esc: Focus and Mouse position reporting/tracking.
         esc& locate_wipe ()  { add("\033[r");                           return *this; } // esc: Enable scrolling for entire display (clear screen).
         esc& locate_call ()  { add("\033[6n");                          return *this; } // esc: Report caret position.
-        esc& screen_wipe ()  { add("\033[!p");                          return *this; } // esc: Reset certain terminal settings to their defaults. Also resets the mouse tracking mode in VTE.
         esc& scroll_wipe ()  { add("\033[3J");                          return *this; } // esc: Erase scrollback.
         esc& tag (view t)    { add("\033]2;" + text(t) + "\07");        return *this; } // esc: Window title.
         esc& setutf (bool b) { add(b ? "\033%G"      : "\033%@");       return *this; } // esc: Select UTF-8 character set (true) or default (faux).
@@ -238,6 +238,7 @@ namespace netxs::console::ansi
         esc& bpmode (bool b) { add(b ? "\033[?2004h" : "\033[?2004l");  return *this; } // esc: Set bracketed paste mode.
         esc& autowr (bool b) { add(b ? "\033[?7h"    : "\033[?7l");     return *this; } // esc: Set autowrap mode.
         esc& save_title ()   { add("\033[22;0t");                       return *this; } // esc: Save terminal window title.
+        esc& scrn_reset ()   { add("\033[H\033[m\033[3J");              return *this; } // esc: Erase scrollback and reset caret location.
         esc& load_title ()   { add("\033[23;0t");                       return *this; } // esc: Restore terminal window title.
 
         esc& w32input (bool b) { add(b ? "\033[?9001h" : "\033[?9001l");        return *this; } // ansi: Application Caret Keys (DECCKM).
@@ -291,7 +292,6 @@ namespace netxs::console::ansi
             return *this;
         }
 
-       //esc& ocp (twod const& p)   { add("\033[" + str(p.y) + ";" + str(p.x) + "H"); return *this; }    // esc: 1-Based caret position.
         esc& cup (twod const& p) { add("\033[20:" + str(p.y) + ":" + str(p.x) + CSI_CCC); return *this; } // esc: 0-Based caret position.
         esc& cuu (iota n)        { add(n == 1 ? "\033[A" : "\033[" + str(n) + "A"); return *this; } // esc: Caret up.
         esc& cud (iota n)        { add(n == 1 ? "\033[B" : "\033[" + str(n) + "B"); return *this; } // esc: Caret down.
@@ -388,7 +388,6 @@ namespace netxs::console::ansi
                                 return *this; } // esc: OSC report.
     };
 
-    //static esc screen_wipe ()        { return esc{}.screen_wipe(); } // esc: Reset certain terminal settings to their defaults. Also resets the mouse tracking mode in VTE.
     static esc vmouse (bool b)       { return esc{}.vmouse(b);     } // ansi: Mouse position reporting/tracking.
     static esc locate(twod const& n) { return esc{}.locate(n);     } // ansi: 1-Based caret position.
     static esc locate_wipe ()        { return esc{}.locate_wipe(); } // ansi: Enable scrolling for entire display (clear screen).
@@ -1161,7 +1160,8 @@ namespace netxs::console::ansi
                              c == 'D' ||
                              c == 'E' ||
                              c == 'H' ||
-                             c == 'M')
+                             c == 'M' ||
+                             c == 'c')
                     {
                         if (++start == crop.size())
                         {

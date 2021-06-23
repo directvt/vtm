@@ -12,6 +12,11 @@
 #elif defined(__linux__) || defined(__APPLE__)
 #endif
 
+#if defined(__clang__)
+    #pragma clang diagnostic ignored "-Wunused-variable"
+    #pragma clang diagnostic ignored "-Wunused-function"
+#endif
+
 #include "file_system.hpp"
 #include "../text/logger.hpp"
 #include "../datetime/quartz.hpp"
@@ -117,6 +122,27 @@ namespace netxs::os
     using iota = int32_t;
     using namespace std::chrono_literals;
     using namespace netxs::console;
+
+    static constexpr iota STDIN_BUF = 1024;
+
+    #if defined(_WIN32)
+
+        using fd_t = HANDLE;
+        using conmode = DWORD[2];
+        static const fd_t INVALID_FD = INVALID_HANDLE_VALUE;
+        static const fd_t STDIN_FD  = GetStdHandle(STD_INPUT_HANDLE);
+        static const fd_t STDOUT_FD = GetStdHandle(STD_OUTPUT_HANDLE);
+        static const iota PIPE_BUF = 65536;
+
+    #elif defined(__linux__) || defined(__APPLE__)
+
+        using fd_t = int;
+        using conmode = ::termios;
+        static constexpr fd_t INVALID_FD = -1;
+        static constexpr fd_t STDIN_FD  = STDIN_FILENO;
+        static constexpr fd_t STDOUT_FD = STDOUT_FILENO;
+
+    #endif
 
     static text current_module_file();
     static bool exec(text binary, text parameters = {}, int windw_state = 0);
@@ -373,47 +399,47 @@ namespace netxs::os
     {
         #if defined(_WIN32)
 
-        //auto binary_w = utf::to_utf(binary);
-        //auto params_w = utf::to_utf(params);
+            //auto binary_w = utf::to_utf(binary);
+            //auto params_w = utf::to_utf(params);
 
-        SHELLEXECUTEINFO ShExecInfo = {};
-        ShExecInfo.cbSize = sizeof(SHELLEXECUTEINFO);
-        ShExecInfo.fMask = SEE_MASK_NOCLOSEPROCESS;
-        ShExecInfo.hwnd = NULL;
-        ShExecInfo.lpVerb = NULL;
-        ShExecInfo.lpFile = binary.c_str();
-        ShExecInfo.lpParameters = params.c_str();
-        ShExecInfo.lpDirectory = NULL;
-        ShExecInfo.nShow = window_state;
-        ShExecInfo.hInstApp = NULL;
-        ShellExecuteEx(&ShExecInfo);
-        return true;
+            SHELLEXECUTEINFO ShExecInfo = {};
+            ShExecInfo.cbSize = sizeof(SHELLEXECUTEINFO);
+            ShExecInfo.fMask = SEE_MASK_NOCLOSEPROCESS;
+            ShExecInfo.hwnd = NULL;
+            ShExecInfo.lpVerb = NULL;
+            ShExecInfo.lpFile = binary.c_str();
+            ShExecInfo.lpParameters = params.c_str();
+            ShExecInfo.lpDirectory = NULL;
+            ShExecInfo.nShow = window_state;
+            ShExecInfo.hInstApp = NULL;
+            ShellExecuteEx(&ShExecInfo);
+            return true;
 
         #elif defined(__linux__) || defined(__APPLE__)
 
-        auto p_id = ::fork();
-        if (p_id == 0) // Child branch
-        {
-            log("exec: executing '", binary, " ", params, "'");
-            char* argv[] = { binary.data(), params.data(), nullptr };
-
-            ::execvp(argv[0], argv);
-            os::exit(1, "exec: error ", errno);
-        }
-
-        if (p_id > 0) // Parent branch
-        {
-            int stat;
-            ::waitpid(p_id, &stat, 0); // wait for the child to avoid zombies
-
-            if (WIFEXITED(stat) && (WEXITSTATUS(stat) == 0))
+            auto p_id = ::fork();
+            if (p_id == 0) // Child branch
             {
-                return true; // child forked and exited successfully
-            }
-        }
+                log("exec: executing '", binary, " ", params, "'");
+                char* argv[] = { binary.data(), params.data(), nullptr };
 
-        log("exec: failed to spawn '", binary, " ' with args '", params, "'");
-        return faux;
+                ::execvp(argv[0], argv);
+                os::exit(1, "exec: error ", errno);
+            }
+
+            if (p_id > 0) // Parent branch
+            {
+                int stat;
+                ::waitpid(p_id, &stat, 0); // wait for the child to avoid zombies
+
+                if (WIFEXITED(stat) && (WEXITSTATUS(stat) == 0))
+                {
+                    return true; // child forked and exited successfully
+                }
+            }
+
+            log("exec: failed to spawn '", binary, " ' with args '", params, "'");
+            return faux;
 
         #endif
     }
@@ -1061,20 +1087,125 @@ namespace netxs::os
 
     using xipc = std::shared_ptr<class ipc>;
 
-    class ipc
+    struct nothing
     {
-        const bool IS_TTY = faux;
+        template<class T>
+        operator T () { return T{}; }
+    };
+    template<class ...Args>
+    auto fail(Args&&... msg)
+    {
+        log("  os: ", msg..., " (", os::error(), ") ");
+        return nothing{};
+    };
+    template<class T>
+    bool ok(T error_condition, text msg = {})
+    {
+        if(
+            #if defined(_WIN32)
+                error_condition == 0
+            #elif defined(__linux__) || defined(__APPLE__)
+                error_condition == (T)-1
+            #endif
+        )
+        {
+            fail(msg);
+            return faux;
+        }
+        else return true;
+    }
 
-    public:
-        using vect = std::vector<char>;
-        bool alive = true; // sock: Used by the os::tty.
-
+    template<class SIZE_T>
+    auto recv(fd_t fd, char* buff, SIZE_T size)
+    {
         #if defined(_WIN32)
 
-            using type = HANDLE; // typename std::invoke_result<::socket, int, int, int>::type;
-            static constexpr type INVALID_FD = INVALID_HANDLE_VALUE;
-            static constexpr iota PIPE_BUF = 65536;
-            static constexpr iota STDIN_BUF = 1024;
+            DWORD count;
+            auto fSuccess = ReadFile(fd,          // pipe handle
+                                     buff,        // buffer to receive reply
+                                     (DWORD)size, // size of buffer
+                                     &count,      // number of bytes read
+                                     nullptr);    // not overlapped
+            if (!fSuccess) count = 0;
+
+        #elif defined(__linux__) || defined(__APPLE__)
+
+            auto count = ::read(fd, buff, size);
+
+        #endif
+
+        return count > 0 ? qiew{ buff, count }
+                         : qiew{};
+    }
+    template<bool IS_TTY = true, class SIZE_T>
+    auto send(fd_t fd, char const* buff, SIZE_T size)
+    {
+        while (size)
+        {
+            #if defined(_WIN32)
+
+                DWORD count;
+                auto fSuccess = WriteFile(fd,          // pipe handle
+                                          buff,        // message
+                                          (DWORD)size, // message length
+                                          &count,      // bytes written
+                                          nullptr);    // not overlapped
+
+            #elif defined(__linux__) || defined(__APPLE__)
+
+                auto count = IS_TTY ? ::write(fd, buff, size)
+                                    : ::send (fd, buff, size, MSG_NOSIGNAL); // not work with open_pty
+                                                                             // recursive connection causes sigpipe on destroy when using write(2) despite using ::signal(SIGPIPE, SIG_IGN)
+                //  send(2) does not work with file descriptors, only sockets.
+                // write(2) works with fds as well as sockets.
+
+            #endif
+
+            if (count != size)
+            {
+                if (count > 0)
+                {
+                    log("send: partial writing: socket=", fd,
+                        " total=", size, ", written=", count);
+                    buff += count;
+                    size -= count;
+                }
+                else
+                {
+                    fail("send: error write to socket=", fd, " count=", count, " size=", size, " IS_TTY=", IS_TTY ?"true":"faux");
+                    return faux;
+                }
+            }
+            else return true;
+        }
+        return faux;
+    }
+
+    class ipc
+    {
+    public:
+        #if defined(_WIN32)
+
+            struct link
+            {
+                fd_t r; // link: Read descriptor.
+                fd_t w; // link: Write descriptor.
+                fd_t& get_r() { return r; };
+                fd_t& get_w() { return w; };
+                operator bool () { return r != INVALID_FD && w != INVALID_FD; }
+                void close()
+                {
+                    if (r != INVALID_FD) CloseHandle(r);
+                    if (w != INVALID_FD) CloseHandle(w);
+                }
+                friend auto& operator << (std::ostream& s, link const& handle)
+                {
+                    return s << handle.r << "," << handle.w;
+                }
+                link(fd_t fd_r = INVALID_FD, fd_t fd_w = INVALID_FD)
+                    : r{ fd_r }, w{ fd_w }
+                { }
+            };
 
             //static constexpr char* security_descriptor_string =
             //	//"D:P(A;NP;GA;;;SY)(A;NP;GA;;;BA)(A;NP;GA;;;WD)";
@@ -1097,221 +1228,142 @@ namespace netxs::os
             //	//  "CO"  SDDL_CREATOR_OWNER
             //	//  "WD"  SDDL_EVERYONE
 
-    private:
-            text pipepath;
-            type r_handle; // sock: Socket file descriptor.
-            type w_handle; // sock: Socket file descriptor.
-
         #elif defined(__linux__) || defined(__APPLE__)
 
-            using type = int; // typename std::invoke_result<::socket, int, int, int>::type;
-            static constexpr type INVALID_FD = -1;
-            type handle; // sock: Socket file descriptor.
-            type charge_w; // sock: Pipe for events (instead of eventfd).
-
-            //using lock = std::recursive_mutex;
-            //lock      mutex; // pipe: Thread sync mutex.
+            struct link
+            {
+                fd_t h; // link: RW descriptor.
+                fd_t& get_r() { return h; };
+                fd_t& get_w() { return h; };
+                operator fd_t () { return h; }
+                operator bool () { return h != INVALID_FD; }
+                void close()
+                {
+                    if (h != INVALID_FD) ::close(h);
+                }
+                friend auto& operator << (std::ostream& s, link const& handle)
+                {
+                    return s << handle.h;
+                }
+                link(fd_t fd = INVALID_FD) : h{ fd } { }
+            };
 
         #endif
 
-        vect buffer; // sock: Receive buffer.
-        type charge; // sock: Descriptor for reading interrupt.
-        bool sealed; // sock: Provide autoclosing.
-        text path; // sock: Socket path (in order to unlink).
+    private:
+        using vect = std::vector<char>;
+        bool active; // ipc: Used by the os::tty.
+        link handle; // ipc: Socket file descriptor.
+        vect buffer; // ipc: Receive buffer.
+        bool sealed; // ipc: Provide autoclosing.
+        text scpath; // ipc: Socket path (in order to unlink).
 
         void init(iota buff_size = PIPE_BUF) { buffer.resize(buff_size); }
 
-        struct nothing
-        {
-            template<class T>
-            operator T () { return T{}; }
-        };
-        template<class ...Args>
-        static auto fail(Args&&... msg)
-        {
-            log("xipc: ", msg..., " (", os::error(), ") ");
-            return nothing{};
-        };
-
     public:
-        #if defined(_WIN32)
-            ipc(type r_socket = INVALID_FD, type w_socket = INVALID_FD, bool sealed = faux)
-                :	r_handle{ r_socket },
-                    w_handle{ w_socket },
-                    sealed{ sealed }
-            {
-                charge = CreateEvent(NULL, TRUE, TRUE, NULL);
-                if (charge == INVALID_FD) log("xipc - signalfd error");
-                //log("xipc: control descriptor ", charge);
-                if (*this) init();
-            }
-            ~ipc()
-            {
-                log("xipc: closing ", *this);
-                if (sealed)
-                {
-                    if (r_handle != INVALID_FD) CloseHandle(r_handle);
-                    if (w_handle != INVALID_FD) CloseHandle(w_handle);
-                }
-                CloseHandle(charge);
-            }
-            operator bool () { return r_handle != INVALID_FD && w_handle != INVALID_FD; }
-        #elif defined(__linux__) || defined(__APPLE__)
-            ipc(type socket = INVALID_FD, bool sealed = faux, bool IS_TTY = faux)
-                : handle{ socket },
-                  sealed{ sealed },
-                  IS_TTY{ IS_TTY }
-            {
-                //todo ::signal(SIGPIPE, SIG_IGN) does not work
-                if (::signal(SIGPIPE, SIG_IGN) == SIG_ERR)
-                {
-                    throw;
-                }
-
-                // instead of ::signal(SIGPIPE, SIG_IGN)
-                //static struct sigaction sigign = { SIG_IGN };
-                //::sigaction(SIGPIPE, &sigign, nullptr);
-
-                //charge = ::eventfd(0, 0);
-                //if (charge == INVALID_FD) log("xipc - signalfd error");
-
-                type eventfd[2];
-                auto isok = ::pipe(eventfd);
-                charge   = eventfd[0];
-                charge_w = eventfd[1];
-                if (isok < 0) log("xipc - signalfd error");
-
-                log("xipc: control descriptor ", charge);
-                if (*this) init();
-            }
-            ~ipc()
-            {
-                log("xipc: closing ", *this);
-                if (*this && sealed) ::close(handle);
-                ::close(charge);
-                ::close(charge_w);
-
-                #if defined(__APPLE__)
-
-                // cleanup file system unix domain socket
-                if (path.length())
-                {
-                    ::unlink(path.c_str());
-                }
-
-                #endif
-            }
-            operator bool () { return handle != INVALID_FD; }
-        #endif
-
-        #if defined(_WIN32)
-            void set(type r_h, type w_h, bool s)
-            {
-                r_handle = r_h;
-                w_handle = w_h;
-                sealed = s;
-                if (*this) init();
-            }
-        #elif defined(__linux__) || defined(__APPLE__)
-            void set(type h, bool s)
-            {
-                handle = h;
-                sealed = s;
-                if (*this) init();
-            }
-        #endif
-        auto get()
+        ipc(link const& descriptor = {}, bool sealed = faux)
+            : handle{ descriptor },
+              sealed{ sealed },
+              active{ true }
         {
-            #if defined(_WIN32)
+            if (handle) init();
+        }
+        ~ipc()
+        {
+            #if defined(__APPLE__)
 
-                return std::pair{ r_handle, w_handle };
-
-            #elif defined(__linux__) || defined(__APPLE__)
-
-                return handle;
+                if (scpath.length())
+                {
+                    ::unlink(scpath.c_str()); // Cleanup file system unix domain socket.
+                }
 
             #endif
+
+            if (sealed) handle.close();
         }
-        //todo implement xplat
+
+        operator bool () { return active; }
+
+        void set(link const& h, bool s)
+        {
+            handle = h;
+            sealed = s;
+            if (handle) init();
+        }
+        auto get()
+        {
+            return handle;
+        }
+        void reset()
+        {
+            active = faux;
+        }
         template<class T>
-        auto cred(T id) const // get peer cred
+        auto cred(T id) const // Check peer cred.
         {
             #if defined(_WIN32)
 
-            //todo implement for win32
+                //todo implement for win32
 
-            //#elif defined(__linux__) || defined(__APPLE__)
             #elif defined(__linux__)
 
-            //struct result
-            //{
-            //	long pid, uid, gid;
-            //};
+                ucred cred = {};
+                unsigned size = sizeof(cred);
 
-            struct ucred cred = {};
-            unsigned size = sizeof(cred);
-            auto error = -1 == ::getsockopt(handle, SOL_SOCKET, SO_PEERCRED, &cred, &size);
+                if (!ok(::getsockopt(handle.h, SOL_SOCKET, SO_PEERCRED, &cred, &size), "getsockopt error"))
+                    return faux;
 
-            //return success ? std::optional{ result{ cred.pid, cred.uid, cred.gid } }
-            //               : std::nullopt;
+                if (cred.uid && id != cred.uid)
+                {
+                    log("sock: other users are not allowed to the session, abort");
+                    return faux;
+                }
 
-            if (error)
-            {
-                log("sock: getsockopt error ", errno, ", abort");
-                return faux;
-            }
-            if (cred.uid && id != cred.uid) // Deny foreign users except root
-            {
-                log("sock: other users are not allowed to the session, abort");
-                return faux;
-            }
-
-            log("sock: creds from SO_PEERCRED",
-                ":  pid=", cred.pid,
-                ", euid=", cred.uid,
-                ", egid=", cred.gid);
+                log("sock: creds from SO_PEERCRED",
+                    ":  pid=", cred.pid,
+                    ", euid=", cred.uid,
+                    ", egid=", cred.gid);
 
             #elif defined(__APPLE__)
 
-            uid_t euid;
-            gid_t egid;
-            auto error = -1 == ::getpeereid(handle, &euid, &egid);
+                uid_t euid;
+                gid_t egid;
 
-            if (error || (euid && id != euid)) // Deny foreign users except root
-            {
-                //log("sock: other users are not allowed to the session, abort");
-                return faux;
-            }
+                if (!ok(::getpeereid(handle.h, &euid, &egid), "getpeereid error"))
+                    return faux;
 
-            log("sock: socket owner: ", id);
-            log("sock: peer creds from getpeereid",
-                ", euid=", euid,
-                ", egid=", egid);
+                if (euid && id != euid)
+                {
+                    log("sock: other users are not allowed to the session, abort");
+                    return faux;
+                }
+
+                log("sock: creds from getpeereid",
+                    ":  pid=", id,
+                    ", euid=", euid,
+                    ", egid=", egid);
 
             #endif
 
             return true;
         }
-        auto meet()
-            -> std::shared_ptr<ipc>
+        auto meet() -> std::shared_ptr<ipc>
         {
             #if defined(_WIN32)
 
-            //security_descriptor pipe_acl(security_descriptor_string);
+                //security_descriptor pipe_acl(security_descriptor_string);
 
-                auto sock_ptr = std::make_shared<ipc>(r_handle, w_handle, true);
-                //log("------- waiting clients on ", sock_ptr);
+                auto sock_ptr = std::make_shared<ipc>(handle, true);
 
-                auto to_server = "\\\\.\\pipe\\r_" + pipepath;
-                auto to_client = "\\\\.\\pipe\\w_" + pipepath;
+                auto to_server = "\\\\.\\pipe\\r_" + scpath;
+                auto to_client = "\\\\.\\pipe\\w_" + scpath;
 
-                auto r_fConnected = ConnectNamedPipe(r_handle, NULL)
+                auto r_fConnected = ConnectNamedPipe(handle.r, NULL)
                     ? true
                     : (GetLastError() == ERROR_PIPE_CONNECTED);
-                //log(r_handle, " is r_fConnected = ", r_fConnected ? "true" : "faux");
 
                 // recreate the waiting point for the next client
-                r_handle = CreateNamedPipe(
+                handle.r = CreateNamedPipe(
                     to_server.c_str(),        // pipe name
                     PIPE_ACCESS_INBOUND,      // read/write access
                     PIPE_TYPE_BYTE |          // message type pipe
@@ -1331,19 +1383,17 @@ namespace netxs::os
                     //       Without write access, the desktop will be inaccessible to non-owners.
                     //pipe_acl);                // DACL
 
-                //log("created a new r_handle = ", r_handle);
-                if (r_handle == INVALID_FD)
+                if (handle.r == INVALID_FD)
                 {
-                    r_handle = sock_ptr->r_handle;
+                    handle.r = sock_ptr->handle.r;
                     return fail("CreateNamedPipe error (read)");
                 }
 
-                auto w_fConnected = ConnectNamedPipe(w_handle, NULL)
+                auto w_fConnected = ConnectNamedPipe(handle.w, NULL)
                     ? true
                     : (GetLastError() == ERROR_PIPE_CONNECTED);
-                //log(w_handle, " is w_fConnected = ", w_fConnected ? "true" : "faux");
 
-                w_handle = CreateNamedPipe(
+                handle.w = CreateNamedPipe(
                     to_client.c_str(),        // pipe name
                     PIPE_ACCESS_OUTBOUND,     // read/write access
                     PIPE_TYPE_BYTE |          // message type pipe
@@ -1354,14 +1404,12 @@ namespace netxs::os
                     PIPE_BUF,                 // input buffer size
                     0,                        // client time-out
                     NULL);
-                    //pipe_acl);                // DACL
 
-                //log("created a new w_handle = ", w_handle);
-                if (w_handle == INVALID_FD)
+                if (handle.w == INVALID_FD)
                 {
-                    CloseHandle(r_handle);
-                    r_handle = sock_ptr->r_handle;
-                    w_handle = sock_ptr->w_handle;
+                    CloseHandle(handle.r);
+                    handle.r = sock_ptr->handle.r;
+                    handle.w = sock_ptr->handle.w;
                     return fail("CreateNamedPipe error (write)");
                 }
 
@@ -1369,183 +1417,38 @@ namespace netxs::os
 
             #elif defined(__linux__) || defined(__APPLE__)
 
-                auto sock_ptr
-                    = std::make_shared<ipc>(::accept(handle, 0, 0), true);
-
-                return *sock_ptr ? sock_ptr
-                                 : nullptr;
-
-                //if (*sock_ptr)
-                //{
-                //	//to prevent SIGPIPE on the socket
-                //	//int set = 1;
-                //	//auto fd = sock_ptr->get();
-                //	//log ("set MSG_NOSIGNAL for ", handle);
-                //	//log ("set MSG_NOSIGNAL for ", fd);
-                //	//auto p = ::setsockopt(handle, SOL_SOCKET, MSG_NOSIGNAL, (void*)&set, sizeof(int));
-                //	//if (p == -1) fail(" error set MSG_NOSIGNAL for ", handle);
-                //	//auto p= ::setsockopt(fd, SOL_SOCKET, MSG_NOSIGNAL, (void*)&set, sizeof(int));
-                //	//if (p == -1) fail(" error set MSG_NOSIGNAL for ", fd);
-                //	return sock_ptr;
-                //}
-                //else return nullptr;
-
+                auto s = link{ ::accept(handle.h, 0, 0) };
+                return s ? std::make_shared<ipc>(s, true)
+                         : nullptr;
             #endif
-
         }
         template<class SIZE_T>
-        auto recv(char* buff, SIZE_T size) const
+        auto recv(char* buff, SIZE_T size)
         {
-            #if defined(_WIN32)
-
-                bool fSuccess = faux;
-                DWORD count;
-
-                //HANDLE waits[2] = { r_handle, charge };
-                //if (WAIT_OBJECT_0 == WaitForMultipleObjects(2, waits, FALSE, INFINITE))
-                fSuccess = ReadFile(
-                    r_handle,    // pipe handle
-                    buff,        // buffer to receive reply
-                    (DWORD)size, // size of buffer
-                    &count,      // number of bytes read
-                    NULL);       // not overlapped
-
-                if (fSuccess) return qiew{ buff, count };
-                else          return qiew{};
-
-            #elif defined(__linux__) || defined(__APPLE__)
-
-                auto count = ::read(handle, buff, size);
-                if (count > 0) return qiew{ buff, count };
-                else           return qiew{};
-                //else
-                //{
-                //	if (count == -1)
-                //	{
-                //		log("recv: socket read error ", errno);
-                //		return qiew{};
-                //	}
-                //	return qiew{ buff, 1 };
-                //}
-
-            #endif
+            return os::recv(handle.get_r(), buff, size);
         }
-        auto recv() // It is not thread safe!
+        auto recv() // It's not thread safe!
         {
             return recv(buffer.data(), buffer.size());
         }
-
-        #if defined(__linux__) || defined(__APPLE__)
-        auto pick() // interruptable read from stdin
+        template<bool IS_TTY = faux>
+        auto send(char const* buff, size_t size)
         {
-            fd_set socks;
-
-            FD_ZERO(&socks);
-            FD_SET(handle, &socks);
-            FD_SET(charge, &socks);
-            auto nfds = std::max(handle, charge) + 1;
-
-            if (::select(nfds, &socks, 0, 0, 0) > 0)
-            {
-                if (FD_ISSET(charge, &socks))
-                {
-                    log("xipc: stop fired on ", *this, " by ctrl=", charge);
-                    auto x = 0UL;
-                    auto n = ::read(charge, &x, sizeof(x));
-                }
-                else if (FD_ISSET(handle, &socks))
-                {
-                    return recv();
-                }
-            }
-            return qiew{};
+            return os::send<IS_TTY>(handle.get_w(), buff, size);
         }
-        #endif
-
-        auto fire() // interrupt reading operation
-        {
-            #if defined(_WIN32)
-
-                SetEvent(charge);
-
-            #elif defined(__linux__) || defined(__APPLE__)
-
-                auto x = 1UL;
-                if (-1 == ::write(charge_w, &x, sizeof(x)))
-                    log("xipc: stop write error on ", *this);
-
-            #endif
-        }
-        //bool alive = true;
-        auto send(char const* data, size_t size)// const
-        {
-            while (size)
-            {
-
-            #if defined(_WIN32)
-                DWORD count;
-                auto fSuccess = WriteFile(
-                    w_handle,    // pipe handle
-                    data,        // message
-                    (DWORD)size, // message length
-                    &count,      // bytes written
-                    NULL);       // not overlapped
-                if (!fSuccess) count = 0;
-
-            #elif defined(__linux__) || defined(__APPLE__)
-
-                //todo revise ::write (::signal(SIGPIPE, SIG_IGN) not work)
-                //     or     ::send + , MSG_NOSIGNAL)
-
-                //::signal(SIGPIPE, SIG_IGN);
-
-                // std::lock_guard guard{ mutex }; // socket shutdown while writing cause SIGPIPE
-
-                //auto count = ::write(handle, data, size);
-
-                auto count = IS_TTY ? ::write(handle, data, size)
-                                    : ::send (handle, data, size, MSG_NOSIGNAL); // not work with open_pty
-                                                                                 // recursive connection causes sigpipe on destroy when using write(2)
-                //auto count = ::send(handle, data, size, MSG_NOSIGNAL);
-
-                // send(2)does not work with file descriptors, only sockets
-                // write(2) works with fds as well as sockets
-                //auto count = ::send(handle, data, size, MSG_NOSIGNAL);
-                //fail("writing error");
-
-            #endif
-
-                if (count != size)
-                {
-                    if (count > 0)
-                    {
-                        log("xipc: partial writing: socket=", *this,
-                            " total=", size, ", written=", count);
-                        data += count;
-                        size -= count;
-                    }
-                    else
-                    {
-                        fail("xipc: error write to socket=", *this, " count=", count, " size=", size, " IS_TTY=", IS_TTY ?"true":"faux");
-                        return faux;
-                    }
-                }
-                else return true;
-            }
-            return faux;
-        }
-        template<class T>
-        auto send(T const& buff)// const
+        template<bool IS_TTY = faux, class T>
+        auto send(T const& buff)
         {
             auto data = buff.data();
             auto size = buff.size();
-            return send(data, size);
+            return send<IS_TTY>(data, size);
         }
-        auto send(char c)// const
+        auto send(char c)
         {
             return send(&c, 1);
         }
-        auto line(char delim) const /*Read line*/
+        // ipc: Read until the delimeter appears.
+        auto line(char delim)
         {
             char c;
             text crop;
@@ -1557,13 +1460,13 @@ namespace netxs::os
         }
         auto shut() -> bool
         {
-            alive = faux;
+            active = faux;
             #if defined(_WIN32)
 
                 if (sealed)
-                { // Disconnection order does matter
-                    if (w_handle != INVALID_FD) DisconnectNamedPipe(w_handle);
-                    if (r_handle != INVALID_FD) DisconnectNamedPipe(r_handle);
+                { // Disconnection order does matter.
+                    if (handle.get_w() != INVALID_FD) ok(DisconnectNamedPipe(handle.get_w()));
+                    if (handle.get_r() != INVALID_FD) ok(DisconnectNamedPipe(handle.get_r()));
                 }
                 return true;
 
@@ -1578,9 +1481,8 @@ namespace netxs::os
                 //            — it just changes its usability.
                 //To free a socket descriptor, you need to use close()."
 
-                fail("closing handle ", handle);
-                auto errcode = ::shutdown(handle, SHUT_RDWR); // Further sends and receives are disallowed
-                if (errcode == -1)
+                log(" ipc: shutdown descriptor ", handle.h);
+                if (!ok(::shutdown(handle.h, SHUT_RDWR), "descriptor shutdown error"))  // Further sends and receives are disallowed.
                 {
                     switch (errno)
                     {
@@ -1604,28 +1506,46 @@ namespace netxs::os
             #endif
         }
         template<role ROLE, class P = noop>
-        static auto open(text path, datetime::period retry_time = {}, P retry_proc = P())
+        static auto open(text path, datetime::period retry_timeout = {}, P retry_proc = P())
             -> std::shared_ptr<ipc>
         {
+            auto sock_ptr = std::make_shared<ipc>(link{}, true);
+            auto try_start = [&](auto play) -> bool
+            {
+                auto done = play();
+                if (!done)
+                {
+                    if constexpr (ROLE == role::client)
+                    if (!retry_proc())
+                        return fail("failed to start server");
+
+                    auto stop = datetime::tempus::now() + retry_timeout;
+                    do
+                    {
+                        std::this_thread::sleep_for(100ms);
+                        done = play();
+                    }
+                    while (!done && stop > datetime::tempus::now());
+                }
+                return done;
+            };
+
             #if defined(_WIN32)
 
-            //security_descriptor pipe_acl(security_descriptor_string);
-            //log("pipe: DACL=", pipe_acl.security_string);
+                //security_descriptor pipe_acl(security_descriptor_string);
+                //log("pipe: DACL=", pipe_acl.security_string);
 
-                auto sock_ptr = std::make_shared<ipc>(INVALID_FD, INVALID_FD, true);
+                auto& r_sock = sock_ptr->handle.get_r();
+                auto& w_sock = sock_ptr->handle.get_w();
 
-                auto& r_sock = sock_ptr->r_handle;
-                auto& w_sock = sock_ptr->w_handle;
-
-                auto& pipepath = sock_ptr->pipepath;
-                pipepath = path;
+                sock_ptr->scpath = path;
                 auto to_server = "\\\\.\\pipe\\r_" + path;
                 auto to_client = "\\\\.\\pipe\\w_" + path;
 
                 if constexpr (ROLE == role::server)
                 {
                     r_sock = CreateNamedPipe(
-                        to_server.c_str(),        // pipe name
+                        to_server.c_str(),        // pipe path
                         PIPE_ACCESS_INBOUND,      // read/write access
                         PIPE_TYPE_BYTE |          // message type pipe
                         PIPE_READMODE_BYTE |      // message-read mode
@@ -1634,13 +1554,13 @@ namespace netxs::os
                         PIPE_BUF,                 // output buffer size
                         PIPE_BUF,                 // input buffer size
                         0,                        // client time-out
-                        NULL);                // DACL
+                        NULL);                    // DACL
                         //pipe_acl);                // DACL
                     if (r_sock == INVALID_FD)
                         return fail("CreateNamedPipe error (read)");
 
                     w_sock = CreateNamedPipe(
-                        to_client.c_str(),        // pipe name
+                        to_client.c_str(),        // pipe path
                         PIPE_ACCESS_OUTBOUND,     // read/write access
                         PIPE_TYPE_BYTE |          // message type pipe
                         PIPE_READMODE_BYTE |      // message-read mode
@@ -1649,7 +1569,7 @@ namespace netxs::os
                         PIPE_BUF,                 // output buffer size
                         PIPE_BUF,                 // input buffer size
                         0,                        // client time-out
-                        NULL);                // DACL
+                        NULL);                    // DACL
                         //pipe_acl);                // DACL
                     if (w_sock == INVALID_FD)
                     {
@@ -1659,64 +1579,52 @@ namespace netxs::os
                 }
                 else if constexpr (ROLE == role::client)
                 {
-                    auto play = [&]() -> bool {
-
+                    auto play = [&]() -> bool
+                    {
                         w_sock = CreateFile(
-                            to_server.c_str(), // pipe name
+                            to_server.c_str(), // pipe path
                             GENERIC_WRITE,
-                            0,                // no sharing
-                            NULL,             // default security attributes
-                            OPEN_EXISTING,    // opens existing pipe
-                            0,                // default attributes
-                            NULL);            // no template file
+                            0,                 // no sharing
+                            NULL,              // default security attributes
+                            OPEN_EXISTING,     // opens existing pipe
+                            0,                 // default attributes
+                            NULL);             // no template file
 
                         if (w_sock == INVALID_FD)
-                            return faux; // fail("could not open to_server link");
+                            return faux;
 
                         r_sock = CreateFile(
-                            to_client.c_str(), // pipe name
+                            to_client.c_str(), // pipe path
                             GENERIC_READ,
-                            0,                // no sharing
-                            NULL,             // default security attributes
-                            OPEN_EXISTING,    // opens existing pipe
-                            0,                // default attributes
-                            NULL);            // no template file
+                            0,                 // no sharing
+                            NULL,              // default security attributes
+                            OPEN_EXISTING,     // opens existing pipe
+                            0,                 // default attributes
+                            NULL);             // no template file
 
                         if (r_sock == INVALID_FD)
                         {
                             CloseHandle(w_sock);
-                            return faux; // fail("could not open to_client link");
+                            return faux;
                         }
-                        else return true; };
-
-                    auto done = play();
-                    if (!done)
-                    {
-                        if (!retry_proc())
-                            return fail("failed to start server");
-
-                        auto stop = datetime::tempus::now() + retry_time;
-                        do
-                        {
-                            std::this_thread::sleep_for(100ms);
-                            done = play();
-                        }
-                        while (!done && stop > datetime::tempus::now());
-
-                        if (!done)
-                            return fail("connection error");
-                    }
+                        else return true;
+                    };
+                    if (!try_start(play))
+                        return fail("connection error");
                 }
 
             #elif defined(__linux__) || defined(__APPLE__)
 
-                auto sock_ptr = std::make_shared<ipc>(INVALID_FD, true);
-                auto& sock = sock_ptr->handle;
+                ok(::signal(SIGPIPE, SIG_IGN), "failed to set SIG_IGN");
+
+                auto& sock = sock_ptr->handle.get_w();
+                sockaddr_un addr = {};
+                auto sun_path = addr.sun_path + 1; // Abstract namespace socket (begins with zero). The abstract socket namespace is a nonportable Linux extension.
 
                 #if defined(__APPLE__)
-                //todo unify see vtmd.cpp:1564, file system socket
-                path = "/tmp/" + path + ".sock";
-                //path = path + ".sock";
+                    //todo unify see vtmd.cpp:1564, file system socket
+                    path = "/tmp/" + path + ".sock";
+                    sun_path--; // File system unix domain socket.
                 #endif
 
                 if (path.size() > sizeof(sockaddr_un::sun_path) - 2)
@@ -1725,32 +1633,17 @@ namespace netxs::os
                 if ((sock = ::socket(AF_UNIX, SOCK_STREAM, 0)) == INVALID_FD)
                     return fail("open unix domain socket error");
 
-                struct sockaddr_un addr = {};
                 addr.sun_family = AF_UNIX;
-                auto sock_addr_len = sizeof(addr) - (sizeof(sockaddr_un::sun_path) - path.size() - 1);
-
-            #if defined(__linux__)
-
-                // abstract namespace socket (begins with zero)
-                // The abstract socket namespace is a nonportable Linux extension.
-                std::copy(path.begin(), path.end(), addr.sun_path + 1);
-
-            #elif defined(__APPLE__)
-
-                // file system unix domain socket
-                std::copy(path.begin(), path.end(), addr.sun_path);
-
-            #endif
+                auto sock_addr_len = (socklen_t)(sizeof(addr) - (sizeof(sockaddr_un::sun_path) - path.size() - 1));
+                std::copy(path.begin(), path.end(), sun_path);
 
                 if constexpr (ROLE == role::server)
                 {
                     #if defined(__APPLE__)
-                    // cleanup file system socket.
-                    ::unlink(path.c_str());
+                        ::unlink(path.c_str()); // Cleanup file system socket.
                     #endif
 
-                    // For unlink on exit (file system socket).
-                    sock_ptr->path = path;
+                    sock_ptr->scpath = path; // For unlink on exit (file system socket).
 
                     if (::bind(sock, (struct sockaddr*)&addr, sock_addr_len) == -1)
                         return fail("error unix socket bind for ", path);
@@ -1760,29 +1653,12 @@ namespace netxs::os
                 }
                 else if constexpr (ROLE == role::client)
                 {
-                    auto play = [&]() {
-                        return -1 != ::connect(sock, (struct sockaddr*)&addr, sock_addr_len); };
-
-                    auto done = play();
-                    if (!done)
+                    auto play = [&]()
                     {
-                        if (!retry_proc())
-                            return fail("failed to start server");
-
-                        auto stop = datetime::tempus::now() + retry_time;
-                        do
-                        {
-                            std::this_thread::sleep_for(100ms);
-                            done = play();
-                        }
-                        while (!done && stop > datetime::tempus::now());
-
-                        if (!done)
-                            return fail("connection error");
-                    }
-
-                    //int val = 1;
-                    //auto error = -1 == ::setsockopt(sock, SOL_SOCKET, SO_PASSCRED, &val, sizeof(val));
+                        return -1 != ::connect(sock, (struct sockaddr*)&addr, sock_addr_len);
+                    };
+                    if (!try_start(play))
+                        return fail("connection error");
                 }
 
             #endif
@@ -1793,11 +1669,7 @@ namespace netxs::os
 
         friend auto& operator << (std::ostream& s, netxs::os::ipc const& sock)
         {
-            #if defined(_WIN32)
-            return s << "{ xipc: " << sock.r_handle << "," << sock.w_handle << " }";
-            #elif defined(__linux__) || defined(__APPLE__)
             return s << "{ xipc: " << sock.handle << " }";
-            #endif
         }
         friend auto& operator << (std::ostream& s, netxs::os::xipc const& sock)
         {
@@ -1830,38 +1702,114 @@ namespace netxs::os
         }
     };
 
+    #if defined(_WIN32)
+
+        class flash_t
+        {
+            fd_t h; // tty: Descriptor for IO interrupt.
+
+        public:
+            operator fd_t () { return h; }
+            flash_t()        { ok(h = CreateEvent(NULL, TRUE, FALSE, NULL), "CreateEvent error"); }
+           ~flash_t()        { if (h != INVALID_FD) CloseHandle(h); }
+            void reset()     { ok(SetEvent(h), "SetEvent error"); }
+        };
+
+    #elif defined(__linux__) || defined(__APPLE__)
+
+        class flash_t
+        {
+            fd_t h[2] = { INVALID_FD, INVALID_FD }; // tty: Descriptors for IO interrupt.
+            char x = 1;
+
+        public:
+            operator fd_t () { return h[0]; }
+            flash_t()        { ok(::pipe(h), "pipe(2) error"); }
+           ~flash_t()        { for(auto f : h) if (f != INVALID_FD) ::close(f); }
+            void reset()     { send(h[1], &x, sizeof(x)); }
+            void flush()     { recv(h[0], &x, sizeof(x)); }
+        };
+
+    #endif
+
     class tty
     {
+        flash_t flash;
+
         template<class V>
         struct _globals
         {
-            static xipc sock;
+            static xipc ipcio;
+            static conmode state;
+            static void resize_handler()
+            {
+                static testy<twod> winsz;
+                #if defined(_WIN32)
+
+                    CONSOLE_SCREEN_BUFFER_INFO cinfo;
+                    if(ok(GetConsoleScreenBufferInfo(STDOUT_FD, &cinfo)))
+                    {
+                        winsz({ cinfo.srWindow.Right - cinfo.srWindow.Left + 1,
+                                cinfo.srWindow.Bottom - cinfo.srWindow.Top + 1 });
+                    }
+
+                #elif defined(__linux__) || defined(__APPLE__)
+
+                    winsize size;
+                    if(ok(::ioctl(STDOUT_FD, TIOCGWINSZ, &size)))
+                    {
+                        winsz({ size.ws_col, size.ws_row });
+                    }
+
+                #endif
+
+                if (winsz.test)
+                {
+                    ipcio->send<faux>(ansi::win(winsz.last));
+                }
+            }
 
             #if defined(_WIN32)
 
-                static DWORD       omode;
-                static DWORD       imode;
-                static HANDLE      board;
-                static HANDLE      input;
-                static HANDLE      reset;
-                static testy<twod> winsz;
+                static void default_mode()
+                {
+                    ok(SetConsoleMode(STDOUT_FD, state[0]), "SetConsoleMode error (revert_o)");
+                    ok(SetConsoleMode(STDIN_FD , state[1]), "SetConsoleMode error (revert_i)");
+                }
+                static BOOL signal_handler(DWORD signal)
+                {
+                    switch (signal)
+                    {
+                        case CTRL_C_EVENT:
+                            ipcio->send(ansi::C0_ETX);
+                            break;
+                        case CTRL_BREAK_EVENT:
+                            ipcio->send(ansi::C0_ETX);
+                            break;
+                        case CTRL_CLOSE_EVENT:
+                            /**/
+                            break;
+                        case CTRL_LOGOFF_EVENT:
+                            /**/
+                            break;
+                        case CTRL_SHUTDOWN_EVENT:
+                            /**/
+                            break;
+                        default:
+                            break;
+                    }
+                    return TRUE;
+                }
 
             #elif defined(__linux__) || defined(__APPLE__)
 
-                static ::termios mode;
                 static void default_mode()
                 {
-                    ::tcsetattr(0, TCSANOW, &mode);
-                }
-                static void resize_handler()
-                {
-                    struct winsize size;
-                    ::ioctl(1, TIOCGWINSZ, &size);
-                    sock->send(console::ansi::win({ size.ws_col, size.ws_row }));
+                    ::tcsetattr(STDIN_FD, TCSANOW, &state);
                 }
                 static void shutdown_handler(int signal)
                 {
-                    sock->shut();
+                    ipcio->shut();
                     log(" tty: sock->xipc::shut called");
                     ::signal(signal, SIG_DFL);
                     ::raise(signal);
@@ -1890,87 +1838,26 @@ namespace netxs::os
             #endif
         };
 
-        #if defined(_WIN32)
-
-            //ipc in_fd { STD_INPUT_HANDLE  };
-            //ipc out_fd{ STD_OUTPUT_HANDLE };
-            static auto get_size()
-            {
-                auto& board = _globals<void>::board;
-                twod yield;
-                CONSOLE_SCREEN_BUFFER_INFO cinfo;
-                if(ok(GetConsoleScreenBufferInfo(board, &cinfo)))
-                {
-                    yield = twod{ cinfo.srWindow.Right - cinfo.srWindow.Left + 1,
-                                  cinfo.srWindow.Bottom - cinfo.srWindow.Top + 1 };
-                }
-                return yield;
-            }
-
-        #elif defined(__linux__) || defined(__APPLE__)
-
-            ipc in_fd { STDIN_FILENO  , faux, true };
-            ipc out_fd{ STDOUT_FILENO , faux, true };
-
-        #endif
-
-        static void defeat(text msg = "")
-        {
-            log(" tty: platform specific error: ", msg, " ",
-                #if defined(_WIN32)
-                    GetLastError()
-                #elif defined(__linux__) || defined(__APPLE__)
-                    errno
-                #endif
-            );
-        }
-        template<class T>
-        static bool ok(T error_condition, text msg = "")
-        {
-            if(
-                #if defined(_WIN32)
-                    error_condition == 0
-                #elif defined(__linux__) || defined(__APPLE__)
-                    error_condition == (T)-1
-                #endif
-            )
-            {
-                defeat(msg);
-                return faux;
-            }
-            else return true;
-
-        }
         void reader()
         {
             log(" tty: reader thread started");
+            auto& ipcio =*_globals<void>::ipcio;
 
             #if defined(_WIN32)
 
-            auto& board = _globals<void>::board;
-            auto& input = _globals<void>::input;
-            auto& omode = _globals<void>::omode;
-            auto& imode = _globals<void>::imode;
-            auto& reset = _globals<void>::reset;
-            auto& winsz = _globals<void>::winsz;
-
-            auto& sock = *_globals<void>::sock;
-
-            // the input codepage to UTF-8 is severely
-            //          broken in all Windows versions
-            //          ReadFile and ReadConsoleA either replace
-            //          non-ASCII characters with NUL or return 0 bytes read.
+            // The input codepage to UTF-8 is severely broken in all Windows versions.
+            // ReadFile and ReadConsoleA either replace non-ASCII characters with NUL
+            // or return 0 bytes read.
             std::vector<INPUT_RECORD> reply(1);
+            HANDLE                    waits[2] = { STDIN_FD, flash };
             DWORD                     count;
-            HANDLE                    waits[2] = { input, reset };
+            ansi::esc                 yield;
 
             #ifdef VTM_USE_CLASSICAL_WIN32_INPUT
 
-            ansi::esc            yield;
-            std::vector<wchar_t> slide(ipc::STDIN_BUF);
             while (WAIT_OBJECT_0 == WaitForMultipleObjects(2, waits, FALSE, INFINITE))
             {
-                if (!GetNumberOfConsoleInputEvents(input, &count))
+                if (!GetNumberOfConsoleInputEvents(STDIN_FD, &count))
                 {
                     // ERROR_PIPE_NOT_CONNECTED
                     // 233 (0xE9)
@@ -1983,7 +1870,7 @@ namespace netxs::os
                 {
                     if (count > reply.size()) reply.resize(count);
 
-                    if (!ReadConsoleInputW(input, reply.data(), (DWORD)reply.size(), &count))
+                    if (!ReadConsoleInputW(STDIN_FD, reply.data(), (DWORD)reply.size(), &count))
                     {
                         //ERROR_PIPE_NOT_CONNECTED = 0xE9 - it's means that the console is gone/crashed
                         //defeat("ReadConsoleInput error");
@@ -2019,10 +1906,7 @@ namespace netxs::os
                                         reply.Event.MouseEvent.dwMousePosition.Y);
                                     break;
                                 case WINDOW_BUFFER_SIZE_EVENT:
-                                    if (winsz(get_size()))
-                                    {
-                                        yield.w32winsz(winsz.last);
-                                    }
+                                    _globals<void>::resize_handler();
                                     break;
                                 case FOCUS_EVENT:
                                     yield.w32focus(0,
@@ -2033,18 +1917,17 @@ namespace netxs::os
                             }
                         }
                         yield.w32close();
-                        sock.send(yield);
+                        ipcio.send(yield);
                     }
                 }
             }
 
             #else
 
-            text                      yield;
-            std::vector<wchar_t>      slide(ipc::STDIN_BUF);
+            std::vector<wchar_t> buff(STDIN_BUF);
             while (WAIT_OBJECT_0 == WaitForMultipleObjects(2, waits, FALSE, INFINITE))
             {
-                if (!GetNumberOfConsoleInputEvents(input, &count))
+                if (!GetNumberOfConsoleInputEvents(STDIN_FD, &count))
                 {
                     defeat("GetNumberOfConsoleInputEvents error");
                 }
@@ -2052,7 +1935,7 @@ namespace netxs::os
                 {
                     if (count > reply.size()) reply.resize(count);
 
-                    if (!PeekConsoleInput(input, reply.data(), (DWORD)reply.size(), &count))
+                    if (!PeekConsoleInput(STDIN_FD, reply.data(), (DWORD)reply.size(), &count))
                     {
                         //ERROR_PIPE_NOT_CONNECTED = 0xE9 - it's means that the console is gone/crashed
                         defeat("PeekConsoleInput error");
@@ -2094,17 +1977,17 @@ namespace netxs::os
 
                             ReadConsoleW( // Auto flushed after reading.
                                 input,
-                                slide.data(),
-                                (DWORD)slide.size(),
+                                buff.data(),
+                                (DWORD)buff.size(),
                                 &count,
                                 &state);
 
                             //todo forward key ctrl state too
-                            yield += utf::to_utf(slide.data(), count);
+                            yield += utf::to_utf(buff.data(), count);
                         }
-                        else FlushConsoleInputBuffer(input);
+                        else FlushConsoleInputBuffer(STDIN_FD);
 
-                        sock.send(yield);
+                        ipcio.send(yield);
                     }
                 }
             }
@@ -2113,83 +1996,61 @@ namespace netxs::os
 
             #elif defined(__linux__) || defined(__APPLE__)
 
-                auto& sock = *_globals<void>::sock;
-                while (sock.alive)
+                std::vector<char> buff(STDIN_BUF);
+                while (ipcio)
                 {
-                    sock.send(in_fd.pick());
+                    fd_set socks;
+                    FD_ZERO(&socks);
+                    FD_SET(STDIN_FD, &socks);
+                    FD_SET(flash, &socks);
+                    auto nfds = std::max(STDIN_FD, (fd_t)flash) + 1;
+
+                    if (::select(nfds, &socks, 0, 0, 0) > 0)
+                    {
+                        if (FD_ISSET(flash, &socks))
+                        {
+                            log("xipc: flash fired");
+                            flash.flush();
+                        }
+                        else if (FD_ISSET(STDIN_FD, &socks))
+                        {
+                            auto data = os::recv(STDIN_FD, buff.data(), buff.size());
+                            ipcio.send<faux>(data);
+                        }
+                    }
                 }
 
             #endif
 
             log(" tty: reader thread completed");
         }
-        void stop()
-        {
-            #if defined(_WIN32)
 
-                auto& reset = _globals<void>::reset;
-                ok(SetEvent(reset), "SetEvent error");
-
-            #elif defined(__linux__) || defined(__APPLE__)
-
-                auto& sock = *_globals<void>::sock;
-                sock.alive = faux;
-                in_fd.fire(); // Unblock reading thread.
-
-            #endif
-        }
-
-        tty(xipc link)
-        {
-            _globals<void>::sock = link;
-        }
+        tty()
+        { }
 
     public:
         static auto proxy(xipc link)
         {
-            return tty{ link };
+            _globals<void>::ipcio = link;
+            return tty{};
         }
         bool output(view text)
         {
-            #if defined(_WIN32)
-                //todo unify, use fd
-                if (text.size())
-                {
-                    //todo use sock(STDOUT_FD)->send(WriteFile...)
-                    std::cout << text << std::flush;
-                    return true;
-                }
-                else return faux;
-
-            #elif defined(__linux__) || defined(__APPLE__)
-
-                return out_fd.send(text);
-
-            #endif
+            return os::send<true>(STDOUT_FD, text.data(), text.size());
         }
         void ignite()
         {
+            auto& sig_hndl = _globals<void>::signal_handler;
+
             #if defined(_WIN32)
 
-                auto& board = _globals<void>::board;
-                auto& input = _globals<void>::input;
-                auto& omode = _globals<void>::omode;
-                auto& imode = _globals<void>::imode;
-                auto& reset = _globals<void>::reset;
-                auto& winsz = _globals<void>::winsz;
-                auto& sock = *_globals<void>::sock;
+                auto& omode = _globals<void>::state[0];
+                auto& imode = _globals<void>::state[1];
 
-                if ((board = GetStdHandle(STD_OUTPUT_HANDLE))== INVALID_HANDLE_VALUE)
-                    defeat("GetStdHandle error (output)");
-                if ((input = GetStdHandle(STD_INPUT_HANDLE)) == INVALID_HANDLE_VALUE)
-                    defeat("GetStdHandle error (input)");
+                ok(GetConsoleMode(STDOUT_FD, &omode), "GetConsoleMode error (stdout)");
+                ok(GetConsoleMode(STDIN_FD , &imode), "GetConsoleMode error (stdin)");
 
-                ok(reset = CreateEvent(NULL, TRUE, FALSE, NULL), "CreateEvent error");
-
-                ok(GetConsoleMode(board, &omode), "GetConsoleMode error (omode)");
-                ok(GetConsoleMode(input, &imode), "GetConsoleMode error (imode)");
-
-                DWORD sources = 0
+                DWORD inpmode = 0
                               | ENABLE_EXTENDED_FLAGS
                               | ENABLE_PROCESSED_INPUT
                               | ENABLE_WINDOW_INPUT
@@ -2198,143 +2059,74 @@ namespace netxs::os
                               | ENABLE_VIRTUAL_TERMINAL_INPUT
                             #endif
                               ;
-                ok(SetConsoleMode(input, sources), "SetConsoleMode error (input)");
+                ok(SetConsoleMode(STDIN_FD, inpmode), "SetConsoleMode error (stdin)");
 
-                DWORD mode = 0
-                           | ENABLE_PROCESSED_OUTPUT
-                           | ENABLE_VIRTUAL_TERMINAL_PROCESSING
-                           | DISABLE_NEWLINE_AUTO_RETURN
-                           ;
-                ok(SetConsoleMode(board, mode), "SetConsoleMode error (board)");
-
-                auto ctrlHandler = [](DWORD signal)->BOOL
-                {
-                    auto& sock = *_globals<void>::sock;
-                    switch (signal)
-                    {
-                        case CTRL_C_EVENT:
-                            sock.send(ansi::C0_ETX);
-                            break;
-                        case CTRL_BREAK_EVENT:
-                            sock.send(ansi::C0_ETX);
-                            break;
-                        case CTRL_CLOSE_EVENT:
-                            /**/
-                            break;
-                        case CTRL_LOGOFF_EVENT:
-                            /**/
-                            break;
-                        case CTRL_SHUTDOWN_EVENT:
-                            /**/
-                            break;
-                        default:
-                            break;
-                    }
-                    return TRUE;
-                };
-                SetConsoleCtrlHandler(ctrlHandler, TRUE);
-
-                // Get current terminal window size.
-                ansi::esc yield;
-                winsz(get_size());
-                yield.w32begin();
-                yield.w32winsz(winsz.last);
-                yield.w32close();
-                sock.send(yield);
+                DWORD outmode = 0
+                              | ENABLE_PROCESSED_OUTPUT
+                              | ENABLE_VIRTUAL_TERMINAL_PROCESSING
+                              | DISABLE_NEWLINE_AUTO_RETURN
+                              ;
+                ok(SetConsoleMode(STDOUT_FD, outmode), "SetConsoleMode error (stdout)");
+                ok(SetConsoleCtrlHandler(sig_hndl, TRUE), "SetConsoleCtrlHandler error");
 
             #elif defined(__linux__) || defined(__APPLE__)
 
-                auto& cur_mode = _globals<void>::mode;
-                auto& sig_hndl = _globals<void>::signal_handler;
-                auto& def_mode = _globals<void>::default_mode;
+                auto& state = _globals<void>::state;
 
-                if (ok(::tcgetattr(0, &cur_mode))) // Set stdin raw mode.
+                if (ok(::tcgetattr(STDIN_FD, &state))) // Set stdin raw mode.
                 {
-                    ::termios raw_mode = cur_mode;
+                    ::termios raw_mode = state;
                     ::cfmakeraw(&raw_mode);
-                    if (ok(::tcsetattr(0, TCSANOW, &raw_mode)))
-                        ok(::atexit(def_mode));
+                    ok(::tcsetattr(STDIN_FD, TCSANOW, &raw_mode));
                 }
-                ok(::signal(SIGPIPE,  SIG_IGN )); // Disable sigpipe.
-                ok(::signal(SIGWINCH, sig_hndl)); // Set resize handler.
-                log(" tty: Set termination handler.");
-                ok(::signal(SIGTERM, sig_hndl));   // Set termination handler.
-                log(" tty: Set hangup handler.");
-                ok(::signal(SIGHUP, sig_hndl));   // Set hangup handler.
-                log(" tty: Raise resize event.");
-                ok(::raise (SIGWINCH));           // Get current terminal window size.
+                ok(::signal(SIGPIPE , SIG_IGN ));
+                ok(::signal(SIGWINCH, sig_hndl));
+                ok(::signal(SIGTERM , sig_hndl));
+                ok(::signal(SIGHUP  , sig_hndl));
 
             #endif
+
+            ::atexit(_globals<void>::default_mode);
+            _globals<void>::resize_handler();
         }
         void splice()
         {
-            auto& sock = *_globals<void>::sock;
-            auto input = std::thread{ [&]() { reader(); } };
+            auto& ipcio = *_globals<void>::ipcio;
+            auto  input = std::thread{ [&]() { reader(); } };
 
-            while (output(sock.recv()))
+            while (output(ipcio.recv()))
             { }
 
-            stop(); // Unblock reading thread.
+            ipcio.reset();
+            flash.reset();
 
             if (input.joinable())
                 input.join();
         }
-        void revert()
-        {
-            #if defined(_WIN32)
-
-                ok(SetConsoleMode(_globals<void>::board, _globals<void>::omode), "SetConsoleMode error (revert_o)");
-                ok(SetConsoleMode(_globals<void>::input, _globals<void>::imode), "SetConsoleMode error (revert_i)");
-
-            #elif defined(__linux__) || defined(__APPLE__)
-
-            #endif
-        }
     };
 
-    #if defined(_WIN32)
-
-    template<class V> DWORD       tty::_globals<V>::omode;
-    template<class V> DWORD       tty::_globals<V>::imode;
-    template<class V> HANDLE      tty::_globals<V>::board;
-    template<class V> HANDLE      tty::_globals<V>::input;
-    template<class V> HANDLE      tty::_globals<V>::reset;
-    template<class V> testy<twod> tty::_globals<V>::winsz;
-
-    #elif defined(__linux__) || defined(__APPLE__)
-
-    template<class V> ::termios tty::_globals<V>::mode;
-
-    #endif
-
-    template<class V> xipc tty::_globals<V>::sock;
+    template<class V> xipc    tty::_globals<V>::ipcio;
+    template<class V> conmode tty::_globals<V>::state;
 
     class cons
     {
-        testy<twod> consize;
-
         #if defined(_WIN32)
 
-            os::ipc socket{ 0, 0, true };
-            //todo make it as an os::pty class with os::ipc socket;
-            HPCON  hPC     { INVALID_HANDLE_VALUE };
-            HANDLE hProcess{ INVALID_HANDLE_VALUE };
-            HANDLE hThread { INVALID_HANDLE_VALUE };
-            HANDLE gameover{ INVALID_HANDLE_VALUE };
+            HPCON  hPC      { INVALID_FD };
+            HANDLE hProcess { INVALID_FD };
+            HANDLE hThread  { INVALID_FD };
+            HANDLE gameover { INVALID_FD };
             std::thread client_exit_waiter;
 
         #elif defined(__linux__) || defined(__APPLE__)
 
-            os::ipc socket{ 0, faux, true };
             pid_t pid = 0;
 
         #endif
 
-        text        stdin_text;
-        text        ready_text;
-        std::thread std_input;
-        bool        alive = faux; // cons: Read input loop state.
-        iota        exit_code = 0 ;
+        os::ipc                   termlink;
+        testy<twod>               termsize;
+        std::thread               stdinput;
         std::function<void(view)> receiver;
         std::function<void(iota)> shutdown;
 
@@ -2342,11 +2134,11 @@ namespace netxs::os
         ~cons()
         {
             log("cons: dtor started");
-            wait_child();
-            if (std_input.joinable())
+            if (termlink) wait_child();
+            if (stdinput.joinable())
             {
                 log("cons: input thread joining");
-                std_input.join();
+                stdinput.join();
             }
             #if defined(_WIN32)
                 if (client_exit_waiter.joinable())
@@ -2358,18 +2150,18 @@ namespace netxs::os
             #endif
         }
         
-        operator bool () { return alive; }
+        operator bool () { return termlink; }
 
         void start(text cmdline, twod winsz, std::function<void(view)> input_hndl
                                            , std::function<void(iota)> shutdown_hndl)
         {
             receiver = input_hndl;
             shutdown = shutdown_hndl;
-            consize(winsz);
             log("cons: new process: ", cmdline);
 
             #if defined(_WIN32)
 
+                termsize(winsz);
                 auto create = [](HPCON& hPC, twod winsz,
                     HANDLE& m_pipe_r, HANDLE& m_pipe_w)
                 {
@@ -2380,10 +2172,10 @@ namespace netxs::os
                     if (CreatePipe(&m_pipe_r, &s_pipe_w, nullptr, 0) &&
                         CreatePipe(&s_pipe_r, &m_pipe_w, nullptr, 0))
                     {
-                        COORD consoleSize{ static_cast<SHORT>(winsz.x),
-                                           static_cast<SHORT>(winsz.y)};
-                        err_code =
-                            CreatePseudoConsole(consoleSize, s_pipe_r, s_pipe_w, 0, &hPC);
+                        COORD consz;
+                        consz.X = winsz.x;
+                        consz.Y = winsz.y;
+                        err_code = CreatePseudoConsole(consz, s_pipe_r, s_pipe_w, 0, &hPC);
                     }
 
                     CloseHandle(s_pipe_w);
@@ -2395,17 +2187,15 @@ namespace netxs::os
                 {
                     SIZE_T attr_size = 0;
                     InitializeProcThreadAttributeList(nullptr, 1, 0, &attr_size);
-
                     attrs_buff.resize(attr_size);
-                    lpAttributeList =
-                        reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(attrs_buff.data());
+                    lpAttributeList = reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(attrs_buff.data());
 
                     if (InitializeProcThreadAttributeList(lpAttributeList, 1, 0, &attr_size)
                         &&  UpdateProcThreadAttribute(lpAttributeList,
                                                       0,
                                                       PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE,
                                                       hPC,
-                                                      sizeof(HPCON),
+                                                      sizeof(hPC),
                                                       nullptr,
                                                       nullptr))
                     {
@@ -2416,9 +2206,9 @@ namespace netxs::os
 
                 HANDLE m_pipe_r{ INVALID_HANDLE_VALUE };
                 HANDLE m_pipe_w{ INVALID_HANDLE_VALUE };
-                STARTUPINFOEX       start_info{ sizeof(STARTUPINFOEX) };
-                PROCESS_INFORMATION procs_info{};
-                std::vector<char>   attrs_buff;
+                STARTUPINFOEX        start_info{ sizeof(STARTUPINFOEX) };
+                PROCESS_INFORMATION  procs_info{};
+                std::vector<uint8_t> attrs_buff;
 
                 if (   create(hPC, winsz, m_pipe_r, m_pipe_w)
                     && fillup(hPC, attrs_buff, start_info.lpAttributeList)
@@ -2450,54 +2240,45 @@ namespace netxs::os
                         }
                         log("cons: client_exit_waiter finished");
                         CloseHandle(gameover);
-                        if (alive)
+                        if (termlink)
                         {
-                            wait_child();
+                            auto exit_code = wait_child();
                             shutdown(exit_code);
                         }
                         log("cons: client_exit_waiter exit");
                     });
-                    socket.set(m_pipe_r, m_pipe_w, true);
-                    alive = true;
+                    termlink.set({ m_pipe_r, m_pipe_w }, true);
                     log("cons: conpty created: ", winsz);
                 }
                 else log("cons: process creation error ", GetLastError());
 
-                //todo workaround, GH#10400 https://github.com/microsoft/terminal/issues/10400
+                //todo workaround for GH#10400 (resolved) https://github.com/microsoft/terminal/issues/10400
                 std::this_thread::sleep_for(250ms);
 
             #elif defined(__linux__) || defined(__APPLE__)
 
-                auto fdm = ::posix_openpt(O_RDWR | O_NOCTTY); // get master pty
-                auto rc1 = ::grantpt     (fdm);          // grant master pty file access
-                auto rc2 = ::unlockpt    (fdm);          // unlock master pty
-                auto fds = ::open(ptsname(fdm), O_RDWR); // open slave pty via string ptsname(fdm)
+                auto fdm = ::posix_openpt(O_RDWR | O_NOCTTY); // Get master PTY.
+                auto rc1 = ::grantpt     (fdm);               // Grant master PTY file access.
+                auto rc2 = ::unlockpt    (fdm);               // Unlock master PTY.
+                auto fds = ::open(ptsname(fdm), O_RDWR);      // Open slave PTY via string ptsname(fdm).
+
+                termlink.set({ fdm }, true);
+                resize(winsz);
 
                 pid = ::fork();
-                if (pid == 0) // Child branch
+                if (pid == 0) // Child branch.
                 {
                     ::close(fdm);
-
-                    auto rc = ::setsid(); // Make the current process a new session leader, return process group id
+                    ok(::setsid(), "setsid error"); // Make the current process a new session leader, return process group id.
 
                     // In order to receive WINCH signal make fds the controlling
                     // terminal of the current process.
                     // Current process must be a session leader (::setsid()) and not have
                     // a controlling terminal already.
-                    // arg = 0: 1 - to stole fds from another process,
-                    // it doesn't matter here
-                    //if (::ioctl(fds, TIOCSCTTY, 0) == -1)
-                    if (::ioctl(fds, TIOCSCTTY, 0) == -1)
-                        log("cons: assign controlling terminal error ", errno);
+                    // arg = 0: 1 - to stole fds from another process, it doesn't matter here.
+                    ok(::ioctl(fds, TIOCSCTTY, 0), "cons: assign controlling terminal error");
 
-                    struct winsize wsize{
-                        static_cast<unsigned short>(winsz.y),
-                        static_cast<unsigned short>(winsz.x) };
-
-                    if (::ioctl(fds, TIOCSWINSZ, &wsize) == -1) // Preset slave tty size
-                        log("cons: ioctl set winsize error ", errno);
-
-                    ::signal(SIGINT,  SIG_DFL); // Reset control signals to the default.
+                    ::signal(SIGINT,  SIG_DFL); // Reset control signals to default values.
                     ::signal(SIGQUIT, SIG_DFL); //
                     ::signal(SIGTSTP, SIG_DFL); //
                     ::signal(SIGTTIN, SIG_DFL); //
@@ -2510,7 +2291,6 @@ namespace netxs::os
                     ::close(fds);
 
                     auto args = os::split_cmdline(cmdline);
-
                     std::vector<char*> argv;
                     for (auto& c : args)
                     {
@@ -2518,110 +2298,103 @@ namespace netxs::os
                     }
                     argv.push_back(nullptr);
 
-                    ::execvp(argv.front(), argv.data());
+                    ok(::execvp(argv.front(), argv.data()), "execvp error");
                     os::exit(1, "cons: exec error ", errno);
                 }
 
-                // Parent branch
+                // Parent branch.
                 ::close(fds);
-
-                socket.set(fdm, true);
-                alive = true;
 
             #endif
 
-            std_input = std::thread([&] { read_socket_thread(); });
+            stdinput = std::thread([&] { read_socket_thread(); });
         }
 
-        void wait_child()
+        iota wait_child()
         {
-            if (alive)
-            {
-                alive = faux;
-                log("cons: wait child process");
+            iota exit_code;
+            termlink.reset();
+            log("cons: wait child process");
 
-                #if defined(_WIN32)
+            #if defined(_WIN32)
 
-                    ClosePseudoConsole(hPC);
-                    socket.shut();
-                    DWORD code = 0;
-                    if (GetExitCodeProcess(hProcess, &code) == FALSE) log("cons: child GetExitCodeProcess() error: ", GetLastError());
-                    else if (code == STILL_ACTIVE)                    log("cons: child process still running");
-                    else                                              log("cons: child process exit code ", code);
-                    exit_code = code;
-                    SetEvent(gameover); // Signaling to client_exit_waiter thread.
-                    CloseHandle(hProcess);
-                    CloseHandle(hThread);
+                ClosePseudoConsole(hPC);
+                termlink.shut();
+                DWORD code = 0;
+                if (GetExitCodeProcess(hProcess, &code) == FALSE) log("cons: child GetExitCodeProcess() error: ", GetLastError());
+                else if (code == STILL_ACTIVE)                    log("cons: child process still running");
+                else                                              log("cons: child process exit code ", code);
+                exit_code = code;
+                SetEvent(gameover);
+                CloseHandle(hProcess);
+                CloseHandle(hThread);
 
-                #elif defined(__linux__) || defined(__APPLE__)
+            #elif defined(__linux__) || defined(__APPLE__)
 
-                    int status;
-                    socket.shut();
-                    ::kill(pid, SIGKILL);
-                    ::waitpid (pid, &status, 0); // Wait for the child to avoid zombies.
-                    if (WIFEXITED(status))
-                    {
-                        exit_code = WEXITSTATUS(status);
-                        log("cons: child process exit code ", exit_code);
-                    }
-                    else
-                    {
-                        exit_code = 0;
-                        log("cons: error: child process exit code not detected");
-                    }
+                int status;
+                termlink.shut();
+                ok(::kill(pid, SIGKILL));
+                ok(::waitpid(pid, &status, 0)); // Wait for the child to avoid zombies.
+                if (WIFEXITED(status))
+                {
+                    exit_code = WEXITSTATUS(status);
+                    log("cons: child process exit code ", exit_code);
+                }
+                else
+                {
+                    exit_code = 0;
+                    log("cons: error: child process exit code not detected");
+                }
 
-                #endif
-                log("cons: wait_child() exit");
-            }
+            #endif
+            log("cons: wait_child() exit");
+            return exit_code;
         }
         void read_socket_thread()
         {
-            text content;
-            qiew data;
-
-            while (alive && (data = socket.recv()))
+            text flow;
+            while (termlink)
             {
-                content += data;
-                auto shadow = ansi::purify(content);
-                receiver(shadow);
-                content.erase(0, shadow.size()); // Delete processed data.
+                if (auto shot = termlink.recv())
+                {
+                    flow += shot;
+                    auto crop = ansi::purify(flow);
+                    receiver(crop);
+                    flow.erase(0, crop.size()); // Delete processed data.
+                }
+                else break;
             }
-            if (alive)
+            if (termlink)
             {
                 log("cons: read_socket_thread ended");
-                wait_child();
+                auto exit_code = wait_child();
                 shutdown(exit_code);
             }
         }
-        void resize(twod newsize)
+        void resize(twod const& newsize)
         {
-            if (consize(newsize))
+            if (termsize(newsize))
             {
                 #if defined(_WIN32)
 
-                    COORD size;
-                    size.X = newsize.x;
-                    size.Y = newsize.y;
-                    //todo possible ConPTY bug: ConPTY does not apply the new size when it changes quickly
-                    auto hr = ResizePseudoConsole(hPC, size);
-                    if (hr != S_OK)
-                    {
-                        log("cons: conpty resize failed, error code ", hr);
-                    }
+                    COORD winsz;
+                    winsz.X = newsize.x;
+                    winsz.Y = newsize.y;
+                    ok(ResizePseudoConsole(hPC, winsz));
 
                 #elif defined(__linux__) || defined(__APPLE__)
 
-                    struct winsize winsz;
+                    winsize winsz;
                     winsz.ws_col = newsize.x;
                     winsz.ws_row = newsize.y;
-                    ::ioctl(socket.get(), TIOCSWINSZ, &winsz);
+                    ok(::ioctl(termlink.get(), TIOCSWINSZ, &winsz));
 
                 #endif
             }
         }
         void write(view data)
         {
-            socket.send(data);
+            termlink.send<true>(data);
         }
     };
 }

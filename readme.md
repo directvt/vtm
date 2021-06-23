@@ -1,31 +1,51 @@
 # Monotty Desktopio
 
-A text-based desktop environment in your terminal
+A text-based desktop environment in your terminal*
 ![image](https://dice.netxs.online/cloud/vtm/mde_banner_v1.13.png)
 
+#### * Terminal Requirements
+
+ - [24-bit True Color](https://gist.github.com/XVilka/8346728)
+ - [xterm-style Mouse Reporting](https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h2-Mouse-Tracking)
+ - [Grapheme Clustering](https://unicode.org/reports/tr29/#Grapheme_Cluster_Boundaries)
+ - [Unicode/UTF-8](https://www.cl.cam.ac.uk/~mgk25/unicode.html)
+
+#### Tested Terminals
+
+ - [Windows Command Prompt](https://github.com/microsoft/terminal): Windows 10 or later required
+ - [Ultimate++ Terminal widget](https://github.com/ismail-yilmaz/upp-components/tree/master/CtrlLib/Terminal)
+ - [Windows Terminal](https://github.com/microsoft/terminal)
+ - [Gnome Terminal](https://wiki.gnome.org/Apps/Terminal)
+ - [mintty](https://github.com/mintty/mintty)
+ - [kitty](https://github.com/kovidgoyal/kitty)
+ - [Alacritty](https://github.com/alacritty/alacritty)
+ - [PuTTY](https://www.putty.org/): DECSET 1002 and 1006 are supported by PuTTY, which is enough to move windows, but not enough to highlight UI elements
+ - [Konsole](https://konsole.kde.org/)
+ - [qterminal](https://github.com/lxqt/qterminal): mouse tracking issues, swapped right and middle buttons
+ - [xterm](https://invisible-island.net/xterm/)
+
 # Demo
+### Live SSH
 
-- Live SSH Demo
+ - `ssh vtm@netxs.online`
 
-  `ssh vtm@netxs.online`
-
-- Video
-  - [Desktop environment](https://youtu.be/fLumnSctakY)
-  - [Collaborative interaction](https://youtu.be/0zU4e5Vam8c)
-  - [Recursive connection](https://youtu.be/Fm5X75sO62c)
+### Video
+ - [Desktop environment](https://youtu.be/fLumnSctakY)
+ - [Collaborative interaction](https://youtu.be/0zU4e5Vam8c)
+ - [Recursive connection](https://youtu.be/Fm5X75sO62c)
 
 # Supported Platforms
 
-- GNU/Linux amd64
+- Linux
 - Windows
-  - Windows 10 (32/64)
-  - Windows Server 2019 (32/64)
+  - Windows 10
+  - Windows Server 2019
 - macOS
   - Catalina 10.15
 
 # Building from Source
 
-### GNU/Linux amd64
+### Linux
 
 Build-time dependencies: `gcc` or `clang`
 
@@ -94,19 +114,6 @@ double `LeftClick`    | Menu: Create new window<br>Window: Maximize/restore wind
 - `▀▄ Term` Terminal emulator
 - `▀▄ Logs` Debug output console
 - `▀▄ View` Workspace navigation helper
-- `▀▄ Task` Task manager (desktopio) _(not ready)_
-- `▀▄ Hood` Configuration utility _(not ready)_
-- `▀▄ Info` Documentation browser _(not ready)_
-- `▀▄ Shop` TUIs distribution platform _(not ready)_
-- `▀▄ Text` ANSI/VT Text editor _(not ready)_
-- `▀▄ Calc` Spreadsheet calculator _(not ready)_
-- `▀▄ Draw` ANSI-artwork editor _(not ready)_
-- `▀▄ File` File manager _(not ready)_
-- `▀▄ Goto` Internet/SSH browser _(not ready)_
-- `▀▄ Clip` Clipboard manager _(not ready)_
-- `▀▄ Char` Unicode codepoints browser _(not ready)_
-- `▀▄ Time` Calendar application _(not ready)_
-- `▀▄ Doom` Doom Ⅱ source port _(not ready)_
 
 <details><summary>show details...</summary><p>
 
@@ -122,7 +129,7 @@ double `LeftClick`    | Menu: Create new window<br>Window: Maximize/restore wind
    - Mouse tracking `DECSET 1000/1002/1003/1006 SGR` mode
    - Mouse tracking `DECSET 10060 Extended SGR` mode, mouse reporting outside of the terminal viewport (outside + negative arguments) #62
    - Configurable using VT-sequences
-   
+
       Name         | Sequence                         | Description
       -------------|----------------------------------|-------------
       `CCC_SBS`    | `CSI` 24 : n : m `p`             | Set scrollback buffer size, `int32_t`<br>`n` Buffer limit in lines, 0 is unlimited, _default is 20.000_<br>`m` Grow step for unlimited buffer, _default is 0_
@@ -133,49 +140,10 @@ double `LeftClick`    | Menu: Create new window<br>Window: Maximize/restore wind
       `CCC_RTL`    | `CSI` 13 : n `p`                 | Set text right-to-left mode, _default is Off_<br>`n = 0` default<br>`n = 1` On<br>`n = 2` Off
 
  - `▀▄ Logs`
-  - Debug output console. Use double `RightClick` to clear scrollback.
+   - Debug output console. Use double `RightClick` to clear scrollback.
 
  - `▀▄ View`
-  - Serves for quick navigation through the desktop space using cyclic selection (left click on group title) in the `View` group on the taskbar.
-
- - `▀▄ Hood`
-  - ...
-
- - `▀▄ Info`
-  - ...
-
- - `▀▄ Shop`
-  - Just a sketch
-
- - `▀▄ Text`
-  - User interface only
-
- - `▀▄ Calc`
-  - User interface only
-
- - `▀▄ Clip`
-  - ...
-
- - `▀▄ Draw`
-  - ...
-
- - `▀▄ Task`
-  - ...
-
- - `▀▄ Char`
-  - ...
-
- - `▀▄ File`
-  - ...
-
- - `▀▄ Time`
-  - ...
-
- - `▀▄ Goto`
-  - ...
-
- - `▀▄ Doom`
-  - ...
+   - Serves for quick navigation through the desktop space using cyclic selection (left click on group title) in the `View` group on the taskbar.
 
 </p></details>
 
