@@ -1,18 +1,38 @@
 # Monotty Desktopio
 
-Remote text-based desktop environment in your terminal
+A text-based desktop in your terminal*
 ![image](https://dice.netxs.online/cloud/vtm/mde_banner_v1.13.png)
 
+#### * Terminal Requirements
+
+ - 24-bit True Color, https://gist.github.com/XVilka/8346728
+ - xterm-style Mouse Reporting, https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h2-Mouse-Tracking
+ - Grapheme Clustering, https://unicode.org/reports/tr29/#Grapheme_Cluster_Boundaries
+ - Unicode/UTF-8, https://www.cl.cam.ac.uk/~mgk25/unicode.html
+
+#### Tested Terminals
+
+ - [Windows Command Prompt](https://github.com/microsoft/terminal): requires Windows 10 or later
+ - [Ultimate++ Terminal widget](https://github.com/ismail-yilmaz/upp-components/tree/master/CtrlLib/Terminal)
+ - [Windows Terminal](https://github.com/microsoft/terminal)
+ - [Gnome Terminal](https://wiki.gnome.org/Apps/Terminal)
+ - [mintty](https://github.com/mintty/mintty)
+ - [kitty](https://github.com/kovidgoyal/kitty)
+ - [Alacritty](https://github.com/alacritty/alacritty)
+ - [PuTTY](https://www.putty.org/): DECSET 1002 and 1006 are supported by PuTTY, which is enough to move windows, but not enough to highlight UI elements
+ - [Konsole](https://konsole.kde.org/)
+ - [qterminal](https://github.com/lxqt/qterminal): mouse tracking issues, swapped right and middle buttons
+ - [xterm](https://invisible-island.net/xterm/)
+
 # Demo
+### Live SSH
 
-- Live SSH Demo
+ - `ssh vtm@netxs.online`
 
-  `ssh vtm@netxs.online`
-
-- Video
-  - [Desktop environment](https://youtu.be/fLumnSctakY)
-  - [Collaborative interaction](https://youtu.be/0zU4e5Vam8c)
-  - [Recursive connection](https://youtu.be/Fm5X75sO62c)
+### Video
+ - [Desktop environment](https://youtu.be/fLumnSctakY)
+ - [Collaborative interaction](https://youtu.be/0zU4e5Vam8c)
+ - [Recursive connection](https://youtu.be/Fm5X75sO62c)
 
 # Supported Platforms
 
