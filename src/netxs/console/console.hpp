@@ -5727,20 +5727,6 @@ again:
             {
                 if (&parent_canvas != &cache.canvas)
                 {
-                    auto area = base::area();
-                    area.coor += input.coord - parent_canvas.area().coor;
-                    area.size = dot_11;
-                    cell brush;
-                    if (input.push)
-                    {
-                        brush.txt(64 + input.push).bgc(reddk).fgc(whitelt);
-                    }
-                    else
-                    {
-                        brush.txt(whitespace).bgc(greenlt);
-                    }
-                    parent_canvas.fill(area, brush);
-
                     //if (parent.test(area.coor))
                     //{
                     //	auto hover_id = parent[area.coor].link();
@@ -5750,7 +5736,9 @@ again:
                     if (uname.lyric)
                     {
                         auto& header = *uname.lyric;
-                        area.coor += parent_canvas.area().coor;
+                        auto area = base::area();
+                        area.coor += input.coord;
+                        area.size = dot_11;
                         area.coor.y--;
                         area.coor.x -= (iota)header.size().x / 2;
                         //todo unify header coords
@@ -5762,7 +5750,23 @@ again:
                 {
                     if (uibar && !fullscreen) parent_canvas.render(uibar, base::coor());
                 }
-
+                if (&parent_canvas != &cache.canvas || true/*tty*/)
+                {
+                    auto area = base::area();
+                    area.coor += input.coord;
+                    area.coor -= parent_canvas.area().coor;
+                    area.size = dot_11;
+                    cell brush;
+                    if (input.push)
+                    {
+                        brush.txt(64 + input.push).bgc(reddk).fgc(whitelt);
+                    }
+                    else
+                    {
+                        brush.txt(whitespace).bgc(greenlt);
+                    }
+                    parent_canvas.fill(area, brush);
+                }
                 #ifdef REGIONS
                 parent_canvas.each([](cell& c){
                     auto mark = rgba{ rgba::color256[c.link() % 256] };

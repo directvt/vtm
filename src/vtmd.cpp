@@ -1,7 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#define MONOTTY_VER "Monotty Desktopio v0.4.2"
+#define MONOTTY_VER "Monotty Desktopio v0.4.3"
 // Autostart demo apps.
 //#define DEMO
 // Enable keyboard input and disable exit by single Esc.
@@ -2584,7 +2584,7 @@ utility like ctags is used to locate the definitions.
                                                 //                            ->upload(ansi::jet(bias::center) + "[ Term ]");
                                                 auto bttn_pads = bttn_area->attach<slot::_2, ui::pads>(dent{ 2,2,0,0 }, dent{ 0,0,1,1 })
                                                                           ->plugin<pro::fader>(x6, c6, 150ms);
-                                                    auto bttn = bttn_pads->attach<ui::item>("⮟", faux);
+                                                    auto bttn = bttn_pads->attach<ui::item>(">", faux);
                                     auto applist_area = apps_area->attach<slot::_2, ui::pads>(dent{ 0,0,1,0 }, dent{})
                                                                  ->attach<ui::cake>();
                                         auto task_menu_area = applist_area->attach<ui::fork>(axis::Y, 0, 0);
@@ -2604,7 +2604,7 @@ utility like ctags is used to locate the definitions.
                                                         if(auto task_menu_area = task_menu_area_shadow.lock())
                                                         {
                                                             auto state = task_menu_area->get_ratio();
-                                                            bttn->set(state ? "⮝" : "⮟");
+                                                            bttn->set(state ? ">" : "<");
                                                             task_menu_area->config(state ? 0 : 100);
                                                             gear.dismiss();
                                                         }
@@ -2622,7 +2622,7 @@ utility like ctags is used to locate the definitions.
                                                         {
                                                             if (auto state = task_menu_area->get_ratio())
                                                             {
-                                                                bttn->set("⮝");
+                                                                bttn->set(">");
                                                                 task_menu_area->config(0);
                                                             }
                                                         }
@@ -2641,7 +2641,7 @@ utility like ctags is used to locate the definitions.
                                             auto bttn_area = label_bttn->attach<slot::_2, ui::fork>();
                                                 auto bttn_pads = bttn_area->attach<slot::_2, ui::pads>(dent{ 2,2,0,0 }, dent{ 0,0,1,1 })
                                                                           ->plugin<pro::fader>(x6, c6, 150ms);
-                                                    auto bttn = bttn_pads->attach<ui::item>("⮝", faux);
+                                                    auto bttn = bttn_pads->attach<ui::item>("<", faux);
                                     auto userlist_area = users_area->attach<slot::_2, ui::pads>()
                                                                    ->plugin<pro::limit>();
                                         auto users = userlist_area->attach_element<e2::bindings::list::users>(world, branch_template);
@@ -2659,7 +2659,7 @@ utility like ctags is used to locate the definitions.
                                                         if(auto userlist = userlist_area_shadow.lock())
                                                         {
                                                             state = !state;
-                                                            bttn->set(state ? "⮟" : "⮝");
+                                                            bttn->set(state ? ">" : "<");
                                                             auto& limits = userlist->plugins<pro::limit>();
                                                             auto lims = limits.get();
                                                             lims.min.y = lims.max.y = state ? 0 : -1;
