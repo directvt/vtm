@@ -95,6 +95,8 @@ namespace netxs::console
         EVENT_BIND(e2::term::layout  , const twod)
         EVENT_BIND(e2::term::preclose, const bool)
         EVENT_BIND(e2::term::quit    , const view)
+        EVENT_BIND(e2::term::pointer , const bool)
+        EVENT_BIND(e2::term::ctrlstate, const iota)
 
     EVENT_BIND(e2::config::any, iota)
         EVENT_BIND(e2::config::broadcast, sptr<bell>)
@@ -497,7 +499,7 @@ namespace netxs::console
         id_t   swift = 0;       // mouse: Delegate's ID of the current mouse owner.
         id_t   hover = 0;       // mouse: Hover control ID.
         id_t   start = 0;       // mouse: Initiator control ID.
-
+        bool   shown = faux;    // mouse: Should the mouse pointer to be drawn.
         struct
         {
             moment fired;
@@ -848,6 +850,10 @@ namespace netxs::console
         {
             ctlstate = k.ctlstate;
             keybd::update(k);
+        }
+        void take(iota new_ctlstate)
+        {
+            ctlstate = new_ctlstate;
         }
 
         rect const& area() const { return idmap.area(); }
@@ -4858,7 +4864,6 @@ again:
                                                 mouse.hzwheel = flags & (1 << 3); // MOUSE_HWHEELED;
                                                 mouse.wheeldt = wheel;
 
-                                                // Windows Terminal Reported mouse ctrlstate is broken
                                                 bool k_ralt  = ctrls & 0x1;
                                                 bool k_alt   = ctrls & 0x2;
                                                 bool k_rctrl = ctrls & 0x4;
@@ -4972,11 +4977,42 @@ again:
                                         else pos++; // pop '_'
                                     }
                                 }
-                                else if (event_id == ansi::CCC_EXT && l > 2 
+                                else if (event_id == ansi::CCC_EXT && l > 2
                                     && tmp.at(0) == ':' && tmp.at(2) == 'p')
                                 {
                                     pos += 5 /* 25:1p */;
                                     owner.SIGNAL(e2::release, e2::term::native, tmp.at(1) == '1');
+                                }
+                                else if (event_id == ansi::CCC_SMS && l > 2
+                                    && tmp.at(0) == ':' && tmp.at(2) == 'p')
+                                {
+                                    pos += 5 /* 26:1p */;
+                                    owner.SIGNAL(e2::release, e2::term::pointer, tmp.at(1) == '1');
+                                }
+                                else if (event_id == ansi::CCC_KBD && l > 2
+                                    && tmp.at(0) == ':')
+                                {
+                                    tmp.remove_prefix(1); // pop ':'
+                                    if(auto v = utf::to_int(tmp))
+                                    {
+                                        if (tmp.size() && tmp.at(0) == 'p')
+                                        {
+                                            tmp.remove_prefix(1); // pop 'p'
+                                            pos += l - tmp.size();
+                                            auto ctrls = v.value();
+                                                bool k_ralt  = ctrls & 0x1;
+                                                bool k_alt   = ctrls & 0x2;
+                                                bool k_rctrl = ctrls & 0x4;
+                                                bool k_ctrl  = ctrls & 0x8;
+                                                bool k_shift = ctrls & 0x10;
+                                                keybd.ctlstate = (k_shift ? hids::SHIFT : 0)
+                                                               + (k_alt   ? hids::ALT   : 0)
+                                                               + (k_ralt  ? hids::ALT   : 0)
+                                                               + (k_rctrl ? hids::RCTRL : 0)
+                                                               + (k_ctrl  ? hids::CTRL  : 0);
+                                            owner.SIGNAL(e2::release, e2::term::ctrlstate, keybd.ctlstate);
+                                        }
+                                    }
                                 }
                                 else
                                 {
@@ -5516,6 +5552,14 @@ again:
                 {
                     native = extended;
                 };
+                SUBMIT_T(e2::release, e2::term::pointer, token, pointer)
+                {
+                    input.shown = pointer;
+                };
+                SUBMIT_T(e2::release, e2::term::ctrlstate, token, ctrlstate)
+                {
+                    input.take(ctrlstate);
+                };
                 SUBMIT_T(e2::release, e2::term::error, token, errcode)
                 {
                     text msg = "\n\rgate: Term error: " + std::to_string(errcode) + "\r\n";
@@ -5656,8 +5700,10 @@ again:
                 //if (gear.meta(hids::CTRL | hids::RCTRL))
                 {
                     //todo unify
-                    auto pgup = gear.keystrokes == "\033[5;5~"s;
-                    auto pgdn = gear.keystrokes == "\033[6;5~"s;
+                    auto pgup = gear.keystrokes == "\033[5;5~"s
+                            || (gear.keystrokes == "\033[5~"s && gear.meta(hids::CTRL | hids::RCTRL));
+                    auto pgdn = gear.keystrokes == "\033[6;5~"s
+                            || (gear.keystrokes == "\033[6~"s && gear.meta(hids::CTRL | hids::RCTRL));
                     if (pgup || pgdn)
                     {
                         if (auto world = base::parent())
@@ -5750,7 +5796,7 @@ again:
                 {
                     if (uibar && !fullscreen) parent_canvas.render(uibar, base::coor());
                 }
-                if (&parent_canvas != &cache.canvas || true/*tty*/)
+                if (&parent_canvas != &cache.canvas || input.shown)
                 {
                     auto area = base::area();
                     area.coor += input.coord;

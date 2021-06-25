@@ -110,8 +110,11 @@
     #include <sys/types.h>
     #include <sys/stat.h>
     #include <fcntl.h>		// ::splice()
-
     //#include <ext/stdio_filebuf.h> // Linux specific ifstream from socket descriptor
+
+    #include <sys/vt.h> // ::console_ioctl()
+    #include <sys/kd.h> // ::console_ioctl()
+    #include <linux/keyboard.h> // ::keyb_ioctl()
 
 #endif
 
@@ -1980,11 +1983,32 @@ namespace netxs::os
 
                 link mouse;
                 twod mcoor;
-                text buff = text(STDIN_BUF, '\0');
+                auto buff = text(STDIN_BUF, '\0');
                 ansi::esc yield;
+                iota ttynm = 0;
 
+                struct
+                {
+                    testy<twod> coord;
+                    testy<iota> shift = 0;
+                    testy<iota> bttns = 0;
+                    iota        flags = 0;
+                } state;
+                auto get_kb_state = []()
+                {
+                    iota shift_state = 6;
+                    ok(::ioctl(STDIN_FD, TIOCLINUX, &shift_state));
+                    return 0
+                        | (shift_state & (1 << KG_ALTGR)) >> 1 // 0x1
+                        | (shift_state & (1 << KG_ALT  )) >> 2 // 0x2
+                        | (shift_state & (1 << KG_CTRLR)) >> 5 // 0x4
+                        | (shift_state & (1 << KG_CTRL )) << 1 // 0x8
+                        | (shift_state & (1 << KG_SHIFT)) << 4 // 0x10
+                        ;
+                };
                 ok(::ttyname_r(STDOUT_FD, buff.data(), buff.size()), "ttyname_r error");
-                if (buff.find("tty", 0) == text::npos)
+                auto tty_pos = buff.find("tty", 0);
+                if (tty_pos == text::npos)
                 {
                     log(" tty: pseudoterminal ", buff);
                 }
@@ -1994,7 +2018,7 @@ namespace netxs::os
                     auto imps2_init_string = "\xf3\xc8\xf3\x64\xf3\x50";
                     auto mouse_device = "/dev/input/mice";
                     auto fd = ::open(mouse_device, O_RDWR);
-                    if(fd == -1) log(" tty: error opening ", mouse_device, ", error ", errno);
+                    if(fd == -1) log(" tty: error opening ", mouse_device, ", error ", errno, errno == 13 ? " - permission denied" : "");
                     else if (send(fd, imps2_init_string, sizeof(imps2_init_string)))
                     {
                         char ack;
@@ -2002,12 +2026,22 @@ namespace netxs::os
                         if (ack == '\xfa')
                         {
                             mouse = link{ fd };
+                            tty_pos += 3; /*skip tty letters*/
+                            auto tty_name = utf::to_view(buff.data() + tty_pos, buff.size() - tty_pos);
+                            if (auto cur_tty = utf::to_int(tty_name))
+                            {
+                                ttynm = cur_tty.value();
+                            }
+                            yield.show_mouse(true);
+                            ipcio.send<faux>(view(yield));
+                            yield.clear();
                             log(" tty: mouse successfully connected, fd=", fd);
                         }
                     }
                     if (!mouse)
                     {
                         log(" tty: mouse initialization error");
+                        ipcio.shut();
                         ::close(fd);
                     }
                 }
@@ -2029,8 +2063,19 @@ namespace netxs::os
                     {
                         if (FD_ISSET(STDIN_FD, &socks))
                         {
+                            if (mouse && state.shift(get_kb_state()))
+                            {
+                                log("keyboard meta changed: ", state.shift.last);
+                                yield.meta_state(state.shift.last);
+                                ipcio.send<faux>(yield);
+                                yield.clear();
+                            }
                             auto data = os::recv(STDIN_FD, buff.data(), buff.size());
                             ipcio.send<faux>(data);
+                            //text d;
+                            //d += yield;
+                            //d += data;
+                            //ipcio.send<faux>(d);
                         }
                         else if (FD_ISSET((fd_t)flash, &socks))
                         {
@@ -2040,37 +2085,38 @@ namespace netxs::os
                         else if (mouse && FD_ISSET((fd_t)mouse, &socks))
                         {
                             auto data = os::recv(mouse, buff.data(), buff.size());
-                            if (data.size() == 4)
+                            if (data.size() == 4 /*ImPS only*/)
                             {
-                                auto scale = twod{6,12};
-                                auto b = data[0] & 7;
-                                auto x = data[1];
-                                auto y = data[2];
-                                auto w = data[3];
-                                mcoor.x += x;
-                                mcoor.y -= y;
-                                auto limit = _globals<void>::winsz.last * scale;
-                                mcoor = std::clamp(mcoor, dot_00, limit);
-                                auto flags = w ? 4 : 0;
-                                yield.w32begin()
-                                .w32mouse(0,
-                                            b,
-                                            0,
-                                            flags,
-                                            -w,
-                                            mcoor.x / scale.x,
-                                            mcoor.y / scale.y)
-                                .w32close();
-                                ipcio.send<faux>(view(yield));
-                                /*auto test = ansi::w32mouse(0,
-                                            b,
-                                            0,
-                                            flags,
-                                            -w,
-                                            mcoor.x / scale.x,
-                                            mcoor.y / scale.y);
-                                log("mouse data ", test);*/
-                                yield.clear();
+                                vt_stat vt_state;
+                                ok(::ioctl(STDOUT_FD, VT_GETSTATE, &vt_state));
+                                if (vt_state.v_active == ttynm)
+                                {
+                                    auto scale = twod{6,12}; //todo magic numbers
+                                    auto bttns = data[0] & 7;
+                                    mcoor.x += data[1];
+                                    mcoor.y -= data[2];
+                                    auto wheel = -data[3]; //todo configurable direction
+                                    auto limit = _globals<void>::winsz.last * scale;
+                                    if (bttns == 0) mcoor = std::clamp(mcoor, dot_00, limit);
+                                    state.flags = wheel ? 4 : 0;
+                                    if (state.coord(mcoor / scale)
+                                     || state.bttns(bttns)
+                                     || state.shift(get_kb_state())
+                                     || state.flags)
+                                    {
+                                        yield.w32begin()
+                                        .w32mouse(0,
+                                                state.bttns.last,
+                                                state.shift.last,
+                                                state.flags,
+                                                wheel,
+                                                state.coord.last.x,
+                                                state.coord.last.y)
+                                        .w32close();
+                                        ipcio.send<faux>(view(yield));
+                                        yield.clear();
+                                    }
+                                }
                             }
                         }
                     }
@@ -2354,6 +2400,7 @@ namespace netxs::os
                     }
                     argv.push_back(nullptr);
 
+                    ::setenv("TERM", "xterm-256color", 1); //todo too hacky
                     ok(::execvp(argv.front(), argv.data()), "execvp error");
                     os::exit(1, "cons: exec error ", errno);
                 }
