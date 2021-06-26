@@ -1197,10 +1197,10 @@ namespace netxs::os
 
     #if defined(_WIN32)
 
-        struct link
+        struct file
         {
-            fd_t r; // link: Read descriptor.
-            fd_t w; // link: Write descriptor.
+            fd_t r; // file: Read descriptor.
+            fd_t w; // file: Write descriptor.
             fd_t& get_r() { return r; };
             fd_t& get_w() { return w; };
             operator bool () { return r != INVALID_FD && w != INVALID_FD; }
@@ -1209,18 +1209,18 @@ namespace netxs::os
                 if (r != INVALID_FD) CloseHandle(r);
                 if (w != INVALID_FD) CloseHandle(w);
             }
-            friend auto& operator << (std::ostream& s, link const& handle)
+            friend auto& operator << (std::ostream& s, file const& handle)
             {
                 return s << handle.r << "," << handle.w;
             }
-            link(fd_t fd_r = INVALID_FD, fd_t fd_w = INVALID_FD)
+            file(fd_t fd_r = INVALID_FD, fd_t fd_w = INVALID_FD)
                 : r{ fd_r }, w{ fd_w }
             { }
         };
         
         class flash_t
         {
-            fd_t h; // tty: Descriptor for IO interrupt.
+            fd_t h; // flash_t: Descriptor for IO interrupt.
 
         public:
             operator fd_t () { return h; }
@@ -1231,9 +1231,9 @@ namespace netxs::os
 
     #elif defined(__linux__) || defined(__APPLE__)
 
-        struct link
+        struct file
         {
-            fd_t h; // link: RW descriptor.
+            fd_t h; // file: RW descriptor.
             fd_t& get_r() { return h; };
             fd_t& get_w() { return h; };
             operator fd_t () { return h; }
@@ -1242,16 +1242,16 @@ namespace netxs::os
             {
                 if (h != INVALID_FD) ::close(h);
             }
-            friend auto& operator << (std::ostream& s, link const& handle)
+            friend auto& operator << (std::ostream& s, file const& handle)
             {
                 return s << handle.h;
             }
-            link(fd_t fd = INVALID_FD) : h{ fd } { }
+            file(fd_t fd = INVALID_FD) : h{ fd } { }
         };
 
         class flash_t
         {
-            fd_t h[2] = { INVALID_FD, INVALID_FD }; // tty: Descriptors for IO interrupt.
+            fd_t h[2] = { INVALID_FD, INVALID_FD }; // flash_t: Descriptors for IO interrupt.
             char x = 1;
 
         public:
@@ -1268,7 +1268,7 @@ namespace netxs::os
     {
         using vect = std::vector<char>;
         bool active; // ipc: Used by the os::tty.
-        link handle; // ipc: Socket file descriptor.
+        file handle; // ipc: Socket file descriptor.
         vect buffer; // ipc: Receive buffer.
         bool sealed; // ipc: Provide autoclosing.
         text scpath; // ipc: Socket path (in order to unlink).
@@ -1276,7 +1276,7 @@ namespace netxs::os
         void init(iota buff_size = PIPE_BUF) { buffer.resize(buff_size); }
 
     public:
-        ipc(link const& descriptor = {}, bool sealed = faux)
+        ipc(file const& descriptor = {}, bool sealed = faux)
             : handle{ descriptor },
               sealed{ sealed },
               active{ true }
@@ -1299,7 +1299,7 @@ namespace netxs::os
 
         operator bool () { return active; }
 
-        void set(link const& h, bool s)
+        void set(file const& h, bool s)
         {
             handle = h;
             sealed = s;
@@ -1432,7 +1432,7 @@ namespace netxs::os
 
             #elif defined(__linux__) || defined(__APPLE__)
 
-                auto s = link{ ::accept(handle.h, 0, 0) };
+                auto s = file{ ::accept(handle.h, 0, 0) };
                 return s ? std::make_shared<ipc>(s, true)
                          : nullptr;
             #endif
@@ -1524,7 +1524,7 @@ namespace netxs::os
         static auto open(text path, datetime::period retry_timeout = {}, P retry_proc = P())
             -> std::shared_ptr<ipc>
         {
-            auto sock_ptr = std::make_shared<ipc>(link{}, true);
+            auto sock_ptr = std::make_shared<ipc>(file{}, true);
             auto try_start = [&](auto play) -> bool
             {
                 auto done = play();
@@ -1716,6 +1716,12 @@ namespace netxs::os
             return '\0';
         }
     };
+
+    auto colors()
+    {
+        //todo
+        return (os::get_env("TERM") == "linux") ? 0 : 1;
+    }
 
     class tty
     {
@@ -1981,11 +1987,11 @@ namespace netxs::os
 
             #elif defined(__linux__) || defined(__APPLE__)
 
-                link mouse;
+                file micefd;
                 twod mcoor;
-                auto buff = text(STDIN_BUF, '\0');
+                auto buffer = text(STDIN_BUF, '\0');
+                iota ttynum = 0;
                 ansi::esc yield;
-                iota ttynm = 0;
 
                 struct
                 {
@@ -2006,39 +2012,79 @@ namespace netxs::os
                         | (shift_state & (1 << KG_SHIFT)) << 4 // 0x10
                         ;
                 };
-                ok(::ttyname_r(STDOUT_FD, buff.data(), buff.size()), "ttyname_r error");
-                auto tty_pos = buff.find("tty", 0);
-                if (tty_pos == text::npos)
+                ok(::ttyname_r(STDOUT_FD, buffer.data(), buffer.size()), "ttyname_r error");
+                auto tty_name = view(buffer.data());
+                auto tty_word = tty_name.find("tty", 0);
+                if (tty_word == text::npos || os::get_env("TERM") != "linux")
                 {
-                    log(" tty: pseudoterminal ", buff);
+                    log(" tty: pseudoterminal ", tty_name);
                 }
                 else
                 {
-                    log(" tty: local console ", buff);
+                    log(" tty: local console detected ", tty_name);
                     auto imps2_init_string = "\xf3\xc8\xf3\x64\xf3\x50";
                     auto mouse_device = "/dev/input/mice";
                     auto fd = ::open(mouse_device, O_RDWR);
                     if(fd == -1) log(" tty: error opening ", mouse_device, ", error ", errno, errno == 13 ? " - permission denied" : "");
-                    else if (send(fd, imps2_init_string, sizeof(imps2_init_string)))
+                    else if (os::send(fd, imps2_init_string, sizeof(imps2_init_string)))
                     {
                         char ack;
                         recv(fd, &ack, sizeof(ack));
                         if (ack == '\xfa')
                         {
-                            mouse = link{ fd };
-                            tty_pos += 3; /*skip tty letters*/
-                            auto tty_name = utf::to_view(buff.data() + tty_pos, buff.size() - tty_pos);
+                            micefd = file{ fd };
+                            tty_word += 3; /*skip tty letters*/
+                            auto tty_name = utf::to_view(buffer.data() + tty_word, buffer.size() - tty_word);
                             if (auto cur_tty = utf::to_int(tty_name))
                             {
-                                ttynm = cur_tty.value();
+                                ttynum = cur_tty.value();
                             }
                             yield.show_mouse(true);
                             ipcio.send<faux>(view(yield));
                             yield.clear();
                             log(" tty: mouse successfully connected, fd=", fd);
+                            {
+                                text palette = 
+                                    //"\033]P0000000"
+                                    //"\033]P1111111"
+                                    //"\033]P2222222"
+                                    //"\033]P3333333"
+                                    //"\033]P4444444"
+                                    //"\033]P5555555"
+                                    //"\033]P6666666"
+                                    //"\033]P7777777"
+                                    //"\033]P8888888"
+                                    //"\033]P9E64856"
+                                    //"\033]Pa15C60C"
+                                    //"\033]PbF8F1A5"
+                                    //"\033]Pc3A78FF"
+                                    //"\033]PdDDDDDD"
+                                    //"\033]PeEEEEEE"
+                                    //"\033]PfFFFFFF"
+
+                                    "\033]P0000000"
+                                    "\033]P1111111"
+                                    "\033]P2222222"
+                                    "\033]P3333333"
+                                    "\033]P4444444"
+                                    "\033]P5555555"
+                                    "\033]P6666666"
+                                    "\033]P7777777"
+                                    "\033]P8888888"
+                                    "\033]P9999999"
+                                    "\033]PaAAAAAA"
+                                    "\033]PbBBBBBB"
+                                    "\033]PcCCCCCC"
+                                    "\033]PdDDDDDD"
+                                    "\033]PeEEEEEE"
+                                    "\033]PfFFFFFF"
+                                    ;
+
+                                os::send(STDOUT_FD, palette.data(), palette.size());
+                            }
                         }
                     }
-                    if (!mouse)
+                    if (!micefd)
                     {
                         log(" tty: mouse initialization error");
                         ipcio.shut();
@@ -2053,43 +2099,43 @@ namespace netxs::os
                     FD_SET(STDIN_FD,    &socks);
                     FD_SET((fd_t)flash, &socks);
                     auto nfds = std::max(STDIN_FD, (fd_t)flash);
-                    if (mouse)
+                    if (micefd)
                     {
-                        nfds = std::max(nfds, (fd_t)mouse);
-                        FD_SET((fd_t)mouse, &socks);
+                        nfds = std::max(nfds, (fd_t)micefd);
+                        FD_SET((fd_t)micefd, &socks);
                     }
                     nfds++;
                     if (::select(nfds, &socks, 0, 0, 0) > 0)
                     {
                         if (FD_ISSET(STDIN_FD, &socks))
                         {
-                            if (mouse && state.shift(get_kb_state()))
+                            if (micefd && state.shift(get_kb_state()))
                             {
-                                log("keyboard meta changed: ", state.shift.last);
                                 yield.meta_state(state.shift.last);
+                                auto data = os::recv(STDIN_FD, buffer.data(), buffer.size());
+                                yield += data;
                                 ipcio.send<faux>(yield);
                                 yield.clear();
                             }
-                            auto data = os::recv(STDIN_FD, buff.data(), buff.size());
-                            ipcio.send<faux>(data);
-                            //text d;
-                            //d += yield;
-                            //d += data;
-                            //ipcio.send<faux>(d);
+                            else
+                            {
+                                auto data = os::recv(STDIN_FD, buffer.data(), buffer.size());
+                                ipcio.send<faux>(data);
+                            }
                         }
                         else if (FD_ISSET((fd_t)flash, &socks))
                         {
                             log("xipc: flash fired");
                             flash.flush();
                         }
-                        else if (mouse && FD_ISSET((fd_t)mouse, &socks))
+                        else if (micefd && FD_ISSET((fd_t)micefd, &socks))
                         {
-                            auto data = os::recv(mouse, buff.data(), buff.size());
+                            auto data = os::recv(micefd, buffer.data(), buffer.size());
                             if (data.size() == 4 /*ImPS only*/)
                             {
                                 vt_stat vt_state;
                                 ok(::ioctl(STDOUT_FD, VT_GETSTATE, &vt_state));
-                                if (vt_state.v_active == ttynm)
+                                if (vt_state.v_active == ttynum)
                                 {
                                     auto scale = twod{6,12}; //todo magic numbers
                                     auto bttns = data[0] & 7;
@@ -2131,9 +2177,9 @@ namespace netxs::os
         { }
 
     public:
-        static auto proxy(xipc link)
+        static auto proxy(xipc pipe_link)
         {
-            _globals<void>::ipcio = link;
+            _globals<void>::ipcio = pipe_link;
             return tty{};
         }
         bool output(view text)

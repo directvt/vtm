@@ -289,9 +289,9 @@ class post_logs
                     else yield.bgc(ansi::redlt).add(" - ");
 
                     yield.bgc().fgc(ansi::greendk)
-                        .add(utf::adjust(utf::to_hex<true>(cp, (cp <= 0xFF   ? 2 :
+                         .add(utf::adjust(utf::to_hex<true>(cp, (cp <= 0xFF   ? 2 :
                                                                 cp <= 0xFFFF ? 4 : 5)), wc, ' '))
-                        .fgc().bgc();
+                         .fgc().bgc();
                     if (++w == max_col) { w = 0; yield.eol(); }
                 };
                 auto s = [&](utf::prop const& traits, view const& utf8)
@@ -2258,10 +2258,12 @@ utility like ctags is used to locate the definitions.
                 auto _ip     = peer->line(';');
                 auto _user   = peer->line(';');
                 auto _name   = peer->line(';');
+                auto _clrs   = peer->line(';');
                 log("peer: region= ", _region,
                         ", ip= "    , _ip,
                         ", user= "  , _user,
-                        ", name= "  , _name);
+                        ", name= "  , _name,
+                        ", clrs= "  , _clrs);
                 text c_ip;
                 text c_port;
                 auto c_info = utf::divide(_ip, " ");
@@ -2290,7 +2292,7 @@ utility like ctags is used to locate the definitions.
                     #endif
 
                     auto lock = std::make_unique<e2::sync>();
-                    auto client = world->invite<ui::gate>(username);
+                    auto client = world->invite<ui::gate>(username, !!utf::to_int(view(_clrs)));
                     auto client_shadow = ptr::shadow(client);
                     auto world_shadow = ptr::shadow(world);
                     auto my_id = client->id;

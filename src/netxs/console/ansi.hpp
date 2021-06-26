@@ -334,7 +334,26 @@ namespace netxs::console::ansi
         esc& bgc (rgba const& c) { add("\033[48;2;" + str(c.chan.r) + ";" // esc: SGR Background color. RGB: red, green, blue and alpha.
                                                     + str(c.chan.g) + ";"
                                                     + str(c.chan.b) + "m"); return *this; }
-
+        // esc: SGR Foreground grayscale.
+        esc& fgc16 (rgba const& c)
+        {
+            //auto gray = (c.chan.r + c.chan.g + c.chan.b) / 3 / 16;
+            //auto gray = std::min(15, ((int)c.chan.r + c.chan.g + c.chan.b) / 2 / 16);
+            auto gray = std::min(15, (int)((0.2627 * c.chan.r + 0.6780 * c.chan.g + 0.0593 * c.chan.b) / 16));
+            if (gray < 8) add("\033[" + str(30 + gray)     + "m");
+            else          add("\033[" + str(90 + gray - 8) + "m");
+            return *this;
+        }
+        // esc: SGR Background grayscale.
+        esc& bgc16 (rgba const& c)
+        {
+            //auto gray = (c.chan.r + c.chan.g + c.chan.b) / 3 / 16;
+            //auto gray = std::min(15, ((int)c.chan.r + c.chan.g + c.chan.b) / 2 / 16);
+            auto gray = std::min(15, (int)((0.2627 * c.chan.r + 0.6780 * c.chan.g + 0.0593 * c.chan.b) / 16));
+            if (gray < 8) add("\033[" + str(40  + gray)     + "m");
+            else          add("\033[" + str(100 + gray - 8) + "m");
+            return *this;
+        }
         esc& sav ()              { add("\033[10m");                     return *this; } // esc: Save SGR attributes.
         esc& nil ()              { add("\033[m");                       return *this; } // esc: Reset SGR attributes to zero.
         esc& nop ()              { add("\033["   + str(CSI_CCC));       return *this; } // esc: No operation. Split the text run.

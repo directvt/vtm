@@ -96,7 +96,6 @@ namespace netxs::console
         EVENT_BIND(e2::term::preclose, const bool)
         EVENT_BIND(e2::term::quit    , const view)
         EVENT_BIND(e2::term::pointer , const bool)
-        EVENT_BIND(e2::term::ctrlstate, const iota)
 
     EVENT_BIND(e2::config::any, iota)
         EVENT_BIND(e2::config::broadcast, sptr<bell>)
@@ -850,10 +849,6 @@ namespace netxs::console
         {
             ctlstate = k.ctlstate;
             keybd::update(k);
-        }
-        void take(iota new_ctlstate)
-        {
-            ctlstate = new_ctlstate;
         }
 
         rect const& area() const { return idmap.area(); }
@@ -5010,7 +5005,6 @@ again:
                                                                + (k_ralt  ? hids::ALT   : 0)
                                                                + (k_rctrl ? hids::RCTRL : 0)
                                                                + (k_ctrl  ? hids::CTRL  : 0);
-                                            owner.SIGNAL(e2::release, e2::term::ctrlstate, keybd.ctlstate);
                                         }
                                     }
                                 }
@@ -5144,6 +5138,7 @@ again:
         text  extra_cached; // diff: Cached extra data to cout.
 
         // diff: Render current buffer to the screen.
+        template<bool TRUECOLOR = true>
         void render()
         {
             using time = moment;
@@ -5154,7 +5149,7 @@ again:
             {
                 auto dumb = c;
                 dumb.txt(utf::REPLACEMENT_CHARACTER_UTF8_VIEW);
-                dumb.scan(state, frame);
+                dumb.template scan<TRUECOLOR>(state, frame);
             };
 
             std::unique_lock guard{ mutex };
@@ -5190,7 +5185,7 @@ again:
                             auto& c = *(src++);
                             if (c.wdt() < 2)
                             {
-                                c.scan(state, frame);
+                                c.scan<TRUECOLOR>(state, frame);
                             }
                             else
                             {
@@ -5206,7 +5201,7 @@ again:
                                         }
                                         else
                                         {
-                                            if (!c.scan(d, state, frame))
+                                            if (!c.scan<TRUECOLOR>(d, state, frame))
                                             {
                                                 fallback(c, state, frame); // Left part alone.
                                                 src--; // Repeat all for d again.
@@ -5252,7 +5247,7 @@ again:
                                     frame.locate(col, row);
 
                                     back = fore;
-                                    fore.scan(state, frame);
+                                    fore.scan<TRUECOLOR>(state, frame);
 
                                     /* optimizations */
                                     while (src != end)
@@ -5267,7 +5262,7 @@ again:
                                             else
                                             {
                                                 back = fore;
-                                                fore.scan(state, frame);
+                                                fore.scan<TRUECOLOR>(state, frame);
                                             }
                                         }
                                         else if (w == 2) // Check left part.
@@ -5289,7 +5284,7 @@ again:
                                                         }
                                                         else // d.wdt() == 3
                                                         {
-                                                            if (!fore.scan(d, state, frame))
+                                                            if (!fore.scan<TRUECOLOR>(d, state, frame))
                                                             {
                                                                 fallback(fore, state, frame); // Left part alone.
                                                                 fallback(d,    state, frame); // Right part alone.
@@ -5312,7 +5307,7 @@ again:
                                                     }
                                                     else // d.wdt() == 3
                                                     {
-                                                        if (!fore.scan(d, state, frame))
+                                                        if (!fore.scan<TRUECOLOR>(d, state, frame))
                                                         {
                                                             fallback(fore, state, frame); // Left part alone.
                                                             fallback(d, state, frame); // Right part alone.
@@ -5359,7 +5354,7 @@ again:
                                             }
                                             else // d.wdt() == 3
                                             {
-                                                if (!fore.scan(d, state, frame))
+                                                if (!fore.scan<TRUECOLOR>(d, state, frame))
                                                 {
                                                     
                                                     fallback(fore, state, frame); // Left part alone.
@@ -5395,7 +5390,7 @@ again:
                                                     auto col = static_cast<iota>(src - beg - 1);
                                                     frame.locate(col, row);
 
-                                                    if (!fore.scan(d, state, frame))
+                                                    if (!fore.scan<TRUECOLOR>(d, state, frame))
                                                     {
                                                         fallback(fore, state, frame); // Left part alone.
                                                         fallback(d, state, frame); // Right part alone.
@@ -5475,7 +5470,11 @@ again:
               cache{ input.xmap.pick() }
         {
             log("diff: ctor start");
-            paint = work([&] { render(); });
+            paint = work([&]
+                { 
+                    if (input.shown) render<faux>();
+                    else             render<true>();
+                });
             log("diff: ctor complete");
         }
 
@@ -5556,10 +5555,6 @@ again:
                 {
                     input.shown = pointer;
                 };
-                SUBMIT_T(e2::release, e2::term::ctrlstate, token, ctrlstate)
-                {
-                    input.take(ctrlstate);
-                };
                 SUBMIT_T(e2::release, e2::term::error, token, errcode)
                 {
                     text msg = "\n\rgate: Term error: " + std::to_string(errcode) + "\r\n";
@@ -5635,11 +5630,12 @@ again:
         }
 
     protected:
-        gate(view user_name)
+        gate(view user_name, bool colors)
         {
             //todo unify
             uname = uname_txt = user_name;
             title.live = faux;
+            input.shown = !colors;
             mouse.draggable<sysmouse::leftright>();
             SUBMIT(e2::release, e2::form::drag::start::leftright, gear)
             {

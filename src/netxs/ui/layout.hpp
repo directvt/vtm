@@ -748,18 +748,20 @@ namespace netxs::ui::atoms
                 return !operator == (c);
             }
 
-            template<class T>
+            template<bool TRUECOLOR = true, class T>
             void get(clrs& base, T& dest)	const
             {
                 if (bg != base.bg)
                 {
                     base.bg = bg;
-                    dest.bgc(bg);
+                    if constexpr (TRUECOLOR) dest.bgc  (bg);
+                    else                     dest.bgc16(bg);
                 }
                 if (fg != base.fg)
                 {
                     base.fg = fg;
-                    dest.fgc(fg);
+                    if constexpr (TRUECOLOR) dest.fgc  (fg);
+                    else                     dest.fgc16(fg);
                 }
             }
             void wipe()
@@ -897,24 +899,24 @@ namespace netxs::ui::atoms
             st = c.st;
         }
         // cell: Get differences of the visual attributes only (ANSI CSI/SGR format).
-        template<class T>
+        template<bool TRUECOLOR = true, class T>
         void scan_attr(cell& base, T& dest) const
         {
             if (!like(base))
             {
                 //todo additionally consider UNIQUE ATTRIBUTES
-                uv.get(base.uv, dest);
+                uv.get<TRUECOLOR>(base.uv, dest);
                 st.get(base.st, dest);
             }
         }
         // cell: Get differences (ANSI CSI/SGR format) of "base" and add it to "dest" and update the "base".
-        template<class T>
+        template<bool TRUECOLOR = true, class T>
         void scan(cell& base, T& dest) const
         {
             if (!like(base))
             {
                 //todo additionally consider UNIQUE ATTRIBUTES
-                uv.get(base.uv, dest);
+                uv.get<TRUECOLOR>(base.uv, dest);
                 st.get(base.st, dest);
             }
 
@@ -922,7 +924,7 @@ namespace netxs::ui::atoms
             else       dest += whitespace;
         }
         // cell: !!! Ensure that this.wdt == 2 and the next wdt == 3 and they are the same.
-        template<class T>
+        template<bool TRUECOLOR = true, class T>
         bool scan(cell& next, cell& base, T& dest) const
         {
             if (gc.same(next.gc) && like(next))
@@ -930,7 +932,7 @@ namespace netxs::ui::atoms
                 if (!like(base))
                 {
                     //todo additionally consider UNIQUE ATTRIBUTES
-                    uv.get(base.uv, dest);
+                    uv.get<TRUECOLOR>(base.uv, dest);
                     st.get(base.st, dest);
                 }
                 dest += gc.get();

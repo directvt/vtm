@@ -239,7 +239,6 @@ namespace netxs::events
                 preclose    = any | (9 << _level0), // signal to quit after idle timeout (arg: bool - ready to shutdown)
                 quit        = any | (10<< _level0), // quit (arg: text - bye msg)
                 pointer     = any | (11<< _level0), // mouse pointer visibility (arg: bool)
-                ctrlstate   = any | (12<< _level0), // keyboard modifiers state (arg: iota)
                 //menu      = any | (11 << _level0),
         };};
         struct hids { enum : type {

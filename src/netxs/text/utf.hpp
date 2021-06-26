@@ -434,7 +434,7 @@ namespace netxs::utf
     };
 
     template<class VIEW>
-    inline std::optional<iota> to_int(VIEW& ascii)
+    inline std::optional<iota> to_int(VIEW&& ascii)
     {
         iota num;
         auto top = ascii.data();
