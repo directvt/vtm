@@ -1,7 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#define MONOTTY_VER "Monotty Desktopio v0.4.3"
+#define MONOTTY_VER "Monotty Desktopio v0.4.4"
 // Autostart demo apps.
 //#define DEMO
 // Enable keyboard input and disable exit by single Esc.
@@ -1202,7 +1202,7 @@ utility like ctags is used to locate the definitions.
         truecolor += wiki01;
 
         //auto const highlight_color2 = tint::blackdk ;
-        auto const highlightdk_color = tint::bluedk  ;
+        //auto const highlightdk_color = tint::bluedk  ;
         auto const highlight_color   = tint::bluelt  ;
         auto const warning_color     = tint::yellowdk;
         auto const danger_color      = tint::redlt   ;
@@ -1439,7 +1439,7 @@ utility like ctags is used to locate the definitions.
                     auto object0 = window->attach<ui::fork>(axis::Y)
                                          ->colors(whitelt, 0xA0db3700);
                         auto menu = object0->attach<slot::_1>(custom_menu({}))
-                                          ->plugin<pro::mover>(window);
+                                           ->plugin<pro::mover>(window);
                         auto test_stat_area = object0->attach<slot::_2, ui::fork>(axis::Y);
                             auto layers = test_stat_area->attach<slot::_1, ui::cake>();
                                 auto scroll = layers->attach<ui::rail>()
@@ -1806,7 +1806,7 @@ utility like ctags is used to locate the definitions.
                         auto menu = object->attach<slot::_1>(custom_menu(
                             std::list{
                                 #ifdef DEMO
-                                    std::pair<text, std::function<void(ui::pads&)>>{ "Test" + ansi::und(true) + "1" + ansi::nil(),
+                                    std::pair<text, std::function<void(ui::pads&)>>{ "Test1",
                                     [](ui::pads& boss)
                                     {
                                         boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
@@ -1819,7 +1819,7 @@ utility like ctags is used to locate the definitions.
                                             gear.nodbl = true;
                                         };
                                     }},
-                                    std::pair<text, std::function<void(ui::pads&)>>{ "Test" + ansi::und(true) + "2" + ansi::nil(),
+                                    std::pair<text, std::function<void(ui::pads&)>>{ "Test2",
                                     [](ui::pads& boss)
                                     {
                                         boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
@@ -1832,7 +1832,7 @@ utility like ctags is used to locate the definitions.
                                             gear.nodbl = true;
                                         };
                                     }},
-                                    std::pair<text, std::function<void(ui::pads&)>>{ "Test" + ansi::und(true) + "3" + ansi::nil(),
+                                    std::pair<text, std::function<void(ui::pads&)>>{ "Test3",
                                     [](ui::pads& boss)
                                     {
                                         boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
@@ -1865,7 +1865,7 @@ utility like ctags is used to locate the definitions.
                                         };
                                     }},
                                 #endif
-                                    std::pair<text, std::function<void(ui::pads&)>>{ ansi::und(true) + "R" + ansi::nil() + "eset",
+                                    std::pair<text, std::function<void(ui::pads&)>>{ "Reset",
                                     [](ui::pads& boss)
                                     {
                                         boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
@@ -2027,7 +2027,7 @@ utility like ctags is used to locate the definitions.
                                         ->colors(whitelt, term_menu_bg);
                         auto menu = object->attach<slot::_1>(custom_menu(
                             std::list{
-                                    std::pair<text, std::function<void(ui::pads&)>>{ "Codepoint" + ansi::und(true) + "s" + ansi::nil(),
+                                    std::pair<text, std::function<void(ui::pads&)>>{ "Codepoints",
                                     [](ui::pads& boss)
                                     {
                                         boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
@@ -2044,7 +2044,7 @@ utility like ctags is used to locate the definitions.
                                             boss.color(status == 1 ? 0xFF00ff00 : x3.fgc(), x3.bgc());
                                         };
                                     }},
-                                    std::pair<text, std::function<void(ui::pads&)>>{ "C" + ansi::und(true) + "l" + ansi::nil() + "ear",
+                                    std::pair<text, std::function<void(ui::pads&)>>{ "Clear",
                                     [](ui::pads& boss)
                                     {
                                         boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
@@ -2292,7 +2292,8 @@ utility like ctags is used to locate the definitions.
                     #endif
 
                     auto lock = std::make_unique<e2::sync>();
-                    auto client = world->invite<ui::gate>(username, !!utf::to_int(view(_clrs)));
+                    auto vga16colors = !!(utf::to_int(view(_clrs)).value());
+                    auto client = world->invite<ui::gate>(username, vga16colors);
                     auto client_shadow = ptr::shadow(client);
                     auto world_shadow = ptr::shadow(world);
                     auto my_id = client->id;

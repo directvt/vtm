@@ -143,6 +143,11 @@ namespace netxs::ui::atoms
         {
             return chan.a;
         }
+        // rgba: Colourimetric (perceptual luminance-preserving) conversion to greyscale.
+        uint8_t luma() const
+        {
+            return 0.2627 * (double)chan.r + 0.6780 * (double)chan.g + 0.0593 * (double)chan.b;
+        }
         // rgba: Equal both to their average.
         void avg(rgba& c)
         {
@@ -310,22 +315,22 @@ namespace netxs::ui::atoms
 
         static constexpr uint32_t color256[] =
         {
-            0xFF101010,	// blackdk
-            0xFF1F0FC4,	// reddk
-            0xFF0EA112,	// greendk
-            0xFF009CC0,	// yellowdk
-            0xFFDB3700,	// bluedk
-            0xFF981787,	// magentadk
-            0xFFDD963B,	// cyandk
-            0xFFBBBBBB,	// whitedk
-            0xFF757575,	// blacklt
-            0xFF5648E6,	// redlt
-            0xFF0CC615,	// greenlt
-            0xFFA5F1F8,	// yellowlt
-            0xFFFF783A,	// bluelt
-            0xFF9E00B3,	// magentalt
-            0xFFD6D660,	// cyanlt
-            0xFFF3F3F3,	// whitelt
+            0xFF101010,	// 0  blackdk
+            0xFF1F0FC4,	// 1  reddk
+            0xFF0EA112,	// 2  greendk
+            0xFF009CC0,	// 3  yellowdk
+            0xFFDB3700,	// 4  bluedk
+            0xFF981787,	// 5  magentadk
+            0xFFDD963B,	// 6  cyandk
+            0xFFBBBBBB,	// 7  whitedk
+            0xFF757575,	// 8  blacklt
+            0xFF5648E6,	// 9  redlt
+            0xFF0CC615,	// 10 greenlt
+            0xFFA5F1F8,	// 11 yellowlt
+            0xFFFF783A,	// 12 bluelt
+            0xFF9E00B3,	// 13 magentalt
+            0xFFD6D660,	// 14 cyanlt
+            0xFFF3F3F3,	// 15 whitelt
             // 6×6×6 RGB-cube (216 colors), index = 16 + 36r + 6g + b, r,g,b=[0, 5]
             0xFF000000, 0xFF5F0000, 0xFF870000, 0xFFAF0000, 0xFFD70000, 0xFFFF0000,
             0xFF005F00, 0xFF5F5F00, 0xFF875F00, 0xFFAF5F00, 0xFFD75F00, 0xFFFF5F00,
@@ -660,7 +665,7 @@ namespace netxs::ui::atoms
             {
                 return param.shared.token == b.param.shared.token;
             }
-            template<class T>
+            template<bool TRUECOLOR = true, class T>
             void get(body& base, T& dest) const
             {
                 if (!like(base))
@@ -677,7 +682,8 @@ namespace netxs::ui::atoms
                     }
                     if (cvar.unline != bvar.unline)
                     {
-                        dest.und(cvar.unline);
+                        if constexpr (TRUECOLOR) dest.und(cvar.unline);
+                        else                     dest.inv(cvar.unline);
                     }
                     if (cvar.invert != bvar.invert)
                     {
@@ -906,7 +912,7 @@ namespace netxs::ui::atoms
             {
                 //todo additionally consider UNIQUE ATTRIBUTES
                 uv.get<TRUECOLOR>(base.uv, dest);
-                st.get(base.st, dest);
+                st.get<TRUECOLOR>(base.st, dest);
             }
         }
         // cell: Get differences (ANSI CSI/SGR format) of "base" and add it to "dest" and update the "base".
@@ -917,7 +923,7 @@ namespace netxs::ui::atoms
             {
                 //todo additionally consider UNIQUE ATTRIBUTES
                 uv.get<TRUECOLOR>(base.uv, dest);
-                st.get(base.st, dest);
+                st.get<TRUECOLOR>(base.st, dest);
             }
 
             if (wdt()) dest += gc.get();
@@ -933,7 +939,7 @@ namespace netxs::ui::atoms
                 {
                     //todo additionally consider UNIQUE ATTRIBUTES
                     uv.get<TRUECOLOR>(base.uv, dest);
-                    st.get(base.st, dest);
+                    st.get<TRUECOLOR>(base.st, dest);
                 }
                 dest += gc.get();
                 return true;

@@ -241,7 +241,7 @@ namespace netxs::console::ansi
         esc& bpmode (bool b) { add(b ? "\033[?2004h" : "\033[?2004l");  return *this; } // esc: Set bracketed paste mode.
         esc& autowr (bool b) { add(b ? "\033[?7h"    : "\033[?7l");     return *this; } // esc: Set autowrap mode.
         esc& save_title ()   { add("\033[22;0t");                       return *this; } // esc: Save terminal window title.
-        esc& scrn_reset ()   { add("\033[H\033[m\033[3J");              return *this; } // esc: Erase scrollback and reset caret location.
+        esc& scrn_reset ()   { add("\033]R\033[H\033[m\033[3J");        return *this; } // esc: Reset palette, erase scrollback and reset caret location.
         esc& load_title ()   { add("\033[23;0t");                       return *this; } // esc: Restore terminal window title.
 
         esc& w32input (bool b) { add(b ? "\033[?9001h" : "\033[?9001l");        return *this; } // ansi: Application Caret Keys (DECCKM).
@@ -334,24 +334,83 @@ namespace netxs::console::ansi
         esc& bgc (rgba const& c) { add("\033[48;2;" + str(c.chan.r) + ";" // esc: SGR Background color. RGB: red, green, blue and alpha.
                                                     + str(c.chan.g) + ";"
                                                     + str(c.chan.b) + "m"); return *this; }
-        // esc: SGR Foreground grayscale.
+        // esc: SGR Foreground grayscale (compatibility mode).
         esc& fgc16 (rgba const& c)
         {
-            //auto gray = (c.chan.r + c.chan.g + c.chan.b) / 3 / 16;
-            //auto gray = std::min(15, ((int)c.chan.r + c.chan.g + c.chan.b) / 2 / 16);
-            auto gray = std::min(15, (int)((0.2627 * c.chan.r + 0.6780 * c.chan.g + 0.0593 * c.chan.b) / 16));
-            if (gray < 8) add("\033[" + str(30 + gray)     + "m");
-            else          add("\033[" + str(90 + gray - 8) + "m");
+            iota clr = 30;
+            switch(c.token)
+            {
+                case 0xFF000000: clr += 0;
+                    add("\033[22;" + str(clr) + "m");
+                    return *this;
+                case 0xFFffffff: clr += 5;
+                    add("\033[22;" + str(clr) + "m");
+                    return *this;
+                case 0xFF00ff00:
+                case rgba{ rgba::color256[tint::greenlt  ] }.token: clr += 60 + 0; break;
+                case 0xFF00ffff:
+                case rgba{ rgba::color256[tint::yellowlt ] }.token: clr += 60 + 1; break;
+                case 0xFFff00ff:
+                case rgba{ rgba::color256[tint::magentalt] }.token: clr += 60 + 2; break;
+                case rgba{ rgba::color256[tint::reddk    ] }.token: clr += 60 + 3; break;
+                case rgba{ rgba::color256[tint::bluedk   ] }.token: clr += 60 + 4; break;
+                case rgba{ rgba::color256[tint::greendk  ] }.token: clr += 60 + 5; break;
+                case rgba{ rgba::color256[tint::yellowdk ] }.token: clr += 60 + 6; break;
+                case 0xFFffff00:
+                case rgba{ rgba::color256[tint::cyanlt   ] }.token: clr += 60 + 7; break;
+                case 0xFF0000ff:
+                case rgba{ rgba::color256[tint::redlt    ] }.token:
+                    clr += 6;
+                    add("\033[22;" + str(clr) + "m");
+                    return *this;
+                case 0xFFff0000:
+                case rgba{ rgba::color256[tint::bluelt   ] }.token:
+                    clr += 7;
+                    add("\033[22;" + str(clr) + "m");
+                    return *this;
+                default: // grayscale
+                    auto l = c.luma();
+                    if      (l < 42)  clr += 1;
+                    else if (l < 90)  clr += 2;
+                    else if (l < 170) clr += 3;
+                    else if (l < 240) clr += 4;
+                    else              clr += 5;
+                    add("\033[22;" + str(clr) + "m");
+                    return *this;
+            }
+            add("\033[" + str(clr) + "m");
             return *this;
         }
-        // esc: SGR Background grayscale.
+        // esc: SGR Background grayscale (compatibility mode).
         esc& bgc16 (rgba const& c)
         {
-            //auto gray = (c.chan.r + c.chan.g + c.chan.b) / 3 / 16;
-            //auto gray = std::min(15, ((int)c.chan.r + c.chan.g + c.chan.b) / 2 / 16);
-            auto gray = std::min(15, (int)((0.2627 * c.chan.r + 0.6780 * c.chan.g + 0.0593 * c.chan.b) / 16));
-            if (gray < 8) add("\033[" + str(40  + gray)     + "m");
-            else          add("\033[" + str(100 + gray - 8) + "m");
+            iota clr = 40;
+            switch(c.token)
+            {
+                case 0xFF000000: clr += 0; break;
+                case 0xFFffffff: clr += 5; break;
+                case 0xFF0000ff:
+                case rgba{ rgba::color256[tint::redlt   ] }.token: clr += 6; break;
+                case 0xFFff0000:
+                case rgba{ rgba::color256[tint::bluelt  ] }.token: clr += 7; break;
+                default:
+                    if (c.chan.b > 0xE0
+                     && c.chan.r > 0x30 && c.chan.r < 0x50
+                     && c.chan.g > 0x70 && c.chan.g < 0xd0)
+                    {
+                        clr += 7;
+                    }
+                    else // grayscale
+                    {
+                        auto l = c.luma();
+                        if      (l < 42)  clr += 1;
+                        else if (l < 90)  clr += 2;
+                        else if (l < 170) clr += 3;
+                        else if (l < 240) clr += 4;
+                        else              clr += 5;
+                    }
+            }
+            add("\033[" + str(clr) + "m");
             return *this;
         }
         esc& sav ()              { add("\033[10m");                     return *this; } // esc: Save SGR attributes.

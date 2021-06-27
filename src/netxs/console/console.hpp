@@ -5630,12 +5630,12 @@ again:
         }
 
     protected:
-        gate(view user_name, bool colors)
+        gate(view user_name, bool compatibility_mode)
         {
             //todo unify
             uname = uname_txt = user_name;
             title.live = faux;
-            input.shown = !colors;
+            input.shown = compatibility_mode;
             mouse.draggable<sysmouse::leftright>();
             SUBMIT(e2::release, e2::form::drag::start::leftright, gear)
             {
@@ -5805,7 +5805,7 @@ again:
                     }
                     else
                     {
-                        brush.txt(whitespace).bgc(greenlt);
+                        brush.txt(whitespace).bgc(input.shown ? 0xFFffffff : greenlt);
                     }
                     parent_canvas.fill(area, brush);
                 }

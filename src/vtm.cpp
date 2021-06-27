@@ -53,7 +53,7 @@ int main(int argc, char* argv[])
 
     if (!link) os::exit(-1, "main: desktop server connection error");
 
-    auto clrs = os::colors();
+    auto clrs = os::vga_mode();
 
     link->send(utf::concat(spot, ";",
                            host, ";",

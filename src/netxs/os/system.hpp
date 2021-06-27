@@ -1717,10 +1717,9 @@ namespace netxs::os
         }
     };
 
-    auto colors()
+    auto vga_mode()
     {
-        //todo
-        return (os::get_env("TERM") == "linux") ? 0 : 1;
+        return (os::get_env("TERM") == "linux") ? 1 : 0;
     }
 
     class tty
@@ -1992,6 +1991,7 @@ namespace netxs::os
                 auto buffer = text(STDIN_BUF, '\0');
                 iota ttynum = 0;
                 ansi::esc yield;
+                bool compatibility_mode = os::vga_mode();
 
                 struct
                 {
@@ -2014,14 +2014,10 @@ namespace netxs::os
                 };
                 ok(::ttyname_r(STDOUT_FD, buffer.data(), buffer.size()), "ttyname_r error");
                 auto tty_name = view(buffer.data());
-                auto tty_word = tty_name.find("tty", 0);
-                if (tty_word == text::npos || os::get_env("TERM") != "linux")
+                log(" tty: pseudoterminal ", tty_name);
+                if (compatibility_mode)
                 {
-                    log(" tty: pseudoterminal ", tty_name);
-                }
-                else
-                {
-                    log(" tty: local console detected ", tty_name);
+                    log(" tty: compatibility mode");
                     auto imps2_init_string = "\xf3\xc8\xf3\x64\xf3\x50";
                     auto mouse_device = "/dev/input/mice";
                     auto fd = ::open(mouse_device, O_RDWR);
@@ -2033,61 +2029,46 @@ namespace netxs::os
                         if (ack == '\xfa')
                         {
                             micefd = file{ fd };
-                            tty_word += 3; /*skip tty letters*/
-                            auto tty_name = utf::to_view(buffer.data() + tty_word, buffer.size() - tty_word);
-                            if (auto cur_tty = utf::to_int(tty_name))
+                            auto tty_word = tty_name.find("tty", 0);
+                            if (tty_word != text::npos)
                             {
-                                ttynum = cur_tty.value();
+                                tty_word += 3; /*skip tty letters*/
+                                auto tty_number = utf::to_view(buffer.data() + tty_word, buffer.size() - tty_word);
+                                if (auto cur_tty = utf::to_int(tty_number))
+                                {
+                                    ttynum = cur_tty.value();
+                                }
                             }
                             yield.show_mouse(true);
                             ipcio.send<faux>(view(yield));
                             yield.clear();
                             log(" tty: mouse successfully connected, fd=", fd);
-                            {
-                                text palette = 
-                                    //"\033]P0000000"
-                                    //"\033]P1111111"
-                                    //"\033]P2222222"
-                                    //"\033]P3333333"
-                                    //"\033]P4444444"
-                                    //"\033]P5555555"
-                                    //"\033]P6666666"
-                                    //"\033]P7777777"
-                                    //"\033]P8888888"
-                                    //"\033]P9E64856"
-                                    //"\033]Pa15C60C"
-                                    //"\033]PbF8F1A5"
-                                    //"\033]Pc3A78FF"
-                                    //"\033]PdDDDDDD"
-                                    //"\033]PeEEEEEE"
-                                    //"\033]PfFFFFFF"
-
-                                    "\033]P0000000"
-                                    "\033]P1111111"
-                                    "\033]P2222222"
-                                    "\033]P3333333"
-                                    "\033]P4444444"
-                                    "\033]P5555555"
-                                    "\033]P6666666"
-                                    "\033]P7777777"
-                                    "\033]P8888888"
-                                    "\033]P9999999"
-                                    "\033]PaAAAAAA"
-                                    "\033]PbBBBBBB"
-                                    "\033]PcCCCCCC"
-                                    "\033]PdDDDDDD"
-                                    "\033]PeEEEEEE"
-                                    "\033]PfFFFFFF"
-                                    ;
-
-                                os::send(STDOUT_FD, palette.data(), palette.size());
-                            }
                         }
                     }
+                    text palette =
+                        "\033]P0000000" // 0  blackdk
+                        "\033]P1202020" // 1  blacklt
+                        "\033]P2505050" // 2  graydk
+                        "\033]P3808080" // 3  graylt
+                        "\033]P4d0d0d0" // 4  whitedk
+                        "\033]P5ffffff" // 5  whitelt
+                        "\033]P6E64856" // 6  redlt
+                        "\033]P73A78FF" // 7  bluelt
+
+                        "\033]P815C60C" // 0  greenlt
+                        "\033]P9F8F1A5" // 1  yellowlt
+                        "\033]PaB3009E" // 2  magentalt
+                        "\033]PbC40F1F" // 3  reddk
+                        "\033]Pc0037DB" // 4  bluedk
+                        "\033]Pd12A10E" // 5  greendk
+                        "\033]PeC09C00" // 6  yellowdk
+                        "\033]Pf60D6D6" // 7  cyanlt
+                        ;
+                    os::send(STDOUT_FD, palette.data(), palette.size());
+
                     if (!micefd)
                     {
                         log(" tty: mouse initialization error");
-                        ipcio.shut();
                         ::close(fd);
                     }
                 }
