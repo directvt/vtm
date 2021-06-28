@@ -1,7 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#define MONOTTY_VER "Monotty Desktopio v0.4.4"
+#define MONOTTY_VER "Monotty Desktopio v0.4.5"
 // Autostart demo apps.
 //#define DEMO
 // Enable keyboard input and disable exit by single Esc.
@@ -1344,7 +1344,7 @@ utility like ctags is used to locate the definitions.
                                     boss.base::template riseup<e2::release, e2::form::proceed::detach>(backup);
                                 };
                             })
-                         ->attach<ui::item>("✕");
+                         ->attach<ui::item>("×");
             return menu_area;
         };
         auto custom_menu = [&](std::list<std::pair<text, std::function<void(ui::pads&)>>> menu_items)
@@ -1380,7 +1380,7 @@ utility like ctags is used to locate the definitions.
                                     boss.base::template riseup<e2::release, e2::form::proceed::detach>(backup);
                                 };
                             })
-                         ->template attach<ui::item>("✕");
+                         ->template attach<ui::item>("×");
             return menu_area;
         };
 
@@ -1610,7 +1610,7 @@ utility like ctags is used to locate the definitions.
                                         auto ellipsis = func_line->attach<slot::_2, ui::post>()
                                                                  ->plugin<pro::fader>(c7, c3, 150ms)
                                                                  ->plugin<pro::limit>(twod{ -1,1 }, twod{ 3,-1 })
-                                                                 ->upload(ansi::wrp(wrap::off) + " ⋯ ");
+                                                                 ->upload(ansi::wrp(wrap::off) + " … ");
                                     auto body_area = func_body->attach<slot::_2, ui::fork>(axis::Y);
                                         auto corner_cols = body_area->attach<slot::_1, ui::fork>();
                                             auto corner = corner_cols->attach<slot::_1, ui::post>()
@@ -1660,9 +1660,9 @@ utility like ctags is used to locate the definitions.
                                     auto plus_pad = sheet_plus->attach<slot::_2, ui::fork>();
                                         auto plus = plus_pad->attach<slot::_1, ui::post>()
                                                             ->plugin<pro::fader>(c7, c3, 150ms)
-                                                            ->plugin<pro::limit>(twod{ 2,-1 }, twod{ 2,-1 })
+                                                            ->plugin<pro::limit>(twod{ 3,-1 }, twod{ 3,-1 })
                                                             ->upload(ansi::wrp(wrap::off)
-                                                              + "＋");
+                                                              + " + ");
                                         auto pad = plus_pad->attach<slot::_2, ui::mock>()
                                                            ->plugin<pro::limit>(twod{ 1,1 }, twod{ 1,1 });
                             layers->attach(scroll_bars(scroll));
@@ -2376,7 +2376,7 @@ utility like ctags is used to locate the definitions.
                                                                         }
                                                                     };
                                                                 });
-                                    auto app_close = app_close_area->template attach<ui::item>("  ✕  ", faux);
+                                    auto app_close = app_close_area->template attach<ui::item>("  ×  ", faux);
                         return item_area;
                     };
                     auto apps_template = [&](auto& data_src, auto& apps_map)
@@ -2513,7 +2513,7 @@ utility like ctags is used to locate the definitions.
                         auto item_area = base::create<ui::pads>(dent{ 1,0,0,1 }, dent{ 0,0,1,0 })
                                              ->plugin<pro::fader>(x3, c3, 150ms);
                             auto user = item_area->attach<ui::item>(
-                                    + "🔗" + ansi::nil() + " "
+                                    + " &" + ansi::nil() + " "
                                     + ansi::fgc4(data_src->id == my_id ? rgba::color256[whitelt] : 0x00) + utf8, true);
                         return item_area;
                     };
@@ -2689,7 +2689,7 @@ utility like ctags is used to locate the definitions.
                                                                         }
                                                                     };
                                                                 });
-                                        auto disconnect = disconnect_area->attach<ui::item>("✕ Disconnect");
+                                        auto disconnect = disconnect_area->attach<ui::item>("× Disconnect");
                                     auto shutdown_area = bttns->attach<slot::_2, ui::pads>(dent{ 2,3,1,1 })
                                                             ->plugin<pro::fader>(x1, c1, 150ms)
                                                             ->invoke([&](auto& boss)
@@ -2704,7 +2704,7 @@ utility like ctags is used to locate the definitions.
                                                                     os::exit(0, "taskbar: shutdown by button");
                                                                 };
                                                             });
-                                        auto shutdown = shutdown_area->attach<ui::item>("✕ Shutdown");
+                                        auto shutdown = shutdown_area->attach<ui::item>("× Shutdown");
                             }
                     }
                     client->color(background_color.fgc(), background_color.bgc());

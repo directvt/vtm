@@ -2063,6 +2063,8 @@ namespace netxs::os
                         "\033]Pd12A10E" // 5  greendk
                         "\033]PeC09C00" // 6  yellowdk
                         "\033]Pf60D6D6" // 7  cyanlt
+                        //"\033[1;5]" // set whitelt as the underline color (linux console doesn't support underline)
+                        //"\033[2;3]" // set graylt as the dim color
                         ;
                     os::send(STDOUT_FD, palette.data(), palette.size());
 

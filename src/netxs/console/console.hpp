@@ -5801,11 +5801,12 @@ again:
                     cell brush;
                     if (input.push)
                     {
-                        brush.txt(64 + input.push).bgc(reddk).fgc(whitelt);
+                        brush.txt(64 + input.push).bgc(reddk).fgc(0xFFffffff);
                     }
                     else
                     {
-                        brush.txt(whitespace).bgc(input.shown ? 0xFFffffff : greenlt);
+                        if (input.shown) brush.txt("\u2588"/* █ */).fgc(0xFF00ff00);
+                        else             brush.txt(whitespace).bgc(greenlt);
                     }
                     parent_canvas.fill(area, brush);
                 }

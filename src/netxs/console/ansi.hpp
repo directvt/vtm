@@ -363,6 +363,10 @@ namespace netxs::console::ansi
                     clr += 6;
                     add("\033[22;" + str(clr) + "m");
                     return *this;
+                case rgba{ rgba::color256[tint::blacklt  ] }.token:
+                    clr += 4;
+                    add("\033[22;" + str(clr) + "m");
+                    return *this;
                 case 0xFFff0000:
                 case rgba{ rgba::color256[tint::bluelt   ] }.token:
                     clr += 7;
@@ -390,6 +394,7 @@ namespace netxs::console::ansi
                 case 0xFF000000: clr += 0; break;
                 case 0xFFffffff: clr += 5; break;
                 case 0xFF0000ff:
+                case rgba{ rgba::color256[tint::reddk   ] }.token: clr += 6; break;
                 case rgba{ rgba::color256[tint::redlt   ] }.token: clr += 6; break;
                 case 0xFFff0000:
                 case rgba{ rgba::color256[tint::bluelt  ] }.token: clr += 7; break;
