@@ -12,6 +12,7 @@ A text-based desktop environment in your terminal*
 
 #### Tested Terminals
 
+ - [Linux Console](https://en.wikipedia.org/wiki/Linux_console): ([soon](https://github.com/netxs-group/VTM/tree/dev/sdn))
  - [Windows Command Prompt](https://github.com/microsoft/terminal): Windows 10 or later required
  - [Ultimate++ Terminal widget](https://github.com/ismail-yilmaz/upp-components/tree/master/CtrlLib/Terminal)
  - [Windows Terminal](https://github.com/microsoft/terminal)
