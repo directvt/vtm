@@ -1,7 +1,7 @@
 # Monotty Desktopio
 
 A text-based desktop environment inside your terminal*
-![image](https://dice.netxs.online/cloud/vtm/mde_banner_v1.15.png)
+![image](https://dice.netxs.online/cloud/vtm/mde_banner_v1.16.png)
 
 #### * Terminal Requirements
 
