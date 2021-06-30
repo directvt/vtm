@@ -112,10 +112,11 @@
     #include <fcntl.h>		// ::splice()
     //#include <ext/stdio_filebuf.h> // Linux specific ifstream from socket descriptor
 
-    #include <sys/vt.h> // ::console_ioctl()
-    #include <sys/kd.h> // ::console_ioctl()
-    #include <linux/keyboard.h> // ::keyb_ioctl()
-
+    #if defined(__linux__)
+        #include <sys/vt.h> // ::console_ioctl()
+        #include <sys/kd.h> // ::console_ioctl()
+        #include <linux/keyboard.h> // ::keyb_ioctl()
+    #endif
 #endif
 
 namespace netxs::os
@@ -2002,15 +2003,19 @@ namespace netxs::os
                 } state;
                 auto get_kb_state = []()
                 {
-                    iota shift_state = 6;
-                    ok(::ioctl(STDIN_FD, TIOCLINUX, &shift_state));
-                    return 0
-                        | (shift_state & (1 << KG_ALTGR)) >> 1 // 0x1
-                        | (shift_state & (1 << KG_ALT  )) >> 2 // 0x2
-                        | (shift_state & (1 << KG_CTRLR)) >> 5 // 0x4
-                        | (shift_state & (1 << KG_CTRL )) << 1 // 0x8
-                        | (shift_state & (1 << KG_SHIFT)) << 4 // 0x10
-                        ;
+                    iota state = 0;
+                    #if defined(__linux__)
+                        iota shift_state = 6;
+                        ok(::ioctl(STDIN_FD, TIOCLINUX, &shift_state));
+                        state = 0
+                            | (shift_state & (1 << KG_ALTGR)) >> 1 // 0x1
+                            | (shift_state & (1 << KG_ALT  )) >> 2 // 0x2
+                            | (shift_state & (1 << KG_CTRLR)) >> 5 // 0x4
+                            | (shift_state & (1 << KG_CTRL )) << 1 // 0x8
+                            | (shift_state & (1 << KG_SHIFT)) << 4 // 0x10
+                            ;
+                    #endif
+                    return state;
                 };
                 ok(::ttyname_r(STDOUT_FD, buffer.data(), buffer.size()), "ttyname_r error");
                 auto tty_name = view(buffer.data());
@@ -2116,36 +2121,38 @@ namespace netxs::os
                             auto data = os::recv(micefd, buffer.data(), buffer.size());
                             if (data.size() == 4 /*ImPS only*/)
                             {
-                                vt_stat vt_state;
-                                ok(::ioctl(STDOUT_FD, VT_GETSTATE, &vt_state));
-                                if (vt_state.v_active == ttynum)
-                                {
-                                    auto scale = twod{6,12}; //todo magic numbers
-                                    auto bttns = data[0] & 7;
-                                    mcoor.x += data[1];
-                                    mcoor.y -= data[2];
-                                    auto wheel = -data[3]; //todo configurable direction
-                                    auto limit = _globals<void>::winsz.last * scale;
-                                    if (bttns == 0) mcoor = std::clamp(mcoor, dot_00, limit);
-                                    state.flags = wheel ? 4 : 0;
-                                    if (state.coord(mcoor / scale)
-                                     || state.bttns(bttns)
-                                     || state.shift(get_kb_state())
-                                     || state.flags)
+                                #if defined(__linux__)
+                                    vt_stat vt_state;
+                                    ok(::ioctl(STDOUT_FD, VT_GETSTATE, &vt_state));
+                                    if (vt_state.v_active == ttynum)
                                     {
-                                        yield.w32begin()
-                                        .w32mouse(0,
-                                                state.bttns.last,
-                                                state.shift.last,
-                                                state.flags,
-                                                wheel,
-                                                state.coord.last.x,
-                                                state.coord.last.y)
-                                        .w32close();
-                                        ipcio.send<faux>(view(yield));
-                                        yield.clear();
+                                        auto scale = twod{6,12}; //todo magic numbers
+                                        auto bttns = data[0] & 7;
+                                        mcoor.x += data[1];
+                                        mcoor.y -= data[2];
+                                        auto wheel = -data[3]; //todo configurable direction
+                                        auto limit = _globals<void>::winsz.last * scale;
+                                        if (bttns == 0) mcoor = std::clamp(mcoor, dot_00, limit);
+                                        state.flags = wheel ? 4 : 0;
+                                        if (state.coord(mcoor / scale)
+                                        || state.bttns(bttns)
+                                        || state.shift(get_kb_state())
+                                        || state.flags)
+                                        {
+                                            yield.w32begin()
+                                            .w32mouse(0,
+                                                    state.bttns.last,
+                                                    state.shift.last,
+                                                    state.flags,
+                                                    wheel,
+                                                    state.coord.last.x,
+                                                    state.coord.last.y)
+                                            .w32close();
+                                            ipcio.send<faux>(view(yield));
+                                            yield.clear();
+                                        }
                                     }
-                                }
+                                #endif
                             }
                         }
                     }

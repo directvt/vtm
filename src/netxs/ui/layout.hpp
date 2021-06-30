@@ -104,11 +104,11 @@ namespace netxs::ui::atoms
             }
         }
 
-        bool operator == (rgba const& c) const
+        auto operator == (rgba const& c) const
         {
             return token == c.token;
         }
-        bool operator != (rgba const& c) const
+        auto operator != (rgba const& c) const
         {
             return !operator == (c);
         }
@@ -125,7 +125,7 @@ namespace netxs::ui::atoms
             token = colorblack;
         }
         // rgba: Are the colors alpha blenable?
-        bool is_alpha_blendable() const
+        auto is_alpha_blendable() const
         {
             if (chan.a && chan.a != 0xFF)
             {
@@ -139,14 +139,16 @@ namespace netxs::ui::atoms
             chan.a = k;
         }
         // rgba: Return alpha channel.
-        uint8_t alpha() const
+        auto alpha() const
         {
             return chan.a;
         }
         // rgba: Colourimetric (perceptual luminance-preserving) conversion to greyscale.
-        uint8_t luma() const
+        auto luma() const
         {
-            return 0.2627 * (double)chan.r + 0.6780 * (double)chan.g + 0.0593 * (double)chan.b;
+            return static_cast<uint8_t>(0.2627 * chan.r
+                                      + 0.6780 * chan.g
+                                      + 0.0593 * chan.b);
         }
         // rgba: Equal both to their average.
         void avg(rgba& c)
