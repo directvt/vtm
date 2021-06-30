@@ -16,11 +16,7 @@
 #include <optional>
 #include <sstream>
 
-/**
- * Limits the number of code points in a grapheme cluster
- * to a number sufficient for any possible linguistic situation.
- **/
-#define GRAPHEME_CLUSTER_LIMIT (31)
+#define GRAPHEME_CLUSTER_LIMIT (31) // Limits the number of code points in a grapheme cluster to a number sufficient for any possible linguistic situation.
 #define CLUSTER_FIELD_SIZE     (5)
 #define WCWIDTH_FIELD_SIZE     (2)
 #define WCWIDTH_CLAMP(wcwidth) (wcwidth & (0XFF >> (8 - WCWIDTH_FIELD_SIZE)))
@@ -277,7 +273,6 @@ namespace netxs::utf
                 if (next.is_cmd())
                 {
                     code.step();
-                    //auto chars = serve(next, code.rest());
                     auto rest = code.rest();
                     auto chars = serve(next, rest);
                     code.redo(chars);
@@ -439,7 +434,7 @@ namespace netxs::utf
     };
 
     template<class VIEW>
-    inline std::optional<iota> to_int (VIEW& ascii)
+    inline std::optional<iota> to_int(VIEW&& ascii)
     {
         iota num;
         auto top = ascii.data();
@@ -781,7 +776,6 @@ namespace netxs::utf
         //utf8.shrink_to_fit();
         return utf8;
     }
-    //template<template<class> class TEXT_OR_VIEW, class T>
     template<class TEXT_OR_VIEW>
     auto to_utf(TEXT_OR_VIEW&& str)
     {
@@ -1234,12 +1228,12 @@ namespace netxs::utf
     };
 
     template <class T>
-    void concat(std::stringstream& s, T&& item)
+    void concat(flux& s, T&& item)
     {
         s << item;
     }
     template<class T, class ...Args>
-    void concat(std::stringstream& s, T&& item, Args&&... args)
+    void concat(flux& s, T&& item, Args&&... args)
     {
         s << item;
         concat(s, std::forward<Args>(args)...);
@@ -1247,7 +1241,7 @@ namespace netxs::utf
     template<class ...Args>
     auto concat(Args&&... args)
     {
-        std::stringstream s;
+        flux s;
         concat(s, std::forward<Args>(args)...);
         return s.str();
     }

@@ -95,6 +95,7 @@ namespace netxs::console
         EVENT_BIND(e2::term::layout  , const twod)
         EVENT_BIND(e2::term::preclose, const bool)
         EVENT_BIND(e2::term::quit    , const view)
+        EVENT_BIND(e2::term::pointer , const bool)
 
     EVENT_BIND(e2::config::any, iota)
         EVENT_BIND(e2::config::broadcast, sptr<bell>)
@@ -497,7 +498,7 @@ namespace netxs::console
         id_t   swift = 0;       // mouse: Delegate's ID of the current mouse owner.
         id_t   hover = 0;       // mouse: Hover control ID.
         id_t   start = 0;       // mouse: Initiator control ID.
-
+        bool   shown = faux;    // mouse: Should the mouse pointer to be drawn.
         struct
         {
             moment fired;
@@ -4858,7 +4859,6 @@ again:
                                                 mouse.hzwheel = flags & (1 << 3); // MOUSE_HWHEELED;
                                                 mouse.wheeldt = wheel;
 
-                                                // Windows Terminal Reported mouse ctrlstate is broken
                                                 bool k_ralt  = ctrls & 0x1;
                                                 bool k_alt   = ctrls & 0x2;
                                                 bool k_rctrl = ctrls & 0x4;
@@ -4972,11 +4972,41 @@ again:
                                         else pos++; // pop '_'
                                     }
                                 }
-                                else if (event_id == ansi::CCC_EXT && l > 2 
+                                else if (event_id == ansi::CCC_EXT && l > 2
                                     && tmp.at(0) == ':' && tmp.at(2) == 'p')
                                 {
                                     pos += 5 /* 25:1p */;
                                     owner.SIGNAL(e2::release, e2::term::native, tmp.at(1) == '1');
+                                }
+                                else if (event_id == ansi::CCC_SMS && l > 2
+                                    && tmp.at(0) == ':' && tmp.at(2) == 'p')
+                                {
+                                    pos += 5 /* 26:1p */;
+                                    owner.SIGNAL(e2::release, e2::term::pointer, tmp.at(1) == '1');
+                                }
+                                else if (event_id == ansi::CCC_KBD && l > 2
+                                    && tmp.at(0) == ':')
+                                {
+                                    tmp.remove_prefix(1); // pop ':'
+                                    if(auto v = utf::to_int(tmp))
+                                    {
+                                        if (tmp.size() && tmp.at(0) == 'p')
+                                        {
+                                            tmp.remove_prefix(1); // pop 'p'
+                                            pos += l - tmp.size();
+                                            auto ctrls = v.value();
+                                                bool k_ralt  = ctrls & 0x1;
+                                                bool k_alt   = ctrls & 0x2;
+                                                bool k_rctrl = ctrls & 0x4;
+                                                bool k_ctrl  = ctrls & 0x8;
+                                                bool k_shift = ctrls & 0x10;
+                                                keybd.ctlstate = (k_shift ? hids::SHIFT : 0)
+                                                               + (k_alt   ? hids::ALT   : 0)
+                                                               + (k_ralt  ? hids::ALT   : 0)
+                                                               + (k_rctrl ? hids::RCTRL : 0)
+                                                               + (k_ctrl  ? hids::CTRL  : 0);
+                                        }
+                                    }
                                 }
                                 else
                                 {
@@ -5108,6 +5138,7 @@ again:
         text  extra_cached; // diff: Cached extra data to cout.
 
         // diff: Render current buffer to the screen.
+        template<bool TRUECOLOR = true>
         void render()
         {
             using time = moment;
@@ -5118,7 +5149,7 @@ again:
             {
                 auto dumb = c;
                 dumb.txt(utf::REPLACEMENT_CHARACTER_UTF8_VIEW);
-                dumb.scan(state, frame);
+                dumb.template scan<TRUECOLOR>(state, frame);
             };
 
             std::unique_lock guard{ mutex };
@@ -5154,7 +5185,7 @@ again:
                             auto& c = *(src++);
                             if (c.wdt() < 2)
                             {
-                                c.scan(state, frame);
+                                c.scan<TRUECOLOR>(state, frame);
                             }
                             else
                             {
@@ -5170,7 +5201,7 @@ again:
                                         }
                                         else
                                         {
-                                            if (!c.scan(d, state, frame))
+                                            if (!c.scan<TRUECOLOR>(d, state, frame))
                                             {
                                                 fallback(c, state, frame); // Left part alone.
                                                 src--; // Repeat all for d again.
@@ -5216,7 +5247,7 @@ again:
                                     frame.locate(col, row);
 
                                     back = fore;
-                                    fore.scan(state, frame);
+                                    fore.scan<TRUECOLOR>(state, frame);
 
                                     /* optimizations */
                                     while (src != end)
@@ -5231,7 +5262,7 @@ again:
                                             else
                                             {
                                                 back = fore;
-                                                fore.scan(state, frame);
+                                                fore.scan<TRUECOLOR>(state, frame);
                                             }
                                         }
                                         else if (w == 2) // Check left part.
@@ -5253,7 +5284,7 @@ again:
                                                         }
                                                         else // d.wdt() == 3
                                                         {
-                                                            if (!fore.scan(d, state, frame))
+                                                            if (!fore.scan<TRUECOLOR>(d, state, frame))
                                                             {
                                                                 fallback(fore, state, frame); // Left part alone.
                                                                 fallback(d,    state, frame); // Right part alone.
@@ -5276,7 +5307,7 @@ again:
                                                     }
                                                     else // d.wdt() == 3
                                                     {
-                                                        if (!fore.scan(d, state, frame))
+                                                        if (!fore.scan<TRUECOLOR>(d, state, frame))
                                                         {
                                                             fallback(fore, state, frame); // Left part alone.
                                                             fallback(d, state, frame); // Right part alone.
@@ -5323,7 +5354,7 @@ again:
                                             }
                                             else // d.wdt() == 3
                                             {
-                                                if (!fore.scan(d, state, frame))
+                                                if (!fore.scan<TRUECOLOR>(d, state, frame))
                                                 {
                                                     
                                                     fallback(fore, state, frame); // Left part alone.
@@ -5359,7 +5390,7 @@ again:
                                                     auto col = static_cast<iota>(src - beg - 1);
                                                     frame.locate(col, row);
 
-                                                    if (!fore.scan(d, state, frame))
+                                                    if (!fore.scan<TRUECOLOR>(d, state, frame))
                                                     {
                                                         fallback(fore, state, frame); // Left part alone.
                                                         fallback(d, state, frame); // Right part alone.
@@ -5439,7 +5470,11 @@ again:
               cache{ input.xmap.pick() }
         {
             log("diff: ctor start");
-            paint = work([&] { render(); });
+            paint = work([&]
+                { 
+                    if (input.shown) render<faux>();
+                    else             render<true>();
+                });
             log("diff: ctor complete");
         }
 
@@ -5516,6 +5551,10 @@ again:
                 {
                     native = extended;
                 };
+                SUBMIT_T(e2::release, e2::term::pointer, token, pointer)
+                {
+                    input.shown = pointer;
+                };
                 SUBMIT_T(e2::release, e2::term::error, token, errcode)
                 {
                     text msg = "\n\rgate: Term error: " + std::to_string(errcode) + "\r\n";
@@ -5591,11 +5630,12 @@ again:
         }
 
     protected:
-        gate(view user_name)
+        gate(view user_name, bool compatibility_mode)
         {
             //todo unify
             uname = uname_txt = user_name;
             title.live = faux;
+            input.shown = compatibility_mode;
             mouse.draggable<sysmouse::leftright>();
             SUBMIT(e2::release, e2::form::drag::start::leftright, gear)
             {
@@ -5656,8 +5696,10 @@ again:
                 //if (gear.meta(hids::CTRL | hids::RCTRL))
                 {
                     //todo unify
-                    auto pgup = gear.keystrokes == "\033[5;5~"s;
-                    auto pgdn = gear.keystrokes == "\033[6;5~"s;
+                    auto pgup = gear.keystrokes == "\033[5;5~"s
+                            || (gear.keystrokes == "\033[5~"s && gear.meta(hids::CTRL | hids::RCTRL));
+                    auto pgdn = gear.keystrokes == "\033[6;5~"s
+                            || (gear.keystrokes == "\033[6~"s && gear.meta(hids::CTRL | hids::RCTRL));
                     if (pgup || pgdn)
                     {
                         if (auto world = base::parent())
@@ -5727,20 +5769,6 @@ again:
             {
                 if (&parent_canvas != &cache.canvas)
                 {
-                    auto area = base::area();
-                    area.coor += input.coord - parent_canvas.area().coor;
-                    area.size = dot_11;
-                    cell brush;
-                    if (input.push)
-                    {
-                        brush.txt(64 + input.push).bgc(reddk).fgc(whitelt);
-                    }
-                    else
-                    {
-                        brush.txt(whitespace).bgc(greenlt);
-                    }
-                    parent_canvas.fill(area, brush);
-
                     //if (parent.test(area.coor))
                     //{
                     //	auto hover_id = parent[area.coor].link();
@@ -5750,7 +5778,9 @@ again:
                     if (uname.lyric)
                     {
                         auto& header = *uname.lyric;
-                        area.coor += parent_canvas.area().coor;
+                        auto area = base::area();
+                        area.coor += input.coord;
+                        area.size = dot_11;
                         area.coor.y--;
                         area.coor.x -= (iota)header.size().x / 2;
                         //todo unify header coords
@@ -5762,7 +5792,24 @@ again:
                 {
                     if (uibar && !fullscreen) parent_canvas.render(uibar, base::coor());
                 }
-
+                if (&parent_canvas != &cache.canvas || input.shown)
+                {
+                    auto area = base::area();
+                    area.coor += input.coord;
+                    area.coor -= parent_canvas.area().coor;
+                    area.size = dot_11;
+                    cell brush;
+                    if (input.push)
+                    {
+                        brush.txt(64 + input.push).bgc(reddk).fgc(0xFFffffff);
+                    }
+                    else
+                    {
+                        if (input.shown) brush.txt("\u2588"/* █ */).fgc(0xFF00ff00);
+                        else             brush.txt(whitespace).bgc(greenlt);
+                    }
+                    parent_canvas.fill(area, brush);
+                }
                 #ifdef REGIONS
                 parent_canvas.each([](cell& c){
                     auto mark = rgba{ rgba::color256[c.link() % 256] };

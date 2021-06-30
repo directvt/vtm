@@ -110,9 +110,13 @@
     #include <sys/types.h>
     #include <sys/stat.h>
     #include <fcntl.h>		// ::splice()
-
     //#include <ext/stdio_filebuf.h> // Linux specific ifstream from socket descriptor
 
+    #if defined(__linux__)
+        #include <sys/vt.h> // ::console_ioctl()
+        #include <sys/kd.h> // ::console_ioctl()
+        #include <linux/keyboard.h> // ::keyb_ioctl()
+    #endif
 #endif
 
 namespace netxs::os
@@ -133,6 +137,27 @@ namespace netxs::os
         static const fd_t STDIN_FD  = GetStdHandle(STD_INPUT_HANDLE);
         static const fd_t STDOUT_FD = GetStdHandle(STD_OUTPUT_HANDLE);
         static const iota PIPE_BUF = 65536;
+
+        //static constexpr char* security_descriptor_string =
+        //	//"D:P(A;NP;GA;;;SY)(A;NP;GA;;;BA)(A;NP;GA;;;WD)";
+        //	"O:AND:P(A;NP;GA;;;SY)(A;NP;GA;;;BA)(A;NP;GA;;;CO)";
+        //	//"D:P(A;NP;GA;;;SY)(A;NP;GA;;;BA)(A;NP;GA;;;AU)";// Authenticated users
+        //	//"D:P(A;NP;GA;;;SY)(A;NP;GA;;;BA)(A;NP;GA;;;CO)"; // CREATOR OWNER
+        //	//"D:P(A;OICI;GA;;;SY)(A;OICI;GA;;;BA)(A;OICI;GA;;;CO)";
+        //	//  "D:"  DACL
+        //	//  "P"   SDDL_PROTECTED        The SE_DACL_PROTECTED flag is set.
+        //	//  "A"   SDDL_ACCESS_ALLOWED
+        //	// ace_flags:
+        //	//  "OI"  SDDL_OBJECT_INHERIT
+        //	//  "CI"  SDDL_CONTAINER_INHERIT
+        //	//  "NP"  SDDL_NO_PROPAGATE
+        //	// rights:
+        //	//  "GA"  SDDL_GENERIC_ALL
+        //	// account_sid: see https://docs.microsoft.com/en-us/windows/win32/secauthz/sid-strings
+        //	//  "SY"  SDDL_LOCAL_SYSTEM
+        //	//  "BA"  SDDL_BUILTIN_ADMINISTRATORS
+        //	//  "CO"  SDDL_CREATOR_OWNER
+        //	//  "WD"  SDDL_EVERYONE
 
     #elif defined(__linux__) || defined(__APPLE__)
 
@@ -698,14 +723,6 @@ namespace netxs::os
         #endif
     }
 
-    //void disable_sigpipe()
-    //{
-    //	if (::signal(SIGPIPE, SIG_IGN) == SIG_ERR)
-    //	{
-    //		throw;
-    //	}
-    //}
-
     #if defined(_WIN32)
     // Windows specific functions
 
@@ -1082,7 +1099,6 @@ namespace netxs::os
 
     #endif  // Windows specific
 
-
     enum role { client, server };
 
     using xipc = std::shared_ptr<class ipc>;
@@ -1114,7 +1130,6 @@ namespace netxs::os
         }
         else return true;
     }
-
     template<class SIZE_T>
     auto recv(fd_t fd, char* buff, SIZE_T size)
     {
@@ -1181,79 +1196,80 @@ namespace netxs::os
         return faux;
     }
 
+    #if defined(_WIN32)
+
+        struct file
+        {
+            fd_t r; // file: Read descriptor.
+            fd_t w; // file: Write descriptor.
+            fd_t& get_r() { return r; };
+            fd_t& get_w() { return w; };
+            operator bool () { return r != INVALID_FD && w != INVALID_FD; }
+            void close()
+            {
+                if (r != INVALID_FD) CloseHandle(r);
+                if (w != INVALID_FD) CloseHandle(w);
+            }
+            friend auto& operator << (std::ostream& s, file const& handle)
+            {
+                return s << handle.r << "," << handle.w;
+            }
+            file(fd_t fd_r = INVALID_FD, fd_t fd_w = INVALID_FD)
+                : r{ fd_r }, w{ fd_w }
+            { }
+        };
+        
+        class flash_t
+        {
+            fd_t h; // flash_t: Descriptor for IO interrupt.
+
+        public:
+            operator fd_t () { return h; }
+            flash_t()        { ok(h = CreateEvent(NULL, TRUE, FALSE, NULL), "CreateEvent error"); }
+           ~flash_t()        { if (h != INVALID_FD) CloseHandle(h); }
+            void reset()     { ok(SetEvent(h), "SetEvent error"); }
+        };
+
+    #elif defined(__linux__) || defined(__APPLE__)
+
+        struct file
+        {
+            fd_t h; // file: RW descriptor.
+            fd_t& get_r() { return h; };
+            fd_t& get_w() { return h; };
+            operator fd_t () { return h; }
+            operator bool () { return h != INVALID_FD; }
+            void close()
+            {
+                if (h != INVALID_FD) ::close(h);
+            }
+            friend auto& operator << (std::ostream& s, file const& handle)
+            {
+                return s << handle.h;
+            }
+            file(fd_t fd = INVALID_FD) : h{ fd } { }
+        };
+
+        class flash_t
+        {
+            fd_t h[2] = { INVALID_FD, INVALID_FD }; // flash_t: Descriptors for IO interrupt.
+            char x = 1;
+
+        public:
+            operator fd_t () { return h[0]; }
+            flash_t()        { ok(::pipe(h), "pipe(2) error"); }
+           ~flash_t()        { for(auto f : h) if (f != INVALID_FD) ::close(f); }
+            void reset()     { send(h[1], &x, sizeof(x)); }
+            void flush()     { recv(h[0], &x, sizeof(x)); }
+        };
+
+    #endif
+
     class ipc
     {
-    public:
-        #if defined(_WIN32)
-
-            struct link
-            {
-                fd_t r; // link: Read descriptor.
-                fd_t w; // link: Write descriptor.
-                fd_t& get_r() { return r; };
-                fd_t& get_w() { return w; };
-                operator bool () { return r != INVALID_FD && w != INVALID_FD; }
-                void close()
-                {
-                    if (r != INVALID_FD) CloseHandle(r);
-                    if (w != INVALID_FD) CloseHandle(w);
-                }
-                friend auto& operator << (std::ostream& s, link const& handle)
-                {
-                    return s << handle.r << "," << handle.w;
-                }
-                link(fd_t fd_r = INVALID_FD, fd_t fd_w = INVALID_FD)
-                    : r{ fd_r }, w{ fd_w }
-                { }
-            };
-
-            //static constexpr char* security_descriptor_string =
-            //	//"D:P(A;NP;GA;;;SY)(A;NP;GA;;;BA)(A;NP;GA;;;WD)";
-            //	"O:AND:P(A;NP;GA;;;SY)(A;NP;GA;;;BA)(A;NP;GA;;;CO)";
-            //	//"D:P(A;NP;GA;;;SY)(A;NP;GA;;;BA)(A;NP;GA;;;AU)";// Authenticated users
-            //	//"D:P(A;NP;GA;;;SY)(A;NP;GA;;;BA)(A;NP;GA;;;CO)"; // CREATOR OWNER
-            //	//"D:P(A;OICI;GA;;;SY)(A;OICI;GA;;;BA)(A;OICI;GA;;;CO)";
-            //	//  "D:"  DACL
-            //	//  "P"   SDDL_PROTECTED        The SE_DACL_PROTECTED flag is set.
-            //	//  "A"   SDDL_ACCESS_ALLOWED
-            //	// ace_flags:
-            //	//  "OI"  SDDL_OBJECT_INHERIT
-            //	//  "CI"  SDDL_CONTAINER_INHERIT
-            //	//  "NP"  SDDL_NO_PROPAGATE
-            //	// rights:
-            //	//  "GA"  SDDL_GENERIC_ALL
-            //	// account_sid: see https://docs.microsoft.com/en-us/windows/win32/secauthz/sid-strings
-            //	//  "SY"  SDDL_LOCAL_SYSTEM
-            //	//  "BA"  SDDL_BUILTIN_ADMINISTRATORS
-            //	//  "CO"  SDDL_CREATOR_OWNER
-            //	//  "WD"  SDDL_EVERYONE
-
-        #elif defined(__linux__) || defined(__APPLE__)
-
-            struct link
-            {
-                fd_t h; // link: RW descriptor.
-                fd_t& get_r() { return h; };
-                fd_t& get_w() { return h; };
-                operator fd_t () { return h; }
-                operator bool () { return h != INVALID_FD; }
-                void close()
-                {
-                    if (h != INVALID_FD) ::close(h);
-                }
-                friend auto& operator << (std::ostream& s, link const& handle)
-                {
-                    return s << handle.h;
-                }
-                link(fd_t fd = INVALID_FD) : h{ fd } { }
-            };
-
-        #endif
-
-    private:
         using vect = std::vector<char>;
         bool active; // ipc: Used by the os::tty.
-        link handle; // ipc: Socket file descriptor.
+        file handle; // ipc: Socket file descriptor.
         vect buffer; // ipc: Receive buffer.
         bool sealed; // ipc: Provide autoclosing.
         text scpath; // ipc: Socket path (in order to unlink).
@@ -1261,7 +1277,7 @@ namespace netxs::os
         void init(iota buff_size = PIPE_BUF) { buffer.resize(buff_size); }
 
     public:
-        ipc(link const& descriptor = {}, bool sealed = faux)
+        ipc(file const& descriptor = {}, bool sealed = faux)
             : handle{ descriptor },
               sealed{ sealed },
               active{ true }
@@ -1284,7 +1300,7 @@ namespace netxs::os
 
         operator bool () { return active; }
 
-        void set(link const& h, bool s)
+        void set(file const& h, bool s)
         {
             handle = h;
             sealed = s;
@@ -1417,7 +1433,7 @@ namespace netxs::os
 
             #elif defined(__linux__) || defined(__APPLE__)
 
-                auto s = link{ ::accept(handle.h, 0, 0) };
+                auto s = file{ ::accept(handle.h, 0, 0) };
                 return s ? std::make_shared<ipc>(s, true)
                          : nullptr;
             #endif
@@ -1509,7 +1525,7 @@ namespace netxs::os
         static auto open(text path, datetime::period retry_timeout = {}, P retry_proc = P())
             -> std::shared_ptr<ipc>
         {
-            auto sock_ptr = std::make_shared<ipc>(link{}, true);
+            auto sock_ptr = std::make_shared<ipc>(file{}, true);
             auto try_start = [&](auto play) -> bool
             {
                 auto done = play();
@@ -1702,35 +1718,10 @@ namespace netxs::os
         }
     };
 
-    #if defined(_WIN32)
-
-        class flash_t
-        {
-            fd_t h; // tty: Descriptor for IO interrupt.
-
-        public:
-            operator fd_t () { return h; }
-            flash_t()        { ok(h = CreateEvent(NULL, TRUE, FALSE, NULL), "CreateEvent error"); }
-           ~flash_t()        { if (h != INVALID_FD) CloseHandle(h); }
-            void reset()     { ok(SetEvent(h), "SetEvent error"); }
-        };
-
-    #elif defined(__linux__) || defined(__APPLE__)
-
-        class flash_t
-        {
-            fd_t h[2] = { INVALID_FD, INVALID_FD }; // tty: Descriptors for IO interrupt.
-            char x = 1;
-
-        public:
-            operator fd_t () { return h[0]; }
-            flash_t()        { ok(::pipe(h), "pipe(2) error"); }
-           ~flash_t()        { for(auto f : h) if (f != INVALID_FD) ::close(f); }
-            void reset()     { send(h[1], &x, sizeof(x)); }
-            void flush()     { recv(h[0], &x, sizeof(x)); }
-        };
-
-    #endif
+    auto vga_mode()
+    {
+        return (os::get_env("TERM") == "linux") ? 1 : 0;
+    }
 
     class tty
     {
@@ -1741,9 +1732,9 @@ namespace netxs::os
         {
             static xipc ipcio;
             static conmode state;
+            static testy<twod> winsz;
             static void resize_handler()
             {
-                static testy<twod> winsz;
                 #if defined(_WIN32)
 
                     CONSOLE_SCREEN_BUFFER_INFO cinfo;
@@ -1996,26 +1987,173 @@ namespace netxs::os
 
             #elif defined(__linux__) || defined(__APPLE__)
 
-                std::vector<char> buff(STDIN_BUF);
+                file micefd;
+                twod mcoor;
+                auto buffer = text(STDIN_BUF, '\0');
+                iota ttynum = 0;
+                ansi::esc yield;
+                bool compatibility_mode = os::vga_mode();
+
+                struct
+                {
+                    testy<twod> coord;
+                    testy<iota> shift = 0;
+                    testy<iota> bttns = 0;
+                    iota        flags = 0;
+                } state;
+                auto get_kb_state = []()
+                {
+                    iota state = 0;
+                    #if defined(__linux__)
+                        iota shift_state = 6;
+                        ok(::ioctl(STDIN_FD, TIOCLINUX, &shift_state));
+                        state = 0
+                            | (shift_state & (1 << KG_ALTGR)) >> 1 // 0x1
+                            | (shift_state & (1 << KG_ALT  )) >> 2 // 0x2
+                            | (shift_state & (1 << KG_CTRLR)) >> 5 // 0x4
+                            | (shift_state & (1 << KG_CTRL )) << 1 // 0x8
+                            | (shift_state & (1 << KG_SHIFT)) << 4 // 0x10
+                            ;
+                    #endif
+                    return state;
+                };
+                ok(::ttyname_r(STDOUT_FD, buffer.data(), buffer.size()), "ttyname_r error");
+                auto tty_name = view(buffer.data());
+                log(" tty: pseudoterminal ", tty_name);
+                if (compatibility_mode)
+                {
+                    log(" tty: compatibility mode");
+                    auto imps2_init_string = "\xf3\xc8\xf3\x64\xf3\x50";
+                    auto mouse_device = "/dev/input/mice";
+                    auto fd = ::open(mouse_device, O_RDWR);
+                    if(fd == -1) log(" tty: error opening ", mouse_device, ", error ", errno, errno == 13 ? " - permission denied" : "");
+                    else if (os::send(fd, imps2_init_string, sizeof(imps2_init_string)))
+                    {
+                        char ack;
+                        recv(fd, &ack, sizeof(ack));
+                        if (ack == '\xfa')
+                        {
+                            micefd = file{ fd };
+                            auto tty_word = tty_name.find("tty", 0);
+                            if (tty_word != text::npos)
+                            {
+                                tty_word += 3; /*skip tty letters*/
+                                auto tty_number = utf::to_view(buffer.data() + tty_word, buffer.size() - tty_word);
+                                if (auto cur_tty = utf::to_int(tty_number))
+                                {
+                                    ttynum = cur_tty.value();
+                                }
+                            }
+                            yield.show_mouse(true);
+                            ipcio.send<faux>(view(yield));
+                            yield.clear();
+                            log(" tty: mouse successfully connected, fd=", fd);
+                        }
+                    }
+                    text palette =
+                        "\033]P0000000" // 0  blackdk
+                        "\033]P1202020" // 1  blacklt
+                        "\033]P2505050" // 2  graydk
+                        "\033]P3808080" // 3  graylt
+                        "\033]P4d0d0d0" // 4  whitedk
+                        "\033]P5ffffff" // 5  whitelt
+                        "\033]P6E64856" // 6  redlt
+                        "\033]P73A78FF" // 7  bluelt
+
+                        "\033]P815C60C" // 0  greenlt
+                        "\033]P9F8F1A5" // 1  yellowlt
+                        "\033]PaB3009E" // 2  magentalt
+                        "\033]PbC40F1F" // 3  reddk
+                        "\033]Pc0037DB" // 4  bluedk
+                        "\033]Pd12A10E" // 5  greendk
+                        "\033]PeC09C00" // 6  yellowdk
+                        "\033]Pf60D6D6" // 7  cyanlt
+                        //"\033[1;5]" // set whitelt as the underline color (linux console doesn't support underline)
+                        //"\033[2;3]" // set graylt as the dim color
+                        ;
+                    os::send(STDOUT_FD, palette.data(), palette.size());
+
+                    if (!micefd)
+                    {
+                        log(" tty: mouse initialization error");
+                        ::close(fd);
+                    }
+                }
+
                 while (ipcio)
                 {
                     fd_set socks;
                     FD_ZERO(&socks);
-                    FD_SET(STDIN_FD, &socks);
-                    FD_SET(flash, &socks);
-                    auto nfds = std::max(STDIN_FD, (fd_t)flash) + 1;
-
+                    FD_SET(STDIN_FD,    &socks);
+                    FD_SET((fd_t)flash, &socks);
+                    auto nfds = std::max(STDIN_FD, (fd_t)flash);
+                    if (micefd)
+                    {
+                        nfds = std::max(nfds, (fd_t)micefd);
+                        FD_SET((fd_t)micefd, &socks);
+                    }
+                    nfds++;
                     if (::select(nfds, &socks, 0, 0, 0) > 0)
                     {
-                        if (FD_ISSET(flash, &socks))
+                        if (FD_ISSET(STDIN_FD, &socks))
+                        {
+                            if (micefd && state.shift(get_kb_state()))
+                            {
+                                yield.meta_state(state.shift.last);
+                                auto data = os::recv(STDIN_FD, buffer.data(), buffer.size());
+                                yield += data;
+                                ipcio.send<faux>(yield);
+                                yield.clear();
+                            }
+                            else
+                            {
+                                auto data = os::recv(STDIN_FD, buffer.data(), buffer.size());
+                                ipcio.send<faux>(data);
+                            }
+                        }
+                        else if (FD_ISSET((fd_t)flash, &socks))
                         {
                             log("xipc: flash fired");
                             flash.flush();
                         }
-                        else if (FD_ISSET(STDIN_FD, &socks))
+                        else if (micefd && FD_ISSET((fd_t)micefd, &socks))
                         {
-                            auto data = os::recv(STDIN_FD, buff.data(), buff.size());
-                            ipcio.send<faux>(data);
+                            auto data = os::recv(micefd, buffer.data(), buffer.size());
+                            if (data.size() == 4 /*ImPS only*/)
+                            {
+                                #if defined(__linux__)
+                                    vt_stat vt_state;
+                                    ok(::ioctl(STDOUT_FD, VT_GETSTATE, &vt_state));
+                                    if (vt_state.v_active == ttynum)
+                                    {
+                                        auto scale = twod{6,12}; //todo magic numbers
+                                        auto bttns = data[0] & 7;
+                                        mcoor.x += data[1];
+                                        mcoor.y -= data[2];
+                                        auto wheel = -data[3]; //todo configurable direction
+                                        auto limit = _globals<void>::winsz.last * scale;
+                                        if (bttns == 0) mcoor = std::clamp(mcoor, dot_00, limit);
+                                        state.flags = wheel ? 4 : 0;
+                                        if (state.coord(mcoor / scale)
+                                        || state.bttns(bttns)
+                                        || state.shift(get_kb_state())
+                                        || state.flags)
+                                        {
+                                            yield.w32begin()
+                                            .w32mouse(0,
+                                                    state.bttns.last,
+                                                    state.shift.last,
+                                                    state.flags,
+                                                    wheel,
+                                                    state.coord.last.x,
+                                                    state.coord.last.y)
+                                            .w32close();
+                                            ipcio.send<faux>(view(yield));
+                                            yield.clear();
+                                        }
+                                    }
+                                #endif
+                            }
                         }
                     }
                 }
@@ -2029,9 +2167,9 @@ namespace netxs::os
         { }
 
     public:
-        static auto proxy(xipc link)
+        static auto proxy(xipc pipe_link)
         {
-            _globals<void>::ipcio = link;
+            _globals<void>::ipcio = pipe_link;
             return tty{};
         }
         bool output(view text)
@@ -2072,7 +2210,6 @@ namespace netxs::os
             #elif defined(__linux__) || defined(__APPLE__)
 
                 auto& state = _globals<void>::state;
-
                 if (ok(::tcgetattr(STDIN_FD, &state))) // Set stdin raw mode.
                 {
                     ::termios raw_mode = state;
@@ -2105,8 +2242,9 @@ namespace netxs::os
         }
     };
 
-    template<class V> xipc    tty::_globals<V>::ipcio;
-    template<class V> conmode tty::_globals<V>::state;
+    template<class V> xipc        tty::_globals<V>::ipcio;
+    template<class V> conmode     tty::_globals<V>::state;
+    template<class V> testy<twod> tty::_globals<V>::winsz;
 
     class cons
     {
@@ -2298,6 +2436,7 @@ namespace netxs::os
                     }
                     argv.push_back(nullptr);
 
+                    ::setenv("TERM", "xterm-256color", 1); //todo too hacky
                     ok(::execvp(argv.front(), argv.data()), "execvp error");
                     os::exit(1, "cons: exec error ", errno);
                 }

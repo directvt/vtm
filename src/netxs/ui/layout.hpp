@@ -104,11 +104,11 @@ namespace netxs::ui::atoms
             }
         }
 
-        bool operator == (rgba const& c) const
+        auto operator == (rgba const& c) const
         {
             return token == c.token;
         }
-        bool operator != (rgba const& c) const
+        auto operator != (rgba const& c) const
         {
             return !operator == (c);
         }
@@ -125,7 +125,7 @@ namespace netxs::ui::atoms
             token = colorblack;
         }
         // rgba: Are the colors alpha blenable?
-        bool is_alpha_blendable() const
+        auto is_alpha_blendable() const
         {
             if (chan.a && chan.a != 0xFF)
             {
@@ -139,9 +139,16 @@ namespace netxs::ui::atoms
             chan.a = k;
         }
         // rgba: Return alpha channel.
-        uint8_t alpha() const
+        auto alpha() const
         {
             return chan.a;
+        }
+        // rgba: Colourimetric (perceptual luminance-preserving) conversion to greyscale.
+        auto luma() const
+        {
+            return static_cast<uint8_t>(0.2627 * chan.r
+                                      + 0.6780 * chan.g
+                                      + 0.0593 * chan.b);
         }
         // rgba: Equal both to their average.
         void avg(rgba& c)
@@ -310,22 +317,22 @@ namespace netxs::ui::atoms
 
         static constexpr uint32_t color256[] =
         {
-            0xFF101010,	// blackdk
-            0xFF1F0FC4,	// reddk
-            0xFF0EA112,	// greendk
-            0xFF009CC0,	// yellowdk
-            0xFFDB3700,	// bluedk
-            0xFF981787,	// magentadk
-            0xFFDD963B,	// cyandk
-            0xFFBBBBBB,	// whitedk
-            0xFF757575,	// blacklt
-            0xFF5648E6,	// redlt
-            0xFF0CC615,	// greenlt
-            0xFFA5F1F8,	// yellowlt
-            0xFFFF783A,	// bluelt
-            0xFF9E00B3,	// magentalt
-            0xFFD6D660,	// cyanlt
-            0xFFF3F3F3,	// whitelt
+            0xFF101010,	// 0  blackdk
+            0xFF1F0FC4,	// 1  reddk
+            0xFF0EA112,	// 2  greendk
+            0xFF009CC0,	// 3  yellowdk
+            0xFFDB3700,	// 4  bluedk
+            0xFF981787,	// 5  magentadk
+            0xFFDD963B,	// 6  cyandk
+            0xFFBBBBBB,	// 7  whitedk
+            0xFF757575,	// 8  blacklt
+            0xFF5648E6,	// 9  redlt
+            0xFF0CC615,	// 10 greenlt
+            0xFFA5F1F8,	// 11 yellowlt
+            0xFFFF783A,	// 12 bluelt
+            0xFF9E00B3,	// 13 magentalt
+            0xFFD6D660,	// 14 cyanlt
+            0xFFF3F3F3,	// 15 whitelt
             // 6×6×6 RGB-cube (216 colors), index = 16 + 36r + 6g + b, r,g,b=[0, 5]
             0xFF000000, 0xFF5F0000, 0xFF870000, 0xFFAF0000, 0xFFD70000, 0xFFFF0000,
             0xFF005F00, 0xFF5F5F00, 0xFF875F00, 0xFFAF5F00, 0xFFD75F00, 0xFFFF5F00,
@@ -660,7 +667,7 @@ namespace netxs::ui::atoms
             {
                 return param.shared.token == b.param.shared.token;
             }
-            template<class T>
+            template<bool TRUECOLOR = true, class T>
             void get(body& base, T& dest) const
             {
                 if (!like(base))
@@ -677,7 +684,8 @@ namespace netxs::ui::atoms
                     }
                     if (cvar.unline != bvar.unline)
                     {
-                        dest.und(cvar.unline);
+                        if constexpr (TRUECOLOR) dest.und(cvar.unline);
+                        else                     dest.inv(cvar.unline);
                     }
                     if (cvar.invert != bvar.invert)
                     {
@@ -748,18 +756,20 @@ namespace netxs::ui::atoms
                 return !operator == (c);
             }
 
-            template<class T>
+            template<bool TRUECOLOR = true, class T>
             void get(clrs& base, T& dest)	const
             {
                 if (bg != base.bg)
                 {
                     base.bg = bg;
-                    dest.bgc(bg);
+                    if constexpr (TRUECOLOR) dest.bgc  (bg);
+                    else                     dest.bgc16(bg);
                 }
                 if (fg != base.fg)
                 {
                     base.fg = fg;
-                    dest.fgc(fg);
+                    if constexpr (TRUECOLOR) dest.fgc  (fg);
+                    else                     dest.fgc16(fg);
                 }
             }
             void wipe()
@@ -897,32 +907,32 @@ namespace netxs::ui::atoms
             st = c.st;
         }
         // cell: Get differences of the visual attributes only (ANSI CSI/SGR format).
-        template<class T>
+        template<bool TRUECOLOR = true, class T>
         void scan_attr(cell& base, T& dest) const
         {
             if (!like(base))
             {
                 //todo additionally consider UNIQUE ATTRIBUTES
-                uv.get(base.uv, dest);
-                st.get(base.st, dest);
+                uv.get<TRUECOLOR>(base.uv, dest);
+                st.get<TRUECOLOR>(base.st, dest);
             }
         }
         // cell: Get differences (ANSI CSI/SGR format) of "base" and add it to "dest" and update the "base".
-        template<class T>
+        template<bool TRUECOLOR = true, class T>
         void scan(cell& base, T& dest) const
         {
             if (!like(base))
             {
                 //todo additionally consider UNIQUE ATTRIBUTES
-                uv.get(base.uv, dest);
-                st.get(base.st, dest);
+                uv.get<TRUECOLOR>(base.uv, dest);
+                st.get<TRUECOLOR>(base.st, dest);
             }
 
             if (wdt()) dest += gc.get();
             else       dest += whitespace;
         }
         // cell: !!! Ensure that this.wdt == 2 and the next wdt == 3 and they are the same.
-        template<class T>
+        template<bool TRUECOLOR = true, class T>
         bool scan(cell& next, cell& base, T& dest) const
         {
             if (gc.same(next.gc) && like(next))
@@ -930,8 +940,8 @@ namespace netxs::ui::atoms
                 if (!like(base))
                 {
                     //todo additionally consider UNIQUE ATTRIBUTES
-                    uv.get(base.uv, dest);
-                    st.get(base.st, dest);
+                    uv.get<TRUECOLOR>(base.uv, dest);
+                    st.get<TRUECOLOR>(base.st, dest);
                 }
                 dest += gc.get();
                 return true;

@@ -202,12 +202,15 @@ namespace netxs::console::ansi
     static const iota CCC_REF    = 23 ; // CSI 23: id      p  - create the reference to the existing paragraph.
     static const iota CCC_SBS    = 24 ; // CSI 24: n: m    p  - define scrollback size: n: max size, m: grow_by step.
     static const iota CCC_EXT    = 25 ; // CSI 25: b       p  - extended functionality support.
-    //static const iota CCC_WIN = 20 ; // CSI 20: x: y    p    terminal window resize.
+    static const iota CCC_SMS    = 26 ; // CSI 26: b       p  - Should the mouse poiner to be drawn.
+    static const iota CCC_KBD    = 27 ; // CSI 27: n       p  - Set keyboard modifiers.
 
     // ansi: Escaped sequences accumulator.
     struct esc
         : public text
     {
+        esc() = default;
+
         inline text str(iota n) { return std::to_string(n); }
         inline text str(char n) { return text(1, n); }
 
@@ -238,7 +241,7 @@ namespace netxs::console::ansi
         esc& bpmode (bool b) { add(b ? "\033[?2004h" : "\033[?2004l");  return *this; } // esc: Set bracketed paste mode.
         esc& autowr (bool b) { add(b ? "\033[?7h"    : "\033[?7l");     return *this; } // esc: Set autowrap mode.
         esc& save_title ()   { add("\033[22;0t");                       return *this; } // esc: Save terminal window title.
-        esc& scrn_reset ()   { add("\033[H\033[m\033[3J");              return *this; } // esc: Erase scrollback and reset caret location.
+        esc& scrn_reset ()   { add("\033]R\033[H\033[m\033[3J");        return *this; } // esc: Reset palette, erase scrollback and reset caret location.
         esc& load_title ()   { add("\033[23;0t");                       return *this; } // esc: Restore terminal window title.
 
         esc& w32input (bool b) { add(b ? "\033[?9001h" : "\033[?9001l");        return *this; } // ansi: Application Caret Keys (DECCKM).
@@ -331,7 +334,90 @@ namespace netxs::console::ansi
         esc& bgc (rgba const& c) { add("\033[48;2;" + str(c.chan.r) + ";" // esc: SGR Background color. RGB: red, green, blue and alpha.
                                                     + str(c.chan.g) + ";"
                                                     + str(c.chan.b) + "m"); return *this; }
-
+        // esc: SGR Foreground grayscale (compatibility mode).
+        esc& fgc16 (rgba const& c)
+        {
+            iota clr = 30;
+            switch(c.token)
+            {
+                case 0xFF000000: clr += 0;
+                    add("\033[22;" + str(clr) + "m");
+                    return *this;
+                case 0xFFffffff: clr += 5;
+                    add("\033[22;" + str(clr) + "m");
+                    return *this;
+                case 0xFF00ff00:
+                case rgba{ rgba::color256[tint::greenlt  ] }.token: clr += 60 + 0; break;
+                case 0xFF00ffff:
+                case rgba{ rgba::color256[tint::yellowlt ] }.token: clr += 60 + 1; break;
+                case 0xFFff00ff:
+                case rgba{ rgba::color256[tint::magentalt] }.token: clr += 60 + 2; break;
+                case rgba{ rgba::color256[tint::reddk    ] }.token: clr += 60 + 3; break;
+                case rgba{ rgba::color256[tint::bluedk   ] }.token: clr += 60 + 4; break;
+                case rgba{ rgba::color256[tint::greendk  ] }.token: clr += 60 + 5; break;
+                case rgba{ rgba::color256[tint::yellowdk ] }.token: clr += 60 + 6; break;
+                case 0xFFffff00:
+                case rgba{ rgba::color256[tint::cyanlt   ] }.token: clr += 60 + 7; break;
+                case 0xFF0000ff:
+                case rgba{ rgba::color256[tint::redlt    ] }.token:
+                    clr += 6;
+                    add("\033[22;" + str(clr) + "m");
+                    return *this;
+                case rgba{ rgba::color256[tint::blacklt  ] }.token:
+                    clr += 4;
+                    add("\033[22;" + str(clr) + "m");
+                    return *this;
+                case 0xFFff0000:
+                case rgba{ rgba::color256[tint::bluelt   ] }.token:
+                    clr += 7;
+                    add("\033[22;" + str(clr) + "m");
+                    return *this;
+                default: // grayscale
+                    auto l = c.luma();
+                    if      (l < 42)  clr += 1;
+                    else if (l < 90)  clr += 2;
+                    else if (l < 170) clr += 3;
+                    else if (l < 240) clr += 4;
+                    else              clr += 5;
+                    add("\033[22;" + str(clr) + "m");
+                    return *this;
+            }
+            add("\033[" + str(clr) + "m");
+            return *this;
+        }
+        // esc: SGR Background grayscale (compatibility mode).
+        esc& bgc16 (rgba const& c)
+        {
+            iota clr = 40;
+            switch(c.token)
+            {
+                case 0xFF000000: clr += 0; break;
+                case 0xFFffffff: clr += 5; break;
+                case 0xFF0000ff:
+                case rgba{ rgba::color256[tint::reddk   ] }.token: clr += 6; break;
+                case rgba{ rgba::color256[tint::redlt   ] }.token: clr += 6; break;
+                case 0xFFff0000:
+                case rgba{ rgba::color256[tint::bluelt  ] }.token: clr += 7; break;
+                default:
+                    if (c.chan.b > 0xE0
+                     && c.chan.r > 0x30 && c.chan.r < 0x50
+                     && c.chan.g > 0x70 && c.chan.g < 0xd0)
+                    {
+                        clr += 7;
+                    }
+                    else // grayscale
+                    {
+                        auto l = c.luma();
+                        if      (l < 42)  clr += 1;
+                        else if (l < 90)  clr += 2;
+                        else if (l < 170) clr += 3;
+                        else if (l < 240) clr += 4;
+                        else              clr += 5;
+                    }
+            }
+            add("\033[" + str(clr) + "m");
+            return *this;
+        }
         esc& sav ()              { add("\033[10m");                     return *this; } // esc: Save SGR attributes.
         esc& nil ()              { add("\033[m");                       return *this; } // esc: Reset SGR attributes to zero.
         esc& nop ()              { add("\033["   + str(CSI_CCC));       return *this; } // esc: No operation. Split the text run.
@@ -362,6 +448,8 @@ namespace netxs::console::ansi
         esc& idx (iota i)        { add("\033[19:"+ str(i  ) + CSI_CCC); return *this; } // esc: Split the text run and associate the fragment with an id.
         esc& ref (iota i)        { add("\033[23:"+ str(i  ) + CSI_CCC); return *this; } // esc: Create the reference to the existing paragraph.
         esc& ext (bool b)        { add("\033[25:"); add(b ? "1" : "0"); add(CSI_CCC); return *this; } // esc: Extended functionality support.
+        esc& show_mouse (bool b) { add("\033[26:"+ str(b  ) + CSI_CCC); return *this; } // esc: Should the mouse poiner to be drawn.
+        esc& meta_state (iota m) { add("\033[27:"+ str(m  ) + CSI_CCC); return *this; } // esc: Set keyboard meta modifiers (Ctrl, Shift, Alt, etc).
         //todo unify
         //esc& win (twod const& p){ add("\033[20:" + str(p.x) + ":"                       // esc: Terminal window resize report.
         //                                         + str(p.y) + CSI_CCC); return *this; }
@@ -451,6 +539,7 @@ namespace netxs::console::ansi
     static esc mgt (iota n)          { return esc{}.mgt (n); } // ansi: Top margin.
     static esc mgb (iota n)          { return esc{}.mgb (n); } // ansi: Bottom margin.
     static esc ext (bool b)          { return esc{}.ext (b); } // ansi: Extended functionality.
+    static esc show_mouse(bool b)    { return esc{}.show_mouse(b); } // esc: Should the mouse poiner to be drawn.
 
     static esc jet (iota n)          { return esc{}.jet (n); } // ansi: Text alignment.
     static esc wrp (iota n)          { return esc{}.wrp (n); } // ansi: Text wrapping.
@@ -711,6 +800,8 @@ namespace netxs::console::ansi
                     csi_ccc[CCC_REF] = nullptr;
                     csi_ccc[CCC_SBS] = nullptr;
                     csi_ccc[CCC_EXT] = nullptr;
+                    csi_ccc[CCC_SMS] = nullptr;
+                    csi_ccc[CCC_KBD] = nullptr;
 
                 auto& csi_sgr = table[CSI_SGR].resize(0x100);
                 csi_sgr.enable_multi_arg();
