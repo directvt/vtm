@@ -32,6 +32,28 @@ namespace netxs::ui::atoms
         blackdk, reddk, greendk, yellowdk, bluedk, magentadk, cyandk, whitedk,
         blacklt, redlt, greenlt, yellowlt, bluelt, magentalt, cyanlt, whitelt,
     };
+    struct tint16
+    {
+        enum : iota
+        {
+            blackdk,
+            blacklt,
+            graydk,
+            graylt,
+            whitedk,
+            whitelt,
+            redlt,
+            bluelt,
+            greenlt,
+            yellowlt,
+            magentalt,
+            reddk,
+            bluedk,
+            greendk,
+            yellowdk,
+            cyanlt,
+        };
+    };
 
     // layout: 8-bit RGBA.
     union rgba
@@ -314,7 +336,25 @@ namespace netxs::ui::atoms
                        + std::to_string(chan.b) + ","
                        + std::to_string(chan.a) + "}";
         }
-
+        static constexpr uint32_t color16[] =
+        {
+            0xFF000000, // 0  blackdk
+            0xFF202020, // 1  blacklt
+            0xFF505050, // 2  graydk
+            0xFF808080, // 3  graylt
+            0xFFd0d0d0, // 4  whitedk
+            0xFFffffff, // 5  whitelt
+            0xFF5648E6, // 6  redlt
+            0xFFFF783A, // 7  bluelt
+            0xFF0CC615, // 0  greenlt
+            0xFFA5F1F8, // 1  yellowlt
+            0xFF9E00B3, // 2  magentalt
+            0xFF1F0FC4, // 3  reddk
+            0xFFDB3700, // 4  bluedk
+            0xFF0EA112, // 5  greendk
+            0xFF009CC0, // 6  yellowdk
+            0xFFD6D660, // 7  cyanlt
+        };
         static constexpr uint32_t color256[] =
         {
             0xFF101010,	// 0  blackdk

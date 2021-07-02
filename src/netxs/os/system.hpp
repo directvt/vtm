@@ -22,6 +22,7 @@
 #include "../datetime/quartz.hpp"
 #include "../abstract/ptr.hpp"
 #include "../console/ansi.hpp"
+#include "../ui/layout.hpp"
 
 #include <type_traits>
 #include <iostream>         // std::cout
@@ -94,6 +95,7 @@ namespace netxs::os
     using xipc = std::shared_ptr<class ipc>;
     using namespace std::chrono_literals;
     using namespace netxs::console;
+    using namespace netxs::ui::atoms;
 
     enum role { client, server };
 
@@ -229,12 +231,13 @@ namespace netxs::os
         return val ? text{ val }
                    : text{};
     }
-    static auto legacy_mode()
+
+    enum legacy : iota
     {
-        auto terminal_type = os::get_env("TERM");
-        log("  os: terminal type \"", terminal_type, "\"");
-        return (terminal_type == "linux") ? 1 : 0;
-    }
+        clean = 0,
+        mouse = 1 << 0,
+        color = 1 << 1,
+    };
     static auto local_mode()
     {
         auto conmode = -1;
@@ -253,6 +256,51 @@ namespace netxs::os
         #endif
 
         return conmode != -1;
+    }
+    static auto legacy_mode()
+    {
+        auto vga16colors = {
+            "ansi",
+            "linux",
+            "linux-16color",
+            "xterm",
+            "xterm-color",
+            "xterm-16color",
+            "dvtm",
+            "tmux",
+            "fbcon",
+            "rxvt-16color",
+            "konsole-16color",
+            "aixterm-16color",
+        };
+        iota mode = legacy::clean;
+        auto term = os::get_env("TERM");
+        log("  os: terminal type \"", term, "\"");
+        if (term.ends_with("16color"))
+        {
+            mode |= legacy::color;
+        }
+        else
+        {
+            for (auto& type : vga16colors)
+            {
+                if (term == type)
+                {
+                    mode |= legacy::color;
+                    break;
+                }
+            }
+        }
+        if (os::get_env("TERM_PROGRAM") == "Apple_Terminal")
+        {
+            log("  os: macOS Apple_Terminal detected");
+            mode |= legacy::color;
+        }
+
+        if (local_mode()) mode |= legacy::mouse;
+        log("  os: color mode: ", mode & legacy::color ? "16-color" : "true-color");
+        log("  os: mouse mode: ", mode & legacy::mouse ? "console" : "VT-style");
+        return mode;
     }
     static auto vtgafont_update()
     {
@@ -1932,7 +1980,9 @@ namespace netxs::os
                 auto buffer = text(STDIN_BUF, '\0');
                 iota ttynum = 0;
                 ansi::esc yield;
-                bool compatibility_mode = os::legacy_mode();
+                auto legacy = os::legacy_mode();
+                bool legacy_mouse = legacy & os::legacy::mouse;
+                bool legacy_color = legacy & os::legacy::color;
 
                 struct
                 {
@@ -1960,7 +2010,7 @@ namespace netxs::os
                 ok(::ttyname_r(STDOUT_FD, buffer.data(), buffer.size()), "ttyname_r error");
                 auto tty_name = view(buffer.data());
                 log(" tty: pseudoterminal ", tty_name);
-                if (compatibility_mode)
+                if (legacy_mouse)
                 {
                     log(" tty: compatibility mode");
                     auto imps2_init_string = "\xf3\xc8\xf3\x64\xf3\x50";
@@ -1990,36 +2040,38 @@ namespace netxs::os
                             log(" tty: mouse successfully connected, fd=", fd);
                         }
                     }
-                    text palette =
-                        "\033]P0000000" // 0  blackdk
-                        "\033]P1202020" // 1  blacklt
-                        "\033]P2505050" // 2  graydk
-                        "\033]P3808080" // 3  graylt
-                        "\033]P4d0d0d0" // 4  whitedk
-                        "\033]P5ffffff" // 5  whitelt
-                        "\033]P6E64856" // 6  redlt
-                        "\033]P73A78FF" // 7  bluelt
-
-                        "\033]P815C60C" // 0  greenlt
-                        "\033]P9F8F1A5" // 1  yellowlt
-                        "\033]PaB3009E" // 2  magentalt
-                        "\033]PbC40F1F" // 3  reddk
-                        "\033]Pc0037DB" // 4  bluedk
-                        "\033]Pd12A10E" // 5  greendk
-                        "\033]PeC09C00" // 6  yellowdk
-                        "\033]Pf60D6D6" // 7  cyanlt
-                        //"\033[1;5]" // set whitelt as the underline color (linux console doesn't support underline)
-                        //"\033[2;3]" // set graylt as the dim color
-                        ;
-                    os::send(STDOUT_FD, palette.data(), palette.size());
-
                     if (!micefd)
                     {
                         log(" tty: mouse initialization error");
                         ::close(fd);
                     }
                 }
-
+                if (legacy_color)
+                {
+                    auto set_pal = [&](auto p)
+                    {
+                        (yield.*p)(0,  rgba::color16[tint16::blackdk  ]);
+                        (yield.*p)(1,  rgba::color16[tint16::blacklt  ]);
+                        (yield.*p)(2,  rgba::color16[tint16::graydk   ]);
+                        (yield.*p)(3,  rgba::color16[tint16::graylt   ]);
+                        (yield.*p)(4,  rgba::color16[tint16::whitedk  ]);
+                        (yield.*p)(5,  rgba::color16[tint16::whitelt  ]);
+                        (yield.*p)(6,  rgba::color16[tint16::redlt    ]);
+                        (yield.*p)(7,  rgba::color16[tint16::bluelt   ]);
+                        (yield.*p)(8,  rgba::color16[tint16::greenlt  ]);
+                        (yield.*p)(9,  rgba::color16[tint16::yellowlt ]);
+                        (yield.*p)(10, rgba::color16[tint16::magentalt]);
+                        (yield.*p)(11, rgba::color16[tint16::reddk    ]);
+                        (yield.*p)(12, rgba::color16[tint16::bluedk   ]);
+                        (yield.*p)(13, rgba::color16[tint16::greendk  ]);
+                        (yield.*p)(14, rgba::color16[tint16::yellowdk ]);
+                        (yield.*p)(15, rgba::color16[tint16::cyanlt   ]);
+                    };
+                    if (legacy_mouse) set_pal(&ansi::esc::old_palette);
+                    else              set_pal(&ansi::esc::osc_palette);
+                    os::send(STDOUT_FD, yield.data(), yield.size());
+                    yield.clear();
+                }
                 while (ipcio)
                 {
                     fd_set socks;
@@ -2098,6 +2150,14 @@ namespace netxs::os
                     }
                 }
 
+                if (legacy_color)
+                {
+                    if (legacy_mouse) yield.old_palette_reset();
+                    else              yield.osc_palette_reset();
+                    os::send(STDOUT_FD, yield.data(), yield.size());
+                    yield.clear();
+                    log(" tty: palette restored");
+                }
             #endif
 
             log(" tty: reader thread completed");

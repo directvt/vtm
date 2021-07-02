@@ -241,8 +241,43 @@ namespace netxs::console::ansi
         esc& bpmode (bool b) { add(b ? "\033[?2004h" : "\033[?2004l");  return *this; } // esc: Set bracketed paste mode.
         esc& autowr (bool b) { add(b ? "\033[?7h"    : "\033[?7l");     return *this; } // esc: Set autowrap mode.
         esc& save_title ()   { add("\033[22;0t");                       return *this; } // esc: Save terminal window title.
-        esc& scrn_reset ()   { add("\033]R\033[H\033[m\033[3J");        return *this; } // esc: Reset palette, erase scrollback and reset caret location.
+        esc& scrn_reset ()   { add("\033[H\033[m\033[3J");              return *this; } // esc: Reset palette, erase scrollback and reset caret location.
         esc& load_title ()   { add("\033[23;0t");                       return *this; } // esc: Restore terminal window title.
+        esc& osc_palette (iota i, rgba const& c) // esc: Set color palette. ESC ] 4 ; <i> ; rgb : <r> / <g> / <b> ESC.
+        {
+            add("\033]4;" + str(i) + ";rgb:" + utf::to_hex(c.chan.r) + "/"
+                                             + utf::to_hex(c.chan.g) + "/"
+                                             + utf::to_hex(c.chan.b) + "\07");
+            return *this;
+        }
+        esc& osc_palette_reset () // esc: Reset color palette.
+        {
+            add("\033]4;0;black\a");
+            add("\033]4;1;red\a");
+            add("\033]4;2;green\a");
+            add("\033]4;3;yellow\a");
+            add("\033]4;4;blue\a");
+            add("\033]4;5;magenta\a");
+            add("\033]4;6;cyan\a");
+            add("\033]4;7;light gray\a");
+            add("\033]4;8;dark gray\a");
+            add("\033]4;9;light red\a");
+            add("\033]4;10;light green\a");
+            add("\033]4;11;light yellow\a");
+            add("\033]4;12;light blue\a");
+            add("\033]4;13;light magenta\a");
+            add("\033]4;14;light cyan\a");
+            add("\033]4;15;white\a");
+            return *this;
+        }
+        esc& old_palette_reset (){ add("\033]R"); return *this; } // esc: Reset color palette (Linux console).
+        esc& old_palette (iota i, rgba const& c) // esc: Set color palette (Linux console).
+        {
+            add("\033]P" + utf::to_hex(i, 1) + utf::to_hex(c.chan.r, 2)
+                                             + utf::to_hex(c.chan.g, 2)
+                                             + utf::to_hex(c.chan.b, 2) + "\033");
+            return *this;
+        }
 
         esc& w32input (bool b) { add(b ? "\033[?9001h" : "\033[?9001l");        return *this; } // ansi: Application Caret Keys (DECCKM).
         esc& w32begin () { clear(); add("\033["); return *this; }
