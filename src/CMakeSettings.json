@@ -14,7 +14,14 @@
       "wslPath": "${defaultWSLPath}",
       "addressSanitizerRuntimeFlags": "detect_leaks=0",
       "remoteCopyUseCompilerDefaults": true,
-      "intelliSenseMode": "linux-gcc-x64"
+      "intelliSenseMode": "linux-gcc-x64",
+      "variables": [
+        {
+          "name": "CMAKE_CXX_FLAGS",
+          "value": "-pthread",
+          "type": "STRING"
+        }
+      ]
     },
     {
       "name": "WSL-GCC-Debug",
@@ -52,17 +59,22 @@
       "variables": [
         {
           "name": "CMAKE_CXX_FLAGS_RELEASE",
-          "value": "-MT -DNDEBUG -Ofast -pthread -s",
+          "value": "-MT -DNDEBUG -Ofast -s",
           "type": "STRING"
         },
         {
           "name": "CMAKE_CXX_FLAGS_MINSIZEREL",
-          "value": "-Ofast -DNDEBUG -pthread",
+          "value": "-Ofast -DNDEBUG",
           "type": "STRING"
         },
         {
           "name": "CMAKE_EXE_LINKER_FLAGS_RELEASE",
           "value": "-static-libstdc++",
+          "type": "STRING"
+        },
+        {
+          "name": "CMAKE_CXX_FLAGS",
+          "value": "-pthread",
           "type": "STRING"
         }
       ],

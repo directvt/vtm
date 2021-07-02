@@ -11,19 +11,7 @@ A text-based desktop environment inside your terminal*
  - [Grapheme Clustering](https://unicode.org/reports/tr29/#Grapheme_Cluster_Boundaries)
  - [Unicode/UTF-8](https://www.cl.cam.ac.uk/~mgk25/unicode.html)
 
-#### Tested Terminals
-
- - [Linux Console](https://en.wikipedia.org/wiki/Linux_console): mouse support requires RW access to the `/dev/input/mice` meta device
- - [Windows Command Prompt](https://github.com/microsoft/terminal): Windows 10 or later required
- - [Ultimate++ Terminal widget](https://github.com/ismail-yilmaz/upp-components/tree/master/CtrlLib/Terminal)
- - [Windows Terminal](https://github.com/microsoft/terminal)
- - [Gnome Terminal](https://wiki.gnome.org/Apps/Terminal)
- - [mintty](https://github.com/mintty/mintty)
- - [kitty](https://github.com/kovidgoyal/kitty)
- - [Alacritty](https://github.com/alacritty/alacritty)
- - [PuTTY](https://www.putty.org/): DECSET 1002 and 1006 are supported by PuTTY, which is enough to move windows, but not enough to highlight UI elements
- - [Konsole](https://konsole.kde.org/)
- - [xterm](https://invisible-island.net/xterm/)
+#### [Tested Terminals](https://github.com/netxs-group/VTM/discussions/72)
 
 # Demo
 ### Live SSH
