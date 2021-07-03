@@ -1213,6 +1213,52 @@ namespace netxs::os
         }
         return faux;
     }
+    static auto set_palette(iota legacy)
+    {
+        ansi::esc yield;
+        bool legacy_mouse = legacy & os::legacy::mouse;
+        bool legacy_color = legacy & os::legacy::color;
+        if (legacy_color)
+        {
+            auto set_pal = [&](auto p)
+            {
+                (yield.*p)(0,  rgba::color16[tint16::blackdk  ]);
+                (yield.*p)(1,  rgba::color16[tint16::blacklt  ]);
+                (yield.*p)(2,  rgba::color16[tint16::graydk   ]);
+                (yield.*p)(3,  rgba::color16[tint16::graylt   ]);
+                (yield.*p)(4,  rgba::color16[tint16::whitedk  ]);
+                (yield.*p)(5,  rgba::color16[tint16::whitelt  ]);
+                (yield.*p)(6,  rgba::color16[tint16::redlt    ]);
+                (yield.*p)(7,  rgba::color16[tint16::bluelt   ]);
+                (yield.*p)(8,  rgba::color16[tint16::greenlt  ]);
+                (yield.*p)(9,  rgba::color16[tint16::yellowlt ]);
+                (yield.*p)(10, rgba::color16[tint16::magentalt]);
+                (yield.*p)(11, rgba::color16[tint16::reddk    ]);
+                (yield.*p)(12, rgba::color16[tint16::bluedk   ]);
+                (yield.*p)(13, rgba::color16[tint16::greendk  ]);
+                (yield.*p)(14, rgba::color16[tint16::yellowdk ]);
+                (yield.*p)(15, rgba::color16[tint16::cyanlt   ]);
+            };
+            if (legacy_mouse) set_pal(&ansi::esc::old_palette);
+            else              set_pal(&ansi::esc::osc_palette);
+            os::send(STDOUT_FD, yield.data(), yield.size());
+            yield.clear();
+        }
+    }
+    static auto rst_palette(iota legacy)
+    {
+        ansi::esc yield;
+        bool legacy_mouse = legacy & os::legacy::mouse;
+        bool legacy_color = legacy & os::legacy::color;
+        if (legacy_color)
+        {
+            if (legacy_mouse) yield.old_palette_reset();
+            else              yield.osc_palette_reset();
+            os::send(STDOUT_FD, yield.data(), yield.size());
+            yield.clear();
+            log(" tty: palette restored");
+        }
+    }
 
     #if defined(_WIN32)
 
@@ -2046,32 +2092,7 @@ namespace netxs::os
                         ::close(fd);
                     }
                 }
-                if (legacy_color)
-                {
-                    auto set_pal = [&](auto p)
-                    {
-                        (yield.*p)(0,  rgba::color16[tint16::blackdk  ]);
-                        (yield.*p)(1,  rgba::color16[tint16::blacklt  ]);
-                        (yield.*p)(2,  rgba::color16[tint16::graydk   ]);
-                        (yield.*p)(3,  rgba::color16[tint16::graylt   ]);
-                        (yield.*p)(4,  rgba::color16[tint16::whitedk  ]);
-                        (yield.*p)(5,  rgba::color16[tint16::whitelt  ]);
-                        (yield.*p)(6,  rgba::color16[tint16::redlt    ]);
-                        (yield.*p)(7,  rgba::color16[tint16::bluelt   ]);
-                        (yield.*p)(8,  rgba::color16[tint16::greenlt  ]);
-                        (yield.*p)(9,  rgba::color16[tint16::yellowlt ]);
-                        (yield.*p)(10, rgba::color16[tint16::magentalt]);
-                        (yield.*p)(11, rgba::color16[tint16::reddk    ]);
-                        (yield.*p)(12, rgba::color16[tint16::bluedk   ]);
-                        (yield.*p)(13, rgba::color16[tint16::greendk  ]);
-                        (yield.*p)(14, rgba::color16[tint16::yellowdk ]);
-                        (yield.*p)(15, rgba::color16[tint16::cyanlt   ]);
-                    };
-                    if (legacy_mouse) set_pal(&ansi::esc::old_palette);
-                    else              set_pal(&ansi::esc::osc_palette);
-                    os::send(STDOUT_FD, yield.data(), yield.size());
-                    yield.clear();
-                }
+
                 while (ipcio)
                 {
                     fd_set socks;
@@ -2150,14 +2171,6 @@ namespace netxs::os
                     }
                 }
 
-                if (legacy_color)
-                {
-                    if (legacy_mouse) yield.old_palette_reset();
-                    else              yield.osc_palette_reset();
-                    os::send(STDOUT_FD, yield.data(), yield.size());
-                    yield.clear();
-                    log(" tty: palette restored");
-                }
             #endif
 
             log(" tty: reader thread completed");

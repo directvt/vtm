@@ -522,9 +522,13 @@ namespace netxs::console
             //else
             {
                 // Interpret button combinations
-                if ((m.button[joint] = (m.button[first]         & m.button[other])
-                                     | (  button[joint].pressed & m.button[first])
-                                     | (  button[joint].pressed & m.button[other])))
+                if ((m.button[joint] = (m.button[first] & m.button[other])))
+                //todo possible bug in Apple's Terminal - it does not return the second release
+                //                                        in case the two buttons are pressed.
+                //if ((m.button[joint] = (m.button[first]         & m.button[other])
+                //                     | (  button[joint].pressed & m.button[first])
+                //                     | (  button[joint].pressed & m.button[other])))
+                //
                 {
                     if (button[first].dragged)
                     {

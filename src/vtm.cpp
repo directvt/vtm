@@ -69,7 +69,10 @@ int main(int argc, char* argv[])
                            .cursor(faux)
                            .bpmode(true)
                            .setutf(true));
+    os::set_palette(mode);
     gate.splice();
+    os::rst_palette(mode);
+
     gate.output(ansi::esc{}.scrn_reset()
                            .vmouse(faux)
                            .cursor(true)
