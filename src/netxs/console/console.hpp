@@ -498,7 +498,7 @@ namespace netxs::console
         id_t   swift = 0;       // mouse: Delegate's ID of the current mouse owner.
         id_t   hover = 0;       // mouse: Hover control ID.
         id_t   start = 0;       // mouse: Initiator control ID.
-        bool   shown = faux;    // mouse: Should the mouse pointer to be drawn.
+
         struct
         {
             moment fired;
@@ -522,10 +522,9 @@ namespace netxs::console
             //else
             {
                 // Interpret button combinations
-                if ((m.button[joint] = (m.button[first]         & m.button[other])
-                                     | (  button[joint].pressed & m.button[first])
-                                     | (  button[joint].pressed & m.button[other])))
+                if (m.button[first] & m.button[other])
                 {
+                    m.button[joint] = true;
                     if (button[first].dragged)
                     {
                         button[first].dragged = faux;
@@ -537,6 +536,35 @@ namespace netxs::console
                         action(dragcncl, other);
                     }
                 }
+                else
+                {
+                    // Release all on release any. Due to apple terminal bug.
+                    if (m.button[joint])
+                    {
+                        m.button[first] = m.button[other] = faux;
+                    }
+                    m.button[joint] = faux;
+
+                }
+                //todo possible bug in Apple's Terminal - it does not return the second release
+                //                                        in case the two buttons are pressed.
+                //if ((m.button[joint] = (m.button[first]         & m.button[other])
+                //                     | (  button[joint].pressed & m.button[first])
+                //                     | (  button[joint].pressed & m.button[other])))
+                //
+                //{
+                //    if (button[first].dragged)
+                //    {
+                //        button[first].dragged = faux;
+                //        action(dragcncl, first);
+                //    }
+                //    if (button[other].dragged)
+                //    {
+                //        button[other].dragged = faux;
+                //        action(dragcncl, other);
+                //    }
+                //}
+
                 // In order to avoid single button tracking (Click, Pull, etc)
                 button[first].succeed = !(m.button[joint] || button[joint].pressed);
                 button[other].succeed = button[first].succeed;
@@ -5131,6 +5159,7 @@ again:
         ansi  frame; // diff: Text screen representation.
         bool  alive; // diff: Working loop state.
         bool  ready; // diff: Conditional variable to avoid spurious wakeup.
+        svga  video; // diff: VGA 16/256-color compatibility mode.
         work  paint; // diff: Rendering thread.
         pair  debug; // diff: Debug info.
 
@@ -5138,7 +5167,7 @@ again:
         text  extra_cached; // diff: Cached extra data to cout.
 
         // diff: Render current buffer to the screen.
-        template<bool TRUECOLOR = true>
+        template<svga VGAMODE = svga::truecolor>
         void render()
         {
             using time = moment;
@@ -5149,7 +5178,7 @@ again:
             {
                 auto dumb = c;
                 dumb.txt(utf::REPLACEMENT_CHARACTER_UTF8_VIEW);
-                dumb.template scan<TRUECOLOR>(state, frame);
+                dumb.template scan<VGAMODE>(state, frame);
             };
 
             std::unique_lock guard{ mutex };
@@ -5158,6 +5187,7 @@ again:
             time start;
 
             //todo unify (it is just a proof of concept)
+            //todo switch VGAMODE on fly
             while ((void)synch.wait(guard, [&]{ return ready; }), alive)
             {
                 ready = faux;
@@ -5185,7 +5215,7 @@ again:
                             auto& c = *(src++);
                             if (c.wdt() < 2)
                             {
-                                c.scan<TRUECOLOR>(state, frame);
+                                c.scan<VGAMODE>(state, frame);
                             }
                             else
                             {
@@ -5201,7 +5231,7 @@ again:
                                         }
                                         else
                                         {
-                                            if (!c.scan<TRUECOLOR>(d, state, frame))
+                                            if (!c.scan<VGAMODE>(d, state, frame))
                                             {
                                                 fallback(c, state, frame); // Left part alone.
                                                 src--; // Repeat all for d again.
@@ -5247,7 +5277,7 @@ again:
                                     frame.locate(col, row);
 
                                     back = fore;
-                                    fore.scan<TRUECOLOR>(state, frame);
+                                    fore.scan<VGAMODE>(state, frame);
 
                                     /* optimizations */
                                     while (src != end)
@@ -5262,7 +5292,7 @@ again:
                                             else
                                             {
                                                 back = fore;
-                                                fore.scan<TRUECOLOR>(state, frame);
+                                                fore.scan<VGAMODE>(state, frame);
                                             }
                                         }
                                         else if (w == 2) // Check left part.
@@ -5284,7 +5314,7 @@ again:
                                                         }
                                                         else // d.wdt() == 3
                                                         {
-                                                            if (!fore.scan<TRUECOLOR>(d, state, frame))
+                                                            if (!fore.scan<VGAMODE>(d, state, frame))
                                                             {
                                                                 fallback(fore, state, frame); // Left part alone.
                                                                 fallback(d,    state, frame); // Right part alone.
@@ -5307,7 +5337,7 @@ again:
                                                     }
                                                     else // d.wdt() == 3
                                                     {
-                                                        if (!fore.scan<TRUECOLOR>(d, state, frame))
+                                                        if (!fore.scan<VGAMODE>(d, state, frame))
                                                         {
                                                             fallback(fore, state, frame); // Left part alone.
                                                             fallback(d, state, frame); // Right part alone.
@@ -5354,7 +5384,7 @@ again:
                                             }
                                             else // d.wdt() == 3
                                             {
-                                                if (!fore.scan<TRUECOLOR>(d, state, frame))
+                                                if (!fore.scan<VGAMODE>(d, state, frame))
                                                 {
                                                     
                                                     fallback(fore, state, frame); // Left part alone.
@@ -5390,7 +5420,7 @@ again:
                                                     auto col = static_cast<iota>(src - beg - 1);
                                                     frame.locate(col, row);
 
-                                                    if (!fore.scan<TRUECOLOR>(d, state, frame))
+                                                    if (!fore.scan<VGAMODE>(d, state, frame))
                                                     {
                                                         fallback(fore, state, frame); // Left part alone.
                                                         fallback(d, state, frame); // Right part alone.
@@ -5458,7 +5488,7 @@ again:
             return std::nullopt;
         }
 
-        diff(link& conio, pro::input& input)
+        diff(link& conio, pro::input& input, svga vga_mode)
             : rhash{ 0 },
               dhash{ 0 },
               delta{ 0 },
@@ -5466,18 +5496,23 @@ again:
               alive{ true },
               ready{ faux },
               conio{ conio },
+              video{ vga_mode },
               mutex{ input.sync },
               cache{ input.xmap.pick() }
         {
             log("diff: ctor start");
             paint = work([&]
                 { 
-                    if (input.shown) render<faux>();
-                    else             render<true>();
+                    switch(video)
+                    {
+                        case svga::truecolor: render<svga::truecolor>(); break;
+                        case svga::vga16:     render<svga::vga16    >(); break;
+                        case svga::vga256:    render<svga::vga256   >(); break;
+                        default: break;
+                    }
                 });
             log("diff: ctor complete");
         }
-
         ~diff()
         {
             log("diff: dtor");
@@ -5521,6 +5556,7 @@ again:
         text uname_txt; // gate: Client name (original).
         bool native = faux; //gate: Extended functionality support.
         bool fullscreen = faux; //gate: Fullscreen mode.
+        iota legacy = os::legacy::clean;
 
     public:
         // todo unify
@@ -5532,8 +5568,11 @@ again:
         {
             if (auto world = base::parent())
             {
+                auto vga_mode = legacy & os::legacy::vga16  ? svga::vga16
+                              : legacy & os::legacy::vga256 ? svga::vga256
+                                                            : svga::truecolor;
                 link conio{ *this, media }; // gate: Terminal IO.
-                diff paint{ conio, input }; // gate: Rendering loop.
+                diff paint{ conio, input, vga_mode }; // gate: Rendering loop.
                 subs token;                 // gate: Subscription tokens array.
 
                 // conio events.
@@ -5553,7 +5592,7 @@ again:
                 };
                 SUBMIT_T(e2::release, e2::term::pointer, token, pointer)
                 {
-                    input.shown = pointer;
+                    legacy |= pointer ? os::legacy::mouse : 0;
                 };
                 SUBMIT_T(e2::release, e2::term::error, token, errcode)
                 {
@@ -5630,12 +5669,12 @@ again:
         }
 
     protected:
-        gate(view user_name, bool compatibility_mode)
+        gate(view user_name, iota legacy_mode)
         {
             //todo unify
             uname = uname_txt = user_name;
             title.live = faux;
-            input.shown = compatibility_mode;
+            legacy = legacy_mode;
             mouse.draggable<sysmouse::leftright>();
             SUBMIT(e2::release, e2::form::drag::start::leftright, gear)
             {
@@ -5792,7 +5831,8 @@ again:
                 {
                     if (uibar && !fullscreen) parent_canvas.render(uibar, base::coor());
                 }
-                if (&parent_canvas != &cache.canvas || input.shown)
+                bool show_mouse = legacy & os::legacy::mouse;
+                if (&parent_canvas != &cache.canvas || show_mouse)
                 {
                     auto area = base::area();
                     area.coor += input.coord;
@@ -5805,8 +5845,8 @@ again:
                     }
                     else
                     {
-                        if (input.shown) brush.txt("\u2588"/* █ */).fgc(0xFF00ff00);
-                        else             brush.txt(whitespace).bgc(greenlt);
+                        if (show_mouse) brush.txt("\u2588"/* █ */).fgc(0xFF00ff00);
+                        else            brush.txt(whitespace).bgc(greenlt);
                     }
                     parent_canvas.fill(area, brush);
                 }

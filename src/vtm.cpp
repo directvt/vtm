@@ -53,35 +53,30 @@ int main(int argc, char* argv[])
 
     if (!link) os::exit(-1, "main: desktop server connection error");
 
-    auto clrs = os::vga_mode();
+    auto mode = os::legacy_mode();
 
     link->send(utf::concat(spot, ";",
                            host, ";",
                            name, ";",
                            user, ";",
-                           clrs, ";"));
+                           mode, ";"));
 
     auto gate = os::tty::proxy(link);
-    ansi::esc mode;
     gate.ignite();
-    mode.save_title().
-         altbuf(true).
-         vmouse(true).
-         cursor(faux).
-         bpmode(true).
-         setutf(true);
-    gate.output(mode);
-    
-    gate.splice();
-    
-    mode.clear();
-    mode.scrn_reset().
-         vmouse(faux).
-         cursor(true).
-         altbuf(faux).
-         bpmode(faux).
-         load_title();
-    gate.output(mode);
+    gate.output(ansi::esc{}.save_title()
+                           .altbuf(true)
+                           .vmouse(true)
+                           .cursor(faux)
+                           .bpmode(true)
+                           .setutf(true));
+    gate.splice(mode);
+
+    gate.output(ansi::esc{}.scrn_reset()
+                           .vmouse(faux)
+                           .cursor(true)
+                           .altbuf(faux)
+                           .bpmode(faux)
+                           .load_title());
 
     // Pause to complete consuming/receiving buffered input (e.g. mouse tracking)
     // that has just been canceled.

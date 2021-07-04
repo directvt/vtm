@@ -1,7 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#define MONOTTY_VER "Monotty Desktopio v0.4.5"
+#define MONOTTY_VER "Monotty Desktopio v0.4.7"
 // Autostart demo apps.
 //#define DEMO
 // Enable keyboard input and disable exit by single Esc.
@@ -2258,12 +2258,12 @@ utility like ctags is used to locate the definitions.
                 auto _ip     = peer->line(';');
                 auto _user   = peer->line(';');
                 auto _name   = peer->line(';');
-                auto _clrs   = peer->line(';');
+                auto _mode   = peer->line(';');
                 log("peer: region= ", _region,
                         ", ip= "    , _ip,
                         ", user= "  , _user,
                         ", name= "  , _name,
-                        ", clrs= "  , _clrs);
+                        ", mode= "  , _mode);
                 text c_ip;
                 text c_port;
                 auto c_info = utf::divide(_ip, " ");
@@ -2292,8 +2292,12 @@ utility like ctags is used to locate the definitions.
                     #endif
 
                     auto lock = std::make_unique<e2::sync>();
-                    auto vga16colors = !!(utf::to_int(view(_clrs)).value());
-                    auto client = world->invite<ui::gate>(username, vga16colors);
+                    iota legacy_mode = os::legacy::clean;
+                    if (auto mode = utf::to_int(view(_mode)))
+                    {
+                        legacy_mode = mode.value();
+                    }
+                    auto client = world->invite<ui::gate>(username, legacy_mode);
                     auto client_shadow = ptr::shadow(client);
                     auto world_shadow = ptr::shadow(world);
                     auto my_id = client->id;
