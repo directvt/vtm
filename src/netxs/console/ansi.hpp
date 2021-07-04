@@ -252,22 +252,22 @@ namespace netxs::console::ansi
         }
         esc& osc_palette_reset () // esc: Reset color palette.
         {
-            add("\033]4;0;black\a");
-            add("\033]4;1;red\a");
-            add("\033]4;2;green\a");
-            add("\033]4;3;yellow\a");
-            add("\033]4;4;blue\a");
-            add("\033]4;5;magenta\a");
-            add("\033]4;6;cyan\a");
-            add("\033]4;7;light gray\a");
-            add("\033]4;8;dark gray\a");
-            add("\033]4;9;light red\a");
-            add("\033]4;10;light green\a");
-            add("\033]4;11;light yellow\a");
-            add("\033]4;12;light blue\a");
-            add("\033]4;13;light magenta\a");
-            add("\033]4;14;light cyan\a");
-            add("\033]4;15;white\a");
+            osc_palette(0,  rgba::color256[tint::blackdk  ]);
+            osc_palette(1,  rgba::color256[tint::reddk    ]);
+            osc_palette(2,  rgba::color256[tint::greendk  ]);
+            osc_palette(3,  rgba::color256[tint::yellowdk ]);
+            osc_palette(4,  rgba::color256[tint::bluedk   ]);
+            osc_palette(5,  rgba::color256[tint::magentadk]);
+            osc_palette(6,  rgba::color256[tint::cyandk   ]);
+            osc_palette(7,  rgba::color256[tint::whitedk  ]);
+            osc_palette(8,  rgba::color256[tint::blacklt  ]);
+            osc_palette(9,  rgba::color256[tint::redlt    ]);
+            osc_palette(10, rgba::color256[tint::greenlt  ]);
+            osc_palette(11, rgba::color256[tint::yellowlt ]);
+            osc_palette(12, rgba::color256[tint::bluelt   ]);
+            osc_palette(13, rgba::color256[tint::magentalt]);
+            osc_palette(14, rgba::color256[tint::cyanlt   ]);
+            osc_palette(15, rgba::color256[tint::whitelt  ]);
             return *this;
         }
         esc& old_palette_reset (){ add("\033]R"); return *this; } // esc: Reset color palette (Linux console).
@@ -362,15 +362,18 @@ namespace netxs::console::ansi
                                                     + str(c.chan.g) + ":"
                                                     + str(c.chan.b) + ":"
                                                     + str(c.chan.a) + "m"); return *this; }
-
-        esc& fgc (rgba const& c) { add("\033[38;2;" + str(c.chan.r) + ";" // esc: SGR Foreground color. RGB: red, green, blue.
-                                                    + str(c.chan.g) + ";"
-                                                    + str(c.chan.b) + "m"); return *this; }
-        esc& bgc (rgba const& c) { add("\033[48;2;" + str(c.chan.r) + ";" // esc: SGR Background color. RGB: red, green, blue and alpha.
-                                                    + str(c.chan.g) + ";"
-                                                    + str(c.chan.b) + "m"); return *this; }
-        // esc: SGR Foreground grayscale (compatibility mode).
-        esc& fgc16 (rgba const& c)
+        // esc: SGR Foreground color (256-color mode).
+        esc& fgc256(rgba const& c)
+        {
+            return add("\033[38;5;" + str(c.to256cube()) + "m");
+        }
+        // esc: SGR Background color (256-color mode).
+        esc& bgc256(rgba const& c)
+        {
+            return add("\033[48;5;" + str(c.to256cube()) + "m");
+        }
+        // esc: SGR Foreground color (16-color mode).
+        esc& fgc16(rgba const& c)
         {
             iota clr = 30;
             switch(c.token)
@@ -417,11 +420,10 @@ namespace netxs::console::ansi
                     add("\033[22;" + str(clr) + "m");
                     return *this;
             }
-            add("\033[" + str(clr) + "m");
-            return *this;
+            return add("\033[" + str(clr) + "m");
         }
-        // esc: SGR Background grayscale (compatibility mode).
-        esc& bgc16 (rgba const& c)
+        // esc: SGR Background color (16-color mode).
+        esc& bgc16(rgba const& c)
         {
             iota clr = 40;
             switch(c.token)
@@ -450,7 +452,44 @@ namespace netxs::console::ansi
                         else              clr += 5;
                     }
             }
-            add("\033[" + str(clr) + "m");
+            return add("\033[" + str(clr) + "m");
+        }
+        // esc: SGR Foreground color. RGB: red, green, blue.
+        template<svga VGAMODE = svga::truecolor>
+        esc& fgc(rgba const& c)
+        {
+            switch(VGAMODE)
+            {
+                case svga::truecolor:
+                    add("\033[38;2;" + str(c.chan.r) + ";"
+                                     + str(c.chan.g) + ";"
+                                     + str(c.chan.b) + "m");
+                    break;
+                case svga::vga16:
+                    return fgc16(c);
+                case svga::vga256:
+                    return fgc256(c);
+                default: break;
+            }
+            return *this;
+        }
+        // esc: SGR Background color. RGB: red, green, blue.
+        template<svga VGAMODE = svga::truecolor>
+        esc& bgc(rgba const& c)
+        {
+            switch(VGAMODE)
+            {
+                case svga::truecolor:
+                    add("\033[48;2;" + str(c.chan.r) + ";"
+                                     + str(c.chan.g) + ";"
+                                     + str(c.chan.b) + "m");
+                    break;
+                case svga::vga16:
+                    return bgc16(c);
+                case svga::vga256:
+                    return bgc256(c);
+                default: break;
+            }
             return *this;
         }
         esc& sav ()              { add("\033[10m");                     return *this; } // esc: Save SGR attributes.

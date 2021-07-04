@@ -20,6 +20,13 @@ namespace netxs::ui::atoms
     static const char whitespace = 0x20;
     //static const char whitespace = '.';
 
+    enum svga
+    {
+        truecolor,
+        vga16    ,
+        vga256   ,
+    };
+
     enum Z_order : iota
     {
         backmost = -1,
@@ -171,6 +178,23 @@ namespace netxs::ui::atoms
             return static_cast<uint8_t>(0.2627 * chan.r
                                       + 0.6780 * chan.g
                                       + 0.0593 * chan.b);
+        }
+        // rgba: Return 256-color 6x6x6 cube.
+        auto to256cube() const
+        {
+            uint8_t clr;
+            if (chan.r == chan.g
+             && chan.r == chan.b)
+            {
+                clr = 232 + ((chan.r * 24) >> 8);
+            }
+            else
+            {
+                clr = 16 + 36 * ((chan.r * 6) >> 8)
+                          + 6 * ((chan.g * 6) >> 8)
+                              + ((chan.b * 6) >> 8);
+            }
+            return clr;
         }
         // rgba: Equal both to their average.
         void avg(rgba& c)
@@ -707,7 +731,7 @@ namespace netxs::ui::atoms
             {
                 return param.shared.token == b.param.shared.token;
             }
-            template<bool TRUECOLOR = true, class T>
+            template<svga VGAMODE = svga::truecolor, class T>
             void get(body& base, T& dest) const
             {
                 if (!like(base))
@@ -724,8 +748,8 @@ namespace netxs::ui::atoms
                     }
                     if (cvar.unline != bvar.unline)
                     {
-                        if constexpr (TRUECOLOR) dest.und(cvar.unline);
-                        else                     dest.inv(cvar.unline);
+                        if constexpr (VGAMODE == svga::vga16) dest.inv(cvar.unline);
+                        else                                  dest.und(cvar.unline);
                     }
                     if (cvar.invert != bvar.invert)
                     {
@@ -796,20 +820,18 @@ namespace netxs::ui::atoms
                 return !operator == (c);
             }
 
-            template<bool TRUECOLOR = true, class T>
+            template<svga VGAMODE = svga::truecolor, class T>
             void get(clrs& base, T& dest)	const
             {
                 if (bg != base.bg)
                 {
                     base.bg = bg;
-                    if constexpr (TRUECOLOR) dest.bgc  (bg);
-                    else                     dest.bgc16(bg);
+                    dest.template bgc<VGAMODE>(bg);
                 }
                 if (fg != base.fg)
                 {
                     base.fg = fg;
-                    if constexpr (TRUECOLOR) dest.fgc  (fg);
-                    else                     dest.fgc16(fg);
+                    dest.template fgc<VGAMODE>(fg);
                 }
             }
             void wipe()
@@ -947,32 +969,32 @@ namespace netxs::ui::atoms
             st = c.st;
         }
         // cell: Get differences of the visual attributes only (ANSI CSI/SGR format).
-        template<bool TRUECOLOR = true, class T>
+        template<svga VGAMODE = svga::truecolor, class T>
         void scan_attr(cell& base, T& dest) const
         {
             if (!like(base))
             {
                 //todo additionally consider UNIQUE ATTRIBUTES
-                uv.get<TRUECOLOR>(base.uv, dest);
-                st.get<TRUECOLOR>(base.st, dest);
+                uv.get<VGAMODE>(base.uv, dest);
+                st.get<VGAMODE>(base.st, dest);
             }
         }
         // cell: Get differences (ANSI CSI/SGR format) of "base" and add it to "dest" and update the "base".
-        template<bool TRUECOLOR = true, class T>
+        template<svga VGAMODE = svga::truecolor, class T>
         void scan(cell& base, T& dest) const
         {
             if (!like(base))
             {
                 //todo additionally consider UNIQUE ATTRIBUTES
-                uv.get<TRUECOLOR>(base.uv, dest);
-                st.get<TRUECOLOR>(base.st, dest);
+                uv.get<VGAMODE>(base.uv, dest);
+                st.get<VGAMODE>(base.st, dest);
             }
 
             if (wdt()) dest += gc.get();
             else       dest += whitespace;
         }
         // cell: !!! Ensure that this.wdt == 2 and the next wdt == 3 and they are the same.
-        template<bool TRUECOLOR = true, class T>
+        template<svga VGAMODE = svga::truecolor, class T>
         bool scan(cell& next, cell& base, T& dest) const
         {
             if (gc.same(next.gc) && like(next))
@@ -980,8 +1002,8 @@ namespace netxs::ui::atoms
                 if (!like(base))
                 {
                     //todo additionally consider UNIQUE ATTRIBUTES
-                    uv.get<TRUECOLOR>(base.uv, dest);
-                    st.get<TRUECOLOR>(base.st, dest);
+                    uv.get<VGAMODE>(base.uv, dest);
+                    st.get<VGAMODE>(base.st, dest);
                 }
                 dest += gc.get();
                 return true;

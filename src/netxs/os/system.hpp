@@ -232,11 +232,12 @@ namespace netxs::os
                    : text{};
     }
 
-    enum legacy : iota
+    struct legacy
     {
-        clean = 0,
-        mouse = 1 << 0,
-        color = 1 << 1,
+        static constexpr auto clean  = 0;
+        static constexpr auto mouse  = 1 << 0;
+        static constexpr auto vga16  = 1 << 1;
+        static constexpr auto vga256 = 1 << 2;
     };
     static auto local_mode()
     {
@@ -278,7 +279,7 @@ namespace netxs::os
         log("  os: terminal type \"", term, "\"");
         if (term.ends_with("16color"))
         {
-            mode |= legacy::color;
+            mode |= legacy::vga16;
         }
         else
         {
@@ -286,7 +287,7 @@ namespace netxs::os
             {
                 if (term == type)
                 {
-                    mode |= legacy::color;
+                    mode |= legacy::vga16;
                     break;
                 }
             }
@@ -294,11 +295,13 @@ namespace netxs::os
         if (os::get_env("TERM_PROGRAM") == "Apple_Terminal")
         {
             log("  os: macOS Apple_Terminal detected");
-            mode |= legacy::color;
+            if (!(mode & legacy::vga16)) mode |= legacy::vga256;
         }
 
         if (local_mode()) mode |= legacy::mouse;
-        log("  os: color mode: ", mode & legacy::color ? "16-color" : "true-color");
+        log("  os: color mode: ", mode & legacy::vga16  ? "16-color"
+                                : mode & legacy::vga256 ? "256-color"
+                                                        : "true-color");
         log("  os: mouse mode: ", mode & legacy::mouse ? "console" : "VT-style");
         return mode;
     }
@@ -1217,7 +1220,7 @@ namespace netxs::os
     {
         ansi::esc yield;
         bool legacy_mouse = legacy & os::legacy::mouse;
-        bool legacy_color = legacy & os::legacy::color;
+        bool legacy_color = legacy & os::legacy::vga16;
         if (legacy_color)
         {
             auto set_pal = [&](auto p)
@@ -1249,7 +1252,7 @@ namespace netxs::os
     {
         ansi::esc yield;
         bool legacy_mouse = legacy & os::legacy::mouse;
-        bool legacy_color = legacy & os::legacy::color;
+        bool legacy_color = legacy & os::legacy::vga16;
         if (legacy_color)
         {
             if (legacy_mouse) yield.old_palette_reset();
@@ -1863,7 +1866,7 @@ namespace netxs::os
             #endif
         };
 
-        void reader()
+        void reader(iota mode)
         {
             log(" tty: reader thread started");
             auto& ipcio =*_globals<void>::ipcio;
@@ -2021,14 +2024,13 @@ namespace netxs::os
 
             #elif defined(__linux__) || defined(__APPLE__)
 
+                bool legacy_mouse = mode & os::legacy::mouse;
+                bool legacy_color = mode & os::legacy::vga16;
                 file micefd;
                 twod mcoor;
                 auto buffer = text(STDIN_BUF, '\0');
                 iota ttynum = 0;
                 ansi::esc yield;
-                auto legacy = os::legacy_mode();
-                bool legacy_mouse = legacy & os::legacy::mouse;
-                bool legacy_color = legacy & os::legacy::color;
 
                 struct
                 {
@@ -2239,13 +2241,16 @@ namespace netxs::os
             ::atexit(_globals<void>::default_mode);
             _globals<void>::resize_handler();
         }
-        void splice()
+        void splice(iota mode)
         {
             auto& ipcio = *_globals<void>::ipcio;
-            auto  input = std::thread{ [&]() { reader(); } };
+
+            os::set_palette(mode);
+            auto  input = std::thread{ [&]() { reader(mode); } };
 
             while (output(ipcio.recv()))
             { }
+            os::rst_palette(mode);
 
             ipcio.reset();
             flash.reset();
