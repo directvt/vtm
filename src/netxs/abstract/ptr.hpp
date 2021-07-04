@@ -23,6 +23,12 @@ namespace netxs
             return test;
         }
         operator T& () { return last; }
+        testy() = default;
+        testy(T const& value)
+            : prev{ value },
+              last{ value },
+              test{ faux  }
+        { }
     };
 
     struct	null_deleter

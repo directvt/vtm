@@ -1803,6 +1803,21 @@ namespace netxs::ui
                     utf::change(data, "\033[1C", "\033OC");
                     utf::change(data, "\033[1D", "\033OD");
                 }
+                // Linux console specific.
+                utf::change(data, "\033[[A", "\033OP");      // F1
+                utf::change(data, "\033[[B", "\033OQ");      // F2
+                utf::change(data, "\033[[C", "\033OR");      // F3
+                utf::change(data, "\033[[D", "\033OS");      // F4
+                utf::change(data, "\033[[E", "\033[15~");    // F5
+                utf::change(data, "\033[25~", "\033[1;2P");  // Shift+F1
+                utf::change(data, "\033[26~", "\033[1;2Q");  // Shift+F2
+                utf::change(data, "\033[28~", "\033[1;2R");  // Shift+F3
+                utf::change(data, "\033[29~", "\033[1;2S");  // Shift+F4
+                utf::change(data, "\033[31~", "\033[15;2~"); // Shift+F5
+                utf::change(data, "\033[32~", "\033[17;2~"); // Shift+F6
+                utf::change(data, "\033[33~", "\033[18;2~"); // Shift+F7
+                utf::change(data, "\033[34~", "\033[19;2~"); // Shift+F8
+
                 ptycon.write(data);
 
                 #ifdef KEYLOG

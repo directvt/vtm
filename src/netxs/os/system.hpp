@@ -22,97 +22,69 @@
 #include "../datetime/quartz.hpp"
 #include "../abstract/ptr.hpp"
 #include "../console/ansi.hpp"
+#include "../ui/layout.hpp"
 
 #include <type_traits>
-#include <iostream>		// std::cout
+#include <iostream>         // std::cout
 
 #if defined(_WIN32)
 
-#ifndef NOMINMAX
-#define NOMINMAX
-#endif
+    #ifndef NOMINMAX
+        #define NOMINMAX
+    #endif
 
     #pragma warning(disable:4996) // disable std::getenv warnimg
-
     #pragma comment(lib, "Advapi32.lib")  // GetUserName()
 
-    //#pragma comment(lib, "Wtsapi32.lib")  //WTS users list / WTSEnumerateSessions
-    //#pragma comment(lib, "Shlwapi.lib")   // SHDeleteKeyW
-    //#pragma comment(lib, "Psapi.lib")  //GetModuleFileNameEx
-    //#pragma comment(lib, "Ole32.lib")   //CoCreateInstance  (creating shortcut)
-    //#pragma comment(lib, "Shell32.lib")   //CommandLineToArgvW
-
-    //#pragma comment(lib, "libvcruntime.lib")   //__except_handler4
-
-    // /* LINK : warning LNK4098: defaultlib 'libvcruntime.lib' conflicts
-    //  *        with use of other libs; use /NODEFAULTLIB:library
-    //  * https://docs.microsoft.com/en-us/cpp/c-runtime-library/crt-library-features?view=vs-2017
-    //  */
-    // #if defined(_DEBUG)
-    // 	#pragma comment(lib, "libvcruntimed.lib")
-    // #else
-    // 	#pragma comment(lib, "libvcruntime.lib") //__except_handler4
-    // #endif
-
     #include <Windows.h>
-    #include <Psapi.h>		// GetModuleFileNameEx
-    #include <Wtsapi32.h>	// get_logged_usres WTSEnumerateSessions
+    #include <Psapi.h>      // GetModuleFileNameEx
+    #include <Wtsapi32.h>   // WTSEnumerateSessions, get_logged_usres
 
-    //Specific
     #include <Shlwapi.h>
     #include <algorithm>
     #include <Wtsapi32.h>
-    #include <shobjidl.h>	//IShellLink
-    #include <shlguid.h>	//IID_IShellLink
-    #include <Shlobj.h>		//create_shortcut: SHGetFolderLocation / (SHGetFolderPathW - vist and later) CLSID_ShellLink
-    #include <Psapi.h>		//GetModuleFileNameEx
+    #include <shobjidl.h>   // IShellLink
+    #include <shlguid.h>    // IID_IShellLink
+    #include <Shlobj.h>     // create_shortcut: SHGetFolderLocation / (SHGetFolderPathW - vist and later) CLSID_ShellLink
+    #include <Psapi.h>      // GetModuleFileNameEx
 
-    #include <DsGetDC.h>	//DsGetDcName
-    #include <LMCons.h>		//DsGetDcName
-    #include <Lmapibuf.h>	//DsGetDcName
+    #include <DsGetDC.h>    // DsGetDcName
+    #include <LMCons.h>     // DsGetDcName
+    #include <Lmapibuf.h>   // DsGetDcName
 
-    #include <Sddl.h>		//security_descriptor
+    #include <Sddl.h>       //security_descriptor
 
 #elif defined(__linux__) || defined(__APPLE__)
 
-    //#include <sys/signalfd.h> // ::signalfd()
-    //#include <sys/eventfd.h> // ::signalfd()
-
-    #include <errno.h>		// switch(errno)
-    #include <string.h>		// ::memset()
-
-    #include <stdlib.h>		// filepath
-    #include <spawn.h>		// exec
-
-    #include <unistd.h>		// ::gethostname(), ::getpid(), ::read()
-    #include <sys/param.h>	//
-
-    #include <utmp.h>		// get_logged_usres
-
-    #include <sys/types.h>	// getaddrinfo
+    #include <errno.h>      // ::errno
+    #include <spawn.h>      // ::exec
+    #include <unistd.h>     // ::gethostname(), ::getpid(), ::read()
+    #include <sys/param.h>  //
+    #include <utmp.h>       // get_logged_usres
+    #include <sys/types.h>  // ::getaddrinfo
     #include <sys/socket.h> // ::shutdown() ::socket(2)
-    #include <netdb.h>		//
+    #include <netdb.h>      //
 
-    //extern char **environ;
-
-    //for sockets
     #include <stdio.h>
-    #include <unistd.h>		// ::read(), PIPE_BUF
+    #include <unistd.h>     // ::read(), PIPE_BUF
     #include <sys/un.h>
     #include <stdlib.h>
 
-    #include <csignal>		// ::signal(), for window size
-    #include <termios.h>   // for raw mode
-    #include <sys/ioctl.h> // ioctl, for window size
-    #include <sys/wait.h>  // waitpid
-    #include <syslog.h>    // syslog for daemonize
+    #include <csignal>      // ::signal()
+    #include <termios.h>    // console raw mode
+    #include <sys/ioctl.h>  // ::ioctl
+    #include <sys/wait.h>   // ::waitpid
+    #include <syslog.h>     // syslog, daemonize
 
     #include <sys/types.h>
     #include <sys/stat.h>
-    #include <fcntl.h>		// ::splice()
+    #include <fcntl.h>      // ::splice()
 
-    //#include <ext/stdio_filebuf.h> // Linux specific ifstream from socket descriptor
-
+    #if defined(__linux__)
+        #include <sys/vt.h> // ::console_ioctl()
+        #include <sys/kd.h> // ::console_ioctl()
+        #include <linux/keyboard.h> // ::keyb_ioctl()
+    #endif
 #endif
 
 namespace netxs::os
@@ -120,10 +92,15 @@ namespace netxs::os
     using list = std::vector<text>;
     using ui32 = uint32_t;
     using iota = int32_t;
+    using xipc = std::shared_ptr<class ipc>;
     using namespace std::chrono_literals;
     using namespace netxs::console;
+    using namespace netxs::ui::atoms;
+
+    enum role { client, server };
 
     static constexpr iota STDIN_BUF = 1024;
+    static bool is_daemon = faux;
 
     #if defined(_WIN32)
 
@@ -133,6 +110,27 @@ namespace netxs::os
         static const fd_t STDIN_FD  = GetStdHandle(STD_INPUT_HANDLE);
         static const fd_t STDOUT_FD = GetStdHandle(STD_OUTPUT_HANDLE);
         static const iota PIPE_BUF = 65536;
+
+        //static constexpr char* security_descriptor_string =
+        //	//"D:P(A;NP;GA;;;SY)(A;NP;GA;;;BA)(A;NP;GA;;;WD)";
+        //	"O:AND:P(A;NP;GA;;;SY)(A;NP;GA;;;BA)(A;NP;GA;;;CO)";
+        //	//"D:P(A;NP;GA;;;SY)(A;NP;GA;;;BA)(A;NP;GA;;;AU)";// Authenticated users
+        //	//"D:P(A;NP;GA;;;SY)(A;NP;GA;;;BA)(A;NP;GA;;;CO)"; // CREATOR OWNER
+        //	//"D:P(A;OICI;GA;;;SY)(A;OICI;GA;;;BA)(A;OICI;GA;;;CO)";
+        //	//  "D:"  DACL
+        //	//  "P"   SDDL_PROTECTED        The SE_DACL_PROTECTED flag is set.
+        //	//  "A"   SDDL_ACCESS_ALLOWED
+        //	// ace_flags:
+        //	//  "OI"  SDDL_OBJECT_INHERIT
+        //	//  "CI"  SDDL_CONTAINER_INHERIT
+        //	//  "NP"  SDDL_NO_PROPAGATE
+        //	// rights:
+        //	//  "GA"  SDDL_GENERIC_ALL
+        //	// account_sid: see https://docs.microsoft.com/en-us/windows/win32/secauthz/sid-strings
+        //	//  "SY"  SDDL_LOCAL_SYSTEM
+        //	//  "BA"  SDDL_BUILTIN_ADMINISTRATORS
+        //	//  "CO"  SDDL_CREATOR_OWNER
+        //	//  "WD"  SDDL_EVERYONE
 
     #elif defined(__linux__) || defined(__APPLE__)
 
@@ -144,17 +142,36 @@ namespace netxs::os
 
     #endif
 
-    static text current_module_file();
-    static bool exec(text binary, text parameters = {}, int windw_state = 0);
-    inline void start_log(view srv_name);
-    inline void syslog(text const& data);
-    inline bool daemonize(view srv_name);
-    static text host_name();
-    static bool is_mutex_exists(text&& mutex_name);
-    static ui32 process_id();
-    static text logged_in_users(view domain_delimiter = "\\", view record_delimiter = "\0");
-    //inline auto user();
-    //inline void exit(int code, view reason = {});
+    struct args
+    {
+        int    argc;
+        char** argv;
+        int    iter;
+
+        args(int argc, char** argv)
+            : argc{ argc }, argv{ argv }, iter{ 1 }
+        { }
+
+        operator bool() const { return iter < argc; }
+        auto next()
+        {
+            if (iter < argc)
+            {
+                if (*(argv[iter]) == '-' || *(argv[iter]) == '/')
+                {
+                    return *(argv[iter++] + 1);
+                }
+                ++iter;
+            }
+            return '\0';
+        }
+    };
+    struct nothing
+    {
+        template<class T>
+        operator T () { return T{}; }
+    };
+
     inline auto error()
     {
         #if defined(_WIN32)
@@ -167,49 +184,520 @@ namespace netxs::os
 
         #endif
     }
-    //inline void disable_sigpipe();
-
-    static bool is_daemon = faux;
-
-    inline auto get_env(text&& var)
+    template<class ...Args>
+    auto fail(Args&&... msg)
+    {
+        log("  os: ", msg..., " (", error(), ") ");
+        return nothing{};
+    };
+    template<class T>
+    bool ok(T error_condition, text msg = {})
+    {
+        if(
+            #if defined(_WIN32)
+                error_condition == 0
+            #elif defined(__linux__) || defined(__APPLE__)
+                error_condition == (T)-1
+            #endif
+        )
+        {
+            fail(msg);
+            return faux;
+        }
+        else return true;
+    }
+    static void exit(int code)
     {
         #if defined(_WIN32)
 
-        //#define _CRT_SECURE_NO_WARNINGS 1
-            auto val = std::getenv(var.c_str());
-            return val ? text{ val }
-                       : text{};
-        //#undef _CRT_SECURE_NO_WARNINGS
+            ExitProcess(code);
 
         #elif defined(__linux__) || defined(__APPLE__)
 
-            auto val = std::getenv(var.c_str());
-            return val ? text{ val }
-                       : text{};
+            if (is_daemon) ::closelog();
+            ::exit(code);
+
+        #endif
+    }
+    template<class ...Args>
+    void exit(int code, Args&&... args)
+    {
+        log(args...);
+        exit(code);
+    }
+    static auto get_env(text&& var)
+    {
+        auto val = std::getenv(var.c_str());
+        return val ? text{ val }
+                   : text{};
+    }
+
+    struct legacy
+    {
+        static constexpr auto clean  = 0;
+        static constexpr auto mouse  = 1 << 0;
+        static constexpr auto vga16  = 1 << 1;
+        static constexpr auto vga256 = 1 << 2;
+    };
+    static auto local_mode()
+    {
+        auto conmode = -1;
+        #if defined (__linux__)
+            
+            if (ok(::ioctl(STDOUT_FD, KDGETMODE, &conmode), "KDGETMODE failed"))
+            {
+                switch (conmode)
+                {
+                    case KD_TEXT:     break;
+                    case KD_GRAPHICS: break;
+                    default:          break;
+                }
+            }
+
+        #endif
+
+        return conmode != -1;
+    }
+    static auto legacy_mode()
+    {
+        auto vga16colors = {
+            "ansi",
+            "linux",
+            "linux-16color",
+            "xterm",
+            "xterm-color",
+            "xterm-16color",
+            "dvtm",
+            "tmux",
+            "fbcon",
+            "rxvt-16color",
+            "konsole-16color",
+            "aixterm-16color",
+        };
+        iota mode = legacy::clean;
+        auto term = os::get_env("TERM");
+        log("  os: terminal type \"", term, "\"");
+        if (term.ends_with("16color"))
+        {
+            mode |= legacy::vga16;
+        }
+        else
+        {
+            for (auto& type : vga16colors)
+            {
+                if (term == type)
+                {
+                    mode |= legacy::vga16;
+                    break;
+                }
+            }
+        }
+        if (os::get_env("TERM_PROGRAM") == "Apple_Terminal")
+        {
+            log("  os: macOS Apple_Terminal detected");
+            if (!(mode & legacy::vga16)) mode |= legacy::vga256;
+        }
+
+        if (local_mode()) mode |= legacy::mouse;
+        log("  os: color mode: ", mode & legacy::vga16  ? "16-color"
+                                : mode & legacy::vga256 ? "256-color"
+                                                        : "true-color");
+        log("  os: mouse mode: ", mode & legacy::mouse ? "console" : "VT-style");
+        return mode;
+    }
+    static auto vtgafont_update()
+    {
+        #if defined (__linux__)
+
+            if (local_mode())
+            {
+                
+            }
+
+        #endif
+    }
+    static auto vtgafont_revert()
+    {
+
+    }
+    static auto current_module_file()
+    {
+        text result;
+
+        #if defined(_WIN32)
+
+            HANDLE h = GetCurrentProcess();
+            std::vector<char> buffer(MAX_PATH);
+
+            while (buffer.size() <= 32768)
+            {
+                DWORD length = GetModuleFileNameEx(h, NULL,
+                    buffer.data(), static_cast<DWORD>(buffer.size()));
+
+                if (!length) break;
+
+                if (buffer.size() > length + 1)
+                {
+                    //result = utf::to_utf(std::wstring(buffer.data(), length));
+                    result = text(buffer.data(), length);
+                    break;
+                }
+
+                buffer.resize(buffer.size() << 1);
+            }
+
+        #elif defined(__linux__) || defined(__APPLE__)
+
+            char* resolved = realpath("/proc/self/exe", NULL);
+            if (resolved)
+            {
+                result = std::string(resolved);
+                free(resolved);
+            }
+
+        #endif
+
+        return result;
+    }
+    static auto split_cmdline(view cmdline)
+    {
+        std::vector<text> args;
+        auto mark = '\0';
+        text temp;
+        temp.reserve(cmdline.length());
+
+        auto push = [&]() {
+            args.push_back(temp);
+            temp.clear();
+        };
+
+        for (auto c : cmdline)
+        {
+            if (mark)
+            {
+                if (c != mark)
+                {
+                    temp.push_back(c);
+                }
+                else
+                {
+                    mark = '\0';
+                    push();
+                }
+            }
+            else
+            {
+                if (c == ' ')
+                {
+                    if (temp.length()) push();
+                }
+                else
+                {
+                    if (c == '\'' || c == '"') mark = c;
+                    else                       temp.push_back(c);
+                }
+            }
+        }
+        if (temp.length()) push();
+
+        return args;
+    }
+    static auto exec(text binary, text params = {}, int window_state = 0)
+    {
+        #if defined(_WIN32)
+
+            //auto binary_w = utf::to_utf(binary);
+            //auto params_w = utf::to_utf(params);
+
+            SHELLEXECUTEINFO ShExecInfo = {};
+            ShExecInfo.cbSize = sizeof(SHELLEXECUTEINFO);
+            ShExecInfo.fMask = SEE_MASK_NOCLOSEPROCESS;
+            ShExecInfo.hwnd = NULL;
+            ShExecInfo.lpVerb = NULL;
+            ShExecInfo.lpFile = binary.c_str();
+            ShExecInfo.lpParameters = params.c_str();
+            ShExecInfo.lpDirectory = NULL;
+            ShExecInfo.nShow = window_state;
+            ShExecInfo.hInstApp = NULL;
+            ShellExecuteEx(&ShExecInfo);
+            return true;
+
+        #elif defined(__linux__) || defined(__APPLE__)
+
+            auto p_id = ::fork();
+            if (p_id == 0) // Child branch
+            {
+                log("exec: executing '", binary, " ", params, "'");
+                char* argv[] = { binary.data(), params.data(), nullptr };
+
+                ::execvp(argv[0], argv);
+                os::exit(1, "exec: error ", errno);
+            }
+
+            if (p_id > 0) // Parent branch
+            {
+                int stat;
+                ::waitpid(p_id, &stat, 0); // wait for the child to avoid zombies
+
+                if (WIFEXITED(stat) && (WEXITSTATUS(stat) == 0))
+                {
+                    return true; // child forked and exited successfully
+                }
+            }
+
+            log("exec: failed to spawn '", binary, " ' with args '", params, "'");
+            return faux;
+
+        #endif
+    }
+    static void start_log(view srv_name)
+    {
+        #if defined(_WIN32)
+
+            //todo inplement
+
+        #elif defined(__linux__) || defined(__APPLE__)
+
+            ::openlog(srv_name.data(), LOG_NOWAIT | LOG_PID, LOG_USER);
+            is_daemon = true;
+
+        #endif
+    }
+    static void syslog(text const& data)
+    {
+        #if defined(_WIN32)
+
+            std::cout << data << std::flush;
+
+        #elif defined(__linux__) || defined(__APPLE__)
+
+            if (os::is_daemon) ::syslog(LOG_NOTICE, "%s", data.c_str());
+            else               std::cout << data << std::flush;
+
+        #endif
+    }
+    static auto daemonize(view srv_name)
+    {
+        #if defined(_WIN32)
+
+            return true;
+
+        #elif defined(__linux__) || defined(__APPLE__)
+
+            auto pid = ::fork();
+            if (pid < 0)
+            {
+                os::exit(1, "daemon: fork error");
+            }
+
+            if (pid == 0)
+            { // CHILD
+                ::setsid(); // Make this process the session leader of a new session.
+
+                pid = ::fork();
+                if (pid < 0)
+                {
+                    os::exit(1, "daemon: fork error");
+                }
+
+                if (pid == 0)
+                { // GRANDCHILD
+                    umask(0);
+                    start_log(srv_name);
+
+                    ::close(STDIN_FILENO);  // A daemon cannot use the terminal,
+                    ::close(STDOUT_FILENO); // so close standard file descriptors
+                    ::close(STDERR_FILENO); // for security reasons.
+                    return true;
+                }
+
+                os::exit(0); // SUCCESS (This child is reaped below with waitpid()).
+            }
+
+            // Reap the child, leaving the grandchild to be inherited by init.
+            int stat;
+            ::waitpid(pid, &stat, 0);
+            if (WIFEXITED(stat) && (WEXITSTATUS(stat) == 0))
+            {
+                os::exit(0); // Child forked and exited successfully.
+            }
+            return faux;
+
+        #endif
+    }
+    static auto host_name()
+    {
+        text hostname;
+
+        #if defined(_WIN32)
+
+            DWORD dwSize = 0;
+            GetComputerNameEx(ComputerNamePhysicalDnsFullyQualified, NULL, &dwSize);
+
+            if (dwSize)
+            {
+                std::vector<char> buffer(dwSize);
+                if (GetComputerNameEx(ComputerNamePhysicalDnsFullyQualified, buffer.data(), &dwSize))
+                {
+                    //hostname = utf::to_utf(std::wstring(wc_buffer.data(), dwSize));
+                    hostname = text(buffer.data(), dwSize);
+                }
+            }
+
+        #elif defined(__linux__) || defined(__APPLE__)
+
+            // APPLE: AI_CANONNAME undeclared
+            //std::vector<char> buffer(MAXHOSTNAMELEN);
+            //if (0 == gethostname(buffer.data(), buffer.size()))
+            //{
+            //	struct addrinfo hints, * info;
+            //
+            //	::memset(&hints, 0, sizeof hints);
+            //	hints.ai_family = AF_UNSPEC;
+            //	hints.ai_socktype = SOCK_STREAM;
+            //	hints.ai_flags = AI_CANONNAME | AI_CANONIDN;
+            //
+            //	if (0 == getaddrinfo(buffer.data(), "http", &hints, &info))
+            //	{
+            //		hostname = std::string(info->ai_canonname);
+            //		//for (auto p = info; p != NULL; p = p->ai_next)
+            //		//{
+            //		//	hostname = std::string(p->ai_canonname);
+            //		//}
+            //		freeaddrinfo(info);
+            //	}
+            //}
+
+        #endif
+        return hostname;
+    }
+    static auto is_mutex_exists(text&& mutex_name)
+    {
+        bool result = false;
+
+        #if defined(_WIN32)
+
+            HANDLE mutex = CreateMutex(0, 0, mutex_name.c_str());
+            result = GetLastError() == ERROR_ALREADY_EXISTS;
+            CloseHandle(mutex);
+            return result;
+
+        #elif defined(__linux__) || defined(__APPLE__)
+
+            //todo linux implementation
+            return true;
+
+        #endif
+    }
+    static auto process_id()
+    {
+        uint32_t result;
+
+        #if defined(_WIN32)
+
+            result = GetCurrentProcessId();
+
+        #elif defined(__linux__) || defined(__APPLE__)
+
+            result = getpid();
+
+        #endif
+        return result;
+    }
+    static auto logged_in_users(view domain_delimiter = "\\", view record_delimiter = "\0")
+    {
+        text active_users_array;
+
+        #if defined(_WIN32)
+
+            PWTS_SESSION_INFO SessionInfo_pointer;
+            DWORD count;
+            if (WTSEnumerateSessions(WTS_CURRENT_SERVER_HANDLE, 0, 1, &SessionInfo_pointer, &count))
+            {
+                for (DWORD i = 0; i < count; i++)
+                {
+                    WTS_SESSION_INFO si = SessionInfo_pointer[i];
+
+                    LPTSTR	buffer_pointer = NULL;
+                    DWORD	buffer_length;
+
+                    WTSQuerySessionInformation(WTS_CURRENT_SERVER_HANDLE, si.SessionId, WTSUserName, &buffer_pointer, &buffer_length);
+                    auto user = text(utf::to_view(buffer_pointer, buffer_length));
+                    WTSFreeMemory(buffer_pointer);
+
+                    if (user.length())
+                    {
+                        WTSQuerySessionInformation(WTS_CURRENT_SERVER_HANDLE, si.SessionId, WTSDomainName, &buffer_pointer, &buffer_length);
+                        auto domain = text(utf::to_view(buffer_pointer, buffer_length / sizeof(wchar_t)));
+                        WTSFreeMemory(buffer_pointer);
+
+                        active_users_array += domain;
+                        active_users_array += domain_delimiter;
+                        active_users_array += user;
+                        active_users_array += domain_delimiter;
+                        active_users_array += "local";
+                        active_users_array += record_delimiter;
+                    }
+                }
+                WTSFreeMemory(SessionInfo_pointer);
+                if (active_users_array.size())
+                {
+                    active_users_array = utf::remove(active_users_array, record_delimiter);
+                }
+            }
+
+        #elif defined(__linux__) || defined(__APPLE__)
+
+            static constexpr auto NAME_WIDTH = 8;
+
+            // APPLE: utmp is deprecated
+
+            // if (FILE* ufp = ::fopen(_PATH_UTMP, "r"))
+            // {
+            // 	struct utmp usr;
+            //
+            // 	while (::fread((char*)&usr, sizeof(usr), 1, ufp) == 1)
+            // 	{
+            // 		if (*usr.ut_user && *usr.ut_host && *usr.ut_line && *usr.ut_line != '~')
+            // 		{
+            // 			active_users_array += usr.ut_host;
+            // 			active_users_array += domain_delimiter;
+            // 			active_users_array += usr.ut_user;
+            // 			active_users_array += domain_delimiter;
+            // 			active_users_array += usr.ut_line;
+            // 			active_users_array += record_delimiter;
+            // 		}
+            // 	}
+            // 	::fclose(ufp);
+            // }
+
+        #endif
+        return active_users_array;
+    }
+    static auto user()
+    {
+        #if defined(_WIN32)
+
+            static constexpr auto INFO_BUFFER_SIZE = 32767UL;
+            //TCHAR  infoBuf[INFO_BUFFER_SIZE];
+            char   infoBuf[INFO_BUFFER_SIZE];
+            DWORD  bufCharCount = INFO_BUFFER_SIZE;
+
+            if (!GetUserName(infoBuf, &bufCharCount))
+                log("error GetUserName");
+
+            return text(infoBuf, bufCharCount);
+
+        #elif defined(__linux__) || defined(__APPLE__)
+
+            uid_t id;
+            id = ::geteuid();
+            return id;
 
         #endif
     }
 
     #if defined(_WIN32)
-
-    static text  take_partition(text&& file);
-    static text  take_temp(text&& file);
-    static text  trusted_domain_name();
-    static text  trusted_domain_guid();
-    static bool  create_shortcut(text&& path_to_object, text&& path_to_link);
-    static text  expand(text&& directory);
-    static bool  set_registry_key(text&& path, text&& name, text&& value);
-    static text  get_registry_string_value(text&& path, text&& name);
-    static list  get_registry_subkeys(text&& path);
-    static list  cmdline();
-    static bool  delete_registry_tree(text&& path);
-    static void  update_process_privileges(void);
-    static bool  kill_process(unsigned long proc_id);
-    static text  global_startup_dir();
-
-    static int64_t	get_host_id();
-    static void	save_host_id(int64_t id);
-    static void	set_dns_suffix(text&& dns_suffix);
 
     /* cl.exe issue
     class security_descriptor
@@ -291,425 +779,7 @@ namespace netxs::os
     static security_descriptor global_access{ "D:P(A;OICI;GA;;;SY)(A;OICI;GA;;;BA)(A;OICI;GA;;;CO)" };
     */
 
-    #endif // Windows specific
-
-    inline void exit(int code)
-    {
-        #if defined(_WIN32)
-
-            ExitProcess(code);
-
-        #elif defined(__linux__) || defined(__APPLE__)
-
-            if (is_daemon) ::closelog();
-            ::exit(code);
-
-        #endif
-    }
-    template<class ...Args>
-    void exit(int code, Args&&... args)
-    {
-        log(args...);
-        exit(code);
-    }
-
-    text current_module_file()
-    {
-        text result;
-
-        #if defined(_WIN32)
-
-        HANDLE h = GetCurrentProcess();
-        std::vector<char> buffer(MAX_PATH);
-
-        while (buffer.size() <= 32768)
-        {
-            DWORD length = GetModuleFileNameEx(h, NULL,
-                buffer.data(), static_cast<DWORD>(buffer.size()));
-
-            if (!length) break;
-
-            if (buffer.size() > length + 1)
-            {
-                //result = utf::to_utf(std::wstring(buffer.data(), length));
-                result = text(buffer.data(), length);
-                break;
-            }
-
-            buffer.resize(buffer.size() << 1);
-        }
-
-        #elif defined(__linux__) || defined(__APPLE__)
-
-        char* resolved = realpath("/proc/self/exe", NULL);
-        if (resolved)
-        {
-            result = std::string(resolved);
-            free(resolved);
-        }
-        #endif
-
-        return result;
-    }
-
-    auto split_cmdline(view cmdline)
-    {
-        std::vector<text> args;
-        auto mark = '\0';
-        text temp;
-        temp.reserve(cmdline.length());
-
-        auto push = [&]() {
-            args.push_back(temp);
-            temp.clear();
-        };
-
-        for (auto c : cmdline)
-        {
-            if (mark)
-            {
-                if (c != mark)
-                {
-                    temp.push_back(c);
-                }
-                else
-                {
-                    mark = '\0';
-                    push();
-                }
-            }
-            else
-            {
-                if (c == ' ')
-                {
-                    if (temp.length()) push();
-                }
-                else
-                {
-                    if (c == '\'' || c == '"') mark = c;
-                    else                       temp.push_back(c);
-                }
-            }
-        }
-        if (temp.length()) push();
-
-        return args;
-    }
-    bool exec(text binary, text params, int window_state)
-    {
-        #if defined(_WIN32)
-
-            //auto binary_w = utf::to_utf(binary);
-            //auto params_w = utf::to_utf(params);
-
-            SHELLEXECUTEINFO ShExecInfo = {};
-            ShExecInfo.cbSize = sizeof(SHELLEXECUTEINFO);
-            ShExecInfo.fMask = SEE_MASK_NOCLOSEPROCESS;
-            ShExecInfo.hwnd = NULL;
-            ShExecInfo.lpVerb = NULL;
-            ShExecInfo.lpFile = binary.c_str();
-            ShExecInfo.lpParameters = params.c_str();
-            ShExecInfo.lpDirectory = NULL;
-            ShExecInfo.nShow = window_state;
-            ShExecInfo.hInstApp = NULL;
-            ShellExecuteEx(&ShExecInfo);
-            return true;
-
-        #elif defined(__linux__) || defined(__APPLE__)
-
-            auto p_id = ::fork();
-            if (p_id == 0) // Child branch
-            {
-                log("exec: executing '", binary, " ", params, "'");
-                char* argv[] = { binary.data(), params.data(), nullptr };
-
-                ::execvp(argv[0], argv);
-                os::exit(1, "exec: error ", errno);
-            }
-
-            if (p_id > 0) // Parent branch
-            {
-                int stat;
-                ::waitpid(p_id, &stat, 0); // wait for the child to avoid zombies
-
-                if (WIFEXITED(stat) && (WEXITSTATUS(stat) == 0))
-                {
-                    return true; // child forked and exited successfully
-                }
-            }
-
-            log("exec: failed to spawn '", binary, " ' with args '", params, "'");
-            return faux;
-
-        #endif
-    }
-    void start_log(view srv_name)
-    {
-        #if defined(_WIN32)
-
-            //todo inplement
-
-        #elif defined(__linux__) || defined(__APPLE__)
-
-            ::openlog(srv_name.data(), LOG_NOWAIT | LOG_PID, LOG_USER);
-            is_daemon = true;
-
-        #endif
-    }
-    void syslog(text const& data)
-    {
-        #if defined(_WIN32)
-
-            std::cout << data << std::flush;
-
-        #elif defined(__linux__) || defined(__APPLE__)
-
-            if (os::is_daemon) ::syslog(LOG_NOTICE, "%s", data.c_str());
-            else               std::cout << data << std::flush;
-
-        #endif
-    }
-    //todo unify with exec()
-    bool daemonize(view srv_name)
-    {
-        #if defined(_WIN32)
-            return true;
-        #elif defined(__linux__) || defined(__APPLE__)
-
-        auto pid = ::fork();
-        if (pid < 0)
-        {
-            os::exit(1, "daemon: fork error");
-        }
-
-        if (pid == 0)
-        { // CHILD
-            ::setsid(); // Make this process the session leader of a new session.
-
-            pid = ::fork();
-            if (pid < 0)
-            {
-                os::exit(1, "daemon: fork error");
-            }
-            if (pid == 0)
-            { // GRANDCHILD
-                //is_daemon = true;
-
-                umask(0);
-
-                // Open system logs for the child process.
-                start_log(srv_name);
-                //::openlog(srv_name.data(), LOG_NOWAIT | LOG_PID, LOG_USER);
-
-                // A daemon cannot use the terminal, so close standard file descriptors for security reasons
-                ::close(STDIN_FILENO);
-                ::close(STDOUT_FILENO);
-                ::close(STDERR_FILENO);
-
-                return true;
-            }
-
-            os::exit(0); // SUCCESS (This child is reaped below with waitpid()).
-        }
-
-        // Reap the child, leaving the grandchild to be inherited by init.
-        int Stat;
-        ::waitpid(pid, &Stat, 0);
-        if (WIFEXITED(Stat) && (WEXITSTATUS(Stat) == 0))
-        {
-            os::exit(0); // Child forked and exited successfully.
-        }
-        else
-        {
-            return faux;
-        }
-
-        return faux;
-
-        #endif
-    }
-    text host_name()
-    {
-        text hostname;
-
-        #if defined(_WIN32)
-
-        DWORD dwSize = 0;
-        GetComputerNameEx(ComputerNamePhysicalDnsFullyQualified, NULL, &dwSize);
-
-        if (dwSize)
-        {
-            std::vector<char> buffer(dwSize);
-            if (GetComputerNameEx(ComputerNamePhysicalDnsFullyQualified, buffer.data(), &dwSize))
-            {
-                //hostname = utf::to_utf(std::wstring(wc_buffer.data(), dwSize));
-                hostname = text(buffer.data(), dwSize);
-            }
-        }
-
-        #elif defined(__linux__) || defined(__APPLE__)
-
-
-        // APPLE: AI_CANONNAME undeclared
-        //std::vector<char> buffer(MAXHOSTNAMELEN);
-        //if (0 == gethostname(buffer.data(), buffer.size()))
-        //{
-        //	struct addrinfo hints, * info;
-        //
-        //	::memset(&hints, 0, sizeof hints);
-        //	hints.ai_family = AF_UNSPEC;
-        //	hints.ai_socktype = SOCK_STREAM;
-        //	hints.ai_flags = AI_CANONNAME | AI_CANONIDN;
-        //
-        //	if (0 == getaddrinfo(buffer.data(), "http", &hints, &info))
-        //	{
-        //		hostname = std::string(info->ai_canonname);
-        //		//for (auto p = info; p != NULL; p = p->ai_next)
-        //		//{
-        //		//	hostname = std::string(p->ai_canonname);
-        //		//}
-        //		freeaddrinfo(info);
-        //	}
-        //}
-
-        #endif
-        return hostname;
-    }
-    bool is_mutex_exists(text&& mutex_name)
-    {
-        bool result = false;
-
-        #if defined(_WIN32)
-            HANDLE mutex = CreateMutex(0, 0, mutex_name.c_str());
-            result = GetLastError() == ERROR_ALREADY_EXISTS;
-            CloseHandle(mutex);
-
-            return result;
-        #elif defined(__linux__) || defined(__APPLE__)
-            //todo linux implementation
-            return true;
-        #endif
-    }
-    ui32 process_id()
-    {
-        uint32_t result;
-
-        #if defined(_WIN32)
-
-            result = GetCurrentProcessId();
-
-        #elif defined(__linux__) || defined(__APPLE__)
-
-            result = getpid();
-
-        #endif
-        return result;
-    }
-    text logged_in_users(view domain_delimiter, view record_delimiter)
-    {
-        text active_users_array;
-
-        #if defined(_WIN32)
-
-        PWTS_SESSION_INFO SessionInfo_pointer;
-        DWORD count;
-        if (WTSEnumerateSessions(WTS_CURRENT_SERVER_HANDLE, 0, 1, &SessionInfo_pointer, &count))
-        {
-            for (DWORD i = 0; i < count; i++)
-            {
-                WTS_SESSION_INFO si = SessionInfo_pointer[i];
-
-                LPTSTR	buffer_pointer = NULL;
-                DWORD	buffer_length;
-
-                WTSQuerySessionInformation(WTS_CURRENT_SERVER_HANDLE, si.SessionId, WTSUserName, &buffer_pointer, &buffer_length);
-                auto user = text(utf::to_view(buffer_pointer, buffer_length));
-                WTSFreeMemory(buffer_pointer);
-
-                if (user.length())
-                {
-                    WTSQuerySessionInformation(WTS_CURRENT_SERVER_HANDLE, si.SessionId, WTSDomainName, &buffer_pointer, &buffer_length);
-                    auto domain = text(utf::to_view(buffer_pointer, buffer_length / sizeof(wchar_t)));
-                    WTSFreeMemory(buffer_pointer);
-
-                    active_users_array += domain;
-                    active_users_array += domain_delimiter;
-                    active_users_array += user;
-                    active_users_array += domain_delimiter;
-                    active_users_array += "local";
-                    active_users_array += record_delimiter;
-                }
-            }
-            WTSFreeMemory(SessionInfo_pointer);
-            if (active_users_array.size())
-            {
-                active_users_array = utf::remove(active_users_array, record_delimiter);
-            }
-        }
-
-        #elif defined(__linux__) || defined(__APPLE__)
-
-        #define NAME_WIDTH  8
-
-        // APPLE: utmp is deprecated
-
-        // if (FILE* ufp = ::fopen(_PATH_UTMP, "r"))
-        // {
-        // 	struct utmp usr;
-        //
-        // 	while (::fread((char*)&usr, sizeof(usr), 1, ufp) == 1)
-        // 	{
-        // 		if (*usr.ut_user && *usr.ut_host && *usr.ut_line && *usr.ut_line != '~')
-        // 		{
-        // 			active_users_array += usr.ut_host;
-        // 			active_users_array += domain_delimiter;
-        // 			active_users_array += usr.ut_user;
-        // 			active_users_array += domain_delimiter;
-        // 			active_users_array += usr.ut_line;
-        // 			active_users_array += record_delimiter;
-        // 		}
-        // 	}
-        // 	::fclose(ufp);
-        // }
-
-        #endif
-        return active_users_array;
-    }
-    auto user()
-    {
-        #if defined(_WIN32)
-
-            static constexpr auto INFO_BUFFER_SIZE = 32767UL;
-            //TCHAR  infoBuf[INFO_BUFFER_SIZE];
-            char   infoBuf[INFO_BUFFER_SIZE];
-            DWORD  bufCharCount = INFO_BUFFER_SIZE;
-
-            if (!GetUserName(infoBuf, &bufCharCount))
-                log("error GetUserName");
-
-            return text(infoBuf, bufCharCount);
-
-        #elif defined(__linux__) || defined(__APPLE__)
-
-            uid_t id;
-            id = ::geteuid();
-            return id;
-
-        #endif
-    }
-
-    //void disable_sigpipe()
-    //{
-    //	if (::signal(SIGPIPE, SIG_IGN) == SIG_ERR)
-    //	{
-    //		throw;
-    //	}
-    //}
-
-    #if defined(_WIN32)
-    // Windows specific functions
-
-    text take_partition(text&& file)
+    static auto take_partition(text&& file)
     {
         text result;
         std::vector<char> volume(std::max<size_t>(MAX_PATH, file.size() + 1));
@@ -731,7 +801,7 @@ namespace netxs::os
         }
         return result;
     }
-    text take_temp(text&& file)
+    static auto take_temp(text&& file)
     {
         text tmp_dir;
 
@@ -746,7 +816,7 @@ namespace netxs::os
 
         return tmp_dir;
     }
-    text trusted_domain_name()
+    static auto trusted_domain_name()
     {
         PDS_DOMAIN_TRUSTS info;
         text  domain_name;
@@ -760,7 +830,7 @@ namespace netxs::os
         }
         return domain_name;
     }
-    text trusted_domain_guid()
+    static auto trusted_domain_guid()
     {
         PDS_DOMAIN_TRUSTS info;
         text  domain_guid;
@@ -780,7 +850,7 @@ namespace netxs::os
         }
         return domain_guid;
     }
-    bool create_shortcut(text&& path_to_object, text&& path_to_link)
+    static auto create_shortcut(text&& path_to_object, text&& path_to_link)
     {
         HRESULT result;
         IShellLink* psl;
@@ -818,7 +888,7 @@ namespace netxs::os
 
         return false;
     }
-    text expand(text&& directory)
+    static auto expand(text&& directory)
     {
         text result;
         //auto directory_w = utf::to_utf(directory);
@@ -832,7 +902,7 @@ namespace netxs::os
         }
         return result;
     }
-    bool set_registry_key(text&& key_path, text&& parameter_name, text&& value)
+    static auto set_registry_key(text&& key_path, text&& parameter_name, text&& value)
     {
         LONG status;
         HKEY hKey;
@@ -868,7 +938,7 @@ namespace netxs::os
 
         return (status == ERROR_SUCCESS);
     }
-    text get_registry_string_value(text&& key_path, text&& parameter_name)
+    static auto get_registry_string_value(text&& key_path, text&& parameter_name)
     {
         text result;
 
@@ -919,7 +989,7 @@ namespace netxs::os
 
         return result;
     }
-    list get_registry_subkeys(text&& key_path)
+    static auto get_registry_subkeys(text&& key_path)
     {
         list result;
 
@@ -960,7 +1030,7 @@ namespace netxs::os
 
         return result;
     }
-    list cmdline()
+    static auto cmdline()
     {
         list result;
         int  argc = 0;
@@ -977,7 +1047,7 @@ namespace netxs::os
 
         return result;
     }
-    bool delete_registry_tree(text&& path)
+    static auto delete_registry_tree(text&& path)
     {
         bool result;
         HKEY hKey;
@@ -1005,7 +1075,7 @@ namespace netxs::os
 
         return result;
     }
-    void update_process_privileges(void)
+    static void update_process_privileges(void)
     {
         HANDLE hToken;
         TOKEN_PRIVILEGES tp;
@@ -1022,7 +1092,7 @@ namespace netxs::os
             AdjustTokenPrivileges(hToken, FALSE, &tp, sizeof(TOKEN_PRIVILEGES), NULL, NULL);
         }
     }
-    bool kill_process(unsigned long proc_id)
+    static auto kill_process(unsigned long proc_id)
     {
         bool result = false;
 
@@ -1042,10 +1112,9 @@ namespace netxs::os
 
         return result;
     }
-    text global_startup_dir()
+    static auto global_startup_dir()
     {
         text result;
-
 
         //todo vista & later
         // use SHGetFolderPath
@@ -1081,39 +1150,6 @@ namespace netxs::os
     }
 
     #endif  // Windows specific
-
-
-    enum role { client, server };
-
-    using xipc = std::shared_ptr<class ipc>;
-
-    struct nothing
-    {
-        template<class T>
-        operator T () { return T{}; }
-    };
-    template<class ...Args>
-    auto fail(Args&&... msg)
-    {
-        log("  os: ", msg..., " (", os::error(), ") ");
-        return nothing{};
-    };
-    template<class T>
-    bool ok(T error_condition, text msg = {})
-    {
-        if(
-            #if defined(_WIN32)
-                error_condition == 0
-            #elif defined(__linux__) || defined(__APPLE__)
-                error_condition == (T)-1
-            #endif
-        )
-        {
-            fail(msg);
-            return faux;
-        }
-        else return true;
-    }
 
     template<class SIZE_T>
     auto recv(fd_t fd, char* buff, SIZE_T size)
@@ -1180,80 +1216,127 @@ namespace netxs::os
         }
         return faux;
     }
+    static auto set_palette(iota legacy)
+    {
+        ansi::esc yield;
+        bool legacy_mouse = legacy & os::legacy::mouse;
+        bool legacy_color = legacy & os::legacy::vga16;
+        if (legacy_color)
+        {
+            auto set_pal = [&](auto p)
+            {
+                (yield.*p)(0,  rgba::color16[tint16::blackdk  ]);
+                (yield.*p)(1,  rgba::color16[tint16::blacklt  ]);
+                (yield.*p)(2,  rgba::color16[tint16::graydk   ]);
+                (yield.*p)(3,  rgba::color16[tint16::graylt   ]);
+                (yield.*p)(4,  rgba::color16[tint16::whitedk  ]);
+                (yield.*p)(5,  rgba::color16[tint16::whitelt  ]);
+                (yield.*p)(6,  rgba::color16[tint16::redlt    ]);
+                (yield.*p)(7,  rgba::color16[tint16::bluelt   ]);
+                (yield.*p)(8,  rgba::color16[tint16::greenlt  ]);
+                (yield.*p)(9,  rgba::color16[tint16::yellowlt ]);
+                (yield.*p)(10, rgba::color16[tint16::magentalt]);
+                (yield.*p)(11, rgba::color16[tint16::reddk    ]);
+                (yield.*p)(12, rgba::color16[tint16::bluedk   ]);
+                (yield.*p)(13, rgba::color16[tint16::greendk  ]);
+                (yield.*p)(14, rgba::color16[tint16::yellowdk ]);
+                (yield.*p)(15, rgba::color16[tint16::cyanlt   ]);
+            };
+            if (legacy_mouse) set_pal(&ansi::esc::old_palette);
+            else              set_pal(&ansi::esc::osc_palette);
+            os::send(STDOUT_FD, yield.data(), yield.size());
+            yield.clear();
+        }
+    }
+    static auto rst_palette(iota legacy)
+    {
+        ansi::esc yield;
+        bool legacy_mouse = legacy & os::legacy::mouse;
+        bool legacy_color = legacy & os::legacy::vga16;
+        if (legacy_color)
+        {
+            if (legacy_mouse) yield.old_palette_reset();
+            else              yield.osc_palette_reset();
+            os::send(STDOUT_FD, yield.data(), yield.size());
+            yield.clear();
+            log(" tty: palette restored");
+        }
+    }
+
+    #if defined(_WIN32)
+
+        struct file
+        {
+            fd_t r; // file: Read descriptor.
+            fd_t w; // file: Write descriptor.
+            fd_t& get_r() { return r; };
+            fd_t& get_w() { return w; };
+            operator bool () { return r != INVALID_FD && w != INVALID_FD; }
+            void close()
+            {
+                if (r != INVALID_FD) CloseHandle(r);
+                if (w != INVALID_FD) CloseHandle(w);
+            }
+            friend auto& operator << (std::ostream& s, file const& handle)
+            {
+                return s << handle.r << "," << handle.w;
+            }
+            file(fd_t fd_r = INVALID_FD, fd_t fd_w = INVALID_FD)
+                : r{ fd_r }, w{ fd_w }
+            { }
+        };
+        
+        class flash_t
+        {
+            fd_t h; // flash_t: Descriptor for IO interrupt.
+
+        public:
+            operator fd_t () { return h; }
+            flash_t()        { ok(h = CreateEvent(NULL, TRUE, FALSE, NULL), "CreateEvent error"); }
+           ~flash_t()        { if (h != INVALID_FD) CloseHandle(h); }
+            void reset()     { ok(SetEvent(h), "SetEvent error"); }
+        };
+
+    #elif defined(__linux__) || defined(__APPLE__)
+
+        struct file
+        {
+            fd_t h; // file: RW descriptor.
+            fd_t& get_r() { return h; };
+            fd_t& get_w() { return h; };
+            operator fd_t () { return h; }
+            operator bool () { return h != INVALID_FD; }
+            void close()
+            {
+                if (h != INVALID_FD) ::close(h);
+            }
+            friend auto& operator << (std::ostream& s, file const& handle)
+            {
+                return s << handle.h;
+            }
+            file(fd_t fd = INVALID_FD) : h{ fd } { }
+        };
+
+        class flash_t
+        {
+            fd_t h[2] = { INVALID_FD, INVALID_FD }; // flash_t: Descriptors for IO interrupt.
+            char x = 1;
+
+        public:
+            operator fd_t () { return h[0]; }
+            flash_t()        { ok(::pipe(h), "pipe(2) error"); }
+           ~flash_t()        { for(auto f : h) if (f != INVALID_FD) ::close(f); }
+            void reset()     { send(h[1], &x, sizeof(x)); }
+            void flush()     { recv(h[0], &x, sizeof(x)); }
+        };
+
+    #endif
 
     class ipc
     {
-    public:
-        #if defined(_WIN32)
-
-            struct link
-            {
-                fd_t r; // link: Read descriptor.
-                fd_t w; // link: Write descriptor.
-                fd_t& get_r() { return r; };
-                fd_t& get_w() { return w; };
-                operator bool () { return r != INVALID_FD && w != INVALID_FD; }
-                void close()
-                {
-                    if (r != INVALID_FD) CloseHandle(r);
-                    if (w != INVALID_FD) CloseHandle(w);
-                }
-                friend auto& operator << (std::ostream& s, link const& handle)
-                {
-                    return s << handle.r << "," << handle.w;
-                }
-                link(fd_t fd_r = INVALID_FD, fd_t fd_w = INVALID_FD)
-                    : r{ fd_r }, w{ fd_w }
-                { }
-            };
-
-            //static constexpr char* security_descriptor_string =
-            //	//"D:P(A;NP;GA;;;SY)(A;NP;GA;;;BA)(A;NP;GA;;;WD)";
-            //	"O:AND:P(A;NP;GA;;;SY)(A;NP;GA;;;BA)(A;NP;GA;;;CO)";
-            //	//"D:P(A;NP;GA;;;SY)(A;NP;GA;;;BA)(A;NP;GA;;;AU)";// Authenticated users
-            //	//"D:P(A;NP;GA;;;SY)(A;NP;GA;;;BA)(A;NP;GA;;;CO)"; // CREATOR OWNER
-            //	//"D:P(A;OICI;GA;;;SY)(A;OICI;GA;;;BA)(A;OICI;GA;;;CO)";
-            //	//  "D:"  DACL
-            //	//  "P"   SDDL_PROTECTED        The SE_DACL_PROTECTED flag is set.
-            //	//  "A"   SDDL_ACCESS_ALLOWED
-            //	// ace_flags:
-            //	//  "OI"  SDDL_OBJECT_INHERIT
-            //	//  "CI"  SDDL_CONTAINER_INHERIT
-            //	//  "NP"  SDDL_NO_PROPAGATE
-            //	// rights:
-            //	//  "GA"  SDDL_GENERIC_ALL
-            //	// account_sid: see https://docs.microsoft.com/en-us/windows/win32/secauthz/sid-strings
-            //	//  "SY"  SDDL_LOCAL_SYSTEM
-            //	//  "BA"  SDDL_BUILTIN_ADMINISTRATORS
-            //	//  "CO"  SDDL_CREATOR_OWNER
-            //	//  "WD"  SDDL_EVERYONE
-
-        #elif defined(__linux__) || defined(__APPLE__)
-
-            struct link
-            {
-                fd_t h; // link: RW descriptor.
-                fd_t& get_r() { return h; };
-                fd_t& get_w() { return h; };
-                operator fd_t () { return h; }
-                operator bool () { return h != INVALID_FD; }
-                void close()
-                {
-                    if (h != INVALID_FD) ::close(h);
-                }
-                friend auto& operator << (std::ostream& s, link const& handle)
-                {
-                    return s << handle.h;
-                }
-                link(fd_t fd = INVALID_FD) : h{ fd } { }
-            };
-
-        #endif
-
-    private:
         using vect = std::vector<char>;
         bool active; // ipc: Used by the os::tty.
-        link handle; // ipc: Socket file descriptor.
+        file handle; // ipc: Socket file descriptor.
         vect buffer; // ipc: Receive buffer.
         bool sealed; // ipc: Provide autoclosing.
         text scpath; // ipc: Socket path (in order to unlink).
@@ -1261,7 +1344,7 @@ namespace netxs::os
         void init(iota buff_size = PIPE_BUF) { buffer.resize(buff_size); }
 
     public:
-        ipc(link const& descriptor = {}, bool sealed = faux)
+        ipc(file const& descriptor = {}, bool sealed = faux)
             : handle{ descriptor },
               sealed{ sealed },
               active{ true }
@@ -1284,7 +1367,7 @@ namespace netxs::os
 
         operator bool () { return active; }
 
-        void set(link const& h, bool s)
+        void set(file const& h, bool s)
         {
             handle = h;
             sealed = s;
@@ -1417,7 +1500,7 @@ namespace netxs::os
 
             #elif defined(__linux__) || defined(__APPLE__)
 
-                auto s = link{ ::accept(handle.h, 0, 0) };
+                auto s = file{ ::accept(handle.h, 0, 0) };
                 return s ? std::make_shared<ipc>(s, true)
                          : nullptr;
             #endif
@@ -1509,7 +1592,7 @@ namespace netxs::os
         static auto open(text path, datetime::period retry_timeout = {}, P retry_proc = P())
             -> std::shared_ptr<ipc>
         {
-            auto sock_ptr = std::make_shared<ipc>(link{}, true);
+            auto sock_ptr = std::make_shared<ipc>(file{}, true);
             auto try_start = [&](auto play) -> bool
             {
                 auto done = play();
@@ -1677,61 +1760,6 @@ namespace netxs::os
         }
     };
 
-    struct args
-    {
-        int    argc;
-        char** argv;
-        int    iter;
-
-        args(int argc, char** argv)
-            : argc{ argc }, argv{ argv }, iter{ 1 }
-        { }
-
-        operator bool() const { return iter < argc; }
-        auto next()
-        {
-            if (iter < argc)
-            {
-                if (*(argv[iter]) == '-' || *(argv[iter]) == '/')
-                {
-                    return *(argv[iter++] + 1);
-                }
-                ++iter;
-            }
-            return '\0';
-        }
-    };
-
-    #if defined(_WIN32)
-
-        class flash_t
-        {
-            fd_t h; // tty: Descriptor for IO interrupt.
-
-        public:
-            operator fd_t () { return h; }
-            flash_t()        { ok(h = CreateEvent(NULL, TRUE, FALSE, NULL), "CreateEvent error"); }
-           ~flash_t()        { if (h != INVALID_FD) CloseHandle(h); }
-            void reset()     { ok(SetEvent(h), "SetEvent error"); }
-        };
-
-    #elif defined(__linux__) || defined(__APPLE__)
-
-        class flash_t
-        {
-            fd_t h[2] = { INVALID_FD, INVALID_FD }; // tty: Descriptors for IO interrupt.
-            char x = 1;
-
-        public:
-            operator fd_t () { return h[0]; }
-            flash_t()        { ok(::pipe(h), "pipe(2) error"); }
-           ~flash_t()        { for(auto f : h) if (f != INVALID_FD) ::close(f); }
-            void reset()     { send(h[1], &x, sizeof(x)); }
-            void flush()     { recv(h[0], &x, sizeof(x)); }
-        };
-
-    #endif
-
     class tty
     {
         flash_t flash;
@@ -1741,9 +1769,9 @@ namespace netxs::os
         {
             static xipc ipcio;
             static conmode state;
+            static testy<twod> winsz;
             static void resize_handler()
             {
-                static testy<twod> winsz;
                 #if defined(_WIN32)
 
                     CONSOLE_SCREEN_BUFFER_INFO cinfo;
@@ -1838,7 +1866,7 @@ namespace netxs::os
             #endif
         };
 
-        void reader()
+        void reader(iota mode)
         {
             log(" tty: reader thread started");
             auto& ipcio =*_globals<void>::ipcio;
@@ -1996,26 +2024,151 @@ namespace netxs::os
 
             #elif defined(__linux__) || defined(__APPLE__)
 
-                std::vector<char> buff(STDIN_BUF);
+                bool legacy_mouse = mode & os::legacy::mouse;
+                bool legacy_color = mode & os::legacy::vga16;
+                file micefd;
+                twod mcoor;
+                auto buffer = text(STDIN_BUF, '\0');
+                iota ttynum = 0;
+                ansi::esc yield;
+
+                struct
+                {
+                    testy<twod> coord;
+                    testy<iota> shift = 0;
+                    testy<iota> bttns = 0;
+                    iota        flags = 0;
+                } state;
+                auto get_kb_state = []()
+                {
+                    iota state = 0;
+                    #if defined(__linux__)
+                        iota shift_state = 6;
+                        ok(::ioctl(STDIN_FD, TIOCLINUX, &shift_state));
+                        state = 0
+                            | (shift_state & (1 << KG_ALTGR)) >> 1 // 0x1
+                            | (shift_state & (1 << KG_ALT  )) >> 2 // 0x2
+                            | (shift_state & (1 << KG_CTRLR)) >> 5 // 0x4
+                            | (shift_state & (1 << KG_CTRL )) << 1 // 0x8
+                            | (shift_state & (1 << KG_SHIFT)) << 4 // 0x10
+                            ;
+                    #endif
+                    return state;
+                };
+                ok(::ttyname_r(STDOUT_FD, buffer.data(), buffer.size()), "ttyname_r error");
+                auto tty_name = view(buffer.data());
+                log(" tty: pseudoterminal ", tty_name);
+                if (legacy_mouse)
+                {
+                    log(" tty: compatibility mode");
+                    auto imps2_init_string = "\xf3\xc8\xf3\x64\xf3\x50";
+                    auto mouse_device = "/dev/input/mice";
+                    auto fd = ::open(mouse_device, O_RDWR);
+                    if(fd == -1) log(" tty: error opening ", mouse_device, ", error ", errno, errno == 13 ? " - permission denied" : "");
+                    else if (os::send(fd, imps2_init_string, sizeof(imps2_init_string)))
+                    {
+                        char ack;
+                        recv(fd, &ack, sizeof(ack));
+                        if (ack == '\xfa')
+                        {
+                            micefd = file{ fd };
+                            auto tty_word = tty_name.find("tty", 0);
+                            if (tty_word != text::npos)
+                            {
+                                tty_word += 3; /*skip tty letters*/
+                                auto tty_number = utf::to_view(buffer.data() + tty_word, buffer.size() - tty_word);
+                                if (auto cur_tty = utf::to_int(tty_number))
+                                {
+                                    ttynum = cur_tty.value();
+                                }
+                            }
+                            yield.show_mouse(true);
+                            ipcio.send<faux>(view(yield));
+                            yield.clear();
+                            log(" tty: mouse successfully connected, fd=", fd);
+                        }
+                    }
+                    if (!micefd)
+                    {
+                        log(" tty: mouse initialization error");
+                        ::close(fd);
+                    }
+                }
+
                 while (ipcio)
                 {
                     fd_set socks;
                     FD_ZERO(&socks);
-                    FD_SET(STDIN_FD, &socks);
-                    FD_SET(flash, &socks);
-                    auto nfds = std::max(STDIN_FD, (fd_t)flash) + 1;
-
+                    FD_SET(STDIN_FD,    &socks);
+                    FD_SET((fd_t)flash, &socks);
+                    auto nfds = std::max(STDIN_FD, (fd_t)flash);
+                    if (micefd)
+                    {
+                        nfds = std::max(nfds, (fd_t)micefd);
+                        FD_SET((fd_t)micefd, &socks);
+                    }
+                    nfds++;
                     if (::select(nfds, &socks, 0, 0, 0) > 0)
                     {
-                        if (FD_ISSET(flash, &socks))
+                        if (FD_ISSET(STDIN_FD, &socks))
+                        {
+                            if (micefd && state.shift(get_kb_state()))
+                            {
+                                yield.meta_state(state.shift.last);
+                                auto data = os::recv(STDIN_FD, buffer.data(), buffer.size());
+                                yield += data;
+                                ipcio.send<faux>(yield);
+                                yield.clear();
+                            }
+                            else
+                            {
+                                auto data = os::recv(STDIN_FD, buffer.data(), buffer.size());
+                                ipcio.send<faux>(data);
+                            }
+                        }
+                        else if (FD_ISSET((fd_t)flash, &socks))
                         {
                             log("xipc: flash fired");
                             flash.flush();
                         }
-                        else if (FD_ISSET(STDIN_FD, &socks))
+                        else if (micefd && FD_ISSET((fd_t)micefd, &socks))
                         {
-                            auto data = os::recv(STDIN_FD, buff.data(), buff.size());
-                            ipcio.send<faux>(data);
+                            auto data = os::recv(micefd, buffer.data(), buffer.size());
+                            if (data.size() == 4 /*ImPS only*/)
+                            {
+                                #if defined(__linux__)
+                                    vt_stat vt_state;
+                                    ok(::ioctl(STDOUT_FD, VT_GETSTATE, &vt_state));
+                                    if (vt_state.v_active == ttynum)
+                                    {
+                                        auto scale = twod{6,12}; //todo magic numbers
+                                        auto bttns = data[0] & 7;
+                                        mcoor.x += data[1];
+                                        mcoor.y -= data[2];
+                                        auto wheel = -data[3]; //todo configurable direction
+                                        auto limit = _globals<void>::winsz.last * scale;
+                                        if (bttns == 0) mcoor = std::clamp(mcoor, dot_00, limit);
+                                        state.flags = wheel ? 4 : 0;
+                                        if (state.coord(mcoor / scale)
+                                        || state.bttns(bttns)
+                                        || state.shift(get_kb_state())
+                                        || state.flags)
+                                        {
+                                            yield.w32begin()
+                                            .w32mouse(0,
+                                                    state.bttns.last,
+                                                    state.shift.last,
+                                                    state.flags,
+                                                    wheel,
+                                                    state.coord.last.x,
+                                                    state.coord.last.y)
+                                            .w32close();
+                                            ipcio.send<faux>(view(yield));
+                                            yield.clear();
+                                        }
+                                    }
+                                #endif
+                            }
                         }
                     }
                 }
@@ -2029,9 +2182,9 @@ namespace netxs::os
         { }
 
     public:
-        static auto proxy(xipc link)
+        static auto proxy(xipc pipe_link)
         {
-            _globals<void>::ipcio = link;
+            _globals<void>::ipcio = pipe_link;
             return tty{};
         }
         bool output(view text)
@@ -2072,7 +2225,6 @@ namespace netxs::os
             #elif defined(__linux__) || defined(__APPLE__)
 
                 auto& state = _globals<void>::state;
-
                 if (ok(::tcgetattr(STDIN_FD, &state))) // Set stdin raw mode.
                 {
                     ::termios raw_mode = state;
@@ -2089,13 +2241,16 @@ namespace netxs::os
             ::atexit(_globals<void>::default_mode);
             _globals<void>::resize_handler();
         }
-        void splice()
+        void splice(iota mode)
         {
             auto& ipcio = *_globals<void>::ipcio;
-            auto  input = std::thread{ [&]() { reader(); } };
+
+            os::set_palette(mode);
+            auto  input = std::thread{ [&]() { reader(mode); } };
 
             while (output(ipcio.recv()))
             { }
+            os::rst_palette(mode);
 
             ipcio.reset();
             flash.reset();
@@ -2105,8 +2260,9 @@ namespace netxs::os
         }
     };
 
-    template<class V> xipc    tty::_globals<V>::ipcio;
-    template<class V> conmode tty::_globals<V>::state;
+    template<class V> xipc        tty::_globals<V>::ipcio;
+    template<class V> conmode     tty::_globals<V>::state;
+    template<class V> testy<twod> tty::_globals<V>::winsz;
 
     class cons
     {
@@ -2298,6 +2454,7 @@ namespace netxs::os
                     }
                     argv.push_back(nullptr);
 
+                    ::setenv("TERM", "xterm-256color", 1); //todo too hacky
                     ok(::execvp(argv.front(), argv.data()), "execvp error");
                     os::exit(1, "cons: exec error ", errno);
                 }

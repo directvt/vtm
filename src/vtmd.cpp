@@ -1,7 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#define MONOTTY_VER "Monotty Desktopio v0.4.2"
+#define MONOTTY_VER "Monotty Desktopio v0.4.7"
 // Autostart demo apps.
 //#define DEMO
 // Enable keyboard input and disable exit by single Esc.
@@ -289,9 +289,9 @@ class post_logs
                     else yield.bgc(ansi::redlt).add(" - ");
 
                     yield.bgc().fgc(ansi::greendk)
-                        .add(utf::adjust(utf::to_hex<true>(cp, (cp <= 0xFF   ? 2 :
+                         .add(utf::adjust(utf::to_hex<true>(cp, (cp <= 0xFF   ? 2 :
                                                                 cp <= 0xFFFF ? 4 : 5)), wc, ' '))
-                        .fgc().bgc();
+                         .fgc().bgc();
                     if (++w == max_col) { w = 0; yield.eol(); }
                 };
                 auto s = [&](utf::prop const& traits, view const& utf8)
@@ -1202,7 +1202,7 @@ utility like ctags is used to locate the definitions.
         truecolor += wiki01;
 
         //auto const highlight_color2 = tint::blackdk ;
-        auto const highlightdk_color = tint::bluedk  ;
+        //auto const highlightdk_color = tint::bluedk  ;
         auto const highlight_color   = tint::bluelt  ;
         auto const warning_color     = tint::yellowdk;
         auto const danger_color      = tint::redlt   ;
@@ -1344,7 +1344,7 @@ utility like ctags is used to locate the definitions.
                                     boss.base::template riseup<e2::release, e2::form::proceed::detach>(backup);
                                 };
                             })
-                         ->attach<ui::item>("✕");
+                         ->attach<ui::item>("×");
             return menu_area;
         };
         auto custom_menu = [&](std::list<std::pair<text, std::function<void(ui::pads&)>>> menu_items)
@@ -1380,7 +1380,7 @@ utility like ctags is used to locate the definitions.
                                     boss.base::template riseup<e2::release, e2::form::proceed::detach>(backup);
                                 };
                             })
-                         ->template attach<ui::item>("✕");
+                         ->template attach<ui::item>("×");
             return menu_area;
         };
 
@@ -1439,7 +1439,7 @@ utility like ctags is used to locate the definitions.
                     auto object0 = window->attach<ui::fork>(axis::Y)
                                          ->colors(whitelt, 0xA0db3700);
                         auto menu = object0->attach<slot::_1>(custom_menu({}))
-                                          ->plugin<pro::mover>(window);
+                                           ->plugin<pro::mover>(window);
                         auto test_stat_area = object0->attach<slot::_2, ui::fork>(axis::Y);
                             auto layers = test_stat_area->attach<slot::_1, ui::cake>();
                                 auto scroll = layers->attach<ui::rail>()
@@ -1610,7 +1610,7 @@ utility like ctags is used to locate the definitions.
                                         auto ellipsis = func_line->attach<slot::_2, ui::post>()
                                                                  ->plugin<pro::fader>(c7, c3, 150ms)
                                                                  ->plugin<pro::limit>(twod{ -1,1 }, twod{ 3,-1 })
-                                                                 ->upload(ansi::wrp(wrap::off) + " ⋯ ");
+                                                                 ->upload(ansi::wrp(wrap::off) + " … ");
                                     auto body_area = func_body->attach<slot::_2, ui::fork>(axis::Y);
                                         auto corner_cols = body_area->attach<slot::_1, ui::fork>();
                                             auto corner = corner_cols->attach<slot::_1, ui::post>()
@@ -1660,9 +1660,9 @@ utility like ctags is used to locate the definitions.
                                     auto plus_pad = sheet_plus->attach<slot::_2, ui::fork>();
                                         auto plus = plus_pad->attach<slot::_1, ui::post>()
                                                             ->plugin<pro::fader>(c7, c3, 150ms)
-                                                            ->plugin<pro::limit>(twod{ 2,-1 }, twod{ 2,-1 })
+                                                            ->plugin<pro::limit>(twod{ 3,-1 }, twod{ 3,-1 })
                                                             ->upload(ansi::wrp(wrap::off)
-                                                              + "＋");
+                                                              + " + ");
                                         auto pad = plus_pad->attach<slot::_2, ui::mock>()
                                                            ->plugin<pro::limit>(twod{ 1,1 }, twod{ 1,1 });
                             layers->attach(scroll_bars(scroll));
@@ -1806,7 +1806,7 @@ utility like ctags is used to locate the definitions.
                         auto menu = object->attach<slot::_1>(custom_menu(
                             std::list{
                                 #ifdef DEMO
-                                    std::pair<text, std::function<void(ui::pads&)>>{ "Test" + ansi::und(true) + "1" + ansi::nil(),
+                                    std::pair<text, std::function<void(ui::pads&)>>{ "Test1",
                                     [](ui::pads& boss)
                                     {
                                         boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
@@ -1819,7 +1819,7 @@ utility like ctags is used to locate the definitions.
                                             gear.nodbl = true;
                                         };
                                     }},
-                                    std::pair<text, std::function<void(ui::pads&)>>{ "Test" + ansi::und(true) + "2" + ansi::nil(),
+                                    std::pair<text, std::function<void(ui::pads&)>>{ "Test2",
                                     [](ui::pads& boss)
                                     {
                                         boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
@@ -1832,7 +1832,7 @@ utility like ctags is used to locate the definitions.
                                             gear.nodbl = true;
                                         };
                                     }},
-                                    std::pair<text, std::function<void(ui::pads&)>>{ "Test" + ansi::und(true) + "3" + ansi::nil(),
+                                    std::pair<text, std::function<void(ui::pads&)>>{ "Test3",
                                     [](ui::pads& boss)
                                     {
                                         boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
@@ -1865,7 +1865,7 @@ utility like ctags is used to locate the definitions.
                                         };
                                     }},
                                 #endif
-                                    std::pair<text, std::function<void(ui::pads&)>>{ ansi::und(true) + "R" + ansi::nil() + "eset",
+                                    std::pair<text, std::function<void(ui::pads&)>>{ "Reset",
                                     [](ui::pads& boss)
                                     {
                                         boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
@@ -2027,7 +2027,7 @@ utility like ctags is used to locate the definitions.
                                         ->colors(whitelt, term_menu_bg);
                         auto menu = object->attach<slot::_1>(custom_menu(
                             std::list{
-                                    std::pair<text, std::function<void(ui::pads&)>>{ "Codepoint" + ansi::und(true) + "s" + ansi::nil(),
+                                    std::pair<text, std::function<void(ui::pads&)>>{ "Codepoints",
                                     [](ui::pads& boss)
                                     {
                                         boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
@@ -2044,7 +2044,7 @@ utility like ctags is used to locate the definitions.
                                             boss.color(status == 1 ? 0xFF00ff00 : x3.fgc(), x3.bgc());
                                         };
                                     }},
-                                    std::pair<text, std::function<void(ui::pads&)>>{ "C" + ansi::und(true) + "l" + ansi::nil() + "ear",
+                                    std::pair<text, std::function<void(ui::pads&)>>{ "Clear",
                                     [](ui::pads& boss)
                                     {
                                         boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
@@ -2258,10 +2258,12 @@ utility like ctags is used to locate the definitions.
                 auto _ip     = peer->line(';');
                 auto _user   = peer->line(';');
                 auto _name   = peer->line(';');
+                auto _mode   = peer->line(';');
                 log("peer: region= ", _region,
                         ", ip= "    , _ip,
                         ", user= "  , _user,
-                        ", name= "  , _name);
+                        ", name= "  , _name,
+                        ", mode= "  , _mode);
                 text c_ip;
                 text c_port;
                 auto c_info = utf::divide(_ip, " ");
@@ -2290,7 +2292,12 @@ utility like ctags is used to locate the definitions.
                     #endif
 
                     auto lock = std::make_unique<e2::sync>();
-                    auto client = world->invite<ui::gate>(username);
+                    iota legacy_mode = os::legacy::clean;
+                    if (auto mode = utf::to_int(view(_mode)))
+                    {
+                        legacy_mode = mode.value();
+                    }
+                    auto client = world->invite<ui::gate>(username, legacy_mode);
                     auto client_shadow = ptr::shadow(client);
                     auto world_shadow = ptr::shadow(world);
                     auto my_id = client->id;
@@ -2373,7 +2380,7 @@ utility like ctags is used to locate the definitions.
                                                                         }
                                                                     };
                                                                 });
-                                    auto app_close = app_close_area->template attach<ui::item>("  ✕  ", faux);
+                                    auto app_close = app_close_area->template attach<ui::item>("  ×  ", faux);
                         return item_area;
                     };
                     auto apps_template = [&](auto& data_src, auto& apps_map)
@@ -2510,7 +2517,7 @@ utility like ctags is used to locate the definitions.
                         auto item_area = base::create<ui::pads>(dent{ 1,0,0,1 }, dent{ 0,0,1,0 })
                                              ->plugin<pro::fader>(x3, c3, 150ms);
                             auto user = item_area->attach<ui::item>(
-                                    + "🔗" + ansi::nil() + " "
+                                    + " &" + ansi::nil() + " "
                                     + ansi::fgc4(data_src->id == my_id ? rgba::color256[whitelt] : 0x00) + utf8, true);
                         return item_area;
                     };
@@ -2584,7 +2591,7 @@ utility like ctags is used to locate the definitions.
                                                 //                            ->upload(ansi::jet(bias::center) + "[ Term ]");
                                                 auto bttn_pads = bttn_area->attach<slot::_2, ui::pads>(dent{ 2,2,0,0 }, dent{ 0,0,1,1 })
                                                                           ->plugin<pro::fader>(x6, c6, 150ms);
-                                                    auto bttn = bttn_pads->attach<ui::item>("⮟", faux);
+                                                    auto bttn = bttn_pads->attach<ui::item>(">", faux);
                                     auto applist_area = apps_area->attach<slot::_2, ui::pads>(dent{ 0,0,1,0 }, dent{})
                                                                  ->attach<ui::cake>();
                                         auto task_menu_area = applist_area->attach<ui::fork>(axis::Y, 0, 0);
@@ -2604,7 +2611,7 @@ utility like ctags is used to locate the definitions.
                                                         if(auto task_menu_area = task_menu_area_shadow.lock())
                                                         {
                                                             auto state = task_menu_area->get_ratio();
-                                                            bttn->set(state ? "⮝" : "⮟");
+                                                            bttn->set(state ? ">" : "<");
                                                             task_menu_area->config(state ? 0 : 100);
                                                             gear.dismiss();
                                                         }
@@ -2622,7 +2629,7 @@ utility like ctags is used to locate the definitions.
                                                         {
                                                             if (auto state = task_menu_area->get_ratio())
                                                             {
-                                                                bttn->set("⮝");
+                                                                bttn->set(">");
                                                                 task_menu_area->config(0);
                                                             }
                                                         }
@@ -2641,7 +2648,7 @@ utility like ctags is used to locate the definitions.
                                             auto bttn_area = label_bttn->attach<slot::_2, ui::fork>();
                                                 auto bttn_pads = bttn_area->attach<slot::_2, ui::pads>(dent{ 2,2,0,0 }, dent{ 0,0,1,1 })
                                                                           ->plugin<pro::fader>(x6, c6, 150ms);
-                                                    auto bttn = bttn_pads->attach<ui::item>("⮝", faux);
+                                                    auto bttn = bttn_pads->attach<ui::item>("<", faux);
                                     auto userlist_area = users_area->attach<slot::_2, ui::pads>()
                                                                    ->plugin<pro::limit>();
                                         auto users = userlist_area->attach_element<e2::bindings::list::users>(world, branch_template);
@@ -2659,7 +2666,7 @@ utility like ctags is used to locate the definitions.
                                                         if(auto userlist = userlist_area_shadow.lock())
                                                         {
                                                             state = !state;
-                                                            bttn->set(state ? "⮟" : "⮝");
+                                                            bttn->set(state ? ">" : "<");
                                                             auto& limits = userlist->plugins<pro::limit>();
                                                             auto lims = limits.get();
                                                             lims.min.y = lims.max.y = state ? 0 : -1;
@@ -2686,7 +2693,7 @@ utility like ctags is used to locate the definitions.
                                                                         }
                                                                     };
                                                                 });
-                                        auto disconnect = disconnect_area->attach<ui::item>("✕ Disconnect");
+                                        auto disconnect = disconnect_area->attach<ui::item>("× Disconnect");
                                     auto shutdown_area = bttns->attach<slot::_2, ui::pads>(dent{ 2,3,1,1 })
                                                             ->plugin<pro::fader>(x1, c1, 150ms)
                                                             ->invoke([&](auto& boss)
@@ -2701,7 +2708,7 @@ utility like ctags is used to locate the definitions.
                                                                     os::exit(0, "taskbar: shutdown by button");
                                                                 };
                                                             });
-                                        auto shutdown = shutdown_area->attach<ui::item>("✕ Shutdown");
+                                        auto shutdown = shutdown_area->attach<ui::item>("× Shutdown");
                             }
                     }
                     client->color(background_color.fgc(), background_color.bgc());

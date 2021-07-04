@@ -19,6 +19,7 @@ A text-based desktop environment inside your terminal*
  - `ssh vtm@netxs.online`
 
 ### Video
+
  - [Desktop environment](https://youtu.be/fLumnSctakY)
  - [Collaborative interaction](https://youtu.be/0zU4e5Vam8c)
  - [Recursive connection](https://youtu.be/Fm5X75sO62c)

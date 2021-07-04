@@ -1686,7 +1686,7 @@ namespace netxs::ui
     {
         pro::limit limit{ *this }; // item: Size limits.
 
-        static constexpr view dots = "‥";
+        static constexpr view dots = "…";
         para name;
         bool flex; // item: Violate or not the label size, default is faux.
         bool test; // item: Place or not(default) the Two Dot Leader when there is not enough space.
