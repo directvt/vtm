@@ -305,13 +305,71 @@ namespace netxs::os
         log("  os: mouse mode: ", mode & legacy::mouse ? "console" : "VT-style");
         return mode;
     }
-    static auto vtgafont_update()
+    static auto vtgafont_update(iota mode)
     {
         #if defined (__linux__)
 
-            if (local_mode())
+            if (mode & legacy::mouse)
             {
-                
+                auto chars = std::vector<unsigned char>(512 * 32 * 4);
+                auto fdata = console_font_op{ .op        = KD_FONT_OP_GET,
+                                              .flags     = 0,
+                                              .width     = 32,
+                                              .height    = 32,
+                                              .charcount = 512,
+                                              .data      = chars.data() };
+                if (!ok(::ioctl(STDOUT_FD, KDFONTOP, &fdata), "KDFONTOP + KD_FONT_OP_GET failed")) return;
+
+                auto slice_bytes = (fdata.width + 7) / 8;
+                auto block_bytes = (slice_bytes * fdata.height + 31) / 32 * 32;
+                auto tophalf_idx = 10;
+                auto lowhalf_idx = 254;
+                auto tophalf_ptr = fdata.data + block_bytes * tophalf_idx;
+                auto lowhalf_ptr = fdata.data + block_bytes * lowhalf_idx;
+                for (auto row = 0; row < fdata.height; row++)
+                {
+                    auto is_top = row < fdata.height / 2;
+                   *tophalf_ptr = is_top ? 0xFF : 0x00;
+                   *lowhalf_ptr = is_top ? 0x00 : 0xFF;
+                    tophalf_ptr+= slice_bytes;
+                    lowhalf_ptr+= slice_bytes;
+                }
+                fdata.op = KD_FONT_OP_SET;
+                if (!ok(::ioctl(STDOUT_FD, KDFONTOP, &fdata), "KDFONTOP + KD_FONT_OP_SET failed")) return;
+
+                auto max_sz = std::numeric_limits<unsigned short>::max();
+                auto spairs = std::vector<unipair>(max_sz);
+                auto dpairs = std::vector<unipair>(max_sz);
+                auto srcmap = unimapdesc{ max_sz, spairs.data() };
+                auto dstmap = unimapdesc{ max_sz, dpairs.data() };
+                auto dstptr = dstmap.entries;
+                auto srcptr = srcmap.entries;
+                if (!ok(::ioctl(STDOUT_FD, GIO_UNIMAP, &srcmap), "GIO_UNIMAP failed")) return;
+                auto srcend = srcmap.entries + srcmap.entry_ct;
+                while (srcptr != srcend) // Drop 10, 211, 254 and 0x2580▀ + 0x2584▄.
+                {
+                    auto& smap = *srcptr++;
+                    if (smap.fontpos != 10
+                     && smap.fontpos != 211
+                     && smap.fontpos != 254
+                     && smap.unicode != 0x2580
+                     && smap.unicode != 0x2584) *dstptr++ = smap;
+                }
+                dstmap.entry_ct = dstptr - dstmap.entries;
+                unipair new_recs[] = { { 0x2580,  10 },
+                                       { 0x2219, 211 },
+                                       { 0x2022, 211 },
+                                       { 0x25CF, 211 },
+                                       { 0x25A0, 254 },
+                                       { 0x25AE, 254 },
+                                       { 0x2584, 254 } };
+                if (dstmap.entry_ct < max_sz - std::size(new_recs)) // Add new records.
+                {
+                    for (auto& p : new_recs) *dstptr++ = p;
+                    dstmap.entry_ct += std::size(new_recs);
+                    if (!ok(::ioctl(STDOUT_FD, PIO_UNIMAP, &dstmap), "PIO_UNIMAP failed")) return;
+                }
+                else log("  os: vtgafont_update failed - UNIMAP is full");
             }
 
         #endif
@@ -2246,6 +2304,8 @@ namespace netxs::os
             auto& ipcio = *_globals<void>::ipcio;
 
             os::set_palette(mode);
+            os::vtgafont_update(mode);
+
             auto  input = std::thread{ [&]() { reader(mode); } };
 
             while (output(ipcio.recv()))
