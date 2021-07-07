@@ -1,7 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#define MONOTTY_VER "Monotty Desktopio v0.4.8"
+#define MONOTTY_VER "Monotty Desktopio v0.4.9"
 // Autostart demo apps.
 //#define DEMO
 // Enable keyboard input and disable exit by single Esc.
@@ -2500,7 +2500,7 @@ utility like ctags is used to locate the definitions.
                                                                 auto selected = id == data;
                                                                 if(auto mark = mark_shadow.lock())
                                                                 {
-                                                                    mark->set(ansi::bgc4(selected ? 0xFF00ff00 : 0xFF000000) + "██");
+                                                                    mark->set(ansi::fgc4(selected ? 0xFF00ff00 : 0xFF000000) + "██");
                                                                     mark->deface();
                                                                 }
                                                             };
