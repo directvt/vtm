@@ -99,8 +99,9 @@ namespace netxs::console
 
     EVENT_BIND(e2::config::any, iota)
         EVENT_BIND(e2::config::broadcast, sptr<bell>)
-        EVENT_BIND(e2::config::intervals::any, period)
-            EVENT_SAME(e2::config::intervals::any, e2::config::intervals::blink)
+        EVENT_BIND(e2::config::caret::any, period)
+            EVENT_BIND(e2::config::caret::blink, period)
+            EVENT_BIND(e2::config::caret::style, iota)
 
     EVENT_BIND(e2::data::any, iota)
         EVENT_BIND(e2::data::changed, iota)
@@ -2561,35 +2562,69 @@ namespace netxs::console
             bool   live; // caret: Should the caret be drawn.
             bool   done; // caret: Is the caret already drawn.
             rect   body; // caret: Caret position.
-            period step; // caret: Blink interval.
+            period step; // caret: Blink interval. period::zero() if steady.
             moment next; // caret: Time of next blinking.
-            //iota form; // caret: Set caret style (box, line, bar)
+            bool   form; // caret: Caret style: true - box; faux - underline.
 
         public:
             caret(base&&) = delete;
-            caret(base& boss, bool visible = faux, twod position = dot_00) : skill{ boss },
+            caret(base& boss, bool visible = faux, twod position = dot_00, bool abox = faux) : skill{ boss },
                 live{ faux },
                 done{ faux },
+                form{ abox },
                 body{ position, dot_11 }, // Caret is always one cell size (see the term::scrollback definition).
                 step{ BLINK_PERIOD }
             {
-                boss.SUBMIT_T(e2::request, e2::config::intervals::blink, conf, req_step)
+                boss.SUBMIT_T(e2::request, e2::config::caret::blink, conf, req_step)
                 {
                     req_step = step;
                 };
-                boss.SUBMIT_T(e2::general, e2::config::intervals::blink, conf, new_step)
+                boss.SUBMIT_T(e2::request, e2::config::caret::style, conf, req_style)
                 {
-                    step = new_step;
+                    req_style = form ? 1 : 0;
                 };
-                boss.SUBMIT_T(e2::preview, e2::config::intervals::blink, conf, new_step)
+                boss.SUBMIT_T(e2::general, e2::config::caret::blink, conf, new_step)
                 {
-                    step = new_step;
+                    blink_period(new_step);
+                };
+                boss.SUBMIT_T(e2::preview, e2::config::caret::blink, conf, new_step)
+                {
+                    blink_period(new_step);
+                };
+                boss.SUBMIT_T(e2::general, e2::config::caret::style, conf, new_style)
+                {
+                    style(new_style);
+                };
+                boss.SUBMIT_T(e2::preview, e2::config::caret::style, conf, new_style)
+                {
+                    style(new_style);
                 };
                 if (visible) show();
             }
 
             operator bool() const { return memo.count(); }
 
+            // pro::caret: Set caret style.
+            void style(bool new_form)
+            {
+                if (form != new_form)
+                {
+                    hide();
+                    form = new_form;
+                    show();
+                }
+            }
+            // pro::caret: Set blink period.
+            void blink_period(period const& new_step = BLINK_PERIOD)
+            {
+                auto changed = (step == period::zero()) != (new_step == period::zero());
+                step = new_step;
+                if (changed)
+                {
+                    hide();
+                    show();
+                }
+            }
             // pro::caret: Set caret position.
             void coor(twod const& coor)
             {
@@ -2614,8 +2649,11 @@ namespace netxs::console
             // pro::caret: Force to redraw caret.
             void reset()
             {
-                live = faux;
-                next = {};
+                if (step != period::zero())
+                {
+                    live = faux;
+                    next = {};
+                }
             }
             // pro::caret: Enable caret.
             void show()
@@ -2623,16 +2661,19 @@ namespace netxs::console
                 if (!*this)
                 {
                     done = faux;
-                    live = faux;
-                    boss.SUBMIT_T(e2::general, e2::timer::tick, memo, timestamp)
+                    live = step == period::zero();
+                    if (!live)
                     {
-                        if (timestamp > next)
+                        boss.SUBMIT_T(e2::general, e2::timer::tick, memo, timestamp)
                         {
-                            next = timestamp + step;
-                            live = !live;
-                            boss.SIGNAL(e2::preview, e2::form::layout::strike, body);
-                        }
-                    };
+                            if (timestamp > next)
+                            {
+                                next = timestamp + step;
+                                live = !live;
+                                boss.SIGNAL(e2::preview, e2::form::layout::strike, body);
+                            }
+                        };
+                    }
                     boss.SUBMIT_T(e2::release, e2::postrender, memo, canvas)
                     {
                         done = live;
@@ -2643,7 +2684,8 @@ namespace netxs::console
                             point.coor += field.coor + boss.base::coor();
                             if (auto area = field.clip(point))
                             {
-                                canvas.fill(area, [](cell& c) { c.und(!c.und()); });
+                                if (form) canvas.fill(area, [](cell& c) { c.inv(!c.inv()); });
+                                else      canvas.fill(area, [](cell& c) { c.und(!c.und()); });
                             }
                         }
                     };

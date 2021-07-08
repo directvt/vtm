@@ -985,7 +985,8 @@ namespace netxs::ui
                 parser() : vt()
                 {
                     using namespace netxs::console::ansi;
-                    vt::csier.table[CSI_CUU] = VT_PROC{ p->up ( q(1)); };  // CSI n A
+                    vt::csier.table[CSI_CUU] = VT_PROC{ if (auto n = q(1); q) p->na("CSI n SP A  Shift right n columns(s).");  // CSI n SP A  Shift right n columns(s).
+                                                        else                  p->up(n); };  // CSI n A
                     vt::csier.table[CSI_CUD] = VT_PROC{ p->dn ( q(1)); };  // CSI n B
                     vt::csier.table[CSI_CUF] = VT_PROC{ p->cuf( q(1)); };  // CSI n C
                     vt::csier.table[CSI_CUB] = VT_PROC{ p->cuf(-q(1)); };  // CSI n D
@@ -999,9 +1000,11 @@ namespace netxs::ui
                     vt::csier.table[CSI_CUP] = VT_PROC{ p->cup( q   ); };  // CSI y ; x H (1-based)
                     vt::csier.table[CSI_HVP] = VT_PROC{ p->cup( q   ); };  // CSI y ; x f (1-based)
 
-                    vt::csier.table[CSI_DCH] = VT_PROC{ p->dch( q(1)); };  // CSI n P  Delete n chars.
+                    vt::csier.table[CSI_DCH] = VT_PROC{ if (auto n = q(1); q) p->na("CSI n # P  Push current palette colors onto stack. n default is 0.");  // CSI n # P  Push current palette colors onto stack. n default is 0.
+                                                        else                  p->dch(n); };  // CSI n P  Delete n chars.
                     vt::csier.table[CSI_ECH] = VT_PROC{ p->ech( q(1)); };  // CSI n X  Erase n chars.
-                    vt::csier.table[CSI_ICH] = VT_PROC{ p->ich( q(1)); };  // CSI n @  Insert n chars.
+                    vt::csier.table[CSI_ICH] = VT_PROC{ if (auto n = q(1); q) p->na("CSI n SP @  Shift left n columns(s).");  // CSI n SP @  Shift left n columns(s).
+                                                        else                  p->ich( n ); };  // CSI n @  Insert n chars.
 
                     vt::csier.table[CSI__ED] = VT_PROC{ p->ed ( q(0)); };  // CSI n J
                     vt::csier.table[CSI__EL] = VT_PROC{ p->el ( q(0)); };  // CSI n K
@@ -1015,6 +1018,8 @@ namespace netxs::ui
                     vt::csier.table[DECSTBM] = VT_PROC{ p->scr( q   ); };  // CSI r; b r  Set scrolling region (t/b: top+bottom).
 
                     vt::csier.table[CSI_WIN] = VT_PROC{ p->boss.winprops.manage(q); };  // CSI n;m;k t  Terminal window options (XTWINOPS).
+
+                    vt::csier.table[CSI_LED] = VT_PROC{ p->boss.caret_style(q); };
 
                     vt::csier.table[CSI_CCC][CCC_RST] = VT_PROC{ p->style.glb();    };  // fx_ccc_rst
                     vt::csier.table[CSI_CCC][CCC_SBS] = VT_PROC{ p->boss.resize(q); };  // CCC_SBS: Set scrollback size.
@@ -1229,6 +1234,10 @@ namespace netxs::ui
                     batch->chx(pos);
                     finalize();
                 }
+            }
+            // scrollbuff: Shift left n columns(s).
+            void shl(iota n)
+            {
             }
             // scrollbuff: CSI n X  Erase/put n chars after cursor. Don't change cursor pos.
             void ech(iota n)
@@ -1616,6 +1625,60 @@ namespace netxs::ui
                         break;
                 }
             }
+        }
+        void caret_style(fifo& queue)
+        {
+            log("CSI n ... q");
+            auto n = queue(0);
+            if (queue)
+            {
+                auto i = queue.rawarg(0);
+                if (fifo::issub(i))
+                {
+                    switch(fifo::desub(i))
+                    {
+                        case ' ': // Set caret style.
+                            log("CSI n SP q  Set caret style. ", n);
+                            switch (n)
+                            {
+                            case 0: // n = 0  blinking box
+                            case 1: // n = 1  blinking box (default)
+                                caret.blink_period();
+                                caret.style(true);
+                                break;
+                            case 2: // n = 2  steady box
+                                caret.blink_period(period::zero());
+                                caret.style(true);
+                                break;
+                            case 3: // n = 3  blinking underline
+                                caret.blink_period();
+                                caret.style(faux);
+                                break;
+                            case 4: // n = 4  steady underline
+                                caret.blink_period(period::zero());
+                                caret.style(faux);
+                                break;
+                            case 5: // n = 5  blinking I-bar
+                                caret.blink_period();
+                                caret.style(true);
+                                break;
+                            case 6: // n = 6  steady I-bar
+                                caret.blink_period(period::zero());
+                                caret.style(true);
+                                break;
+                            default:
+                                break;
+                            }
+                            break;
+                        case '\"':
+                            target->na("CSI n \" q  Select character protection attribute.");
+                            break;
+                        default:
+                            break;
+                    }
+                }
+            }
+            else target->na("CSI n q  Load keyboard LEDs.");  // CSI n q  Load keyboard LEDs.
         }
 
         // term: Set scrollback buffer size and grow_by step.

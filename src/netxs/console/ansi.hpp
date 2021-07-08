@@ -41,6 +41,7 @@ namespace netxs::console::ansi
     static const char ESC_RIS = 'c'; // ESC c         Reset terminal to initial state.
 
     static const char CSI_CUU = 'A'; // CSI n      A  — Caret Up.
+                                     // CSI n SP   A  — Shift right n columns(s).
     static const char CSI_CUD = 'B'; // CSI n      B  — Caret Down.
     static const char CSI_CUD2= 'e'; // CSI n      e  — Caret Down.
     static const char CSI_CUF = 'C'; // CSI n      C  — Caret Forward.
@@ -49,8 +50,8 @@ namespace netxs::console::ansi
     static const char CSI_CPL = 'F'; // CSI n      F  — Caret Previous Line.
     static const char CSI_CHX = 'G'; // CSI n      G  — Caret Horizontal Absolute.
     static const char CSI_CHY = 'd'; // CSI n      d  — Caret Vertical Absolute.
-    static const char CSI_CUP = 'H'; // CSI n ; m  H  — Caret Position.
     static const char CSI_HVP = 'f'; // CSI n ; m  f  — Horizontal and Vertical Position.
+    static const char CSI_CUP = 'H'; // CSI n ; m  H  — Caret Position.
     static const char CSI_SGR = 'm'; // CSI n [;k] m  — Select Graphic Rendition.
     static const char DECSTBM = 'r'; // CSI t ; b  r  — Set scrolling region (t/b: top + bottom).
     static const char CSI_SCP = 's'; // CSI        s  — Save caret Position.
@@ -60,11 +61,18 @@ namespace netxs::console::ansi
     static const char CSI__ED = 'J'; // CSI n      J  — Erase 0: from caret to end of screen, 1: from begin to caret, 2: all screen.
     static const char CSI__DL = 'M'; // CSI n      M  — Delete n lines.
     static const char CSI_DCH = 'P'; // CSI n      P  — Delete n character(s).
+                                     // CSI n #    P  — Push current palette colors onto stack. n default is 0.
+    static const char CSI_CLR = 'Q'; // CSI n #    Q  — Pop current palette colors from stack. n default is 0.
+    static const char CSI_LED = 'q'; // CSI n      q  — Load keyboard LEDs.
+                                     // CSI n SP   q  — Set caret style (DECSCUSR).
+                                     // CSI n "    q  — Select character protection attribute.
+                                     // CSI #      q  — Pop video attributes from stack (XTPOPSGR).
     static const char CSI__SD = 'T'; // CSI n      T  — Scroll down by n lines, scrolled out lines are lost.
     static const char CSI__SU = 'S'; // CSI n      S  — Scroll   up by n lines, scrolled out lines are lost.
     static const char CSI_WIN = 't'; // CSI n;m;k  t  — XTWINOPS, Terminal window props.
     static const char CSI_ECH = 'X'; // CSI n      X  — Erase n character(s) ? difference with delete ?
     static const char CSI_ICH = '@'; // CSI n      @  — Insert/wedge n character(s).
+                                     // CSI n SP   @  — Shift left n columns(s).
     static const char DECSET  = 'h'; // CSI ? n    h  — DECSET.
     static const char DECRST  = 'l'; // CSI ? n    l  — DECRST.
     static const char CSI_hRM = 'h'; // CSI n      h  — Reset mode (always Replace mode n=4).
@@ -1013,6 +1021,7 @@ namespace netxs::console::ansi
 
             if (ascii.length())
             {
+                auto ints = []  (unsigned char cmd) { return cmd >= 0x20 && cmd <= 0x2f; };
                 auto cmds = []  (unsigned char cmd) { return cmd >= 0x40 && cmd <= 0x7E; };
                 auto nums = []  (unsigned char cmd) { return(cmd >= '0'  && cmd <= '9') || cmd == '-'; };
                 auto fill = [&] (auto& queue)
@@ -1041,6 +1050,21 @@ namespace netxs::console::ansi
                             queue.settop(a);
                             break;
                         }
+                        else if (ints(a))
+                        {
+                            // Represent "intermediate bytes" in the range 0x20–0x2F (ASCII space and !"#$%&'()*+,-./ )
+                            // as a SUBPARAMETER, as like delimited by colon ':'
+                            // inter_byte - 0x20 = Range 0 - f
+                            // sp  !  "  #  $  %  &  '  (  )  *  +  ,  -  .  /
+                            //  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f
+                            // E.g.:
+                            //  CSI Ps SP @ == CSI Ps : 0 @
+                            //  CSI Pm #  P == CSI Pm : 3 P
+                            // Checking:
+                            //   if (auto n = q(1), q) p->na("CSI n SP @  Shift left n columns(s).");  // CSI n SP @  Shift left n columns(s).
+                            //   else                  p->ich( n ); };  // CSI n @  Insert n chars.
+                            queue.template push<true>(a);
+                        }
                     }
                 };
 
@@ -1063,9 +1087,10 @@ namespace netxs::console::ansi
                         fill(queue);
                         if      (c == '?') csier.proceed_quest (queue, client);
                         else if (c == '>') csier.proceed_gt    (queue, client);
-                        else if (c == '#') csier.proceed_hash  (queue, client);
                         else if (c == '=') csier.proceed_equals(queue, client);
+                        else if (c == '#') csier.proceed_hash  (queue, client);
                         else if (c == '!') csier.proceed_excl  (queue, client);
+                        //else if (c == ' ') csier.proceed_space (queue, client);
                     }
                 }
             }
