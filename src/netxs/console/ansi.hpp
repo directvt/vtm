@@ -40,46 +40,50 @@ namespace netxs::console::ansi
     static const char ESC_DCS = 'P'; // ESC P ... ST  DCS start
     static const char ESC_RIS = 'c'; // ESC c         Reset terminal to initial state.
 
-    static const char CSI_CUU = 'A'; // CSI n      A  — Caret Up.
-                                     // CSI n SP   A  — Shift right n columns(s).
-    static const char CSI_CUD = 'B'; // CSI n      B  — Caret Down.
-    static const char CSI_CUD2= 'e'; // CSI n      e  — Caret Down.
-    static const char CSI_CUF = 'C'; // CSI n      C  — Caret Forward.
-    static const char CSI_CUB = 'D'; // CSI n      D  — Caret Back.
-    static const char CSI_CNL = 'E'; // CSI n      E  — Caret Next Line.
-    static const char CSI_CPL = 'F'; // CSI n      F  — Caret Previous Line.
-    static const char CSI_CHX = 'G'; // CSI n      G  — Caret Horizontal Absolute.
-    static const char CSI_CHY = 'd'; // CSI n      d  — Caret Vertical Absolute.
-    static const char CSI_HVP = 'f'; // CSI n ; m  f  — Horizontal and Vertical Position.
-    static const char CSI_CUP = 'H'; // CSI n ; m  H  — Caret Position.
-    static const char CSI_SGR = 'm'; // CSI n [;k] m  — Select Graphic Rendition.
-    static const char DECSTBM = 'r'; // CSI t ; b  r  — Set scrolling region (t/b: top + bottom).
-    static const char CSI_SCP = 's'; // CSI        s  — Save caret Position.
-    static const char CSI_RCP = 'u'; // CSI        u  — Restore caret Position.
-    static const char CSI__EL = 'K'; // CSI n      K  — Erase 0: from caret to end, 1: from begin to caret, 2: all line.
-    static const char CSI__IL = 'L'; // CSI n      L  — Insert n blank lines.
-    static const char CSI__ED = 'J'; // CSI n      J  — Erase 0: from caret to end of screen, 1: from begin to caret, 2: all screen.
-    static const char CSI__DL = 'M'; // CSI n      M  — Delete n lines.
-    static const char CSI_DCH = 'P'; // CSI n      P  — Delete n character(s).
-                                     // CSI n #    P  — Push current palette colors onto stack. n default is 0.
-    static const char CSI_CLR = 'Q'; // CSI n #    Q  — Pop current palette colors from stack. n default is 0.
-    static const char CSI_LED = 'q'; // CSI n      q  — Load keyboard LEDs.
-                                     // CSI n SP   q  — Set caret style (DECSCUSR).
-                                     // CSI n "    q  — Select character protection attribute.
-                                     // CSI #      q  — Pop video attributes from stack (XTPOPSGR).
-    static const char CSI__SD = 'T'; // CSI n      T  — Scroll down by n lines, scrolled out lines are lost.
-    static const char CSI__SU = 'S'; // CSI n      S  — Scroll   up by n lines, scrolled out lines are lost.
-    static const char CSI_WIN = 't'; // CSI n;m;k  t  — XTWINOPS, Terminal window props.
-    static const char CSI_ECH = 'X'; // CSI n      X  — Erase n character(s) ? difference with delete ?
-    static const char CSI_ICH = '@'; // CSI n      @  — Insert/wedge n character(s).
-                                     // CSI n SP   @  — Shift left n columns(s).
-    static const char DECSET  = 'h'; // CSI ? n    h  — DECSET.
-    static const char DECRST  = 'l'; // CSI ? n    l  — DECRST.
-    static const char CSI_hRM = 'h'; // CSI n      h  — Reset mode (always Replace mode n=4).
-    static const char CSI_lRM = 'l'; // CSI n      l  — Reset mode (always Replace mode n=4).
-    static const char DECSTR  = 'p'; // CSI !      p  — Reset terminal to initial state.
-    static const char CSI_CCC = 'p'; // CSI n [; x1; x2; ...; xn ] p — Custom Caret Command.
-    static const char W32_INP = '_'; // CSI EVENT_TYPEn [; x1; x2; ...; xn ] _ — win32-input-mode.
+    static const char CSI_SPC_SLC = '@'; // CSI n SP   @  — Shift left n columns(s).
+    static const char CSI_SPC_SRC = 'A'; // CSI n SP   A  — Shift right n columns(s).
+    static const char CSI_SPC_CST = 'q'; // CSI n SP   q  — Set caret style (DECSCUSR).
+
+    static const char CSI_HSH_SCP = 'P'; // CSI n #    P  — Push current palette colors onto stack. n default is 0.
+    static const char CSI_HSH_RCP = 'Q'; // CSI n #    Q  — Pop current palette colors from stack. n default is 0.
+    static const char CSI_HSH_RVA = 'q'; // CSI   #    q  — Pop video attributes from stack (XTPOPSGR).
+
+    static const char CSI_DQT_SCP = 'q'; // CSI n "    q  — Select character protection attribute.
+
+    static const char CSI_EXL_RST = 'p'; // CSI   !    p  — Reset terminal to initial state.
+
+    static const char CSI_CUU = 'A';     // CSI n      A  — Caret Up.
+    static const char CSI_CUD = 'B';     // CSI n      B  — Caret Down.
+    static const char CSI_CUD2= 'e';     // CSI n      e  — Caret Down.
+    static const char CSI_CUF = 'C';     // CSI n      C  — Caret Forward.
+    static const char CSI_CUB = 'D';     // CSI n      D  — Caret Back.
+    static const char CSI_CNL = 'E';     // CSI n      E  — Caret Next Line.
+    static const char CSI_CPL = 'F';     // CSI n      F  — Caret Previous Line.
+    static const char CSI_CHX = 'G';     // CSI n      G  — Caret Horizontal Absolute.
+    static const char CSI_CHY = 'd';     // CSI n      d  — Caret Vertical Absolute.
+    static const char CSI_HVP = 'f';     // CSI n ; m  f  — Horizontal and Vertical Position.
+    static const char CSI_CUP = 'H';     // CSI n ; m  H  — Caret Position.
+    static const char CSI_SGR = 'm';     // CSI n [;k] m  — Select Graphic Rendition.
+    static const char DECSTBM = 'r';     // CSI t ; b  r  — Set scrolling region (t/b: top + bottom).
+    static const char CSI_SCP = 's';     // CSI        s  — Save caret Position.
+    static const char CSI_RCP = 'u';     // CSI        u  — Restore caret Position.
+    static const char CSI__EL = 'K';     // CSI n      K  — Erase 0: from caret to end, 1: from begin to caret, 2: all line.
+    static const char CSI__IL = 'L';     // CSI n      L  — Insert n blank lines.
+    static const char CSI__ED = 'J';     // CSI n      J  — Erase 0: from caret to end of screen, 1: from begin to caret, 2: all screen.
+    static const char CSI__DL = 'M';     // CSI n      M  — Delete n lines.
+    static const char CSI_DCH = 'P';     // CSI n      P  — Delete n character(s).
+    static const char CSI_LED = 'q';     // CSI n      q  — Load keyboard LEDs.
+    static const char CSI__SD = 'T';     // CSI n      T  — Scroll down by n lines, scrolled out lines are lost.
+    static const char CSI__SU = 'S';     // CSI n      S  — Scroll   up by n lines, scrolled out lines are lost.
+    static const char CSI_WIN = 't';     // CSI n;m;k  t  — XTWINOPS, Terminal window props.
+    static const char CSI_ECH = 'X';     // CSI n      X  — Erase n character(s) ? difference with delete ?
+    static const char CSI_ICH = '@';     // CSI n      @  — Insert/wedge n character(s).
+    static const char DECSET  = 'h';     // CSI ? n    h  — DECSET.
+    static const char DECRST  = 'l';     // CSI ? n    l  — DECRST.
+    static const char CSI_hRM = 'h';     // CSI n      h  — Reset mode (always Replace mode n=4).
+    static const char CSI_lRM = 'l';     // CSI n      l  — Reset mode (always Replace mode n=4).
+    static const char CSI_CCC = 'p';     // CSI n [; x1; x2; ...; xn ] p — Custom Caret Command.
+    static const char W32_INP = '_';     // CSI EVENT_TYPEn [; x1; x2; ...; xn ] _ — win32-input-mode.
 
     static const char C0_NUL = '\x00'; // Null                - Originally used to allow gaps to be left on paper tape for edits. Later used for padding after a code that might take a terminal some time to process (e.g. a carriage return or line feed on a printing terminal). Now often used as a string terminator, especially in the programming language C.
     static const char C0_SOH = '\x01'; // Start of Heading    - First character of a message header. In Hadoop, it is often used as a field separator.
@@ -782,12 +786,18 @@ namespace netxs::console::ansi
     {
         using tree = func<fifo, T>;
 
-        tree table;
-        tree table_quest;
-        tree table_excl;
-        tree table_gt;
-        tree table_equals;
-        tree table_hash;
+        tree table         ;
+        tree table_quest   ;
+        tree table_excl    ;
+        tree table_gt      ;
+        tree table_lt      ;
+        tree table_equals  ;
+        tree table_hash    ;
+        tree table_dollarsn;
+        tree table_space   ;
+        tree table_dblqoute;
+        tree table_sglqoute;
+        tree table_asterisk;
 
         csi_t()
         {
@@ -816,17 +826,24 @@ namespace netxs::console::ansi
             */
             #define F(t, q) p->task(rule{ fn::t, q })
 
-            table_quest .resize(0x100);
+            table_quest   .resize(0x100);
                 table_quest[DECSET] = nullptr; // decset
                 table_quest[DECRST] = nullptr; // decrst
 
-            table_excl  .resize(0x100);
-                table_excl[DECSTR] = nullptr; // decstr
+            table_excl    .resize(0x100);
+                table_excl[CSI_EXL_RST] = nullptr; // decstr
 
-            table_gt    .resize(0x100);
-            table_equals.resize(0x100);
-            table_hash  .resize(0x100);
-            table       .resize(0x100);
+            table_gt      .resize(0x100);
+            table_lt      .resize(0x100);
+            table_equals  .resize(0x100);
+            table_hash    .resize(0x100);
+            table_dollarsn.resize(0x100);
+            table_space   .resize(0x100);
+            table_dblqoute.resize(0x100);
+            table_sglqoute.resize(0x100);
+            table_asterisk.resize(0x100);
+
+            table         .resize(0x100);
                 table[CSI_CUU] = VT_PROC{ F(dy,-q(1)); };              // fx_cuu
                 table[CSI_CUD] = VT_PROC{ F(dy, q(1)); };              // fx_cud
                 table[CSI_CUF] = VT_PROC{ F(dx, q(1)); };              // fx_cuf
@@ -943,12 +960,18 @@ namespace netxs::console::ansi
         }
 
         void proceed(iota cmd, T*& client)  { table.execute(cmd, client); }
-        void proceed       (fifo& q, T*& p) { table       .execute(q, p); }
-        void proceed_quest (fifo& q, T*& p) { table_quest .execute(q, p); }
-        void proceed_gt    (fifo& q, T*& p) { table_gt    .execute(q, p); }
-        void proceed_hash  (fifo& q, T*& p) { table_hash  .execute(q, p); }
-        void proceed_equals(fifo& q, T*& p) { table_equals.execute(q, p); }
-        void proceed_excl  (fifo& q, T*& p) { table_excl  .execute(q, p); }
+        void proceed           (fifo& q, T*& p) { table         .execute(q, p); }
+        void proceed_quest     (fifo& q, T*& p) { table_quest   .execute(q, p); }
+        void proceed_gt        (fifo& q, T*& p) { table_gt      .execute(q, p); }
+        void proceed_lt        (fifo& q, T*& p) { table_lt      .execute(q, p); }
+        void proceed_hash      (fifo& q, T*& p) { table_hash    .execute(q, p); }
+        void proceed_equals    (fifo& q, T*& p) { table_equals  .execute(q, p); }
+        void proceed_excl      (fifo& q, T*& p) { table_excl    .execute(q, p); }
+        void proceed_dollarsn  (fifo& q, T*& p) { table_dollarsn.execute(q, p); }
+        void proceed_space     (fifo& q, T*& p) { table_space   .execute(q, p); }
+        void proceed_dblqoute  (fifo& q, T*& p) { table_dblqoute.execute(q, p); }
+        void proceed_sglqoute  (fifo& q, T*& p) { table_sglqoute.execute(q, p); }
+        void proceed_asterisk  (fifo& q, T*& p) { table_asterisk.execute(q, p); }
     };
 
     template<class T> struct _glb { static typename T::template parser<T> parser; };
@@ -1021,7 +1044,9 @@ namespace netxs::console::ansi
 
             if (ascii.length())
             {
-                auto ints = []  (unsigned char cmd) { return cmd >= 0x20 && cmd <= 0x2f; };
+                auto b = '\0';
+                auto ints = []  (unsigned char cmd) { return cmd >= 0x20 && cmd <= 0x2f; }; // "intermediate bytes" in the range 0x20–0x2F
+                auto pars = []  (unsigned char cmd) { return cmd >= 0x3A && cmd <= 0x3f; }; // "parameter bytes" in the range 0x30–0x3F
                 auto cmds = []  (unsigned char cmd) { return cmd >= 0x40 && cmd <= 0x7E; };
                 auto nums = []  (unsigned char cmd) { return(cmd >= '0'  && cmd <= '9') || cmd == '-'; };
                 auto fill = [&] (auto& queue)
@@ -1050,47 +1075,40 @@ namespace netxs::console::ansi
                             queue.settop(a);
                             break;
                         }
-                        else if (ints(a))
-                        {
-                            // Represent "intermediate bytes" in the range 0x20–0x2F (ASCII space and !"#$%&'()*+,-./ )
-                            // as a SUBPARAMETER, as like delimited by colon ':'
-                            // inter_byte - 0x20 = Range 0 - f
-                            // sp  !  "  #  $  %  &  '  (  )  *  +  ,  -  .  /
-                            //  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f
-                            // E.g.:
-                            //  CSI Ps SP @ == CSI Ps : 0 @
-                            //  CSI Pm #  P == CSI Pm : 3 P
-                            // Checking:
-                            //   if (auto n = q(1), q) p->na("CSI n SP @  Shift left n columns(s).");  // CSI n SP @  Shift left n columns(s).
-                            //   else                  p->ich( n ); };  // CSI n @  Insert n chars.
-                            queue.template push<true>(a);
-                        }
+                        else if (ints(a)) b = a; // Intermediate byte and parameter byte never appear at the same time, so consider they as a single group.
                     }
                 };
 
                 auto& csier = _glb<T>::parser.csier;
                 auto c = ascii.front();
-
-                if (nums(c))
+                if (cmds(c))
                 {
-                    fifo queue{ CCC_NOP }; // Reserve for the command type.
-                    fill(queue);
-                    csier.proceed(queue, client);
+                    ascii.pop_front();
+                    csier.proceed(c, client);
                 }
                 else
                 {
-                    ascii.pop_front();
-                    if (cmds(c)) { csier.proceed(c, client); }
-                    else
-                    {	// Intermediate characters (?>#=!) should always come first (before params).
-                        fifo queue{ CCC_NOP }; // Placeholder for the command type.
+                    fifo queue{ CCC_NOP }; // Reserve for the command type.
+                    if (pars(c))
+                    {
+                        ascii.pop_front();
                         fill(queue);
-                        if      (c == '?') csier.proceed_quest (queue, client);
-                        else if (c == '>') csier.proceed_gt    (queue, client);
-                        else if (c == '=') csier.proceed_equals(queue, client);
-                        else if (c == '#') csier.proceed_hash  (queue, client);
-                        else if (c == '!') csier.proceed_excl  (queue, client);
-                        //else if (c == ' ') csier.proceed_space (queue, client);
+                             if (c == '?' ) csier.proceed_quest   (queue, client);
+                        else if (c == '>' ) csier.proceed_gt      (queue, client);
+                        else if (c == '<' ) csier.proceed_lt      (queue, client);
+                        else if (c == '=' ) csier.proceed_equals  (queue, client);
+                    }
+                    else
+                    {
+                        fill(queue);
+                             if (b == '\0') csier.proceed         (queue, client);
+                        else if (b == '!' ) csier.proceed_excl    (queue, client);
+                        else if (b == '#' ) csier.proceed_hash    (queue, client);
+                        else if (b == '$' ) csier.proceed_dollarsn(queue, client);
+                        else if (b == ' ' ) csier.proceed_space   (queue, client);
+                        else if (b == '\"') csier.proceed_dblqoute(queue, client);
+                        else if (b == '\'') csier.proceed_sglqoute(queue, client);
+                        else if (b == '*' ) csier.proceed_asterisk(queue, client);
                     }
                 }
             }
