@@ -263,21 +263,16 @@ namespace netxs::os
         auto vga16colors = {
             "ansi",
             "linux",
-            "linux-16color",
             "xterm",
             "xterm-color",
-            "xterm-16color",
             "dvtm",
             "tmux",
             "fbcon",
-            "rxvt-16color",
-            "konsole-16color",
-            "aixterm-16color",
         };
         iota mode = legacy::clean;
         auto term = os::get_env("TERM");
         log("  os: terminal type \"", term, "\"");
-        if (term.ends_with("16color"))
+        if (term.ends_with("16color") || term.ends_with("16colour"))
         {
             mode |= legacy::vga16;
         }
