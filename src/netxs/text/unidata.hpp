@@ -285,23 +285,23 @@ namespace netxs::unidata
 
     struct unidata
     {
-        widths::type  wcwidth;
+        widths::type  ucwidth;
         gbreak::type  brgroup;
         cntrls::type  control;
         unsigned char padding = {};
 
         constexpr
         unidata()
-            : wcwidth (widths::slim),
+            : ucwidth (widths::slim),
               brgroup (gbreak::ANY),
               control (cntrls::NON_CONTROL)
         { }
 
         constexpr
-        unidata(widths::type wcwidth,
+        unidata(widths::type ucwidth,
                 gbreak::type brgroup,
                 cntrls::type control)
-            : wcwidth (wcwidth),
+            : ucwidth (ucwidth),
               brgroup (brgroup),
               control (control)
         { }

@@ -83,7 +83,7 @@ namespace netxs::utf
         {
             if (next.utf8len && cpcount < GRAPHEME_CLUSTER_LIMIT && next.allied(brgroup))
             {
-                wcwidth  = std::max(wcwidth, next.wcwidth);
+                ucwidth  = std::max(ucwidth, next.ucwidth);
                 utf8len += next.utf8len;
                 cpcount += 1;
 
