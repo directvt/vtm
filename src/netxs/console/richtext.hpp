@@ -932,7 +932,7 @@ namespace netxs::console
             auto& utf8 = cluster.text;
             auto& attr = cluster.attr;
 
-            if (unsigned w = attr.wcwidth)
+            if (unsigned w = attr.ucwidth)
             {
                 width += w;
                 brush.set_gc(utf8, w);

@@ -27,6 +27,7 @@ A text-based desktop environment inside your terminal*
 # Supported Platforms
 
 - Linux
+- FreeBSD
 - Windows
   - Windows 10
   - Windows Server 2019
@@ -35,7 +36,7 @@ A text-based desktop environment inside your terminal*
 
 # Building from Source
 
-### Linux
+### Linux / FreeBSD
 
 Build-time dependencies: `gcc` or `clang`
 
@@ -70,6 +71,7 @@ To build this project, use `Xcode` to open the project folder and go to the menu
 # Releases
 
 [![](https://dice.netxs.online/cloud/vtm/status/macos)](https://github.com/netxs-group/VTM/releases/latest/download/vtm_macos.tar.gz)  
+[![](https://dice.netxs.online/cloud/vtm/status/freebsd)](https://github.com/netxs-group/VTM/releases/latest/download/vtm_freebsd_amd64.tar.gz)  
 [![](https://dice.netxs.online/cloud/vtm/status/linux)](https://github.com/netxs-group/VTM/releases/latest/download/vtm_linux_amd64.tar.gz)  
 [![](https://dice.netxs.online/cloud/vtm/status/windows)](https://github.com/netxs-group/VTM/releases/latest/download/vtm_windows_64.zip)  
 
