@@ -38,14 +38,22 @@ A text-based desktop environment inside your terminal*
 
 ### Linux / FreeBSD
 
-Build-time dependencies: `gcc` or `clang`
+Build-time dependencies:
+ - `gcc` or `clang`
+ - `git`
+ - `cmake`
 
 ```bash
-git clone https://github.com/netxs-group/VTM.git && cd ./VTM
+git clone https://github.com/netxs-group/VTM.git
+cd ./VTM
 mkdir build
 cd ./build
-cmake ../src -DEXECUTABLE_OUTPUT_PATH="../bin" -DCMAKE_BUILD_TYPE="Release" -DCMAKE_CXX_FLAGS="-pthread -s" && cmake --build .
+cmake ../src -DEXECUTABLE_OUTPUT_PATH="../bin" -DCMAKE_BUILD_TYPE="Release" -DCMAKE_CXX_FLAGS="-pthread -s"
+cmake --build .
 cd ../bin
+mkdir -v "/var/vtm/"
+cp -v vtm* "/var/vtm/"
+ln -v -s -f /var/vtm/vtm*  "/usr/bin/"
 rm -rfv ../build
 ```
 
@@ -55,10 +63,14 @@ Build-time dependencies: `Visual Studio 2019`
 
 Use `Developer Command Prompt for VS 2019`
 ```cmd
-git clone https://github.com/netxs-group/VTM.git && cd ./VTM
+git clone https://github.com/netxs-group/VTM.git
+cd ./VTM
 mkdir build
 cd ./build
-cmake ../src -DEXECUTABLE_OUTPUT_PATH=".." -DCMAKE_BUILD_TYPE=Release "-GVisual Studio 16 2019" -DCMAKE_CXX_FLAGS="/DWIN32 /D_WINDOWS /W3 /GR /EHsc /bigobj" && cmake --build . --config Release && cd ../Release
+cmake ../src -DEXECUTABLE_OUTPUT_PATH=".." -DCMAKE_BUILD_TYPE=Release "-GVisual Studio 16 2019" -DCMAKE_CXX_FLAGS="/DWIN32 /D_WINDOWS /W3 /GR /EHsc /bigobj"
+cmake --build . --config Release
+cd ../Release
+powershell ../src/install/install.ps1
 ```
 
 ### macOS
