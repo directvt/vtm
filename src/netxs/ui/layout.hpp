@@ -639,7 +639,7 @@ namespace netxs::ui::atoms
             void set(view const& utf8)
             {
                 auto cluster = utf::letter(utf8);
-                set(cluster.text, cluster.attr.wcwidth);
+                set(cluster.text, cluster.attr.ucwidth);
             }
             view get() const
             {
@@ -874,11 +874,11 @@ namespace netxs::ui::atoms
               id{ base.id }
         { }
 
-        cell(cell const& base, view const& cluster, size_t wcwidth)
+        cell(cell const& base, view const& cluster, size_t ucwidth)
             : uv{ base.uv },
               st{ base.st },
               id{ base.id },
-              gc{ base.gc, cluster, wcwidth }
+              gc{ base.gc, cluster, ucwidth }
         { }
 
         cell(cell const& base, char c)

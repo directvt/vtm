@@ -1,7 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#define MONOTTY_VER "Monotty Desktopio v0.4.8"
+#define MONOTTY_VER "Monotty Desktopio v0.5.1"
 // Autostart demo apps.
 //#define DEMO
 // Enable keyboard input and disable exit by single Esc.
@@ -301,7 +301,7 @@ class post_logs
                 };
                 auto y = [&](utf::frag const& cluster)
                 {
-                    f(cluster.attr.cdpoint, cluster.text, cluster.attr.wcwidth);
+                    f(cluster.attr.cdpoint, cluster.text, cluster.attr.ucwidth);
                 };
                 utf::decode<faux>(s, y, shadow);
                 yield.wrp(WRAPPING).eol();
@@ -1787,6 +1787,10 @@ utility like ctags is used to locate the definitions.
 
                                 auto inst = scroll->attach<ui::term>("zsh -c 'LC_ALL=en_US.UTF-8 mc -c -x'");
 
+                            #elif defined(__FreeBSD__)
+
+                                auto inst = scroll->attach<ui::term>("csh -c 'LC_ALL=en_US.UTF-8 mc -c -x'");
+
                             #endif
 
                             inst->colors(whitelt, blackdk);
@@ -1824,7 +1828,7 @@ utility like ctags is used to locate the definitions.
                                     {
                                         boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
                                         {
-                                            auto data = "ping ::1 -c 3 | ccze -A\n"s;
+                                            auto data = "ping -c 3 127.0.0.1 | ccze -A\n"s;
                                             //boss.BROADCAST(e2::release, e2::command::text, data);
                                             boss.base::broadcast->SIGNAL(e2::release, e2::data::text, data);
                                             log(" main: TEST2 bcast signaled ", data.length());
@@ -1837,11 +1841,9 @@ utility like ctags is used to locate the definitions.
                                     {
                                         boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
                                         {
-                                            auto data = "\\\nno_wrap=\"\\e[12:2p\"; "
-                                                        "\\\nprintf $no_wrap;    "
+                                            auto data = "\\\nprintf \"\\033[12:2p\";"
                                                         "\\\ncurl wttr.in;       "
-                                                        "\\\ndefmode=\"\\e[1p\";    "
-                                                        "\\\nprintf $defmode;    "
+                                                        "\\\nprintf \"\\033[1p\";   "
                                                         "\\\n\n"s;
                                             //boss.BROADCAST(e2::release, e2::command::text, data);
                                             boss.base::broadcast->SIGNAL(e2::release, e2::data::text, data);
@@ -1891,11 +1893,21 @@ utility like ctags is used to locate the definitions.
                                     #endif
 
                                     #if defined(_WIN32)
+
                                         auto inst = scroll->attach<ui::term>("bash");
+
                                     #elif defined(__linux__)
+
                                         auto inst = scroll->attach<ui::term>("bash");
+
                                     #elif defined(__APPLE__)
+
                                         auto inst = scroll->attach<ui::term>("zsh");
+
+                                    #elif defined(__FreeBSD__)
+
+                                        auto inst = scroll->attach<ui::term>("csh");
+
                                     #endif
 
                                     inst->colors(whitelt, blackdk);
@@ -2006,6 +2018,8 @@ utility like ctags is used to locate the definitions.
                                 auto inst = scroll->attach<ui::term>("bash");
                             #elif defined(__APPLE__)
                                 auto inst = scroll->attach<ui::term>("zsh");
+                            #elif defined(__FreeBSD__)
+                                auto inst = scroll->attach<ui::term>("csh");
                             #endif
 
                                 inst->colors(whitelt, blackdk);
@@ -2500,7 +2514,7 @@ utility like ctags is used to locate the definitions.
                                                                 auto selected = id == data;
                                                                 if(auto mark = mark_shadow.lock())
                                                                 {
-                                                                    mark->set(ansi::bgc4(selected ? 0xFF00ff00 : 0xFF000000) + "██");
+                                                                    mark->set(ansi::fgc4(selected ? 0xFF00ff00 : 0xFF000000) + "██");
                                                                     mark->deface();
                                                                 }
                                                             };
@@ -2701,7 +2715,7 @@ utility like ctags is used to locate the definitions.
                                                                 boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
                                                                 {
                                                                     //todo unify, see system.h:1614
-                                                                    #if defined(__APPLE__)
+                                                                    #if defined(__APPLE__) || defined(__FreeBSD__)
                                                                     auto path2 = "/tmp/" + path + ".sock";
                                                                     ::unlink(path2.c_str());
                                                                     #endif

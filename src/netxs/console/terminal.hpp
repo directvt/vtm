@@ -985,6 +985,13 @@ namespace netxs::ui
                 parser() : vt()
                 {
                     using namespace netxs::console::ansi;
+                    vt::csier.table_space[CSI_SPC_SRC] = VT_PROC{ p->na("CSI n SP A  Shift right n columns(s)."); }; // CSI n SP A  Shift right n columns(s).
+                    vt::csier.table_space[CSI_SPC_SLC] = VT_PROC{ p->na("CSI n SP @  Shift left  n columns(s)."); }; // CSI n SP @  Shift left n columns(s).
+                    vt::csier.table_space[CSI_SPC_CST] = VT_PROC{ p->boss.caret_style(q(1)); }; // CSI n SP q  Set caret style (DECSCUSR).
+                    vt::csier.table_hash [CSI_HSH_SCP] = VT_PROC{ p->na("CSI n # P  Push current palette colors onto stack. n default is 0."); }; // CSI n # P  Push current palette colors onto stack. n default is 0.
+                    vt::csier.table_hash [CSI_HSH_RCP] = VT_PROC{ p->na("CSI n # Q  Pop  current palette colors onto stack. n default is 0."); }; // CSI n # Q  Pop  current palette colors onto stack. n default is 0.
+                    vt::csier.table_excl [CSI_EXL_RST] = VT_PROC{ p->boss.decstr( ); }; // CSI ! p  Soft terminal reset (DECSTR)
+
                     vt::csier.table[CSI_CUU] = VT_PROC{ p->up ( q(1)); };  // CSI n A
                     vt::csier.table[CSI_CUD] = VT_PROC{ p->dn ( q(1)); };  // CSI n B
                     vt::csier.table[CSI_CUF] = VT_PROC{ p->cuf( q(1)); };  // CSI n C
@@ -1035,7 +1042,6 @@ namespace netxs::ui
 
                     vt::csier.table_quest[DECSET] = VT_PROC{ p->boss.decset(q); };
                     vt::csier.table_quest[DECRST] = VT_PROC{ p->boss.decrst(q); };
-                    vt::csier.table_excl [DECSTR] = VT_PROC{ p->boss.decstr( ); }; // CSI ! p  Soft terminal reset (DECSTR)
 
                     vt::oscer[OSC_LABEL_TITLE] = VT_PROC{ p->boss.winprops.set(OSC_LABEL_TITLE, q); };
                     vt::oscer[OSC_LABEL]       = VT_PROC{ p->boss.winprops.set(OSC_LABEL,       q); };
@@ -1230,6 +1236,10 @@ namespace netxs::ui
                     finalize();
                 }
             }
+            // scrollbuff: Shift left n columns(s).
+            void shl(iota n)
+            {
+            }
             // scrollbuff: CSI n X  Erase/put n chars after cursor. Don't change cursor pos.
             void ech(iota n)
             {
@@ -1377,8 +1387,16 @@ namespace netxs::ui
             {
                 finalize();
                 auto posx = batch->chx();
-                if (batch->style.wrapln == wrap::on) posx -= posx % panel.x;
-                else                                 posx = 0;
+                if (batch->style.wrapln == wrap::on)
+                {
+                    auto d = posx % panel.x;
+                    posx -= d;
+                    if (posx && d < 2)
+                    {
+                        posx -= panel.x;
+                    }
+                }
+                else posx = 0;
                 batch->chx(posx);
                 coord.x = 0;
             }
@@ -1496,7 +1514,7 @@ namespace netxs::ui
                         target->style.wrp(wrap::on);
                         break;
                     case 12:   // Enable caret blinking.
-                        log("decset: CSI ? 12 h  Caret blinkage control is not implemented.");
+                        caret.blink_period();
                         break;
                     case 25:   // Caret on.
                         target->caret = true;
@@ -1564,7 +1582,7 @@ namespace netxs::ui
                         target->style.wrp(wrap::off);
                         break;
                     case 12:   // Disable caret blinking.
-                        log("decset: CSI ? 12 l  Caret blinkage control is not implemented.");
+                        caret.blink_period(period::zero());
                         break;
                     case 25:   // Caret off.
                         target->caret = faux;
@@ -1615,6 +1633,40 @@ namespace netxs::ui
                     default:
                         break;
                 }
+            }
+        }
+        void caret_style(iota style)
+        {
+            switch (style)
+            {
+            case 0: // n = 0  blinking box
+            case 1: // n = 1  blinking box (default)
+                caret.blink_period();
+                caret.style(true);
+                break;
+            case 2: // n = 2  steady box
+                caret.blink_period(period::zero());
+                caret.style(true);
+                break;
+            case 3: // n = 3  blinking underline
+                caret.blink_period();
+                caret.style(faux);
+                break;
+            case 4: // n = 4  steady underline
+                caret.blink_period(period::zero());
+                caret.style(faux);
+                break;
+            case 5: // n = 5  blinking I-bar
+                caret.blink_period();
+                caret.style(true);
+                break;
+            case 6: // n = 6  steady I-bar
+                caret.blink_period(period::zero());
+                caret.style(true);
+                break;
+            default:
+                log("term: unsupported caret style requested, ", style);
+                break;
             }
         }
 

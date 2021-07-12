@@ -372,23 +372,23 @@ namespace utils::{module}
 
     struct {module}
     {{
-        {wclass}::type  wcwidth;
+        {wclass}::type  ucwidth;
         {bclass}::type  brgroup;
         {cclass}::type  control;
         unsigned char padding = {{}};
 
         constexpr
         {module}()
-            : wcwidth ({wcwidth_0}),
+            : ucwidth ({ucwidth_0}),
               brgroup ({brgroup_0}),
               control ({control_0})
         {{ }}
 
         constexpr
-        {module}({wclass}::type wcwidth,
+        {module}({wclass}::type ucwidth,
                 {bclass}::type brgroup,
                 {cclass}::type control)
-            : wcwidth (wcwidth),
+            : ucwidth (ucwidth),
               brgroup (brgroup),
               control (control)
         {{ }}
@@ -490,7 +490,7 @@ def loaddata(url):
 class uniprop(object):
     def __init__(self,code):
         self.code       = code
-        self.wcwidth    = EAWIDTH['N']
+        self.ucwidth    = EAWIDTH['N']
         self.gcbreak    = 'Other'
         self.category   = CATEGORY['Unassigned']
         self.ctrl_index = None
@@ -498,10 +498,10 @@ class uniprop(object):
         self.alias      = None
 
     def hash(self):
-        return 'ctrl{}wd{}{}'.format(self.ctrl_index, self.wcwidth, self.gcbreak)
+        return 'ctrl{}wd{}{}'.format(self.ctrl_index, self.ucwidth, self.gcbreak)
 
     def prop(self):
-        return [ self.wcwidth, self.gcbreak, self.ctrl_index ]
+        return [ self.ucwidth, self.gcbreak, self.ctrl_index ]
 
 class unidata(object):
     def __init__(self, src):
@@ -574,7 +574,7 @@ def apply_eawemoji(source, chrs):
     for cprange, brprop in source.props('CODEVALUE', 'EMOJI_BREAK_PROP'):
         for cp in sequencer(cprange):
             # why the emoji should be always wide?
-            #chrs[cp].wcwidth = EAWIDTH['W']
+            #chrs[cp].ucwidth = EAWIDTH['W']
             if (brprop == 'Extended_Pictographic'): # https://www.unicode.org/reports/tr29/#GB11
                 chrs[cp].gcbreak = brprop
             elif (brprop == 'Emoji_Modifier_Base'): # https://www.unicode.org/reports/tr29/#Extend
@@ -582,9 +582,9 @@ def apply_eawemoji(source, chrs):
 
 def apply_eawidths(source, chrs):
     for cprange, eawidth in source.props('CODERANGE', 'EAST_ASIAN_WIDTH'):
-        wcwidth = EAWIDTH[eawidth]
+        ucwidth = EAWIDTH[eawidth]
         for cp in sequencer(cprange):
-            chrs[cp].wcwidth = wcwidth
+            chrs[cp].ucwidth = ucwidth
 
 def apply_acronyms(source, chrs):
     for (cpval, alias, cptype) in source.props('CODEVALUE', 'ALIAS', 'TYPE'):
@@ -597,11 +597,11 @@ def apply_acronyms(source, chrs):
 def apply_nonprint(categories, printable, chrs):
     for cp in chrs:
         if cp.category in categories and cp.gcbreak not in printable:
-            cp.wcwidth = EAWIDTH['NP']
+            cp.ucwidth = EAWIDTH['NP']
 
 def apply_customcp(cprange, chrs):
     for cp, width, category in cprange:
-        chrs[cp].wcwidth  = width
+        chrs[cp].ucwidth  = width
         chrs[cp].category = category
 #        if breakclass:
 #           chrs[cp].gcbreak = breakclass
@@ -831,7 +831,7 @@ fields = {'module': MODULE_NAME,
           'offset_t': SIZE16_TYPE if len(ucspec_index) > 256 else SIZE_8_TYPE,
           'module_t': MODULE_NAME,
           #todo optimize
-          'wcwidth_0': WCWIDTHTYPE + '::%s' % base.wcwidth,
+          'ucwidth_0': WCWIDTHTYPE + '::%s' % base.ucwidth,
           'brgroup_0': BREAKSCLASS + '::%s' % BREAKCAT[base.gcbreak][0],
           'control_0': CNTRLCLSASS + '::%s' % control_idx[noncmd_id]}
 
