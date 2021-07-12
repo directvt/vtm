@@ -2350,11 +2350,7 @@ utility like ctags is used to locate the definitions.
                                                         auto center = area.coor + (area.size / 2);
                                                         bell::getref(gear.id)->
                                                             SIGNAL(e2::release, e2::form::layout::shift, center);  // Goto to the window.
-                                                        //todo unify
-                                                        gear.clear_kb_focus();
-                                                        gear.kb_focus_taken = faux;
-                                                        inst.SIGNAL(e2::release, e2::form::upevent::kboffer, gear);
-
+                                                        gear.pass_kb_focus(inst);
                                                         gear.dismiss();
                                                     }
                                                 };
@@ -2367,11 +2363,7 @@ utility like ctags is used to locate the definitions.
                                                         auto& area = gear.area();
                                                         auto center = area.coor + (area.size / 2);
                                                         inst.SIGNAL(e2::preview, e2::form::layout::appear, center); // Pull window.
-                                                        //todo unify
-                                                        gear.clear_kb_focus();
-                                                        gear.kb_focus_taken = faux;
-                                                        inst.SIGNAL(e2::release, e2::form::upevent::kboffer, gear);
-
+                                                        gear.pass_kb_focus(inst);
                                                         gear.dismiss();
                                                     }
                                                 };
@@ -2441,6 +2433,7 @@ utility like ctags is used to locate the definitions.
                                                                 auto center = area.coor + (area.size / 2);
                                                                 bell::getref(gear.id)->
                                                                 SIGNAL(e2::release, e2::form::layout::shift, center);  // Goto to the window.
+                                                                gear.pass_kb_focus(inst);
                                                                 gear.dismiss();
                                                             }
                                                         };
@@ -2461,6 +2454,7 @@ utility like ctags is used to locate the definitions.
                                                                 auto center = area.coor + (area.size / 2);
                                                                 bell::getref(gear.id)->
                                                                 SIGNAL(e2::release, e2::form::layout::shift, center);  // Goto to the window.
+                                                                gear.pass_kb_focus(inst);
                                                                 gear.dismiss();
                                                             }
                                                         };
