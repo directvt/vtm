@@ -1068,6 +1068,12 @@ namespace netxs::console
         {
             return kb_focus_taken;
         }
+        void pass_kb_focus(bell& inst)
+        {
+            clear_kb_focus();
+            kb_focus_taken = faux;
+            inst.SIGNAL(e2::release, e2::form::upevent::kboffer, *this);
+        }
     };
 
     //todo OMG!, make it in another way.
@@ -5795,11 +5801,7 @@ again:
                                 auto& area = item.area();
                                 auto center = area.coor + (area.size / 2);
                                 this->SIGNAL(e2::release, e2::form::layout::shift, center);
-
-                                //todo unify
-                                gear.clear_kb_focus();
-                                gear.kb_focus_taken = faux;
-                                item.SIGNAL(e2::release, e2::form::upevent::kboffer, gear);
+                                gear.pass_kb_focus(item);
                             }
                             gear.dismiss();
                         }
