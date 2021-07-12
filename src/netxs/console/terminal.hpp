@@ -1387,8 +1387,16 @@ namespace netxs::ui
             {
                 finalize();
                 auto posx = batch->chx();
-                if (batch->style.wrapln == wrap::on) posx -= posx % panel.x;
-                else                                 posx = 0;
+                if (batch->style.wrapln == wrap::on)
+                {
+                    auto d = posx % panel.x;
+                    posx -= d;
+                    if (posx && d < 2)
+                    {
+                        posx -= panel.x;
+                    }
+                }
+                else posx = 0;
                 batch->chx(posx);
                 coord.x = 0;
             }

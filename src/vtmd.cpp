@@ -1,7 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#define MONOTTY_VER "Monotty Desktopio v0.5.0"
+#define MONOTTY_VER "Monotty Desktopio v0.5.1"
 // Autostart demo apps.
 //#define DEMO
 // Enable keyboard input and disable exit by single Esc.
@@ -1893,10 +1893,21 @@ utility like ctags is used to locate the definitions.
                                     #endif
 
                                     #if defined(_WIN32)
+
                                         auto inst = scroll->attach<ui::term>("bash");
-                                    #else
-                                        auto shell = os::get_env("SHELL");
-                                        auto inst = scroll->attach<ui::term>(shell);
+
+                                    #elif defined(__linux__)
+
+                                        auto inst = scroll->attach<ui::term>("bash");
+
+                                    #elif defined(__APPLE__)
+
+                                        auto inst = scroll->attach<ui::term>("zsh");
+
+                                    #elif defined(__FreeBSD__)
+
+                                        auto inst = scroll->attach<ui::term>("csh");
+
                                     #endif
 
                                     inst->colors(whitelt, blackdk);

@@ -113,6 +113,7 @@ namespace netxs::os
         static const fd_t INVALID_FD = INVALID_HANDLE_VALUE;
         static const fd_t STDIN_FD  = GetStdHandle(STD_INPUT_HANDLE);
         static const fd_t STDOUT_FD = GetStdHandle(STD_OUTPUT_HANDLE);
+        static const fd_t STDERR_FD = GetStdHandle(STD_ERROR_HANDLE);
         static const iota PIPE_BUF = 65536;
 
         //static constexpr char* security_descriptor_string =
@@ -143,6 +144,7 @@ namespace netxs::os
         static constexpr fd_t INVALID_FD = -1;
         static constexpr fd_t STDIN_FD  = STDIN_FILENO;
         static constexpr fd_t STDOUT_FD = STDOUT_FILENO;
+        static constexpr fd_t STDERR_FD = STDERR_FILENO;
 
     #endif
 
@@ -1934,146 +1936,162 @@ namespace netxs::os
             // ReadFile and ReadConsoleA either replace non-ASCII characters with NUL
             // or return 0 bytes read.
             std::vector<INPUT_RECORD> reply(1);
-            HANDLE                    waits[2] = { STDIN_FD, flash };
+            HANDLE                    waits[3] = { flash, STDIN_FD, STDERR_FD };
             DWORD                     count;
+            DWORD                     sgnld;
             ansi::esc                 yield;
 
             #ifdef VTM_USE_CLASSICAL_WIN32_INPUT
 
-            while (WAIT_OBJECT_0 == WaitForMultipleObjects(2, waits, FALSE, INFINITE))
+            while (WAIT_OBJECT_0 != (sgnld = WaitForMultipleObjects(3, waits, FALSE, INFINITE)))
             {
-                if (!GetNumberOfConsoleInputEvents(STDIN_FD, &count))
+                if (sgnld == WAIT_OBJECT_0 + 1)
                 {
-                    // ERROR_PIPE_NOT_CONNECTED
-                    // 233 (0xE9)
-                    // No process is on the other end of the pipe.
-                    //defeat("GetNumberOfConsoleInputEvents error");
-                    os::exit(-1, " tty: GetNumberOfConsoleInputEvents error ", GetLastError());
-                    break;
-                }
-                else if (count)
-                {
-                    if (count > reply.size()) reply.resize(count);
-
-                    if (!ReadConsoleInputW(STDIN_FD, reply.data(), (DWORD)reply.size(), &count))
+                    if (!GetNumberOfConsoleInputEvents(STDIN_FD, &count))
                     {
-                        //ERROR_PIPE_NOT_CONNECTED = 0xE9 - it's means that the console is gone/crashed
-                        //defeat("ReadConsoleInput error");
-                        os::exit(-1, " tty: ReadConsoleInput error ", GetLastError());
+                        // ERROR_PIPE_NOT_CONNECTED
+                        // 233 (0xE9)
+                        // No process is on the other end of the pipe.
+                        //defeat("GetNumberOfConsoleInputEvents error");
+                        os::exit(-1, " tty: GetNumberOfConsoleInputEvents error ", GetLastError());
                         break;
                     }
-                    else
+                    else if (count)
                     {
-                        auto entry = reply.begin();
-                        auto limit = entry + count;
-                        yield.w32begin();
-                        while (entry != limit)
+                        if (count > reply.size()) reply.resize(count);
+
+                        if (!ReadConsoleInputW(STDIN_FD, reply.data(), (DWORD)reply.size(), &count))
                         {
-                            auto& reply = *entry++;
-                            switch (reply.EventType)
-                            {
-                                case KEY_EVENT:
-                                    yield.w32keybd(0,
-                                        reply.Event.KeyEvent.wVirtualKeyCode,
-                                        reply.Event.KeyEvent.wVirtualScanCode,
-                                        reply.Event.KeyEvent.bKeyDown,
-                                        reply.Event.KeyEvent.dwControlKeyState,
-                                        reply.Event.KeyEvent.wRepeatCount,
-                                        utf::tocode(reply.Event.KeyEvent.uChar.UnicodeChar));
-                                    break;
-                                case MOUSE_EVENT:
-                                    yield.w32mouse(0,
-                                        reply.Event.MouseEvent.dwButtonState & 0xFFFF,
-                                        reply.Event.MouseEvent.dwControlKeyState,
-                                        reply.Event.MouseEvent.dwEventFlags,
-                                        static_cast<int16_t>((0xFFFF0000 & reply.Event.MouseEvent.dwButtonState) >> 16), // dwButtonState too large when mouse scrolls
-                                        reply.Event.MouseEvent.dwMousePosition.X,
-                                        reply.Event.MouseEvent.dwMousePosition.Y);
-                                    break;
-                                case WINDOW_BUFFER_SIZE_EVENT:
-                                    _globals<void>::resize_handler();
-                                    break;
-                                case FOCUS_EVENT:
-                                    yield.w32focus(0,
-                                        reply.Event.FocusEvent.bSetFocus);
-                                    break;
-                                default:
-                                    break;
-                            }
+                            //ERROR_PIPE_NOT_CONNECTED = 0xE9 - it's means that the console is gone/crashed
+                            //defeat("ReadConsoleInput error");
+                            os::exit(-1, " tty: ReadConsoleInput error ", GetLastError());
+                            break;
                         }
-                        yield.w32close();
-                        ipcio.send(yield);
+                        else
+                        {
+                            auto entry = reply.begin();
+                            auto limit = entry + count;
+                            yield.w32begin();
+                            while (entry != limit)
+                            {
+                                auto& reply = *entry++;
+                                switch (reply.EventType)
+                                {
+                                    case KEY_EVENT:
+                                        yield.w32keybd(0,
+                                            reply.Event.KeyEvent.wVirtualKeyCode,
+                                            reply.Event.KeyEvent.wVirtualScanCode,
+                                            reply.Event.KeyEvent.bKeyDown,
+                                            reply.Event.KeyEvent.dwControlKeyState,
+                                            reply.Event.KeyEvent.wRepeatCount,
+                                            utf::tocode(reply.Event.KeyEvent.uChar.UnicodeChar));
+                                        break;
+                                    case MOUSE_EVENT:
+                                        yield.w32mouse(0,
+                                            reply.Event.MouseEvent.dwButtonState & 0xFFFF,
+                                            reply.Event.MouseEvent.dwControlKeyState,
+                                            reply.Event.MouseEvent.dwEventFlags,
+                                            static_cast<int16_t>((0xFFFF0000 & reply.Event.MouseEvent.dwButtonState) >> 16), // dwButtonState too large when mouse scrolls
+                                            reply.Event.MouseEvent.dwMousePosition.X,
+                                            reply.Event.MouseEvent.dwMousePosition.Y);
+                                        break;
+                                    case WINDOW_BUFFER_SIZE_EVENT:
+                                        _globals<void>::resize_handler();
+                                        break;
+                                    case FOCUS_EVENT:
+                                        yield.w32focus(0,
+                                            reply.Event.FocusEvent.bSetFocus);
+                                        break;
+                                    default:
+                                        break;
+                                }
+                            }
+                            yield.w32close();
+                            ipcio.send(yield);
+                        }
                     }
                 }
+                else if (sgnld == WAIT_OBJECT_0 + 2)
+                {
+                    // proceed stderr data
+                }
+
             }
 
             #else
 
             std::vector<wchar_t> buff(STDIN_BUF);
-            while (WAIT_OBJECT_0 == WaitForMultipleObjects(2, waits, FALSE, INFINITE))
+            while (WAIT_OBJECT_0 != (sgnld = WaitForMultipleObjects(3, waits, FALSE, INFINITE)))
             {
-                if (!GetNumberOfConsoleInputEvents(STDIN_FD, &count))
+                if (sgnld == WAIT_OBJECT_0 + 1)
                 {
-                    defeat("GetNumberOfConsoleInputEvents error");
-                }
-                else if (count)
-                {
-                    if (count > reply.size()) reply.resize(count);
-
-                    if (!PeekConsoleInput(STDIN_FD, reply.data(), (DWORD)reply.size(), &count))
+                    if (!GetNumberOfConsoleInputEvents(STDIN_FD, &count))
                     {
-                        //ERROR_PIPE_NOT_CONNECTED = 0xE9 - it's means that the console is gone/crashed
-                        defeat("PeekConsoleInput error");
+                        defeat("GetNumberOfConsoleInputEvents error");
                     }
-                    else
+                    else if (count)
                     {
-                        auto entry = reply.begin();
-                        auto limit = entry + count;
-                        auto vtcon = faux;
-                        yield.clear();
-                        while (entry != limit)
+                        if (count > reply.size()) reply.resize(count);
+
+                        if (!PeekConsoleInput(STDIN_FD, reply.data(), (DWORD)reply.size(), &count))
                         {
-                            auto& reply = *entry++;
-                            switch (reply.EventType)
+                            //ERROR_PIPE_NOT_CONNECTED = 0xE9 - it's means that the console is gone/crashed
+                            defeat("PeekConsoleInput error");
+                        }
+                        else
+                        {
+                            auto entry = reply.begin();
+                            auto limit = entry + count;
+                            auto vtcon = faux;
+                            yield.clear();
+                            while (entry != limit)
                             {
-                                case KEY_EVENT:
-                                    // ReadConsole ignores key up event
-                                    vtcon |= static_cast<bool>(reply.Event.KeyEvent.bKeyDown);
-                                    break;
-                                case MOUSE_EVENT:
-                                    break;
-                                case WINDOW_BUFFER_SIZE_EVENT: // Valid only for alt buffer.
-                                    yield += console::ansi::win({
-                                        reply.Event.WindowBufferSizeEvent.dwSize.X,
-                                        reply.Event.WindowBufferSizeEvent.dwSize.Y });
-                                    break;
-                                case FOCUS_EVENT:
-                                    yield += console::ansi::fcs(
-                                        reply.Event.FocusEvent.bSetFocus);
-                                    break;
-                                default:
-                                    break;
+                                auto& reply = *entry++;
+                                switch (reply.EventType)
+                                {
+                                    case KEY_EVENT:
+                                        // ReadConsole ignores key up event
+                                        vtcon |= static_cast<bool>(reply.Event.KeyEvent.bKeyDown);
+                                        break;
+                                    case MOUSE_EVENT:
+                                        break;
+                                    case WINDOW_BUFFER_SIZE_EVENT: // Valid only for alt buffer.
+                                        yield += console::ansi::win({
+                                            reply.Event.WindowBufferSizeEvent.dwSize.X,
+                                            reply.Event.WindowBufferSizeEvent.dwSize.Y });
+                                        break;
+                                    case FOCUS_EVENT:
+                                        yield += console::ansi::fcs(
+                                            reply.Event.FocusEvent.bSetFocus);
+                                        break;
+                                    default:
+                                        break;
+                                }
                             }
+
+                            if (vtcon)
+                            {
+                                CONSOLE_READCONSOLE_CONTROL state = { sizeof(state) };
+
+                                ReadConsoleW( // Auto flushed after reading.
+                                    input,
+                                    buff.data(),
+                                    (DWORD)buff.size(),
+                                    &count,
+                                    &state);
+
+                                //todo forward key ctrl state too
+                                yield += utf::to_utf(buff.data(), count);
+                            }
+                            else FlushConsoleInputBuffer(STDIN_FD);
+
+                            ipcio.send(yield);
                         }
-
-                        if (vtcon)
-                        {
-                            CONSOLE_READCONSOLE_CONTROL state = { sizeof(state) };
-
-                            ReadConsoleW( // Auto flushed after reading.
-                                input,
-                                buff.data(),
-                                (DWORD)buff.size(),
-                                &count,
-                                &state);
-
-                            //todo forward key ctrl state too
-                            yield += utf::to_utf(buff.data(), count);
-                        }
-                        else FlushConsoleInputBuffer(STDIN_FD);
-
-                        ipcio.send(yield);
                     }
+                }
+                else if (sgnld == WAIT_OBJECT_0 + 2)
+                {
+                    // proceed stderr data
                 }
             }
 
@@ -2111,6 +2129,22 @@ namespace netxs::os
                             ;
                     #endif
                     return state;
+                };
+                auto forward = [&](auto fd)
+                {
+                    if (micefd && state.shift(get_kb_state()))
+                    {
+                        yield.meta_state(state.shift.last);
+                        auto data = os::recv(fd, buffer.data(), buffer.size());
+                        yield += data;
+                        ipcio.send<faux>(yield);
+                        yield.clear();
+                    }
+                    else
+                    {
+                        auto data = os::recv(fd, buffer.data(), buffer.size());
+                        ipcio.send<faux>(data);
+                    }
                 };
                 ok(::ttyname_r(STDOUT_FD, buffer.data(), buffer.size()), "ttyname_r error");
                 auto tty_name = view(buffer.data());
@@ -2157,8 +2191,9 @@ namespace netxs::os
                     fd_set socks;
                     FD_ZERO(&socks);
                     FD_SET(STDIN_FD,    &socks);
+                    FD_SET(STDERR_FD,   &socks);
                     FD_SET((fd_t)flash, &socks);
-                    auto nfds = std::max(STDIN_FD, (fd_t)flash);
+                    auto nfds = std::max({ STDERR_FD, STDIN_FD, (fd_t)flash });
                     if (micefd)
                     {
                         nfds = std::max(nfds, (fd_t)micefd);
@@ -2169,19 +2204,11 @@ namespace netxs::os
                     {
                         if (FD_ISSET(STDIN_FD, &socks))
                         {
-                            if (micefd && state.shift(get_kb_state()))
-                            {
-                                yield.meta_state(state.shift.last);
-                                auto data = os::recv(STDIN_FD, buffer.data(), buffer.size());
-                                yield += data;
-                                ipcio.send<faux>(yield);
-                                yield.clear();
-                            }
-                            else
-                            {
-                                auto data = os::recv(STDIN_FD, buffer.data(), buffer.size());
-                                ipcio.send<faux>(data);
-                            }
+                            forward(STDIN_FD);
+                        }
+                        else if (FD_ISSET(STDERR_FD, &socks))
+                        {
+                            forward(STDERR_FD);
                         }
                         else if (FD_ISSET((fd_t)flash, &socks))
                         {
@@ -2196,13 +2223,13 @@ namespace netxs::os
                                 #if defined(__linux__)
                                     vt_stat vt_state;
                                     ok(::ioctl(STDOUT_FD, VT_GETSTATE, &vt_state));
-                                    if (vt_state.v_active == ttynum)
+                                    if (vt_state.v_active == ttynum) // Proceed current active tty only.
                                     {
                                         auto scale = twod{6,12}; //todo magic numbers
                                         auto bttns = data[0] & 7;
                                         mcoor.x += data[1];
                                         mcoor.y -= data[2];
-                                        auto wheel = -data[3]; //todo configurable direction
+                                        auto wheel = -data[3];
                                         auto limit = _globals<void>::winsz.last * scale;
                                         if (bttns == 0) mcoor = std::clamp(mcoor, dot_00, limit);
                                         state.flags = wheel ? 4 : 0;
