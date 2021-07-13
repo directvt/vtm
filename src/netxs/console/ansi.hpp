@@ -63,6 +63,9 @@ namespace netxs::console::ansi
     static const char CSI_CHY = 'd';     // CSI n      d  — Caret Vertical Absolute.
     static const char CSI_HVP = 'f';     // CSI n ; m  f  — Horizontal and Vertical Position.
     static const char CSI_CUP = 'H';     // CSI n ; m  H  — Caret Position.
+    static const char CSI_CHT = 'I';     // CSI n      I  — Caret forward  n tab stops (default = 1).
+    static const char CSI_CBT = 'Z';     // CSI n      Z  — Caret backward n tab stops (default = 1).
+    static const char CSI_TBC = 'g';     // CSI n      g  — Reset tabstop value.
     static const char CSI_SGR = 'm';     // CSI n [;k] m  — Select Graphic Rendition.
     static const char DECSTBM = 'r';     // CSI t ; b  r  — Set scrolling region (t/b: top + bottom).
     static const char CSI_SCP = 's';     // CSI        s  — Save caret Position.
