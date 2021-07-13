@@ -46,7 +46,7 @@
       "intelliSenseMode": "linux-gcc-x64"
     },
     {
-      "name": "WSL-GCC-Release-Static",
+      "name": "WSL-GCC-Release-Static-PROD",
       "generator": "Ninja",
       "configurationType": "Release",
       "buildRoot": "${projectDir}\\build\\${name}",
@@ -167,7 +167,7 @@
       "intelliSenseMode": "windows-msvc-x64"
     },
     {
-      "name": "x64-Release-Static",
+      "name": "x64-Release-Static-PROD",
       "generator": "Ninja",
       "configurationType": "MinSizeRel",
       "buildRoot": "${projectDir}\\build\\${name}",

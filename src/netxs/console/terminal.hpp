@@ -371,20 +371,23 @@ namespace netxs::ui
             {
                 if (pos.x && pos.x == cur_line3.length() && (pos.x % panel.x == 0))
                 {
-                    pos.x--;
-                    coord.x = panel.x;
+                    if (coord.x != 0 || coord.y != pos.x / panel.x + pos.y)
+                    {
+                        pos.x--;
+                        coord.x = panel.x;
+                        coord.y = pos.x / panel.x + pos.y;
+                    }
                 }
                 else
                 {
                     coord.x = pos.x % panel.x;
+                    coord.y = pos.x / panel.x + pos.y;
                 }
-                coord.y = pos.x / panel.x + pos.y;
             }
             else
             {
                 coord = pos;
             }
-
             xsize.take(cur_line3);
         }
         void clear_all(bool preserve_brush = faux)
@@ -1351,8 +1354,8 @@ namespace netxs::ui
             void cuf(iota n)
             {
                 finalize();
-                auto posx = batch->chx();
-                batch->chx(posx += n);
+                coord.x += n;
+                set_coord();
             }
             // scrollbuff: CSI n G  Absolute horizontal caret position (1-based).
             void chx(iota n)
@@ -1383,14 +1386,10 @@ namespace netxs::ui
             void up(iota n)
             {
                 finalize();
-                if (batch->style.wrapln == wrap::on)
+                if (coord.x == panel.x && batch->style.wrapln == wrap::on)
                 {
-                    // Deffered wrap.
-                    if (coord.x && (coord.x % panel.x == 0))
-                    {
-                        coord.x -= panel.x;
-                        --n;
-                    }
+                    coord.x = 0;
+                    --n;
                 }
                 coord.y -= n;
                 set_coord();
@@ -1399,12 +1398,14 @@ namespace netxs::ui
             void dn(iota n)
             {
                 finalize();
-                if (batch->style.wrapln == wrap::on
-                    && coord.x == panel.x) coord.x = 0;
+                if (coord.x == panel.x && batch->style.wrapln == wrap::on)
+                {
+                    coord.x = 0;
+                }
                 // Scroll regions up if coord.y == scend and scroll region are defined.
                 auto[top, end] = get_scroll_region();
-                if (n > 0 && scroll_region_used() && coord.y <= end
-                                             && coord.y + n > end)
+                if (n > 0 && scroll_region_used() && coord.y    <= end
+                                                  && coord.y + n > end)
                 {
                     n -= end - coord.y;
                     coord.y = end;
@@ -1420,25 +1421,13 @@ namespace netxs::ui
             void home()
             {
                 finalize();
-                auto posx = batch->chx();
-                if (batch->style.wrapln == wrap::on)
-                {
-                    auto d = posx % panel.x;
-                    posx -= d;
-                    if (posx && d < 2)
-                    {
-                        posx -= panel.x;
-                    }
-                }
-                else posx = 0;
-                batch->chx(posx);
                 coord.x = 0;
+                set_coord();
             }
             // scrollbuff: '\n' || '\r\n'  Carriage return + Line feed.
             void eol(iota n)
             {
                 finalize();
-                //todo Check the temp caret position (deffered wrap)
                 coord.x = 0;
                 coord.y += n;
                 set_coord();
@@ -1478,17 +1467,17 @@ namespace netxs::ui
                 switch (n)
                 {
                     default:
-                    case commands::erase::line::right: // Ps = 0  ⇒  Erase to Right (default).
+                    case commands::erase::line::right: // n = 0 (default)  Erase to Right.
                         start = caret;
                         count = wraps ? panel.x - (caret + panel.x) % panel.x
                                       : std::max(0, std::max(panel.x, batch->length()) - caret);
                         break;
-                    case commands::erase::line::left: // Ps = 1  ⇒  Erase to Left.
+                    case commands::erase::line::left: // n = 1  Erase to Left.
                         start = wraps ? caret - caret % panel.x
                                       : 0;
                         count = caret - start;
                         break;
-                    case commands::erase::line::all: // Ps = 2  ⇒  Erase All.
+                    case commands::erase::line::all: // n = 2  Erase All.
                         start = wraps ? caret - caret % panel.x
                                       : 0;
                         count = wraps ? panel.x
