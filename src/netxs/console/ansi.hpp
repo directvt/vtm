@@ -63,6 +63,9 @@ namespace netxs::console::ansi
     static const char CSI_CHY = 'd';     // CSI n      d  — Caret Vertical Absolute.
     static const char CSI_HVP = 'f';     // CSI n ; m  f  — Horizontal and Vertical Position.
     static const char CSI_CUP = 'H';     // CSI n ; m  H  — Caret Position.
+    static const char CSI_CHT = 'I';     // CSI n      I  — Caret forward  n tab stops (default = 1).
+    static const char CSI_CBT = 'Z';     // CSI n      Z  — Caret backward n tab stops (default = 1).
+    static const char CSI_TBC = 'g';     // CSI n      g  — Reset tabstop value.
     static const char CSI_SGR = 'm';     // CSI n [;k] m  — Select Graphic Rendition.
     static const char DECSTBM = 'r';     // CSI t ; b  r  — Set scrolling region (t/b: top + bottom).
     static const char CSI_SCP = 's';     // CSI        s  — Save caret Position.
@@ -255,6 +258,8 @@ namespace netxs::console::ansi
         esc& save_title ()   { add("\033[22;0t");                       return *this; } // esc: Save terminal window title.
         esc& scrn_reset ()   { add("\033[H\033[m\033[3J");              return *this; } // esc: Reset palette, erase scrollback and reset caret location.
         esc& load_title ()   { add("\033[23;0t");                       return *this; } // esc: Restore terminal window title.
+        esc& save_palette()  { add("\033[#P");                          return *this; } // esc: Push palette onto stack XTPUSHCOLORS.
+        esc& load_palette()  { add("\033[#Q");                          return *this; } // esc: Pop  palette from stack XTPOPCOLORS.
         esc& osc_palette (iota i, rgba const& c) // esc: Set color palette. ESC ] 4 ; <i> ; rgb : <r> / <g> / <b> ESC.
         {
             add("\033]4;" + str(i) + ";rgb:" + utf::to_hex(c.chan.r) + "/"
