@@ -255,6 +255,8 @@ namespace netxs::console::ansi
         esc& save_title ()   { add("\033[22;0t");                       return *this; } // esc: Save terminal window title.
         esc& scrn_reset ()   { add("\033[H\033[m\033[3J");              return *this; } // esc: Reset palette, erase scrollback and reset caret location.
         esc& load_title ()   { add("\033[23;0t");                       return *this; } // esc: Restore terminal window title.
+        esc& save_palette()  { add("\033[#P");                          return *this; } // esc: Push palette onto stack XTPUSHCOLORS.
+        esc& load_palette()  { add("\033[#Q");                          return *this; } // esc: Pop  palette from stack XTPOPCOLORS.
         esc& osc_palette (iota i, rgba const& c) // esc: Set color palette. ESC ] 4 ; <i> ; rgb : <r> / <g> / <b> ESC.
         {
             add("\033]4;" + str(i) + ";rgb:" + utf::to_hex(c.chan.r) + "/"
