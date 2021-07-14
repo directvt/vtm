@@ -46,7 +46,7 @@
       "intelliSenseMode": "linux-gcc-x64"
     },
     {
-      "name": "WSL-GCC-Release-Static",
+      "name": "WSL-GCC-Release-Static-PROD",
       "generator": "Ninja",
       "configurationType": "Release",
       "buildRoot": "${projectDir}\\build\\${name}",
@@ -167,7 +167,7 @@
       "intelliSenseMode": "windows-msvc-x64"
     },
     {
-      "name": "x64-Release-Static",
+      "name": "x64-Release-Static-PROD",
       "generator": "Ninja",
       "configurationType": "MinSizeRel",
       "buildRoot": "${projectDir}\\build\\${name}",
@@ -221,6 +221,62 @@
         {
           "name": "CMAKE_CXX_FLAGS_MINSIZEREL",
           "value": "/MT /O1 /Ob1 /DNDEBUG /bigobj",
+          "type": "STRING"
+        }
+      ]
+    },
+    {
+      "name": "WSL-GCC-Release-Static-DEMO",
+      "generator": "Ninja",
+      "configurationType": "Release",
+      "buildRoot": "${projectDir}\\build\\${name}",
+      "installRoot": "${projectDir}\\build\\install\\${name}",
+      "cmakeExecutable": "/usr/bin/cmake",
+      "cmakeCommandArgs": "",
+      "buildCommandArgs": "-v",
+      "ctestCommandArgs": "",
+      "inheritEnvironments": [ "linux_x64" ],
+      "variables": [
+        {
+          "name": "CMAKE_CXX_FLAGS_RELEASE",
+          "value": "-MT -DNDEBUG -Ofast -s -DDEMO",
+          "type": "STRING"
+        },
+        {
+          "name": "CMAKE_CXX_FLAGS_MINSIZEREL",
+          "value": "-Ofast -DNDEBUG",
+          "type": "STRING"
+        },
+        {
+          "name": "CMAKE_EXE_LINKER_FLAGS_RELEASE",
+          "value": "-static-libstdc++",
+          "type": "STRING"
+        },
+        {
+          "name": "CMAKE_CXX_FLAGS",
+          "value": "-pthread",
+          "type": "STRING"
+        }
+      ],
+      "intelliSenseMode": "linux-gcc-x64",
+      "wslPath": "${defaultWSLPath}",
+      "addressSanitizerRuntimeFlags": "detect_leaks=0",
+      "remoteCopyUseCompilerDefaults": true
+    },
+    {
+      "name": "x64-Release-Static-DEMO",
+      "generator": "Ninja",
+      "configurationType": "MinSizeRel",
+      "buildRoot": "${projectDir}\\build\\${name}",
+      "installRoot": "${projectDir}\\build\\install\\${name}",
+      "cmakeCommandArgs": "",
+      "buildCommandArgs": "",
+      "ctestCommandArgs": "",
+      "inheritEnvironments": [ "msvc_x64_x64" ],
+      "variables": [
+        {
+          "name": "CMAKE_CXX_FLAGS_MINSIZEREL",
+          "value": "/MT /O1 /Ob1 /DNDEBUG /bigobj /DDEMO",
           "type": "STRING"
         }
       ]

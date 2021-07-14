@@ -275,33 +275,36 @@ namespace netxs::os
         };
         iota mode = legacy::clean;
         auto term = os::get_env("TERM");
-        log("  os: terminal type \"", term, "\"");
-        if (term.ends_with("16color") || term.ends_with("16colour"))
+        if (term.size())
         {
-            mode |= legacy::vga16;
-        }
-        else
-        {
-            for (auto& type : vga16colors)
+            log("  os: terminal type \"", term, "\"");
+            if (term.ends_with("16color") || term.ends_with("16colour"))
             {
-                if (term == type)
+                mode |= legacy::vga16;
+            }
+            else
+            {
+                for (auto& type : vga16colors)
                 {
-                    mode |= legacy::vga16;
-                    break;
+                    if (term == type)
+                    {
+                        mode |= legacy::vga16;
+                        break;
+                    }
                 }
             }
-        }
-        if (os::get_env("TERM_PROGRAM") == "Apple_Terminal")
-        {
-            log("  os: macOS Apple_Terminal detected");
-            if (!(mode & legacy::vga16)) mode |= legacy::vga256;
-        }
+            if (os::get_env("TERM_PROGRAM") == "Apple_Terminal")
+            {
+                log("  os: macOS Apple_Terminal detected");
+                if (!(mode & legacy::vga16)) mode |= legacy::vga256;
+            }
 
-        if (local_mode()) mode |= legacy::mouse;
-        log("  os: color mode: ", mode & legacy::vga16  ? "16-color"
-                                : mode & legacy::vga256 ? "256-color"
-                                                        : "true-color");
-        log("  os: mouse mode: ", mode & legacy::mouse ? "console" : "VT-style");
+            if (local_mode()) mode |= legacy::mouse;
+            log("  os: color mode: ", mode & legacy::vga16  ? "16-color"
+                                    : mode & legacy::vga256 ? "256-color"
+                                                            : "true-color");
+            log("  os: mouse mode: ", mode & legacy::mouse ? "console" : "VT-style");
+        }
         return mode;
     }
     static auto vtgafont_update(iota mode)
@@ -1299,6 +1302,7 @@ namespace netxs::os
                 (yield.*p)(14, rgba::color16[tint16::yellowdk ]);
                 (yield.*p)(15, rgba::color16[tint16::cyanlt   ]);
             };
+            yield.save_palette();
             if (legacy_mouse) set_pal(&ansi::esc::old_palette);
             else              set_pal(&ansi::esc::osc_palette);
             os::send(STDOUT_FD, yield.data(), yield.size());
@@ -1314,6 +1318,7 @@ namespace netxs::os
         {
             if (legacy_mouse) yield.old_palette_reset();
             else              yield.osc_palette_reset();
+            yield.load_palette();
             os::send(STDOUT_FD, yield.data(), yield.size());
             yield.clear();
             log(" tty: palette restored");
@@ -2548,7 +2553,6 @@ namespace netxs::os
             #elif defined(__linux__) || defined(__BSD__)
 
                 int status;
-                termlink.shut();
                 ok(::kill(pid, SIGKILL));
                 ok(::waitpid(pid, &status, 0)); // Wait for the child to avoid zombies.
                 if (WIFEXITED(status))
@@ -2596,7 +2600,8 @@ namespace netxs::os
                     COORD winsz;
                     winsz.X = newsize.x;
                     winsz.Y = newsize.y;
-                    ok(ResizePseudoConsole(hPC, winsz));
+                    auto hr = ResizePseudoConsole(hPC, winsz);
+                    if (hr != S_OK) log("cons: ResizePseudoConsole error, ", hr);
 
                 #elif defined(__linux__) || defined(__BSD__)
 

@@ -371,20 +371,23 @@ namespace netxs::ui
             {
                 if (pos.x && pos.x == cur_line3.length() && (pos.x % panel.x == 0))
                 {
-                    pos.x--;
-                    coord.x = panel.x;
+                    if (coord.x != 0 || coord.y != pos.x / panel.x + pos.y)
+                    {
+                        pos.x--;
+                        coord.x = panel.x;
+                        coord.y = pos.x / panel.x + pos.y;
+                    }
                 }
                 else
                 {
                     coord.x = pos.x % panel.x;
+                    coord.y = pos.x / panel.x + pos.y;
                 }
-                coord.y = pos.x / panel.x + pos.y;
             }
             else
             {
                 coord = pos;
             }
-
             xsize.take(cur_line3);
         }
         void clear_all(bool preserve_brush = faux)
@@ -997,6 +1000,10 @@ namespace netxs::ui
                     vt::csier.table[CSI_CUF] = VT_PROC{ p->cuf( q(1)); };  // CSI n C
                     vt::csier.table[CSI_CUB] = VT_PROC{ p->cuf(-q(1)); };  // CSI n D
 
+                    vt::csier.table[CSI_CHT] = VT_PROC{ p->tab( q(1)); };  // CSI n I  Caret forward  n tabs, default n=1.
+                    vt::csier.table[CSI_CBT] = VT_PROC{ p->tab(-q(1)); };  // CSI n Z  Caret backward n tabs, default n=1.
+                    vt::csier.table[CSI_TBC] = VT_PROC{ p->tbc( q(1)); };  // CSI n g  Reset tabstop value.
+
                     vt::csier.table[CSI_CUD2]= VT_PROC{ p->dn ( q(1)); };  // CSI n e  Move caret down. Same as CUD.
 
                     vt::csier.table[CSI_CNL] = vt::csier.table[CSI_CUD];   // CSI n E
@@ -1029,7 +1036,7 @@ namespace netxs::ui
 
                     vt::intro[ctrl::ESC][ESC_IND] = VT_PROC{ p->dn(1); }; // ESC D  Caret Down.
                     vt::intro[ctrl::ESC][ESC_IR ] = VT_PROC{ p->ri (); }; // ESC M  Reverse index.
-                    vt::intro[ctrl::ESC][ESC_HTS] = VT_PROC{ p->na("ESC H  Place tabstop at the current caret posistion"); }; // ESC H  Place tabstop at the current caret posistion.
+                    vt::intro[ctrl::ESC][ESC_HTS] = VT_PROC{ p->stb(); }; // ESC H  Place tabstop at the current caret posistion.
                     vt::intro[ctrl::ESC][ESC_RIS] = VT_PROC{ p->boss.decstr(); }; // ESC c Reset to initial state (same as DECSTR).
                     vt::intro[ctrl::ESC][ESC_SC ] = VT_PROC{ p->scp(); }; // ESC 7 (same as CSI s) Save caret position.
                     vt::intro[ctrl::ESC][ESC_RC ] = VT_PROC{ p->rcp(); }; // ESC 8 (same as CSI u) Restore caret position.
@@ -1061,6 +1068,9 @@ namespace netxs::ui
             };
 
             term& boss;
+            //todo magic numbers
+            static constexpr iota default_tabstop = 8;
+            iota tabstop = default_tabstop; // scrollbuff: Tabstop current value.
 
             scrollbuff(term& boss, iota max_scrollback_size, iota grow_step = 0)
                 : rods(boss.viewport.size, max_scrollback_size, grow_step),
@@ -1103,7 +1113,34 @@ namespace netxs::ui
                 }
                 log("CSI ", params, " ", (unsigned char)i, "(", std::to_string(i), ") is not implemented.");
             }
-            void tab(iota n) { batch->ins(n, rods::brush); }
+            // scrollbuff: ESC H  Place tabstop at the current caret posistion.
+            void stb()
+            {
+                finalize();
+                tabstop = std::max(1, coord.x + 1);
+            }
+            // scrollbuff: TAB  Horizontal tab.
+            void tab(iota n)
+            {
+                finalize();
+                if (n > 0)
+                {
+                    auto a = n * tabstop - coord.x % tabstop;
+                    batch->ins(a, rods::brush);
+                }
+                else if (n < 0)
+                {
+                    n = -n - 1;
+                    auto a = n * tabstop + coord.x % tabstop;
+                    coord.x = std::max(0, coord.x - a);
+                    set_coord();
+                }
+            }
+            // scrollbuff: CSI n g  Reset tabstop value.
+            void tbc(iota n)
+            {
+                tabstop = default_tabstop;
+            }
             // scrollbuff: ESC 7 or CSU s  Save caret position.
             void scp()
             {
@@ -1317,8 +1354,8 @@ namespace netxs::ui
             void cuf(iota n)
             {
                 finalize();
-                auto posx = batch->chx();
-                batch->chx(posx += n);
+                coord.x += n;
+                set_coord();
             }
             // scrollbuff: CSI n G  Absolute horizontal caret position (1-based).
             void chx(iota n)
@@ -1349,14 +1386,10 @@ namespace netxs::ui
             void up(iota n)
             {
                 finalize();
-                if (batch->style.wrapln == wrap::on)
+                if (coord.x == panel.x && batch->style.wrapln == wrap::on)
                 {
-                    // Deffered wrap.
-                    if (coord.x && (coord.x % panel.x == 0))
-                    {
-                        coord.x -= panel.x;
-                        --n;
-                    }
+                    coord.x = 0;
+                    --n;
                 }
                 coord.y -= n;
                 set_coord();
@@ -1365,12 +1398,14 @@ namespace netxs::ui
             void dn(iota n)
             {
                 finalize();
-                if (batch->style.wrapln == wrap::on
-                    && coord.x == panel.x) coord.x = 0;
+                if (coord.x == panel.x && batch->style.wrapln == wrap::on)
+                {
+                    coord.x = 0;
+                }
                 // Scroll regions up if coord.y == scend and scroll region are defined.
                 auto[top, end] = get_scroll_region();
-                if (n > 0 && scroll_region_used() && coord.y <= end
-                                             && coord.y + n > end)
+                if (n > 0 && scroll_region_used() && coord.y    <= end
+                                                  && coord.y + n > end)
                 {
                     n -= end - coord.y;
                     coord.y = end;
@@ -1386,25 +1421,13 @@ namespace netxs::ui
             void home()
             {
                 finalize();
-                auto posx = batch->chx();
-                if (batch->style.wrapln == wrap::on)
-                {
-                    auto d = posx % panel.x;
-                    posx -= d;
-                    if (posx && d < 2)
-                    {
-                        posx -= panel.x;
-                    }
-                }
-                else posx = 0;
-                batch->chx(posx);
                 coord.x = 0;
+                set_coord();
             }
             // scrollbuff: '\n' || '\r\n'  Carriage return + Line feed.
             void eol(iota n)
             {
                 finalize();
-                //todo Check the temp caret position (deffered wrap)
                 coord.x = 0;
                 coord.y += n;
                 set_coord();
@@ -1444,17 +1467,17 @@ namespace netxs::ui
                 switch (n)
                 {
                     default:
-                    case commands::erase::line::right: // Ps = 0  ⇒  Erase to Right (default).
+                    case commands::erase::line::right: // n = 0 (default)  Erase to Right.
                         start = caret;
                         count = wraps ? panel.x - (caret + panel.x) % panel.x
                                       : std::max(0, std::max(panel.x, batch->length()) - caret);
                         break;
-                    case commands::erase::line::left: // Ps = 1  ⇒  Erase to Left.
+                    case commands::erase::line::left: // n = 1  Erase to Left.
                         start = wraps ? caret - caret % panel.x
                                       : 0;
                         count = caret - start;
                         break;
-                    case commands::erase::line::all: // Ps = 2  ⇒  Erase All.
+                    case commands::erase::line::all: // n = 2  Erase All.
                         start = wraps ? caret - caret % panel.x
                                       : 0;
                         count = wraps ? panel.x
