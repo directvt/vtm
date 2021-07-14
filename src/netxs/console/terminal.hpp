@@ -193,7 +193,6 @@ namespace netxs::ui
         // rods: Return current 0-based caret position in the scrollback.
         auto cp()
         {
-            get_coord();
             auto pos = coord;
             if (pos.x == panel.x && batch->style.wrapln == wrap::on)
             {
@@ -210,21 +209,6 @@ namespace netxs::ui
             pos.y += basis;
             return pos;
         }
-        //auto frame_size()
-        //{
-        //    twod size;
-        //    align_basis();
-        //    size.x = panel.x;
-        //    //todo unify
-        //    //size.y = basis + std::max(panel.y, batch.size - basis); // Allow overscroll at the bottom.
-        //    size.y = std::max(panel.y, batch.size);
-        //    if (is_caret_visible)
-        //    {
-        //        auto coor = cp();
-        //        if (++coor.y > size.y) size.y = coor.y;
-        //    }
-        //    return size;
-        //}
         auto line_height(para const& l)
         {
             if (l.style.wrapln == wrap::on)
@@ -1764,8 +1748,8 @@ namespace netxs::ui
                     scrollback_size.y = std::max(viewport.size.y, target->height());
                     if (target->is_caret_visible)
                     {
-                        auto coor = target->cp();
-                        if (++coor.y > scrollback_size.y) scrollback_size.y = coor.y;
+                        auto y = visibility_coor.second.y; //target->cp();
+                        if (y >= scrollback_size.y) scrollback_size.y = y + 1;
                     }
                     
                     auto new_size = base::size();
@@ -1858,7 +1842,8 @@ namespace netxs::ui
                         {
                             new_size = std::max(new_size, dot_11);
                             auto old_caret_pos = caret.coor();
-                            auto caret_visible = viewport.coor.y == base::size().y - viewport.size.y;
+                            auto caret_visible = target->is_caret_visible
+                                            && viewport.coor.y == base::size().y - viewport.size.y;
 
                             if (target == &altbuf)
                             {
@@ -1869,25 +1854,20 @@ namespace netxs::ui
 
                             oversize.set(target->recalc_pads());
 
-                            //auto scrollback_size = target->frame_size();
                             target->align_basis();
+                            target->rebuild_viewport();
+                            target->get_coord();
+
                             //todo unify
                             //scrollback_size.y = basis + std::max(new_size.y, batch.size - basis); // Allow overscroll at the bottom.
                             new_size.y = std::max(new_size.y, target->height());
-                            if (target->is_caret_visible)
-                            {
-                                auto coor = target->cp();
-                                if (++coor.y > new_size.y) new_size.y = coor.y;
-                            }
-
-                            target->rebuild_viewport();
-
+                            auto coor = target->cp();
                             if (caret_visible)
                             {
+                                if (coor.y >= new_size.y) new_size.y = coor.y + 1;
                                 reset_scroll_pos(new_size.y);
                             }
-                            auto ccc = std::pair{ target->is_caret_visible, target->cp() };
-                            caret.set(ccc);
+                            caret.coor(coor);
 
                             update_status();
                             ptycon.resize(viewport.size);
