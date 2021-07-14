@@ -168,11 +168,29 @@ namespace netxs::ui
             rght = std::max(rght, both + (cntr & 1));
             return std::pair{ left, rght };
         }
-        // rods: Return current 0-based caret position.
+        // rods: Map caret position from scrollback to viewport.
+        auto get_coord()
+        {
+            auto& curln =*batch;
+            auto vt_pos = batch.get() - basis;
+            auto hz_pos = curln.chx();
+            if (hz_pos > panel.x - 1 && curln.style.wrapln == wrap::on)
+            {
+                auto x = hz_pos % panel.x;
+                auto y = hz_pos / panel.x + vt_pos;
+                auto right_most = x == 0
+                               && hz_pos == curln.length()
+                               && (coord.x != x || coord.y != y);
+                if (right_most) coord = { panel.x, y - 1 };
+                else            coord = { x      , y     };
+            }
+            else coord = { hz_pos, vt_pos };
+        }
+        // rods: Return current 0-based caret position in the scrollback.
         auto cp()
         {
+            get_coord();
             auto pos = coord;
-            pos.y += basis;
             if (pos.x == panel.x && batch->style.wrapln == wrap::on)
             {
                 if (pos.y == panel.y - 1) // The last position on the screen(c).
@@ -185,6 +203,7 @@ namespace netxs::ui
                     pos.y++;
                 }
             }
+            pos.y += basis;
             return pos;
         }
         auto get_caret()
@@ -265,6 +284,7 @@ namespace netxs::ui
         {
             return id - batch.front().selfid;
         }
+        // rods: Map caret position from viewport to scrollback.
         void set_coord(twod new_coord)
         {
             auto min_y = -basis; // Checking bottom boundary
@@ -292,6 +312,7 @@ namespace netxs::ui
             //     after the right side: disable wrapping (on overlapped line too)
             //     before the left side: disable wrapping + bias::right (on overlapped line too)
         }
+        // rods: Map caret pos from viewport to scrollback.
         void set_coord() { set_coord(coord); }
         template<class P>
         void for_each(iota from, iota upto, P proc)
@@ -365,29 +386,8 @@ namespace netxs::ui
                 });
             }
 
+            get_coord();
             auto& cur_line3 = *batch;
-            auto pos = twod{ cur_line3.chx(), caret - basis };
-            if (cur_line3.style.wrapln == wrap::on)
-            {
-                if (pos.x && pos.x == cur_line3.length() && (pos.x % panel.x == 0))
-                {
-                    if (coord.x != 0 || coord.y != pos.x / panel.x + pos.y)
-                    {
-                        pos.x--;
-                        coord.x = panel.x;
-                        coord.y = pos.x / panel.x + pos.y;
-                    }
-                }
-                else
-                {
-                    coord.x = pos.x % panel.x;
-                    coord.y = pos.x / panel.x + pos.y;
-                }
-            }
-            else
-            {
-                coord = pos;
-            }
             xsize.take(cur_line3);
         }
         void clear_all(bool preserve_brush = faux)
@@ -1031,7 +1031,7 @@ namespace netxs::ui
                     vt::csier.table[CSI_WIN] = VT_PROC{ p->boss.winprops.manage(q); };  // CSI n;m;k t  Terminal window options (XTWINOPS).
 
                     vt::csier.table[CSI_CCC][CCC_RST] = VT_PROC{ p->style.glb();    };  // fx_ccc_rst
-                    vt::csier.table[CSI_CCC][CCC_SBS] = VT_PROC{ p->boss.resize(q); };  // CCC_SBS: Set scrollback size.
+                    vt::csier.table[CSI_CCC][CCC_SBS] = VT_PROC{ p->boss.scrollbuffer_size(q); };  // CCC_SBS: Set scrollback size.
                     vt::csier.table[CSI_CCC][CCC_EXT] = VT_PROC{ p->boss.native(q(1)); };  // CCC_EXT: Setup extended functionality.
 
                     vt::intro[ctrl::ESC][ESC_IND] = VT_PROC{ p->dn(1); }; // ESC D  Caret Down.
@@ -1386,18 +1386,22 @@ namespace netxs::ui
             void up(iota n)
             {
                 finalize();
+                //log("up 1 batch id ", batch->id(), " coord ", coord);
                 if (coord.x == panel.x && batch->style.wrapln == wrap::on)
                 {
                     coord.x = 0;
                     --n;
                 }
                 coord.y -= n;
+                //log("up 2 batch id ", batch->id(), " coord ", coord);
                 set_coord();
+                //log("up 3 batch id ", batch->id(), " coord ", coord);
             }
             // scrollbuff: Line feed (move caret down).
             void dn(iota n)
             {
                 finalize();
+                //log("dn 1 batch id ", batch->id(), " coord ", coord);
                 if (coord.x == panel.x && batch->style.wrapln == wrap::on)
                 {
                     coord.x = 0;
@@ -1413,24 +1417,35 @@ namespace netxs::ui
                 }
                 else
                 {
+                    //log("dn 2.0 coord ", coord);
                     coord.y += n;
+                    //log("dn 2.1 coord ", coord);
                 }
+                //log("dn 2 batch id ", batch->id(), " coord ", coord);
                 set_coord();
+                //log("dn 3 batch id ", batch->id(), " coord ", coord);
             }
             // scrollbuff: '\r'  Go to home of visible line instead of home of para.
             void home()
             {
+                //log("home 0 batch id ", batch->id(), " coord ", coord);
                 finalize();
+                //log("home 1 batch id ", batch->id(), " coord ", coord);
                 coord.x = 0;
                 set_coord();
+                ///log("home 2 batch id ", batch->id(), " coord ", coord);
             }
             // scrollbuff: '\n' || '\r\n'  Carriage return + Line feed.
             void eol(iota n)
             {
                 finalize();
+                //todo Check the temp caret position (deffered wrap)
+                //log("cr 1 batch id ", batch->id(), " chx ", batch->chx(), " coord ", coord);
                 coord.x = 0;
                 coord.y += n;
+                //log("cr 2 batch id ", batch->id(), " chx ", batch->chx(), " coord ", coord);
                 set_coord();
+                //log("cr 3 batch id ", batch->id(), " chx ", batch->chx(), " coord ", coord);
             }
             // scrollbuff: CSI n J  Erase display.
             void ed(iota n)
@@ -1485,8 +1500,10 @@ namespace netxs::ui
                         break;
                 }
                 auto blank = cell{ brush }.txt(' ');
+                //log("el 1 batch id ", batch->id(), " \\e[K from ", start, " count ", count);
                 batch->ins<true>(start, count, blank);
                 batch->trim(brush.spare);
+                //log("el 2 batch id ", batch->id(), " chx ", batch->chx(), " coord ", coord);
             }
         }
         normal, // term: Normal screen buffer.
@@ -1694,7 +1711,7 @@ namespace netxs::ui
         }
 
         // term: Set scrollback buffer size and grow_by step.
-        void resize(fifo& q)
+        void scrollbuffer_size(fifo& q)
         {
             iota max_scrollback_size = q(default_size);
             iota grow_step           = q(default_step);
@@ -1731,7 +1748,7 @@ namespace netxs::ui
 
                     auto orig_view = rect{ base::size() - viewport.size, viewport.size };
                     auto old_caret_pos = caret.coor();
-                    auto caret_seeable = viewport.coor.y == orig_view.coor.y;
+                    auto caret_visible = viewport.coor.y == orig_view.coor.y;
 
                     ansi::parse(shadow, target); // Append target using current insertion point.
 
@@ -1744,7 +1761,7 @@ namespace netxs::ui
                     auto scrollback_size = target->frame_size();
                     auto new_size = base::size();
                     new_size.y = std::max(viewport.size.y, scrollback_size.y);
-                    if (caret_seeable) reset_scroll_pos(new_size);
+                    if (caret_visible) reset_scroll_pos(new_size);
                     SIGNAL(e2::release, e2::size::set, scrollback_size);
 
                     // normal can be switched to altbuf.
@@ -1783,7 +1800,7 @@ namespace netxs::ui
         }
         void reset_scroll_pos(twod const& new_size)
         {
-            auto caret_xy = caret.coor();
+            //auto caret_xy = caret.coor();
             auto orig_viewport = rect{ {0, new_size.y - viewport.size.y}, viewport.size };
             auto new_coor = -orig_viewport.coor;
             this->SIGNAL(e2::release, e2::coor::set, new_coor);
@@ -1827,28 +1844,33 @@ namespace netxs::ui
                     {
                         oneshot_resize_token.reset();
                         altbuf.resize<faux>(new_size.y);
+
                         this->SUBMIT(e2::preview, e2::size::set, new_size)
                         {
                             new_size = std::max(new_size, dot_11);
                             auto old_caret_pos = caret.coor();
-                            auto caret_seeable = viewport.coor.y == base::size().y - viewport.size.y;
+                            auto caret_visible = viewport.coor.y == base::size().y - viewport.size.y;
 
-                            if (target == &altbuf)// || target->scroll_region_used())
+                            if (target == &altbuf)
                             {
                                 altbuf.trim_to_size(new_size);
-                                //todo scroll_region_used: scroll region up or down (pull lines from scrollback buffer)
                             }
                             viewport.size = new_size;
                             altbuf.resize<faux>(new_size.y);
 
                             oversize.set(target->recalc_pads());
-                            caret.set(target->get_caret());
 
                             auto scrollback_size = target->frame_size();
                             new_size.y = std::max(new_size.y, scrollback_size.y);
                             target->rebuild_viewport();
 
-                            if (caret_seeable) reset_scroll_pos(new_size);
+                            if (caret_visible)
+                            {
+                                reset_scroll_pos(new_size);
+                            }
+
+                            caret.set(target->get_caret());
+
                             update_status();
                             ptycon.resize(viewport.size);
                         };

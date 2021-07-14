@@ -1,7 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#define MONOTTY_VER "Monotty Desktopio v0.5.4"
+#define MONOTTY_VER "Monotty Desktopio v0.5.5"
 // Autostart demo apps.
 //#define DEMO
 // Enable keyboard input and disable exit by single Esc.
@@ -1686,7 +1686,7 @@ utility like ctags is used to locate the definitions.
                                     auto scroll = layers->attach<ui::rail>()
                                                         ->plugin<pro::limit>(twod{ 4,3 }, twod{ -1,-1 });
                                         auto edit_box = scroll->attach<ui::post>(true)
-                                                              ->plugin<pro::caret>(true, twod{ 25,1 })
+                                                              ->plugin<pro::caret>(true, twod{ 25,1 }, true)
                                                               ->colors(blackdk, whitelt)
                                                               ->upload(ansi::wrp(wrap::off).mgl(1)
                                                                 + topic3
@@ -2234,7 +2234,7 @@ utility like ctags is used to locate the definitions.
             creator(objs::Shop, { twod{ 4 , 6  } + sub_pos, { 80, 38 } });
             creator(objs::Calc, { twod{ 15, 15 } + sub_pos, { 65, 23 } });
             creator(objs::Text, { twod{ 30, 22 } + sub_pos, { 59, 26 } });
-            creator(objs::MC,   { twod{ 49, 26 } + sub_pos, { 63, 22 } });
+            creator(objs::MC,   { twod{ 49, 28 } + sub_pos, { 63, 22 } });
             creator(objs::Term, { twod{ 34, 38 } + sub_pos, { 57, 16 } });
             creator(objs::Term, { twod{ 44 + 85, 35 } + sub_pos, { 57, 15 } });
             creator(objs::Term, { twod{ 40 + 85, 42 } + sub_pos, { 57, 15 } });

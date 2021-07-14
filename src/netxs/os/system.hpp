@@ -2593,7 +2593,7 @@ namespace netxs::os
         }
         void resize(twod const& newsize)
         {
-            if (termsize(newsize))
+            if (termsize(newsize) && termlink)
             {
                 #if defined(_WIN32)
 
