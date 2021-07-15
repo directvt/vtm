@@ -149,13 +149,6 @@ namespace netxs::ui
             style.glb();
             batch.push(style); // At least one row must exist.
         }
-        auto status()
-        {
-            return "size=" + std::to_string(batch.size)
-                + " peak=" + std::to_string(batch.peak)
-                + " type=" + (batch.step ? "unlimited, grow by " + std::to_string(batch.step) : "fixed")
-                + " area=" + panel.str();
-        }
         auto& height() const
         {
             return batch.size;
@@ -194,15 +187,12 @@ namespace netxs::ui
             auto pos = coord;
             if (pos.x == panel.x && batch->style.wrapln == wrap::on)
             {
-                if (pos.y == panel.y - 1) // The last position on the screen(c).
-                {
-                    pos.x--;
-                }
-                else
+                if (pos.y != panel.y - 1) // The last position on the screen(c).
                 {
                     pos.x = 0;
                     pos.y++;
                 }
+                else pos.x--;
             }
             pos.y += basis;
             return pos;
@@ -688,9 +678,9 @@ namespace netxs::ui
                     };
                     owner.SUBMIT_T(e2::release, e2::hids::mouse::any, token, gear)
                     {
-                        auto c = gear.coord - (owner.base::size() - owner.viewport.size);
+                        auto c = gear.coord - (owner.base::size() - owner.screen.size);
                         moved = coord((state & mode::over) ? c
-                                                           : std::clamp(c, dot_00, owner.viewport.size - dot_11));
+                                                           : std::clamp(c, dot_00, owner.screen.size - dot_11));
                         auto cause = owner.bell::protos<e2::release>();
                         if (proto == sgr) serialize<sgr>(gear, cause);
                         else              serialize<x11>(gear, cause);
@@ -1054,7 +1044,7 @@ namespace netxs::ui
             iota tabstop = default_tabstop; // scrollbuff: Tabstop current value.
 
             scrollbuff(term& boss, iota max_scrollback_size, iota grow_step = 0)
-                : rods(boss.viewport.size, max_scrollback_size, grow_step),
+                : rods(boss.screen.size, max_scrollback_size, grow_step),
                   boss{ boss }
             { }
 
@@ -1486,6 +1476,43 @@ namespace netxs::ui
                 batch->trim(brush.spare);
                 //log("el 2 batch id ", batch->id(), " chx ", batch->chx(), " coord ", coord);
             }
+
+            struct info
+            {
+                using flux = utf::flux;
+                iota size = 0;
+                iota peak = 0;
+                iota step = 0;
+                twod area;
+                flux data;
+                auto update(scrollbuff const& scroll)
+                {
+                    if (scroll.update_status(*this))
+                    {
+                        data.str(text());
+                        data.clear();
+                        //todo use ansi::jet()
+                        data << "\033[11:" << bias::right << ansi::CSI_CCC
+                             <<  "size=" << size
+                             << " peak=" << peak
+                             << " type=";
+                        if (step) data << "unlimited, grow by " << step;
+                        else      data << "fixed";
+                        data << " area=" << area;
+                        return true;
+                    }
+                    else return faux;
+                }
+            };
+            bool update_status(info& status) const
+            {
+                bool changed = faux;
+                if (status.size != batch.size) { changed = true; status.size = batch.size; }
+                if (status.peak != batch.peak) { changed = true; status.peak = batch.peak; }
+                if (status.step != batch.step) { changed = true; status.step = batch.step; }
+                if (status.area != panel     ) { changed = true; status.area = panel;      }
+                return changed;
+            }
         }
         normal, // term: Normal screen buffer.
         altbuf, // term: Alternate screen buffer.
@@ -1499,9 +1526,9 @@ namespace netxs::ui
         //    { }
         //}
         //viewport; // term: Viewport controller.
-        rect viewport = { dot_00, dot_11 }; // term: Viewport.
-        para     status; // term: Status line.
+        rect screen = { dot_00, dot_11 }; // term: Viewport.
         os::cons ptycon; // term: PTY device.
+        scrollbuff::info status; // term: Status info.
         hook oneshot_resize_token; // term: First resize subscription token.
         text cmdline;
         hook shut_down_token; // term: One shot shutdown token.
@@ -1713,29 +1740,23 @@ namespace netxs::ui
                 queue.clear();
             }
         }
-        void update_status()
-        {
-            auto utf8 = ansi::jet(bias::right) + target->status();
-            base::riseup<e2::preview, e2::form::prop::footer>(utf8);
-        }
         auto recalc()
         {
             oversize.set(target->recalc_pads());
-            auto caret_xy = target->cp();
-            auto scroll_size = viewport.size;
-            auto caret_visible = viewport.coor.y == -base::coor().y;
-            //todo unify
-            //scroll_size.y = std::max({ viewport.size.y + basis, caret_xy.y + 1, target->height() }); // Allow overscroll at the bottom.
-            scroll_size.y = std::max({ viewport.size.y, caret_xy.y + 1, target->height() });
-            viewport.coor.y = scroll_size.y - viewport.size.y;
-            if (caret_visible) reset_scroll_pos();
-            if (!viewport.hittest(caret_xy)) // compat: get caret back to the viewport if it placed outside
+            auto cursor_coor = target->cp();
+            auto scroll_size = screen.size;
+            auto follow_view = screen.coor.y == -base::coor().y;
+            //todo unify, Allow overscroll at the bottom.
+            //scroll_size.y = std::max({ screen.size.y + basis, cursor_coor.y + 1, target->height() });
+            scroll_size.y = std::max({ screen.size.y, cursor_coor.y + 1, target->height() });
+            screen.coor.y = scroll_size.y - screen.size.y;
+            if (follow_view) reset_scroll_pos();
+            if (!screen.hittest(cursor_coor)) // compat: get caret back to the viewport if it placed outside
             {
-                caret_xy = std::clamp(caret_xy, viewport.coor, viewport.coor + viewport.size - dot_11);
-                target->set_coord(caret_xy - viewport.coor);
+                cursor_coor = std::clamp(cursor_coor, screen.coor, screen.coor + screen.size - dot_11);
+                target->set_coord(cursor_coor - screen.coor);
             }
-            caret.coor(caret_xy);
-            update_status();
+            caret.coor(cursor_coor);
             return scroll_size;
         }
         void input_hndl(view shadow)
@@ -1746,9 +1767,7 @@ namespace netxs::ui
                 if (guard)
                 {
                     SIGNAL(e2::general, e2::debug::output, shadow); // Post for the Logs.
-
                     ansi::parse(shadow, target); // Append target using current insertion point.
-
                     auto scroll_size = recalc();
                     if (scroll_size != base::size()) SIGNAL(e2::release, e2::size::set, scroll_size); // Update scrollbars.
                     base::deface();
@@ -1778,7 +1797,7 @@ namespace netxs::ui
         void reset_scroll_pos()
         {
             //todo caret following
-            this->SIGNAL(e2::release, e2::coor::set, -viewport.coor);
+            this->SIGNAL(e2::release, e2::coor::set, -screen.coor);
         }
     public:
         ~term(){ alive = faux; }
@@ -1820,11 +1839,11 @@ namespace netxs::ui
                         {
                             new_sz = std::max(new_sz, dot_11);
                             if (target == &altbuf) altbuf.trim_to_size(new_sz);
-                            viewport.size = new_sz;
+                            screen.size = new_sz;
                             altbuf.resize<faux>(new_sz.y);
                             target->rebuild_viewport();
                             new_sz = recalc();
-                            ptycon.resize(viewport.size);
+                            ptycon.resize(screen.size);
                         };
                         ptycon.start(cmdline, new_sz, [&](auto utf8_shadow) { input_hndl(utf8_shadow); }
                                                     , [&](auto exit_code) { shutdown_hndl(exit_code); });
@@ -1887,6 +1906,10 @@ namespace netxs::ui
             };
             SUBMIT(e2::release, e2::render::any, parent_canvas)
             {
+                if (status.update(*target))
+                {
+                    base::riseup<e2::preview, e2::form::prop::footer>(status.data.str());
+                }
                 target->output(parent_canvas);
                 //target->test_basis(parent_canvas);
             };
