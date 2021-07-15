@@ -2645,13 +2645,6 @@ namespace netxs::console
             {
                 return body.coor;
             }
-            // pro::caret: Set caret visibility and position.
-            void set(std::pair<bool, twod const&> data)
-            {
-                data.first ? show()
-                           : hide();
-                coor(data.second);
-            }
             // pro::caret: Force to redraw caret.
             void reset()
             {
@@ -3112,7 +3105,7 @@ namespace netxs::console
 
                     operator bool ()
                     {
-                        return basis.size();
+                        return basis.size() != dot_00;
                     }
                     void set(para const& caption)
                     {

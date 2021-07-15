@@ -137,7 +137,6 @@ namespace netxs::ui
     public:
         mark        brush; // rods: Current brush for parser (default fg/bg-colors).
         deco        style; // rods: Parser style state.
-        bool        is_caret_visible; // rods: Text caret visibility.
 
         rods(twod const& viewport, iota buffer_size, iota grow_step)
             : flow { viewport.x, batch.size },
@@ -145,8 +144,7 @@ namespace netxs::ui
               panel{ viewport               },
               basis{ 0                      },
               sctop{ 0                      },
-              scend{ 0                      },
-              is_caret_visible{ true                   }
+              scend{ 0                      }
         {
             style.glb();
             batch.push(style); // At least one row must exist.
@@ -265,7 +263,7 @@ namespace netxs::ui
         {
             return id - batch.front().selfid;
         }
-        // rods: Map caret position from viewport to scrollback.
+        // rods: Map caret position from viewport to scrollback (set insertion point).
         void set_coord(twod new_coord)
         {
             auto min_y = -basis; // Checking bottom boundary
@@ -501,9 +499,11 @@ namespace netxs::ui
         // rods: Rebuild overlaps from bottom to the top visible line.
         void rebuild_viewport()
         {
+            align_basis();
             auto maxy = xsize.max(line::autowrap) / panel.x;
             auto head = std::max(0, basis - maxy);
             rebuild_upto_id(batch[head].selfid);
+            get_coord();
         }
         // rods: For bug testing purposes.
         auto get_content()
@@ -576,7 +576,7 @@ namespace netxs::ui
                 auto footer = batch.end() - end_it - 1;
                 if (footer < 0)
                 {
-                    rods::add_lines(-footer);
+                    add_lines(-footer);
                     footer = 0;
                 }
                 if (n > 0) // Scroll down (move down the text block).
@@ -1538,7 +1538,7 @@ namespace netxs::ui
                         caret.blink_period();
                         break;
                     case 25:   // Caret on.
-                        target->is_caret_visible = true;
+                        caret.show();
                         break;
                     case 9:    // Enable X10 mouse reporting protocol.
                         log("decset: CSI ? 9 h  X10 Mouse reporting protocol is not supported");
@@ -1606,7 +1606,7 @@ namespace netxs::ui
                         caret.blink_period(period::zero());
                         break;
                     case 25:   // Caret off.
-                        target->is_caret_visible = faux;
+                        caret.hide();
                         break;
                     case 9:    // Disable X10 mouse reporting protocol.
                         log("decset: CSI ? 9 l  X10 Mouse tracking protocol is not supported");
@@ -1718,6 +1718,26 @@ namespace netxs::ui
             auto utf8 = ansi::jet(bias::right) + target->status();
             base::riseup<e2::preview, e2::form::prop::footer>(utf8);
         }
+        auto recalc()
+        {
+            oversize.set(target->recalc_pads());
+            auto caret_xy = target->cp();
+            auto scroll_size = viewport.size;
+            auto caret_visible = viewport.coor.y == -base::coor().y;
+            //todo unify
+            //scroll_size.y = std::max({ viewport.size.y + basis, caret_xy.y + 1, target->height() }); // Allow overscroll at the bottom.
+            scroll_size.y = std::max({ viewport.size.y, caret_xy.y + 1, target->height() });
+            viewport.coor.y = scroll_size.y - viewport.size.y;
+            if (caret_visible) reset_scroll_pos();
+            if (!viewport.hittest(caret_xy)) // compat: get caret back to the viewport if it placed outside
+            {
+                caret_xy = std::clamp(caret_xy, viewport.coor, viewport.coor + viewport.size - dot_11);
+                target->set_coord(caret_xy - viewport.coor);
+            }
+            caret.coor(caret_xy);
+            update_status();
+            return scroll_size;
+        }
         void input_hndl(view shadow)
         {
             while (alive)
@@ -1727,47 +1747,11 @@ namespace netxs::ui
                 {
                     SIGNAL(e2::general, e2::debug::output, shadow); // Post for the Logs.
 
-                    auto orig_view = rect{ base::size() - viewport.size, viewport.size };
-                    auto old_caret_pos = caret.coor();
-                    auto caret_visible = viewport.coor.y == orig_view.coor.y;
-
                     ansi::parse(shadow, target); // Append target using current insertion point.
 
-                    oversize.set(target->recalc_pads());
-
-                    //todo unify, TIA wrap::off
-                    auto visibility_coor = std::pair{ target->is_caret_visible, target->cp() };//target->get_caret();
-                    caret.set(visibility_coor);
-
-                    //auto scrollback_size = target->frame_size();
-                    twod scrollback_size;
-                    target->align_basis();
-                    scrollback_size.x = viewport.size.x;
-                    //todo unify
-                    //size.y = basis + std::max(panel.y, batch.size - basis); // Allow overscroll at the bottom.
-                    scrollback_size.y = std::max(viewport.size.y, target->height());
-                    if (target->is_caret_visible)
-                    {
-                        auto y = visibility_coor.second.y; //target->cp();
-                        if (y >= scrollback_size.y) scrollback_size.y = y + 1;
-                    }
-                    
-                    auto new_size = base::size();
-                    new_size.y = std::max(viewport.size.y, scrollback_size.y);
-                    if (caret_visible) reset_scroll_pos(new_size.y);
-                    SIGNAL(e2::release, e2::size::set, scrollback_size);
-
-                    // normal can be switched to altbuf.
-                    orig_view = rect{ base::size() - viewport.size, viewport.size };
-                    auto& coor = visibility_coor.second;
-                    if (!orig_view.hittest(coor))
-                    {
-                        coor = std::clamp(coor, orig_view.coor, orig_view.coor + orig_view.size - dot_11);
-                        target->set_coord(coor - orig_view.coor);
-                        caret.set(visibility_coor);
-                    }
-
-                    update_status();
+                    auto scroll_size = recalc();
+                    if (scroll_size != base::size()) SIGNAL(e2::release, e2::size::set, scroll_size); // Update scrollbars.
+                    base::deface();
                     break;
                 }
                 else std::this_thread::yield();
@@ -1791,16 +1775,10 @@ namespace netxs::ui
                 };
             }
         }
-        void reset_scroll_pos(iota const& new_size_y)
-        {
-            //auto caret_xy = caret.coor();
-            auto orig_viewport = rect{ {0, new_size_y - viewport.size.y}, viewport.size };
-            auto new_coor = -orig_viewport.coor;
-            this->SIGNAL(e2::release, e2::coor::set, new_coor);
-        }
         void reset_scroll_pos()
         {
-            reset_scroll_pos(base::size().y);
+            //todo caret following
+            this->SIGNAL(e2::release, e2::coor::set, -viewport.coor);
         }
     public:
         ~term(){ alive = faux; }
@@ -1831,49 +1809,25 @@ namespace netxs::ui
             SUBMIT(e2::release, e2::form::upon::vtree::attached, parent)
             {
                 this->base::riseup<e2::request, e2::form::prop::header>(winprops.get(ansi::OSC_TITLE));
-                this->SUBMIT_T(e2::release, e2::size::set, oneshot_resize_token, new_size)
+                this->SUBMIT_T(e2::release, e2::size::set, oneshot_resize_token, new_sz)
                 {
-                    if (new_size.y > 0)
+                    if (new_sz.y > 0)
                     {
                         oneshot_resize_token.reset();
-                        altbuf.resize<faux>(new_size.y);
+                        altbuf.resize<faux>(new_sz.y);
 
-                        this->SUBMIT(e2::preview, e2::size::set, new_size)
+                        this->SUBMIT(e2::preview, e2::size::set, new_sz)
                         {
-                            new_size = std::max(new_size, dot_11);
-                            auto old_caret_pos = caret.coor();
-                            auto caret_visible = target->is_caret_visible
-                                            && viewport.coor.y == base::size().y - viewport.size.y;
-
-                            if (target == &altbuf)
-                            {
-                                altbuf.trim_to_size(new_size);
-                            }
-                            viewport.size = new_size;
-                            altbuf.resize<faux>(new_size.y);
-
-                            oversize.set(target->recalc_pads());
-
-                            target->align_basis();
+                            new_sz = std::max(new_sz, dot_11);
+                            if (target == &altbuf) altbuf.trim_to_size(new_sz);
+                            viewport.size = new_sz;
+                            altbuf.resize<faux>(new_sz.y);
                             target->rebuild_viewport();
-                            target->get_coord();
-
-                            //todo unify
-                            //scrollback_size.y = basis + std::max(new_size.y, batch.size - basis); // Allow overscroll at the bottom.
-                            new_size.y = std::max(new_size.y, target->height());
-                            auto coor = target->cp();
-                            if (caret_visible)
-                            {
-                                if (coor.y >= new_size.y) new_size.y = coor.y + 1;
-                                reset_scroll_pos(new_size.y);
-                            }
-                            caret.coor(coor);
-
-                            update_status();
+                            new_sz = recalc();
                             ptycon.resize(viewport.size);
                         };
-                        ptycon.start(cmdline, new_size, [&](auto utf8_shadow) { input_hndl(utf8_shadow); }
-                                                      , [&](auto exit_code) { shutdown_hndl(exit_code); });
+                        ptycon.start(cmdline, new_sz, [&](auto utf8_shadow) { input_hndl(utf8_shadow); }
+                                                    , [&](auto exit_code) { shutdown_hndl(exit_code); });
                     }
                 };
             };
@@ -1926,10 +1880,6 @@ namespace netxs::ui
                     }
                     log("key strokes bin: ", d.str());
                 #endif
-            };
-            SUBMIT(e2::release, e2::coor::set, new_coor)
-            {
-                viewport.coor = -new_coor;
             };
             SUBMIT(e2::release, e2::form::prop::brush, brush)
             {
