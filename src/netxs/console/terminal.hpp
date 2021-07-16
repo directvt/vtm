@@ -256,16 +256,11 @@ namespace netxs::ui
         // rods: Map caret position from viewport to scrollback (set insertion point).
         void set_coord(twod new_coord)
         {
-            auto min_y = -basis; // Checking bottom boundary
-            new_coord.y = std::max(new_coord.y, min_y);
+            new_coord.y = std::max(new_coord.y, -basis);
             coord = new_coord;
             new_coord.y += basis; // place coord inside the batch
-            if (new_coord.y > batch.length() - 1) // Add new lines
-            {
-                auto add_count = new_coord.y - (batch.length() - 1);
-                add_lines(add_count);
-            }
-            new_coord.y = std::min(new_coord.y, batch.length() - 1); // The batch can remain the same size (cuz ring)
+            auto add_count = new_coord.y + 1 - batch.length();
+            if (add_count > 0) add_lines(add_count);
             auto& new_line = batch[new_coord.y];
             auto index = get_line_index_by_id(new_line.selfid); // current index inside batch
             if (new_line.selfid != new_line.bossid) // bossid always less or eq selfid
@@ -1908,7 +1903,7 @@ namespace netxs::ui
             {
                 if (status.update(*target))
                 {
-                    base::riseup<e2::preview, e2::form::prop::footer>(status.data.str());
+                    this->base::riseup<e2::preview, e2::form::prop::footer>(status.data.str());
                 }
                 target->output(parent_canvas);
                 //target->test_basis(parent_canvas);
