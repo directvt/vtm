@@ -389,7 +389,7 @@ namespace netxs::ui
         }
         void test_basis(face& canvas)
         {
-            para p{ansi::bgc(redlt) + " " + ansi::nil()};
+            para p{ansi::bgc(redlt).add(" ").nil().str()};
             auto coor = twod{ 0, basis };
             flow::ac(coor);
             flow::go(p, canvas);
@@ -840,12 +840,13 @@ namespace netxs::ui
             // win_cntrl: Set terminal window property.
             void set(text const& property, view txt)
             {
+                static auto jet_left = ansi::jet(bias::left).str();
                 owner.target->finalize();
                 if (property == ansi::OSC_LABEL_TITLE)
                 {
                                   props[ansi::OSC_LABEL] = txt;
                     auto& utf8 = (props[ansi::OSC_TITLE] = txt);
-                    utf8 = ansi::jet(bias::left) + utf8;
+                    utf8 = jet_left + utf8;
                     owner.base::riseup<e2::preview, e2::form::prop::header>(utf8);
                 }
                 else
@@ -853,7 +854,7 @@ namespace netxs::ui
                     auto& utf8 = (props[property] = txt);
                     if (property == ansi::OSC_TITLE)
                     {
-                        utf8 = ansi::jet(bias::left) + utf8;
+                        utf8 = jet_left + utf8;
                         owner.base::riseup<e2::preview, e2::form::prop::header>(utf8);
                     }
                 }
@@ -1474,26 +1475,23 @@ namespace netxs::ui
 
             struct info
             {
-                using flux = utf::flux;
                 iota size = 0;
                 iota peak = 0;
                 iota step = 0;
                 twod area;
-                flux data;
+                ansi::esc data;
                 auto update(scrollbuff const& scroll)
                 {
                     if (scroll.update_status(*this))
                     {
-                        data.str(text());
                         data.clear();
-                        //todo use ansi::jet()
-                        data << "\033[11:" << bias::right << ansi::CSI_CCC
-                             <<  "size=" << size
-                             << " peak=" << peak
-                             << " type=";
-                        if (step) data << "unlimited, grow by " << step;
-                        else      data << "fixed";
-                        data << " area=" << area;
+                        data.jet(bias::right)
+                            .add("size=", size,
+                                " peak=", peak,
+                                " type=");
+                        if (step) data.add("unlimited, grow by ", step);
+                        else      data.add("fixed");
+                        data.add(" area=", area);
                         return true;
                     }
                     else return faux;
@@ -1727,11 +1725,11 @@ namespace netxs::ui
             write(response);
         }
         // term: Write tty data and flush the queue.
-        void write(text& queue)
+        void write(ansi::esc& queue)
         {
             if (queue.length())
             {
-                ptycon.write(queue);
+                ptycon.write(queue.str());
                 queue.clear();
             }
         }
@@ -1776,7 +1774,8 @@ namespace netxs::ui
             log("term: exit code ", code);
             if (code)
             {
-                text error = ansi::bgc(reddk).fgc(whitelt) + "\nterm: exit code " + std::to_string(code) + " ";
+                text error = ansi::bgc(reddk).fgc(whitelt)
+                    .add("\nterm: exit code ", code, " ").str();
                 input_hndl(error);
             }
             else

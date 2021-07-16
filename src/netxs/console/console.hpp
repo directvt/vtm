@@ -2376,6 +2376,7 @@ namespace netxs::console
                 bool ctrl = faux;
             };
             std::map<id_t, slot_t> slots;
+            ansi::esc coder;
 
             void check_modifiers(hids& gear)
             {
@@ -2534,9 +2535,10 @@ namespace netxs::console
                                 auto mark = skin::color(tone::kb_focus);
                                 auto fill = [&](cell& c) { c.fuse(mark); };
                                 canvas.cage(area, dot_11, fill);
-
-                                auto size = para(ansi::wrp(wrap::off).fgc(b > 130 ? 0xFF000000
-                                                                                  : 0xFFFFFFFF) + "capture area: " + slot.str());
+                                coder.wrp(wrap::off).fgc(b > 130 ? 0xFF000000
+                                                                 : 0xFFFFFFFF).add("capture area: ", slot);
+                                auto size = para(coder.str());
+                                coder.clear();
                                 //canvas.cup(area.coor);
                                 //canvas.output(size);
 
@@ -2750,6 +2752,7 @@ namespace netxs::console
             cell alerts;
             cell stress;
             page status;
+            ansi::esc coder;
 
             struct
             {
@@ -2816,8 +2819,9 @@ namespace netxs::console
                 iota attr = 0;
                 for (auto& desc : description)
                 {
-                    status += " " + utf::adjust(desc, maxlen, " ", true) + " "
-                        + ansi::idx(attr++).nop().nil().eol();
+                    coder.add(" ", utf::adjust(desc, maxlen, " ", true), " ").idx(attr++).nop().nil().eol();
+                    status += coder.str();
+                    coder.clear();
                 }
 
                 boss.SUBMIT_T(e2::release, e2::postrender, memo, canvas)
@@ -4212,7 +4216,7 @@ namespace netxs::console
                   skill::memo;
 
             list items;
-        
+
         public:
             cell_highlight(base&&) = delete;
             cell_highlight(base& boss)
@@ -4313,9 +4317,9 @@ namespace netxs::console
                 {
                     data.pop_back(); // pop", "
                     data.pop_back(); // pop", "
-                    data = " =SUM(" + ansi::fgc(bluedk) + data + ansi::fgc(blacklt) + ")";
+                    data = " =SUM(" + ansi::fgc(bluedk).add(data).fgc(blacklt).add(")").str();
                 }
-                else data = " =SUM(" + ansi::itc(true).fgc(reddk) + "select cells by dragging" + ansi::itc(faux).fgc(blacklt) + ")";
+                else data = " =SUM(" + ansi::itc(true).fgc(reddk).add("select cells by dragging").itc(faux).fgc(blacklt).add(")").str();
                 log("calc: DATA ", data);                        
                 boss.SIGNAL(e2::release, e2::data::text, data);
             }
@@ -4642,8 +4646,8 @@ namespace netxs::console
 
             input = std::thread([&] { reader(); });
 
-            output(ansi::ext(true));
-            if (title.size()) output(ansi::tag(title));
+            output(ansi::ext(true).str());
+            if (title.size()) output(ansi::tag(title).str());
 
             while ((void)synch.wait(guard, [&] { return ready; }), alive)
             {
@@ -5664,8 +5668,8 @@ again:
                     {
                         para{ newheader }.lyric->each([&](auto c) { title += c.txt(); });
                     }
-                    log("gate: title changed to '", title, ansi::nil() + "'");
-                    conio.output(ansi::tag(title));
+                    log("gate: title changed to '", title, ansi::nil().add("'").str());
+                    conio.output(ansi::tag(title).str());
                 };
                 SUBMIT_T(e2::release, e2::command::cout, token, extra_data)
                 {
@@ -5738,7 +5742,7 @@ again:
             //todo unify (use uibar)
             SUBMIT(e2::preview, e2::form::prop::footer, newfooter)
             {
-                watermark = ansi::cup(dot_00).rlf(feed::rev).jet(bias::right) + newfooter;
+                watermark = ansi::cup(dot_00).rlf(feed::rev).jet(bias::right).add(newfooter).str();
             };
             SUBMIT(e2::release, e2::form::prop::fullscreen, state)
             {

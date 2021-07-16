@@ -224,50 +224,89 @@ namespace netxs::console::ansi
     struct esc
         : public text
     {
-        esc() = default;
-
-        inline text str(iota n) { return std::to_string(n); }
-        inline text str(char n) { return text(1, n); }
-
+        //text buffer;
+        esc()           = default;
+        //esc(esc const&) = default;
+        //esc(esc&&)      = default;
         template<class T>
-        typename std::enable_if<!std::is_integral<T>::value, esc&>::type
-        add(T&& t) { operator+=(t); return *this; }
+        esc(T&& data) { add(std::forward<T>(data)); }
+        //operator text () const { return buffer; }
+        //operator view () const { return buffer.view(); }
+        //auto data()      const { return buffer.data(); }
+        //auto size()      const { return buffer.size(); }
+        //auto length()    const { return size(); }
+        //auto size()      const { return length(); }
+        //auto length()          { buffer.seekg(0, ios::end); return buffer.tellg(); }
+        text str()       const { return *this; }
+        //auto clear()           { buffer.str(text{}); buffer.clear(); return *this; }
+        auto clear()           { text::clear(); return *this; }
+        //auto back()
+        //{
+        //    char c;
+        //    buffer.seekg(-1, std::ios::end);
+        //    buffer >> c;
+        //    return c;
+        //}
+        //auto pop_back()
+        //{
+        //    char c;
+        //    buffer >> c;
+        //    return c;
+        //}
 
         template<class T>
         typename std::enable_if<std::is_integral<T>::value, esc&>::type
-        add(T t) { operator+=(std::to_string(t)); return *this; }
+        _add(T&& t) { operator+=(std::to_string(t)); return *this; }
 
-        auto& add(char t) { operator+=(t); return *this; }
+        template<class T>
+        typename std::enable_if<!std::is_integral<T>::value, esc&>::type
+        _add(T&& t) { operator+=(t); return *this; }
 
-        esc& locate(iota x, iota y) { add("\033[" + str(y) + ";" // esc: 1-Based caret position.
-                                                  + str(x) + "H");    return *this; }
-        esc& locate(twod const& p)  { add("\033[" + str(p.y + 1) + ";" // esc: 0-Based caret position.
-                                                  + str(p.x + 1) + "H"); return *this; }
-        esc& vmouse (bool b) { add(b ? "\033[?1002;1003;1004;1006;10060h" : "\033[?1002;1003;1004;1006;10060l"); return *this; } // esc: Focus and Mouse position reporting/tracking.
-        esc& locate_wipe ()  { add("\033[r");                           return *this; } // esc: Enable scrolling for entire display (clear screen).
-        esc& locate_call ()  { add("\033[6n");                          return *this; } // esc: Report caret position.
-        esc& scroll_wipe ()  { add("\033[3J");                          return *this; } // esc: Erase scrollback.
-        esc& tag (view t)    { add("\033]2;" + text(t) + "\07");        return *this; } // esc: Window title.
-        esc& setutf (bool b) { add(b ? "\033%G"      : "\033%@");       return *this; } // esc: Select UTF-8 character set (true) or default (faux).
-        esc& setbuf (view t) { add("\033]52;;" + utf::base64(t) + C0_BEL);  return *this; } // esc: Set clipboard.
-        esc& altbuf (bool b) { add(b ? "\033[?1049h" : "\033[?1049l");  return *this; } // esc: Alternative buffer.
-        esc& cursor (bool b) { add(b ? "\033[?25h"   : "\033[?25l");    return *this; } // esc: Caret visibility.
-        esc& appkey (bool b) { add(b ? "\033[?1h"    : "\033[?1l");     return *this; } // ansi: Application(=on)/ANSI(=off) Caret Keys (DECCKM).
-        esc& bpmode (bool b) { add(b ? "\033[?2004h" : "\033[?2004l");  return *this; } // esc: Set bracketed paste mode.
-        esc& autowr (bool b) { add(b ? "\033[?7h"    : "\033[?7l");     return *this; } // esc: Set autowrap mode.
-        esc& save_title ()   { add("\033[22;0t");                       return *this; } // esc: Save terminal window title.
-        esc& scrn_reset ()   { add("\033[H\033[m\033[3J");              return *this; } // esc: Reset palette, erase scrollback and reset caret location.
-        esc& load_title ()   { add("\033[23;0t");                       return *this; } // esc: Restore terminal window title.
-        esc& save_palette()  { add("\033[#P");                          return *this; } // esc: Push palette onto stack XTPUSHCOLORS.
-        esc& load_palette()  { add("\033[#Q");                          return *this; } // esc: Pop  palette from stack XTPOPCOLORS.
-        esc& osc_palette (iota i, rgba const& c) // esc: Set color palette. ESC ] 4 ; <i> ; rgb : <r> / <g> / <b> ESC.
+        auto& add(char c) { push_back(c); return *this; }
+
+        template <class T>
+        auto& add(T&& data)
         {
-            add("\033]4;" + str(i) + ";rgb:" + utf::to_hex(c.chan.r) + "/"
-                                             + utf::to_hex(c.chan.g) + "/"
-                                             + utf::to_hex(c.chan.b) + "\07");
+            //buffer << data;
+            _add(std::forward<T>(data));
             return *this;
         }
-        esc& osc_palette_reset () // esc: Reset color palette.
+        template<class T, class ...Args>
+        auto& add(T&& data, Args&&... data_list)
+        {
+            //buffer << data;
+            _add(std::forward<T>(data));
+            return add(std::forward<Args>(data_list)...);
+        }
+
+        esc& locate(iota x, iota y) { add("\033[", y,     ';', x,     'H');        return *this; } // esc: 1-Based caret position.
+        esc& locate(twod const& p)  { add("\033[", p.y+1, ';', p.x+1, 'H');        return *this; } // esc: 0-Based caret position.
+        esc& vmouse      (bool b)   { add(b ? "\033[?1002;1003;1004;1006;10060h"
+                                            : "\033[?1002;1003;1004;1006;10060l"); return *this; } // esc: Focus and Mouse position reporting/tracking.
+        esc& locate_wipe ()         { add("\033[r");                               return *this; } // esc: Enable scrolling for entire display (clear screen).
+        esc& locate_call ()         { add("\033[6n");                              return *this; } // esc: Report caret position.
+        esc& scroll_wipe ()         { add("\033[3J");                              return *this; } // esc: Erase scrollback.
+        esc& tag         (view t)   { add("\033]2;", t, '\07');                    return *this; } // esc: Window title.
+        esc& setbuf      (view t)   { add("\033]52;;", utf::base64(t), C0_BEL);    return *this; } // esc: Set clipboard.
+        esc& setutf      (bool b)   { add(b ? "\033%G"      : "\033%@");           return *this; } // esc: Select UTF-8 character set (true) or default (faux).
+        esc& altbuf      (bool b)   { add(b ? "\033[?1049h" : "\033[?1049l");      return *this; } // esc: Alternative buffer.
+        esc& cursor      (bool b)   { add(b ? "\033[?25h"   : "\033[?25l");        return *this; } // esc: Caret visibility.
+        esc& appkey      (bool b)   { add(b ? "\033[?1h"    : "\033[?1l");         return *this; } // ansi: Application(=on)/ANSI(=off) Caret Keys (DECCKM).
+        esc& bpmode      (bool b)   { add(b ? "\033[?2004h" : "\033[?2004l");      return *this; } // esc: Set bracketed paste mode.
+        esc& autowr      (bool b)   { add(b ? "\033[?7h"    : "\033[?7l");         return *this; } // esc: Set autowrap mode.
+        esc& scrn_reset  ()         { add("\033[H\033[m\033[3J");                  return *this; } // esc: Reset palette, erase scrollback and reset caret location.
+        esc& save_title  ()         { add("\033[22;0t");                           return *this; } // esc: Save terminal window title.
+        esc& load_title  ()         { add("\033[23;0t");                           return *this; } // esc: Restore terminal window title.
+        esc& save_palette()         { add("\033[#P");                              return *this; } // esc: Push palette onto stack XTPUSHCOLORS.
+        esc& load_palette()         { add("\033[#Q");                              return *this; } // esc: Pop  palette from stack XTPOPCOLORS.
+        esc& osc_palette (iota i, rgba const& c) // esc: Set color palette. ESC ] 4 ; <i> ; rgb : <r> / <g> / <b> BEL.
+        {
+            add("\033]4;", i, ";rgb:", utf::to_hex(c.chan.r), '/',
+                                       utf::to_hex(c.chan.g), '/',
+                                       utf::to_hex(c.chan.b), '\07');
+            return *this;
+        }
+        esc& osc_palette_reset() // esc: Reset color palette.
         {
             osc_palette(0,  rgba::color256[tint::blackdk  ]);
             osc_palette(1,  rgba::color256[tint::reddk    ]);
@@ -287,107 +326,109 @@ namespace netxs::console::ansi
             osc_palette(15, rgba::color256[tint::whitelt  ]);
             return *this;
         }
-        esc& old_palette_reset (){ add("\033]R"); return *this; } // esc: Reset color palette (Linux console).
-        esc& old_palette (iota i, rgba const& c) // esc: Set color palette (Linux console).
+        esc& old_palette_reset() { add("\033]R"); return *this; } // esc: Reset color palette (Linux console).
+        esc& old_palette(iota i, rgba const& c) // esc: Set color palette (Linux console).
         {
-            add("\033]P" + utf::to_hex(i, 1) + utf::to_hex(c.chan.r, 2)
-                                             + utf::to_hex(c.chan.g, 2)
-                                             + utf::to_hex(c.chan.b, 2) + "\033");
+            add("\033]P", utf::to_hex(i, 1), utf::to_hex(c.chan.r, 2),
+                                             utf::to_hex(c.chan.g, 2),
+                                             utf::to_hex(c.chan.b, 2), '\033');
             return *this;
         }
 
-        esc& w32input (bool b) { add(b ? "\033[?9001h" : "\033[?9001l");        return *this; } // ansi: Application Caret Keys (DECCKM).
-        esc& w32begin () { clear(); add("\033["); return *this; }
-        esc& w32close ()
+        esc& w32input(bool b) { add(b ? "\033[?9001h" : "\033[?9001l"); return *this; } // ansi: Application Caret Keys (DECCKM).
+        esc& w32begin()       { clear(); add("\033[");                  return *this; }
+        esc& w32close()
         {
-            if (back() == ';') back() = W32_INP;
-            else push_back(W32_INP);
+            if (back() == ';') pop_back();
+            add(W32_INP);
             return *this;
         }
         // ansi: win32-input-mode sequence (keyboard).
-        esc& w32keybd (iota id, iota kc, iota sc, iota kd, iota ks, iota rc, iota uc)
+        esc& w32keybd(iota id, iota kc, iota sc, iota kd, iota ks, iota rc, iota uc)
         {
-            add(str(ansi::W32_KEYBD_EVENT) + ":"
-              + (id ? str(id) : "") + ":"
-              + str(kc) + ":"
-              + str(sc) + ":"
-              + str(kd) + ":"
-              + str(ks) + ":"
-              + str(rc) + ":"
-              + str(uc) + ";");
+            add(ansi::W32_KEYBD_EVENT, ':');
+            if (id) add(id);
+            add(':', kc, ':',
+                     sc, ':',
+                     kd, ':',
+                     ks, ':',
+                     rc, ':',
+                     uc, ';');
             return *this;
         }
         // ansi: win32-input-mode sequence (mouse).
-        esc& w32mouse (iota id, iota bttns, iota ctrls, iota flags, iota wheel, iota xcoor, iota ycoor)
+        esc& w32mouse(iota id, iota bttns, iota ctrls, iota flags, iota wheel, iota xcoor, iota ycoor)
         {
-            add(str(ansi::W32_MOUSE_EVENT) + ":"
-              + (id ? str(id) : "") + ":"
-              + str(bttns) + ":"
-              + str(ctrls) + ":"
-              + str(flags) + ":"
-              + str(wheel) + ":"
-              + str(xcoor) + ":"
-              + str(ycoor) + ";");
+            add(ansi::W32_MOUSE_EVENT, ':');
+            if (id) add(id);
+            add(':', bttns, ':',
+                     ctrls, ':',
+                     flags, ':',
+                     wheel, ':',
+                     xcoor, ':',
+                     ycoor, ';');
             return *this;
         }
         // ansi: win32-input-mode sequence (focus).
-        esc& w32focus (iota id, iota focus)
+        esc& w32focus(iota id, iota focus)
         {
-            add(str(ansi::W32_FOCUS_EVENT) + ":"
-              + (id ? str(id) : "") + ":"
-              + str(focus) + ";");
+            add(ansi::W32_FOCUS_EVENT, ':');
+            if (id) add(id);
+            add(':', focus, ';');
             return *this;
         }
         // ansi: win32-input-mode sequence (window resize).
-        esc& w32winsz (twod size)
+        esc& w32winsz(twod size)
         {
-            add(str(ansi::W32_WINSZ_EVENT) + ":"
-              + str(size.x)  + ":"
-              + str(size.y) + ";");
+            add(ansi::W32_WINSZ_EVENT, ':', size.x, ':'
+                                          , size.y, ';');
             return *this;
         }
 
-        esc& cup (twod const& p) { add("\033[20:" + str(p.y) + ":" + str(p.x) + CSI_CCC); return *this; } // esc: 0-Based caret position.
-        esc& cuu (iota n)        { add(n == 1 ? "\033[A" : "\033[" + str(n) + "A"); return *this; } // esc: Caret up.
-        esc& cud (iota n)        { add(n == 1 ? "\033[B" : "\033[" + str(n) + "B"); return *this; } // esc: Caret down.
-        esc& cuf (iota n)        { add(n == 1 ? "\033[C" : "\033[" + str(n) + "C"); return *this; } // esc: Caret forward.
-        esc& cub (iota n)        { add(n == 1 ? "\033[D" : "\033[" + str(n) + "D"); return *this; } // esc: Caret backward.
-        esc& cnl (iota n)        { add("\033[" + str(n) + "E");        return *this; } // esc: caret next line.
-        esc& cpl (iota n)        { add("\033[" + str(n) + "F");        return *this; } // esc: Caret previous line.
-        esc& ocx (iota n)        { add("\033[" + str(n) + "G");        return *this; } // esc: Caret 1-based horizontal absolute.
-        esc& ocy (iota n)        { add("\033[" + str(n) + "d");        return *this; } // esc: Caret 1-based vertical absolute.
-        esc& chx (iota n)        { add("\033[21:" + str(n) + CSI_CCC); return *this; } // esc: Caret 0-based horizontal absolute.
-        esc& chy (iota n)        { add("\033[22:" + str(n) + CSI_CCC); return *this; } // esc: Caret 0-based vertical absolute.
-        esc& scp ()              { add("\033[s");                      return *this; } // esc: Save caret position in memory.
-        esc& rcp ()              { add("\033[u");                      return *this; } // esc: Restore caret position from memory.
-        esc& bld (bool b = true) { add(b ? "\033[1m" : "\033[22m");    return *this; } // esc: SGR 𝗕𝗼𝗹𝗱 attribute.
-        esc& und (bool b = true) { add(b ? "\033[4m" : "\033[24m");    return *this; } // esc: SGR 𝗨𝗻𝗱𝗲𝗿𝗹𝗶𝗻𝗲 attribute.
-        esc& inv (bool b = true) { add(b ? "\033[7m" : "\033[27m");    return *this; } // esc: SGR 𝗡𝗲𝗴𝗮𝘁𝗶𝘃𝗲 attribute.
-        esc& itc (bool b = true) { add(b ? "\033[3m" : "\033[23m");    return *this; } // esc: SGR 𝑰𝒕𝒂𝒍𝒊𝒄 attribute.
-        esc& stk (bool b = true) { add(b ? "\033[9m" : "\033[29m");    return *this; } // esc: SGR Strikethrough attribute.
-        esc& dnl (bool b = true) { add(b ? "\033[21m": "\033[24m");    return *this; } // esc: SGR Double underline attribute.
-        esc& ovr (bool b = true) { add(b ? "\033[53m": "\033[55m");    return *this; } // esc: SGR Overline attribute.
-        esc& fgc ()              { add("\033[39m");                    return *this; } // esc: Set default foreground color.
-        esc& bgc ()              { add("\033[49m");                    return *this; } // esc: Set default background color.
+        esc& cup(twod const& p) { add("\033[20:", p.y, ':'
+                                                , p.x, CSI_CCC);   return *this; } // esc: 0-Based caret position.
+        esc& cuu(iota n)        { add("\033[", n, 'A');            return *this; } // esc: Caret up.
+        esc& cud(iota n)        { add("\033[", n, 'B');            return *this; } // esc: Caret down.
+        esc& cuf(iota n)        { add("\033[", n, 'C');            return *this; } // esc: Caret forward.
+        esc& cub(iota n)        { add("\033[", n, 'D');            return *this; } // esc: Caret backward.
+        esc& cnl(iota n)        { add("\033[", n, 'E');            return *this; } // esc: caret next line.
+        esc& cpl(iota n)        { add("\033[", n, 'F');            return *this; } // esc: Caret previous line.
+        esc& ocx(iota n)        { add("\033[", n, 'G');            return *this; } // esc: Caret 1-based horizontal absolute.
+        esc& ocy(iota n)        { add("\033[", n, 'd');            return *this; } // esc: Caret 1-based vertical absolute.
+        esc& chx(iota n)        { add("\033[21:", n, CSI_CCC);     return *this; } // esc: Caret 0-based horizontal absolute.
+        esc& chy(iota n)        { add("\033[22:", n, CSI_CCC);     return *this; } // esc: Caret 0-based vertical absolute.
+        esc& scp()              { add("\033[s");                   return *this; } // esc: Save caret position in memory.
+        esc& rcp()              { add("\033[u");                   return *this; } // esc: Restore caret position from memory.
+        esc& bld(bool b = true) { add(b ? "\033[1m" : "\033[22m"); return *this; } // esc: SGR 𝗕𝗼𝗹𝗱 attribute.
+        esc& und(bool b = true) { add(b ? "\033[4m" : "\033[24m"); return *this; } // esc: SGR 𝗨𝗻𝗱𝗲𝗿𝗹𝗶𝗻𝗲 attribute.
+        esc& inv(bool b = true) { add(b ? "\033[7m" : "\033[27m"); return *this; } // esc: SGR 𝗡𝗲𝗴𝗮𝘁𝗶𝘃𝗲 attribute.
+        esc& itc(bool b = true) { add(b ? "\033[3m" : "\033[23m"); return *this; } // esc: SGR 𝑰𝒕𝒂𝒍𝒊𝒄 attribute.
+        esc& stk(bool b = true) { add(b ? "\033[9m" : "\033[29m"); return *this; } // esc: SGR Strikethrough attribute.
+        esc& dnl(bool b = true) { add(b ? "\033[21m": "\033[24m"); return *this; } // esc: SGR Double underline attribute.
+        esc& ovr(bool b = true) { add(b ? "\033[53m": "\033[55m"); return *this; } // esc: SGR Overline attribute.
+        esc& fgc()              { add("\033[39m");                 return *this; } // esc: Set default foreground color.
+        esc& bgc()              { add("\033[49m");                 return *this; } // esc: Set default background color.
 
         // Colon-separated variant.
-        esc& fgc4(rgba const& c) { add("\033[38:2:" + str(c.chan.r) + ":"// esc: SGR Foreground color. RGB: red, green, blue and alpha.
-                                                    + str(c.chan.g) + ":"
-                                                    + str(c.chan.b) + ":"
-                                                    + str(c.chan.a) + "m"); return *this; }
-        esc& bgc4(rgba const& c) { add("\033[48:2:" + str(c.chan.r) + ":"// esc: SGR Background color. RGB: red, green, blue and alpha.
-                                                    + str(c.chan.g) + ":"
-                                                    + str(c.chan.b) + ":"
-                                                    + str(c.chan.a) + "m"); return *this; }
+        esc& fgc4(rgba const& c) { add("\033[38:2:", c.chan.r, ':' // esc: SGR Foreground color. RGB: red, green, blue and alpha.
+                                                   , c.chan.g, ':'
+                                                   , c.chan.b, ':'
+                                                   , c.chan.a, 'm'); return *this; }
+        esc& bgc4(rgba const& c) { add("\033[48:2:", c.chan.r, ':'// esc: SGR Background color. RGB: red, green, blue and alpha.
+                                                   , c.chan.g, ':'
+                                                   , c.chan.b, ':'
+                                                   , c.chan.a, 'm'); return *this; }
         // esc: SGR Foreground color (256-color mode).
         esc& fgc256(rgba const& c)
         {
-            return add("\033[38;5;" + str(c.to256cube()) + "m");
+            add("\033[38;5;", c.to256cube(), 'm');
+            return *this;
         }
         // esc: SGR Background color (256-color mode).
         esc& bgc256(rgba const& c)
         {
-            return add("\033[48;5;" + str(c.to256cube()) + "m");
+            add("\033[48;5;", c.to256cube(), 'm');
+            return *this;
         }
         // esc: SGR Foreground color (16-color mode).
         esc& fgc16(rgba const& c)
@@ -396,10 +437,10 @@ namespace netxs::console::ansi
             switch(c.token)
             {
                 case 0xFF000000: clr += 0;
-                    add("\033[22;" + str(clr) + "m");
+                    add("\033[22;", clr, 'm');
                     return *this;
                 case 0xFFffffff: clr += 5;
-                    add("\033[22;" + str(clr) + "m");
+                    add("\033[22;", clr, 'm');
                     return *this;
                 case 0xFF00ff00:
                 case rgba{ rgba::color256[tint::greenlt  ] }.token: clr += 60 + 0; break;
@@ -416,16 +457,16 @@ namespace netxs::console::ansi
                 case 0xFF0000ff:
                 case rgba{ rgba::color256[tint::redlt    ] }.token:
                     clr += 6;
-                    add("\033[22;" + str(clr) + "m");
+                    add("\033[22;", clr, 'm');
                     return *this;
                 case rgba{ rgba::color256[tint::blacklt  ] }.token:
                     clr += 4;
-                    add("\033[22;" + str(clr) + "m");
+                    add("\033[22;", clr, 'm');
                     return *this;
                 case 0xFFff0000:
                 case rgba{ rgba::color256[tint::bluelt   ] }.token:
                     clr += 7;
-                    add("\033[22;" + str(clr) + "m");
+                    add("\033[22;", clr, 'm');
                     return *this;
                 default: // grayscale
                     auto l = c.luma();
@@ -434,10 +475,11 @@ namespace netxs::console::ansi
                     else if (l < 170) clr += 3;
                     else if (l < 240) clr += 4;
                     else              clr += 5;
-                    add("\033[22;" + str(clr) + "m");
+                    add("\033[22;", clr, 'm');
                     return *this;
             }
-            return add("\033[" + str(clr) + "m");
+            add("\033[", clr, 'm');
+            return *this;
         }
         // esc: SGR Background color (16-color mode).
         esc& bgc16(rgba const& c)
@@ -469,7 +511,8 @@ namespace netxs::console::ansi
                         else              clr += 5;
                     }
             }
-            return add("\033[" + str(clr) + "m");
+            add("\033[", clr, 'm');
+            return *this;
         }
         // esc: SGR Foreground color. RGB: red, green, blue.
         template<svga VGAMODE = svga::truecolor>
@@ -478,9 +521,9 @@ namespace netxs::console::ansi
             switch(VGAMODE)
             {
                 case svga::truecolor:
-                    add("\033[38;2;" + str(c.chan.r) + ";"
-                                     + str(c.chan.g) + ";"
-                                     + str(c.chan.b) + "m");
+                    add("\033[38;2;", c.chan.r, ';'
+                                    , c.chan.g, ';'
+                                    , c.chan.b, 'm');
                     break;
                 case svga::vga16:
                     return fgc16(c);
@@ -497,9 +540,9 @@ namespace netxs::console::ansi
             switch(VGAMODE)
             {
                 case svga::truecolor:
-                    add("\033[48;2;" + str(c.chan.r) + ";"
-                                     + str(c.chan.g) + ";"
-                                     + str(c.chan.b) + "m");
+                    add("\033[48;2;", c.chan.r, ';',
+                                      c.chan.g, ';',
+                                      c.chan.b, 'm');
                     break;
                 case svga::vga16:
                     return bgc16(c);
@@ -509,62 +552,67 @@ namespace netxs::console::ansi
             }
             return *this;
         }
-        esc& sav ()              { add("\033[10m");                     return *this; } // esc: Save SGR attributes.
-        esc& nil ()              { add("\033[m");                       return *this; } // esc: Reset SGR attributes to zero.
-        esc& nop ()              { add("\033["   + str(CSI_CCC));       return *this; } // esc: No operation. Split the text run.
-        esc& rst ()              { add("\033[1"  + str(CSI_CCC));       return *this; } // esc: Reset formatting parameters.
-        esc& cpp (twod const& p) { add("\033[2:" + str(p.x) + ":"                       // esc: Caret percent position.
-                                                 + str(p.y) + CSI_CCC); return *this; }
-        esc& cpx (iota n)        { add("\033[3:" + str(n  ) + CSI_CCC); return *this; } // esc: Caret horizontal percent position.
-        esc& cpy (iota n)        { add("\033[4:" + str(n  ) + CSI_CCC); return *this; } // esc: Caret vertical percent position.
-        esc& tbs (iota n)        { add("\033[5:" + str(n  ) + CSI_CCC); return *this; } // esc: Tabulation step length.
-        esc& mgn (side const& n) { add("\033[6:" + str(n.l) + ":"                       // esc: Margin (left, right, top, bottom).
-                                                 + str(n.r) + ":"
-                                                 + str(n.t) + ":"
-                                                 + str(n.b) + CSI_CCC); return *this; }
-        esc& mgl (iota n)        { add("\033[7:" + str(n  ) + CSI_CCC); return *this; } // esc: Left margin. Positive - native binding. Negative - opposite binding.
-        esc& mgr (iota n)        { add("\033[8:" + str(n  ) + CSI_CCC); return *this; } // esc: Right margin. Positive - native binding. Negative - opposite binding.
-        esc& mgt (iota n)        { add("\033[9:" + str(n  ) + CSI_CCC); return *this; } // esc: Top margin. Positive - native binding. Negative - opposite binding.
-        esc& mgb (iota n)        { add("\033[10:"+ str(n  ) + CSI_CCC); return *this; } // esc: Bottom margin. Positive - native binding. Negative - opposite binding.
+        esc& sav ()              { add("\033[10m"              ); return *this; } // esc: Save SGR attributes.
+        esc& nil ()              { add("\033[m"                ); return *this; } // esc: Reset SGR attributes to zero.
+        esc& nop ()              { add("\033["   ,      CSI_CCC); return *this; } // esc: No operation. Split the text run.
+        esc& rst ()              { add("\033[1"  ,      CSI_CCC); return *this; } // esc: Reset formatting parameters.
+        esc& cpp (twod const& p) { add("\033[2:" , p.x, ':'                       // esc: Caret percent position.
+                                                 , p.y, CSI_CCC); return *this; }
+        esc& cpx (iota n)        { add("\033[3:" , n  , CSI_CCC); return *this; } // esc: Caret horizontal percent position.
+        esc& cpy (iota n)        { add("\033[4:" , n  , CSI_CCC); return *this; } // esc: Caret vertical percent position.
+        esc& tbs (iota n)        { add("\033[5:" , n  , CSI_CCC); return *this; } // esc: Tabulation step length.
+        esc& mgn (side const& n) { add("\033[6:" , n.l, ':'                       // esc: Margin (left, right, top, bottom).
+                                                 , n.r, ':'
+                                                 , n.t, ':'
+                                                 , n.b, CSI_CCC); return *this; }
+        esc& mgl (iota n)        { add("\033[7:" , n  , CSI_CCC); return *this; } // esc: Left margin. Positive - native binding. Negative - opposite binding.
+        esc& mgr (iota n)        { add("\033[8:" , n  , CSI_CCC); return *this; } // esc: Right margin. Positive - native binding. Negative - opposite binding.
+        esc& mgt (iota n)        { add("\033[9:" , n  , CSI_CCC); return *this; } // esc: Top margin. Positive - native binding. Negative - opposite binding.
+        esc& mgb (iota n)        { add("\033[10:", n  , CSI_CCC); return *this; } // esc: Bottom margin. Positive - native binding. Negative - opposite binding.
 
-        esc& jet (iota n)        { add("\033[11:"+ str(n  ) + CSI_CCC); return *this; } // esc: Text alignment.
-        esc& wrp (iota n)        { add("\033[12:"+ str(n  ) + CSI_CCC); return *this; } // esc: Text wrapping.
-        esc& rtl (iota n)        { add("\033[13:"+ str(n  ) + CSI_CCC); return *this; } // esc: Text right-to-left.
-        esc& rlf (iota n)        { add("\033[14:"+ str(n  ) + CSI_CCC); return *this; } // esc: Reverse line feed.
-        esc& jet_or (iota n)     { add("\033[15:"+ str(n  ) + CSI_CCC); return *this; } // esc: Text alignment.
-        esc& wrp_or (iota n)     { add("\033[16:"+ str(n  ) + CSI_CCC); return *this; } // esc: Text wrapping.
-        esc& rtl_or (iota n)     { add("\033[17:"+ str(n  ) + CSI_CCC); return *this; } // esc: Text right-to-left.
-        esc& rlf_or (iota n)     { add("\033[18:"+ str(n  ) + CSI_CCC); return *this; } // esc: Reverse line feed.
+        esc& jet (iota n)        { add("\033[11:", n  , CSI_CCC); return *this; } // esc: Text alignment.
+        esc& wrp (iota n)        { add("\033[12:", n  , CSI_CCC); return *this; } // esc: Text wrapping.
+        esc& rtl (iota n)        { add("\033[13:", n  , CSI_CCC); return *this; } // esc: Text right-to-left.
+        esc& rlf (iota n)        { add("\033[14:", n  , CSI_CCC); return *this; } // esc: Reverse line feed.
+        esc& jet_or (iota n)     { add("\033[15:", n  , CSI_CCC); return *this; } // esc: Text alignment.
+        esc& wrp_or (iota n)     { add("\033[16:", n  , CSI_CCC); return *this; } // esc: Text wrapping.
+        esc& rtl_or (iota n)     { add("\033[17:", n  , CSI_CCC); return *this; } // esc: Text right-to-left.
+        esc& rlf_or (iota n)     { add("\033[18:", n  , CSI_CCC); return *this; } // esc: Reverse line feed.
 
-        esc& idx (iota i)        { add("\033[19:"+ str(i  ) + CSI_CCC); return *this; } // esc: Split the text run and associate the fragment with an id.
-        esc& ref (iota i)        { add("\033[23:"+ str(i  ) + CSI_CCC); return *this; } // esc: Create the reference to the existing paragraph.
-        esc& ext (bool b)        { add("\033[25:"); add(b ? "1" : "0"); add(CSI_CCC); return *this; } // esc: Extended functionality support.
-        esc& show_mouse (bool b) { add("\033[26:"+ str(b  ) + CSI_CCC); return *this; } // esc: Should the mouse poiner to be drawn.
-        esc& meta_state (iota m) { add("\033[27:"+ str(m  ) + CSI_CCC); return *this; } // esc: Set keyboard meta modifiers (Ctrl, Shift, Alt, etc).
+        esc& idx (iota i)        { add("\033[19:", i  , CSI_CCC); return *this; } // esc: Split the text run and associate the fragment with an id.
+        esc& ref (iota i)        { add("\033[23:", i  , CSI_CCC); return *this; } // esc: Create the reference to the existing paragraph.
+        esc& ext (iota b)        { add("\033[25:", b  , CSI_CCC); return *this; } // esc: Extended functionality support, 0 - faux, 1 - true.
+        esc& show_mouse (bool b) { add("\033[26:", b  , CSI_CCC); return *this; } // esc: Should the mouse poiner to be drawn.
+        esc& meta_state (iota m) { add("\033[27:", m  , CSI_CCC); return *this; } // esc: Set keyboard meta modifiers (Ctrl, Shift, Alt, etc).
         //todo unify
-        //esc& win (twod const& p){ add("\033[20:" + str(p.x) + ":"                       // esc: Terminal window resize report.
-        //                                         + str(p.y) + CSI_CCC); return *this; }
-        esc& win (twod const& p){ add("\033]" + str(p.x) + ";"                       // esc: Terminal window resize report.
-                                              + str(p.y) + "w"); return *this; }
-        esc& fcs (bool b)       { add("\033["); add(b ? "I" : "O");return *this; } // ansi: Terminal window focus.
-        esc& eol ()             { add("\n");                     return *this; } // esc: EOL.
-        esc& edl ()             { add("\033[K");                 return *this; } // esc: EDL.
+        //esc& win (twod const& p){ add("\033[20:", p.x, ':'                        // esc: Terminal window resize report.
+        //                                        , p.y, CSI_CCC); return *this; }
+        esc& win (twod const& p) { add("\033]", p.x, ';'                           // esc: Terminal window resize report.
+                                              , p.y, 'w'       ); return *this; }
+        esc& fcs (bool b)        { add("\033[", b ? 'I' : 'O'  ); return *this; } // ansi: Terminal window focus.
+        esc& eol ()              { add("\n"                    ); return *this; } // esc: EOL.
+        esc& edl ()              { add("\033[K"                ); return *this; } // esc: EDL.
 
-        esc& mouse_sgr (iota ctrl, twod const& coor, bool ispressed) { add("\033[<"
-                                + str(ctrl)       + ";"
-                                + str(coor.x + 1) + ";"
-                                + str(coor.y + 1) + (ispressed ? 'M' : 'm')); return *this; } // esc: Mouse tracking report (SGR).
-        esc& mouse_x11 (iota ctrl, twod const& coor) { add("\033[M");
-                                push_back(static_cast<unsigned char>(std::clamp(ctrl,       0, 255-32) + 32));
-                                push_back(static_cast<unsigned char>(std::clamp(coor.x + 1, 1, 255-32) + 32));
-                                push_back(static_cast<unsigned char>(std::clamp(coor.y + 1, 1, 255-32) + 32));
-                                return *this; } // esc: Mouse tracking report (X11).
-        esc& osc (text const& cmd, text const& param) { add(ESCOCS);
-                                add(cmd);
-                                push_back(';');
-                                add(param);
-                                push_back(C0_BEL);
-                                return *this; } // esc: OSC report.
+        esc& mouse_sgr(iota ctrl, twod const& coor, bool ispressed) // esc: Mouse tracking report (SGR).
+        {
+            add("\033[<", ctrl, ';',
+                          coor.x + 1, ';',
+                          coor.y + 1, ispressed ? 'M' : 'm');
+            return *this;
+        }
+        esc& mouse_x11(iota ctrl, twod const& coor) // esc: Mouse tracking report (X11).
+        {
+            add("\033[M");
+            add(static_cast<unsigned char>(std::clamp(ctrl,       0, 255-32) + 32));
+            add(static_cast<unsigned char>(std::clamp(coor.x + 1, 1, 255-32) + 32));
+            add(static_cast<unsigned char>(std::clamp(coor.y + 1, 1, 255-32) + 32));
+            return *this;
+        }
+        esc& osc(text const& cmd, text const& param) // esc: OSC report.
+        {
+            add(ESCOCS, cmd, ';', param, C0_BEL);
+            return *this;
+        }
     };
 
     static esc vmouse (bool b)       { return esc{}.vmouse(b);     } // ansi: Mouse position reporting/tracking.
@@ -1038,7 +1086,7 @@ namespace netxs::console::ansi
 
     private:
         // Control Sequence Introducer (CSI) parser.
-        static void xcsi (qiew& ascii, T*& client)
+        static void xcsi(qiew& ascii, T*& client)
         {
             // Take the control sequence from the string until CSI (cmd >= 0x40 && cmd <= 0x7E) command occured
             // ESC [ n1 ; n2:p1:p2:...pi ; ... nx CSICMD
@@ -1120,7 +1168,7 @@ namespace netxs::console::ansi
         }
 
         // Operating System Command (OSC) parser.
-        static void xosc (qiew& ascii, T*& client)
+        static void xosc(qiew& ascii, T*& client)
         {
             // Take the string until ST (='\e\\'='ESC\' aka String Terminator) or BEL (='\x07')
             // n: iota
@@ -1205,7 +1253,7 @@ namespace netxs::console::ansi
         }
 
         // Set keypad mode.
-        static void keym (qiew& ascii, T*& p)
+        static void keym(qiew& ascii, T*& p)
         {
             // Keypad mode	Application ESC =
             // Keypad mode	Numeric     ESC >
@@ -1218,7 +1266,7 @@ namespace netxs::console::ansi
         }
 
         // Designate G0 Character Set.
-        static void g0__ (qiew& ascii, T*& p)
+        static void g0__(qiew& ascii, T*& p)
         {
             // ESC ( C
             //      [-]

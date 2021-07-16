@@ -33,16 +33,11 @@ namespace netxs::utf
     //todo unify
     using iota = int32_t;
 
-    static constexpr
-        utfx	REPLACEMENT_CHARACTER = 0x0000FFFD;
-    static constexpr
-        char const*	REPLACEMENT_CHARACTER_UTF8 = "\uFFFD";	// 0xEF 0xBF 0xBD (efbfbd)
-    static constexpr
-        size_t	REPLACEMENT_CHARACTER_UTF8_LEN = 3;
-    static constexpr
-        view	REPLACEMENT_CHARACTER_UTF8_VIEW = view(REPLACEMENT_CHARACTER_UTF8, REPLACEMENT_CHARACTER_UTF8_LEN); // '�'
-    static constexpr
-        view	WHITESPACE_CHARACTER_UTF8_VIEW = view(" ", 1); // ' '
+    static constexpr utfx        REPLACEMENT_CHARACTER = 0x0000FFFD;
+    static constexpr char const* REPLACEMENT_CHARACTER_UTF8 = "\uFFFD";	// 0xEF 0xBF 0xBD (efbfbd) "�"
+    static constexpr size_t	     REPLACEMENT_CHARACTER_UTF8_LEN = 3;
+    static constexpr view        REPLACEMENT_CHARACTER_UTF8_VIEW = view(REPLACEMENT_CHARACTER_UTF8, REPLACEMENT_CHARACTER_UTF8_LEN); // '�'
+    static constexpr view        WHITESPACE_CHARACTER_UTF8_VIEW = view(" ", 1); // ' '
 
     // utf: A grapheme cluster decoded from UTF-8.
     struct prop : public unidata::unidata

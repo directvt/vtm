@@ -2178,7 +2178,7 @@ namespace netxs::os
                             {
                                 yield.meta_state(state.shift.last);
                                 auto data = os::recv(STDIN_FD, buffer.data(), buffer.size());
-                                yield += data;
+                                yield.add(data);
                                 ipcio.send<faux>(yield);
                                 yield.clear();
                             }
