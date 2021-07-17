@@ -523,9 +523,40 @@ namespace netxs::console
             //else
             {
                 // Interpret button combinations
-                if (m.button[first] && m.button[other])
+                //if (m.button[first] && m.button[other])
+                //{
+                //    m.button[joint] = true;
+                //    if (button[first].dragged)
+                //    {
+                //        button[first].dragged = faux;
+                //        action(dragcncl, first);
+                //    }
+                //    if (button[other].dragged)
+                //    {
+                //        button[other].dragged = faux;
+                //        action(dragcncl, other);
+                //    }
+                //    m.button[first] = faux;
+                //    m.button[other] = faux;
+                //}
+                //else
+                //{
+                //    // Release all on release any. Due to apple terminal bug.
+                //    if (button[joint].pressed)
+                //    {
+                //        m.button[first] = faux;
+                //        m.button[other] = faux;
+                //    }
+                //    //m.button[joint] = faux;
+                //}
+
+                // Interpret button combinations
+                //todo possible bug in Apple's Terminal - it does not return the second release
+                //                                        in case the two buttons are pressed.
+                if ((m.button[joint] = (m.button[first]         && m.button[other])
+                                    || (  button[joint].pressed && m.button[first])
+                                    || (  button[joint].pressed && m.button[other])))
                 {
-                    m.button[joint] = true;
                     if (button[first].dragged)
                     {
                         button[first].dragged = faux;
@@ -537,34 +568,6 @@ namespace netxs::console
                         action(dragcncl, other);
                     }
                 }
-                else
-                {
-                    // Release all on release any. Due to apple terminal bug.
-                    if (m.button[joint])
-                    {
-                        m.button[first] = m.button[other] = faux;
-                    }
-                    m.button[joint] = faux;
-
-                }
-                //todo possible bug in Apple's Terminal - it does not return the second release
-                //                                        in case the two buttons are pressed.
-                //if ((m.button[joint] = (m.button[first]         && m.button[other])
-                //                    || (  button[joint].pressed && m.button[first])
-                //                    || (  button[joint].pressed && m.button[other])))
-                //
-                //{
-                //    if (button[first].dragged)
-                //    {
-                //        button[first].dragged = faux;
-                //        action(dragcncl, first);
-                //    }
-                //    if (button[other].dragged)
-                //    {
-                //        button[other].dragged = faux;
-                //        action(dragcncl, other);
-                //    }
-                //}
 
                 // In order to avoid single button tracking (Click, Pull, etc)
                 button[first].succeed = !(m.button[joint] || button[joint].pressed);
@@ -2203,7 +2206,11 @@ namespace netxs::console
                 {
                     expose();
                 };
-                boss.SUBMIT_T(e2::preview, e2::hids::mouse::button::click::any, memo, gear)
+                boss.SUBMIT_T(e2::preview, e2::hids::mouse::button::click::left, memo, gear)
+                {
+                    expose();
+                };
+                boss.SUBMIT_T(e2::preview, e2::hids::mouse::button::click::right, memo, gear)
                 {
                     expose();
                 };
@@ -2537,7 +2544,7 @@ namespace netxs::console
                                 canvas.cage(area, dot_11, fill);
                                 coder.wrp(wrap::off).fgc(b > 130 ? 0xFF000000
                                                                  : 0xFFFFFFFF).add("capture area: ", slot);
-                                auto size = para(coder.str());
+                                auto size = para(coder);
                                 coder.clear();
                                 //canvas.cup(area.coor);
                                 //canvas.output(size);
@@ -2819,8 +2826,7 @@ namespace netxs::console
                 iota attr = 0;
                 for (auto& desc : description)
                 {
-                    coder.add(" ", utf::adjust(desc, maxlen, " ", true), " ").idx(attr++).nop().nil().eol();
-                    status += coder.str();
+                    status += coder.add(" ", utf::adjust(desc, maxlen, " ", true), " ").idx(attr++).nop().nil().eol();
                     coder.clear();
                 }
 
@@ -4317,9 +4323,9 @@ namespace netxs::console
                 {
                     data.pop_back(); // pop", "
                     data.pop_back(); // pop", "
-                    data = " =SUM(" + ansi::fgc(bluedk).add(data).fgc(blacklt).add(")").str();
+                    data = " =SUM(" + ansi::fgc(bluedk).add(data).fgc(blacklt).add(")");
                 }
-                else data = " =SUM(" + ansi::itc(true).fgc(reddk).add("select cells by dragging").itc(faux).fgc(blacklt).add(")").str();
+                else data = " =SUM(" + ansi::itc(true).fgc(reddk).add("select cells by dragging").itc(faux).fgc(blacklt).add(")");
                 log("calc: DATA ", data);                        
                 boss.SIGNAL(e2::release, e2::data::text, data);
             }
@@ -4488,52 +4494,52 @@ namespace netxs::console
                 this->SIGNAL(e2::general, e2::form::global::ctxmenu, gear.coord);
             };
 
-            SUBMIT(e2::release, bttn::drag::start::left, gear)
-            {
-                if (gear.capture(bell::id))
-                {
-                    robot.pacify();
-                    gear.dismiss();
-                }
-            };
-            SUBMIT(e2::release, bttn::drag::pull::left, gear)
-            {
-                if (gear.captured(bell::id))
-                {
-                    auto data = cube{ gear.mouse::delta.get(), gear.area() };
-                    this->SIGNAL(e2::preview, e2::form::layout::convey, data);
-                    deface(rect{ dot_00, dot_11 }); //todo unify, deface all world
-                    gear.dismiss();
-                }
-            };
-            SUBMIT(e2::release, bttn::drag::cancel::left, gear)
-            {
-                if (gear.captured(bell::id))
-                {
-                    gear.release();
-                    gear.dismiss();
-                }
-            };
+            //SUBMIT(e2::release, bttn::drag::start::left, gear)
+            //{
+            //    if (gear.capture(bell::id))
+            //    {
+            //        robot.pacify();
+            //        gear.dismiss();
+            //    }
+            //};
+            //SUBMIT(e2::release, bttn::drag::pull::left, gear)
+            //{
+            //    if (gear.captured(bell::id))
+            //    {
+            //        auto data = cube{ gear.mouse::delta.get(), gear.area() };
+            //        this->SIGNAL(e2::preview, e2::form::layout::convey, data);
+            //        deface(rect{ dot_00, dot_11 }); //todo unify, deface all world
+            //        gear.dismiss();
+            //    }
+            //};
+            //SUBMIT(e2::release, bttn::drag::cancel::left, gear)
+            //{
+            //    if (gear.captured(bell::id))
+            //    {
+            //        gear.release();
+            //        gear.dismiss();
+            //    }
+            //};
+            //SUBMIT(e2::release, bttn::drag::stop::left, gear)
+            //{
+            //    if (gear.captured(bell::id))
+            //    {
+            //        auto boundary = gear.area();
+            //        gear.release();
+            //        robot.actify(gear.mouse::fader<quadratic<twod>>(2s), [&, boundary](auto& x)
+            //                     {
+            //                         auto data = cube{ x, boundary };
+            //                         this->SIGNAL(e2::preview, e2::form::layout::convey, data);
+            //                         deface(rect{ dot_00, dot_11 }); //todo unify, deface all world
+            //                     });
+            //        gear.dismiss();
+            //    }
+            //};
             SUBMIT(e2::general, e2::hids::mouse::gone, gear)
             {
                 if (gear.captured(bell::id))
                 {
                     gear.release();
-                    gear.dismiss();
-                }
-            };
-            SUBMIT(e2::release, bttn::drag::stop::left, gear)
-            {
-                if (gear.captured(bell::id))
-                {
-                    auto boundary = gear.area();
-                    gear.release();
-                    robot.actify(gear.mouse::fader<quadratic<twod>>(2s), [&, boundary](auto& x)
-                                 {
-                                     auto data = cube{ x, boundary };
-                                     this->SIGNAL(e2::preview, e2::form::layout::convey, data);
-                                     deface(rect{ dot_00, dot_11 }); //todo unify, deface all world
-                                 });
                     gear.dismiss();
                 }
             };
@@ -4646,8 +4652,8 @@ namespace netxs::console
 
             input = std::thread([&] { reader(); });
 
-            output(ansi::ext(true).str());
-            if (title.size()) output(ansi::tag(title).str());
+            output(ansi::ext(true));
+            if (title.size()) output(ansi::tag(title));
 
             while ((void)synch.wait(guard, [&] { return ready; }), alive)
             {
@@ -4957,7 +4963,7 @@ again:
                                                 iota rc = take();
                                                 iota uc = take();
                                                 keybd.virtcode    = kc;
-                                                keybd.ctlstate    = ks;
+                                                keybd.ctlstate    = ks & 0x1f; // only modifiers
                                                 keybd.down        = kd;
                                                 keybd.repeatcount = rc;
                                                 keybd.scancode    = sc;
@@ -5668,8 +5674,8 @@ again:
                     {
                         para{ newheader }.lyric->each([&](auto c) { title += c.txt(); });
                     }
-                    log("gate: title changed to '", title, ansi::nil().add("'").str());
-                    conio.output(ansi::tag(title).str());
+                    log("gate: title changed to '", title, ansi::nil().add("'"));
+                    conio.output(ansi::tag(title));
                 };
                 SUBMIT_T(e2::release, e2::command::cout, token, extra_data)
                 {
@@ -5721,16 +5727,17 @@ again:
             title.live = faux;
             legacy = legacy_mode;
             mouse.draggable<sysmouse::leftright>();
-            SUBMIT(e2::release, e2::form::drag::start::leftright, gear)
+            mouse.draggable<sysmouse::left>();
+            SUBMIT(e2::release, e2::form::drag::start::any, gear)
             {
                 robot.pacify();
             };
-            SUBMIT(e2::release, e2::form::drag::pull::leftright, gear)
+            SUBMIT(e2::release, e2::form::drag::pull::any, gear)
             {
                 base::moveby(-gear.delta.get());
                 base::deface();
             };
-            SUBMIT(e2::release, e2::form::drag::stop::leftright, gear)
+            SUBMIT(e2::release, e2::form::drag::stop::any, gear)
             {
                 robot.pacify();
                 robot.actify(gear.mouse::fader<quadratic<twod>>(2s), [&](auto& x)
@@ -5739,10 +5746,11 @@ again:
                                 base::deface();
                              });
             };
+
             //todo unify (use uibar)
             SUBMIT(e2::preview, e2::form::prop::footer, newfooter)
             {
-                watermark = ansi::cup(dot_00).rlf(feed::rev).jet(bias::right).add(newfooter).str();
+                watermark = ansi::cup(dot_00).rlf(feed::rev).jet(bias::right).add(newfooter);
             };
             SUBMIT(e2::release, e2::form::prop::fullscreen, state)
             {

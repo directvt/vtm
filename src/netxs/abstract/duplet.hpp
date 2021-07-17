@@ -135,9 +135,9 @@ namespace netxs
         {
             return "{ " + std::to_string(x) + ", " + std::to_string(y) + " }";
         }
-        friend std::ostream& operator << (std::ostream& s, duplet const& p)
+        friend auto& operator<< (std::ostream& s, duplet const& p)
         {
-            return s << p.str();
+            return s << "{ " << p.x << ", " << p.y << " }";
         }
     };
 

@@ -1339,7 +1339,7 @@ namespace netxs::os
                 if (r != INVALID_FD) CloseHandle(r);
                 if (w != INVALID_FD) CloseHandle(w);
             }
-            friend auto& operator << (std::ostream& s, file const& handle)
+            friend auto& operator<< (std::ostream& s, file const& handle)
             {
                 return s << handle.r << "," << handle.w;
             }
@@ -1372,7 +1372,7 @@ namespace netxs::os
             {
                 if (h != INVALID_FD) ::close(h);
             }
-            friend auto& operator << (std::ostream& s, file const& handle)
+            friend auto& operator<< (std::ostream& s, file const& handle)
             {
                 return s << handle.h;
             }
@@ -1812,11 +1812,11 @@ namespace netxs::os
             return sock_ptr;
         }
 
-        friend auto& operator << (std::ostream& s, netxs::os::ipc const& sock)
+        friend auto& operator<< (std::ostream& s, netxs::os::ipc const& sock)
         {
             return s << "{ xipc: " << sock.handle << " }";
         }
-        friend auto& operator << (std::ostream& s, netxs::os::xipc const& sock)
+        friend auto& operator<< (std::ostream& s, netxs::os::xipc const& sock)
         {
             return s << *sock;
         }
@@ -2008,6 +2008,7 @@ namespace netxs::os
                         }
                         yield.w32close();
                         ipcio.send(yield);
+                        yield.clear();
                     }
                 }
             }
@@ -2249,9 +2250,9 @@ namespace netxs::os
             _globals<void>::ipcio = pipe_link;
             return tty{};
         }
-        bool output(view text)
+        bool output(view utf8)
         {
-            return os::send<true>(STDOUT_FD, text.data(), text.size());
+            return os::send<true>(STDOUT_FD, utf8.data(), utf8.size());
         }
         void ignite()
         {

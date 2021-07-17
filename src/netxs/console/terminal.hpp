@@ -107,7 +107,7 @@ namespace netxs::ui
         };
 
         // For debug
-        friend std::ostream& operator << (std::ostream& s, rods& c)
+        friend auto& operator<< (std::ostream& s, rods& c)
         {
             return s << "{ " << c.xsize.lens[0].max << ","
                              << c.xsize.lens[1].max << ","
@@ -389,7 +389,7 @@ namespace netxs::ui
         }
         void test_basis(face& canvas)
         {
-            para p{ansi::bgc(redlt).add(" ").nil().str()};
+            para p{ansi::bgc(redlt).add(" ").nil()};
             auto coor = twod{ 0, basis };
             flow::ac(coor);
             flow::go(p, canvas);
@@ -840,7 +840,7 @@ namespace netxs::ui
             // win_cntrl: Set terminal window property.
             void set(text const& property, view txt)
             {
-                static auto jet_left = ansi::jet(bias::left).str();
+                static auto jet_left = ansi::jet(bias::left);
                 owner.target->finalize();
                 if (property == ansi::OSC_LABEL_TITLE)
                 {
@@ -1729,7 +1729,7 @@ namespace netxs::ui
         {
             if (queue.length())
             {
-                ptycon.write(queue.str());
+                ptycon.write(queue);
                 queue.clear();
             }
         }
@@ -1774,8 +1774,7 @@ namespace netxs::ui
             log("term: exit code ", code);
             if (code)
             {
-                text error = ansi::bgc(reddk).fgc(whitelt)
-                    .add("\nterm: exit code ", code, " ").str();
+                text error = ansi::bgc(reddk).fgc(whitelt).add("\nterm: exit code ", code, " ");
                 input_hndl(error);
             }
             else
@@ -1902,7 +1901,7 @@ namespace netxs::ui
             {
                 if (status.update(*target))
                 {
-                    this->base::riseup<e2::preview, e2::form::prop::footer>(status.data.str());
+                    this->base::riseup<e2::preview, e2::form::prop::footer>(status.data);
                 }
                 target->output(parent_canvas);
                 //target->test_basis(parent_canvas);

@@ -1,7 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#define MONOTTY_VER "Monotty Desktopio v0.5.5"
+#define MONOTTY_VER "Monotty Desktopio v0.5.6"
 // Autostart demo apps.
 //#define DEMO
 // Enable keyboard input and disable exit by single Esc.
@@ -111,7 +111,7 @@ std::list<text> appstore_body =
     "An utility that allows browsing all Unicode "
     "codepoints and inspecting their metadata."),
 
-    item(ansi::fgc(0xff0000).add("File").str(), cyanlt, "4", "Free ", "Get",
+    item(ansi::fgc(0xff0000).add("File"), cyanlt, "4", "Free ", "Get",
     "An orthodox file manager for Monotty environment."),
 
     item("Time", bluedk, "4", "Free ", "Get",
@@ -120,7 +120,7 @@ std::list<text> appstore_body =
     item("Goto", bluedk, "4", "Free ", "Get",
     "Internet/SSH browser."),
 
-    item(ansi::fgc(0xFF00FFFF).add("Doom").fgc().str(), reddk, "4", "Free ", "Get",
+    item(ansi::fgc(0xFF00FFFF).add("Doom").fgc(), reddk, "4", "Free ", "Get",
     "Doom II source port."),
 
     item("Logs", blackdk, "4096", "Free ", "Get",
@@ -233,8 +233,7 @@ class post_logs
         {
             show_codepoints = s;
             auto msg = ansi::bgc(s ? greendk : yellowdk).fgc(whitelt)
-                .add(" show codepoints: ", s ? "on":"off", "\n")
-                .nil().str();
+                .add(" show codepoints: ", s ? "on":"off", "\n").nil();
             SIGNAL(e2::general, e2::debug::logs, msg);
             SIGNAL(e2::release, e2::command::custom, s ? 1 : 2);
         }
@@ -302,7 +301,7 @@ class post_logs
                 yield.wrp(WRAPPING).eol();
             }
             yield.eol();
-            return page{ yield.str() };
+            return page{ yield };
         }
     };
 
@@ -575,9 +574,9 @@ int main(int argc, char* argv[])
                 .add(msg_ltr, "\n\n", msg_rtl);
 
             iota mrgin = 4;
-            auto l1 = ansi::mgl(mrgin * 1).mgr(1).fgc(whitelt).und(true).str();
-            auto l2 = ansi::mgl(mrgin * 2).mgr(1).str();
-            auto l3 = ansi::mgl(mrgin * 3).mgr(1).str();
+            auto l1 = ansi::mgl(mrgin * 1).mgr(1).fgc(whitelt).und(true);
+            auto l2 = ansi::mgl(mrgin * 2).mgr(1);
+            auto l3 = ansi::mgl(mrgin * 3).mgr(1);
             auto c1 = bluelt;// 0xffff00;
             auto c2 = whitedk;//0xffffff;
             text intro = ansi::mgl(0).mgr(0)
@@ -634,7 +633,7 @@ int main(int argc, char* argv[])
                     .add("drag ").nil().eol()
                     .add(l2).wrp(wrap::on)
                     .add("outside of any objects:\n")
-                        .add(l3, "- move all visible objects inside the viewport.\n")
+                        .add(l3, "- panoramic navigation.\n")
                 .add(l1).wrp(wrap::off)
                 .add("right").nil().eol()
                     .add(l2).fgc(blackdk).bgc(clr).wrp(wrap::off)
@@ -1096,13 +1095,13 @@ utility like ctags is used to locate the definitions.
                                          .bgc(clr - step * 2 /* 0xf9f9f9 */).add(" ")
                                          .bgc(clr - step * 1 /* 0xfcfcfc */).add(" ")
                                          .bgc(clr - step * 0 /* 0xffffff */).add(" ");
-            cellatix_cols = ansi::nil().wrp(wrap::off).str()
-                + cellatix_text_head.str();
+            cellatix_cols = ansi::nil().wrp(wrap::off)
+                + cellatix_text_head;
             cellatix_text = ansi::nil().wrp(wrap::off);
             cellatix_rows = ansi::nil().wrp(wrap::off).fgc(blackdk);
             auto base = topclr - 0x1f1f1f;// 0xe0e0e0;// 0xe4e4e4;
-            auto c1 = ansi::bgc(base).str(); //ansi::bgc(0xf0f0f0);
-            auto c2 = ansi::bgc(base).str();
+            auto c1 = ansi::bgc(base); //ansi::bgc(0xf0f0f0);
+            auto c2 = ansi::bgc(base);
             for (int i = 1; i < 100; i++)
             {
                 auto label = utf::adjust(std::to_string(i), 3, " ", true) + " ";
@@ -1111,7 +1110,7 @@ utility like ctags is used to locate the definitions.
                     auto c0 = base;
                     for (auto i = 0; i < label.length(); i++)
                     {
-                        cellatix_rows += ansi::bgc(c0).str() + label[i];
+                        cellatix_rows += ansi::bgc(c0) + label[i];
                         c0 += step;
                     }
                     cellatix_rows += (i == 99 ? ""s : "\n"s);
@@ -1123,7 +1122,7 @@ utility like ctags is used to locate the definitions.
                     auto c0 = base + step * (iota)label.length();
                     for (auto i = 0; i < label.length(); i++)
                     {
-                        cellatix_rows += ansi::bgc(c0).str() + label[i];
+                        cellatix_rows += ansi::bgc(c0) + label[i];
                         c0 -= step;
                     }
                     cellatix_rows += (i == 99 ? ""s : "\n"s);
@@ -1286,11 +1285,11 @@ utility like ctags is used to locate the definitions.
                 auto inner_pads = dent{ 1,2,1,1 };
                 auto menu_items =
                 {
-                    ansi::und(true).add("F").nil().add("ile").str(),
-                    ansi::und(true).add("E").nil().add("dit").str(),
-                    ansi::und(true).add("V").nil().add("iew").str(),
-                    ansi::und(true).add("D").nil().add("ata").str(),
-                    ansi::und(true).add("H").nil().add("elp").str(),
+                    ansi::und(true).add("F").nil().add("ile"),
+                    ansi::und(true).add("E").nil().add("dit"),
+                    ansi::und(true).add("V").nil().add("iew"),
+                    ansi::und(true).add("D").nil().add("ata"),
+                    ansi::und(true).add("H").nil().add("elp"),
                 };
                 auto menu_list = menu_area->attach<slot::_1, ui::fork>()
                                           ->attach<slot::_1, ui::list>(axis::X);
@@ -1406,7 +1405,7 @@ utility like ctags is used to locate the definitions.
                 default:
                 case Test:
                 {
-                    window->plugin<pro::title>(ansi::jet(bias::center).str() + "Test Page")
+                    window->plugin<pro::title>(ansi::jet(bias::center).add("Test Page"))
                           ->plugin<pro::track>()
                           ->plugin<pro::align>()
                           ->plugin<pro::acryl>()
@@ -1428,7 +1427,7 @@ utility like ctags is used to locate the definitions.
                                                             self.SUBMIT(e2::release, e2::postrender, canvas)
                                                             {
                                                                 static auto counter = 0; counter++;
-                                                                static auto textclr =  ansi::bgc(reddk).fgc(whitelt).str();
+                                                                static auto textclr =  ansi::bgc(reddk).fgc(whitelt);
                                                                 self.content(test_topic_vars::object1) = textclr + " inlined #1: " + std::to_string(counter) + " hits ";
                                                                 self.content(test_topic_vars::object2) = textclr + " inlined #2: " + canvas.area().size.str() + " ";
                                                                 self.content(test_topic_vars::object3) = textclr + " inlined #3: " + canvas.full().coor.str() + " ";
@@ -1460,7 +1459,7 @@ utility like ctags is used to locate the definitions.
                 }
                 case Strobe:
                 {
-                    window->plugin<pro::title>(ansi::jet(bias::center).str() + "Strobe")
+                    window->plugin<pro::title>(ansi::jet(bias::center).add("Strobe"))
                           ->plugin<pro::align>();
                     auto strob = window->attach<ui::mock>()
                                        ->plugin<pro::mover>(window);
@@ -1487,7 +1486,7 @@ utility like ctags is used to locate the definitions.
                 }
                 case Truecolor:
                 {
-                    window->plugin<pro::title>(ansi::jet(bias::right).str() + "True color ANSI/ASCII image test")
+                    window->plugin<pro::title>(ansi::jet(bias::right).add("True color ANSI/ASCII image test"))
                           ->plugin<pro::track>()
                           ->plugin<pro::align>()
                           ->plugin<pro::acryl>()
@@ -1511,7 +1510,7 @@ utility like ctags is used to locate the definitions.
                 }
                 case Empty:
                 {
-                    window->plugin<pro::title>(ansi::mgl(1).mgr(1).str() + "Empty Instance \nid: " + std::to_string(window->id))
+                    window->plugin<pro::title>(ansi::mgl(1).mgr(1).add("Empty Instance \nid: ", window->id))
                           ->plugin<pro::track>()
                           ->plugin<pro::align>()
                           ->plugin<pro::acryl>();
@@ -1533,7 +1532,7 @@ utility like ctags is used to locate the definitions.
                         auto menu_object = object->attach<slot::_1, ui::fork>(axis::Y);
                             menu_object->attach<slot::_1>(custom_menu(
                                 std::list{
-                                    std::pair<text, std::function<void(ui::pads&)>>{ ansi::und(true).add("D").nil().add("esktopio App Store").str(), [](ui::pads& p){} }
+                                    std::pair<text, std::function<void(ui::pads&)>>{ ansi::und(true).add("D").nil().add("esktopio App Store"), [](ui::pads& p){} }
                                 }));
                             menu_object->attach<slot::_2, ui::post>()
                                        ->plugin<pro::limit>(twod{ 37,-1 }, twod{ -1,-1 })
@@ -1559,7 +1558,7 @@ utility like ctags is used to locate the definitions.
                 case Calc:
                 {
                     static iota i = 0; i++;
-                    window->plugin<pro::title>(ansi::jet(bias::right).add("Spreadsheet\n ~/Untitled ", i, ".ods").str())
+                    window->plugin<pro::title>(ansi::jet(bias::right).add("Spreadsheet\n ~/Untitled ", i, ".ods"))
                           ->colors(whitelt, 0x601A5f00)
                           ->plugin<pro::limit>(twod{ 10,7 },twod{ -1,-1 })
                           ->plugin<pro::track>()
@@ -1580,16 +1579,16 @@ utility like ctags is used to locate the definitions.
                                             auto fx = fx_sum->attach<slot::_1, ui::post>()
                                                             ->plugin<pro::fader>(c7, c3, 150ms)
                                                             ->plugin<pro::limit>(twod{ 3,-1 }, twod{ 4,-1 })
-                                                            ->upload(ansi::wrp(wrap::off).add(" Fx ").str());
+                                                            ->upload(ansi::wrp(wrap::off).add(" Fx "));
                                         auto ellipsis = func_line->attach<slot::_2, ui::post>()
                                                                  ->plugin<pro::fader>(c7, c3, 150ms)
                                                                  ->plugin<pro::limit>(twod{ -1,1 }, twod{ 3,-1 })
-                                                                 ->upload(ansi::wrp(wrap::off).add(" … ").str());
+                                                                 ->upload(ansi::wrp(wrap::off).add(" … "));
                                     auto body_area = func_body->attach<slot::_2, ui::fork>(axis::Y);
                                         auto corner_cols = body_area->attach<slot::_1, ui::fork>();
                                             auto corner = corner_cols->attach<slot::_1, ui::post>()
                                                                      ->plugin<pro::limit>(twod{ 4,1 }, twod{ 4,1 })
-                                                                     ->upload(ansi::bgc(0xffffff - 0x1f1f1f).fgc(0).add("    ").str());
+                                                                     ->upload(ansi::bgc(0xffffff - 0x1f1f1f).fgc(0).add("    "));
                                         auto rows_body = body_area->attach<slot::_2, ui::fork>();
                                             auto layers = rows_body->attach<slot::_2, ui::cake>();
                                             auto scroll = layers->attach<ui::rail>()
@@ -1603,12 +1602,12 @@ utility like ctags is used to locate the definitions.
                                                              ->colors(0, whitelt)
                                                              ->upload(ansi::bgc(whitelt).fgc(blacklt)
                                                                .add(" =SUM(").itc(true).fgc(reddk).add("select cells by dragging").itc(faux)
-                                                               .fgc(blacklt).add(")").str())
+                                                               .fgc(blacklt).add(")"))
                                                              ->invoke([&](ui::post& boss)
                                                              {
                                                                  grid->SUBMIT(e2::release, e2::data::text, data)
                                                                  {
-                                                                    boss.upload(ansi::bgc(whitelt).fgc(blacklt).add(data).str());
+                                                                    boss.upload(ansi::bgc(whitelt).fgc(blacklt).add(data));
                                                                  };
                                                              });
                                             auto cols_area = corner_cols->attach<slot::_2, ui::rail>(axes::ONLY_X, axes::ONLY_X)
@@ -1628,12 +1627,12 @@ utility like ctags is used to locate the definitions.
                                     auto sheet = sheet_plus->attach<slot::_1, ui::post>()
                                                            ->plugin<pro::limit>(twod{ -1,-1 }, twod{ 13,-1 })
                                                            ->upload(ansi::wrp(wrap::off).add("     ")
-                                                             .bgc(whitelt).fgc(blackdk).add(" Sheet1 ").str());
+                                                             .bgc(whitelt).fgc(blackdk).add(" Sheet1 "));
                                     auto plus_pad = sheet_plus->attach<slot::_2, ui::fork>();
                                         auto plus = plus_pad->attach<slot::_1, ui::post>()
                                                             ->plugin<pro::fader>(c7, c3, 150ms)
                                                             ->plugin<pro::limit>(twod{ 3,-1 }, twod{ 3,-1 })
-                                                            ->upload(ansi::wrp(wrap::off).add(" + ").str());
+                                                            ->upload(ansi::wrp(wrap::off).add(" + "));
                                         auto pad = plus_pad->attach<slot::_2, ui::mock>()
                                                            ->plugin<pro::limit>(twod{ 1,1 }, twod{ 1,1 });
                             layers->attach(scroll_bars(scroll));
@@ -1642,7 +1641,7 @@ utility like ctags is used to locate the definitions.
                 case Text:
                 {
                     static iota i = 0; i++;
-                    window->plugin<pro::title>(ansi::jet(bias::center).add("Text Editor\n ~/Untitled ", i, ".txt").str())
+                    window->plugin<pro::title>(ansi::jet(bias::center).add("Text Editor\n ~/Untitled ", i, ".txt"))
                           ->plugin<pro::track>()
                           ->plugin<pro::align>()
                           ->plugin<pro::acryl>()
@@ -1662,11 +1661,11 @@ utility like ctags is used to locate the definitions.
                                                               ->upload(ansi::wrp(wrap::off).mgl(1)
                                                                 .add(topic3)
                                                                 .fgc(highlight_color)
-                                                                .add("From Wikipedia, the free encyclopedia").str());
+                                                                .add("From Wikipedia, the free encyclopedia"));
                             auto status_line = body_area->attach<slot::_2, ui::post>()
                                                         ->plugin<pro::limit>(twod{ 1,1 }, twod{ -1,1 })
                                                         ->upload(ansi::wrp(wrap::off).mgl(1).mgr(1).jet(bias::right).fgc(whitedk)
-                                                           .add("INS  Sel: 0:0  Col: 26  Ln: 2/148").nil().str());
+                                                           .add("INS  Sel: 0:0  Col: 26  Ln: 2/148").nil());
                                 layers->attach(scroll_bars(scroll));
                     break;
                 }
@@ -1702,7 +1701,7 @@ utility like ctags is used to locate the definitions.
                                       ->upload(ansi::fgc(yellowlt).mgl(4).mgr(4).wrp(wrap::off)
                                         .add("\n\nconnection rejected\n\n")
                                         .nil().wrp(wrap::on)
-                                        .add("Reached the limit of recursive connections, destroy existing recursive instances to create new ones.").str());
+                                        .add("Reached the limit of recursive connections, destroy existing recursive instances to create new ones."));
                             }
                         layers->attach(scroll_bars(scroll));
                     break;
@@ -1899,7 +1898,7 @@ utility like ctags is used to locate the definitions.
                                         ->colors(whitelt, term_menu_bg);
                         auto menu = object->attach<slot::_1>(custom_menu(
                             std::list{
-                                    std::pair<text, std::function<void(ui::pads&)>>{ ansi::esc("C").und(true).add("l").nil().add("ear").str(),
+                                    std::pair<text, std::function<void(ui::pads&)>>{ ansi::esc("C").und(true).add("l").nil().add("ear"),
                                     [](ui::pads& boss)
                                     {
                                         boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
@@ -1911,7 +1910,7 @@ utility like ctags is used to locate the definitions.
                                             gear.nodbl = true;
                                         };
                                     }},
-                                    std::pair<text, std::function<void(ui::pads&)>>{ ansi::esc("R").und(true).add("e").nil().add("set").str(),
+                                    std::pair<text, std::function<void(ui::pads&)>>{ ansi::esc("R").und(true).add("e").nil().add("set"),
                                     [](ui::pads& boss)
                                     {
                                         boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
@@ -1949,7 +1948,7 @@ utility like ctags is used to locate the definitions.
                                         ->colors(whitelt, term_menu_bg);
                         auto menu = object->attach<slot::_1>(custom_menu(
                             std::list{
-                                    std::pair<text, std::function<void(ui::pads&)>>{ ansi::esc("C").und(true).add("l").nil().add("ear").str(),
+                                    std::pair<text, std::function<void(ui::pads&)>>{ ansi::esc("C").und(true).add("l").nil().add("ear"),
                                     [](ui::pads& boss)
                                     {
                                         boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
@@ -1961,7 +1960,7 @@ utility like ctags is used to locate the definitions.
                                             gear.nodbl = true;
                                         };
                                     }},
-                                    std::pair<text, std::function<void(ui::pads&)>>{ ansi::esc("R").und(true).add("e").nil().add("set").str(),
+                                    std::pair<text, std::function<void(ui::pads&)>>{ ansi::esc("R").und(true).add("e").nil().add("set"),
                                     [](ui::pads& boss)
                                     {
                                         boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
@@ -2061,7 +2060,7 @@ utility like ctags is used to locate the definitions.
                 case View:
                 {
                     static iota i = 0; i++;
-                    window->plugin<pro::title>(ansi::jet(bias::center).add("View \n Region ", i).str());
+                    window->plugin<pro::title>(ansi::jet(bias::center).add("View \n Region ", i));
                     window->invoke([&](auto& boss)
                     {
                         auto outer = dent{ 2,2,1,1 };
@@ -2349,10 +2348,10 @@ utility like ctags is used to locate the definitions.
                             auto label_area = item_area->template attach<ui::fork>();
                                 auto mark_app = label_area->template attach<slot::_1, ui::fork>();
                                     auto mark = mark_app->template attach<slot::_1, ui::pads>(dent{ 2,1,0,0 }, dent{ 0,0,0,0 })
-                                                        ->template attach<ui::item>(ansi::fgc4(0xFF00ff00).add("‣").str(), faux);
+                                                        ->template attach<ui::item>(ansi::fgc4(0xFF00ff00).add("‣"), faux);
                                     auto app_label = mark_app->template attach<slot::_2, ui::item>(
                                                 ansi::fgc(whitelt)
-                                                .add(utf8).mgl(0).wrp(wrap::off).jet(bias::left).str(), true, true);
+                                                .add(utf8).mgl(0).wrp(wrap::off).jet(bias::left), true, true);
                                 auto app_close_area = label_area->template attach<slot::_2, ui::pads>(dent{ 0,0,0,0 }, dent{ 0,0,1,1 })
                                                                 ->template plugin<pro::fader>(x5, c5, 150ms)
                                                                 ->invoke([&](auto& boss)
@@ -2478,7 +2477,7 @@ utility like ctags is used to locate the definitions.
                                 auto block = item_area->template attach<ui::fork>(axis::X);
                                     auto mark_area = block->template attach<slot::_1, ui::pads>(dent{ 1,1,0,0 }, dent{ 0,0,0,0 });
                                         auto mark = mark_area->template attach<ui::item>(
-                                                            ansi::fgc4(selected ? 0xFF00ff00 : 0xFF000000).add("██").str(), faux)
+                                                            ansi::fgc4(selected ? 0xFF00ff00 : 0xFF000000).add("██"), faux)
                                                     ->invoke([&](auto& boss)
                                                     {
                                                         if (auto client = client_shadow.lock())
@@ -2489,7 +2488,7 @@ utility like ctags is used to locate the definitions.
                                                                 auto selected = id == data;
                                                                 if(auto mark = mark_shadow.lock())
                                                                 {
-                                                                    mark->set(ansi::fgc4(selected ? 0xFF00ff00 : 0xFF000000).add("██").str());
+                                                                    mark->set(ansi::fgc4(selected ? 0xFF00ff00 : 0xFF000000).add("██"));
                                                                     mark->deface();
                                                                 }
                                                             };
@@ -2497,7 +2496,7 @@ utility like ctags is used to locate the definitions.
                                                     });
                                     auto label_area = block->template attach<slot::_2, ui::pads>(dent{ 1,1,0,0 }, dent{ 0,0,0,0 });
                                         auto label = label_area->template attach<ui::item>(
-                                            ansi::fgc4(0xFFffffff).add(objs_desc[class_id]).str(), true, true);
+                                            ansi::fgc4(0xFFffffff).add(objs_desc[class_id]), true, true);
                         }
                         return menuitems;
                     };
@@ -2507,7 +2506,7 @@ utility like ctags is used to locate the definitions.
                                              ->plugin<pro::fader>(x3, c3, 150ms);
                             auto user = item_area->attach<ui::item>(
                                     ansi::esc(" &").nil().add(" ")
-                                    .fgc4(data_src->id == my_id ? rgba::color256[whitelt] : 0x00).add(utf8).str(), true);
+                                    .fgc4(data_src->id == my_id ? rgba::color256[whitelt] : 0x00).add(utf8), true);
                         return item_area;
                     };
                     auto branch_template = [&](auto& data_src, auto& usr_list)
@@ -2574,7 +2573,7 @@ utility like ctags is used to locate the definitions.
                                                                ->plugin<pro::fader>(x3, c3, 150ms);
                                         auto label_bttn = label_pads->attach<ui::fork>();
                                             auto label = label_bttn->attach<slot::_1, ui::item>(
-                                                                ansi::fgc(whitelt).add("  ≡ ").str(), faux, faux);
+                                                                ansi::fgc(whitelt).add("  ≡ "), faux, faux);
                                             auto bttn_area = label_bttn->attach<slot::_2, ui::fork>();
                                                 //auto defapp_pads = bttn_area->attach<slot::_1, ui::post>()
                                                 //                            ->upload(ansi::jet(bias::center) + "[ Term ]");
@@ -2633,7 +2632,7 @@ utility like ctags is used to locate the definitions.
                                                                 ->plugin<pro::fader>(x3, c3, 150ms);
                                         auto label_bttn = label_pads->attach<ui::fork>();
                                             auto label = label_bttn->attach<slot::_1, ui::item>(
-                                                            ansi::fgc(whitelt).add("TTYs").str(), faux, faux);
+                                                            ansi::fgc(whitelt).add("TTYs"), faux, faux);
                                             auto bttn_area = label_bttn->attach<slot::_2, ui::fork>();
                                                 auto bttn_pads = bttn_area->attach<slot::_2, ui::pads>(dent{ 2,2,0,0 }, dent{ 0,0,1,1 })
                                                                           ->plugin<pro::fader>(x6, c6, 150ms);
@@ -2702,7 +2701,7 @@ utility like ctags is used to locate the definitions.
                     }
                     client->color(background_color.fgc(), background_color.bgc());
                     text header = username;
-                    text footer = ansi::mgr(1).mgl(1).add(MONOTTY_VER).str();
+                    text footer = ansi::mgr(1).mgl(1).add(MONOTTY_VER);
                     client->SIGNAL(e2::release, e2::form::prop::name, header);
                     client->SIGNAL(e2::preview, e2::form::prop::header, header);
                     client->SIGNAL(e2::preview, e2::form::prop::footer, footer);
