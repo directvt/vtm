@@ -51,31 +51,31 @@ namespace netxs
             : x(queue(0)), y(queue(0))
         { }
 
-        T&       operator [] (int selector)          { return selector ? x : y; }
-        T const& operator [] (int selector) const    { return selector ? x : y; }
-        operator bool        () const                { return x != 0 || y != 0; }
-        duplet&  operator ++ ()                      { x++; y++;  return *this; }
-        duplet&  operator -- ()                      { x--; y--;  return *this; }
-        duplet&  operator =  (duplet const& p)       { x  = p.x; y  = p.y; return *this; }
-        void     operator -= (duplet const& p)       { x -= p.x; y -= p.y; }
-        void     operator += (duplet const& p)       { x += p.x; y += p.y; }
-        void     operator *= (duplet const& p)       { x *= p.x; y *= p.y; }
-        void     operator /= (duplet const& p)       { x /= p.x; y /= p.y; }
-        void     operator -= (T i)                   { x -=   i; y -=   i; }
-        void     operator += (T i)                   { x +=   i; y +=   i; }
-        void     operator *= (T i)                   { x *=   i; y *=   i; }
-        void     operator /= (T i)                   { x /=   i; y /=   i; }
-        bool     operator <  (T i) const             { return x < i && y < i; }
-        bool     operator >  (T i) const             { return x > i && y > i; }
-        bool     operator == (duplet const& p) const { return x == p.x && y == p.y; }
-        bool     operator != (duplet const& p) const { return x != p.x || y != p.y; }
-        duplet   operator +  (duplet const& p) const { return { x + p.x, y + p.y }; }
-        duplet   operator -  (duplet const& p) const { return { x - p.x, y - p.y }; }
-        duplet   operator *  (duplet const& p) const { return { x * p.x, y * p.y }; }
-        duplet   operator /  (duplet const& p) const { return { x / p.x, y / p.y }; }
-        duplet   operator -  ()                const { return {      -x,-y       }; }
-        duplet   operator &  (T i)             const { return {   x & i, y & i   }; }
-        duplet   operator ~  ()                const { return {       y, x       }; }
+        T&       operator []  (int selector)          { return selector ? x : y; }
+        T const& operator []  (int selector) const    { return selector ? x : y; }
+        explicit operator bool() const                { return x != 0 || y != 0; }
+        duplet&  operator ++  ()                      { x++; y++;  return *this; }
+        duplet&  operator --  ()                      { x--; y--;  return *this; }
+        duplet&  operator =   (duplet const& p)       { x  = p.x; y  = p.y; return *this; }
+        void     operator -=  (duplet const& p)       { x -= p.x; y -= p.y; }
+        void     operator +=  (duplet const& p)       { x += p.x; y += p.y; }
+        void     operator *=  (duplet const& p)       { x *= p.x; y *= p.y; }
+        void     operator /=  (duplet const& p)       { x /= p.x; y /= p.y; }
+        void     operator -=  (T i)                   { x -=   i; y -=   i; }
+        void     operator +=  (T i)                   { x +=   i; y +=   i; }
+        void     operator *=  (T i)                   { x *=   i; y *=   i; }
+        void     operator /=  (T i)                   { x /=   i; y /=   i; }
+        bool     operator <   (T i) const             { return x < i && y < i; }
+        bool     operator >   (T i) const             { return x > i && y > i; }
+        bool     operator ==  (duplet const& p) const { return x == p.x && y == p.y; }
+        bool     operator !=  (duplet const& p) const { return x != p.x || y != p.y; }
+        duplet   operator +   (duplet const& p) const { return { x + p.x, y + p.y }; }
+        duplet   operator -   (duplet const& p) const { return { x - p.x, y - p.y }; }
+        duplet   operator *   (duplet const& p) const { return { x * p.x, y * p.y }; }
+        duplet   operator /   (duplet const& p) const { return { x / p.x, y / p.y }; }
+        duplet   operator -   ()                const { return {      -x,-y       }; }
+        duplet   operator &   (T i)             const { return {   x & i, y & i   }; }
+        duplet   operator ~   ()                const { return {       y, x       }; }
 
         ///In C++11, signed shift left of a negative number is always undefined
         //void operator>>= (T i) { x >>=i; y >>=i; }
@@ -135,9 +135,9 @@ namespace netxs
         {
             return "{ " + std::to_string(x) + ", " + std::to_string(y) + " }";
         }
-        friend std::ostream& operator << (std::ostream& s, duplet const& p)
+        friend auto& operator<< (std::ostream& s, duplet const& p)
         {
-            return s << p.str();
+            return s << "{ " << p.x << ", " << p.y << " }";
         }
     };
 

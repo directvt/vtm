@@ -445,13 +445,13 @@ namespace netxs::ui::atoms
             0xFF808080, 0xFF8A8A8A, 0xFF949494, 0xFF9E9E9E, 0xFFA8A8A8, 0xFFB2B2B2,
             0xFFBCBCBC, 0xFFC6C6C6, 0xFFD0D0D0, 0xFFDADADA, 0xFFE4E4E4, 0xFFEEEEEE,
         };
-        friend std::ostream& operator << (std::ostream& s, rgba const& c)
+        friend auto& operator<< (std::ostream& s, rgba const& c)
         {
-            return s << "{" + std::to_string(c.chan.r)
-                      + "," + std::to_string(c.chan.g)
-                      + "," + std::to_string(c.chan.b)
-                      + "," + std::to_string(c.chan.a)
-                      + "}";
+            return s << "{" << (int)c.chan.r
+                     << "," << (int)c.chan.g
+                     << "," << (int)c.chan.b
+                     << "," << (int)c.chan.a
+                     << "}";
         }
     };
 
@@ -1168,19 +1168,19 @@ namespace netxs::ui::atoms
         {
             return std::clamp(point, coor, coor + std::max(dot_00, size - dot_11));
         }
-        operator bool      ()              const { return size.x != 0 && size.y != 0;       }
-        auto   area        ()              const { return size.x * size.y;                  }
-        twod   map         (twod const& p) const { return p - coor;                         }
-        rect   shift       (twod const& p) const { return { coor + p, size };               }
-        auto&  shift_itself(twod const& p)       { coor += p; return *this;                 }
-        rect   operator &  (rect const& r) const { return clip(r);                          }
-        rect   operator +  (rect const& r) const { return { coor + r.coor, size + r.size }; }
-        rect   operator -  (rect const& r) const { return { coor - r.coor, size - r.size }; }
-        rect   operator |  (rect const& r) const { return unite(r);                         }
-        bool   operator != (rect const& r) const { return coor != r.coor || size != r.size; }
-        bool   operator == (rect const& r) const { return coor == r.coor && size == r.size; }
-        void   operator += (rect const& r)       { coor += r.coor; size += r.size;          }
-        void   operator -= (rect const& r)       { coor -= r.coor; size -= r.size;          }
+        explicit operator bool()              const { return size.x != 0 && size.y != 0;       }
+        auto   area           ()              const { return size.x * size.y;                  }
+        twod   map            (twod const& p) const { return p - coor;                         }
+        rect   shift          (twod const& p) const { return { coor + p, size };               }
+        auto&  shift_itself   (twod const& p)       { coor += p; return *this;                 }
+        rect   operator &     (rect const& r) const { return clip(r);                          }
+        rect   operator +     (rect const& r) const { return { coor + r.coor, size + r.size }; }
+        rect   operator -     (rect const& r) const { return { coor - r.coor, size - r.size }; }
+        rect   operator |     (rect const& r) const { return unite(r);                         }
+        bool   operator !=    (rect const& r) const { return coor != r.coor || size != r.size; }
+        bool   operator ==    (rect const& r) const { return coor == r.coor && size == r.size; }
+        void   operator +=    (rect const& r)       { coor += r.coor; size += r.size;          }
+        void   operator -=    (rect const& r)       { coor -= r.coor; size -= r.size;          }
 
         // rect: Is the point inside the rect.
         bool hittest(twod const& p) const
@@ -1304,10 +1304,8 @@ namespace netxs::ui::atoms
         {
             auto r1 = annex.normalize();
             auto r2 = normalize();
-
             auto tl = std::min(r1.coor, r2.coor);
             auto br = std::max(r1.coor + r1.size, r2.coor + r2.size );
-
             return { tl, br - tl};
         }
         // rect: Return true in case of normalized rectangles are overlapped.
@@ -1322,9 +1320,9 @@ namespace netxs::ui::atoms
         {
             return "{" + coor.str() + ", " + size.str() + "}";
         }
-        friend std::ostream& operator << (std::ostream& s, rect const& r)
+        friend auto& operator<< (std::ostream& s, rect const& r)
         {
-            return s << r.str();
+            return s << '{' << r.coor << ", " << r.size << '}';
         }
     };
 
@@ -1440,7 +1438,7 @@ namespace netxs::ui::atoms
             return "{ l:" + std::to_string(l) + " r: " + std::to_string(r) +
                     " t:" + std::to_string(t) + " b: " + std::to_string(b) + " }";
         }
-        friend std::ostream& operator << (std::ostream& s, side const& p)
+        friend auto& operator<< (std::ostream& s, side const& p)
         {
             return s << p.str();
         }
@@ -1648,7 +1646,7 @@ namespace netxs::ui::atoms
             return "{ reg:" + region.str() + " win:" + window.str() +
                     " ovr:" + beyond.str() + " }";
         }
-        friend std::ostream& operator << (std::ostream& s, rack const& p)
+        friend auto& operator<< (std::ostream& s, rack const& p)
         {
             return s << p.str();
         }

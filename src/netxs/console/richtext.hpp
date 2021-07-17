@@ -267,9 +267,8 @@ namespace netxs::console
         }
         auto meta(rect region) // core: Ansify/textify content of specified region.
         {
-            using ansi = ansi::esc;
-            ansi yield;
-            cell state;
+            ansi::esc yield;
+            cell      state;
             auto badfx = [&](auto& state, auto& frame) {
                 state.set_gc();
                 frame.add(utf::REPLACEMENT_CHARACTER_UTF8_VIEW);

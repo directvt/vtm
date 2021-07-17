@@ -108,7 +108,7 @@ Shortcut              | Action
 double `LeftClick`    | Menu: Create new window<br>Window: Maximize/restore window
 `RightClick`          | Taskbar: Move window to center of view
 `Left + Right`<br>or `MiddleClick` | Window: Close/destroy window
-`LeftDrag`            | Desktop: Move visible windows<br>Window menu: Move window
+`LeftDrag`            | Desktop: Scroll workspace<br>Window header: Move window
 `RightDrag`           | Desktop: Create new window<br>Window: Scroll window content
 `Left + RightDrag`    | Scroll workspace
 `Ctrl + RightDrag`<br>or `Ctrl + MiddleDrag` | Copy selected area to clipboard `OSC 52`
