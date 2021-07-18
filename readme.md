@@ -36,7 +36,7 @@ A text-based desktop environment inside your terminal*
 
 # Building from Source
 
-### Linux / FreeBSD
+### Linux & FreeBSD
 
 Build-time dependencies:
  - `gcc` or `clang`
@@ -109,9 +109,11 @@ double `LeftClick`    | Menu: Create new window<br>Window: Maximize/restore wind
 `RightClick`          | Taskbar: Move window to center of view
 `Left + Right`<br>or `MiddleClick` | Window: Close/destroy window
 `LeftDrag`            | Desktop: Scroll workspace<br>Window header: Move window
-`RightDrag`           | Desktop: Create new window<br>Window: Scroll window content
+`RightDrag`           | Desktop: Create new window<br>Window: Panoramic scrolling
 `Left + RightDrag`    | Scroll workspace
 `Ctrl + RightDrag`<br>or `Ctrl + MiddleDrag` | Copy selected area to clipboard `OSC 52`
+`Wheel`               | Window: Vertical scrolling
+`Shift + Wheel`<br>or `Ctrl + Wheel` | Window: Horizontal scrolling
 
 # Built-in Applications
 
