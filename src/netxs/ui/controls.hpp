@@ -1811,7 +1811,7 @@ namespace netxs::ui
 
             canvas.mark().bgc(whitelt);
             topic = ansi::idx(txt_id).nop().eol()
-                + ansi::idx(pin_id).nop();
+                         .idx(pin_id).nop();
 
             set_pen(0);
 
@@ -1960,9 +1960,9 @@ namespace netxs::ui
                            10 });
 
             topic = ansi::wrp(wrap::off).jet(bias::left)
-                .cpy(50).chx(pad + 2).cuu(3) + caption + ansi::cud(3)
-                + ansi::idx(bar_id).nop().eol()
-                + ansi::idx(min_id).nop() + ansi::idx(max_id).nop();
+                .cpy(50).chx(pad + 2).cuu(3).add(caption).cud(3)
+                .idx(bar_id).nop().eol()
+                .idx(min_id).nop().idx(max_id).nop();
 
             topic[min_id] = std::to_string(min_val);
             topic[max_id] = std::to_string(max_val);
