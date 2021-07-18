@@ -229,7 +229,7 @@ namespace netxs::console::ansi
         esc(T&& data) { add(std::forward<T>(data)); }
 
         //todo eliminate allocations (std::string)
-        auto& clear()        { text::clear(); return *this; }
+        auto& clear()        { text::clear(); return *this;   }
         void _add(char    t) { push_back (t);                 }
         void _add(twod    t) { operator+=(t.str());           }
         void _add(rect    t) { operator+=(t.str());           }
