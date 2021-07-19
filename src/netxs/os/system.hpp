@@ -2290,7 +2290,7 @@ namespace netxs::os
                 auto& state = _globals<void>::state;
                 if (ok(::tcgetattr(STDIN_FD, &state))) // Set stdin raw mode.
                 {
-                    ::termios raw_mode = state;
+                    auto raw_mode = state;
                     ::cfmakeraw(&raw_mode);
                     ok(::tcsetattr(STDIN_FD, TCSANOW, &raw_mode));
                 }

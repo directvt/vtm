@@ -262,13 +262,13 @@ class post_logs
             auto max_col = 12;
             auto wc = 5;
 
-            yield.clear()
-                .wrp(wrap::off)
-                .bgc(ansi::yellowlt).add(utf::repeat(' ', max_col * (wc + 3))).eol().bgc()
-                .add("STDOUT: plain text, ", shadow.size(), " bytes")
-                .eol().bgc(ansi::whitedk).fgc(blackdk)
-                .add(utf::debase(shadow))
-                .fgc().bgc().eol().eol();
+            yield.clear();
+            yield.wrp(wrap::off)
+                 .bgc(ansi::yellowlt).add(utf::repeat(' ', max_col * (wc + 3))).eol().bgc()
+                 .add("STDOUT: plain text, ", shadow.size(), " bytes")
+                 .eol().bgc(ansi::whitedk).fgc(blackdk)
+                 .add(utf::debase(shadow))
+                 .fgc().bgc().eol().eol();
             if (show_codepoints)
             {
                 yield.wrp(wrap::off).add("STDOUT: codepoints").eol();

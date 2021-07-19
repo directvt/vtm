@@ -21,8 +21,8 @@ namespace netxs::console::ansi
     using namespace netxs::events;
     using namespace netxs::ui::atoms;
 
-    static constexpr auto ESCCSI = "\x1B[";
-    static constexpr auto ESCOCS = "\x1B]";
+    static constexpr auto ESCCSI = "\033[";
+    static constexpr auto ESCOCS = "\033]";
 
     static const char CSI   = '['; // ESC [
     static const char OCS   = ']'; // ESC ]
@@ -221,33 +221,65 @@ namespace netxs::console::ansi
     static const iota CCC_KBD    = 27 ; // CSI 27: n       p  - Set keyboard modifiers.
 
     // ansi: Escaped sequences accumulator.
-    struct esc
+    class esc
         : public text
     {
+        char  _buf[32];
+        char* _end = _buf + sizeof(_buf);
+
+        template<class T>
+        inline void _itos(T num)
+        {
+            auto   tmp = to_signed_t<T>(num);
+            auto   ptr = _end;
+            if    (num > 0) tmp = -tmp;
+            do  *--ptr = static_cast<char>('0' - tmp % 10); while (tmp /= 10);
+            if    (num < 0) *--ptr = '-';
+            auto   len = _end - ptr;
+            auto   dst = size();
+            resize(dst + len);
+            memcpy(dst + text::data(), ptr, len);
+        }
+
+        template<class T>
+        inline void _add(T&& data)
+        {
+            using D = std::remove_cv_t<std::remove_reference_t<T>>;
+            if constexpr (std::is_same_v<D, char>)
+            {
+                push_back(data);
+            }
+            else if constexpr (std::is_integral_v<D>)
+            {
+                _itos(data);
+            }
+            else if constexpr (std::is_same_v<D, twod>)
+            {
+                operator+=("{ "); _itos(data.x); operator+=(", ");
+                                  _itos(data.y); operator+=(" }");
+            }
+            else if constexpr (std::is_same_v<D, rect>)
+            {
+                operator+=("{"); _add(data.coor); operator+=(",");
+                                 _add(data.size); operator+=("}");
+            }
+            else operator+=(std::forward<T>(data));
+        }
+
+    public:
         esc() = default;
-        template<class T>
-        esc(T&& data) { add(std::forward<T>(data)); }
-
-        //todo eliminate allocations (std::string)
-        auto& clear()        { text::clear(); return *this;   }
-        void _add(char    t) { push_back (t);                 }
-        void _add(twod    t) { operator+=(t.str());           }
-        void _add(rect    t) { operator+=(t.str());           }
-        void _add(iota    t) { operator+=(std::to_string(t)); }
-        void _add(size_t  t) { operator+=(std::to_string(t)); }
-        void _add(uint8_t t) { operator+=(std::to_string(t)); }
 
         template<class T>
-        void _add(T&& t) { operator+=(std::forward<T>(t)); }
+        esc(T&& data) { _add(std::forward<T>(data)); }
 
         template<class T>
-        auto& add(T&& data)
+        inline auto& add(T&& data)
         {
             _add(std::forward<T>(data));
             return *this;
         }
         template<class T, class ...Args>
-        auto& add(T&& data, Args&&... data_list)
+        inline auto& add(T&& data, Args&&... data_list)
         {
             _add(std::forward<T>(data));
             return add(std::forward<Args>(data_list)...);
@@ -535,7 +567,7 @@ namespace netxs::console::ansi
         esc& idx (iota i)        { return add("\033[19:", i  , CSI_CCC); } // esc: Split the text run and associate the fragment with an id.
         esc& ref (iota i)        { return add("\033[23:", i  , CSI_CCC); } // esc: Create the reference to the existing paragraph.
         esc& ext (iota b)        { return add("\033[25:", b  , CSI_CCC); } // esc: Extended functionality support, 0 - faux, 1 - true.
-        esc& show_mouse (bool b) { return add("\033[26:", b  , CSI_CCC); } // esc: Should the mouse poiner to be drawn.
+        esc& show_mouse (iota b) { return add("\033[26:", b  , CSI_CCC); } // esc: Should the mouse poiner to be drawn.
         esc& meta_state (iota m) { return add("\033[27:", m  , CSI_CCC); } // esc: Set keyboard meta modifiers (Ctrl, Shift, Alt, etc).
         //todo unify
         //esc& win (twod const& p){ return add("\033[20:", p.x, ':',              // esc: Terminal window resize report.
