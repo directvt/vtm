@@ -236,10 +236,14 @@ namespace netxs::console::ansi
                 do *--cptr = static_cast<char>('0' + bits % 10);
                 while(bits /= 10);
             };
-            if (data < 0)
+            if constexpr (std::is_signed_v<T>)
             {
-                bake(std::make_unsigned_t<T>(-data));
-                *--cptr = '-';
+                if (data < 0)
+                {
+                    bake(std::make_unsigned_t<T>(-data));
+                    *--cptr = '-';
+                }
+                else bake(data);
             }
             else bake(data);
             auto gain = tail - cptr;
