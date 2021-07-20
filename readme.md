@@ -1,6 +1,6 @@
 # Monotty Desktopio
 
-A text-based desktop environment inside your terminal*
+Text-based desktop environment inside your terminal*
 
 ![image](https://dice.netxs.online/cloud/vtm/mde_banner_v1.18.png)
 
@@ -20,9 +20,9 @@ A text-based desktop environment inside your terminal*
 
 ### Video
 
- - [Desktop environment](https://youtu.be/fLumnSctakY)
- - [Collaborative interaction](https://youtu.be/0zU4e5Vam8c)
- - [Recursive connection](https://youtu.be/Fm5X75sO62c)
+ - [Desktop Environment](https://youtu.be/fLumnSctakY)
+ - [Collaborative Interaction](https://youtu.be/0zU4e5Vam8c)
+ - [Recursive Connection](https://youtu.be/Fm5X75sO62c)
 
 # Supported Platforms
 
