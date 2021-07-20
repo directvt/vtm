@@ -224,25 +224,32 @@ namespace netxs::console::ansi
     class esc
         : public text
     {
-        char  _buf[32];
-        char* _end = _buf + sizeof(_buf);
+        char  heap[32];
+        char* tail = heap + sizeof(heap);
 
         template<class T>
-        inline void _itos(T num)
+        inline void itos(T data)
         {
-            auto   tmp = to_signed_t<T>(num);
-            auto   ptr = _end;
-            if    (num > 0) tmp = -tmp;
-            do  *--ptr = static_cast<char>('0' - tmp % 10); while (tmp /= 10);
-            if    (num < 0) *--ptr = '-';
-            auto   len = _end - ptr;
-            auto   dst = size();
-            resize(dst + len);
-            memcpy(dst + text::data(), ptr, len);
+            auto cptr = tail;
+            auto bake = [&](auto bits)
+            {
+                do *--cptr = static_cast<char>('0' + bits % 10);
+                while(bits /= 10);
+            };
+            if (data < 0)
+            {
+                bake(std::make_unsigned_t<T>(-data));
+                *--cptr = '-';
+            }
+            else bake(data);
+            auto gain = tail - cptr;
+            auto size = text::size();
+            resize(size + gain);
+            memcpy(size + text::data(), cptr, gain);
         }
 
         template<class T>
-        inline void _add(T&& data)
+        inline void fuse(T&& data)
         {
             using D = std::remove_cv_t<std::remove_reference_t<T>>;
             if constexpr (std::is_same_v<D, char>)
@@ -251,17 +258,17 @@ namespace netxs::console::ansi
             }
             else if constexpr (std::is_integral_v<D>)
             {
-                _itos(data);
+                itos(data);
             }
             else if constexpr (std::is_same_v<D, twod>)
             {
-                operator+=("{ "); _itos(data.x); operator+=(", ");
-                                  _itos(data.y); operator+=(" }");
+                operator+=("{ "); itos(data.x); operator+=(", ");
+                                  itos(data.y); operator+=(" }");
             }
             else if constexpr (std::is_same_v<D, rect>)
             {
-                operator+=("{"); _add(data.coor); operator+=(",");
-                                 _add(data.size); operator+=("}");
+                operator+=("{"); fuse(data.coor); operator+=(",");
+                                 fuse(data.size); operator+=("}");
             }
             else operator+=(std::forward<T>(data));
         }
@@ -270,18 +277,18 @@ namespace netxs::console::ansi
         esc() = default;
 
         template<class T>
-        esc(T&& data) { _add(std::forward<T>(data)); }
+        esc(T&& data) { fuse(std::forward<T>(data)); }
 
         template<class T>
         inline auto& add(T&& data)
         {
-            _add(std::forward<T>(data));
+            fuse(std::forward<T>(data));
             return *this;
         }
         template<class T, class ...Args>
         inline auto& add(T&& data, Args&&... data_list)
         {
-            _add(std::forward<T>(data));
+            fuse(std::forward<T>(data));
             return add(std::forward<Args>(data_list)...);
         }
 
@@ -350,7 +357,7 @@ namespace netxs::console::ansi
         esc& w32keybd(iota id, iota kc, iota sc, iota kd, iota ks, iota rc, iota uc)
         {
             add(ansi::W32_KEYBD_EVENT, ':');
-            if (id) _add(id);
+            if (id) fuse(id);
             return add(':', kc, ':',
                             sc, ':',
                             kd, ':',
@@ -362,7 +369,7 @@ namespace netxs::console::ansi
         esc& w32mouse(iota id, iota bttns, iota ctrls, iota flags, iota wheel, iota xcoor, iota ycoor)
         {
             add(ansi::W32_MOUSE_EVENT, ':');
-            if (id) _add(id);
+            if (id) fuse(id);
             return add(':', bttns, ':',
                             ctrls, ':',
                             flags, ':',
@@ -374,7 +381,7 @@ namespace netxs::console::ansi
         esc& w32focus(iota id, iota focus)
         {
             add(ansi::W32_FOCUS_EVENT, ':');
-            if (id) _add(id);
+            if (id) fuse(id);
             return add(':', focus, ';');
         }
         // ansi: win32-input-mode sequence (window resize).
