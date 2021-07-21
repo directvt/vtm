@@ -26,20 +26,23 @@ Text-based desktop environment inside your terminal*
 
 # Supported Platforms
 
-- Linux
-- FreeBSD
+- POSIX-oriented
+  - Linux
+  - macOS
+  - FreeBSD
+  - NetBSD
+  - OpenBSD
+  - [`...`](https://en.wikipedia.org/wiki/POSIX#POSIX-oriented_operating_systems)
 - Windows
   - Windows 10
   - Windows Server 2019
-- macOS
-  - Catalina 10.15
 
 # Building from Source
 
-### Linux & FreeBSD
+### Linux, FreeBSD & NetBSD
 
 Build-time dependencies:
- - `gcc` or `clang`
+ - `gcc` or `clang` with support for C++20
  - `git`
  - `cmake`
 
