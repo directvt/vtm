@@ -42,9 +42,9 @@ Text-based desktop environment inside your terminal*
 ### POSIX-oriented
 
 Build-time dependencies:
- - [`gcc`](https://gcc.gnu.org/projects/cxx-status.html) or [`clang`](https://clang.llvm.org/cxx_status.html) with support for C++20
  - `git`
  - `cmake`
+ - [`gcc`](https://gcc.gnu.org/projects/cxx-status.html) or [`clang`](https://clang.llvm.org/cxx_status.html) with support for C++20
 
 ```bash
 git clone https://github.com/netxs-group/VTM.git
