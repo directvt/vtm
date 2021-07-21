@@ -54,10 +54,7 @@ cd ./build
 cmake ../src -DEXECUTABLE_OUTPUT_PATH="../bin" -DCMAKE_BUILD_TYPE="Release" -DCMAKE_CXX_FLAGS="-pthread -s"
 cmake --build .
 cd ../bin
-mkdir -v "/var/vtm/"
-cp -v vtm* "/var/vtm/"
-ln -v -s -f /var/vtm/vtm*  "/usr/bin/"
-rm -rfv ../build
+cp -v vtm* "/usr/bin/"
 ```
 
 ### Windows
