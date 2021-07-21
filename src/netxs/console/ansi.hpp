@@ -21,8 +21,8 @@ namespace netxs::console::ansi
     using namespace netxs::events;
     using namespace netxs::ui::atoms;
 
-    static constexpr auto ESCCSI = "\x1B[";
-    static constexpr auto ESCOCS = "\x1B]";
+    static constexpr auto ESCCSI = "\033[";
+    static constexpr auto ESCOCS = "\033]";
 
     static const char CSI   = '['; // ESC [
     static const char OCS   = ']'; // ESC ]
@@ -221,35 +221,78 @@ namespace netxs::console::ansi
     static const iota CCC_KBD    = 27 ; // CSI 27: n       p  - Set keyboard modifiers.
 
     // ansi: Escaped sequences accumulator.
-    struct esc
+    class esc
         : public text
     {
-        esc() = default;
-        template<class T>
-        esc(T&& data) { add(std::forward<T>(data)); }
-
-        //todo eliminate allocations (std::string)
-        auto& clear()        { text::clear(); return *this;   }
-        void _add(char    t) { push_back (t);                 }
-        void _add(twod    t) { operator+=(t.str());           }
-        void _add(rect    t) { operator+=(t.str());           }
-        void _add(iota    t) { operator+=(std::to_string(t)); }
-        void _add(size_t  t) { operator+=(std::to_string(t)); }
-        void _add(uint8_t t) { operator+=(std::to_string(t)); }
+        char  heap[32];
+        char* tail = heap + sizeof(heap);
 
         template<class T>
-        void _add(T&& t) { operator+=(std::forward<T>(t)); }
-
-        template<class T>
-        auto& add(T&& data)
+        inline void itos(T data)
         {
-            _add(std::forward<T>(data));
+            auto cptr = tail;
+            auto bake = [&](auto bits)
+            {
+                do *--cptr = static_cast<char>('0' + bits % 10);
+                while(bits /= 10);
+            };
+            if constexpr (std::is_signed_v<T>)
+            {
+                if (data < 0)
+                {
+                    bake(std::make_unsigned_t<T>(-data));
+                    *--cptr = '-';
+                }
+                else bake(data);
+            }
+            else bake(data);
+            auto gain = tail - cptr;
+            auto size = text::size();
+            resize(size + gain);
+            memcpy(size + text::data(), cptr, gain);
+        }
+
+        template<class T>
+        inline void fuse(T&& data)
+        {
+            using D = std::remove_cv_t<std::remove_reference_t<T>>;
+            if constexpr (std::is_same_v<D, char>)
+            {
+                push_back(data);
+            }
+            else if constexpr (std::is_integral_v<D>)
+            {
+                itos(data);
+            }
+            else if constexpr (std::is_same_v<D, twod>)
+            {
+                operator+=("{ "); itos(data.x); operator+=(", ");
+                                  itos(data.y); operator+=(" }");
+            }
+            else if constexpr (std::is_same_v<D, rect>)
+            {
+                operator+=("{"); fuse(data.coor); operator+=(",");
+                                 fuse(data.size); operator+=("}");
+            }
+            else operator+=(std::forward<T>(data));
+        }
+
+    public:
+        esc() = default;
+
+        template<class T>
+        esc(T&& data) { fuse(std::forward<T>(data)); }
+
+        template<class T>
+        inline auto& add(T&& data)
+        {
+            fuse(std::forward<T>(data));
             return *this;
         }
         template<class T, class ...Args>
-        auto& add(T&& data, Args&&... data_list)
+        inline auto& add(T&& data, Args&&... data_list)
         {
-            _add(std::forward<T>(data));
+            fuse(std::forward<T>(data));
             return add(std::forward<Args>(data_list)...);
         }
 
@@ -318,7 +361,7 @@ namespace netxs::console::ansi
         esc& w32keybd(iota id, iota kc, iota sc, iota kd, iota ks, iota rc, iota uc)
         {
             add(ansi::W32_KEYBD_EVENT, ':');
-            if (id) _add(id);
+            if (id) fuse(id);
             return add(':', kc, ':',
                             sc, ':',
                             kd, ':',
@@ -330,7 +373,7 @@ namespace netxs::console::ansi
         esc& w32mouse(iota id, iota bttns, iota ctrls, iota flags, iota wheel, iota xcoor, iota ycoor)
         {
             add(ansi::W32_MOUSE_EVENT, ':');
-            if (id) _add(id);
+            if (id) fuse(id);
             return add(':', bttns, ':',
                             ctrls, ':',
                             flags, ':',
@@ -342,7 +385,7 @@ namespace netxs::console::ansi
         esc& w32focus(iota id, iota focus)
         {
             add(ansi::W32_FOCUS_EVENT, ':');
-            if (id) _add(id);
+            if (id) fuse(id);
             return add(':', focus, ';');
         }
         // ansi: win32-input-mode sequence (window resize).
@@ -535,7 +578,7 @@ namespace netxs::console::ansi
         esc& idx (iota i)        { return add("\033[19:", i  , CSI_CCC); } // esc: Split the text run and associate the fragment with an id.
         esc& ref (iota i)        { return add("\033[23:", i  , CSI_CCC); } // esc: Create the reference to the existing paragraph.
         esc& ext (iota b)        { return add("\033[25:", b  , CSI_CCC); } // esc: Extended functionality support, 0 - faux, 1 - true.
-        esc& show_mouse (bool b) { return add("\033[26:", b  , CSI_CCC); } // esc: Should the mouse poiner to be drawn.
+        esc& show_mouse (iota b) { return add("\033[26:", b  , CSI_CCC); } // esc: Should the mouse poiner to be drawn.
         esc& meta_state (iota m) { return add("\033[27:", m  , CSI_CCC); } // esc: Set keyboard meta modifiers (Ctrl, Shift, Alt, etc).
         //todo unify
         //esc& win (twod const& p){ return add("\033[20:", p.x, ':',              // esc: Terminal window resize report.

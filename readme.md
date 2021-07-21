@@ -1,15 +1,15 @@
 # Monotty Desktopio
 
-A text-based desktop environment inside your terminal*
+Text-based desktop environment inside your terminal*
 
 ![image](https://dice.netxs.online/cloud/vtm/mde_banner_v1.18.png)
 
 #### * Terminal Requirements
 
+ - [Unicode/UTF-8](https://www.cl.cam.ac.uk/~mgk25/unicode.html)
+ - [Grapheme Clustering](https://unicode.org/reports/tr29/#Grapheme_Cluster_Boundaries)
  - [24-bit True Color](https://gist.github.com/XVilka/8346728)
  - [xterm-style Mouse Reporting](https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h2-Mouse-Tracking)
- - [Grapheme Clustering](https://unicode.org/reports/tr29/#Grapheme_Cluster_Boundaries)
- - [Unicode/UTF-8](https://www.cl.cam.ac.uk/~mgk25/unicode.html)
 
 #### [Tested Terminals](https://github.com/netxs-group/VTM/discussions/72)
 
@@ -20,28 +20,31 @@ A text-based desktop environment inside your terminal*
 
 ### Video
 
- - [Desktop environment](https://youtu.be/fLumnSctakY)
- - [Collaborative interaction](https://youtu.be/0zU4e5Vam8c)
- - [Recursive connection](https://youtu.be/Fm5X75sO62c)
+ - [Desktop Environment](https://youtu.be/fLumnSctakY)
+ - [Collaborative Interaction](https://youtu.be/0zU4e5Vam8c)
+ - [Recursive Connection](https://youtu.be/Fm5X75sO62c)
 
 # Supported Platforms
 
-- Linux
-- FreeBSD
+- POSIX-oriented
+  - Linux
+  - macOS
+  - FreeBSD
+  - NetBSD
+  - OpenBSD
+  - [`...`](https://en.wikipedia.org/wiki/POSIX#POSIX-oriented_operating_systems)
 - Windows
   - Windows 10
   - Windows Server 2019
-- macOS
-  - Catalina 10.15
 
 # Building from Source
 
-### Linux & FreeBSD
+### POSIX-oriented
 
 Build-time dependencies:
- - `gcc` or `clang`
  - `git`
  - `cmake`
+ - [`gcc`](https://gcc.gnu.org/projects/cxx-status.html) or [`clang`](https://clang.llvm.org/cxx_status.html) with support for C++20
 
 ```bash
 git clone https://github.com/netxs-group/VTM.git
@@ -73,19 +76,14 @@ cd ../Release
 powershell ../src/install/install.ps1
 ```
 
-### macOS
+# Releases for `amd64`
 
-Build-time dependencies: `Xcode 12.x series`  
-Xcode project folder: `./VTM/vtm.xcodeproj`
-
-To build this project, use `Xcode` to open the project folder and go to the menu `Product` -> `Build`.
-
-# Releases
-
-[![](https://dice.netxs.online/cloud/vtm/status/macos)](https://github.com/netxs-group/VTM/releases/latest/download/vtm_macos.tar.gz)  
+[![](https://dice.netxs.online/cloud/vtm/status/macos)](https://github.com/netxs-group/VTM/releases/latest/download/vtm_macos_amd64.tar.gz)  
 [![](https://dice.netxs.online/cloud/vtm/status/freebsd)](https://github.com/netxs-group/VTM/releases/latest/download/vtm_freebsd_amd64.tar.gz)  
+[![](https://dice.netxs.online/cloud/vtm/status/netbsd)](https://github.com/netxs-group/VTM/releases/latest/download/vtm_netbsd_amd64.tar.gz)  
+[![](https://dice.netxs.online/cloud/vtm/status/openbsd)](https://github.com/netxs-group/VTM/releases/latest/download/vtm_openbsd_amd64.tar.gz)  
 [![](https://dice.netxs.online/cloud/vtm/status/linux)](https://github.com/netxs-group/VTM/releases/latest/download/vtm_linux_amd64.tar.gz)  
-[![](https://dice.netxs.online/cloud/vtm/status/windows)](https://github.com/netxs-group/VTM/releases/latest/download/vtm_windows_64.zip)  
+[![](https://dice.netxs.online/cloud/vtm/status/windows)](https://github.com/netxs-group/VTM/releases/latest/download/vtm_windows_amd64.zip)  
 
 ---
 
