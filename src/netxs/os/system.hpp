@@ -8,7 +8,7 @@
 #define VTM_USE_CLASSICAL_WIN32_INPUT // Turns on classical console win32 input mode.
 #endif
 
-#if defined(__unix__) && !defined(__linux__)
+#if (defined(__unix__) || defined(__APPLE__)) && !defined(__linux__)
     #define __BSD__
 #endif
 
@@ -1765,6 +1765,7 @@ namespace netxs::os
                     //todo unify see vtmd.cpp:1564, file system socket
                     path = "/tmp/" + path + ".sock";
                     sun_path--; // File system unix domain socket.
+                    log("open: file system socket ", path);
                 #endif
 
                 if (path.size() > sizeof(sockaddr_un::sun_path) - 2)
@@ -1780,6 +1781,7 @@ namespace netxs::os
                 if constexpr (ROLE == role::server)
                 {
                     #if defined(__BSD__)
+                        log("role server: cleanup file system socket ", path);
                         ::unlink(path.c_str()); // Cleanup file system socket.
                     #endif
 
