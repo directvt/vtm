@@ -76,13 +76,6 @@ cd ../Release
 powershell ../src/install/install.ps1
 ```
 
-### macOS
-
-Build-time dependencies: `Xcode 12.x series`  
-Xcode project folder: `./VTM/vtm.xcodeproj`
-
-To build this project, use `Xcode` to open the project folder and go to the menu `Product` -> `Build`.
-
 # Releases
 
 [![](https://dice.netxs.online/cloud/vtm/status/macos)](https://github.com/netxs-group/VTM/releases/latest/download/vtm_macos.tar.gz)  
