@@ -39,7 +39,7 @@ Text-based desktop environment inside your terminal*
 
 # Building from Source
 
-### Linux, FreeBSD & NetBSD
+### POSIX-oriented
 
 Build-time dependencies:
  - `gcc` or `clang` with support for C++20
