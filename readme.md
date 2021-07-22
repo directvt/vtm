@@ -87,7 +87,7 @@ Module               | Options
 `vtm(.exe)` client   | No arguments
 `vtmd(.exe)` server  | `[ -d ]` run in background
 
-# User Interface Commands
+# User Interface
 
 <table>
    <tr>
