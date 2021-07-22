@@ -53,8 +53,7 @@ mkdir build
 cd ./build
 cmake ../src -DEXECUTABLE_OUTPUT_PATH="../bin" -DCMAKE_BUILD_TYPE="Release" -DCMAKE_CXX_FLAGS="-pthread -s"
 cmake --build .
-cd ../bin
-cp -v vtm* "/usr/bin/"
+cp -v ../bin/vtm* "/usr/bin/"
 ```
 
 ### Windows
