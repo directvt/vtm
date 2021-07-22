@@ -94,13 +94,18 @@ Module               | Options
 Shortcut              | Action
 ----------------------|--------------------------------------
 `Ctrl + PgUp/Dn`      | Switch between windows
-`LeftClick`           | Taskbar: Go to window<br>Window: Assign exclusive keyboard focus
+`LeftClick`           | Taskbar: Go to window<br>
+                        Window: Assign exclusive keyboard focus
 `Ctrl + LeftClick`    | Assign/clear group keyboard focus
-double `LeftClick`    | Menu: Create new window<br>Window: Maximize/restore window
+double `LeftClick`    | Start Menu `≡`: Create new window<br>
+                        Window Menu `≡`: Close/destroy window<br>
+                        Window header: Maximize/restore window
 `RightClick`          | Taskbar: Move window to center of view
 `Left + Right`<br>or `MiddleClick` | Window: Close/destroy window
-`LeftDrag`            | Desktop: Scroll workspace<br>Window header: Move window
-`RightDrag`           | Desktop: Create new window<br>Window: Panoramic scrolling
+`LeftDrag`            | Desktop: Scroll workspace<br>
+                        Window header: Move window
+`RightDrag`           | Desktop: Create new window<br>
+                        Window: Panoramic scrolling
 `Left + RightDrag`    | Scroll workspace
 `Ctrl + RightDrag`<br>or `Ctrl + MiddleDrag` | Copy selected area to clipboard `OSC 52`
 `Wheel`               | Window: Vertical scrolling
