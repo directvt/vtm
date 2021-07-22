@@ -112,7 +112,10 @@ Module               | Options
       <td> RightClick </td> <td> </td> <td> Move app window to center of view </td> <td colspan = "4"> </td><td> Move app window to center of view </td> <td> </td>
    </tr>
    <tr>
-      <td> Left+Right or MiddleClick </td> <td colspan=3> </td> <td colspan = "4"> Close app </td> <td> </td>
+      <td> Left + RightClick </td> <td colspan=3 rowspan=2> </td> <td colspan = "4" rowspan=2> Close app </td> <td rowspan=2> </td>
+   </tr>
+   <tr>
+      <td> MiddleClick </td>
    </tr>
    <tr>
      <td> LeftDrag </td> <td colspan=3> Adjust Side Bar width </td> <td colspan = "4"> Move app window </td> <td> Scroll workspace </td>
