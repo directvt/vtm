@@ -100,13 +100,13 @@ Module               | Options
         <td> Ctrl + PgUp/Dn </td>    <td colspan = "8"> Switch between windows </td>
    </tr>
    <tr>
-      <td> LeftClick  </td> <td> Select default app </td>  <td> Go to window </td> <td> </td> <td colspan = "4"> Assign exclusive keyboard focus </td> <td> Clear keyboard focus </td>
+      <td> LeftClick  </td> <td> Select default app </td>  <td> Go to app </td> <td> </td> <td colspan = "4"> Assign exclusive keyboard focus </td> <td> Clear keyboard focus </td>
    </tr>
    <tr>
       <td> Ctrl + LeftClick </td>  <td colspan = "3"> </td> <td colspan = "4"> Assign/clear group keyboard focus </td> <td> </td>
    </tr>
    <tr>
-      <td> double LeftClick </td>  <td> Run App </td> <td colspan=2> </td> <td colspan = "3"> Maximize/restore window </td> <td colspan=2> </td>
+      <td> double LeftClick </td>  <td> Run app </td> <td colspan=2> </td> <td colspan = "3"> Maximize/restore app window </td> <td colspan=2> </td>
    </tr>
    <tr>
       <td> RightClick </td> <td> </td> <td> Move window to center of view </td> <td colspan = "4"> </td><td> Move window to center of view </td> <td> </td>
