@@ -1,7 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#define MONOTTY_VER "Monotty Desktopio v0.5.6"
+#define MONOTTY_VER "Monotty Desktopio v0.5.7"
 // Autostart demo apps.
 //#define DEMO
 // Enable keyboard input and disable exit by single Esc.
@@ -262,13 +262,13 @@ class post_logs
             auto max_col = 12;
             auto wc = 5;
 
-            yield.clear()
-                .wrp(wrap::off)
-                .bgc(ansi::yellowlt).add(utf::repeat(' ', max_col * (wc + 3))).eol().bgc()
-                .add("STDOUT: plain text, ", shadow.size(), " bytes")
-                .eol().bgc(ansi::whitedk).fgc(blackdk)
-                .add(utf::debase(shadow))
-                .fgc().bgc().eol().eol();
+            yield.clear();
+            yield.wrp(wrap::off)
+                 .bgc(ansi::yellowlt).add(utf::repeat(' ', max_col * (wc + 3))).eol().bgc()
+                 .add("STDOUT: plain text, ", shadow.size(), " bytes")
+                 .eol().bgc(ansi::whitedk).fgc(blackdk)
+                 .add(utf::debase(shadow))
+                 .fgc().bgc().eol().eol();
             if (show_codepoints)
             {
                 yield.wrp(wrap::off).add("STDOUT: codepoints").eol();
@@ -1761,6 +1761,10 @@ utility like ctags is used to locate the definitions.
 
                                 auto inst = scroll->attach<ui::term>("csh -c 'LC_ALL=en_US.UTF-8 mc -c -x'");
 
+                            #elif defined(__unix__)
+
+                                auto inst = scroll->attach<ui::term>("sh -c 'LC_ALL=en_US.UTF-8 mc -c -x'");
+
                             #endif
 
                             inst->colors(whitelt, blackdk);
@@ -1878,6 +1882,10 @@ utility like ctags is used to locate the definitions.
 
                                         auto inst = scroll->attach<ui::term>("csh");
 
+                                    #elif defined(__unix__)
+
+                                        auto inst = scroll->attach<ui::term>("sh");
+
                                     #endif
 
                                     inst->colors(whitelt, blackdk);
@@ -1931,7 +1939,6 @@ utility like ctags is used to locate the definitions.
                                                     ->colors(whitelt, 0xFF560000);
                                     scroll->attach<ui::term>("powershell")
                                         ->colors(whitelt, 0xFF562401);
-                            //layers->attach(scroll_bars_term(scroll));
                             auto scroll_bars = layers->attach<ui::fork>();
                                 auto vt = scroll_bars->attach<slot::_2, ui::grip<axis::Y>>(scroll);
                                 auto hz = term_stat_area->attach<slot::_2, ui::grip<axis::X>>(scroll);
@@ -1990,11 +1997,12 @@ utility like ctags is used to locate the definitions.
                                 auto inst = scroll->attach<ui::term>("zsh");
                             #elif defined(__FreeBSD__)
                                 auto inst = scroll->attach<ui::term>("csh");
+                            #elif defined(__unix__)
+                                auto inst = scroll->attach<ui::term>("sh");
                             #endif
 
                                 inst->colors(whitelt, blackdk);
 
-                        //layers->attach(scroll_bars_term(scroll));
                         auto scroll_bars = layers->attach<ui::fork>();
                             auto vt = scroll_bars->attach<slot::_2, ui::grip<axis::Y>>(scroll);
                             auto hz = term_stat_area->attach<slot::_2, ui::grip<axis::X>>(scroll);

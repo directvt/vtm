@@ -20,6 +20,10 @@ namespace netxs
 
     struct noop { template<class ...T> void operator()(T...) {}; };
 
+    template <class T>
+    using to_signed_t = std::conditional_t<(int64_t)std::numeric_limits<std::remove_reference_t<T>>::max() <= std::numeric_limits<int16_t>::max(), int16_t,
+                        std::conditional_t<(int64_t)std::numeric_limits<std::remove_reference_t<T>>::max() <= std::numeric_limits<int32_t>::max(), int32_t, int64_t>>;
+
     // intmath: Summ and return TRUE in case of
     //          unsigned integer overflow and store result in accum.
     template<class T1, class T2>
