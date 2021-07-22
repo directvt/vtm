@@ -47,13 +47,10 @@ Build-time dependencies:
  - [`gcc`](https://gcc.gnu.org/projects/cxx-status.html) or [`clang`](https://clang.llvm.org/cxx_status.html) with support for C++20
 
 ```bash
-git clone https://github.com/netxs-group/VTM.git
-cd ./VTM
-mkdir build
-cd ./build
-cmake ../src -DEXECUTABLE_OUTPUT_PATH="../bin" -DCMAKE_BUILD_TYPE="Release" -DCMAKE_CXX_FLAGS="-pthread -s"
+git clone https://github.com/netxs-group/VTM.git && cd ./VTM
+cmake ./src -DCMAKE_BUILD_TYPE="Release"
 cmake --build .
-cp -v ../bin/vtm* "/usr/bin/"
+cp -v ./vtm* "/usr/bin/"
 ```
 
 ### Windows
@@ -62,13 +59,10 @@ Build-time dependencies: `Visual Studio 2019`
 
 Use `Developer Command Prompt for VS 2019`
 ```cmd
-git clone https://github.com/netxs-group/VTM.git
-cd ./VTM
-mkdir build
-cd ./build
-cmake ../src -DEXECUTABLE_OUTPUT_PATH=".." -DCMAKE_BUILD_TYPE=Release "-GVisual Studio 16 2019" -DCMAKE_CXX_FLAGS="/DWIN32 /D_WINDOWS /W3 /GR /EHsc /bigobj"
+git clone https://github.com/netxs-group/VTM.git && cd ./VTM
+cmake ./src -DCMAKE_BUILD_TYPE=Release "-GVisual Studio 16 2019"
 cmake --build . --config Release
-cd ../Release
+cd ./Release
 powershell ../src/install/install.ps1
 ```
 
