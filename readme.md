@@ -48,7 +48,7 @@ Build-time dependencies:
 
 ```bash
 git clone https://github.com/netxs-group/VTM.git && cd ./VTM
-cmake ./src -DCMAKE_BUILD_TYPE="Release"
+cmake ./src -DCMAKE_BUILD_TYPE=Release
 cmake --build .
 cmake --install .
 ```
