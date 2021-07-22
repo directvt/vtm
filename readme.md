@@ -88,31 +88,6 @@ Module               | Options
 
 `ButtonClick + Drag` = `ButtonDrag`
 
-
-<table>
-    <tr>
-        <td> Action </td> <td> Taskbar </td> <td> Window </td> <td> Start Menu `≡` </td> <td> Window Menu `≡` </td> <td> Window header </td> <td> Desktop </td>
-   </tr>
-   <tr>
-        <td>`Ctrl + PgUp/Dn`</td>    <td style="text-align: center;" colspan = "6"> Switch between windows </td>
-   </tr>
-   <tr>
-		<td rowspan = "2"> `LeftClick` </td>     <td> Go to window </td> <td> </td> <td> </td> <td> </td> <td> </td> <td> </td>
- 		                                         <td>  </td>             <td> Assign exclusive keyboard focus </td> <td> </td> <td> </td> <td> </td> <td> </td>
-
-		<td> `LeftClick` </td>     <td> Go to window </td> <td> </td> <td> </td> <td> </td> <td> </td> <td> </td>
-
-   </tr>
-    <tr>
-                 <td rowspan = "2"> I am a merged column </td>
-                 <td> row three columns two </td>
-    </tr>
-    <tr>
-                 <td> Two rows and four columns </td>
-    </tr>
-</table>
-
-
 Shortcut              | Action
 ----------------------|--------------------------------------
 `Ctrl + PgUp/Dn`      | Switch between windows
