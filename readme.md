@@ -100,7 +100,7 @@ Module               | Options
         <td> Ctrl + PgUp/Dn </td>    <td colspan = "8"> Switch between running apps </td>
    </tr>
    <tr>
-      <td> LeftClick  </td> <td> Select default app </td>  <td> Go to app </td> <td> </td> <td colspan = "4"> Assign exclusive keyboard focus </td> <td> Clear keyboard focus </td>
+      <td> LeftClick  </td> <td> Select default app </td>  <td> Go to app </td> <td> </td> <td colspan = "3"> Assign exclusive keyboard focus </td> <td> Go to app </td> <td> Clear keyboard focus </td>
    </tr>
    <tr>
       <td> Ctrl + LeftClick </td>  <td colspan = "3"> </td> <td colspan = "4"> Assign/clear group keyboard focus </td> <td> </td>
