@@ -88,17 +88,20 @@ Module               | Options
 
 `ButtonClick + Drag` = `ButtonDrag`
 
+
 <table>
     <tr>
-        <td> First column </td>
-                 <td> Second column </td>
+        <td> Action </td> <td> Taskbar </td> <td> Window </td> <td> Start Menu `≡` </td> <td> Window Menu `≡` </td> <td> Window header </td> <td> Desktop </td>
    </tr>
    <tr>
-                 <td colspan = "2"> I am merging rows </td>
+        <td>`Ctrl + PgUp/Dn`</td>    <td style="text-align: center;" colspan = "6"> Switch between windows </td>
    </tr>
    <tr>
-                 <td> Row 2 column 1 </td>
-                 <td> Row 2 column 2 </td>
+		<td rowspan = "2"> `LeftClick` </td>     <td> Go to window </td> <td> </td> <td> </td> <td> </td> <td> </td> <td> </td>
+ 		                                         <td>  </td>             <td> Assign exclusive keyboard focus </td> <td> </td> <td> </td> <td> </td> <td> </td>
+
+		<td> `LeftClick` </td>     <td> Go to window </td> <td> </td> <td> </td> <td> </td> <td> </td> <td> </td>
+
    </tr>
     <tr>
                  <td rowspan = "2"> I am a merged column </td>
@@ -108,6 +111,7 @@ Module               | Options
                  <td> Two rows and four columns </td>
     </tr>
 </table>
+
 
 Shortcut              | Action
 ----------------------|--------------------------------------
