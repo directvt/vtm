@@ -19,7 +19,12 @@ else ()
     else ()
         set (CMAKE_CXX_FLAGS "-pthread")
     endif ()
-endif (WIN32)
+endif ()
 
 add_executable (vtmd "vtmd.cpp")
 add_executable (vtm  "vtm.cpp")
+
+if (NOT WIN32)
+    install (TARGETS vtmd DESTINATION bin)
+    install (TARGETS vtm  DESTINATION bin)
+endif ()
