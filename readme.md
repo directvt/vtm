@@ -51,7 +51,6 @@ git clone https://github.com/netxs-group/VTM.git && cd ./VTM
 cmake ./src -DCMAKE_BUILD_TYPE=Release
 cmake --build .
 cmake --install .
-
 ```
 
 ### Windows
@@ -65,7 +64,6 @@ cmake ./src -DCMAKE_BUILD_TYPE=Release "-GVisual Studio 16 2019"
 cmake --build . --config Release
 cd ./Release
 powershell ../src/install/install.ps1
-
 ```
 
 # Releases for `amd64`
