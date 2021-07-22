@@ -88,6 +88,27 @@ Module               | Options
 
 `ButtonClick + Drag` = `ButtonDrag`
 
+<table>
+    <tr>
+        <td> First column </ td> 
+                 <td> Second column </ td> 
+   </tr>
+   <tr>
+                 <td colspan = "2"> I am merging rows </ td>    
+   </tr>
+   <tr>
+                 <td> Row 2 column 1 </ td> 
+                 <td> Row 2 column 2 </ td> 
+   </tr>
+    <tr>
+                 <td rowspan = "2"> I am a merged column </ td>    
+                 <td> row three columns two </ td>  
+    </tr>
+    <tr>
+                 <td> Two rows and four columns </ td>  
+    </tr>
+</table>
+
 Shortcut              | Action
 ----------------------|--------------------------------------
 `Ctrl + PgUp/Dn`      | Switch between windows
