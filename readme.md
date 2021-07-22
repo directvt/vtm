@@ -50,7 +50,7 @@ Build-time dependencies:
 git clone https://github.com/netxs-group/VTM.git && cd ./VTM
 cmake ./src -DCMAKE_BUILD_TYPE="Release"
 cmake --build .
-cp -v ./vtm* "/usr/bin/"
+cmake --install .
 ```
 
 ### Windows
