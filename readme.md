@@ -91,10 +91,10 @@ Module               | Options
 
 <table>
    <tr>
-        <td rowspan=2/> <td colspan=3> Side Bar </td> <td colspan=3> App window </td> <td colspan=2> Desktop </td>
+        <td rowspan=2></td> <td colspan=3> Side Bar </td> <td colspan=3> App window </td> <td colspan=2> Desktop </td>
    </tr>
    <tr>
-                       <td> Apps </td> <td> Running </td> <td> Users </td> <td> ≡ Menu </td> <td> Menu bar </td> <td> Interior </td> <td> Navigation strings </td> <td> Free space </td>
+     <td> Apps </td> <td> Running </td> <td> Users </td> <td> ≡ Menu </td> <td> Menu bar </td> <td> Interior </td> <td> Navigation strings </td> <td> Free space </td>
    </tr>
    <tr>
         <td> Ctrl + PgUp/Dn </td>    <td colspan = "8"> Switch between running apps and assign exclusive keyboard focus </td>
@@ -112,10 +112,7 @@ Module               | Options
       <td> RightClick </td> <td> </td> <td> Move app window to center of view </td> <td colspan = "4"> </td><td> Move app window to center of view </td> <td> </td>
    </tr>
    <tr>
-      <td> Left + RightClick </td> <td colspan=3 rowspan=2> </td> <td colspan = "4" rowspan=2> Close app </td> <td rowspan=2> </td>
-   </tr>
-   <tr>
-      <td> MiddleClick </td>
+      <td> Left+Right or MiddleClick </td> <td colspan=3> </td> <td colspan = "4"> Close app </td> <td> </td>
    </tr>
    <tr>
      <td> LeftDrag </td> <td colspan=3> Adjust Side Bar width </td> <td colspan = "4"> Move app window </td> <td> Scroll workspace </td>
