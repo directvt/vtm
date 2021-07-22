@@ -23,3 +23,6 @@ endif (WIN32)
 
 add_executable (vtmd "vtmd.cpp")
 add_executable (vtm  "vtm.cpp")
+
+install (TARGETS vtmd DESTINATION bin)
+install (TARGETS vtm DESTINATION bin)
