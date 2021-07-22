@@ -91,13 +91,13 @@ Module               | Options
 
 <table>
    <tr>
-        <td rowspan=2/> <td colspan=3> Side Bar </td> <td colspan=3> App Window </td> <td colspan=2> Desktop </td>
+        <td rowspan=2/> <td colspan=3> Side Bar </td> <td colspan=3> App window </td> <td colspan=2> Desktop </td>
    </tr>
    <tr>
-                       <td> App List </td> <td> Running List </td> <td> User List </td> <td> Interior </td> <td> Menu `≡` </td> <td> Menu bar </td> <td> Navigation Strings </td> <td> Free space </td>
+                       <td> Apps </td> <td> Running </td> <td> Users </td> <td> Interior </td> <td> ≡ Menu </td> <td> Menu bar </td> <td> Navigation strings </td> <td> Free space </td>
    </tr>
    <tr>
-        <td> Ctrl + PgUp/Dn </td>    <td colspan = "8"> Switch between windows </td>
+        <td> Ctrl + PgUp/Dn </td>    <td colspan = "8"> Switch between running apps </td>
    </tr>
    <tr>
       <td> LeftClick  </td> <td> Select default app </td>  <td> Go to app </td> <td> </td> <td colspan = "4"> Assign exclusive keyboard focus </td> <td> Clear keyboard focus </td>
@@ -109,10 +109,10 @@ Module               | Options
       <td> double LeftClick </td>  <td> Run app </td> <td colspan=2> </td> <td colspan = "3"> Maximize/restore app window </td> <td colspan=2> </td>
    </tr>
    <tr>
-      <td> RightClick </td> <td> </td> <td> Move window to center of view </td> <td colspan = "4"> </td><td> Move window to center of view </td> <td> </td>
+      <td> RightClick </td> <td> </td> <td> Move app window to center of view </td> <td colspan = "4"> </td><td> Move app window to center of view </td> <td> </td>
    </tr>
    <tr>
-      <td> Left+Right or MiddleClick </td> <td colspan=3> </td> <td colspan = "4"> Close/destroy app </td> <td> </td>
+      <td> Left+Right or MiddleClick </td> <td colspan=3> </td> <td colspan = "4"> Close app </td> <td> </td>
    </tr>
    <tr>
      <td> LeftDrag </td> <td colspan=3> Adjust Side Bar width </td> <td colspan = "4"> Move app window </td> <td> Scroll workspace </td>
