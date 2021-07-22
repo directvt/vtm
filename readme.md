@@ -97,7 +97,7 @@ Module               | Options
                        <td> Apps </td> <td> Running </td> <td> Users </td> <td> Interior </td> <td> ≡ Menu </td> <td> Menu bar </td> <td> Navigation strings </td> <td> Free space </td>
    </tr>
    <tr>
-        <td> Ctrl + PgUp/Dn </td>    <td colspan = "8"> Switch between running apps </td>
+        <td> Ctrl + PgUp/Dn </td>    <td colspan = "8"> Switch between running apps and assign exclusive keyboard focus </td>
    </tr>
    <tr>
       <td> LeftClick  </td> <td> Select default app </td>  <td> Go to app </td> <td> </td> <td colspan = "3"> Assign exclusive keyboard focus </td> <td> Go to app </td> <td> Clear keyboard focus </td>
