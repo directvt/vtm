@@ -89,22 +89,50 @@ Module               | Options
 
 # User Interface Commands
 
-`ButtonClick + Drag` = `ButtonDrag`
-
-Shortcut              | Action
-----------------------|--------------------------------------
-`Ctrl + PgUp/Dn`      | Switch between windows
-`LeftClick`           | Taskbar: Go to window<br>Window: Assign exclusive keyboard focus
-`Ctrl + LeftClick`    | Assign/clear group keyboard focus
-double `LeftClick`    | Start Menu `≡`: Create new window<br>Window Menu `≡`: Close/destroy window<br>Window header: Maximize/restore window
-`RightClick`          | Taskbar: Move window to center of view
-`Left + Right`<br>or `MiddleClick` | Window: Close/destroy window
-`LeftDrag`            | Desktop: Scroll workspace<br>Window header: Move window
-`RightDrag`           | Desktop: Create new window<br>Window: Panoramic scrolling
-`Left + RightDrag`    | Scroll workspace
-`Ctrl + RightDrag`<br>or `Ctrl + MiddleDrag` | Copy selected area to clipboard `OSC 52`
-`Wheel`               | Window: Vertical scrolling
-`Shift + Wheel`<br>or `Ctrl + Wheel` | Window: Horizontal scrolling
+<table>
+   <tr>
+        <td rowspan=2/> <td colspan=3> Side Bar </td> <td colspan=3> App Window </td> <td colspan=2> Desktop </td>
+   </tr>
+   <tr>
+                       <td> App List </td> <td> Running List </td> <td> User List </td> <td> Interior </td> <td> Menu `≡` </td> <td> Menu bar </td> <td> Navigation Strings </td> <td> Free space </td>
+   </tr>
+   <tr>
+        <td> Ctrl + PgUp/Dn </td>    <td colspan = "8"> Switch between windows </td>
+   </tr>
+   <tr>
+      <td> LeftClick  </td> <td> Select default app </td>  <td> Go to window </td> <td> </td> <td colspan = "4"> Assign exclusive keyboard focus </td> <td> Clear keyboard focus </td>
+   </tr>
+   <tr>
+      <td> Ctrl + LeftClick </td>  <td colspan = "3"> </td> <td colspan = "4"> Assign/clear group keyboard focus </td> <td> </td>
+   </tr>
+   <tr>
+      <td> double LeftClick </td>  <td> Run App </td> <td colspan=2> </td> <td colspan = "3"> Maximize/restore window </td> <td colspan=2> </td>
+   </tr>
+   <tr>
+      <td> RightClick </td> <td> </td> <td> Move window to center of view </td> <td colspan = "4"> </td><td> Move window to center of view </td> <td> </td>
+   </tr>
+   <tr>
+      <td> Left+Right or MiddleClick </td> <td colspan=3> </td> <td colspan = "4"> Close/destroy app </td> <td> </td>
+   </tr>
+   <tr>
+     <td> LeftDrag </td> <td colspan=3> Adjust Side Bar width </td> <td colspan = "4"> Move app window </td> <td> Scroll workspace </td>
+   </tr>
+   <tr>
+     <td> RightDrag </td> <td colspan=3> </td> <td> Panoramic scrolling </td> <td colspan=3> </td> <td> Run default app </td>
+   </tr>
+   <tr>
+     <td> Left+RightDrag </td> <td colspan=8> Scroll workspace </td>
+   </tr>
+   <tr>
+     <td> Ctrl+RightDrag or Ctrl+MiddleDrag </td> <td colspan=8> Copy selected area to clipboard, OSC 52 </td>
+   </tr>
+   <tr>
+     <td> Wheel </td> <td colspan=4> Vertical scrolling </td> <td colspan=4> </td>
+   </tr>
+   <tr>
+     <td> Shift+Wheel or Ctrl+Wheel </td> <td colspan=4> Horizontal scrolling </td> <td colspan=4> </td>
+   </tr>
+</table>
 
 # Built-in Applications
 
