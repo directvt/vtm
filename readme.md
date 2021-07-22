@@ -94,7 +94,7 @@ Module               | Options
         <td rowspan=2/> <td colspan=3> Side Bar </td> <td colspan=3> App window </td> <td colspan=2> Desktop </td>
    </tr>
    <tr>
-                       <td> Apps </td> <td> Running </td> <td> Users </td> <td> Interior </td> <td> ≡ Menu </td> <td> Menu bar </td> <td> Navigation strings </td> <td> Free space </td>
+                       <td> Apps </td> <td> Running </td> <td> Users </td> <td> ≡ Menu </td> <td> Menu bar </td> <td> Interior </td> <td> Navigation strings </td> <td> Free space </td>
    </tr>
    <tr>
         <td> Ctrl + PgUp/Dn </td>    <td colspan = "8"> Switch between running apps and assign exclusive keyboard focus </td>
@@ -106,7 +106,7 @@ Module               | Options
       <td> Ctrl + LeftClick </td>  <td colspan = "3"> </td> <td colspan = "4"> Assign/clear group keyboard focus </td> <td> </td>
    </tr>
    <tr>
-      <td> double LeftClick </td>  <td> Run app </td> <td colspan=2> </td> <td colspan = "3"> Maximize/restore app window </td> <td colspan=2> </td>
+      <td> double LeftClick </td>  <td> Run app </td> <td colspan=2> </td> <td> Close app </td> <td colspan = "2"> Maximize/restore app window </td> <td colspan=2> </td>
    </tr>
    <tr>
       <td> RightClick </td> <td> </td> <td> Move app window to center of view </td> <td colspan = "4"> </td><td> Move app window to center of view </td> <td> </td>
@@ -118,7 +118,7 @@ Module               | Options
      <td> LeftDrag </td> <td colspan=3> Adjust Side Bar width </td> <td colspan = "4"> Move app window </td> <td> Scroll workspace </td>
    </tr>
    <tr>
-     <td> RightDrag </td> <td colspan=3> </td> <td> Panoramic scrolling </td> <td colspan=3> </td> <td> Run default app </td>
+     <td> RightDrag </td> <td colspan=5> </td> <td> Panoramic scrolling </td> <td colspan=1> </td> <td> Run default app </td>
    </tr>
    <tr>
      <td> Left+RightDrag </td> <td colspan=8> Scroll workspace </td>
@@ -127,10 +127,10 @@ Module               | Options
      <td> Ctrl+RightDrag or Ctrl+MiddleDrag </td> <td colspan=8> Copy selected area to clipboard, OSC 52 </td>
    </tr>
    <tr>
-     <td> Wheel </td> <td colspan=4> Vertical scrolling </td> <td colspan=4> </td>
+     <td> Wheel </td> <td colspan=6> Vertical scrolling </td> <td colspan=2> </td>
    </tr>
    <tr>
-     <td> Shift+Wheel or Ctrl+Wheel </td> <td colspan=4> Horizontal scrolling </td> <td colspan=4> </td>
+     <td> Shift+Wheel or Ctrl+Wheel </td> <td colspan=6> Horizontal scrolling </td> <td colspan=2> </td>
    </tr>
 </table>
 
