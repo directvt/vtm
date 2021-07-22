@@ -41,7 +41,7 @@ Text-based desktop environment inside your terminal*
 
 ### POSIX-oriented
 
-Build-time dependencies:
+Build-time dependencies
  - `git`
  - `cmake`
  - [`gcc`](https://gcc.gnu.org/projects/cxx-status.html) or [`clang`](https://clang.llvm.org/cxx_status.html) with support for C++20
@@ -55,9 +55,12 @@ cmake --install .
 
 ### Windows
 
-Build-time dependencies: `Visual Studio 2019`
+Build-time dependencies
+ - `git`
+ - `cmake`
+ - `Visual Studio 2019`
 
-Use `Developer Command Prompt for VS 2019`
+Use `Developer Command Prompt for VS 2019` as a build environment
 ```cmd
 git clone https://github.com/netxs-group/VTM.git && cd ./VTM
 cmake ./src -DCMAKE_BUILD_TYPE=Release "-GVisual Studio 16 2019"
