@@ -69,7 +69,7 @@ cd ./Release
 powershell ../src/install/install.ps1
 ```
 
-# Releases for `amd64`
+# Binaries for `amd64`
 
 [![](https://dice.netxs.online/cloud/vtm/status/macos)](https://github.com/netxs-group/VTM/releases/latest/download/vtm_macos_amd64.tar.gz)  
 [![](https://dice.netxs.online/cloud/vtm/status/freebsd)](https://github.com/netxs-group/VTM/releases/latest/download/vtm_freebsd_amd64.tar.gz)  
