@@ -4826,6 +4826,18 @@ namespace netxs::console
                                                         constexpr static int wheel = sysmouse::wheel;
                                                         constexpr static int joint = sysmouse::leftright;
 
+                                                        if (ctl == 35 &&(mouse.button[first]
+                                                                      || mouse.button[midst]
+                                                                      || mouse.button[other]
+                                                                      || mouse.button[winbt]))
+                                                        {
+                                                            // Moving without buttons (case when second release not fired: wezterm, terminal.app)
+                                                            mouse.button[first] = faux;
+                                                            mouse.button[midst] = faux;
+                                                            mouse.button[other] = faux;
+                                                            mouse.button[winbt] = faux;
+                                                            owner.SIGNAL(e2::release, e2::term::mouse, mouse);
+                                                        }
                                                         // Moving should be fired first
                                                         if ((mouse.ismoved = mouse.coor({ x, y })))
                                                         {

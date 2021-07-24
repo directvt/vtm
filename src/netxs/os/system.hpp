@@ -268,6 +268,9 @@ namespace netxs::os
             "tmux",
             "fbcon",
         };
+        auto vga256colors = {
+            "rxvt-unicode-256color",
+        };
         iota mode = legacy::clean;
         auto term = os::get_env("TERM");
         if (term.size())
@@ -285,6 +288,17 @@ namespace netxs::os
                     {
                         mode |= legacy::vga16;
                         break;
+                    }
+                }
+                if (!mode)
+                {
+                    for (auto& type : vga256colors)
+                    {
+                        if (term == type)
+                        {
+                            mode |= legacy::vga256;
+                            break;
+                        }
                     }
                 }
             }
