@@ -103,7 +103,8 @@ namespace netxs::ui
             }
             void take(line& l) { take(l.get_type(), l.length(), l.cur_type, l.cur_size); }
             void drop(line& l) { drop(l.cur_type, l.cur_size); }
-            auto max (type  t) { return lens[t].max;           }
+            template<type T>
+            auto max() { return lens[T].max; }
         };
 
         // For debug
@@ -153,15 +154,21 @@ namespace netxs::ui
         {
             return batch.size;
         }
-        auto recalc_pads()
+        auto recalc_pads(side& oversz)
         {
-            auto left = std::max(0, xsize.max(line::rghtside) - panel.x);
-            auto rght = std::max(0, xsize.max(line::leftside) - panel.x);
-            auto cntr = std::max(0, xsize.max(line::centered) - panel.x);
+            auto left = std::max(0, xsize.max<line::rghtside>() - panel.x);
+            auto rght = std::max(0, xsize.max<line::leftside>() - panel.x);
+            auto cntr = std::max(0, xsize.max<line::centered>() - panel.x);
             auto both = cntr >> 1;
             left = std::max(left, both);
             rght = std::max(rght, both + (cntr & 1));
-            return std::pair{ left, rght };
+            if (oversz.r != rght || oversz.l != left)
+            {
+                oversz.r = rght;
+                oversz.l = left;
+                return true;
+            }
+            else return faux;
         }
         // rods: Map caret position from scrollback to viewport.
         auto get_coord()
@@ -376,7 +383,7 @@ namespace netxs::ui
             flow::reset(canvas);
             auto head = canvas.view().coor.y - canvas.full().coor.y;
             auto tail = head + panel.y;
-            auto maxy = xsize.max(line::autowrap) / panel.x;
+            auto maxy = xsize.max<line::autowrap>() / panel.x;
             head = std::clamp(head - maxy, 0, batch.size);
             tail = std::clamp(tail       , 0, batch.size);
             auto coor = twod{ 0, tail };
@@ -485,7 +492,7 @@ namespace netxs::ui
         void rebuild_viewport()
         {
             align_basis();
-            auto maxy = xsize.max(line::autowrap) / panel.x;
+            auto maxy = xsize.max<line::autowrap>() / panel.x;
             auto head = std::max(0, basis - maxy);
             rebuild_upto_id(batch[head].selfid);
             get_coord();
@@ -528,6 +535,14 @@ namespace netxs::ui
                 }
                 while (line_iter != head_iter);
             }
+        }
+        // rods: Dissect auto-wrapped line at the current coord.
+        void dissect()
+        {
+            auto current_it = batch.begin() + basis + coord.y;
+            dissect(current_it);
+            rebuild_upto_id(current_it->selfid);
+            set_coord();
         }
         // rods: Move block to the specified destination. If begin_it > end_it decrement is used.
         template<class SRC, class DST>
@@ -1000,6 +1015,7 @@ namespace netxs::ui
                     vt::csier.table[CSI_CCC][CCC_RST] = VT_PROC{ p->style.glb();    };  // fx_ccc_rst
                     vt::csier.table[CSI_CCC][CCC_SBS] = VT_PROC{ p->boss.scrollbuffer_size(q); };  // CCC_SBS: Set scrollback size.
                     vt::csier.table[CSI_CCC][CCC_EXT] = VT_PROC{ p->boss.native(q(1)); };  // CCC_EXT: Setup extended functionality.
+                    vt::csier.table[CSI_CCC][CCC_WRP] = VT_PROC{ p->wrp(q(0)); };  // CCC_WRP
 
                     vt::intro[ctrl::ESC][ESC_IND] = VT_PROC{ p->dn(1); }; // ESC D  Caret Down.
                     vt::intro[ctrl::ESC][ESC_IR ] = VT_PROC{ p->ri (); }; // ESC M  Reverse index.
@@ -1079,6 +1095,13 @@ namespace netxs::ui
                     }
                 }
                 log("CSI ", params, " ", (unsigned char)i, "(", std::to_string(i), ") is not implemented.");
+            }
+            // scrollbuff: CCC_WRP:  Set autowrap mode.
+            void wrp(iota w)
+            {
+                finalize();
+                dissect();
+                style.wrp(w);
             }
             // scrollbuff: ESC H  Place tabstop at the current caret posistion.
             void stb()
@@ -1735,7 +1758,6 @@ namespace netxs::ui
         }
         auto recalc()
         {
-            oversize.set(target->recalc_pads());
             auto cursor_coor = target->cp();
             auto scroll_size = screen.size;
             auto follow_view = screen.coor.y == -base::coor().y;
@@ -1761,8 +1783,12 @@ namespace netxs::ui
                 {
                     SIGNAL(e2::general, e2::debug::output, shadow); // Post for the Logs.
                     ansi::parse(shadow, target); // Append target using current insertion point.
+                    auto adjust_pads = target->recalc_pads(oversz);
                     auto scroll_size = recalc();
-                    if (scroll_size != base::size()) SIGNAL(e2::release, e2::size::set, scroll_size); // Update scrollbars.
+                    if (scroll_size != base::size() || adjust_pads)
+                    {
+                        SIGNAL(e2::release, e2::size::set, scroll_size); // Update scrollbars.
+                    }
                     base::deface();
                     break;
                 }
@@ -1835,11 +1861,12 @@ namespace netxs::ui
                             screen.size = new_sz;
                             altbuf.resize<faux>(new_sz.y);
                             target->rebuild_viewport();
+                            target->recalc_pads(oversz);
                             new_sz = recalc();
                             ptycon.resize(screen.size);
                         };
-                        ptycon.start(cmdline, new_sz, [&](auto utf8_shadow) { input_hndl(utf8_shadow); }
-                                                    , [&](auto exit_code) { shutdown_hndl(exit_code); });
+                        ptycon.start(cmdline, new_sz, [&](auto utf8_shadow) { input_hndl(utf8_shadow); },
+                                                      [&](auto exit_code) { shutdown_hndl(exit_code); });
                     }
                 };
             };

@@ -792,10 +792,10 @@ namespace netxs::ui
             base::anchor.y -= entry.coor.y; // Move the central point accordingly to the anchored object
 
             auto& cover = flow::minmax();
-            base::oversize.set(-std::min(0, cover.l),
-                                std::max(0, cover.r - width.x + 1),
-                               -std::min(0, cover.t),
-                                0);
+            base::oversz.set(-std::min(0, cover.l),
+                              std::max(0, cover.r - width.x + 1),
+                             -std::min(0, cover.t),
+                              0);
             width.y = cover.height() + (beyond ? width.y : 1); //todo unify (text editor)
         }
         void recalc(twod const& size)
@@ -1124,9 +1124,9 @@ namespace netxs::ui
             {
                 auto& thing = *client;
                 auto  block = thing.base::area();
-                auto  basis = thing.oversize.topleft();
+                auto  basis = thing.oversz.topleft();
                 block.coor -= basis; // Scroll origin basis.
-                block.size += thing.oversize.summ();
+                block.size += thing.oversz.summ();
                 auto& frame = base::size();
                 auto  level = AXIS == X;
                 auto  bound = level ? std::min(frame.x - block.size.x, 0)
@@ -1145,7 +1145,7 @@ namespace netxs::ui
                     }
                 }
 
-                scinfo.beyond = thing.oversize;  // Oversize value.
+                scinfo.beyond = thing.oversz;  // Oversize value.
                 scinfo.region = block.size;
                 scinfo.window.coor =-block.coor; // Viewport.
                 scinfo.window.size = frame;      //
