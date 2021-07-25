@@ -752,7 +752,7 @@ namespace netxs::ui
                     case b::drag::pull::left  : if (isdrag) proceed<PROT>(gear, idle + left, true); break;
                     case b::drag::pull::middle: if (isdrag) proceed<PROT>(gear, idle + mddl, true); break;
                     case b::drag::pull::right : if (isdrag) proceed<PROT>(gear, idle + rght, true); break;
-                    case e2::hids::mouse::move: if (ismove) proceed<PROT>(gear, idle, faux); break;
+                    case e2::hids::mouse::move: if (ismove) proceed<PROT>(gear, idle + btup, faux); break;
                     // Press
                     case b::down::leftright: capture(gear); break;
                     case b::down::left     : capture(gear); proceed<PROT>(gear, left, true); break;
