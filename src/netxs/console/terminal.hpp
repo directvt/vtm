@@ -192,7 +192,8 @@ namespace netxs::ui
         auto cp()
         {
             auto pos = coord;
-            if (pos.x == panel.x && batch->style.wrapln == wrap::on)
+            auto style = batch->style;
+            if (pos.x == panel.x && style.wrapln == wrap::on)
             {
                 if (pos.y != panel.y - 1) // The last position on the screen(c).
                 {
@@ -202,6 +203,8 @@ namespace netxs::ui
                 else pos.x--;
             }
             pos.y += basis;
+            if      (style.adjust == bias::right)  pos.x = panel.x - pos.x - 1;
+            else if (style.adjust == bias::center) pos.x = (panel.x + pos.x) / 2;
             return pos;
         }
         auto line_height(para const& l)
@@ -385,13 +388,88 @@ namespace netxs::ui
             auto tail = head + panel.y;
             auto maxy = xsize.max<line::autowrap>() / panel.x;
             head = std::clamp(head - maxy, 0, batch.size);
-            tail = std::clamp(tail       , 0, batch.size);
+            tail = std::clamp(tail,        0, batch.size);
             auto coor = twod{ 0, tail };
+            auto line_it = batch.begin() + coor.y;
+
+            auto view = canvas.view();
+            auto full = canvas.full();
+            auto left_edge_x = view.coor.x;
+            auto left_rect = rect{{ left_edge_x, coor.y + full.coor.y }, dot_11 };
+            auto half_size_x = full.size.x / 2;
+            auto rght_rect = left_rect;
+            rght_rect.coor.x+= view.size.x - 1;
+            auto rght_edge_x = rght_rect.coor.x + 1;
             while(coor.y != head)
             {
                 --coor.y;
+                --rght_rect.coor.y;
                 flow::ac(coor);
-                flow::go(batch[coor.y], canvas);
+                auto& cur_line = *--line_it;
+                flow::go(cur_line, canvas);
+
+                // Mark lines not shown in full.
+                if (auto length = cur_line.length())
+                {
+                    rght_rect.size.y = line_height(cur_line);
+                    if (rght_rect.size.y == 1)
+                    {
+                        auto left_dot = full.coor.x;
+                        if      (cur_line.style.adjust == bias::center) left_dot += half_size_x - length / 2;
+                        else if (cur_line.style.adjust == bias::right)  left_dot += full.size.x - length;
+
+                        auto rght_dot = left_dot + length;
+                        if (left_dot < left_edge_x)
+                        {
+                            left_rect.coor.y = rght_rect.coor.y;
+                            left_rect.size.y = rght_rect.size.y;
+                            canvas.fill(left_rect, [](auto& c){ c.txt('<').fgc(tint::greenlt); });
+                        }
+                        if (rght_dot > rght_edge_x)
+                        {
+                            canvas.fill(rght_rect, [](auto& c){ c.txt('>').fgc(tint::greenlt); });
+                        }
+                    }
+                    else
+                    {
+                        auto left_dot = full.coor.x;
+                        auto rght_dot = left_dot + view.size.x;
+                        if (left_dot < left_edge_x)
+                        {
+                            left_rect.coor.y = rght_rect.coor.y;
+                            left_rect.size.y = rght_rect.size.y;
+                            if (cur_line.style.adjust == bias::center)
+                            {
+                                auto l = length % view.size.x;
+                                auto scnd_left_dot = left_dot + half_size_x - l / 2;
+                                if (scnd_left_dot >= left_edge_x) --left_rect.size.y;
+                            }
+                            else if (cur_line.style.adjust == bias::right)
+                            {
+                                auto l = length % view.size.x;
+                                auto scnd_left_dot = rght_dot - l;
+                                if (scnd_left_dot >= left_edge_x) --left_rect.size.y;
+                            }
+                            canvas.fill(left_rect, [](auto& c){ c.txt('<').fgc(tint::greenlt); });
+                        }
+                        if (rght_dot > rght_edge_x)
+                        {
+                            if (cur_line.style.adjust == bias::center)
+                            {
+                                auto l = length % view.size.x;
+                                auto scnd_rght_dot = left_dot + half_size_x - l / 2 + l;
+                                if (scnd_rght_dot <= rght_edge_x) --rght_rect.size.y;
+                            }
+                            else if (cur_line.style.adjust == bias::left)
+                            {
+                                auto l = length % view.size.x;
+                                auto scnd_rght_dot = left_dot + l;
+                                if (scnd_rght_dot <= rght_edge_x) --rght_rect.size.y;
+                            }
+                            canvas.fill(rght_rect, [](auto& c){ c.txt('>').fgc(tint::greenlt); });
+                        }
+                    }
+                }
             }
         }
         void test_basis(face& canvas)
