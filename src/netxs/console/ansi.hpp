@@ -597,9 +597,9 @@ namespace netxs::console::ansi
         }
         esc& mouse_x11(iota ctrl, twod const& coor) // esc: Mouse tracking report (X11).
         {
-            return add("\033[M", static_cast<unsigned char>(std::clamp(ctrl,       0, 255-32) + 32),
-                                 static_cast<unsigned char>(std::clamp(coor.x + 1, 1, 255-32) + 32),
-                                 static_cast<unsigned char>(std::clamp(coor.y + 1, 1, 255-32) + 32));
+            return add("\033[M", static_cast<char>(std::clamp(ctrl,       0, 255-32) + 32),
+                                 static_cast<char>(std::clamp(coor.x + 1, 1, 255-32) + 32),
+                                 static_cast<char>(std::clamp(coor.y + 1, 1, 255-32) + 32));
         }
         esc& osc(text const& cmd, text const& param) // esc: OSC report.
         {

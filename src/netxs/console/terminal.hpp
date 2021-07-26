@@ -209,13 +209,10 @@ namespace netxs::ui
         }
         auto line_height(para const& l)
         {
-            if (l.style.wrapln == wrap::on)
-            {
-                auto len = l.length();
-                if (len && (len % panel.x == 0)) len--;
-                return len / panel.x + 1;
-            }
-            else return 1;
+            auto length = l.length();
+            return length > panel.x
+                && l.style.wrapln == wrap::on ? (length + panel.x - 1) / panel.x
+                                              : 1;
         }
         // rods: Return 0-based scroll region pair, inclusive.
         auto get_scroll_region()
@@ -384,19 +381,18 @@ namespace netxs::ui
         void output(face& canvas)
         {
             flow::reset(canvas);
-            auto head = canvas.view().coor.y - canvas.full().coor.y;
+            auto view = canvas.view();
+            auto full = canvas.full();
+            auto head = view.coor.y - full.coor.y;
             auto tail = head + panel.y;
             auto maxy = xsize.max<line::autowrap>() / panel.x;
             head = std::clamp(head - maxy, 0, batch.size);
             tail = std::clamp(tail,        0, batch.size);
             auto coor = twod{ 0, tail };
             auto line_it = batch.begin() + coor.y;
-
-            auto view = canvas.view();
-            auto full = canvas.full();
             auto left_edge_x = view.coor.x;
-            auto left_rect = rect{{ left_edge_x, coor.y + full.coor.y }, dot_11 };
             auto half_size_x = full.size.x / 2;
+            auto left_rect = rect{{ left_edge_x, coor.y + full.coor.y }, dot_11 };
             auto rght_rect = left_rect;
             rght_rect.coor.x+= view.size.x - 1;
             auto rght_edge_x = rght_rect.coor.x + 1;
@@ -407,9 +403,7 @@ namespace netxs::ui
                 flow::ac(coor);
                 auto& cur_line = *--line_it;
                 flow::go(cur_line, canvas);
-
-                // Mark lines not shown in full.
-                if (auto length = cur_line.length())
+                if (auto length = cur_line.length()) // Mark lines not shown in full.
                 {
                     rght_rect.size.y = line_height(cur_line);
                     if (rght_rect.size.y == 1)
