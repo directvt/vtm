@@ -280,9 +280,9 @@ namespace netxs::ui
             }
             batch.set(index);
             batch->chx(new_coord.x);
-            ////todo implement the case when the coord is set to the viewport outside
-            ////     after the right side: disable wrapping (on overlapped line too)
-            ////     before the left side: disable wrapping + bias::right (on overlapped line too)
+            //todo implement the case when the coord is set to the viewport outside
+            //     after the right side: disable wrapping (on overlapped line too)
+            //     before the left side: disable wrapping + bias::right (on overlapped line too)
         }
         // rods: Map caret pos from viewport to scrollback.
         void set_coord() { set_coord(coord); }
