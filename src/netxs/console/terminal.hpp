@@ -268,6 +268,7 @@ namespace netxs::ui
             new_coord.y += basis; // place coord inside the batch
             auto add_count = new_coord.y + 1 - batch.length();
             if (add_count > 0) add_lines(add_count);
+            new_coord.y = std::min(new_coord.y, batch.length() - 1); // The batch can remain the same size (cuz ring)
             auto& new_line = batch[new_coord.y];
             auto index = get_line_index_by_id(new_line.selfid); // current index inside batch
             if (new_line.selfid != new_line.bossid) // bossid always less or eq selfid
@@ -279,9 +280,9 @@ namespace netxs::ui
             }
             batch.set(index);
             batch->chx(new_coord.x);
-            //todo implement the case when the coord is set to the viewport outside
-            //     after the right side: disable wrapping (on overlapped line too)
-            //     before the left side: disable wrapping + bias::right (on overlapped line too)
+            ////todo implement the case when the coord is set to the viewport outside
+            ////     after the right side: disable wrapping (on overlapped line too)
+            ////     before the left side: disable wrapping + bias::right (on overlapped line too)
         }
         // rods: Map caret pos from viewport to scrollback.
         void set_coord() { set_coord(coord); }
