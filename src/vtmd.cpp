@@ -1851,7 +1851,7 @@ utility like ctags is used to locate the definitions.
                                     {
                                         boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
                                         {
-                                            boss.base::broadcast->SIGNAL(e2::preview, app::term::cmd, ui::term::state::left);
+                                            boss.base::broadcast->SIGNAL(e2::preview, app::term::cmd, ui::term::commands::left);
                                             gear.dismiss(true);
                                         };
                                         boss.base::broadcast->SUBMIT(e2::release, app::term::layout::align, align)
@@ -1866,7 +1866,7 @@ utility like ctags is used to locate the definitions.
                                     {
                                         boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
                                         {
-                                            boss.base::broadcast->SIGNAL(e2::preview, app::term::cmd, ui::term::state::center);
+                                            boss.base::broadcast->SIGNAL(e2::preview, app::term::cmd, ui::term::commands::center);
                                             gear.dismiss(true);
                                         };
                                         boss.base::broadcast->SUBMIT(e2::release, app::term::layout::align, align)
@@ -1880,7 +1880,7 @@ utility like ctags is used to locate the definitions.
                                     {
                                         boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
                                         {
-                                            boss.base::broadcast->SIGNAL(e2::preview, app::term::cmd, ui::term::state::right);
+                                            boss.base::broadcast->SIGNAL(e2::preview, app::term::cmd, ui::term::commands::right);
                                             gear.dismiss(true);
                                         };
                                         boss.base::broadcast->SUBMIT(e2::release, app::term::layout::align, align)
@@ -1894,7 +1894,7 @@ utility like ctags is used to locate the definitions.
                                     {
                                         boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
                                         {
-                                            boss.base::broadcast->SIGNAL(e2::preview, app::term::cmd, ui::term::state::togglewrp);
+                                            boss.base::broadcast->SIGNAL(e2::preview, app::term::cmd, ui::term::commands::togglewrp);
                                             gear.dismiss(true);
                                         };
                                         boss.base::broadcast->SUBMIT(e2::release, app::term::layout::wrapln, wrapln)

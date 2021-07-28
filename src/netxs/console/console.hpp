@@ -52,8 +52,8 @@ namespace netxs
     using namespace netxs::datetime;
     using e2 = events::e2;
 
-    EVENT_BIND(e2::timer::any, datetime::moment)
-        EVENT_BIND(e2::timer::tick, datetime::moment)
+    EVENT_BIND(e2::timer::any, moment)
+        EVENT_BIND(e2::timer::tick, moment)
         EVENT_BIND(e2::timer::fps,  iota)
 
     EVENT_BIND(e2::postrender,  console::face)
@@ -97,8 +97,8 @@ namespace netxs
 
     EVENT_BIND(e2::config::any, iota)
         EVENT_BIND(e2::config::broadcast, sptr<bell>)
-        EVENT_BIND(e2::config::caret::any, datetime::period)
-            EVENT_BIND(e2::config::caret::blink, datetime::period)
+        EVENT_BIND(e2::config::caret::any, period)
+            EVENT_BIND(e2::config::caret::blink, period)
             EVENT_BIND(e2::config::caret::style, iota)
 
     EVENT_BIND(e2::data::any, iota)
@@ -3548,7 +3548,7 @@ namespace netxs::console
             using skill::boss,
                   skill::memo;
             constexpr static auto QUIT_MSG = e2::term::quit;
-            constexpr static int ESC_THRESHOLD = 500; // guard: Double escape threshold in ms.
+            constexpr static iota ESC_THRESHOLD = 500; // guard: Double escape threshold in ms.
 
             bool   wait; // guard: Ready to close.
             moment stop; // guard: Timeout for single Esc.

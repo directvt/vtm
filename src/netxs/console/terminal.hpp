@@ -20,11 +20,10 @@ namespace netxs
             public:
             enum : type {
                 any = e2::_custom,
-                _layout     = any | (1 << _level0), // release: Object size (arg: twod).
+                _layout     = any | (1 << _level0),
                 cmd         = any | (2 << _level0),
                 _data       = any | (3 << _level0),
             };
-            //private: static const unsigned int _level = _toplevel + _width;
             private: static const unsigned int _level1 = _level0 + _width;
             public:
             struct layout { enum : type {
@@ -767,16 +766,16 @@ namespace netxs::ui
 
 //todo unify
 public:
-        struct state
+        struct commands
         {
-            enum : int
+            enum type : iota
             {
-                right   = 0,
-                left    = 1,
-                center  = 2,
-                wrapon  = 3,
-                wrapoff = 4,
-                togglewrp = 5,
+                right,
+                left,
+                center,
+                wrapon,
+                wrapoff,
+                togglewrp,
             };
         };
 private:
@@ -1978,20 +1977,20 @@ private:
             #endif
             base::broadcast->SUBMIT_T(e2::preview, app::term::cmd, bell::tracker, cmd)
             {
-                log("term: e2::preview, command::custom, ", cmd);
+                log("term: e2::preview, app::term::cmd, ", cmd);
                 reset_scroll_pos();
                 switch(cmd)
                 {
-                    case term::state::left:
+                    case term::commands::left:
                         target->jet(bias::left);
                         break;
-                    case term::state::center:
+                    case term::commands::center:
                         target->jet(bias::center);
                         break;
-                    case term::state::right:
+                    case term::commands::right:
                         target->jet(bias::right);
                         break;
-                    case term::state::togglewrp:
+                    case term::commands::togglewrp:
                         target->wrp(target->style.wrapln == wrap::on ? wrap::off
                                                                      : wrap::on);
                         break;

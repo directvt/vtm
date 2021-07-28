@@ -28,8 +28,9 @@ namespace netxs::events
     {
         using type = unsigned int;
 
-    protected: static const unsigned int _width = 4;
-    protected: static const unsigned int _mask = (1 << _width) - 1;
+    protected:
+        static const unsigned int _width = 4;
+        static const unsigned int _mask = (1 << _width) - 1;
         template<class V>
         struct _globals
         {
@@ -1171,40 +1172,23 @@ namespace netxs::events
     template<class T>
     reactor bell::_globals<T>::general{ reactor::forward };
 
-    //#define EVENT_NS     \
-    template<e2::type T> \
-    struct type_clue {};
-
-    //#define EVENT_NS     \
-    template<auto T> \
-    struct type_clue {};
-
     template<auto T>
     struct type_clue {};
 
-    //#define EVENT_NS         \
-    template<claas P>        \
-    struct qqq               \
-    {                        \
-        template<P T>        \
-        struct type_clue {}; \
-    }
-
-
-    #define EVENT_BIND(item, item_t)              \
-    template<>                                    \
-    struct netxs::events::type_clue<item>                        \
-    {                                             \
-        using                     param = item_t; \
-        static constexpr e2::type cause = (e2::type)item;   \
+    #define EVENT_BIND(item, item_t)                                   \
+    template<>                                                         \
+    struct netxs::events::type_clue<item>                              \
+    {                                                                  \
+        using param = item_t;                                          \
+        static constexpr e2::type cause = static_cast<e2::type>(item); \
     };
 
-    #define EVENT_SAME(master, item)                                \
-    template<>                                                      \
-    struct netxs::events::type_clue<item>                                          \
-    {                                                               \
-        using                     param = netxs::events::type_clue<master>::param; \
-        static constexpr e2::type cause = item;                     \
+    #define EVENT_SAME(master, item)                           \
+    template<>                                                 \
+    struct netxs::events::type_clue<item>                      \
+    {                                                          \
+        using param = netxs::events::type_clue<master>::param; \
+        static constexpr e2::type cause = item;                \
     };
 
     #define ARGTYPE(item) typename netxs::events::type_clue<item>::param
