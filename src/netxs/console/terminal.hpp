@@ -31,6 +31,11 @@ namespace netxs
                     align       = any | (1 << _level1),
                     wrapln      = any | (2 << _level1),
             };};
+            struct data { enum : type {
+                    any = term::_data,
+                    in          = any | (1 << _level1),
+                    out         = any | (2 << _level1),
+            };};
         };
     }
 
@@ -38,6 +43,9 @@ namespace netxs
 
     EVENT_BIND(app::term::layout::align, bias::type)
     EVENT_BIND(app::term::layout::wrapln, wrap::type)
+
+    EVENT_BIND(app::term::data::in,  view)
+    EVENT_BIND(app::term::data::out, view)
 }
 
 namespace netxs::ui
@@ -776,6 +784,8 @@ public:
                 wrapon,
                 wrapoff,
                 togglewrp,
+                reset,
+                clear,
             };
         };
 private:
@@ -1994,20 +2004,26 @@ private:
                         target->wrp(target->style.wrapln == wrap::on ? wrap::off
                                                                      : wrap::on);
                         break;
+                    case term::commands::reset:
+                        decstr();
+                        break;
+                    case term::commands::clear:
+                        target->ed(scrollbuff::commands::erase::display::viewport);
+                        break;
                     default:
                         break;
                 }
                 input_hndl("");
             };
-            base::broadcast->SUBMIT_T(e2::preview, e2::data::text, bell::tracker, data)
+            base::broadcast->SUBMIT_T(e2::preview, app::term::data::in, bell::tracker, data)
             {
-                log("term: e2::preview, e2::data::text, ", utf::debase(data));
+                log("term: app::term::data::in, ", utf::debase(data));
                 reset_scroll_pos();
                 input_hndl(data);
             };
-            base::broadcast->SUBMIT_T(e2::release, e2::data::text, bell::tracker, data)
+            base::broadcast->SUBMIT_T(e2::preview, app::term::data::out, bell::tracker, data)
             {
-                log("term: e2::release, e2::data::text, ", utf::debase(data));
+                log("term: app::term::data::out, ", utf::debase(data));
                 reset_scroll_pos();
                 ptycon.write(data);
             };

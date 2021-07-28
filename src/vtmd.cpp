@@ -1793,8 +1793,7 @@ utility like ctags is used to locate the definitions.
                                         boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
                                         {
                                             auto data = "ls /bin\n"s;
-                                            //boss.BROADCAST(e2::release, e2::command::text, data);
-                                            boss.base::broadcast->SIGNAL(e2::release, e2::data::text, data);
+                                            boss.base::broadcast->SIGNAL(e2::preview, app::term::data::out, data);
                                             gear.dismiss(true);
                                         };
                                     }},
@@ -1804,8 +1803,7 @@ utility like ctags is used to locate the definitions.
                                         boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
                                         {
                                             auto data = "ping -c 3 127.0.0.1 | ccze -A\n"s;
-                                            //boss.BROADCAST(e2::release, e2::command::text, data);
-                                            boss.base::broadcast->SIGNAL(e2::release, e2::data::text, data);
+                                            boss.base::broadcast->SIGNAL(e2::preview, app::term::data::out, data);
                                             gear.dismiss(true);
                                         };
                                     }},
@@ -1815,8 +1813,7 @@ utility like ctags is used to locate the definitions.
                                         boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
                                         {
                                             auto data = "curl wttr.in\n"s;
-                                            //boss.BROADCAST(e2::release, e2::command::text, data);
-                                            boss.base::broadcast->SIGNAL(e2::release, e2::data::text, data);
+                                            boss.base::broadcast->SIGNAL(e2::preview, app::term::data::out, data);
                                             gear.dismiss(true);
                                         };
                                     }},
@@ -1827,9 +1824,7 @@ utility like ctags is used to locate the definitions.
                                     {
                                         boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
                                         {
-                                            auto data = "\033[2J";
-                                            //boss.BROADCAST(e2::release, e2::command::text, data);
-                                            boss.base::broadcast->SIGNAL(e2::preview, e2::data::text, data);
+                                            boss.base::broadcast->SIGNAL(e2::preview, app::term::cmd, ui::term::commands::clear);
                                             gear.dismiss(true);
                                         };
                                     }},
@@ -1839,13 +1834,10 @@ utility like ctags is used to locate the definitions.
                                     {
                                         boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
                                         {
-                                            auto data = "reset\n"s;
-                                            //boss.BROADCAST(e2::release, e2::command::text, data);
-                                            boss.base::broadcast->SIGNAL(e2::release, e2::data::text, data);
+                                            boss.base::broadcast->SIGNAL(e2::preview, app::term::cmd, ui::term::commands::reset);
                                             gear.dismiss(true);
                                         };
                                     }},
-                                    //std::pair<text, std::function<void(ui::pads&)>>{ "═─ =─",
                                     std::pair<text, std::function<void(ui::pads&)>>{ "=─",
                                     [](ui::pads& boss)
                                     {
@@ -1960,9 +1952,7 @@ utility like ctags is used to locate the definitions.
                                     {
                                         boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
                                         {
-                                            auto data = "\033[2J";
-                                            //boss.BROADCAST(e2::release, e2::command::text, data);
-                                            boss.base::broadcast->SIGNAL(e2::preview, e2::data::text, data);
+                                            boss.base::broadcast->SIGNAL(e2::preview, app::term::cmd, ui::term::commands::clear);
                                             gear.dismiss(true);
                                         };
                                     }},
@@ -1971,8 +1961,7 @@ utility like ctags is used to locate the definitions.
                                     {
                                         boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
                                         {
-                                            auto data = "\033[3J";
-                                            boss.base::broadcast->SIGNAL(e2::preview, e2::data::text, data);
+                                            boss.base::broadcast->SIGNAL(e2::preview, app::term::cmd, ui::term::commands::reset);
                                             gear.dismiss(true);
                                         };
                                     }},
@@ -2007,9 +1996,7 @@ utility like ctags is used to locate the definitions.
                                     {
                                         boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
                                         {
-                                            auto data = "\033[2J";
-                                            //boss.BROADCAST(e2::release, e2::command::text, data);
-                                            boss.base::broadcast->SIGNAL(e2::preview, e2::data::text, data);
+                                            boss.base::broadcast->SIGNAL(e2::preview, app::term::cmd, ui::term::commands::clear);
                                             gear.dismiss(true);
                                         };
                                     }},
@@ -2018,8 +2005,7 @@ utility like ctags is used to locate the definitions.
                                     {
                                         boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
                                         {
-                                            auto data = "\033[3J";
-                                            boss.base::broadcast->SIGNAL(e2::preview, e2::data::text, data);
+                                            boss.base::broadcast->SIGNAL(e2::preview, app::term::cmd, ui::term::commands::reset);
                                             gear.dismiss(true);
                                         };
                                     }},
