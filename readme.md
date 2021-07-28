@@ -99,7 +99,7 @@ Module               | Options
   </tr>
   <tr>
     <th>App list</th>
-    <th>Running apps</th>
+    <th>Running app list</th>
     <th>User list</th>
     <th>≡ Menu</th>
     <th>Menu bar</th>
