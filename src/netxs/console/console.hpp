@@ -1256,7 +1256,7 @@ namespace netxs::console
         sptr<bell> broadcast = std::make_shared<bell>(); // base: Broadcast bus.
                                                          //        On attach the broadcast is merged with parent (bell::merge).
                                                          //        On detach the broadcast is duplicated from parent (bell::reset).
-        side oversize; // base: Oversize, margin.
+        side oversz; // base: Oversize, margin.
         twod anchor; // base: Object balance point. Center point for any transform (on preview).
 
     protected:
@@ -4201,7 +4201,7 @@ namespace netxs::console
                 {
                     curpos = coord;
                     auto area = boss.size();
-                    area.x += boss.oversize.r;
+                    area.x += boss.oversz.r;
                     inside = area.inside(curpos);
                 }
                 auto drag(twod const& coord)
@@ -4236,7 +4236,7 @@ namespace netxs::console
                     auto fill = [&](cell& c) { c.fuse(mark); };
                     auto step = twod{ 5, 1 };
                     auto area = full;
-                    area.size.x += boss.oversize.r;
+                    area.size.x += boss.oversz.r;
                     items.foreach([&](sock& item)
                     {
                         if (item.region.size)
@@ -4269,7 +4269,7 @@ namespace netxs::console
                 {
                     auto& item = items.take(gear);
                     auto area = boss.size();
-                    area.x += boss.oversize.r;
+                    area.x += boss.oversz.r;
                     item.region.coor = dot_00;
                     item.region.size = area;
                     recalc();
@@ -4301,7 +4301,7 @@ namespace netxs::console
                 text data;
                 auto step = twod{ 5, 1 };
                 auto size = boss.size();
-                size.x += boss.oversize.r;
+                size.x += boss.oversz.r;
                 items.foreach([&](sock& item)
                 {
                     if (item.region.size)
@@ -4826,6 +4826,18 @@ namespace netxs::console
                                                         constexpr static int wheel = sysmouse::wheel;
                                                         constexpr static int joint = sysmouse::leftright;
 
+                                                        if (ctl == 35 &&(mouse.button[first]
+                                                                      || mouse.button[midst]
+                                                                      || mouse.button[other]
+                                                                      || mouse.button[winbt]))
+                                                        {
+                                                            // Moving without buttons (case when second release not fired: wezterm, terminal.app)
+                                                            mouse.button[first] = faux;
+                                                            mouse.button[midst] = faux;
+                                                            mouse.button[other] = faux;
+                                                            mouse.button[winbt] = faux;
+                                                            owner.SIGNAL(e2::release, e2::term::mouse, mouse);
+                                                        }
                                                         // Moving should be fired first
                                                         if ((mouse.ismoved = mouse.coor({ x, y })))
                                                         {

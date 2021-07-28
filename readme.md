@@ -69,7 +69,7 @@ cd ./Release
 powershell ../src/install/install.ps1
 ```
 
-# Releases for `amd64`
+# Binaries for `amd64`
 
 [![](https://dice.netxs.online/cloud/vtm/status/macos)](https://github.com/netxs-group/VTM/releases/latest/download/vtm_macos_amd64.tar.gz)  
 [![](https://dice.netxs.online/cloud/vtm/status/freebsd)](https://github.com/netxs-group/VTM/releases/latest/download/vtm_freebsd_amd64.tar.gz)  
@@ -90,48 +90,99 @@ Module               | Options
 # User Interface
 
 <table>
-   <tr>
-        <td rowspan=2></td> <td colspan=3> Side Bar </td> <td colspan=3> App window </td> <td colspan=2> Desktop </td>
-   </tr>
-   <tr>
-     <td> Apps </td> <td> Running </td> <td> Users </td> <td> ≡ Menu </td> <td> Menu bar </td> <td> Interior </td> <td> Navigation strings </td> <td> Free space </td>
-   </tr>
-   <tr>
-        <td> Ctrl + PgUp/Dn </td>    <td colspan = "8"> Switch between running apps and assign exclusive keyboard focus </td>
-   </tr>
-   <tr>
-      <td> LeftClick  </td> <td> Select default app </td>  <td> Go to app </td> <td> </td> <td colspan = "3"> Assign exclusive keyboard focus </td> <td> Go to app </td> <td> Clear keyboard focus </td>
-   </tr>
-   <tr>
-      <td> Ctrl + LeftClick </td>  <td colspan = "3"> </td> <td colspan = "4"> Assign/clear group keyboard focus </td> <td> </td>
-   </tr>
-   <tr>
-      <td> double LeftClick </td>  <td> Run app </td> <td colspan=2> </td> <td> Close app </td> <td colspan = "2"> Maximize/restore app window </td> <td colspan=2> </td>
-   </tr>
-   <tr>
-      <td> RightClick </td> <td> </td> <td> Move app window to center of view </td> <td colspan = "4"> </td><td> Move app window to center of view </td> <td> </td>
-   </tr>
-   <tr>
-      <td> Left+Right or MiddleClick </td> <td colspan=3> </td> <td colspan = "4"> Close app </td> <td> </td>
-   </tr>
-   <tr>
-     <td> LeftDrag </td> <td colspan=3> Adjust Side Bar width </td> <td colspan = "4"> Move app window </td> <td> Scroll workspace </td>
-   </tr>
-   <tr>
-     <td> RightDrag </td> <td colspan=5> </td> <td> Panoramic scrolling </td> <td colspan=1> </td> <td> Run default app </td>
-   </tr>
-   <tr>
-     <td> Left+RightDrag </td> <td colspan=8> Scroll workspace </td>
-   </tr>
-   <tr>
-     <td> Ctrl+RightDrag or Ctrl+MiddleDrag </td> <td colspan=8> Copy selected area to clipboard, OSC 52 </td>
-   </tr>
-   <tr>
-     <td> Wheel </td> <td colspan=6> Vertical scrolling </td> <td colspan=2> </td>
-   </tr>
-   <tr>
-     <td> Shift+Wheel or Ctrl+Wheel </td> <td colspan=6> Horizontal scrolling </td> <td colspan=2> </td>
-   </tr>
+<thead>
+  <tr>
+    <th rowspan="2"></th>
+    <th colspan="3">Side bar</th>
+    <th colspan="4">App window</th>
+    <th colspan="2">Desktop</th>
+  </tr>
+  <tr>
+    <th>App list</th>
+    <th>Running apps</th>
+    <th>User list</th>
+    <th>≡ Menu</th>
+    <th>Menu bar</th>
+    <th>Interior</th>
+    <th>Resize grips</th>
+    <th>Navigation strings</th>
+    <th>Free space</th>
+  </tr>
+</thead>
+<tbody>
+  <tr>
+    <th>Ctrl + PgUp/Dn</th>
+    <td colspan="9">Switch between running apps and assign exclusive keyboard focus</td>
+  </tr>
+  <tr>
+    <th>LeftClick</th>
+    <td>Select default app</td>
+    <td>Go to app</td>
+    <td></td>
+    <td colspan="4">Assign exclusive keyboard focus</td>
+    <td>Go to app</td>
+    <td>Clear keyboard focus</td>
+  </tr>
+  <tr>
+    <th>Ctrl + LeftClick</th>
+    <td colspan="3"></td>
+    <td colspan="5">Assign/clear group keyboard focus</td>
+    <td></td>
+  </tr>
+  <tr>
+    <th>double LeftClick</th>
+    <td>Run app</td>
+    <td colspan="2"></td>
+    <td>Close app</td>
+    <td colspan="2">Maximize/restore app window</td>
+    <td colspan="3"></td>
+  </tr>
+  <tr>
+    <th>RightClick</th>
+    <td></td>
+    <td>Move app window to center of view</td>
+    <td colspan="5"></td>
+    <td>Move app window to center of view</td>
+    <td></td>
+  </tr>
+  <tr>
+    <th>Left+Right or MiddleClick</th>
+    <td colspan="3"></td>
+    <td colspan="5">Close app</td>
+    <td></td>
+  </tr>
+  <tr>
+    <th>LeftDrag</th>
+    <td colspan="3">Adjust Side Bar width</td>
+    <td colspan="5">Move app window</td>
+    <td>Scroll workspace</td>
+  </tr>
+  <tr>
+    <th>RightDrag</th>
+    <td colspan="5"></td>
+    <td>Panoramic scrolling</td>
+    <td colspan="2"></td>
+    <td>Run default app</td>
+  </tr>
+  <tr>
+    <th>Left+RightDrag</th>
+    <td colspan="9">Scroll workspace</td>
+  </tr>
+  <tr>
+    <th>Ctrl+RightDrag or Ctrl+MiddleDrag</th>
+    <td colspan="9">Copy selected area to clipboard, OSC 52</td>
+  </tr>
+  <tr>
+    <th>Wheel</th>
+    <td colspan="7">Vertical scrolling</td>
+    <td colspan="2"></td>
+  </tr>
+  <tr>
+    <th>Shift+Wheel or Ctrl+Wheel</th>
+    <td colspan="7">Horizontal scrolling</td>
+    <td colspan="2"></td>
+  </tr>
+</tbody>
 </table>
 
 # Built-in Applications

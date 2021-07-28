@@ -268,6 +268,9 @@ namespace netxs::os
             "tmux",
             "fbcon",
         };
+        auto vga256colors = {
+            "rxvt-unicode-256color",
+        };
         iota mode = legacy::clean;
         auto term = os::get_env("TERM");
         if (term.size())
@@ -285,6 +288,17 @@ namespace netxs::os
                     {
                         mode |= legacy::vga16;
                         break;
+                    }
+                }
+                if (!mode)
+                {
+                    for (auto& type : vga256colors)
+                    {
+                        if (term == type)
+                        {
+                            mode |= legacy::vga256;
+                            break;
+                        }
                     }
                 }
             }
@@ -1298,8 +1312,11 @@ namespace netxs::os
                 (yield.*p)(15, rgba::color16[tint16::cyanlt   ]);
             };
             yield.save_palette();
-            if (legacy_mouse) set_pal(&ansi::esc::old_palette);
-            else              set_pal(&ansi::esc::osc_palette);
+            //if (legacy_mouse) set_pal(&ansi::esc::old_palette);
+            //else              set_pal(&ansi::esc::osc_palette);
+            set_pal(&ansi::esc::old_palette);
+            set_pal(&ansi::esc::osc_palette);
+
             os::send(STDOUT_FD, yield.data(), yield.size());
             yield.clear();
         }
@@ -1311,8 +1328,10 @@ namespace netxs::os
         bool legacy_color = legacy & os::legacy::vga16;
         if (legacy_color)
         {
-            if (legacy_mouse) yield.old_palette_reset();
-            else              yield.osc_palette_reset();
+            //if (legacy_mouse) yield.old_palette_reset();
+            //else              yield.osc_palette_reset();
+            yield.old_palette_reset();
+            yield.osc_palette_reset();
             yield.load_palette();
             os::send(STDOUT_FD, yield.data(), yield.size());
             yield.clear();

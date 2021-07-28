@@ -302,7 +302,7 @@ namespace netxs::console::ansi
         esc& locate(twod const& p)  { return add("\033[", p.y+1, ';', p.x+1, 'H'       ); } // esc: 0-Based caret position.
         esc& locate_wipe ()         { return add("\033[r"                              ); } // esc: Enable scrolling for entire display (clear screen).
         esc& locate_call ()         { return add("\033[6n"                             ); } // esc: Report caret position.
-        esc& scroll_wipe ()         { return add("\033[3J"                             ); } // esc: Erase scrollback.
+        esc& scroll_wipe ()         { return add("\033[2J"                             ); } // esc: Erase scrollback.
         esc& tag         (view t)   { return add("\033]2;", t, '\07'                   ); } // esc: Window title.
         esc& setbuf      (view t)   { return add("\033]52;;", utf::base64(t), C0_BEL   ); } // esc: Set clipboard.
         esc& setutf      (bool b)   { return add(b ? "\033%G"      : "\033%@"          ); } // esc: Select UTF-8 character set (true) or default (faux).
@@ -311,7 +311,7 @@ namespace netxs::console::ansi
         esc& appkey      (bool b)   { return add(b ? "\033[?1h"    : "\033[?1l"        ); } // ansi: Application(=on)/ANSI(=off) Caret Keys (DECCKM).
         esc& bpmode      (bool b)   { return add(b ? "\033[?2004h" : "\033[?2004l"     ); } // esc: Set bracketed paste mode.
         esc& autowr      (bool b)   { return add(b ? "\033[?7h"    : "\033[?7l"        ); } // esc: Set autowrap mode.
-        esc& scrn_reset  ()         { return add("\033[H\033[m\033[3J"                 ); } // esc: Reset palette, erase scrollback and reset caret location.
+        esc& scrn_reset  ()         { return add("\033[H\033[m\033[2J"                 ); } // esc: Reset palette, erase scrollback and reset caret location.
         esc& save_title  ()         { return add("\033[22;0t"                          ); } // esc: Save terminal window title.
         esc& load_title  ()         { return add("\033[23;0t"                          ); } // esc: Restore terminal window title.
         esc& save_palette()         { return add("\033[#P"                             ); } // esc: Push palette onto stack XTPUSHCOLORS.
@@ -597,9 +597,9 @@ namespace netxs::console::ansi
         }
         esc& mouse_x11(iota ctrl, twod const& coor) // esc: Mouse tracking report (X11).
         {
-            return add("\033[M", static_cast<unsigned char>(std::clamp(ctrl,       0, 255-32) + 32),
-                                 static_cast<unsigned char>(std::clamp(coor.x + 1, 1, 255-32) + 32),
-                                 static_cast<unsigned char>(std::clamp(coor.y + 1, 1, 255-32) + 32));
+            return add("\033[M", static_cast<char>(std::clamp(ctrl,       0, 255-32) + 32),
+                                 static_cast<char>(std::clamp(coor.x + 1, 1, 255-32) + 32),
+                                 static_cast<char>(std::clamp(coor.y + 1, 1, 255-32) + 32));
         }
         esc& osc(text const& cmd, text const& param) // esc: OSC report.
         {

@@ -1,7 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#define MONOTTY_VER "Monotty Desktopio v0.5.7"
+#define MONOTTY_VER "Monotty Desktopio v0.5.12"
 // Autostart demo apps.
 //#define DEMO
 // Enable keyboard input and disable exit by single Esc.
@@ -2640,7 +2640,7 @@ utility like ctags is used to locate the definitions.
                                                                 ->plugin<pro::fader>(x3, c3, 150ms);
                                         auto label_bttn = label_pads->attach<ui::fork>();
                                             auto label = label_bttn->attach<slot::_1, ui::item>(
-                                                            ansi::fgc(whitelt).add("TTYs"), faux, faux);
+                                                            ansi::fgc(whitelt).add("Users"), faux, faux);
                                             auto bttn_area = label_bttn->attach<slot::_2, ui::fork>();
                                                 auto bttn_pads = bttn_area->attach<slot::_2, ui::pads>(dent{ 2,2,0,0 }, dent{ 0,0,1,1 })
                                                                           ->plugin<pro::fader>(x6, c6, 150ms);
