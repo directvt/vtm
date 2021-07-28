@@ -153,7 +153,7 @@ Module               | Options
   </tr>
   <tr>
     <th>LeftDrag</th>
-    <td colspan="3">Adjust Sidebar width</td>
+    <td colspan="3">Adjust sidebar width</td>
     <td colspan="5">Move app window</td>
     <td>Panoramic workspace scrolling</td>
   </tr>
