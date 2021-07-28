@@ -116,7 +116,7 @@ Module               | Options
   </tr>
   <tr>
     <th>LeftClick</th>
-    <td>Select default app</td>
+    <td>Set default app</td>
     <td>Go to app</td>
     <td></td>
     <td colspan="4">Assign exclusive keyboard focus</td>
