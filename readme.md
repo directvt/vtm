@@ -93,13 +93,13 @@ Module               | Options
 <thead>
   <tr>
     <th rowspan="2"></th>
-    <th colspan="3">Side bar</th>
+    <th colspan="3">Sidebar</th>
     <th colspan="4">App window</th>
     <th colspan="2">Desktop</th>
   </tr>
   <tr>
     <th>App list</th>
-    <th>Running apps</th>
+    <th>Running app list</th>
     <th>User list</th>
     <th>≡ Menu</th>
     <th>Menu bar</th>
@@ -116,7 +116,7 @@ Module               | Options
   </tr>
   <tr>
     <th>LeftClick</th>
-    <td>Select default app</td>
+    <td>Set default app</td>
     <td>Go to app</td>
     <td></td>
     <td colspan="4">Assign exclusive keyboard focus</td>
@@ -140,9 +140,9 @@ Module               | Options
   <tr>
     <th>RightClick</th>
     <td></td>
-    <td>Move app window to center of view</td>
+    <td>Center app window</td>
     <td colspan="5"></td>
-    <td>Move app window to center of view</td>
+    <td>Center app window</td>
     <td></td>
   </tr>
   <tr>
@@ -153,20 +153,24 @@ Module               | Options
   </tr>
   <tr>
     <th>LeftDrag</th>
-    <td colspan="3">Adjust Side Bar width</td>
+    <td colspan="3">Adjust sidebar width</td>
     <td colspan="5">Move app window</td>
-    <td>Scroll workspace</td>
+    <td>Panoramic workspace scrolling</td>
   </tr>
   <tr>
     <th>RightDrag</th>
     <td colspan="5"></td>
-    <td>Panoramic scrolling</td>
+    <td>Panoramic content scrolling</td>
     <td colspan="2"></td>
     <td>Run default app</td>
   </tr>
   <tr>
+    <th>MiddleDrag</th>
+    <td colspan="9">Run default app</td>
+  </tr>
+  <tr>
     <th>Left+RightDrag</th>
-    <td colspan="9">Scroll workspace</td>
+    <td colspan="9">Panoramic workspace scrolling</td>
   </tr>
   <tr>
     <th>Ctrl+RightDrag or Ctrl+MiddleDrag</th>
