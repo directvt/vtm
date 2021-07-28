@@ -140,9 +140,9 @@ Module               | Options
   <tr>
     <th>RightClick</th>
     <td></td>
-    <td>Center an app window</td>
+    <td>Center app window</td>
     <td colspan="5"></td>
-    <td>Center an app window</td>
+    <td>Center app window</td>
     <td></td>
   </tr>
   <tr>
