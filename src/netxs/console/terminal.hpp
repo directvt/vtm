@@ -10,6 +10,37 @@
 
 #include <cassert>
 
+namespace netxs
+{
+    namespace app
+    {
+        struct term : e2
+        {
+            private: static const unsigned int _level0 = _width;
+            public:
+            enum : type {
+                any = e2::_custom,
+                _layout     = any | (1 << _level0), // release: Object size (arg: twod).
+                cmd         = any | (2 << _level0),
+                _data       = any | (3 << _level0),
+            };
+            //private: static const unsigned int _level = _toplevel + _width;
+            private: static const unsigned int _level1 = _level0 + _width;
+            public:
+            struct layout { enum : type {
+                    any = term::_layout,
+                    align       = any | (1 << _level1),
+                    wrapln      = any | (2 << _level1),
+            };};
+        };
+    }
+
+    EVENT_BIND(app::term::cmd, iota)
+
+    EVENT_BIND(app::term::layout::align, bias::type)
+    EVENT_BIND(app::term::layout::wrapln, wrap::type)
+}
+
 namespace netxs::ui
 {
     // terminal: scrollback/altbuf internals.
@@ -734,6 +765,21 @@ namespace netxs::ui
     {
         pro::caret caret{ *this }; // term: Caret controller.
 
+//todo unify
+public:
+        struct state
+        {
+            enum : int
+            {
+                right   = 0,
+                left    = 1,
+                center  = 2,
+                wrapon  = 3,
+                wrapoff = 4,
+                togglewrp = 5,
+            };
+        };
+private:
         // term: VT-mouse tracking functionality.
         struct mtracking
         {
@@ -1098,6 +1144,7 @@ namespace netxs::ui
                     vt::csier.table[CSI_CCC][CCC_SBS] = VT_PROC{ p->boss.scrollbuffer_size(q); };  // CCC_SBS: Set scrollback size.
                     vt::csier.table[CSI_CCC][CCC_EXT] = VT_PROC{ p->boss.native(q(1)); };  // CCC_EXT: Setup extended functionality.
                     vt::csier.table[CSI_CCC][CCC_WRP] = VT_PROC{ p->wrp(q(0)); };  // CCC_WRP
+                    vt::csier.table[CSI_CCC][CCC_JET] = VT_PROC{ p->jet(q(0)); };  // CCC_JET
 
                     vt::intro[ctrl::ESC][ESC_IND] = VT_PROC{ p->dn(1); }; // ESC D  Caret Down.
                     vt::intro[ctrl::ESC][ESC_IR ] = VT_PROC{ p->ri (); }; // ESC M  Reverse index.
@@ -1184,6 +1231,19 @@ namespace netxs::ui
                 finalize();
                 dissect();
                 style.wrp(w);
+                auto status = w == wrap::none ? WRAPPING
+                                              :(wrap::type)w;
+                boss.base::broadcast->SIGNAL(e2::release, app::term::layout::wrapln, status);
+            }
+            // scrollbuff: CCC_JET:  Set line alignment.
+            void jet(iota j)
+            {
+                finalize();
+                dissect();
+                style.jet(j);
+                auto status = j == bias::none ? bias::left
+                                              :(bias::type)j;
+                boss.base::broadcast->SIGNAL(e2::release, app::term::layout::align, status);
             }
             // scrollbuff: ESC H  Place tabstop at the current caret posistion.
             void stb()
@@ -1916,13 +1976,39 @@ namespace netxs::ui
             #ifdef PROD
             form::keybd.accept(true); // Subscribe to keybd offers.
             #endif
+            base::broadcast->SUBMIT_T(e2::preview, app::term::cmd, bell::tracker, cmd)
+            {
+                log("term: e2::preview, command::custom, ", cmd);
+                reset_scroll_pos();
+                switch(cmd)
+                {
+                    case term::state::left:
+                        target->jet(bias::left);
+                        break;
+                    case term::state::center:
+                        target->jet(bias::center);
+                        break;
+                    case term::state::right:
+                        target->jet(bias::right);
+                        break;
+                    case term::state::togglewrp:
+                        target->wrp(target->style.wrapln == wrap::on ? wrap::off
+                                                                     : wrap::on);
+                        break;
+                    default:
+                        break;
+                }
+                input_hndl("");
+            };
             base::broadcast->SUBMIT_T(e2::preview, e2::data::text, bell::tracker, data)
             {
+                log("term: e2::preview, e2::data::text, ", utf::debase(data));
                 reset_scroll_pos();
                 input_hndl(data);
             };
             base::broadcast->SUBMIT_T(e2::release, e2::data::text, bell::tracker, data)
             {
+                log("term: e2::release, e2::data::text, ", utf::debase(data));
                 reset_scroll_pos();
                 ptycon.write(data);
             };

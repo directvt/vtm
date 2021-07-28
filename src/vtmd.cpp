@@ -1,7 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#define MONOTTY_VER "Monotty Desktopio v0.5.13"
+#define MONOTTY_VER "Monotty Desktopio v0.5.14"
 // Autostart demo apps.
 #define DEMO
 // Enable keyboard input and disable exit by single Esc.
@@ -1795,9 +1795,7 @@ utility like ctags is used to locate the definitions.
                                             auto data = "ls /bin\n"s;
                                             //boss.BROADCAST(e2::release, e2::command::text, data);
                                             boss.base::broadcast->SIGNAL(e2::release, e2::data::text, data);
-                                            log(" main: TEST1 bcast signaled ", data.length());
-                                            gear.dismiss();
-                                            gear.nodbl = true;
+                                            gear.dismiss(true);
                                         };
                                     }},
                                     std::pair<text, std::function<void(ui::pads&)>>{ "T2",
@@ -1808,9 +1806,7 @@ utility like ctags is used to locate the definitions.
                                             auto data = "ping -c 3 127.0.0.1 | ccze -A\n"s;
                                             //boss.BROADCAST(e2::release, e2::command::text, data);
                                             boss.base::broadcast->SIGNAL(e2::release, e2::data::text, data);
-                                            log(" main: TEST2 bcast signaled ", data.length());
-                                            gear.dismiss();
-                                            gear.nodbl = true;
+                                            gear.dismiss(true);
                                         };
                                     }},
                                     std::pair<text, std::function<void(ui::pads&)>>{ "T3",
@@ -1818,16 +1814,10 @@ utility like ctags is used to locate the definitions.
                                     {
                                         boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
                                         {
-                                            //auto data = "\\\nprintf \"\\033[12:2p\";"
-                                            //            "\\\ncurl wttr.in;       "
-                                            //            "\\\nprintf \"\\033[1p\";   "
-                                            //            "\\\n\n"s;
                                             auto data = "curl wttr.in\n"s;
                                             //boss.BROADCAST(e2::release, e2::command::text, data);
                                             boss.base::broadcast->SIGNAL(e2::release, e2::data::text, data);
-                                            log(" main: TEST3 bcast signaled ", data.length());
-                                            gear.dismiss();
-                                            gear.nodbl = true;
+                                            gear.dismiss(true);
                                         };
                                     }},
                                 #endif
@@ -1840,8 +1830,7 @@ utility like ctags is used to locate the definitions.
                                             auto data = "\033[2J";
                                             //boss.BROADCAST(e2::release, e2::command::text, data);
                                             boss.base::broadcast->SIGNAL(e2::preview, e2::data::text, data);
-                                            gear.dismiss();
-                                            gear.nodbl = true;
+                                            gear.dismiss(true);
                                         };
                                     }},
                                 #endif
@@ -1851,11 +1840,9 @@ utility like ctags is used to locate the definitions.
                                         boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
                                         {
                                             auto data = "reset\n"s;
-                                            log(" main: RESET bcast signaled ", data.length());
                                             //boss.BROADCAST(e2::release, e2::command::text, data);
                                             boss.base::broadcast->SIGNAL(e2::release, e2::data::text, data);
-                                            gear.dismiss();
-                                            gear.nodbl = true;
+                                            gear.dismiss(true);
                                         };
                                     }},
                                     //std::pair<text, std::function<void(ui::pads&)>>{ "═─ =─",
@@ -1864,39 +1851,28 @@ utility like ctags is used to locate the definitions.
                                     {
                                         boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
                                         {
-                                            auto data = "\033[11:1p"s;
-                                            log(" term: Left alignment bcast signaled ", data.length());
-                                            iota status = 1;
-                                            boss.base::broadcast->SIGNAL(e2::request, e2::command::custom, status);
-                                            boss.base::broadcast->SIGNAL(e2::preview, e2::command::custom, status == 2 ? 1/*show*/ : 2/*hide*/);
-                                            boss.base::broadcast->SIGNAL(e2::preview, e2::data::text, data);
-                                            gear.dismiss();
-                                            gear.nodbl = true;
+                                            boss.base::broadcast->SIGNAL(e2::preview, app::term::cmd, ui::term::state::left);
+                                            gear.dismiss(true);
                                         };
-                                        boss.base::broadcast->SUBMIT(e2::release, e2::command::custom, status)
+                                        boss.base::broadcast->SUBMIT(e2::release, app::term::layout::align, align)
                                         {
                                             //todo unify, get boss base colors, don't use x3
-                                            boss.color(status == 1 ? 0xFF00ff00 : x3.fgc(), x3.bgc());
+                                            boss.color(align == bias::left ? 0xFF00ff00 : x3.fgc(), x3.bgc());
                                         };
+                                        boss.color(0xFF00ff00, x3.bgc());
                                     }},
                                     std::pair<text, std::function<void(ui::pads&)>>{ "─=─",
                                     [](ui::pads& boss)
                                     {
                                         boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
                                         {
-                                            auto data = "\033[11:3p"s;
-                                            log(" term: Centered alignment bcast signaled ", data.length());
-                                            iota status = 1;
-                                            boss.base::broadcast->SIGNAL(e2::request, e2::command::custom, status);
-                                            boss.base::broadcast->SIGNAL(e2::preview, e2::command::custom, status == 2 ? 1/*show*/ : 2/*hide*/);
-                                            boss.base::broadcast->SIGNAL(e2::preview, e2::data::text, data);
-                                            gear.dismiss();
-                                            gear.nodbl = true;
+                                            boss.base::broadcast->SIGNAL(e2::preview, app::term::cmd, ui::term::state::center);
+                                            gear.dismiss(true);
                                         };
-                                        boss.base::broadcast->SUBMIT(e2::release, e2::command::custom, status)
+                                        boss.base::broadcast->SUBMIT(e2::release, app::term::layout::align, align)
                                         {
                                             //todo unify, get boss base colors, don't use x3
-                                            boss.color(status == 1 ? 0xFF00ff00 : x3.fgc(), x3.bgc());
+                                            boss.color(align == bias::center ? 0xFF00ff00 : x3.fgc(), x3.bgc());
                                         };
                                     }},
                                     std::pair<text, std::function<void(ui::pads&)>>{ "─=",
@@ -1904,59 +1880,27 @@ utility like ctags is used to locate the definitions.
                                     {
                                         boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
                                         {
-                                            auto data = "\033[11:2p"s;
-                                            log(" term: Right alignment bcast signaled ", data.length());
-                                            iota status = 1;
-                                            boss.base::broadcast->SIGNAL(e2::request, e2::command::custom, status);
-                                            boss.base::broadcast->SIGNAL(e2::preview, e2::command::custom, status == 2 ? 1/*show*/ : 2/*hide*/);
-                                            boss.base::broadcast->SIGNAL(e2::preview, e2::data::text, data);
-                                            gear.dismiss();
-                                            gear.nodbl = true;
+                                            boss.base::broadcast->SIGNAL(e2::preview, app::term::cmd, ui::term::state::right);
+                                            gear.dismiss(true);
                                         };
-                                        boss.base::broadcast->SUBMIT(e2::release, e2::command::custom, status)
+                                        boss.base::broadcast->SUBMIT(e2::release, app::term::layout::align, align)
                                         {
                                             //todo unify, get boss base colors, don't use x3
-                                            boss.color(status == 1 ? 0xFF00ff00 : x3.fgc(), x3.bgc());
+                                            boss.color(align == bias::right ? 0xFF00ff00 : x3.fgc(), x3.bgc());
                                         };
                                     }},
-                                    std::pair<text, std::function<void(ui::pads&)>>{ "wrap OFF",
+                                    std::pair<text, std::function<void(ui::pads&)>>{ "Wrap",
                                     [](ui::pads& boss)
                                     {
                                         boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
                                         {
-                                            iota status = 1;
-                                            auto data = "\033[12:2p"s;
-                                            log(" term: wrapOFF bcast signaled ", data.length());
-                                            boss.base::broadcast->SIGNAL(e2::request, e2::command::custom, status);
-                                            boss.base::broadcast->SIGNAL(e2::preview, e2::command::custom, status == 2 ? 1/*show*/ : 2/*hide*/);
-                                            boss.base::broadcast->SIGNAL(e2::preview, e2::data::text, data);
-                                            gear.dismiss();
-                                            gear.nodbl = true;
+                                            boss.base::broadcast->SIGNAL(e2::preview, app::term::cmd, ui::term::state::togglewrp);
+                                            gear.dismiss(true);
                                         };
-                                        boss.base::broadcast->SUBMIT(e2::release, e2::command::custom, status)
+                                        boss.base::broadcast->SUBMIT(e2::release, app::term::layout::wrapln, wrapln)
                                         {
                                             //todo unify, get boss base colors, don't use x3
-                                            boss.color(status == 1 ? 0xFF00ff00 : x3.fgc(), x3.bgc());
-                                        };
-                                    }},
-                                    std::pair<text, std::function<void(ui::pads&)>>{ "wrap ON",
-                                    [](ui::pads& boss)
-                                    {
-                                        boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
-                                        {
-                                            iota status = 1;
-                                            auto data = "\033[12:1p"s;
-                                            log(" term: wrapON bcast signaled ", data.length());
-                                            boss.base::broadcast->SIGNAL(e2::request, e2::command::custom, status);
-                                            boss.base::broadcast->SIGNAL(e2::preview, e2::command::custom, status == 2 ? 1/*show*/ : 2/*hide*/);
-                                            boss.base::broadcast->SIGNAL(e2::preview, e2::data::text, data);
-                                            gear.dismiss();
-                                            gear.nodbl = true;
-                                        };
-                                        boss.base::broadcast->SUBMIT(e2::release, e2::command::custom, status)
-                                        {
-                                            //todo unify, get boss base colors, don't use x3
-                                            boss.color(status == 1 ? 0xFF00ff00 : x3.fgc(), x3.bgc());
+                                            boss.color(wrapln == wrap::on ? 0xFF00ff00 : x3.fgc(), x3.bgc());
                                         };
                                     }},
                                 }))
@@ -2019,8 +1963,7 @@ utility like ctags is used to locate the definitions.
                                             auto data = "\033[2J";
                                             //boss.BROADCAST(e2::release, e2::command::text, data);
                                             boss.base::broadcast->SIGNAL(e2::preview, e2::data::text, data);
-                                            gear.dismiss();
-                                            gear.nodbl = true;
+                                            gear.dismiss(true);
                                         };
                                     }},
                                     std::pair<text, std::function<void(ui::pads&)>>{ ansi::esc("R").und(true).add("e").nil().add("set"),
@@ -2030,8 +1973,7 @@ utility like ctags is used to locate the definitions.
                                         {
                                             auto data = "\033[3J";
                                             boss.base::broadcast->SIGNAL(e2::preview, e2::data::text, data);
-                                            gear.dismiss();
-                                            gear.nodbl = true;
+                                            gear.dismiss(true);
                                         };
                                     }},
                                 }))
@@ -2068,8 +2010,7 @@ utility like ctags is used to locate the definitions.
                                             auto data = "\033[2J";
                                             //boss.BROADCAST(e2::release, e2::command::text, data);
                                             boss.base::broadcast->SIGNAL(e2::preview, e2::data::text, data);
-                                            gear.dismiss();
-                                            gear.nodbl = true;
+                                            gear.dismiss(true);
                                         };
                                     }},
                                     std::pair<text, std::function<void(ui::pads&)>>{ ansi::esc("R").und(true).add("e").nil().add("set"),
@@ -2079,8 +2020,7 @@ utility like ctags is used to locate the definitions.
                                         {
                                             auto data = "\033[3J";
                                             boss.base::broadcast->SIGNAL(e2::preview, e2::data::text, data);
-                                            gear.dismiss();
-                                            gear.nodbl = true;
+                                            gear.dismiss(true);
                                         };
                                     }},
                                 }))
@@ -2132,8 +2072,7 @@ utility like ctags is used to locate the definitions.
                                             iota status = 1;
                                             boss.base::broadcast->SIGNAL(e2::request, e2::command::custom, status);
                                             boss.base::broadcast->SIGNAL(e2::preview, e2::command::custom, status == 2 ? 1/*show*/ : 2/*hide*/);
-                                            gear.dismiss();
-                                            gear.nodbl = true;
+                                            gear.dismiss(true);
                                         };
                                         boss.base::broadcast->SUBMIT(e2::release, e2::command::custom, status)
                                         {
@@ -2147,8 +2086,7 @@ utility like ctags is used to locate the definitions.
                                         boss.SUBMIT(e2::release, e2::hids::mouse::button::click::left, gear)
                                         {
                                             boss.base::broadcast->SIGNAL(e2::preview, e2::command::custom, 0);
-                                            gear.dismiss();
-                                            gear.nodbl = true;
+                                            gear.dismiss(true);
                                         };
                                     }},
                                 }))

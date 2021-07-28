@@ -28,8 +28,8 @@ namespace netxs::events
     {
         using type = unsigned int;
 
-    private: static const unsigned int _width = 4;
-    private: static const unsigned int _mask = (1 << _width) - 1;
+    protected: static const unsigned int _width = 4;
+    protected: static const unsigned int _mask = (1 << _width) - 1;
         template<class V>
         struct _globals
         {
@@ -108,16 +108,18 @@ namespace netxs::events
         }
 
         // e2 (static): Increament level offset by width and return item's subgroup ID fof the specified level offset.
-        constexpr static type subgroup(type msg, type& itermask)
+        template<class T>
+        constexpr static T subgroup(T msg, type& itermask)
         {
             itermask = (itermask << _width) + _mask;
-            return msg & itermask;
+            return static_cast<T>(msg & itermask);
         }
-        constexpr static type subgroup_fwd(type msg, type& itermask)
+        template<class T>
+        constexpr static T subgroup_fwd(T msg, type& itermask)
         {
             auto result = msg & itermask;
             itermask = (itermask >> _width);
-            return result;
+            return static_cast<T>(result);
         }
         //constexpr static type subgroup_fwd(type msg, type& level_offset)
         //{
@@ -125,21 +127,23 @@ namespace netxs::events
         //    return msg & ((1 << level_offset) - 1);
         //}
         // e2 (static): Return event's group ID.
-        constexpr static type parent(type msg)
+        template<class T>
+        constexpr static T parent(T msg)
         {
-            return msg & ((1 << (level(msg) * _width)) - 1);
+            return static_cast<T>(msg & ((1 << (level(msg) * _width)) - 1));
         }
         // e2 (static): Return the event ID of the specified item inside the group.
-        constexpr static const type message(type base, type item)
+        template<class T>
+        constexpr static const T message(T base, type item)
         {
-            return base | ((item + 1) << (level(base) + 1) * _width);
+            return static_cast<T>(base | ((item + 1) << (level(base) + 1) * _width));
         }
         // e2 (static): Return item index inside the group by its ID.
         constexpr static unsigned int item(type msg)
         {
             return (msg >> (level(msg) * _width)) - 1;
         }
-    private:
+    protected:
         template<std::size_t N, std::size_t... I>
         constexpr static auto _instantiate(type base, std::index_sequence<I...>)
         {
@@ -166,7 +170,7 @@ namespace netxs::events
             _config     = any | (7 << 0), // set/notify/get/global_set configuration data (e2::preview/e2::release/e2::request/e2::general)
             _command    = any | (8 << 0), // exec UI command (arg: iota)
             dtor        = any | (9 << 0), // Notify about object destruction, release only (arg: const id_t)
-            //radio       = any | (10<< 0), // return active radio id_t (arg: const id_t)
+            _custom     = any | (10<< 0), // Custom command subset.
             _bindings   = any | (11<< 0), // Dynamic Data Bindings.
             _render     = any | (12<< 0), // release: UI-tree rendering (arg: face).
             postrender  = any | (13<< 0), // release: UI-tree post-rendering (arg: face).
@@ -1167,51 +1171,67 @@ namespace netxs::events
     template<class T>
     reactor bell::_globals<T>::general{ reactor::forward };
 
-    #define EVENT_NS     \
+    //#define EVENT_NS     \
     template<e2::type T> \
     struct type_clue {};
 
+    //#define EVENT_NS     \
+    template<auto T> \
+    struct type_clue {};
+
+    template<auto T>
+    struct type_clue {};
+
+    //#define EVENT_NS         \
+    template<claas P>        \
+    struct qqq               \
+    {                        \
+        template<P T>        \
+        struct type_clue {}; \
+    }
+
+
     #define EVENT_BIND(item, item_t)              \
     template<>                                    \
-    struct type_clue<item>                        \
+    struct netxs::events::type_clue<item>                        \
     {                                             \
         using                     param = item_t; \
-        static constexpr e2::type cause = item;   \
+        static constexpr e2::type cause = (e2::type)item;   \
     };
 
     #define EVENT_SAME(master, item)                                \
     template<>                                                      \
-    struct type_clue<item>                                          \
+    struct netxs::events::type_clue<item>                                          \
     {                                                               \
-        using                     param = type_clue<master>::param; \
+        using                     param = netxs::events::type_clue<master>::param; \
         static constexpr e2::type cause = item;                     \
     };
 
-    #define ARGTYPE(item) typename type_clue<item>::param
+    #define ARGTYPE(item) typename netxs::events::type_clue<item>::param
 
     // Usage: SUBMIT(tier, item, arg) { ...expression; };
     #define SUBMIT(level, item, arg) \
-        bell::template submit2<type_clue<item>>(level) = [&] (ARGTYPE(item)&& arg)
+        bell::template submit2<netxs::events::type_clue<item>>(level) = [&] (ARGTYPE(item)&& arg)
 
     // Usage: SUBMIT_BYVAL(tier, item, arg) { ...expression; };
     //        Note: It is a mutable closure!
     #define SUBMIT_BYVAL(level, item, arg) \
-        bell::template submit2<type_clue<item>>(level) = [=] (ARGTYPE(item)&& arg) mutable
+        bell::template submit2<netxs::events::type_clue<item>>(level) = [=] (ARGTYPE(item)&& arg) mutable
 
     // Usage: SUBMIT_BYVAL_T(tier, item, token, arg) { ...expression; };
     //        Note: It is a mutable closure!
     #define SUBMIT_BYVAL_T(level, item, token, arg) \
-        bell::template submit2<type_clue<item>>(level, token) = [=] (ARGTYPE(item)&& arg) mutable
+        bell::template submit2<netxs::events::type_clue<item>>(level, token) = [=] (ARGTYPE(item)&& arg) mutable
 
     #define SUBMIT_V(level, item, hndl) \
-        bell::template submit<type_clue<item>>(level, hndl)
+        bell::template submit<netxs::events::type_clue<item>>(level, hndl)
 
     #define SUBMIT_TV(level, item, token, hndl) \
-        bell::template submit<type_clue<item>>(level, token, hndl)
+        bell::template submit<netxs::events::type_clue<item>>(level, token, hndl)
 
     // Usage: SUBMIT_BYVAL(tier, item, token/tokens, arg) { ...expression; };
     #define SUBMIT_T(level, item, token, arg) \
-        bell::template submit2<type_clue<item>>(level, token) = [&] (ARGTYPE(item)&& arg)
+        bell::template submit2<netxs::events::type_clue<item>>(level, token) = [&] (ARGTYPE(item)&& arg)
 
     #define SIGNAL(level, item, arg) \
         bell::template signal<level>(item, static_cast<ARGTYPE(item)&&>(arg))
@@ -1220,7 +1240,7 @@ namespace netxs::events
         bell::template signal_global(item, static_cast<ARGTYPE(item)&&>(arg))
 
     #define SUBMIT_GLOBAL(item, token, arg) \
-        bell::template submit_global<type_clue<item>>(token) = [&] (ARGTYPE(item)&& arg)
+        bell::template submit_global<netxs::events::type_clue<item>>(token) = [&] (ARGTYPE(item)&& arg)
 }
 
 #endif // NETXS_EVENTS_HPP
