@@ -166,8 +166,7 @@ Module               | Options
   </tr>
   <tr>
     <th>MiddleDrag</th>
-    <td colspan="9"></td>
-    <td>Run default app</td>
+    <td colspan="9">Run default app</td>
   </tr>
   <tr>
     <th>Left+RightDrag</th>
