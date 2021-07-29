@@ -16,26 +16,38 @@ namespace netxs
     {
         struct term : e2
         {
-            private: static const unsigned int _level0 = _width;
-            public:
-            enum : type {
-                any = e2::_custom,
-                _layout     = any | (1 << _level0),
-                cmd         = any | (2 << _level0),
-                _data       = any | (3 << _level0),
+            #define EVENT(event) event = any | (((__COUNTER__ - _counter_base) << (e2::level(any) * _width)))
+            #define GROUP(group) EVENT(_##group)
+            #define TOPGROUP(group) private: enum : type { _counter_base = __COUNTER__ }; \
+                                    private: enum : type { _ = _##group };                \
+                                    public:  enum : type
+            #define SUBGROUP(group) }; struct group { TOPGROUP(group)
+
+            TOPGROUP( custom )
+            {
+                any = _,
+                GROUP( layout   ),
+                GROUP( data     ),
+                EVENT( cmd      ),
+
+                SUBGROUP( layout )
+                {
+                    any = _,
+                    EVENT( align  ),
+                    EVENT( wrapln ),
+                };
+                SUBGROUP( data )
+                {
+                    any = _,
+                    EVENT( in  ),
+                    EVENT( out ),
+                };
             };
-            private: static const unsigned int _level1 = _level0 + _width;
-            public:
-            struct layout { enum : type {
-                    any = term::_layout,
-                    align       = any | (1 << _level1),
-                    wrapln      = any | (2 << _level1),
-            };};
-            struct data { enum : type {
-                    any = term::_data,
-                    in          = any | (1 << _level1),
-                    out         = any | (2 << _level1),
-            };};
+
+            #undef EVENT
+            #undef GROUP
+            #undef TOPGROUP
+            #undef SUBGROUP
         };
     }
 
