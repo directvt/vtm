@@ -16,38 +16,26 @@ namespace netxs
     {
         struct term : e2
         {
-            #define EVENT(event) event = any | (((__COUNTER__ - _counter_base) << (e2::level(any) * _width)))
-            #define GROUP(group) EVENT(_##group)
-            #define TOPGROUP(group) private: enum : type { _counter_base = __COUNTER__ }; \
-                                    private: enum : type { _ = _##group };                \
-                                    public:  enum : type
-            #define SUBGROUP(group) }; struct group { TOPGROUP(group)
-
-            TOPGROUP( custom )
+            TOPGROUPXS( custom )
             {
                 any = _,
-                GROUP( layout   ),
-                GROUP( data     ),
-                EVENT( cmd      ),
+                GROUPXS( layout   ),
+                GROUPXS( data     ),
+                EVENTXS( cmd      ),
 
-                SUBGROUP( layout )
+                SUBGROUPXS( layout )
                 {
                     any = _,
-                    EVENT( align  ),
-                    EVENT( wrapln ),
+                    EVENTXS( align  ),
+                    EVENTXS( wrapln ),
                 };
-                SUBGROUP( data )
+                SUBGROUPXS( data )
                 {
                     any = _,
-                    EVENT( in  ),
-                    EVENT( out ),
+                    EVENTXS( in  ),
+                    EVENTXS( out ),
                 };
             };
-
-            #undef EVENT
-            #undef GROUP
-            #undef TOPGROUP
-            #undef SUBGROUP
         };
     }
 
