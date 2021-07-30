@@ -8,7 +8,7 @@ Text-based desktop environment inside your terminal*
 
  - [Unicode/UTF-8](https://www.cl.cam.ac.uk/~mgk25/unicode.html)
  - [Grapheme Clustering](https://unicode.org/reports/tr29/#Grapheme_Cluster_Boundaries)
- - [24-bit True Color](https://gist.github.com/XVilka/8346728)
+ - [24-bit True Color](https://github.com//termstandard/colors)
  - [xterm-style Mouse Reporting](https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h2-Mouse-Tracking)
 
 #### [Tested Terminals](https://github.com/netxs-group/VTM/discussions/72)
