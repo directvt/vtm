@@ -12,15 +12,16 @@
 
 namespace netxs
 {
-    namespace app
+    struct app
     {
-        struct term : e2
+        struct term
         {
             #define EVENT(name) EVENT_VTM(name)
             #define GROUP(name) GROUP_VTM(name)
             #define    AT(name)    AT_VTM(name)
             #define SUBSET     SUBSET_VTM
 
+            static const events::type _custom = e2::_custom;
             EVENTPACK( custom )
             {
                 any = _,
@@ -47,7 +48,7 @@ namespace netxs
             #undef AT
             #undef SUBSET
         };
-    }
+    };
 
     EVENT_BIND(app::term::cmd, iota)
 
@@ -778,7 +779,7 @@ namespace netxs::ui
 
     // terminal: Built-in terminal app.
     class term
-        : public form<term>
+        : public form<term>, public app
     {
         pro::caret caret{ *this }; // term: Caret controller.
 
@@ -829,21 +830,21 @@ private:
                 state |= m;
                 if (state && !token.count()) // Do not subscribe if it is already subscribed
                 {
-                    owner.SUBMIT_T(e2::release, e2::hids::mouse::scroll::any, token, gear)
+                    owner.SUBMIT_T(tier::release, e2::hids::mouse::scroll::any, token, gear)
                     {
                         gear.dismiss();
                     };
-                    owner.SUBMIT_T(e2::release, e2::hids::mouse::any, token, gear)
+                    owner.SUBMIT_T(tier::release, e2::hids::mouse::any, token, gear)
                     {
                         auto c = gear.coord - (owner.base::size() - owner.screen.size);
                         moved = coord((state & mode::over) ? c
                                                            : std::clamp(c, dot_00, owner.screen.size - dot_11));
-                        auto cause = owner.bell::protos<e2::release>();
+                        auto cause = owner.bell::protos<tier::release>();
                         if (proto == sgr) serialize<sgr>(gear, cause);
                         else              serialize<x11>(gear, cause);
                         owner.write(queue);
                     };
-                    owner.SUBMIT_T(e2::general, e2::hids::mouse::gone, token, gear)
+                    owner.SUBMIT_T(tier::general, e2::hids::mouse::gone, token, gear)
                     {
                         log("term: e2::hids::mouse::gone, id = ", gear.id);
                         auto cause = e2::hids::mouse::gone;
@@ -960,9 +961,9 @@ private:
                 {
                     if (!token) // Do not subscribe if it is already subscribed)
                     {
-                        owner.SUBMIT_T(e2::release, e2::form::notify::keybd::any, token, gear)
+                        owner.SUBMIT_T(tier::release, e2::form::notify::keybd::any, token, gear)
                         {
-                            switch(owner.bell::protos<e2::release>())
+                            switch(owner.bell::protos<tier::release>())
                             {
                                 case e2::form::notify::keybd::got:  queue.fcs(true); break;
                                 case e2::form::notify::keybd::lost: queue.fcs(faux); break;
@@ -1009,7 +1010,7 @@ private:
                                   props[ansi::OSC_LABEL] = txt;
                     auto& utf8 = (props[ansi::OSC_TITLE] = txt);
                     utf8 = jet_left + utf8;
-                    owner.base::riseup<e2::preview, e2::form::prop::header>(utf8);
+                    owner.base::riseup<tier::preview, e2::form::prop::header>(utf8);
                 }
                 else
                 {
@@ -1017,7 +1018,7 @@ private:
                     if (property == ansi::OSC_TITLE)
                     {
                         utf8 = jet_left + utf8;
-                        owner.base::riseup<e2::preview, e2::form::prop::header>(utf8);
+                        owner.base::riseup<tier::preview, e2::form::prop::header>(utf8);
                     }
                 }
             }
@@ -1252,7 +1253,7 @@ private:
                 style.wrp(w);
                 auto status = w == wrap::none ? WRAPPING
                                               :(wrap::type)w;
-                boss.base::broadcast->SIGNAL(e2::release, app::term::layout::wrapln, status);
+                boss.base::broadcast->SIGNAL(tier::release, app::term::layout::wrapln, status);
             }
             // scrollbuff: CCC_JET:  Set line alignment.
             void jet(iota j)
@@ -1262,7 +1263,7 @@ private:
                 style.jet(j);
                 auto status = j == bias::none ? bias::left
                                               :(bias::type)j;
-                boss.base::broadcast->SIGNAL(e2::release, app::term::layout::align, status);
+                boss.base::broadcast->SIGNAL(tier::release, app::term::layout::align, status);
             }
             // scrollbuff: ESC H  Place tabstop at the current caret posistion.
             void stb()
@@ -1939,16 +1940,16 @@ private:
         {
             while (alive)
             {
-                e2::try_sync guard;
+                events::try_sync guard;
                 if (guard)
                 {
-                    SIGNAL(e2::general, e2::debug::output, shadow); // Post for the Logs.
+                    SIGNAL(tier::general, e2::debug::output, shadow); // Post for the Logs.
                     ansi::parse(shadow, target); // Append target using current insertion point.
                     auto adjust_pads = target->recalc_pads(oversz);
                     auto scroll_size = recalc();
                     if (scroll_size != base::size() || adjust_pads)
                     {
-                        SIGNAL(e2::release, e2::size::set, scroll_size); // Update scrollbars.
+                        SIGNAL(tier::release, e2::size::set, scroll_size); // Update scrollbars.
                     }
                     base::deface();
                     break;
@@ -1967,7 +1968,7 @@ private:
             else
             {
                 log("term: submit for destruction on next frame/tick");
-                SUBMIT_T(e2::general, e2::timer::tick, shut_down_token, t)
+                SUBMIT_T(tier::general, e2::timer::tick, shut_down_token, t)
                 {
                     shut_down_token.reset();
                     base::destroy();
@@ -1977,7 +1978,7 @@ private:
         void reset_scroll_pos()
         {
             //todo caret following
-            this->SIGNAL(e2::release, e2::coor::set, -screen.coor);
+            this->SIGNAL(tier::release, e2::coor::set, -screen.coor);
         }
     public:
         ~term(){ alive = faux; }
@@ -1995,9 +1996,9 @@ private:
             #ifdef PROD
             form::keybd.accept(true); // Subscribe to keybd offers.
             #endif
-            base::broadcast->SUBMIT_T(e2::preview, app::term::cmd, bell::tracker, cmd)
+            base::broadcast->SUBMIT_T(tier::preview, app::term::cmd, bell::tracker, cmd)
             {
-                log("term: e2::preview, app::term::cmd, ", cmd);
+                log("term: tier::preview, app::term::cmd, ", cmd);
                 reset_scroll_pos();
                 switch(cmd)
                 {
@@ -2025,29 +2026,29 @@ private:
                 }
                 input_hndl("");
             };
-            base::broadcast->SUBMIT_T(e2::preview, app::term::data::in, bell::tracker, data)
+            base::broadcast->SUBMIT_T(tier::preview, app::term::data::in, bell::tracker, data)
             {
                 log("term: app::term::data::in, ", utf::debase(data));
                 reset_scroll_pos();
                 input_hndl(data);
             };
-            base::broadcast->SUBMIT_T(e2::preview, app::term::data::out, bell::tracker, data)
+            base::broadcast->SUBMIT_T(tier::preview, app::term::data::out, bell::tracker, data)
             {
                 log("term: app::term::data::out, ", utf::debase(data));
                 reset_scroll_pos();
                 ptycon.write(data);
             };
-            SUBMIT(e2::release, e2::form::upon::vtree::attached, parent)
+            SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
             {
-                this->base::riseup<e2::request, e2::form::prop::header>(winprops.get(ansi::OSC_TITLE));
-                this->SUBMIT_T(e2::release, e2::size::set, oneshot_resize_token, new_sz)
+                this->base::riseup<tier::request, e2::form::prop::header>(winprops.get(ansi::OSC_TITLE));
+                this->SUBMIT_T(tier::release, e2::size::set, oneshot_resize_token, new_sz)
                 {
                     if (new_sz.y > 0)
                     {
                         oneshot_resize_token.reset();
                         altbuf.resize<faux>(new_sz.y);
 
-                        this->SUBMIT(e2::preview, e2::size::set, new_sz)
+                        this->SUBMIT(tier::preview, e2::size::set, new_sz)
                         {
                             new_sz = std::max(new_sz, dot_11);
                             if (target == &altbuf) altbuf.trim_to_size(new_sz);
@@ -2063,7 +2064,7 @@ private:
                     }
                 };
             };
-            SUBMIT(e2::release, e2::hids::keybd::any, gear)
+            SUBMIT(tier::release, e2::hids::keybd::any, gear)
             {
                 reset_scroll_pos();
                 //todo optimize/unify
@@ -2113,15 +2114,15 @@ private:
                     log("key strokes bin: ", d.str());
                 #endif
             };
-            SUBMIT(e2::release, e2::form::prop::brush, brush)
+            SUBMIT(tier::release, e2::form::prop::brush, brush)
             {
                 target->brush.reset(brush);
             };
-            SUBMIT(e2::release, e2::render::any, parent_canvas)
+            SUBMIT(tier::release, e2::render::any, parent_canvas)
             {
                 if (status.update(*target))
                 {
-                    this->base::riseup<e2::preview, e2::form::prop::footer>(status.data);
+                    this->base::riseup<tier::preview, e2::form::prop::footer>(status.data);
                 }
                 target->output(parent_canvas);
                 //target->test_basis(parent_canvas);

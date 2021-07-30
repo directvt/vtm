@@ -18,7 +18,6 @@
 namespace netxs::console::ansi
 {
     using namespace netxs::utf;
-    using namespace netxs::events;
     using namespace netxs::ui::atoms;
 
     static constexpr auto ESCCSI = "\033[";
