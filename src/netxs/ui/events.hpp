@@ -156,537 +156,547 @@ namespace netxs::events
     struct e2
         : public e2_base
     {
-        #define EVENTXS(event) event = any | (((__COUNTER__ - _counter_base) << (e2::level(any) * _width)))
-        #define GROUPXS(group) EVENTXS(_##group)
-        #define TOPGROUPXS(group) private: enum : type { _counter_base = __COUNTER__ }; \
-                                private: enum : type { _ = _##group };                \
-                                public:  enum : type
-        #define SUBGROUPXS(group) }; struct group { TOPGROUPXS(group)
+        #define EVENTPACK(name) private: enum : type { _ = _##name, _counter_base = __COUNTER__ }; \
+                                 public: enum : type
+        #define EVENT_VTM(name) name = any | (((__COUNTER__ - _counter_base) << (e2::level(any) * _width)))
+        #define GROUP_VTM(name) EVENT_VTM( _##name )
+        #define    AT_VTM(name) struct name { EVENTPACK( name )
+        #define SUBSET_VTM    };
+
+        #define EVENT(name) EVENT_VTM(name)
+        #define GROUP(name) GROUP_VTM(name)
+        #define    AT(name)    AT_VTM(name)
+        #define SUBSET     SUBSET_VTM
 
         private: static const type _root_event = 0;
-        TOPGROUPXS(root_event)
+        EVENTPACK(root_event)
         {
             any = _,
-            GROUPXS( timer      ),
-            GROUPXS( term       ),
-            GROUPXS( form       ),
-            GROUPXS( hids       ),
-            GROUPXS( data       ),
-            GROUPXS( debug      ), // return info struct with telemtry data
-            GROUPXS( config     ), // set/notify/get/global_set configuration data (e2::preview/e2::release/e2::request/e2::general)
-            GROUPXS( command    ), // exec UI command (arg: iota)
-            GROUPXS( bindings   ), // Dynamic Data Bindings.
-            GROUPXS( render     ), // release: UI-tree rendering (arg: face).
-            GROUPXS( size       ), // release: Object size (arg: twod).
-            GROUPXS( coor       ), // release: Object coor (arg: twod).
-            GROUPXS( custom     ), // Custom events subset.
-            EVENTXS( dtor       ), // Notify about object destruction, release only (arg: const id_t)
-            EVENTXS( postrender ), // release: UI-tree post-rendering (arg: face).
+            EVENT( dtor       ), // Notify about object destruction, release only (arg: const id_t)
+            EVENT( postrender ), // release: UI-tree post-rendering (arg: face).
+            GROUP( timer      ),
+            GROUP( term       ),
+            GROUP( form       ),
+            GROUP( hids       ),
+            GROUP( data       ),
+            GROUP( debug      ), // return info struct with telemtry data
+            GROUP( config     ), // set/notify/get/global_set configuration data (e2::preview/e2::release/e2::request/e2::general)
+            GROUP( command    ), // exec UI command (arg: iota)
+            GROUP( bindings   ), // Dynamic Data Bindings.
+            GROUP( render     ), // release: UI-tree rendering (arg: face).
+            GROUP( size       ), // release: Object size (arg: twod).
+            GROUP( coor       ), // release: Object coor (arg: twod).
+            GROUP( custom     ), // Custom events subset.
 
-            SUBGROUPXS( size )
+            SUBSET AT( size )
             {
                 any = _,      // preview: checking by pro::limit (arg: twod).
-                EVENTXS( set ), // preview: checking by object; release: apply to object (arg: twod).
+                EVENT( set ), // preview: checking by object; release: apply to object (arg: twod).
             };
-            SUBGROUPXS( coor )
+            SUBSET AT( coor )
             {
                 any = _,      // preview any: checking by pro::limit (arg: twod).
-                EVENTXS( set ), // preview: checking by object; release: apply to object (arg: twod).
+                EVENT( set ), // preview: checking by object; release: apply to object (arg: twod).
             };
-            SUBGROUPXS( render )
+            SUBSET AT( render )
             {
                 any = _,            // release any: UI-tree default rendering submission (arg: face).
-                EVENTXS( prerender ), // release: UI-tree pre-rendering, used by pro::cache (can interrupt SIGNAL) and any kind of highlighters (arg: face).
+                EVENT( prerender ), // release: UI-tree pre-rendering, used by pro::cache (can interrupt SIGNAL) and any kind of highlighters (arg: face).
             };
-            SUBGROUPXS( bindings )
+            SUBSET AT( bindings )
             {
                 any = _,
-                GROUPXS( list ), // release: UI-tree pre-rendering, used by pro::cache (can interrupt SIGNAL) and any kind of highlighters (arg: face).
+                GROUP( list ), // release: UI-tree pre-rendering, used by pro::cache (can interrupt SIGNAL) and any kind of highlighters (arg: face).
 
-                SUBGROUPXS( list )
+                SUBSET AT( list )
                 {
                     any = _,
-                    EVENTXS( users ), // list of connected users (arg: sptr<std::list<sptr<base>>>)
-                    EVENTXS( apps  ), // list of running apps (arg: sptr<std::map<id_t, std::list<sptr<base>>>>)
+                    EVENT( users ), // list of connected users (arg: sptr<std::list<sptr<base>>>)
+                    EVENT( apps  ), // list of running apps (arg: sptr<std::map<id_t, std::list<sptr<base>>>>)
                 };
             };
-            SUBGROUPXS( debug )
+            SUBSET AT( debug )
             {
                 any = _,
-                EVENTXS( logs   ), // logs output (arg: const text)
-                EVENTXS( output ), // logs has to be parsed (arg: const view)
-                EVENTXS( parsed ), // output parced logs (arg: const page)
+                EVENT( logs   ), // logs output (arg: const text)
+                EVENT( output ), // logs has to be parsed (arg: const view)
+                EVENT( parsed ), // output parced logs (arg: const page)
             };
-            SUBGROUPXS( timer )
+            SUBSET AT( timer )
             {
                 any = _,
-                EVENTXS( tick ), // timer tick (arg: current moment (now))
-                EVENTXS( fps  ), // request to set new fps (arg: new fps (iota); the value == -1 is used to request current fps)
+                EVENT( tick ), // timer tick (arg: current moment (now))
+                EVENT( fps  ), // request to set new fps (arg: new fps (iota); the value == -1 is used to request current fps)
             };
-            SUBGROUPXS( config )
+            SUBSET AT( config )
             {
                 any = _,
-                GROUPXS( caret     ), // any kind of intervals property (arg: period)
-                EVENTXS( broadcast ), // release: broadcast source changed, args: sptr<bell>.
+                EVENT( broadcast ), // release: broadcast source changed, args: sptr<bell>.
+                GROUP( caret     ), // any kind of intervals property (arg: period)
 
-                SUBGROUPXS( caret )
+                SUBSET AT( caret )
                 {
                     any = _,
-                    EVENTXS( blink ), // caret blinking interval (arg: period)
-                    EVENTXS( style ), // caret style: 0 - underline, 1 - box (arg: iota)
+                    EVENT( blink ), // caret blinking interval (arg: period)
+                    EVENT( style ), // caret style: 0 - underline, 1 - box (arg: iota)
                 };
             };
-            SUBGROUPXS( term )
+            SUBSET AT( term )
             {
                 any = _,
-                EVENTXS( unknown  ), // return platform unknown event code
-                EVENTXS( error    ), // return error code
-                EVENTXS( focus    ), // order to change focus (arg: bool)
-                EVENTXS( key      ), // keybd activity (arg: syskeybd)
-                EVENTXS( native   ), // extended functionality (arg: bool)
-                EVENTXS( mouse    ), // mouse activity (arg: sysmouse)
-                EVENTXS( size     ), // order to update terminal primary overlay (arg: newsize twod)
-                EVENTXS( layout   ),
-                EVENTXS( preclose ), // signal to quit after idle timeout (arg: bool - ready to shutdown)
-                EVENTXS( quit     ), // quit (arg: text - bye msg)
-                EVENTXS( pointer  ), // mouse pointer visibility (arg: bool)
-                //EVENTXS( menu   ), 
+                EVENT( unknown  ), // return platform unknown event code
+                EVENT( error    ), // return error code
+                EVENT( focus    ), // order to change focus (arg: bool)
+                EVENT( key      ), // keybd activity (arg: syskeybd)
+                EVENT( native   ), // extended functionality (arg: bool)
+                EVENT( mouse    ), // mouse activity (arg: sysmouse)
+                EVENT( size     ), // order to update terminal primary overlay (arg: newsize twod)
+                EVENT( layout   ),
+                EVENT( preclose ), // signal to quit after idle timeout (arg: bool - ready to shutdown)
+                EVENT( quit     ), // quit (arg: text - bye msg)
+                EVENT( pointer  ), // mouse pointer visibility (arg: bool)
+                //EVENT( menu   ), 
             };
-            SUBGROUPXS( data )
+            SUBSET AT( data )
             {
                 any = _,
-                EVENTXS( changed ), // return digest
-                EVENTXS( request ),
-                EVENTXS( disable ),
-                EVENTXS( flush   ),
-                EVENTXS( text    ), // release: signaling with a text string (args: const text).
+                EVENT( changed ), // return digest
+                EVENT( request ),
+                EVENT( disable ),
+                EVENT( flush   ),
+                EVENT( text    ), // release: signaling with a text string (args: const text).
             };
-            SUBGROUPXS( command )
+            SUBSET AT( command )
             {
                 any = _,
-                EVENTXS( quit   ), // return bye msg //errcode (arg: const view)
-                EVENTXS( cout   ), // Append extra data to output (arg: const text)
-                EVENTXS( custom ), // Custom command (arg: cmd_id iota)
+                EVENT( quit   ), // return bye msg //errcode (arg: const view)
+                EVENT( cout   ), // Append extra data to output (arg: const text)
+                EVENT( custom ), // Custom command (arg: cmd_id iota)
             };
-            SUBGROUPXS( hids )
+            SUBSET AT( hids )
             {
                 any = _,
-                GROUPXS( keybd ),
-                GROUPXS( mouse ),
+                GROUP( keybd ),
+                GROUP( mouse ),
 
-                SUBGROUPXS( keybd )
+                SUBSET AT( keybd )
                 {
                     any = _,
-                    GROUPXS( control ),
-                    GROUPXS( state   ),
-                    EVENTXS( down    ),
-                    EVENTXS( up      ),
+                    EVENT( down    ),
+                    EVENT( up      ),
+                    GROUP( control ),
+                    GROUP( state   ),
 
-                    SUBGROUPXS( control )
+                    SUBSET AT( control )
                     {
                         any = _,
-                        GROUPXS( up   ),
-                        GROUPXS( down ),
+                        GROUP( up   ),
+                        GROUP( down ),
 
-                        SUBGROUPXS( up )
+                        SUBSET AT( up )
                         {
                             any = _,
-                            EVENTXS( alt_right   ),
-                            EVENTXS( alt_left    ),
-                            EVENTXS( ctrl_right  ),
-                            EVENTXS( ctrl_left   ),
-                            EVENTXS( shift_right ),
-                            EVENTXS( shift_left  ),
+                            EVENT( alt_right   ),
+                            EVENT( alt_left    ),
+                            EVENT( ctrl_right  ),
+                            EVENT( ctrl_left   ),
+                            EVENT( shift_right ),
+                            EVENT( shift_left  ),
                         };
-                        SUBGROUPXS( down )
+                        SUBSET AT( down )
                         {
                             any = _,
-                            EVENTXS( alt_right   ),
-                            EVENTXS( alt_left    ),
-                            EVENTXS( ctrl_right  ),
-                            EVENTXS( ctrl_left   ),
-                            EVENTXS( shift_right ),
-                            EVENTXS( shift_left  ),
+                            EVENT( alt_right   ),
+                            EVENT( alt_left    ),
+                            EVENT( ctrl_right  ),
+                            EVENT( ctrl_left   ),
+                            EVENT( shift_right ),
+                            EVENT( shift_left  ),
                         };
                     };
-                    SUBGROUPXS( state )
+                    SUBSET AT( state )
                     {
                         any = _,
-                        GROUPXS( on  ),
-                        GROUPXS( off ),
+                        GROUP( on  ),
+                        GROUP( off ),
 
-                        SUBGROUPXS( on )
+                        SUBSET AT( on )
                         {
                             any = _,
-                            EVENTXS( numlock    ),
-                            EVENTXS( capslock   ),
-                            EVENTXS( scrolllock ),
-                            EVENTXS( insert     ),
+                            EVENT( numlock    ),
+                            EVENT( capslock   ),
+                            EVENT( scrolllock ),
+                            EVENT( insert     ),
                         };
-                        SUBGROUPXS( off )
+                        SUBSET AT( off )
                         {
                             any = _,
-                            EVENTXS( numlock    ),
-                            EVENTXS( capslock   ),
-                            EVENTXS( scrolllock ),
-                            EVENTXS( insert     ),
-                        };
-                    };
-                };
-                SUBGROUPXS( mouse )
-                {
-                    any = _,
-                    GROUPXS( button  ),
-                    GROUPXS( scroll  ),
-                    EVENTXS( move    ),
-                    EVENTXS( shuffle ), // movement within one cell
-                    EVENTXS( focus   ),
-                    EVENTXS( gone    ), // release::global: Notify about the mouse controller is gone (args: hids).
-
-                    SUBGROUPXS( scroll )
-                    {
-                        any = _,
-                        EVENTXS( up   ),
-                        EVENTXS( down ),
-                    };
-                    SUBGROUPXS( button )
-                    {
-                        any = _,
-                        GROUPXS( up       ),
-                        GROUPXS( down     ),
-                        GROUPXS( click    ),
-                        GROUPXS( dblclick ),
-                        GROUPXS( drag     ),
-
-                        SUBGROUPXS( up )
-                        {
-                            any = _,
-                            EVENTXS( left      ),
-                            EVENTXS( right     ),
-                            EVENTXS( leftright ),
-                            EVENTXS( middle    ),
-                            EVENTXS( wheel     ),
-                            EVENTXS( win       ),
-                        };
-                        SUBGROUPXS( down )
-                        {
-                            any = _,
-                            EVENTXS( left      ),
-                            EVENTXS( right     ),
-                            EVENTXS( leftright ),
-                            EVENTXS( middle    ),
-                            EVENTXS( wheel     ),
-                            EVENTXS( win       ),
-                        };
-                        SUBGROUPXS( click )
-                        {
-                            any = _,
-                            EVENTXS( left      ),
-                            EVENTXS( right     ),
-                            EVENTXS( leftright ),
-                            EVENTXS( middle    ),
-                            EVENTXS( wheel     ),
-                            EVENTXS( win       ),
-                        };
-                        SUBGROUPXS( dblclick )
-                        {
-                            any = _,
-                            EVENTXS( left      ),
-                            EVENTXS( right     ),
-                            EVENTXS( leftright ),
-                            EVENTXS( middle    ),
-                            EVENTXS( wheel     ),
-                            EVENTXS( win       ),
-                        };
-                        SUBGROUPXS( drag )
-                        {
-                            any = _,
-                            GROUPXS( start  ),
-                            GROUPXS( pull   ),
-                            GROUPXS( cancel ),
-                            GROUPXS( stop   ),
-
-                            SUBGROUPXS( start )
-                            {
-                                any = _,
-                                EVENTXS( left      ),
-                                EVENTXS( right     ),
-                                EVENTXS( leftright ),
-                                EVENTXS( middle    ),
-                                EVENTXS( wheel     ),
-                                EVENTXS( win       ),
-                            };
-                            SUBGROUPXS( pull )
-                            {
-                                any = _,
-                                EVENTXS( left      ),
-                                EVENTXS( right     ),
-                                EVENTXS( leftright ),
-                                EVENTXS( middle    ),
-                                EVENTXS( wheel     ),
-                                EVENTXS( win       ),
-                            };
-                            SUBGROUPXS( cancel )
-                            {
-                                any = _,
-                                EVENTXS( left      ),
-                                EVENTXS( right     ),
-                                EVENTXS( leftright ),
-                                EVENTXS( middle    ),
-                                EVENTXS( wheel     ),
-                                EVENTXS( win       ),
-                            };
-                            SUBGROUPXS( stop )
-                            {
-                                any = _,
-                                EVENTXS( left      ),
-                                EVENTXS( right     ),
-                                EVENTXS( leftright ),
-                                EVENTXS( middle    ),
-                                EVENTXS( wheel     ),
-                                EVENTXS( win       ),
-                            };
+                            EVENT( numlock    ),
+                            EVENT( capslock   ),
+                            EVENT( scrolllock ),
+                            EVENT( insert     ),
                         };
                     };
                 };
+                SUBSET AT( mouse )
+                {
+                    any = _,
+                    EVENT( move    ),
+                    EVENT( shuffle ), // movement within one cell
+                    EVENT( focus   ),
+                    EVENT( gone    ), // release::global: Notify about the mouse controller is gone (args: hids).
+                    GROUP( button  ),
+                    GROUP( scroll  ),
+
+                    SUBSET AT( scroll )
+                    {
+                        any = _,
+                        EVENT( up   ),
+                        EVENT( down ),
+                    };
+                    SUBSET AT( button )
+                    {
+                        any = _,
+                        GROUP( up       ),
+                        GROUP( down     ),
+                        GROUP( click    ),
+                        GROUP( dblclick ),
+                        GROUP( drag     ),
+
+                        SUBSET AT( up )
+                        {
+                            any = _,
+                            EVENT( left      ),
+                            EVENT( right     ),
+                            EVENT( leftright ),
+                            EVENT( middle    ),
+                            EVENT( wheel     ),
+                            EVENT( win       ),
+                        };
+                        SUBSET AT( down )
+                        {
+                            any = _,
+                            EVENT( left      ),
+                            EVENT( right     ),
+                            EVENT( leftright ),
+                            EVENT( middle    ),
+                            EVENT( wheel     ),
+                            EVENT( win       ),
+                        };
+                        SUBSET AT( click )
+                        {
+                            any = _,
+                            EVENT( left      ),
+                            EVENT( right     ),
+                            EVENT( leftright ),
+                            EVENT( middle    ),
+                            EVENT( wheel     ),
+                            EVENT( win       ),
+                        };
+                        SUBSET AT( dblclick )
+                        {
+                            any = _,
+                            EVENT( left      ),
+                            EVENT( right     ),
+                            EVENT( leftright ),
+                            EVENT( middle    ),
+                            EVENT( wheel     ),
+                            EVENT( win       ),
+                        };
+                        SUBSET AT( drag )
+                        {
+                            any = _,
+                            GROUP( start  ),
+                            GROUP( pull   ),
+                            GROUP( cancel ),
+                            GROUP( stop   ),
+
+                            SUBSET AT( start )
+                            {
+                                any = _,
+                                EVENT( left      ),
+                                EVENT( right     ),
+                                EVENT( leftright ),
+                                EVENT( middle    ),
+                                EVENT( wheel     ),
+                                EVENT( win       ),
+                            };
+                            SUBSET AT( pull )
+                            {
+                                any = _,
+                                EVENT( left      ),
+                                EVENT( right     ),
+                                EVENT( leftright ),
+                                EVENT( middle    ),
+                                EVENT( wheel     ),
+                                EVENT( win       ),
+                            };
+                            SUBSET AT( cancel )
+                            {
+                                any = _,
+                                EVENT( left      ),
+                                EVENT( right     ),
+                                EVENT( leftright ),
+                                EVENT( middle    ),
+                                EVENT( wheel     ),
+                                EVENT( win       ),
+                            };
+                            SUBSET AT( stop )
+                            {
+                                any = _,
+                                EVENT( left      ),
+                                EVENT( right     ),
+                                EVENT( leftright ),
+                                EVENT( middle    ),
+                                EVENT( wheel     ),
+                                EVENT( win       ),
+                            };
+                        };
+                    };
+                };
             };
 
-            SUBGROUPXS( form )
+            SUBSET AT( form )
             {
                 any = _,
-                GROUPXS( draggable ), // signal to the form to enable draggablity for specified mouse button (arg: bool)
-                GROUPXS( layout    ),
-                GROUPXS( highlight ),
-                GROUPXS( upon      ),
-                GROUPXS( proceed   ),
-                GROUPXS( cursor    ),
-                GROUPXS( animate   ),
-                GROUPXS( drag      ),
-                GROUPXS( prop      ),
-                GROUPXS( global    ),
-                GROUPXS( state     ),
-                GROUPXS( upevent   ), // eventss streamed up (to children) of the visual tree by base::
-                GROUPXS( notify    ), // Form events that should be propagated down to the visual branch
-                EVENTXS( canvas    ), // request global canvas (arg: sptr<core>)
-                //EVENTXS( key       ),
+                EVENT( canvas    ), // request global canvas (arg: sptr<core>)
+                GROUP( draggable ), // signal to the form to enable draggablity for specified mouse button (arg: bool)
+                GROUP( layout    ),
+                GROUP( highlight ),
+                GROUP( upon      ),
+                GROUP( proceed   ),
+                GROUP( cursor    ),
+                GROUP( animate   ),
+                GROUP( drag      ),
+                GROUP( prop      ),
+                GROUP( global    ),
+                GROUP( state     ),
+                GROUP( upevent   ), // eventss streamed up (to children) of the visual tree by base::
+                GROUP( notify    ), // Form events that should be propagated down to the visual branch
+                //EVENT( key       ),
 
-                SUBGROUPXS( draggable )
+                SUBSET AT( draggable )
                 {
                     any = _,
-                    EVENTXS( left      ),
-                    EVENTXS( right     ),
-                    EVENTXS( leftright ),
-                    EVENTXS( middle    ),
-                    EVENTXS( wheel     ),
-                    EVENTXS( win       ),
+                    EVENT( left      ),
+                    EVENT( right     ),
+                    EVENT( leftright ),
+                    EVENT( middle    ),
+                    EVENT( wheel     ),
+                    EVENT( win       ),
                 };
-                SUBGROUPXS( layout )
+                SUBSET AT( layout )
                 {
                     any = _,
-                    EVENTXS( shift        ), // request a global shifting  with delta (const twod)
-                    EVENTXS( convey       ), // request a global conveying with delta (Inform all children to be conveyed) (arg: cube)
-                    EVENTXS( order        ), // return
-                    EVENTXS( local        ), // Recursively calculate local coordinate from global (arg: twod)
-                    EVENTXS( strike       ), // (always preview) inform about the child canvas has changed (arg: modified region rect)
-                    EVENTXS( bubble       ), // order to popup the requested item through the visual tree (arg: form)
-                    EVENTXS( expose       ), // order to bring the requested item on top of the visual tree (release: ask parent to expose specified child; preview: ask child to expose itself) (arg: base)
-                    EVENTXS( appear       ), // fly tothe specified coords, arg: twod
-                    //EVENTXS( coor       ), // return client rect coor (preview: subject to change)
-                    //EVENTXS( size       ), // return client rect size (preview: subject to change)
-                    //EVENTXS( rect       ), // return client rect (preview: subject to change)
-                    //EVENTXS( show       ), // order to make it visible (arg: bool notify or not)
-                    //EVENTXS( hide       ), // order to make it hidden (arg: bool notify or not)
-                    //EVENTXS( next       ), // request client for next child object (arg is only request: sptr<base>)
-                    //EVENTXS( prev       ), // request client for prev child object (arg is only request: sptr<base>)
-                    //EVENTXS( footer     ), // notify the client has changed footer (arg is only release: const rich)
-                    //EVENTXS( clientrect ), // notify the client area has changed (arg is only release: rect)
+                    EVENT( shift        ), // request a global shifting  with delta (const twod)
+                    EVENT( convey       ), // request a global conveying with delta (Inform all children to be conveyed) (arg: cube)
+                    EVENT( order        ), // return
+                    EVENT( local        ), // Recursively calculate local coordinate from global (arg: twod)
+                    EVENT( strike       ), // (always preview) inform about the child canvas has changed (arg: modified region rect)
+                    EVENT( bubble       ), // order to popup the requested item through the visual tree (arg: form)
+                    EVENT( expose       ), // order to bring the requested item on top of the visual tree (release: ask parent to expose specified child; preview: ask child to expose itself) (arg: base)
+                    EVENT( appear       ), // fly tothe specified coords, arg: twod
+                    //EVENT( coor       ), // return client rect coor (preview: subject to change)
+                    //EVENT( size       ), // return client rect size (preview: subject to change)
+                    //EVENT( rect       ), // return client rect (preview: subject to change)
+                    //EVENT( show       ), // order to make it visible (arg: bool notify or not)
+                    //EVENT( hide       ), // order to make it hidden (arg: bool notify or not)
+                    //EVENT( next       ), // request client for next child object (arg is only request: sptr<base>)
+                    //EVENT( prev       ), // request client for prev child object (arg is only request: sptr<base>)
+                    //EVENT( footer     ), // notify the client has changed footer (arg is only release: const rich)
+                    //EVENT( clientrect ), // notify the client area has changed (arg is only release: rect)
                 };
-                SUBGROUPXS( highlight )
+                SUBSET AT( highlight )
                 {
                     any = _,
-                    EVENTXS( on  ),
-                    EVENTXS( off ),
+                    EVENT( on  ),
+                    EVENT( off ),
                 };
-                //SUBGROUPXS( focus )
+                //SUBSET AT( focus )
                 //{
                 //    any = _,
-                //    EVENTXS( got  ), // notify that keybd focus has taken (release: hids)
-                //    EVENTXS( lost ), // notify that keybd focus got lost  (release: hids)
+                //    EVENT( got  ), // notify that keybd focus has taken (release: hids)
+                //    EVENT( lost ), // notify that keybd focus got lost  (release: hids)
                 //};
-                SUBGROUPXS( upon )
+                SUBSET AT( upon )
                 {
                     any = _,
-                    GROUPXS( vtree       ), // visual tree events (arg: parent base_sptr)
-                    GROUPXS( scroll      ), // event after scroll (arg: rack)
-                    EVENTXS( redrawn     ), // inform about camvas is completely redrawn (arg: canvas face)
-                    EVENTXS( cached      ), // inform about camvas is cached (arg: canvas face)
-                    EVENTXS( wiped       ), // event after wipe the canvas (arg: canvas face)
-                    EVENTXS( created     ), // event after itself creation (arg: itself bell_sptr)
-                    EVENTXS( changed     ), // event after resize (arg: diff bw old and new size twod)
-                    EVENTXS( dragged     ), // event after drag (arg: hids)
-                    //EVENTXS( detached    ), // inform that subject is detached (arg: parent bell_sptr)
-                    //EVENTXS( invalidated ), 
-                    //EVENTXS( moved       ), // release: event after moveto (arg: diff bw old and new coor twod). preview: event after moved by somebody.
+                    EVENT( redrawn     ), // inform about camvas is completely redrawn (arg: canvas face)
+                    EVENT( cached      ), // inform about camvas is cached (arg: canvas face)
+                    EVENT( wiped       ), // event after wipe the canvas (arg: canvas face)
+                    EVENT( created     ), // event after itself creation (arg: itself bell_sptr)
+                    EVENT( changed     ), // event after resize (arg: diff bw old and new size twod)
+                    EVENT( dragged     ), // event after drag (arg: hids)
+                    //EVENT( detached    ), // inform that subject is detached (arg: parent bell_sptr)
+                    //EVENT( invalidated ), 
+                    //EVENT( moved       ), // release: event after moveto (arg: diff bw old and new coor twod). preview: event after moved by somebody.
+                    GROUP( vtree       ), // visual tree events (arg: parent base_sptr)
+                    GROUP( scroll      ), // event after scroll (arg: rack)
 
-                    SUBGROUPXS( vtree )
+                    SUBSET AT( vtree )
                     {
                         any = _,
-                        EVENTXS( attached ), // Child has been attached (arg: parent sptr<base>)
-                        EVENTXS( detached ), // Child has been detached (arg: parent sptr<base>)
+                        EVENT( attached ), // Child has been attached (arg: parent sptr<base>)
+                        EVENT( detached ), // Child has been detached (arg: parent sptr<base>)
                     };
-                    SUBGROUPXS( scroll )
+                    SUBSET AT( scroll )
                     {
                         any = _,
-                        EVENTXS( x      ), // event after scroll along X (arg: rack)
-                        EVENTXS( y      ), // event after scroll along Y (arg: rack)
-                        EVENTXS( resetx ), // event reset scroll along X (arg: rack)
-                        EVENTXS( resety ), // event reset scroll along Y (arg: rack)
+                        EVENT( x      ), // event after scroll along X (arg: rack)
+                        EVENT( y      ), // event after scroll along Y (arg: rack)
+                        EVENT( resetx ), // event reset scroll along X (arg: rack)
+                        EVENT( resety ), // event reset scroll along Y (arg: rack)
                     };
                 };
-                SUBGROUPXS( proceed )
+                SUBSET AT( proceed )
                 {
                     any = _,
-                    EVENTXS( create      ), // return coordinates of the new object placeholder (arg: rect)
-                    EVENTXS( createby    ), // return gear with coordinates of the new object placeholder gear::slot (arg: gear)
-                    EVENTXS( destroy     ), // ??? bool return reference to the parent
-                    EVENTXS( render      ), // ask children to render itself to the parent canvas (arg: function drawfx to perform drawing)
-                    EVENTXS( attach      ), // order to attach a child (arg: parent base_sptr)
-                    EVENTXS( detach      ), // order to detach a child (e2::release - kill itself, e2::preview - detach the child specified in args) (arg: child  base_sptr)
-                    //EVENTXS( commit      ), // order to output the targets (arg: frame number iota)
-                    //EVENTXS( multirender ), // ask children to render itself to the set of canvases (arg: array of the face sptrs: cuts = vector<shared_ptr<face>>)
-                    //EVENTXS( draw        ), // ????  order to render itself to the canvas (arg: canvas face)
-                    //EVENTXS( checkin     ), // order to register an output client canvas (arg: face_sptr)
+                    EVENT( create      ), // return coordinates of the new object placeholder (arg: rect)
+                    EVENT( createby    ), // return gear with coordinates of the new object placeholder gear::slot (arg: gear)
+                    EVENT( destroy     ), // ??? bool return reference to the parent
+                    EVENT( render      ), // ask children to render itself to the parent canvas (arg: function drawfx to perform drawing)
+                    EVENT( attach      ), // order to attach a child (arg: parent base_sptr)
+                    EVENT( detach      ), // order to detach a child (e2::release - kill itself, e2::preview - detach the child specified in args) (arg: child  base_sptr)
+                    //EVENT( commit      ), // order to output the targets (arg: frame number iota)
+                    //EVENT( multirender ), // ask children to render itself to the set of canvases (arg: array of the face sptrs: cuts = vector<shared_ptr<face>>)
+                    //EVENT( draw        ), // ????  order to render itself to the canvas (arg: canvas face)
+                    //EVENT( checkin     ), // order to register an output client canvas (arg: face_sptr)
                 };
-                SUBGROUPXS( cursor )
+                SUBSET AT( cursor )
                 {
                     any = _,
-                    EVENTXS(blink),
+                    EVENT(blink),
                 };
-                SUBGROUPXS( animate )
+                SUBSET AT( animate )
                 {
                     any = _,
-                    EVENTXS( start ),
-                    EVENTXS( stop  ),
+                    EVENT( start ),
+                    EVENT( stop  ),
                 };
-                SUBGROUPXS( drag )
+                SUBSET AT( drag )
                 {
                     any = _,
-                    GROUPXS( start  ), // notify about mouse drag start by pro::mouse (arg: hids)
-                    GROUPXS( pull   ), // notify about mouse drag pull by pro::mouse (arg: hids)
-                    GROUPXS( cancel ), // notify about mouse drag cancel by pro::mouse (arg: hids)
-                    GROUPXS( stop   ), // notify about mouse drag stop by pro::mouse (arg: hids)
+                    GROUP( start  ), // notify about mouse drag start by pro::mouse (arg: hids)
+                    GROUP( pull   ), // notify about mouse drag pull by pro::mouse (arg: hids)
+                    GROUP( cancel ), // notify about mouse drag cancel by pro::mouse (arg: hids)
+                    GROUP( stop   ), // notify about mouse drag stop by pro::mouse (arg: hids)
 
-                    SUBGROUPXS( start )
+                    SUBSET AT( start )
                     {
                         any = _,
-                        EVENTXS( left      ),
-                        EVENTXS( right     ),
-                        EVENTXS( leftright ),
-                        EVENTXS( middle    ),
-                        EVENTXS( wheel     ),
-                        EVENTXS( win       ),
+                        EVENT( left      ),
+                        EVENT( right     ),
+                        EVENT( leftright ),
+                        EVENT( middle    ),
+                        EVENT( wheel     ),
+                        EVENT( win       ),
                     };
-                    SUBGROUPXS( pull )
+                    SUBSET AT( pull )
                     {
                         any = _,
-                        EVENTXS( left      ),
-                        EVENTXS( right     ),
-                        EVENTXS( leftright ),
-                        EVENTXS( middle    ),
-                        EVENTXS( wheel     ),
-                        EVENTXS( win       ),
+                        EVENT( left      ),
+                        EVENT( right     ),
+                        EVENT( leftright ),
+                        EVENT( middle    ),
+                        EVENT( wheel     ),
+                        EVENT( win       ),
                     };
-                    SUBGROUPXS( cancel )
+                    SUBSET AT( cancel )
                     {
                         any = _,
-                        EVENTXS( left      ),
-                        EVENTXS( right     ),
-                        EVENTXS( leftright ),
-                        EVENTXS( middle    ),
-                        EVENTXS( wheel     ),
-                        EVENTXS( win       ),
+                        EVENT( left      ),
+                        EVENT( right     ),
+                        EVENT( leftright ),
+                        EVENT( middle    ),
+                        EVENT( wheel     ),
+                        EVENT( win       ),
                     };
-                    SUBGROUPXS( stop )
+                    SUBSET AT( stop )
                     {
                         any = _,
-                        EVENTXS( left      ),
-                        EVENTXS( right     ),
-                        EVENTXS( leftright ),
-                        EVENTXS( middle    ),
-                        EVENTXS( wheel     ),
-                        EVENTXS( win       ),
+                        EVENT( left      ),
+                        EVENT( right     ),
+                        EVENT( leftright ),
+                        EVENT( middle    ),
+                        EVENT( wheel     ),
+                        EVENT( win       ),
                     };
                 };
-                SUBGROUPXS( prop )
+                SUBSET AT( prop )
                 {
                     any = _,
-                    EVENTXS( header     ), // set form caption header (arg: text)
-                    EVENTXS( footer     ), // set form caption footer (arg: text)
-                    EVENTXS( zorder     ), // set form z-order (arg: iota: -1 backmost, 0 plain, 1 topmost)
-                    EVENTXS( brush      ), // set form brush/color (arg: cell)
-                    EVENTXS( fullscreen ), // set fullscreen flag (arg: bool)
-                    EVENTXS( name       ), // user name (arg: text)
-                    EVENTXS( viewport   ), // request: return form actual viewport (arg: rect)
+                    EVENT( header     ), // set form caption header (arg: text)
+                    EVENT( footer     ), // set form caption footer (arg: text)
+                    EVENT( zorder     ), // set form z-order (arg: iota: -1 backmost, 0 plain, 1 topmost)
+                    EVENT( brush      ), // set form brush/color (arg: cell)
+                    EVENT( fullscreen ), // set fullscreen flag (arg: bool)
+                    EVENT( name       ), // user name (arg: text)
+                    EVENT( viewport   ), // request: return form actual viewport (arg: rect)
                 };
-                SUBGROUPXS( global )
+                SUBSET AT( global )
                 {
                     any = _,
-                    GROUPXS( object   ), // global scene objects events
-                    GROUPXS( user     ), // global scene users events
-                    EVENTXS( ctxmenu  ), // request context menu at specified coords (arg: twod)
-                    EVENTXS( prev     ), // request the prev scene window (arg: twod)
-                    EVENTXS( next     ), // request the next scene window (arg: twod)
-                    EVENTXS( lucidity ), // set or request global window transparency (arg: iota: 0-255, -1 to request)
+                    EVENT( ctxmenu  ), // request context menu at specified coords (arg: twod)
+                    EVENT( prev     ), // request the prev scene window (arg: twod)
+                    EVENT( next     ), // request the next scene window (arg: twod)
+                    EVENT( lucidity ), // set or request global window transparency (arg: iota: 0-255, -1 to request)
+                    GROUP( object   ), // global scene objects events
+                    GROUP( user     ), // global scene users events
 
-                    SUBGROUPXS( object )
+                    SUBSET AT( object )
                     {
                         any = _,
-                        EVENTXS( attached ), // global: object attached to the world (args: sptr<base>)
-                        EVENTXS( detached ), // global: object detached from the world (args: sptr<base>)
+                        EVENT( attached ), // global: object attached to the world (args: sptr<base>)
+                        EVENT( detached ), // global: object detached from the world (args: sptr<base>)
                     };
-                    SUBGROUPXS( user )
+                    SUBSET AT( user )
                     {
                         any = _,
-                        EVENTXS( attached ), // global: user attached to the world (args: sptr<base>)
-                        EVENTXS( detached ), // global: user detached from the world (args: sptr<base>)
+                        EVENT( attached ), // global: user attached to the world (args: sptr<base>)
+                        EVENT( detached ), // global: user detached from the world (args: sptr<base>)
                     };
                 };
-                SUBGROUPXS( state )
+                SUBSET AT( state )
                 {
                     any = _,
-                    EVENTXS( mouse  ), // notify the client is mouse active or not. The form is active when the number of client (form::eventa::mouse::enter - mouse::leave) is not zero. (arg is only release: iota - number of clients)
-                    EVENTXS( keybd  ), // notify the client is keybd active or not. The form is active when the number of client (form::eventa::keybd::got - keybd::lost) is not zero. (arg is only release: bool)
-                    EVENTXS( header ), // notify the client has changed title  (arg: para)
-                    EVENTXS( footer ), // notify the client has changed footer (arg: para)
-                    EVENTXS( params ), // notify the client has changed title params (arg: para)
-                    EVENTXS( color  ), // notify the client has changed tone (preview to set, arg: tone)
+                    EVENT( mouse  ), // notify the client is mouse active or not. The form is active when the number of client (form::eventa::mouse::enter - mouse::leave) is not zero. (arg is only release: iota - number of clients)
+                    EVENT( keybd  ), // notify the client is keybd active or not. The form is active when the number of client (form::eventa::keybd::got - keybd::lost) is not zero. (arg is only release: bool)
+                    EVENT( header ), // notify the client has changed title  (arg: para)
+                    EVENT( footer ), // notify the client has changed footer (arg: para)
+                    EVENT( params ), // notify the client has changed title params (arg: para)
+                    EVENT( color  ), // notify the client has changed tone (preview to set, arg: tone)
                 };
-                SUBGROUPXS( upevent )
+                SUBSET AT( upevent )
                 {
                     any = _,
-                    EVENTXS( kboffer ), // inform nested objects that the keybd focus should be taken (arg: hids)
+                    EVENT( kboffer ), // inform nested objects that the keybd focus should be taken (arg: hids)
                 };
-                SUBGROUPXS( notify )
+                SUBSET AT( notify )
                 {
                     any = _,
-                    GROUPXS( mouse ), // request context menu at specified coords (arg: twod)
-                    GROUPXS( keybd ), // request the prev scene window (arg: twod)
+                    GROUP( mouse ), // request context menu at specified coords (arg: twod)
+                    GROUP( keybd ), // request the prev scene window (arg: twod)
 
-                    SUBGROUPXS( mouse )
+                    SUBSET AT( mouse )
                     {
                         any = _,        // inform the form about the mouse hover (arg: hids)
-                        EVENTXS( enter ), // inform the form about the mouse hover (arg: hids)
-                        EVENTXS( leave ), // inform the form about the mouse leave (arg: hids)
+                        EVENT( enter ), // inform the form about the mouse hover (arg: hids)
+                        EVENT( leave ), // inform the form about the mouse leave (arg: hids)
                     };
-                    SUBGROUPXS( keybd )
+                    SUBSET AT( keybd )
                     {
                         any = _,
-                        EVENTXS( got  ),
-                        EVENTXS( lost ),
+                        EVENT( got  ),
+                        EVENT( lost ),
                     };
                 };
             };
         };
+
+        #undef EVENT
+        #undef GROUP
+        #undef AT
+        #undef SUBSET
     };
 
     template<class V>

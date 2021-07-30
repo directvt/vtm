@@ -16,26 +16,36 @@ namespace netxs
     {
         struct term : e2
         {
-            TOPGROUPXS( custom )
+            #define EVENT(name) EVENT_VTM(name)
+            #define GROUP(name) GROUP_VTM(name)
+            #define    AT(name)    AT_VTM(name)
+            #define SUBSET     SUBSET_VTM
+
+            EVENTPACK( custom )
             {
                 any = _,
-                GROUPXS( layout   ),
-                GROUPXS( data     ),
-                EVENTXS( cmd      ),
+                EVENT( cmd    ),
+                GROUP( layout ),
+                GROUP( data   ),
 
-                SUBGROUPXS( layout )
+                SUBSET AT( layout )
                 {
                     any = _,
-                    EVENTXS( align  ),
-                    EVENTXS( wrapln ),
+                    EVENT( align  ),
+                    EVENT( wrapln ),
                 };
-                SUBGROUPXS( data )
+                SUBSET AT( data )
                 {
                     any = _,
-                    EVENTXS( in  ),
-                    EVENTXS( out ),
+                    EVENT( in  ),
+                    EVENT( out ),
                 };
             };
+
+            #undef EVENT
+            #undef GROUP
+            #undef AT
+            #undef SUBSET
         };
     }
 
