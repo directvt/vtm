@@ -3,9 +3,9 @@
 
 #define MONOTTY_VER "Monotty Desktopio v0.5.14"
 // Autostart demo apps.
-#define DEMO
+//#define DEMO
 // Enable keyboard input and disable exit by single Esc.
-//#define PROD
+#define PROD
 
 // Terminal's default line wrapping mode.
 #ifdef DEMO
