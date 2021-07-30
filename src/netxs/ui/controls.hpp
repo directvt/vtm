@@ -128,7 +128,7 @@ namespace netxs::ui
             return backup;
         }
         // form: Create and attach a new item using a template and dynamic datasource.
-        template<e2::type PROPERTY, class C, class P>
+        template<auto PROPERTY, class C, class P>
         auto attach_element(C& data_src_sptr, P item_template)
         {
             auto backup = This<T>();
@@ -155,7 +155,7 @@ namespace netxs::ui
             return new_item;
         }
         // form: Create and attach a new item using a template and dynamic datasource.
-        template<e2::type PROPERTY, class S, class P>
+        template<auto PROPERTY, class S, class P>
         auto attach_collection(S& data_collection_src, P item_template)
         {
             auto backup = This<T>();
@@ -839,7 +839,8 @@ namespace netxs::ui
     {
         pro::robot robot{*this }; // rail: Animation controller.
 
-        static constexpr hint events[] = { e2::form::upon::scroll::x,
+        static constexpr decltype(e2::form::upon::scroll::any) 
+                              events[] = { e2::form::upon::scroll::x,
                                            e2::form::upon::scroll::y,
                                            e2::form::upon::scroll::resetx,
                                            e2::form::upon::scroll::resety };
@@ -1232,7 +1233,8 @@ namespace netxs::ui
             pager_first = 10,
             pager_next  = 11,
         };
-        static constexpr hint events[] = { e2::form::upon::scroll::x,
+        static constexpr decltype(e2::form::upon::scroll::any)
+                              events[] = { e2::form::upon::scroll::x,
                                            e2::form::upon::scroll::y,
                                            e2::form::upon::scroll::resetx,
                                            e2::form::upon::scroll::resety };
@@ -1345,7 +1347,7 @@ namespace netxs::ui
 
         bool on_pager = faux;
 
-        template<hint EVENT = events[AXIS]>
+        template<auto EVENT = events[AXIS]>
         void send()
         {
             if (auto master = this->boss.lock())
@@ -1837,7 +1839,7 @@ namespace netxs::ui
         }
     };
 
-    template<e2::tier TIER, e2::type EVENT>
+    template<e2::tier TIER, auto EVENT>
     class stem_rate
         : public base
     {

@@ -1137,10 +1137,10 @@ namespace netxs::ui::atoms
     template<class T> text                     cell::glyf<T>::empty;
     template<class T> std::map<uint64_t, text> cell::glyf<T>::jumbo;
 
-    struct bias { enum : iota { none, left, right, center, }; };
-    struct wrap { enum : iota { none, on,  off,            }; };
-    struct rtol { enum : iota { none, rtl, ltr,            }; };
-    struct feed { enum : iota { none, rev, fwd,            }; };
+    struct bias { enum type : iota { none, left, right, center, }; };
+    struct wrap { enum type : iota { none, on,  off,            }; };
+    struct rtol { enum type : iota { none, rtl, ltr,            }; };
+    struct feed { enum type : iota { none, rev, fwd,            }; };
 
     struct rect
     {
@@ -1512,6 +1512,17 @@ namespace netxs::ui::atoms
             head.step += pad.head.step;
             foot.step += pad.foot.step;
             return *this;
+        }
+        auto operator == (dent const& pad)
+        {
+            return west.step == pad.west.step
+                && east.step == pad.east.step
+                && head.step == pad.head.step
+                && foot.step == pad.foot.step;
+        }
+        auto operator != (dent const& pad)
+        {
+            return !operator==(pad);
         }
         // dent: Return inner area rectangle.
         auto area(iota size_x, iota size_y) const

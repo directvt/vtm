@@ -24,19 +24,14 @@
 #define SWITCHING_TIME 200   // console: Object state switching duration in ms.
 #define BLINK_PERIOD   400ms // console: Period in ms between the blink states of the cursor.
 
-#define MENU_TIMEOUT  250ms  // console: Taskbar collaplse timeout.
+#define MENU_TIMEOUT   250ms // console: Taskbar collaplse timeout.
 
-#define ACTIVE_TIMEOUT  1s   // console: Timeout off the active object.
-#define REPEAT_DELAY  500ms  // console: Repeat delay.
+#define ACTIVE_TIMEOUT 1s    // console: Timeout off the active object.
+#define REPEAT_DELAY   500ms // console: Repeat delay.
 #define REPEAT_RATE    30ms  // console: Repeat rate.
 
 namespace netxs::console
 {
-    using namespace netxs;
-    using namespace netxs::events;
-    using namespace netxs::datetime;
-    using namespace netxs::ui::atoms;
-
     class syskeybd;
     class sysmouse;
     class hids;
@@ -46,23 +41,26 @@ namespace netxs::console
     class host;
     class site;
 
-    using id_t = bell::id_t;
-    using hint = e2::type;
-    using xipc = os::xipc;
-
     using drawfx = std::function<bool(face&, page const&)>;
     using registry_t = std::map<id_t, std::list<sptr<base>>>;
+}
 
-    EVENT_NS
+namespace netxs
+{
+    using namespace netxs::utf;
+    using namespace netxs::ui::atoms;
+    using namespace netxs::datetime;
+    using e2 = events::e2;
+
     EVENT_BIND(e2::timer::any, moment)
         EVENT_BIND(e2::timer::tick, moment)
         EVENT_BIND(e2::timer::fps,  iota)
 
-    EVENT_BIND(e2::postrender,  face)
-    EVENT_BIND(e2::render::any, face)
-        EVENT_BIND(e2::render::prerender, face)
+    EVENT_BIND(e2::postrender,  console::face)
+    EVENT_BIND(e2::render::any, console::face)
+        EVENT_BIND(e2::render::prerender, console::face)
 
-    EVENT_BIND(e2::dtor, const id_t)
+    EVENT_BIND(e2::dtor, const bell::id_t)
 
     EVENT_BIND(e2::command::any, iota)
         EVENT_BIND(e2::command::quit, const view)
@@ -78,18 +76,18 @@ namespace netxs::console
     EVENT_BIND(e2::debug::any, const view)
         EVENT_BIND(e2::debug::logs   , const view)
         EVENT_BIND(e2::debug::output , const view)
-        EVENT_BIND(e2::debug::parsed , const page)
+        EVENT_BIND(e2::debug::parsed , const console::page)
 
-    EVENT_BIND(e2::bindings::any, sptr<base>)
-        EVENT_BIND(e2::bindings::list::users, sptr<std::list<sptr<base>>>)
-        EVENT_BIND(e2::bindings::list::apps,  sptr<registry_t>)
+    EVENT_BIND(e2::bindings::any, sptr<console::base>)
+        EVENT_BIND(e2::bindings::list::users, sptr<std::list<sptr<console::base>>>)
+        EVENT_BIND(e2::bindings::list::apps,  sptr<console::registry_t>)
 
     EVENT_BIND(e2::term::any, iota)
         EVENT_BIND(e2::term::unknown , iota)
         EVENT_BIND(e2::term::error   , iota)
         EVENT_BIND(e2::term::focus   , bool)
-        EVENT_BIND(e2::term::mouse   , sysmouse)
-        EVENT_BIND(e2::term::key     , syskeybd)
+        EVENT_BIND(e2::term::mouse   , console::sysmouse)
+        EVENT_BIND(e2::term::key     , console::syskeybd)
         EVENT_BIND(e2::term::size    , twod)
         EVENT_BIND(e2::term::native  , bool)
         EVENT_BIND(e2::term::layout  , const twod)
@@ -111,8 +109,8 @@ namespace netxs::console
         EVENT_BIND(e2::data::text   , const text)
 
     EVENT_BIND(e2::form::any, bool)
-        EVENT_BIND(e2::form::upevent::any, hids)
-            EVENT_BIND(e2::form::upevent::kboffer , hids)
+        EVENT_BIND(e2::form::upevent::any, console::hids)
+            EVENT_BIND(e2::form::upevent::kboffer , console::hids)
 
         EVENT_BIND(e2::form::draggable::any, bool)
             EVENT_BIND(e2::form::draggable::left     , bool)
@@ -122,18 +120,19 @@ namespace netxs::console
             EVENT_BIND(e2::form::draggable::wheel    , bool)
             EVENT_BIND(e2::form::draggable::win      , bool)
 
-        EVENT_BIND(e2::form::canvas, sptr<core>)
+        EVENT_BIND(e2::form::canvas, sptr<console::core>)
         EVENT_BIND(e2::form::global::any, twod)
             EVENT_BIND(e2::form::global::ctxmenu , twod)
             EVENT_BIND(e2::form::global::lucidity, iota)
 
-        EVENT_BIND(e2::form::notify::any                 , hids)
-            EVENT_BIND(e2::form::notify::mouse::any      , hids)
-                EVENT_BIND(e2::form::notify::mouse::enter, hids)
-                EVENT_BIND(e2::form::notify::mouse::leave, hids)
-            EVENT_BIND(e2::form::notify::keybd::any      , hids)
-                EVENT_BIND(e2::form::notify::keybd::got  , hids)
-                EVENT_BIND(e2::form::notify::keybd::lost , hids)
+        EVENT_BIND(e2::form::notify::any, console::hids)
+            EVENT_SAME(e2::form::notify::any, e2::form::notify::mouse::any)
+                EVENT_SAME(e2::form::notify::any, e2::form::notify::mouse::enter)
+                EVENT_SAME(e2::form::notify::any, e2::form::notify::mouse::leave)
+
+            EVENT_SAME(e2::form::notify::any, e2::form::notify::keybd::any)
+                EVENT_SAME(e2::form::notify::any, e2::form::notify::keybd::got)
+                EVENT_SAME(e2::form::notify::any, e2::form::notify::keybd::lost)
 
         EVENT_BIND(e2::form::prop::any, text)
             EVENT_BIND(e2::form::prop::header, text)
@@ -144,7 +143,7 @@ namespace netxs::console
             EVENT_BIND(e2::form::prop::name, text)
             EVENT_BIND(e2::form::prop::viewport, rect)
 
-        EVENT_BIND(e2::form::drag::any, hids)
+        EVENT_BIND(e2::form::drag::any, console::hids)
             EVENT_SAME(e2::form::drag::any, e2::form::drag::cancel::any)
                 EVENT_SAME(e2::form::drag::any, e2::form::drag::cancel::left)
                 EVENT_SAME(e2::form::drag::any, e2::form::drag::cancel::leftright)
@@ -179,29 +178,29 @@ namespace netxs::console
             EVENT_BIND(e2::form::layout::convey, cube)
             EVENT_BIND(e2::form::layout::local , twod)
             EVENT_BIND(e2::form::layout::strike, const rect)
-            EVENT_BIND(e2::form::layout::bubble, base)
-            EVENT_BIND(e2::form::layout::expose, base)
+            EVENT_BIND(e2::form::layout::bubble, console::base)
+            EVENT_BIND(e2::form::layout::expose, console::base)
             EVENT_BIND(e2::form::layout::appear, twod)
 
         EVENT_BIND(e2::form::state::any, const twod)
             EVENT_BIND(e2::form::state::mouse , iota)
             EVENT_BIND(e2::form::state::keybd , bool)
-            EVENT_BIND(e2::form::state::header, para)
-            EVENT_BIND(e2::form::state::footer, para)
-            EVENT_BIND(e2::form::state::params, para)
-            EVENT_BIND(e2::form::state::color , tone)
+            EVENT_BIND(e2::form::state::header, console::para)
+            EVENT_BIND(e2::form::state::footer, console::para)
+            EVENT_BIND(e2::form::state::params, console::para)
+            EVENT_BIND(e2::form::state::color , console::tone)
 
         EVENT_BIND(e2::form::highlight::any, bool)
             EVENT_BIND(e2::form::highlight::on , bool)
             EVENT_BIND(e2::form::highlight::off, bool)
 
         EVENT_BIND(e2::form::upon::any, bool)
-            EVENT_BIND(e2::form::upon::redrawn    , face)
-            EVENT_BIND(e2::form::upon::cached     , face)
-            EVENT_BIND(e2::form::upon::wiped      , face)
-            EVENT_BIND(e2::form::upon::created    , sptr<base>)
+            EVENT_BIND(e2::form::upon::redrawn    , console::face)
+            EVENT_BIND(e2::form::upon::cached     , console::face)
+            EVENT_BIND(e2::form::upon::wiped      , console::face)
+            EVENT_BIND(e2::form::upon::created    , sptr<console::base>)
             EVENT_BIND(e2::form::upon::changed    , twod)
-            EVENT_BIND(e2::form::upon::dragged    , hids)
+            EVENT_BIND(e2::form::upon::dragged    , console::hids)
 
             EVENT_BIND(e2::form::upon::scroll::any, rack)
                 EVENT_BIND(e2::form::upon::scroll::x     , rack)
@@ -209,26 +208,26 @@ namespace netxs::console
                 EVENT_BIND(e2::form::upon::scroll::resetx, rack)
                 EVENT_BIND(e2::form::upon::scroll::resety, rack)
 
-            EVENT_BIND(e2::form::upon::vtree::any, sptr<base>)
-                EVENT_BIND(e2::form::upon::vtree::attached, sptr<base>)
-                EVENT_BIND(e2::form::upon::vtree::detached, sptr<base>)
+            EVENT_BIND(e2::form::upon::vtree::any, sptr<console::base>)
+                EVENT_BIND(e2::form::upon::vtree::attached, sptr<console::base>)
+                EVENT_BIND(e2::form::upon::vtree::detached, sptr<console::base>)
 
         EVENT_BIND(e2::form::proceed::any, bool)
             EVENT_BIND(e2::form::proceed::create  , rect)
-            EVENT_BIND(e2::form::proceed::createby, hids)
-            EVENT_BIND(e2::form::proceed::destroy , base)
-            EVENT_BIND(e2::form::proceed::render  , drawfx)
-            EVENT_BIND(e2::form::proceed::attach  , sptr<base>)
-            EVENT_BIND(e2::form::proceed::detach  , sptr<base>)
+            EVENT_BIND(e2::form::proceed::createby, console::hids)
+            EVENT_BIND(e2::form::proceed::destroy , console::base)
+            EVENT_BIND(e2::form::proceed::render  , console::drawfx)
+            EVENT_BIND(e2::form::proceed::attach  , sptr<console::base>)
+            EVENT_BIND(e2::form::proceed::detach  , sptr<console::base>)
 
         EVENT_BIND(e2::form::cursor::any, bool)
             EVENT_BIND(e2::form::cursor::blink, bool)
 
-        EVENT_BIND(e2::form::animate::any, id_t)
-            EVENT_BIND(e2::form::animate::start, id_t)
-            EVENT_BIND(e2::form::animate::stop , id_t)
+        EVENT_BIND(e2::form::animate::any, bell::id_t)
+            EVENT_BIND(e2::form::animate::start, bell::id_t)
+            EVENT_BIND(e2::form::animate::stop , bell::id_t)
 
-    EVENT_BIND(e2::hids::any, hids)
+    EVENT_BIND(e2::hids::any, console::hids)
         EVENT_SAME(e2::hids::any, e2::hids::mouse::any)
             EVENT_SAME(e2::hids::any, e2::hids::mouse::scroll::any)
                 EVENT_SAME(e2::hids::any, e2::hids::mouse::scroll::up)
@@ -338,6 +337,16 @@ namespace netxs::console
                         EVENT_SAME(e2::hids::any, e2::hids::keybd::state::off::capslock)
                         EVENT_SAME(e2::hids::any, e2::hids::keybd::state::off::scrolllock)
                         EVENT_SAME(e2::hids::any, e2::hids::keybd::state::off::insert)
+}
+
+namespace netxs::console
+{
+    using namespace netxs::events;
+    using namespace netxs::datetime;
+    using namespace netxs::ui::atoms;
+    using id_t = bell::id_t;
+    using hint = e2::type;
+    using xipc = os::xipc;
 
     // console: Base mouse class.
     class sysmouse
@@ -861,9 +870,10 @@ namespace netxs::console
         }
 
         // hids: Stop handeling this event.
-        void dismiss ()
+        void dismiss (bool set_nodbl = faux)
         {
             alive = faux;
+            if (set_nodbl) nodbl = true;
         }
 
         // hids: Whether event processing is complete.
@@ -1516,7 +1526,7 @@ namespace netxs::console
         // base: Fire an event on yourself and pass it parent if not handled.
         // Usage example:
         //          base::riseup<e2::preview, e2::form::prop::header>(txt);
-        template<e2::tier TIER, e2::type EVENT, class T>
+        template<e2::tier TIER, auto EVENT, class T>
         void riseup(T&& data)
         {
             if (!SIGNAL(TIER, EVENT, data))
@@ -3537,8 +3547,8 @@ namespace netxs::console
         {
             using skill::boss,
                   skill::memo;
-            constexpr static e2::type QUIT_MSG = e2::term::quit;
-            constexpr static int ESC_THRESHOLD = 500; // guard: Double escape threshold in ms.
+            constexpr static auto QUIT_MSG = e2::term::quit;
+            constexpr static iota ESC_THRESHOLD = 500; // guard: Double escape threshold in ms.
 
             bool   wait; // guard: Ready to close.
             moment stop; // guard: Timeout for single Esc.
@@ -3578,8 +3588,8 @@ namespace netxs::console
         {
             using skill::boss,
                   skill::memo;
-            constexpr static e2::type EXCUSE_MSG = e2::hids::mouse::any;
-            constexpr static e2::type QUIT_MSG   = e2::command::quit;
+            constexpr static auto EXCUSE_MSG = e2::hids::mouse::any;
+            constexpr static auto QUIT_MSG   = e2::command::quit;
             //todo unify
             constexpr static int LIMIT = 60 * 10; // watch: Idle timeout in seconds.
 

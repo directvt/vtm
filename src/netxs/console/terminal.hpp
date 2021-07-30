@@ -10,6 +10,54 @@
 
 #include <cassert>
 
+namespace netxs
+{
+    namespace app
+    {
+        struct term : e2
+        {
+            #define EVENT(name) EVENT_VTM(name)
+            #define GROUP(name) GROUP_VTM(name)
+            #define    AT(name)    AT_VTM(name)
+            #define SUBSET     SUBSET_VTM
+
+            EVENTPACK( custom )
+            {
+                any = _,
+                EVENT( cmd    ),
+                GROUP( layout ),
+                GROUP( data   ),
+
+                SUBSET AT( layout )
+                {
+                    any = _,
+                    EVENT( align  ),
+                    EVENT( wrapln ),
+                };
+                SUBSET AT( data )
+                {
+                    any = _,
+                    EVENT( in  ),
+                    EVENT( out ),
+                };
+            };
+
+            #undef EVENT
+            #undef GROUP
+            #undef AT
+            #undef SUBSET
+        };
+    }
+
+    EVENT_BIND(app::term::cmd, iota)
+
+    EVENT_BIND(app::term::layout::align, bias::type)
+    EVENT_BIND(app::term::layout::wrapln, wrap::type)
+
+    EVENT_BIND(app::term::data::in,  view)
+    EVENT_BIND(app::term::data::out, view)
+}
+
 namespace netxs::ui
 {
     // terminal: scrollback/altbuf internals.
@@ -734,6 +782,23 @@ namespace netxs::ui
     {
         pro::caret caret{ *this }; // term: Caret controller.
 
+//todo unify
+public:
+        struct commands
+        {
+            enum type : iota
+            {
+                right,
+                left,
+                center,
+                wrapon,
+                wrapoff,
+                togglewrp,
+                reset,
+                clear,
+            };
+        };
+private:
         // term: VT-mouse tracking functionality.
         struct mtracking
         {
@@ -1098,6 +1163,7 @@ namespace netxs::ui
                     vt::csier.table[CSI_CCC][CCC_SBS] = VT_PROC{ p->boss.scrollbuffer_size(q); };  // CCC_SBS: Set scrollback size.
                     vt::csier.table[CSI_CCC][CCC_EXT] = VT_PROC{ p->boss.native(q(1)); };  // CCC_EXT: Setup extended functionality.
                     vt::csier.table[CSI_CCC][CCC_WRP] = VT_PROC{ p->wrp(q(0)); };  // CCC_WRP
+                    vt::csier.table[CSI_CCC][CCC_JET] = VT_PROC{ p->jet(q(0)); };  // CCC_JET
 
                     vt::intro[ctrl::ESC][ESC_IND] = VT_PROC{ p->dn(1); }; // ESC D  Caret Down.
                     vt::intro[ctrl::ESC][ESC_IR ] = VT_PROC{ p->ri (); }; // ESC M  Reverse index.
@@ -1184,6 +1250,19 @@ namespace netxs::ui
                 finalize();
                 dissect();
                 style.wrp(w);
+                auto status = w == wrap::none ? WRAPPING
+                                              :(wrap::type)w;
+                boss.base::broadcast->SIGNAL(e2::release, app::term::layout::wrapln, status);
+            }
+            // scrollbuff: CCC_JET:  Set line alignment.
+            void jet(iota j)
+            {
+                finalize();
+                dissect();
+                style.jet(j);
+                auto status = j == bias::none ? bias::left
+                                              :(bias::type)j;
+                boss.base::broadcast->SIGNAL(e2::release, app::term::layout::align, status);
             }
             // scrollbuff: ESC H  Place tabstop at the current caret posistion.
             void stb()
@@ -1916,13 +1995,45 @@ namespace netxs::ui
             #ifdef PROD
             form::keybd.accept(true); // Subscribe to keybd offers.
             #endif
-            base::broadcast->SUBMIT_T(e2::preview, e2::data::text, bell::tracker, data)
+            base::broadcast->SUBMIT_T(e2::preview, app::term::cmd, bell::tracker, cmd)
             {
+                log("term: e2::preview, app::term::cmd, ", cmd);
+                reset_scroll_pos();
+                switch(cmd)
+                {
+                    case term::commands::left:
+                        target->jet(bias::left);
+                        break;
+                    case term::commands::center:
+                        target->jet(bias::center);
+                        break;
+                    case term::commands::right:
+                        target->jet(bias::right);
+                        break;
+                    case term::commands::togglewrp:
+                        target->wrp(target->style.wrapln == wrap::on ? wrap::off
+                                                                     : wrap::on);
+                        break;
+                    case term::commands::reset:
+                        decstr();
+                        break;
+                    case term::commands::clear:
+                        target->ed(scrollbuff::commands::erase::display::viewport);
+                        break;
+                    default:
+                        break;
+                }
+                input_hndl("");
+            };
+            base::broadcast->SUBMIT_T(e2::preview, app::term::data::in, bell::tracker, data)
+            {
+                log("term: app::term::data::in, ", utf::debase(data));
                 reset_scroll_pos();
                 input_hndl(data);
             };
-            base::broadcast->SUBMIT_T(e2::release, e2::data::text, bell::tracker, data)
+            base::broadcast->SUBMIT_T(e2::preview, app::term::data::out, bell::tracker, data)
             {
+                log("term: app::term::data::out, ", utf::debase(data));
                 reset_scroll_pos();
                 ptycon.write(data);
             };
