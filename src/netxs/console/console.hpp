@@ -180,8 +180,6 @@ namespace netxs::events
                 GROUP( prop      ),
                 GROUP( global    ),
                 GROUP( state     ),
-                GROUP( upevent   ), // eventss streamed up (to children) of the visual tree by base::
-                GROUP( notify    ), // Form events that should be propagated down to the visual branch
                 //EVENT( key       ),
 
                 SUBSET AT( draggable )
@@ -200,7 +198,6 @@ namespace netxs::events
                     EVENT( shift        ), // request a global shifting  with delta (const twod)
                     EVENT( convey       ), // request a global conveying with delta (Inform all children to be conveyed) (arg: cube)
                     EVENT( order        ), // return
-                    EVENT( local        ), // Recursively calculate local coordinate from global (arg: twod)
                     EVENT( strike       ), // (always preview) inform about the child canvas has changed (arg: modified region rect)
                     EVENT( bubble       ), // order to popup the requested item through the visual tree (arg: form)
                     EVENT( expose       ), // order to bring the requested item on top of the visual tree (release: ask parent to expose specified child; preview: ask child to expose itself) (arg: base)
@@ -375,30 +372,6 @@ namespace netxs::events
                     EVENT( params ), // notify the client has changed title params (arg: para)
                     EVENT( color  ), // notify the client has changed tone (preview to set, arg: tone)
                 };
-                SUBSET AT( upevent )
-                {
-                    any = _,
-                    EVENT( kboffer ), // inform nested objects that the keybd focus should be taken (arg: hids)
-                };
-                SUBSET AT( notify )
-                {
-                    any = _,
-                    GROUP( mouse ), // request context menu at specified coords (arg: twod)
-                    GROUP( keybd ), // request the prev scene window (arg: twod)
-
-                    SUBSET AT( mouse )
-                    {
-                        any = _,
-                        EVENT( enter ), // inform the form about the mouse hover (arg: hids)
-                        EVENT( leave ), // inform the form about the mouse leave (arg: hids)
-                    };
-                    SUBSET AT( keybd )
-                    {
-                        any = _,
-                        EVENT( got  ),
-                        EVENT( lost ),
-                    };
-                };
             };
         };
 
@@ -470,8 +443,6 @@ namespace netxs::events
         EVENT_BIND(e2::data::text   , const text)
 
     EVENT_BIND(e2::form::any, bool)
-        EVENT_BIND(e2::form::upevent::any, console::hids)
-            EVENT_BIND(e2::form::upevent::kboffer , console::hids)
 
         EVENT_BIND(e2::form::draggable::any, bool)
             EVENT_BIND(e2::form::draggable::left     , bool)
@@ -485,15 +456,6 @@ namespace netxs::events
         EVENT_BIND(e2::form::global::any, twod)
             EVENT_BIND(e2::form::global::ctxmenu , twod)
             EVENT_BIND(e2::form::global::lucidity, iota)
-
-        EVENT_BIND(e2::form::notify::any, console::hids)
-            EVENT_SAME(e2::form::notify::any, e2::form::notify::mouse::any)
-                EVENT_SAME(e2::form::notify::any, e2::form::notify::mouse::enter)
-                EVENT_SAME(e2::form::notify::any, e2::form::notify::mouse::leave)
-
-            EVENT_SAME(e2::form::notify::any, e2::form::notify::keybd::any)
-                EVENT_SAME(e2::form::notify::any, e2::form::notify::keybd::got)
-                EVENT_SAME(e2::form::notify::any, e2::form::notify::keybd::lost)
 
         EVENT_BIND(e2::form::prop::any, text)
             EVENT_BIND(e2::form::prop::header, text)
@@ -537,7 +499,6 @@ namespace netxs::events
         EVENT_BIND(e2::form::layout::any, const twod)
             EVENT_BIND(e2::form::layout::shift , const twod)
             EVENT_BIND(e2::form::layout::convey, cube)
-            EVENT_BIND(e2::form::layout::local , twod)
             EVENT_BIND(e2::form::layout::strike, const rect)
             EVENT_BIND(e2::form::layout::bubble, console::base)
             EVENT_BIND(e2::form::layout::expose, console::base)
@@ -602,9 +563,35 @@ namespace netxs::events
         EVENTPACK( hids )
         {
             any = _,
-            GROUP( keybd ),
-            GROUP( mouse ),
+            GROUP( keybd   ),
+            GROUP( mouse   ),
+            GROUP( notify  ), // Form events that should be propagated down to the visual branch
+            GROUP( upevent ), // eventss streamed up (to children) of the visual tree by base::
 
+            SUBSET AT( upevent )
+            {
+                any = _,
+                EVENT( kboffer ), // inform nested objects that the keybd focus should be taken (arg: hids)
+            };
+            SUBSET AT( notify )
+            {
+                any = _,
+                GROUP( mouse ), // request context menu at specified coords (arg: twod)
+                GROUP( keybd ), // request the prev scene window (arg: twod)
+
+                SUBSET AT( mouse )
+                {
+                    any = _,
+                    EVENT( enter ), // inform the form about the mouse hover (arg: hids)
+                    EVENT( leave ), // inform the form about the mouse leave (arg: hids)
+                };
+                SUBSET AT( keybd )
+                {
+                    any = _,
+                    EVENT( got  ),
+                    EVENT( lost ),
+                };
+            };
             SUBSET AT( keybd )
             {
                 any = _,
@@ -671,6 +658,7 @@ namespace netxs::events
                 EVENT( shuffle ), // movement within one cell
                 EVENT( focus   ),
                 EVENT( gone    ), // release::global: Notify about the mouse controller is gone (args: hids).
+                EVENT( local   ), // Recursively calculate local coordinate from global (arg: twod)
                 GROUP( button  ),
                 GROUP( scroll  ),
 
@@ -789,6 +777,19 @@ namespace netxs::events
     };
 
     EVENT_BIND(hids::any, console::hids)
+
+        EVENT_SAME(hids::any, hids::upevent::any)
+            EVENT_SAME(hids::any, hids::upevent::kboffer)
+
+        EVENT_SAME(hids::any, hids::notify::any)
+            EVENT_SAME(hids::any, hids::notify::mouse::any)
+                EVENT_SAME(hids::any, hids::notify::mouse::enter)
+                EVENT_SAME(hids::any, hids::notify::mouse::leave)
+
+            EVENT_SAME(hids::any, hids::notify::keybd::any)
+                EVENT_SAME(hids::any, hids::notify::keybd::got)
+                EVENT_SAME(hids::any, hids::notify::keybd::lost)
+
         EVENT_SAME(hids::any, hids::mouse::any)
             EVENT_SAME(hids::any, hids::mouse::scroll::any)
                 EVENT_SAME(hids::any, hids::mouse::scroll::up)
@@ -798,6 +799,8 @@ namespace netxs::events
             EVENT_SAME(hids::any, hids::mouse::shuffle)
             EVENT_SAME(hids::any, hids::mouse::focus)
             EVENT_SAME(hids::any, hids::mouse::gone)
+
+            EVENT_BIND(hids::mouse::local , twod)
 
             EVENT_SAME(hids::any, hids::mouse::button::any)
                 EVENT_SAME(hids::any, hids::mouse::button::up::any)
@@ -1369,13 +1372,13 @@ namespace netxs::console
         //todo revise
         uint32_t ctlstate = 0;
 
-        static constexpr auto enter_event   = e2::form::notify::mouse::enter;
-        static constexpr auto leave_event   = e2::form::notify::mouse::leave;
-        static constexpr auto focus_take    = e2::form::notify::keybd::got;
-        static constexpr auto focus_lost    = e2::form::notify::keybd::lost;
-        static constexpr auto local_event   = e2::form::layout::local;
-        static constexpr auto kboffer_event = e2::form::upevent::kboffer;
-        static constexpr auto gone_event    = hids::events::mouse::gone;
+        static constexpr auto enter_event   = events::notify::mouse::enter;
+        static constexpr auto leave_event   = events::notify::mouse::leave;
+        static constexpr auto focus_take    = events::notify::keybd::got;
+        static constexpr auto focus_lost    = events::notify::keybd::lost;
+        static constexpr auto kboffer_event = events::upevent::kboffer;
+        static constexpr auto gone_event    = events::mouse::gone;
+        static constexpr auto local_event   = events::mouse::local;
 
     public:
         id_t const& id;    // hids: Owner/gear ID.
@@ -1448,6 +1451,7 @@ namespace netxs::console
                 if (relative)
                 {
                     object->SIGNAL(tier::request, local_event, coord);
+                    //object->global(coord);
                 }
                 object->bell::template signal<TIER>(mouse::cause, *this);
                 coord = temp;
@@ -2129,7 +2133,7 @@ namespace netxs::console
                 parent_shadow = parent_ptr;
                 // Propagate form events up to the visual branch.
                 // Exec after all subscriptions.
-                parent_ptr->SUBMIT_T(tier::release, e2::form::upevent::any, kb_offer_token, gear)
+                parent_ptr->SUBMIT_T(tier::release, hids::events::upevent::any, kb_offer_token, gear)
                 {
                     if (auto parent_ptr = parent_shadow.lock())
                     {
@@ -2162,7 +2166,7 @@ namespace netxs::console
 
             // Propagate form events down to the visual branch.
             // Exec after all subscriptions.
-            SUBMIT(tier::release, e2::form::notify::any, gear)
+            SUBMIT(tier::release, hids::events::notify::any, gear)
             {
                 if (auto parent_ptr = parent_shadow.lock())
                 {
@@ -2180,7 +2184,7 @@ namespace netxs::console
                 strike();
             };
             // Recursively calculate global coordinate.
-            SUBMIT(tier::request, e2::form::layout::local, coor)
+            SUBMIT(tier::request, hids::events::mouse::local, coor)
             {
                 global(coor);
             };
@@ -2333,7 +2337,7 @@ namespace netxs::console
             coor -= square.coor;
             if (auto parent_ptr = parent())
             {
-                parent_ptr->SIGNAL(tier::request, e2::form::layout::local, coor);
+                parent_ptr->global(coor);
             }
         }
         // base: Invoke a lambda with parent as a parameter.
@@ -2571,11 +2575,11 @@ namespace netxs::console
                         canvas.fill(side_y, fuse);
                     });
                 };
-                boss.SUBMIT_T(tier::release, e2::form::notify::mouse::enter, memo, gear)
+                boss.SUBMIT_T(tier::release, hids::events::notify::mouse::enter, memo, gear)
                 {
                     items.add(gear);
                 };
-                boss.SUBMIT_T(tier::release, e2::form::notify::mouse::leave, memo, gear)
+                boss.SUBMIT_T(tier::release, hids::events::notify::mouse::leave, memo, gear)
                 {
                     items.dec(gear);
                 };
@@ -2647,11 +2651,11 @@ namespace netxs::console
                 : skill{ boss },
                   dest_shadow{ subject }
             {
-                boss.SUBMIT_T(tier::release, e2::form::notify::mouse::enter, memo, gear)
+                boss.SUBMIT_T(tier::release, hids::events::notify::mouse::enter, memo, gear)
                 {
                     items.add(gear);
                 };
-                boss.SUBMIT_T(tier::release, e2::form::notify::mouse::leave, memo, gear)
+                boss.SUBMIT_T(tier::release, hids::events::notify::mouse::leave, memo, gear)
                 {
                     items.dec(gear);
                 };
@@ -2731,11 +2735,11 @@ namespace netxs::console
                 {
                     items.take(gear).calc(boss, gear.coord);
                 };   
-                boss.SUBMIT_T(tier::release, e2::form::notify::mouse::enter, memo, gear)
+                boss.SUBMIT_T(tier::release, hids::events::notify::mouse::enter, memo, gear)
                 {
                     items.add(gear);
                 };
-                boss.SUBMIT_T(tier::release, e2::form::notify::mouse::leave, memo, gear)
+                boss.SUBMIT_T(tier::release, hids::events::notify::mouse::leave, memo, gear)
                 {
                     items.dec(gear);
                 };
@@ -4471,7 +4475,7 @@ namespace netxs::console
                 {
                     // Propagate throughout nested objects by base::
                     gear.kb_focus_taken = faux;
-                    boss.SIGNAL(tier::release, e2::form::upevent::kboffer, gear);
+                    boss.SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
 
                     //gear.set_kb_focus(boss.This());
                     if (gear.focus_taken()) gear.dismiss();
@@ -4485,7 +4489,7 @@ namespace netxs::console
                 };
 
                 // pro::keybd: Notify form::state::kbfocus when the number of clients is positive.
-                boss.SUBMIT_T(tier::release, e2::form::notify::keybd::got, memo, gear)
+                boss.SUBMIT_T(tier::release, hids::events::notify::keybd::got, memo, gear)
                 {
                     //if (!highlightable || gear.begin_inform(boss.bell::id))
                     {
@@ -4496,7 +4500,7 @@ namespace netxs::console
                     }
                 };
                 // pro::keybd: Notify form::state::active_kbd when the number of clients is zero.
-                boss.SUBMIT_T(tier::release, e2::form::notify::keybd::lost, memo, gear)
+                boss.SUBMIT_T(tier::release, hids::events::notify::keybd::lost, memo, gear)
                 {
                     //if (!highlightable || gear.end_inform(boss.bell::id))
                     {
@@ -4527,7 +4531,7 @@ namespace netxs::console
             {
                 if (value)
                 {
-                    boss.SUBMIT_T(tier::release, e2::form::upevent::kboffer, accept_kbd, gear)
+                    boss.SUBMIT_T(tier::release, hids::events::upevent::kboffer, accept_kbd, gear)
                     {
                         if (!gear.focus_taken())
                         {
@@ -4583,7 +4587,7 @@ namespace netxs::console
                     }
                 };
                 // pro::mouse: Notify form::state::active when the number of clients is positive.
-                boss.SUBMIT_T(tier::release, e2::form::notify::mouse::enter, memo, gear)
+                boss.SUBMIT_T(tier::release, hids::events::notify::mouse::enter, memo, gear)
                 {
                     if (!full++) soul = boss.This();
                     if (gear.direct<true>(boss.bell::id) || omni)
@@ -4595,7 +4599,7 @@ namespace netxs::console
                     }
                 };
                 // pro::mouse: Notify form::state::active when the number of clients is zero.
-                boss.SUBMIT_T(tier::release, e2::form::notify::mouse::leave, memo, gear)
+                boss.SUBMIT_T(tier::release, hids::events::notify::mouse::leave, memo, gear)
                 {
                     if (!--full) { soul->base::strike(); soul.reset(); }
                     if (gear.direct<faux>(boss.bell::id) || omni)
@@ -5114,11 +5118,11 @@ namespace netxs::console
                     recalc();
                     boss.deface();
                 };
-                boss.SUBMIT_T(tier::release, e2::form::notify::mouse::enter, memo, gear)
+                boss.SUBMIT_T(tier::release, hids::events::notify::mouse::enter, memo, gear)
                 {
                     items.add(gear);
                 };
-                boss.SUBMIT_T(tier::release, e2::form::notify::mouse::leave, memo, gear)
+                boss.SUBMIT_T(tier::release, hids::events::notify::mouse::leave, memo, gear)
                 {
                     auto& item = items.take(gear);
                     if (item.region.size)

@@ -2204,7 +2204,7 @@ utility like ctags is used to locate the definitions.
                     auto frame = creator(current_default, location);
 
                     gear.kb_focus_taken = faux;
-                    frame->SIGNAL(tier::release, e2::form::upevent::kboffer, gear);
+                    frame->SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
                 }
             }
         };

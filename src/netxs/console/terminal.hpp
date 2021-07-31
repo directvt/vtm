@@ -962,12 +962,12 @@ private:
                 {
                     if (!token) // Do not subscribe if it is already subscribed)
                     {
-                        owner.SUBMIT_T(tier::release, e2::form::notify::keybd::any, token, gear)
+                        owner.SUBMIT_T(tier::release, hids::events::notify::keybd::any, token, gear)
                         {
                             switch(owner.bell::protos<tier::release>())
                             {
-                                case e2::form::notify::keybd::got:  queue.fcs(true); break;
-                                case e2::form::notify::keybd::lost: queue.fcs(faux); break;
+                                case hids::events::notify::keybd::got:  queue.fcs(true); break;
+                                case hids::events::notify::keybd::lost: queue.fcs(faux); break;
                                 default:
                                     break;
                             }
