@@ -50,14 +50,14 @@ namespace netxs::console
     using events::hook;
 }
 
-namespace netxs
+namespace netxs::events
 {
     struct e2
     {
-        #define EVENT(name) EVENT_VTM(name)
-        #define GROUP(name) GROUP_VTM(name)
-        #define    AT(name)    AT_VTM(name)
-        #define SUBSET     SUBSET_VTM
+        #define EVENT(name) EVENT_XS(name)
+        #define GROUP(name) GROUP_XS(name)
+        #define    AT(name)    AT_XS(name)
+        #define SUBSET     SUBSET_XS
 
         using type = events::type;
         static const type _root_event = events::_root_event;
@@ -68,16 +68,16 @@ namespace netxs
             EVENT( postrender ), // release: UI-tree post-rendering (arg: face).
             GROUP( render     ), // release: UI-tree rendering (arg: face).
             GROUP( timer      ),
-            GROUP( term       ),
+            GROUP( conio      ),
             GROUP( size       ), // release: Object size (arg: twod).
             GROUP( coor       ), // release: Object coor (arg: twod).
             GROUP( form       ),
-            GROUP( hids       ),
             GROUP( data       ),
             GROUP( debug      ), // return info struct with telemtry data
             GROUP( config     ), // set/notify/get/global_set configuration data (tier::preview/tier::release/tier::request/tier::general)
             GROUP( command    ), // exec UI command (arg: iota)
             GROUP( bindings   ), // Dynamic Data Bindings.
+            GROUP( hids       ),
             GROUP( custom     ), // Custom events subset.
 
             SUBSET AT( render )
@@ -133,7 +133,7 @@ namespace netxs
                     EVENT( style ), // caret style: 0 - underline, 1 - box (arg: iota)
                 };
             };
-            SUBSET AT( term )
+            SUBSET AT( conio )
             {
                 any = _,
                 EVENT( unknown  ), // return platform unknown event code
@@ -165,189 +165,6 @@ namespace netxs
                 EVENT( cout   ), // Append extra data to output (arg: const text)
                 EVENT( custom ), // Custom command (arg: cmd_id iota)
             };
-            SUBSET AT( hids )
-            {
-                any = _,
-                GROUP( keybd ),
-                GROUP( mouse ),
-
-                SUBSET AT( keybd )
-                {
-                    any = _,
-                    EVENT( down    ),
-                    EVENT( up      ),
-                    GROUP( control ),
-                    GROUP( state   ),
-
-                    SUBSET AT( control )
-                    {
-                        any = _,
-                        GROUP( up   ),
-                        GROUP( down ),
-
-                        SUBSET AT( up )
-                        {
-                            any = _,
-                            EVENT( alt_right   ),
-                            EVENT( alt_left    ),
-                            EVENT( ctrl_right  ),
-                            EVENT( ctrl_left   ),
-                            EVENT( shift_right ),
-                            EVENT( shift_left  ),
-                        };
-                        SUBSET AT( down )
-                        {
-                            any = _,
-                            EVENT( alt_right   ),
-                            EVENT( alt_left    ),
-                            EVENT( ctrl_right  ),
-                            EVENT( ctrl_left   ),
-                            EVENT( shift_right ),
-                            EVENT( shift_left  ),
-                        };
-                    };
-                    SUBSET AT( state )
-                    {
-                        any = _,
-                        GROUP( on  ),
-                        GROUP( off ),
-
-                        SUBSET AT( on )
-                        {
-                            any = _,
-                            EVENT( numlock    ),
-                            EVENT( capslock   ),
-                            EVENT( scrolllock ),
-                            EVENT( insert     ),
-                        };
-                        SUBSET AT( off )
-                        {
-                            any = _,
-                            EVENT( numlock    ),
-                            EVENT( capslock   ),
-                            EVENT( scrolllock ),
-                            EVENT( insert     ),
-                        };
-                    };
-                };
-                SUBSET AT( mouse )
-                {
-                    any = _,
-                    EVENT( move    ),
-                    EVENT( shuffle ), // movement within one cell
-                    EVENT( focus   ),
-                    EVENT( gone    ), // release::global: Notify about the mouse controller is gone (args: hids).
-                    GROUP( button  ),
-                    GROUP( scroll  ),
-
-                    SUBSET AT( scroll )
-                    {
-                        any = _,
-                        EVENT( up   ),
-                        EVENT( down ),
-                    };
-                    SUBSET AT( button )
-                    {
-                        any = _,
-                        GROUP( up       ),
-                        GROUP( down     ),
-                        GROUP( click    ),
-                        GROUP( dblclick ),
-                        GROUP( drag     ),
-
-                        SUBSET AT( up )
-                        {
-                            any = _,
-                            EVENT( left      ),
-                            EVENT( right     ),
-                            EVENT( leftright ),
-                            EVENT( middle    ),
-                            EVENT( wheel     ),
-                            EVENT( win       ),
-                        };
-                        SUBSET AT( down )
-                        {
-                            any = _,
-                            EVENT( left      ),
-                            EVENT( right     ),
-                            EVENT( leftright ),
-                            EVENT( middle    ),
-                            EVENT( wheel     ),
-                            EVENT( win       ),
-                        };
-                        SUBSET AT( click )
-                        {
-                            any = _,
-                            EVENT( left      ),
-                            EVENT( right     ),
-                            EVENT( leftright ),
-                            EVENT( middle    ),
-                            EVENT( wheel     ),
-                            EVENT( win       ),
-                        };
-                        SUBSET AT( dblclick )
-                        {
-                            any = _,
-                            EVENT( left      ),
-                            EVENT( right     ),
-                            EVENT( leftright ),
-                            EVENT( middle    ),
-                            EVENT( wheel     ),
-                            EVENT( win       ),
-                        };
-                        SUBSET AT( drag )
-                        {
-                            any = _,
-                            GROUP( start  ),
-                            GROUP( pull   ),
-                            GROUP( cancel ),
-                            GROUP( stop   ),
-
-                            SUBSET AT( start )
-                            {
-                                any = _,
-                                EVENT( left      ),
-                                EVENT( right     ),
-                                EVENT( leftright ),
-                                EVENT( middle    ),
-                                EVENT( wheel     ),
-                                EVENT( win       ),
-                            };
-                            SUBSET AT( pull )
-                            {
-                                any = _,
-                                EVENT( left      ),
-                                EVENT( right     ),
-                                EVENT( leftright ),
-                                EVENT( middle    ),
-                                EVENT( wheel     ),
-                                EVENT( win       ),
-                            };
-                            SUBSET AT( cancel )
-                            {
-                                any = _,
-                                EVENT( left      ),
-                                EVENT( right     ),
-                                EVENT( leftright ),
-                                EVENT( middle    ),
-                                EVENT( wheel     ),
-                                EVENT( win       ),
-                            };
-                            SUBSET AT( stop )
-                            {
-                                any = _,
-                                EVENT( left      ),
-                                EVENT( right     ),
-                                EVENT( leftright ),
-                                EVENT( middle    ),
-                                EVENT( wheel     ),
-                                EVENT( win       ),
-                            };
-                        };
-                    };
-                };
-            };
-
             SUBSET AT( form )
             {
                 any = _,
@@ -571,7 +388,7 @@ namespace netxs
 
                     SUBSET AT( mouse )
                     {
-                        any = _,        // inform the form about the mouse hover (arg: hids)
+                        any = _,
                         EVENT( enter ), // inform the form about the mouse hover (arg: hids)
                         EVENT( leave ), // inform the form about the mouse leave (arg: hids)
                     };
@@ -626,18 +443,18 @@ namespace netxs
         EVENT_BIND(e2::bindings::list::users, sptr<std::list<sptr<console::base>>>)
         EVENT_BIND(e2::bindings::list::apps,  sptr<console::registry_t>)
 
-    EVENT_BIND(e2::term::any, iota)
-        EVENT_BIND(e2::term::unknown , iota)
-        EVENT_BIND(e2::term::error   , iota)
-        EVENT_BIND(e2::term::focus   , bool)
-        EVENT_BIND(e2::term::mouse   , console::sysmouse)
-        EVENT_BIND(e2::term::key     , console::syskeybd)
-        EVENT_BIND(e2::term::size    , twod)
-        EVENT_BIND(e2::term::native  , bool)
-        EVENT_BIND(e2::term::layout  , const twod)
-        EVENT_BIND(e2::term::preclose, const bool)
-        EVENT_BIND(e2::term::quit    , const view)
-        EVENT_BIND(e2::term::pointer , const bool)
+    EVENT_BIND(e2::conio::any, iota)
+        EVENT_BIND(e2::conio::unknown , iota)
+        EVENT_BIND(e2::conio::error   , iota)
+        EVENT_BIND(e2::conio::focus   , bool)
+        EVENT_BIND(e2::conio::mouse   , console::sysmouse)
+        EVENT_BIND(e2::conio::key     , console::syskeybd)
+        EVENT_BIND(e2::conio::size    , twod)
+        EVENT_BIND(e2::conio::native  , bool)
+        EVENT_BIND(e2::conio::layout  , const twod)
+        EVENT_BIND(e2::conio::preclose, const bool)
+        EVENT_BIND(e2::conio::quit    , const view)
+        EVENT_BIND(e2::conio::pointer , const bool)
 
     EVENT_BIND(e2::config::any, iota)
         EVENT_BIND(e2::config::broadcast, sptr<bell>)
@@ -770,123 +587,324 @@ namespace netxs
         EVENT_BIND(e2::form::animate::any, bell::id_t)
             EVENT_BIND(e2::form::animate::start, bell::id_t)
             EVENT_BIND(e2::form::animate::stop , bell::id_t)
+}
 
-    EVENT_BIND(e2::hids::any, console::hids)
-        EVENT_SAME(e2::hids::any, e2::hids::mouse::any)
-            EVENT_SAME(e2::hids::any, e2::hids::mouse::scroll::any)
-                EVENT_SAME(e2::hids::any, e2::hids::mouse::scroll::up)
-                EVENT_SAME(e2::hids::any, e2::hids::mouse::scroll::down)
+namespace netxs::events
+{
+    struct hids
+    {
+        #define EVENT(name) EVENT_XS(name)
+        #define GROUP(name) GROUP_XS(name)
+        #define    AT(name)    AT_XS(name)
+        #define SUBSET     SUBSET_XS
 
-            EVENT_SAME(e2::hids::any, e2::hids::mouse::move)
-            EVENT_SAME(e2::hids::any, e2::hids::mouse::shuffle)
-            EVENT_SAME(e2::hids::any, e2::hids::mouse::focus)
-            EVENT_SAME(e2::hids::any, e2::hids::mouse::gone)
+        static constexpr events::type _hids = e2::_hids;
+        EVENTPACK( hids )
+        {
+            any = _,
+            GROUP( keybd ),
+            GROUP( mouse ),
 
-            EVENT_SAME(e2::hids::any, e2::hids::mouse::button::any)
-                EVENT_SAME(e2::hids::any, e2::hids::mouse::button::up::any)
-                    EVENT_SAME(e2::hids::any, e2::hids::mouse::button::up::left)
-                    EVENT_SAME(e2::hids::any, e2::hids::mouse::button::up::right)
-                    EVENT_SAME(e2::hids::any, e2::hids::mouse::button::up::middle)
-                    EVENT_SAME(e2::hids::any, e2::hids::mouse::button::up::wheel)
-                    EVENT_SAME(e2::hids::any, e2::hids::mouse::button::up::win)
-                    EVENT_SAME(e2::hids::any, e2::hids::mouse::button::up::leftright)
+            SUBSET AT( keybd )
+            {
+                any = _,
+                EVENT( down    ),
+                EVENT( up      ),
+                GROUP( control ),
+                GROUP( state   ),
 
-                EVENT_SAME(e2::hids::any, e2::hids::mouse::button::down::any)
-                    EVENT_SAME(e2::hids::any, e2::hids::mouse::button::down::left)
-                    EVENT_SAME(e2::hids::any, e2::hids::mouse::button::down::right)
-                    EVENT_SAME(e2::hids::any, e2::hids::mouse::button::down::middle)
-                    EVENT_SAME(e2::hids::any, e2::hids::mouse::button::down::wheel)
-                    EVENT_SAME(e2::hids::any, e2::hids::mouse::button::down::win)
-                    EVENT_SAME(e2::hids::any, e2::hids::mouse::button::down::leftright)
+                SUBSET AT( control )
+                {
+                    any = _,
+                    GROUP( up   ),
+                    GROUP( down ),
 
-                EVENT_SAME(e2::hids::any, e2::hids::mouse::button::click::any)
-                    EVENT_SAME(e2::hids::any, e2::hids::mouse::button::click::left)
-                    EVENT_SAME(e2::hids::any, e2::hids::mouse::button::click::right)
-                    EVENT_SAME(e2::hids::any, e2::hids::mouse::button::click::middle)
-                    EVENT_SAME(e2::hids::any, e2::hids::mouse::button::click::wheel)
-                    EVENT_SAME(e2::hids::any, e2::hids::mouse::button::click::win)
-                    EVENT_SAME(e2::hids::any, e2::hids::mouse::button::click::leftright)
+                    SUBSET AT( up )
+                    {
+                        any = _,
+                        EVENT( alt_right   ),
+                        EVENT( alt_left    ),
+                        EVENT( ctrl_right  ),
+                        EVENT( ctrl_left   ),
+                        EVENT( shift_right ),
+                        EVENT( shift_left  ),
+                    };
+                    SUBSET AT( down )
+                    {
+                        any = _,
+                        EVENT( alt_right   ),
+                        EVENT( alt_left    ),
+                        EVENT( ctrl_right  ),
+                        EVENT( ctrl_left   ),
+                        EVENT( shift_right ),
+                        EVENT( shift_left  ),
+                    };
+                };
+                SUBSET AT( state )
+                {
+                    any = _,
+                    GROUP( on  ),
+                    GROUP( off ),
 
-                EVENT_SAME(e2::hids::any, e2::hids::mouse::button::dblclick::any)
-                    EVENT_SAME(e2::hids::any, e2::hids::mouse::button::dblclick::left)
-                    EVENT_SAME(e2::hids::any, e2::hids::mouse::button::dblclick::right)
-                    EVENT_SAME(e2::hids::any, e2::hids::mouse::button::dblclick::middle)
-                    EVENT_SAME(e2::hids::any, e2::hids::mouse::button::dblclick::wheel)
-                    EVENT_SAME(e2::hids::any, e2::hids::mouse::button::dblclick::win)
-                    EVENT_SAME(e2::hids::any, e2::hids::mouse::button::dblclick::leftright)
+                    SUBSET AT( on )
+                    {
+                        any = _,
+                        EVENT( numlock    ),
+                        EVENT( capslock   ),
+                        EVENT( scrolllock ),
+                        EVENT( insert     ),
+                    };
+                    SUBSET AT( off )
+                    {
+                        any = _,
+                        EVENT( numlock    ),
+                        EVENT( capslock   ),
+                        EVENT( scrolllock ),
+                        EVENT( insert     ),
+                    };
+                };
+            };
+            SUBSET AT( mouse )
+            {
+                any = _,
+                EVENT( move    ),
+                EVENT( shuffle ), // movement within one cell
+                EVENT( focus   ),
+                EVENT( gone    ), // release::global: Notify about the mouse controller is gone (args: hids).
+                GROUP( button  ),
+                GROUP( scroll  ),
 
-                EVENT_SAME(e2::hids::any, e2::hids::mouse::button::drag::any)
-                    EVENT_SAME(e2::hids::any, e2::hids::mouse::button::drag::start::any)
-                        EVENT_SAME(e2::hids::any, e2::hids::mouse::button::drag::start::left)
-                        EVENT_SAME(e2::hids::any, e2::hids::mouse::button::drag::start::right)
-                        EVENT_SAME(e2::hids::any, e2::hids::mouse::button::drag::start::middle)
-                        EVENT_SAME(e2::hids::any, e2::hids::mouse::button::drag::start::wheel)
-                        EVENT_SAME(e2::hids::any, e2::hids::mouse::button::drag::start::win)
-                        EVENT_SAME(e2::hids::any, e2::hids::mouse::button::drag::start::leftright)
+                SUBSET AT( scroll )
+                {
+                    any = _,
+                    EVENT( up   ),
+                    EVENT( down ),
+                };
+                SUBSET AT( button )
+                {
+                    any = _,
+                    GROUP( up       ),
+                    GROUP( down     ),
+                    GROUP( click    ),
+                    GROUP( dblclick ),
+                    GROUP( drag     ),
 
-                    EVENT_SAME(e2::hids::any, e2::hids::mouse::button::drag::pull::any)
-                        EVENT_SAME(e2::hids::any, e2::hids::mouse::button::drag::pull::left)
-                        EVENT_SAME(e2::hids::any, e2::hids::mouse::button::drag::pull::right)
-                        EVENT_SAME(e2::hids::any, e2::hids::mouse::button::drag::pull::middle)
-                        EVENT_SAME(e2::hids::any, e2::hids::mouse::button::drag::pull::wheel)
-                        EVENT_SAME(e2::hids::any, e2::hids::mouse::button::drag::pull::win)
-                        EVENT_SAME(e2::hids::any, e2::hids::mouse::button::drag::pull::leftright)
+                    SUBSET AT( up )
+                    {
+                        any = _,
+                        EVENT( left      ),
+                        EVENT( right     ),
+                        EVENT( leftright ),
+                        EVENT( middle    ),
+                        EVENT( wheel     ),
+                        EVENT( win       ),
+                    };
+                    SUBSET AT( down )
+                    {
+                        any = _,
+                        EVENT( left      ),
+                        EVENT( right     ),
+                        EVENT( leftright ),
+                        EVENT( middle    ),
+                        EVENT( wheel     ),
+                        EVENT( win       ),
+                    };
+                    SUBSET AT( click )
+                    {
+                        any = _,
+                        EVENT( left      ),
+                        EVENT( right     ),
+                        EVENT( leftright ),
+                        EVENT( middle    ),
+                        EVENT( wheel     ),
+                        EVENT( win       ),
+                    };
+                    SUBSET AT( dblclick )
+                    {
+                        any = _,
+                        EVENT( left      ),
+                        EVENT( right     ),
+                        EVENT( leftright ),
+                        EVENT( middle    ),
+                        EVENT( wheel     ),
+                        EVENT( win       ),
+                    };
+                    SUBSET AT( drag )
+                    {
+                        any = _,
+                        GROUP( start  ),
+                        GROUP( pull   ),
+                        GROUP( cancel ),
+                        GROUP( stop   ),
 
-                    EVENT_SAME(e2::hids::any, e2::hids::mouse::button::drag::cancel::any)
-                        EVENT_SAME(e2::hids::any, e2::hids::mouse::button::drag::cancel::left)
-                        EVENT_SAME(e2::hids::any, e2::hids::mouse::button::drag::cancel::right)
-                        EVENT_SAME(e2::hids::any, e2::hids::mouse::button::drag::cancel::middle)
-                        EVENT_SAME(e2::hids::any, e2::hids::mouse::button::drag::cancel::wheel)
-                        EVENT_SAME(e2::hids::any, e2::hids::mouse::button::drag::cancel::win)
-                        EVENT_SAME(e2::hids::any, e2::hids::mouse::button::drag::cancel::leftright)
+                        SUBSET AT( start )
+                        {
+                            any = _,
+                            EVENT( left      ),
+                            EVENT( right     ),
+                            EVENT( leftright ),
+                            EVENT( middle    ),
+                            EVENT( wheel     ),
+                            EVENT( win       ),
+                        };
+                        SUBSET AT( pull )
+                        {
+                            any = _,
+                            EVENT( left      ),
+                            EVENT( right     ),
+                            EVENT( leftright ),
+                            EVENT( middle    ),
+                            EVENT( wheel     ),
+                            EVENT( win       ),
+                        };
+                        SUBSET AT( cancel )
+                        {
+                            any = _,
+                            EVENT( left      ),
+                            EVENT( right     ),
+                            EVENT( leftright ),
+                            EVENT( middle    ),
+                            EVENT( wheel     ),
+                            EVENT( win       ),
+                        };
+                        SUBSET AT( stop )
+                        {
+                            any = _,
+                            EVENT( left      ),
+                            EVENT( right     ),
+                            EVENT( leftright ),
+                            EVENT( middle    ),
+                            EVENT( wheel     ),
+                            EVENT( win       ),
+                        };
+                    };
+                };
+            };
+        };
 
-                    EVENT_SAME(e2::hids::any, e2::hids::mouse::button::drag::stop::any)
-                        EVENT_SAME(e2::hids::any, e2::hids::mouse::button::drag::stop::left)
-                        EVENT_SAME(e2::hids::any, e2::hids::mouse::button::drag::stop::right)
-                        EVENT_SAME(e2::hids::any, e2::hids::mouse::button::drag::stop::middle)
-                        EVENT_SAME(e2::hids::any, e2::hids::mouse::button::drag::stop::wheel)
-                        EVENT_SAME(e2::hids::any, e2::hids::mouse::button::drag::stop::win)
-                        EVENT_SAME(e2::hids::any, e2::hids::mouse::button::drag::stop::leftright)
+        #undef EVENT
+        #undef GROUP
+        #undef AT
+        #undef SUBSET
+    };
 
-        EVENT_SAME(e2::hids::any, e2::hids::keybd::any)
-            EVENT_SAME(e2::hids::any, e2::hids::keybd::down)
-            EVENT_SAME(e2::hids::any, e2::hids::keybd::up)
+    EVENT_BIND(hids::any, console::hids)
+        EVENT_SAME(hids::any, hids::mouse::any)
+            EVENT_SAME(hids::any, hids::mouse::scroll::any)
+                EVENT_SAME(hids::any, hids::mouse::scroll::up)
+                EVENT_SAME(hids::any, hids::mouse::scroll::down)
 
-            EVENT_SAME(e2::hids::any, e2::hids::keybd::control::any)
-                EVENT_SAME(e2::hids::any, e2::hids::keybd::control::down::any)
-                    EVENT_SAME(e2::hids::any, e2::hids::keybd::control::down::alt_right)
-                    EVENT_SAME(e2::hids::any, e2::hids::keybd::control::down::alt_left)
-                    EVENT_SAME(e2::hids::any, e2::hids::keybd::control::down::ctrl_right)
-                    EVENT_SAME(e2::hids::any, e2::hids::keybd::control::down::ctrl_left)
-                    EVENT_SAME(e2::hids::any, e2::hids::keybd::control::down::shift_right)
-                    EVENT_SAME(e2::hids::any, e2::hids::keybd::control::down::shift_left)
+            EVENT_SAME(hids::any, hids::mouse::move)
+            EVENT_SAME(hids::any, hids::mouse::shuffle)
+            EVENT_SAME(hids::any, hids::mouse::focus)
+            EVENT_SAME(hids::any, hids::mouse::gone)
 
-                EVENT_SAME(e2::hids::any, e2::hids::keybd::control::up::any)
-                    EVENT_SAME(e2::hids::any, e2::hids::keybd::control::up::alt_right)
-                    EVENT_SAME(e2::hids::any, e2::hids::keybd::control::up::alt_left)
-                    EVENT_SAME(e2::hids::any, e2::hids::keybd::control::up::ctrl_right)
-                    EVENT_SAME(e2::hids::any, e2::hids::keybd::control::up::ctrl_left)
-                    EVENT_SAME(e2::hids::any, e2::hids::keybd::control::up::shift_right)
-                    EVENT_SAME(e2::hids::any, e2::hids::keybd::control::up::shift_left)
+            EVENT_SAME(hids::any, hids::mouse::button::any)
+                EVENT_SAME(hids::any, hids::mouse::button::up::any)
+                    EVENT_SAME(hids::any, hids::mouse::button::up::left)
+                    EVENT_SAME(hids::any, hids::mouse::button::up::right)
+                    EVENT_SAME(hids::any, hids::mouse::button::up::middle)
+                    EVENT_SAME(hids::any, hids::mouse::button::up::wheel)
+                    EVENT_SAME(hids::any, hids::mouse::button::up::win)
+                    EVENT_SAME(hids::any, hids::mouse::button::up::leftright)
 
-                EVENT_SAME(e2::hids::any, e2::hids::keybd::state::any)
-                    EVENT_SAME(e2::hids::any, e2::hids::keybd::state::on::any)
-                        EVENT_SAME(e2::hids::any, e2::hids::keybd::state::on::numlock)
-                        EVENT_SAME(e2::hids::any, e2::hids::keybd::state::on::capslock)
-                        EVENT_SAME(e2::hids::any, e2::hids::keybd::state::on::scrolllock)
-                        EVENT_SAME(e2::hids::any, e2::hids::keybd::state::on::insert)
+                EVENT_SAME(hids::any, hids::mouse::button::down::any)
+                    EVENT_SAME(hids::any, hids::mouse::button::down::left)
+                    EVENT_SAME(hids::any, hids::mouse::button::down::right)
+                    EVENT_SAME(hids::any, hids::mouse::button::down::middle)
+                    EVENT_SAME(hids::any, hids::mouse::button::down::wheel)
+                    EVENT_SAME(hids::any, hids::mouse::button::down::win)
+                    EVENT_SAME(hids::any, hids::mouse::button::down::leftright)
 
-                    EVENT_SAME(e2::hids::any, e2::hids::keybd::state::off::any)
-                        EVENT_SAME(e2::hids::any, e2::hids::keybd::state::off::numlock)
-                        EVENT_SAME(e2::hids::any, e2::hids::keybd::state::off::capslock)
-                        EVENT_SAME(e2::hids::any, e2::hids::keybd::state::off::scrolllock)
-                        EVENT_SAME(e2::hids::any, e2::hids::keybd::state::off::insert)
+                EVENT_SAME(hids::any, hids::mouse::button::click::any)
+                    EVENT_SAME(hids::any, hids::mouse::button::click::left)
+                    EVENT_SAME(hids::any, hids::mouse::button::click::right)
+                    EVENT_SAME(hids::any, hids::mouse::button::click::middle)
+                    EVENT_SAME(hids::any, hids::mouse::button::click::wheel)
+                    EVENT_SAME(hids::any, hids::mouse::button::click::win)
+                    EVENT_SAME(hids::any, hids::mouse::button::click::leftright)
+
+                EVENT_SAME(hids::any, hids::mouse::button::dblclick::any)
+                    EVENT_SAME(hids::any, hids::mouse::button::dblclick::left)
+                    EVENT_SAME(hids::any, hids::mouse::button::dblclick::right)
+                    EVENT_SAME(hids::any, hids::mouse::button::dblclick::middle)
+                    EVENT_SAME(hids::any, hids::mouse::button::dblclick::wheel)
+                    EVENT_SAME(hids::any, hids::mouse::button::dblclick::win)
+                    EVENT_SAME(hids::any, hids::mouse::button::dblclick::leftright)
+
+                EVENT_SAME(hids::any, hids::mouse::button::drag::any)
+                    EVENT_SAME(hids::any, hids::mouse::button::drag::start::any)
+                        EVENT_SAME(hids::any, hids::mouse::button::drag::start::left)
+                        EVENT_SAME(hids::any, hids::mouse::button::drag::start::right)
+                        EVENT_SAME(hids::any, hids::mouse::button::drag::start::middle)
+                        EVENT_SAME(hids::any, hids::mouse::button::drag::start::wheel)
+                        EVENT_SAME(hids::any, hids::mouse::button::drag::start::win)
+                        EVENT_SAME(hids::any, hids::mouse::button::drag::start::leftright)
+
+                    EVENT_SAME(hids::any, hids::mouse::button::drag::pull::any)
+                        EVENT_SAME(hids::any, hids::mouse::button::drag::pull::left)
+                        EVENT_SAME(hids::any, hids::mouse::button::drag::pull::right)
+                        EVENT_SAME(hids::any, hids::mouse::button::drag::pull::middle)
+                        EVENT_SAME(hids::any, hids::mouse::button::drag::pull::wheel)
+                        EVENT_SAME(hids::any, hids::mouse::button::drag::pull::win)
+                        EVENT_SAME(hids::any, hids::mouse::button::drag::pull::leftright)
+
+                    EVENT_SAME(hids::any, hids::mouse::button::drag::cancel::any)
+                        EVENT_SAME(hids::any, hids::mouse::button::drag::cancel::left)
+                        EVENT_SAME(hids::any, hids::mouse::button::drag::cancel::right)
+                        EVENT_SAME(hids::any, hids::mouse::button::drag::cancel::middle)
+                        EVENT_SAME(hids::any, hids::mouse::button::drag::cancel::wheel)
+                        EVENT_SAME(hids::any, hids::mouse::button::drag::cancel::win)
+                        EVENT_SAME(hids::any, hids::mouse::button::drag::cancel::leftright)
+
+                    EVENT_SAME(hids::any, hids::mouse::button::drag::stop::any)
+                        EVENT_SAME(hids::any, hids::mouse::button::drag::stop::left)
+                        EVENT_SAME(hids::any, hids::mouse::button::drag::stop::right)
+                        EVENT_SAME(hids::any, hids::mouse::button::drag::stop::middle)
+                        EVENT_SAME(hids::any, hids::mouse::button::drag::stop::wheel)
+                        EVENT_SAME(hids::any, hids::mouse::button::drag::stop::win)
+                        EVENT_SAME(hids::any, hids::mouse::button::drag::stop::leftright)
+
+        EVENT_SAME(hids::any, hids::keybd::any)
+            EVENT_SAME(hids::any, hids::keybd::down)
+            EVENT_SAME(hids::any, hids::keybd::up)
+
+            EVENT_SAME(hids::any, hids::keybd::control::any)
+                EVENT_SAME(hids::any, hids::keybd::control::down::any)
+                    EVENT_SAME(hids::any, hids::keybd::control::down::alt_right)
+                    EVENT_SAME(hids::any, hids::keybd::control::down::alt_left)
+                    EVENT_SAME(hids::any, hids::keybd::control::down::ctrl_right)
+                    EVENT_SAME(hids::any, hids::keybd::control::down::ctrl_left)
+                    EVENT_SAME(hids::any, hids::keybd::control::down::shift_right)
+                    EVENT_SAME(hids::any, hids::keybd::control::down::shift_left)
+
+                EVENT_SAME(hids::any, hids::keybd::control::up::any)
+                    EVENT_SAME(hids::any, hids::keybd::control::up::alt_right)
+                    EVENT_SAME(hids::any, hids::keybd::control::up::alt_left)
+                    EVENT_SAME(hids::any, hids::keybd::control::up::ctrl_right)
+                    EVENT_SAME(hids::any, hids::keybd::control::up::ctrl_left)
+                    EVENT_SAME(hids::any, hids::keybd::control::up::shift_right)
+                    EVENT_SAME(hids::any, hids::keybd::control::up::shift_left)
+
+                EVENT_SAME(hids::any, hids::keybd::state::any)
+                    EVENT_SAME(hids::any, hids::keybd::state::on::any)
+                        EVENT_SAME(hids::any, hids::keybd::state::on::numlock)
+                        EVENT_SAME(hids::any, hids::keybd::state::on::capslock)
+                        EVENT_SAME(hids::any, hids::keybd::state::on::scrolllock)
+                        EVENT_SAME(hids::any, hids::keybd::state::on::insert)
+
+                    EVENT_SAME(hids::any, hids::keybd::state::off::any)
+                        EVENT_SAME(hids::any, hids::keybd::state::off::numlock)
+                        EVENT_SAME(hids::any, hids::keybd::state::off::capslock)
+                        EVENT_SAME(hids::any, hids::keybd::state::off::scrolllock)
+                        EVENT_SAME(hids::any, hids::keybd::state::off::insert)
 }
 
 namespace netxs::console
 {
     using namespace netxs::datetime;
     using namespace netxs::ui::atoms;
+    using e2 = netxs::events::e2;
     using id_t = bell::id_t;
     using hint = e2::type;
     using xipc = os::xipc;
@@ -894,7 +912,7 @@ namespace netxs::console
     // console: Base mouse class.
     class sysmouse
     {
-        using usable = e2::hids::mouse::button::click;
+        using usable = netxs::events::hids::mouse::button::click;
 
     public:
         constexpr static int numofbutton = 6;
@@ -994,7 +1012,7 @@ namespace netxs::console
     {
         using tail = netxs::datetime::tail<twod>;
         using idxs = std::vector<iota>;
-        using mouse_event = e2::hids::mouse;
+        using mouse_event = netxs::events::hids::mouse;
         enum bttns
         {
             first = sysmouse::left     ,
@@ -1044,13 +1062,13 @@ namespace netxs::console
         bool   hzwhl = faux; // mouse: Horizontal scrolling.
         iota   whldt = 0;
         bool   reach = faux;    // mouse: Has the event tree relay reached the mouse event target.
-        hint   cause = e2::any; // mouse: Current event id.
         iota   index = none;    // mouse: Index of the active button. -1 if the buttons are not involed.
         bool   nodbl = faux;    // mouse: Whether single click event processed (to prevent double clicks).
         iota   locks = 0;       // mouse: State of the captured buttons (bit field).
         id_t   swift = 0;       // mouse: Delegate's ID of the current mouse owner.
         id_t   hover = 0;       // mouse: Hover control ID.
         id_t   start = 0;       // mouse: Initiator control ID.
+        hint   cause = e2::any; // mouse: Current event id.
 
         struct
         {
@@ -1074,34 +1092,6 @@ namespace netxs::console
             //}
             //else
             {
-                // Interpret button combinations
-                //if (m.button[first] && m.button[other])
-                //{
-                //    m.button[joint] = true;
-                //    if (button[first].dragged)
-                //    {
-                //        button[first].dragged = faux;
-                //        action(dragcncl, first);
-                //    }
-                //    if (button[other].dragged)
-                //    {
-                //        button[other].dragged = faux;
-                //        action(dragcncl, other);
-                //    }
-                //    m.button[first] = faux;
-                //    m.button[other] = faux;
-                //}
-                //else
-                //{
-                //    // Release all on release any. Due to apple terminal bug.
-                //    if (button[joint].pressed)
-                //    {
-                //        m.button[first] = faux;
-                //        m.button[other] = faux;
-                //    }
-                //    //m.button[joint] = faux;
-                //}
-
                 // Interpret button combinations
                 //todo possible bug in Apple's Terminal - it does not return the second release
                 //                                        in case the two buttons are pressed.
@@ -1343,9 +1333,7 @@ namespace netxs::console
         uint16_t    virtcode = 0;
         uint16_t    scancode = 0;
         wchar_t     character = 0;
-        e2::type    cause = e2::hids::keybd::any;
-        e2::type    focus_got  = e2::form::notify::keybd::got;
-        e2::type    focus_lost = e2::form::notify::keybd::lost;
+        e2::type    cause = netxs::events::hids::keybd::any;
 
         void update	(syskeybd& k)
         {
@@ -1367,6 +1355,10 @@ namespace netxs::console
         : public mouse,
           public keybd
     {
+    public:
+        using events = netxs::events::hids;
+    private:
+
         using list = std::list<wptr<bell>>;
 
         bell&       owner;
@@ -1376,6 +1368,14 @@ namespace netxs::console
         bool        alive; // hids: Whether event processing is complete.
         //todo revise
         uint32_t ctlstate = 0;
+
+        static constexpr auto enter_event   = e2::form::notify::mouse::enter;
+        static constexpr auto leave_event   = e2::form::notify::mouse::leave;
+        static constexpr auto focus_take    = e2::form::notify::keybd::got;
+        static constexpr auto focus_lost    = e2::form::notify::keybd::lost;
+        static constexpr auto local_event   = e2::form::layout::local;
+        static constexpr auto kboffer_event = e2::form::upevent::kboffer;
+        static constexpr auto gone_event    = hids::events::mouse::gone;
 
     public:
         id_t const& id;    // hids: Owner/gear ID.
@@ -1406,10 +1406,10 @@ namespace netxs::console
         { }
         ~hids()
         {
-            events::sync lock;
+            netxs::events::sync lock;
             mouse_leave();
             clear_kb_focus();
-            bell::signal_global(e2::hids::mouse::gone, *this);
+            bell::signal_global(gone_event, *this);
         }
 
         // hids: Stop handeling this event.
@@ -1447,7 +1447,7 @@ namespace netxs::console
                 coord += offset;
                 if (relative)
                 {
-                    object->SIGNAL(tier::request, e2::form::layout::local, coord);
+                    object->SIGNAL(tier::request, local_event, coord);
                 }
                 object->bell::template signal<TIER>(mouse::cause, *this);
                 coord = temp;
@@ -1461,7 +1461,7 @@ namespace netxs::console
                 {
                     auto start = mouse::start;
                     mouse::start = start_id;
-                    last->SIGNAL(tier::release, e2::form::notify::mouse::leave, *this);
+                    last->SIGNAL(tier::release, leave_event, *this);
                     mouse::start = start;
                 }
                 else log("hids: error condition: Clients count is broken, dangling id ", last_id);
@@ -1481,7 +1481,7 @@ namespace netxs::console
                 // acquired by children.
                 auto start_l = mouse::start;
                 mouse::start = 0; // The first one to track the mouse will assign itself by calling gear.direct<true>(id).
-                boss.SIGNAL(tier::release, e2::form::notify::mouse::enter, *this);
+                boss.SIGNAL(tier::release, enter_event, *this);
                 mouse_leave(mouse::hover, start_l);
                 mouse::hover = boss.id;
             }
@@ -1549,7 +1549,7 @@ namespace netxs::console
         void _add_kb_focus(sptr<bell> item)
         {
             kb_focus.push_back(item);
-            item->bell::template signal<tier::release>(keybd::focus_got, *this);
+            item->bell::template signal<tier::release>(focus_take, *this);
         }
         bool remove_from_kb_focus(sptr<bell> item)
         {
@@ -1560,7 +1560,7 @@ namespace netxs::console
                 {
                     if (item == next)
                     {
-                        next->bell::template signal<tier::release>(keybd::focus_lost, *this);
+                        next->bell::template signal<tier::release>(focus_lost, *this);
                         kb_focus.erase(iter);
                         return true;
                     }
@@ -1583,7 +1583,7 @@ namespace netxs::console
                         iter++;
                         continue;
                     }
-                    next->bell::template signal<tier::release>(keybd::focus_lost, *this);
+                    next->bell::template signal<tier::release>(focus_lost, *this);
                 }
                 iter++;
                 kb_focus.erase(std::prev(iter));
@@ -1613,7 +1613,7 @@ namespace netxs::console
             {
                 if (auto next = iter->lock())
                 {
-                    next->bell::template signal<tier::release>(keybd::focus_lost, *this);
+                    next->bell::template signal<tier::release>(focus_lost, *this);
                 }
                 iter++;
                 kb_focus.erase(std::prev(iter));
@@ -1628,7 +1628,7 @@ namespace netxs::console
         {
             clear_kb_focus();
             kb_focus_taken = faux;
-            inst.SIGNAL(tier::release, e2::form::upevent::kboffer, *this);
+            inst.SIGNAL(tier::release, kboffer_event, *this);
         }
     };
 
@@ -2394,7 +2394,7 @@ namespace netxs::console
 
                 socks()
                 {
-                    SUBMIT_GLOBAL(e2::hids::mouse::gone, token, gear)
+                    SUBMIT_GLOBAL(hids::events::mouse::gone, token, gear)
                     {
                         del(gear);
                     };
@@ -2586,7 +2586,7 @@ namespace netxs::console
             void engage()
             {
                 boss.SIGNAL(tier::release, events::message(e2::form::draggable::any, button), true);
-                boss.SUBMIT_T(tier::release, e2::hids::mouse::move, memo, gear)
+                boss.SUBMIT_T(tier::release, hids::events::mouse::move, memo, gear)
                 {
                     items.take(gear).calc(boss, gear.coord, outer, inner, width);
                     boss.base::deface();
@@ -2727,7 +2727,7 @@ namespace netxs::console
             track(base& boss)
                 : skill{ boss }
             {
-                boss.SUBMIT_T(tier::release, e2::hids::mouse::move, memo, gear)
+                boss.SUBMIT_T(tier::release, hids::events::mouse::move, memo, gear)
                 {
                     items.take(gear).calc(boss, gear.coord);
                 };   
@@ -2781,7 +2781,7 @@ namespace netxs::console
             {
                 if (maximize)
                 {
-                    boss.SUBMIT_T(tier::release, e2::hids::mouse::button::dblclick::left, maxs, gear)
+                    boss.SUBMIT_T(tier::release, hids::events::mouse::button::dblclick::left, maxs, gear)
                     {
                         auto size = boss.base::size();
                         if (size.inside(gear.coord))
@@ -3040,11 +3040,11 @@ namespace netxs::console
                 {
                     expose();
                 };
-                boss.SUBMIT_T(tier::preview, e2::hids::mouse::button::click::left, memo, gear)
+                boss.SUBMIT_T(tier::preview, hids::events::mouse::button::click::left, memo, gear)
                 {
                     expose();
                 };
-                boss.SUBMIT_T(tier::preview, e2::hids::mouse::button::click::right, memo, gear)
+                boss.SUBMIT_T(tier::preview, hids::events::mouse::button::click::right, memo, gear)
                 {
                     expose();
                 };
@@ -3060,7 +3060,7 @@ namespace netxs::console
                 {
                     bubble();
                 };
-                boss.SUBMIT_T(tier::preview, e2::hids::mouse::button::down::any, memo, gear)
+                boss.SUBMIT_T(tier::preview, hids::events::mouse::button::down::any, memo, gear)
                 {
                     robo.pacify();
                 };
@@ -3094,7 +3094,7 @@ namespace netxs::console
                         });
                     }
                 };
-                boss.SUBMIT_T(tier::release, e2::hids::mouse::button::click::right, memo, gear)
+                boss.SUBMIT_T(tier::release, hids::events::mouse::button::click::right, memo, gear)
                 {
                     auto& area = boss.base::area();
                     auto coord = gear.coord + area.coor;
@@ -3293,9 +3293,9 @@ namespace netxs::console
             maker(base& boss) : skill{ boss },
                 mark{ skin::color(tone::selector) }
             {
-                using drag = e2::hids::mouse::button::drag;
+                using drag = hids::events::mouse::button::drag;
 
-                boss.SUBMIT_T(tier::preview, e2::hids::keybd::any, memo, gear)
+                boss.SUBMIT_T(tier::preview, hids::events::keybd::any, memo, gear)
                 {
                     if (gear.captured(boss.bell::id)) check_modifiers(gear);
                 };
@@ -3338,7 +3338,7 @@ namespace netxs::console
                     handle_stop(gear);
                 };
 
-                boss.SUBMIT_T(tier::general, e2::hids::mouse::gone, memo, gear)
+                boss.SUBMIT_T(tier::general, hids::events::mouse::gone, memo, gear)
                 {
                     handle_drop(gear);
                 };
@@ -3694,7 +3694,7 @@ namespace netxs::console
                 //		utf::adjust(utf::format(track.frsize), 7, " ", true) + " bytes";
                 //});
 
-                //boss.SUBMIT_T(tier::release, e2::term::size, owner::memo, newsize)
+                //boss.SUBMIT_T(tier::release, e2::conio::size, owner::memo, newsize)
                 //{
                 //	shadow();
                 //	status[prop::last_event].set(stress) = "size";
@@ -3704,7 +3704,7 @@ namespace netxs::console
                 //		std::to_string(newsize.y);
                 //});
 
-                boss.SUBMIT_T(tier::release, e2::term::focus, memo, focusstate)
+                boss.SUBMIT_T(tier::release, e2::conio::focus, memo, focusstate)
                 {
                     update(focusstate);
                     boss.base::strike(); // to update debug info
@@ -3714,7 +3714,7 @@ namespace netxs::console
                     update(newsize);
                 };
 
-                boss.SUBMIT_T(tier::preview, e2::hids::mouse::any, memo, gear)
+                boss.SUBMIT_T(tier::preview, hids::events::mouse::any, memo, gear)
                 {
                     if (bypass) return;
                     shadow();
@@ -3743,14 +3743,14 @@ namespace netxs::console
                     status[prop::ctrl_state   ].set(stress) = "0x" + utf::to_hex(m.meta());
                 };
 
-                //boss.SUBMIT_T(tier::release, e2::term::menu, memo, iface)
+                //boss.SUBMIT_T(tier::release, e2::conio::menu, memo, iface)
                 //{
                 //	//shadow();
                 //	status[prop::last_event].set(stress) = "UI";
                 //	status[prop::menu_id].set(stress) = "UI:" + std::to_string(iface);
                 //};
 
-                boss.SUBMIT_T(tier::release, e2::term::key, memo, gear)
+                boss.SUBMIT_T(tier::release, e2::conio::key, memo, gear)
                 {
                     shadow();
                     auto& k = gear;
@@ -3778,14 +3778,14 @@ namespace netxs::console
                     }
                 };
 
-                //boss.SUBMIT_T(tier::release, e2::term::focus, owner::memo, f)
+                //boss.SUBMIT_T(tier::release, e2::conio::focus, owner::memo, f)
                 //{
                 //	shadow();
                 //	status[prop::last_event].set(stress) = "focus";
                 //	status[prop::focused].set(stress) = f ? "active" : "lost";
                 //});
 
-                boss.SUBMIT_T(tier::release, e2::term::error, memo, e)
+                boss.SUBMIT_T(tier::release, e2::conio::error, memo, e)
                 {
                     shadow();
                     status[prop::last_event].set(stress) = "error";
@@ -4371,7 +4371,7 @@ namespace netxs::console
         {
             using skill::boss,
                   skill::memo;
-            constexpr static auto QUIT_MSG = e2::term::quit;
+            constexpr static auto QUIT_MSG = e2::conio::quit;
             constexpr static iota ESC_THRESHOLD = 500; // guard: Double escape threshold in ms.
 
             bool   wait; // guard: Ready to close.
@@ -4384,7 +4384,7 @@ namespace netxs::console
                 wait{ faux }
             {
                 // Suspected early completion.
-                boss.SUBMIT_T(tier::release, e2::term::preclose, memo, pre_close)
+                boss.SUBMIT_T(tier::release, e2::conio::preclose, memo, pre_close)
                 {
                     if ((wait = pre_close))
                     {
@@ -4412,7 +4412,7 @@ namespace netxs::console
         {
             using skill::boss,
                   skill::memo;
-            constexpr static auto EXCUSE_MSG = e2::hids::mouse::any;
+            constexpr static auto EXCUSE_MSG = hids::events::mouse::any;
             constexpr static auto QUIT_MSG   = e2::command::quit;
             //todo unify
             constexpr static int LIMIT = 60 * 10; // watch: Idle timeout in seconds.
@@ -4465,7 +4465,7 @@ namespace netxs::console
             keybd(base&&) = delete;
             keybd(base& boss) : skill{ boss }
             {
-                using bttn = e2::hids::mouse::button;
+                using bttn = hids::events::mouse::button;
 
                 boss.SUBMIT_T(tier::release, bttn::click::left, memo, gear)
                 {
@@ -4510,7 +4510,7 @@ namespace netxs::console
                 {
                     state = !!clients;
                 };
-                boss.SUBMIT_T(tier::preview, e2::hids::keybd::any, memo, gear)
+                boss.SUBMIT_T(tier::preview, hids::events::keybd::any, memo, gear)
                 {
                     #ifdef KEYLOG
                     log("keybd fired virtcode: ", gear.virtcode,
@@ -4518,7 +4518,7 @@ namespace netxs::console
                                        " meta: ", gear.meta());
                     #endif
 
-                    boss.SIGNAL(tier::release, e2::hids::keybd::any, gear);
+                    boss.SIGNAL(tier::release, hids::events::keybd::any, gear);
                 };
             };
 
@@ -4565,7 +4565,7 @@ namespace netxs::console
                 auto brush = boss.base::color();
                 boss.base::color(brush.link(boss.bell::id));
                 // pro::mouse: Forward preview to all parents.
-                boss.SUBMIT_T(tier::preview, e2::hids::mouse::any, memo, gear)
+                boss.SUBMIT_T(tier::preview, hids::events::mouse::any, memo, gear)
                 {
                     auto& offset = boss.base::coor();
                     gear.pass<tier::preview>(boss.parent(), offset);
@@ -4574,7 +4574,7 @@ namespace netxs::console
                     else      boss.bell::expire(tier::preview);
                 };
                 // pro::mouse: Forward all not expired mouse events to all parents.
-                boss.SUBMIT_T(tier::release, e2::hids::mouse::any, memo, gear)
+                boss.SUBMIT_T(tier::release, hids::events::mouse::any, memo, gear)
                 {
                     if (gear && !gear.locks)
                     {
@@ -4643,8 +4643,8 @@ namespace netxs::console
                 if (!(drag & 1 << button))
                 {
                     drag |= 1 << button;
-                    //using bttn = e2::hids::mouse::button; //MSVC 16.9.4 don't get it
-                    boss.SUBMIT(tier::release, events::message(e2::hids::mouse::button::drag::start::any, button), gear)
+                    //using bttn = hids::events::mouse::button; //MSVC 16.9.4 don't get it
+                    boss.SUBMIT(tier::release, events::message(hids::events::mouse::button::drag::start::any, button), gear)
                     {
                         if (gear.capture(boss.bell::id))
                         {
@@ -4652,7 +4652,7 @@ namespace netxs::console
                             gear.dismiss();
                         }
                     };
-                    boss.SUBMIT(tier::release, events::message(e2::hids::mouse::button::drag::pull::any, button), gear)
+                    boss.SUBMIT(tier::release, events::message(hids::events::mouse::button::drag::pull::any, button), gear)
                     {
                         if (gear.captured(boss.bell::id))
                         {
@@ -4660,7 +4660,7 @@ namespace netxs::console
                             gear.dismiss();
                         }
                     };
-                    boss.SUBMIT(tier::release, events::message(e2::hids::mouse::button::drag::cancel::any, button), gear)
+                    boss.SUBMIT(tier::release, events::message(hids::events::mouse::button::drag::cancel::any, button), gear)
                     {
                         if (gear.captured(boss.bell::id))
                         {
@@ -4669,7 +4669,7 @@ namespace netxs::console
                             gear.dismiss();
                         }
                     };
-                    boss.SUBMIT(tier::general, e2::hids::mouse::gone, gear)
+                    boss.SUBMIT(tier::general, hids::events::mouse::gone, gear)
                     {
                         if (gear.captured(boss.bell::id))
                         {
@@ -4678,7 +4678,7 @@ namespace netxs::console
                             gear.dismiss();
                         }
                     };
-                    boss.SUBMIT(tier::release, events::message(e2::hids::mouse::button::drag::stop::any, button), gear)
+                    boss.SUBMIT(tier::release, events::message(hids::events::mouse::button::drag::stop::any, button), gear)
                     {
                         if (gear.captured(boss.bell::id))
                         {
@@ -4718,12 +4718,12 @@ namespace netxs::console
                 {
                     xmap.move(newcoor);
                 };
-                boss.SUBMIT_T(tier::release, e2::term::mouse, memo, mousestate)
+                boss.SUBMIT_T(tier::release, e2::conio::mouse, memo, mousestate)
                 {
                     push = hids::take(mousestate);
                     boss.strike();
                 };
-                boss.SUBMIT_T(tier::release, e2::term::key, memo, keybdstate)
+                boss.SUBMIT_T(tier::release, e2::conio::key, memo, keybdstate)
                 {
                     hids::take(keybdstate);
                     boss.strike();
@@ -5089,7 +5089,7 @@ namespace netxs::console
                         }
                     });
                 };
-                boss.SUBMIT_T(tier::release, e2::hids::mouse::button::click::any, memo, gear)
+                boss.SUBMIT_T(tier::release, hids::events::mouse::button::click::any, memo, gear)
                 {
                     auto& item = items.take(gear);
                     if (item.region.size)
@@ -5099,7 +5099,7 @@ namespace netxs::console
                     }
                     recalc();
                 };
-                boss.SUBMIT_T(tier::release, e2::hids::mouse::button::dblclick::any, memo, gear)
+                boss.SUBMIT_T(tier::release, hids::events::mouse::button::dblclick::any, memo, gear)
                 {
                     auto& item = items.take(gear);
                     auto area = boss.size();
@@ -5109,7 +5109,7 @@ namespace netxs::console
                     recalc();
                     gear.dismiss();
                 };
-                boss.SUBMIT_T(tier::general, e2::hids::mouse::gone, memo, gear)
+                boss.SUBMIT_T(tier::general, hids::events::mouse::gone, memo, gear)
                 {
                     recalc();
                     boss.deface();
@@ -5168,7 +5168,7 @@ namespace netxs::console
             void engage()
             {
                 boss.SIGNAL(tier::release, events::message(e2::form::draggable::any, button), true);
-                boss.SUBMIT_T(tier::release, e2::hids::mouse::move, memo, gear)
+                boss.SUBMIT_T(tier::release, hids::events::mouse::move, memo, gear)
                 {
                     items.take(gear).calc(boss, gear.coord);
                     boss.base::deface();
@@ -5305,7 +5305,7 @@ namespace netxs::console
               frate{ 0 },
               close{ exit_proc }
         {
-            using bttn = e2::hids::mouse::button;
+            using bttn = hids::events::mouse::button;
 
             keybd.accept(true); // Subscribe on keybd offers.
 
@@ -5369,7 +5369,7 @@ namespace netxs::console
             //        gear.dismiss();
             //    }
             //};
-            SUBMIT(tier::general, e2::hids::mouse::gone, gear)
+            SUBMIT(tier::general, hids::events::mouse::gone, gear)
             {
                 if (gear.captured(bell::id))
                 {
@@ -5449,7 +5449,7 @@ namespace netxs::console
             if (alive)
             {
                 log("link: signaling to close read channel ", canal);
-                owner.SIGNAL(tier::release, e2::term::quit, "link: read channel is closed");
+                owner.SIGNAL(tier::release, e2::conio::quit, "link: read channel is closed");
                 log("link: sig to close read channel complete", canal);
             }
             log("link: std_input thread is going to close");
@@ -5517,11 +5517,11 @@ namespace netxs::console
                 if (close)
                 {
                     close = faux;
-                    owner.SIGNAL(tier::release, e2::term::preclose, close);
+                    owner.SIGNAL(tier::release, e2::conio::preclose, close);
                     if (chunk.front() == '\x1b') // two consecutive escapes
                     {
                         log("\t - two consecutive escapes: \n\tstrv:        ", strv);
-                        owner.SIGNAL(tier::release, e2::term::quit, "pipe two consecutive escapes");
+                        owner.SIGNAL(tier::release, e2::conio::quit, "pipe two consecutive escapes");
                         return;
                     }
                 }
@@ -5543,14 +5543,14 @@ namespace netxs::console
                             close = true;
                             total = strv;
                             log("\t - preclose: ", canal);
-                            owner.SIGNAL(tier::release, e2::term::preclose, close);
+                            owner.SIGNAL(tier::release, e2::conio::preclose, close);
                             break;
                         }
                         else if (strv.at(pos) == '\x1b') // two consecutive escapes
                         {
                             total.clear();
                             log("\t - two consecutive escapes: ", canal);
-                            owner.SIGNAL(tier::release, e2::term::quit, "pipe2: two consecutive escapes");
+                            owner.SIGNAL(tier::release, e2::conio::quit, "pipe2: two consecutive escapes");
                             break;
                         }
                         #else
@@ -5558,7 +5558,7 @@ namespace netxs::console
                         {
                             // Pass Esc.
                             keybd.textline = strv.substr(0, 1);
-                            owner.SIGNAL(tier::release, e2::term::key, keybd);
+                            owner.SIGNAL(tier::release, e2::conio::key, keybd);
                             total.clear();
                             //strv = total;
                             break;
@@ -5567,7 +5567,7 @@ namespace netxs::console
                         {
                             //  Pass Esc.
                             keybd.textline = strv.substr(0, 1);
-                            owner.SIGNAL(tier::release, e2::term::key, keybd);
+                            owner.SIGNAL(tier::release, e2::conio::key, keybd);
                             total = strv.substr(1);
                             //strv = total;
                             break;
@@ -5579,14 +5579,14 @@ namespace netxs::console
                             if (strv.at(pos) == 'I')
                             {
                                 focus = true;
-                                owner.SIGNAL(tier::release, e2::term::focus, focus);
+                                owner.SIGNAL(tier::release, e2::conio::focus, focus);
                                 log("\t - focus on ", canal);
                                 ++pos;
                             }
                             else if (strv.at(pos) == 'O')
                             {
                                 focus = faux;
-                                owner.SIGNAL(tier::release, e2::term::focus, focus);
+                                owner.SIGNAL(tier::release, e2::conio::focus, focus);
                                 log("\t - focus off: ", canal);
                                 ++pos;
                             }
@@ -5670,12 +5670,12 @@ namespace netxs::console
                                                             mouse.button[midst] = faux;
                                                             mouse.button[other] = faux;
                                                             mouse.button[winbt] = faux;
-                                                            owner.SIGNAL(tier::release, e2::term::mouse, mouse);
+                                                            owner.SIGNAL(tier::release, e2::conio::mouse, mouse);
                                                         }
                                                         // Moving should be fired first
                                                         if ((mouse.ismoved = mouse.coor({ x, y })))
                                                         {
-                                                            owner.SIGNAL(tier::release, e2::term::mouse, mouse);
+                                                            owner.SIGNAL(tier::release, e2::conio::mouse, mouse);
                                                             mouse.ismoved = faux;
                                                         }
 
@@ -5715,7 +5715,7 @@ namespace netxs::console
 
                                                         if (fire)
                                                         {
-                                                            owner.SIGNAL(tier::release, e2::term::mouse, mouse);
+                                                            owner.SIGNAL(tier::release, e2::conio::mouse, mouse);
                                                         }
                                                     }
                                                 }
@@ -5796,7 +5796,7 @@ again:
                                                                + (k_ctrl  ? hids::CTRL  : 0);
 
                                                 if (!mouse.shuffle)
-                                                    owner.SIGNAL(tier::release, e2::term::mouse, mouse);
+                                                    owner.SIGNAL(tier::release, e2::conio::mouse, mouse);
                                                 break;
                                             }
                                             case ansi::W32_KEYBD_EVENT:
@@ -5866,7 +5866,7 @@ again:
                                                 {
                                                     keybd.textline.clear();
                                                 }
-                                                owner.SIGNAL(tier::release, e2::term::key, keybd);
+                                                owner.SIGNAL(tier::release, e2::conio::key, keybd);
                                                 break;
                                             }
                                             case ansi::W32_WINSZ_EVENT:
@@ -5874,7 +5874,7 @@ again:
                                                 iota xsize = take();
                                                 iota ysize = take();
                                                 twod winsz{ xsize,ysize };
-                                                owner.SIGNAL(tier::release, e2::term::size, winsz);
+                                                owner.SIGNAL(tier::release, e2::conio::size, winsz);
                                                 break;
                                             }
                                             case ansi::W32_FOCUS_EVENT:
@@ -5882,7 +5882,7 @@ again:
                                                 //todo clear pressed keys on lost focus
                                                 iota id    = take();
                                                 bool focus = take();
-                                                owner.SIGNAL(tier::release, e2::term::focus, focus);
+                                                owner.SIGNAL(tier::release, e2::conio::focus, focus);
                                                 break;
                                             }
                                             default:
@@ -5901,13 +5901,13 @@ again:
                                     && tmp.at(0) == ':' && tmp.at(2) == 'p')
                                 {
                                     pos += 5 /* 25:1p */;
-                                    owner.SIGNAL(tier::release, e2::term::native, tmp.at(1) == '1');
+                                    owner.SIGNAL(tier::release, e2::conio::native, tmp.at(1) == '1');
                                 }
                                 else if (event_id == ansi::CCC_SMS && l > 2
                                     && tmp.at(0) == ':' && tmp.at(2) == 'p')
                                 {
                                     pos += 5 /* 26:1p */;
-                                    owner.SIGNAL(tier::release, e2::term::pointer, tmp.at(1) == '1');
+                                    owner.SIGNAL(tier::release, e2::conio::pointer, tmp.at(1) == '1');
                                 }
                                 else if (event_id == ansi::CCC_KBD && l > 2
                                     && tmp.at(0) == ':')
@@ -5971,7 +5971,7 @@ again:
                                             auto y = pos_y.value();
 
                                             twod winsz{ x,y };
-                                            owner.SIGNAL(tier::release, e2::term::size, winsz);
+                                            owner.SIGNAL(tier::release, e2::conio::size, winsz);
                                         }
                                     }
                                 }
@@ -5999,7 +5999,7 @@ again:
                             //if (strv.at(i) == 3 /*3 - SIGINT*/)
                             //{
                             //	log(" - SIGINT in stdin");
-                            //	owner.SIGNAL(tier::release, e2::term::quit, "pipe: SIGINT");
+                            //	owner.SIGNAL(tier::release, e2::conio::quit, "pipe: SIGINT");
                             //	return;
                             //}
                             i++;
@@ -6008,7 +6008,7 @@ again:
                         if (i)
                         {
                             keybd.textline = strv.substr(0, i);
-                            owner.SIGNAL(tier::release, e2::term::key, keybd);
+                            owner.SIGNAL(tier::release, e2::conio::key, keybd);
                             total = strv.substr(i);
                             strv = total;
                         }
@@ -6473,31 +6473,31 @@ again:
                 subs token;                 // gate: Subscription tokens array.
 
                 // conio events.
-                SUBMIT_T(tier::release, e2::term::size, token, newsize)
+                SUBMIT_T(tier::release, e2::conio::size, token, newsize)
                 {
                     base::resize(newsize);
                 };
-                SUBMIT_T(tier::release, e2::term::unknown, token, unkstate)
+                SUBMIT_T(tier::release, e2::conio::unknown, token, unkstate)
                 {
                 };
-                SUBMIT_T(tier::release, e2::term::focus, token, unkstate)
+                SUBMIT_T(tier::release, e2::conio::focus, token, unkstate)
                 {
                 };
-                SUBMIT_T(tier::release, e2::term::native, token, extended)
+                SUBMIT_T(tier::release, e2::conio::native, token, extended)
                 {
                     native = extended;
                 };
-                SUBMIT_T(tier::release, e2::term::pointer, token, pointer)
+                SUBMIT_T(tier::release, e2::conio::pointer, token, pointer)
                 {
                     legacy |= pointer ? os::legacy::mouse : 0;
                 };
-                SUBMIT_T(tier::release, e2::term::error, token, errcode)
+                SUBMIT_T(tier::release, e2::conio::error, token, errcode)
                 {
                     text msg = "\n\rgate: Term error: " + std::to_string(errcode) + "\r\n";
                     log("gate: stop byemsg: ", msg);
                     conio.shutdown();
                 };
-                SUBMIT_T(tier::release, e2::term::quit, token, msg)
+                SUBMIT_T(tier::release, e2::conio::quit, token, msg)
                 {
                     log("gate: stop byemsg: ", msg);
                     conio.shutdown();
@@ -6534,14 +6534,14 @@ again:
                     if (render_scene(cache.canvas, watermark) || !yield) // Put the world to the my canvas.
                     {
                         // Update objects under mouse cursor.
-                        //input.fire(e2::hids::mouse::hover);
+                        //input.fire(hids::events::mouse::hover);
                         #ifdef DEBUG_OVERLAY
                             debug.bypass = true;
-                            //input.fire(e2::hids::mouse::hover);
-                            input.fire(e2::hids::mouse::move);
+                            //input.fire(hids::events::mouse::hover);
+                            input.fire(hids::events::mouse::move);
                             debug.bypass = faux;
                         #else
-                            input.fire(e2::hids::mouse::move);
+                            input.fire(hids::events::mouse::move);
                         #endif
 
                         // Draw debug overlay, maker, titles, etc.
@@ -6628,7 +6628,7 @@ again:
                     world->SIGNAL(tier::release, e2::form::proceed::createby, gear);
                 }
             };
-            SUBMIT(tier::preview, e2::hids::keybd::any, gear)
+            SUBMIT(tier::preview, hids::events::keybd::any, gear)
             {
                 //todo unify
                 //if (gear.meta(hids::CTRL | hids::RCTRL))
