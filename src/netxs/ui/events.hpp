@@ -430,29 +430,29 @@ namespace netxs::events
         template<class EVENT>
         struct submit_helper
         {
-            bell& boss;
+            bell& owner;
             tier  level;
 
-            submit_helper(bell& boss, tier level)
-                : boss{ boss }, level{ level }
+            submit_helper(bell& owner, tier level)
+                : owner{ owner }, level{ level }
             { }
 
             template<class F>
-            void operator=(F h) { boss.submit<EVENT>(level, h); }
+            void operator=(F h) { owner.submit<EVENT>(level, h); }
         };
         template<class EVENT>
         struct submit_helper_token
         {
-            bell& boss;
+            bell& owner;
             hook& token;
             tier  level;
 
-            submit_helper_token(bell& boss, tier level, hook& token)
-                : boss{ boss }, level{ level }, token{ token }
+            submit_helper_token(bell& owner, tier level, hook& token)
+                : owner{ owner }, level{ level }, token{ token }
             { }
 
             template<class F>
-            void operator=(F h) { boss.submit<EVENT>(level, token, h); }
+            void operator=(F h) { owner.submit<EVENT>(level, token, h); }
         };
         template<class EVENT>
         struct submit_helper_token_global
@@ -501,7 +501,6 @@ namespace netxs::events
         {
             return submit_helper_token<EVENT>(*this, level, tokens.extra());
         }
-
         // bell: Subscribe to an specified event on specified
         //       reaction node by defining an event handler.
         template<class EVENT>
@@ -513,8 +512,7 @@ namespace netxs::events
                 case tier::preview: tracker(preview, EVENT::cause, handler); break;
                 case tier::general: tracker(general, EVENT::cause, handler); break;
                 case tier::request: tracker(request, EVENT::cause, handler); break;
-                default:
-                    break;
+                default: break;
             }
         }
         // bell: Subscribe to an specified event
@@ -530,11 +528,9 @@ namespace netxs::events
                 case tier::preview: token = preview.subscribe(EVENT::cause, handler); break;
                 case tier::general: token = general.subscribe(EVENT::cause, handler); break;
                 case tier::request: token = request.subscribe(EVENT::cause, handler); break;
-                default:
-                    break;
+                default: break;
             }
         }
-
         // bell: Subscribe to an specified event
         //       on global reaction node by defining
         //       an event handler, and store the subscription
@@ -543,21 +539,6 @@ namespace netxs::events
         static auto submit_global(hook& token)
         {
             return submit_helper_token_global<EVENT>(token);
-        }
-        //todo used only with indexer::create
-        // bell: Rise specified evench execution branch on the specified relay node.
-        template<class F>
-        void signal_direct(tier level, type action, F&& data)
-        {
-            switch (level)
-            {
-                case tier::release: release(action, std::forward<F>(data)); break;
-                case tier::preview: preview(action, std::forward<F>(data)); break;
-                case tier::general: general(action, std::forward<F>(data)); break;
-                case tier::request: request(action, std::forward<F>(data)); break;
-                default:
-                    break;
-            }
         }
         // bell: Rise specified event execution branch on the specified relay node.
         //       Return number of active handlers.
@@ -570,8 +551,7 @@ namespace netxs::events
                 case tier::preview: return preview(action, std::forward<F>(data));
                 case tier::general: return general(action, std::forward<F>(data));
                 case tier::request: return request(action, std::forward<F>(data));
-                default:
-                    return 0_sz;
+                default:            return 0_sz;
             }
         }
         // bell: Rise specified event globally.
@@ -587,27 +567,17 @@ namespace netxs::events
         }
         // bell: Return an initial event of the current event execution branch.
         template<tier TIER>
-        auto protos() -> type
+        auto protos()
         {
             //todo type{ 0 }? e2::any?
             switch (TIER)
             {
-                case tier::release:
-                    return release.queue.empty() ? type{ 0 }
-                                                 : release.queue.back();
-                case tier::preview:
-                    return preview.queue.empty() ? type{ 0 }
-                                                 : preview.queue.back();
-                case tier::general:
-                    return general.queue.empty() ? type{ 0 }
-                                                 : general.queue.back();
-                case tier::request:
-                    return request.queue.empty() ? type{ 0 }
-                                                 : request.queue.back();
-                default:
-                    break;
+                case tier::release: return release.queue.empty() ? type{ 0 } : release.queue.back();
+                case tier::preview: return preview.queue.empty() ? type{ 0 } : preview.queue.back();
+                case tier::general: return general.queue.empty() ? type{ 0 } : general.queue.back();
+                case tier::request: return request.queue.empty() ? type{ 0 } : request.queue.back();
+                default:            return                         type{ 0 };
             }
-            return type{ 0 };
         }
         // bell: Return true if tha initial event equals to the specified.
         template<tier TIER>
@@ -616,18 +586,16 @@ namespace netxs::events
             return bell::protos<TIER>() == action;
         }
         // bell: Get the reference to the specified relay node.
-        reactor& router(tier level)
+        auto& router(tier level)
         {
             switch (level)
             {
+                default:
                 case tier::release: return release;
                 case tier::preview: return preview;
                 case tier::general: return general;
                 case tier::request: return request;
-                default:
-                    break;
             }
-            return release;
         }
         // bell: Interrupt current event branch on the specified relay node.
         void expire(tier level)
@@ -638,8 +606,7 @@ namespace netxs::events
                 case tier::preview: preview.discontinue(); break;
                 case tier::general: general.discontinue(); break;
                 case tier::request: request.discontinue(); break;
-                default:
-                    break;
+                default: break;
             }
         }
         bell()
@@ -734,7 +701,6 @@ namespace netxs::events
         {
             any = _,
             EVENT( dtor   ), // Notify about object destruction, release only (arg: const id_t)
-            EVENT( tick   ), // timer tick (arg: current moment (now))
             EVENT( base   ),
             EVENT( hids   ),
             EVENT( custom ), // Custom events subset.

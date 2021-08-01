@@ -47,6 +47,7 @@ namespace netxs::events
 
     EVENT_BIND(term::cmd, iota);
 
+    //todo iota
     EVENT_BIND(term::layout::align,  bias::type);
     EVENT_BIND(term::layout::wrapln, wrap::type);
 

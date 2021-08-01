@@ -48,7 +48,6 @@ namespace netxs::events
     struct e2
     {
         using type = netxs::events::type;
-        static constexpr auto tick = netxs::events::root::tick;
         static constexpr auto dtor = netxs::events::root::dtor;
 
         #define  EVENT  EVENT_XS
@@ -59,6 +58,7 @@ namespace netxs::events
         EVENTPACK( netxs::events::root::base )
         {
             any = _,
+            EVENT( tick       ), // timer tick (arg: current moment (now))
             EVENT( postrender ), // release: UI-tree post-rendering (arg: face).
             GROUP( render     ), // release: UI-tree rendering (arg: face).
             GROUP( conio      ),
