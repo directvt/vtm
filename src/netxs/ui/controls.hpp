@@ -12,8 +12,8 @@
 
 namespace netxs::ui
 {
-    using namespace netxs::console;
     using namespace netxs::ui::atoms;
+    using namespace netxs::console;
 
     enum slot : id_t { _1, _2 };
     enum axis : id_t { X, Y };

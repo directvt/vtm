@@ -10,7 +10,8 @@
 
 namespace netxs::os
 {
-    using namespace netxs::utf;
+    using utf::text;
+    using utf::view;
 
     inline bool same_path (view path, view same);
     inline bool make_link (view path, view link);

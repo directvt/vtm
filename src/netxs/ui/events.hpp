@@ -733,8 +733,8 @@ namespace netxs::events
         EVENTPACK( 0 )
         {
             any = _,
-            EVENT( tick   ), // timer tick (arg: current moment (now))
             EVENT( dtor   ), // Notify about object destruction, release only (arg: const id_t)
+            EVENT( tick   ), // timer tick (arg: current moment (now))
             EVENT( base   ),
             EVENT( hids   ),
             EVENT( custom ), // Custom events subset.

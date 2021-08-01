@@ -13,9 +13,10 @@
 
 namespace netxs::ui::atoms
 {
-    using utf::text;
-    using utf::view;
     using netxs::events::id_t;
+    using netxs::utf::text;
+    using netxs::utf::view;
+    using netxs::utf::qiew;
 
     static const char whitespace = 0x20;
     //static const char whitespace = '.';

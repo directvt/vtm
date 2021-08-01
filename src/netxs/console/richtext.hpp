@@ -9,8 +9,8 @@
 
 namespace netxs::console
 {
-    using namespace std::literals;
     using namespace netxs::ui::atoms;
+    using namespace std::literals;
 
     using ansi::qiew;
     using ansi::writ;
@@ -1328,7 +1328,7 @@ namespace netxs::console
             using vt = ansi::parser<T>;
             parser() : vt()
             {
-                using namespace netxs::console::ansi;
+                using namespace netxs::ansi;
                 vt::intro[ctrl::CR ]     = VT_PROC{ q.pop_if(ctrl::EOL); p->task({ fn::nl,1 }); };
                 vt::intro[ctrl::TAB]     = VT_PROC{ p->task({ fn::tb,q.pop_all(ctrl::TAB) }); };
                 vt::intro[ctrl::EOL]     = VT_PROC{ p->task({ fn::nl,q.pop_all(ctrl::EOL) }); };

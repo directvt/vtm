@@ -362,8 +362,8 @@ namespace netxs::events
 
 namespace netxs::input
 {
-    using namespace netxs::datetime;
     using namespace netxs::ui::atoms;
+    using namespace netxs::datetime;
     using netxs::events::bell;
     using netxs::events::subs;
     using netxs::events::tier;

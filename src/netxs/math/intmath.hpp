@@ -17,6 +17,7 @@
 namespace netxs
 {
     using iota = int32_t;
+    using ui32 = uint32_t;
 
     constexpr size_t operator "" _sz (unsigned long long i)	{ return i; }
 

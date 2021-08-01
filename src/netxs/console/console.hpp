@@ -41,7 +41,6 @@ namespace netxs::console
     using namespace netxs::input;
     using drawfx = std::function<bool(face&, page const&)>;
     using registry_t = std::map<id_t, std::list<sptr<base>>>;
-    using os::xipc;
 }
 
 namespace netxs::events
@@ -368,9 +367,10 @@ namespace netxs::events
         #undef GROUP
     };
 
-    using namespace netxs::utf;
     using namespace netxs::ui::atoms;
     using namespace netxs::datetime;
+    using utf::text;
+    using utf::view;
 
     EVENT_BIND(e2::tick, moment);
 
@@ -4316,7 +4316,7 @@ namespace netxs::console
         using cond = std::condition_variable_any;
 
         bell&     owner; // link: Boss.
-        xipc      canal; // link: Data highway.
+        os::xipc  canal; // link: Data highway.
         work      input; // link: Reading thread.
         cond      synch; // link: Thread sync cond variable.
         lock      mutex; // link: Thread sync mutex.
@@ -4354,7 +4354,7 @@ namespace netxs::console
         }
 
     public:
-        link(bell& boss, xipc sock)
+        link(bell& boss, os::xipc sock)
             : owner { boss },
               canal { sock },
               alive { true },
@@ -5359,7 +5359,7 @@ again:
         sptr<base> uibar; // gate: Local UI overlay, UI bar/taskbar/sidebar.
 
         // Main loop.
-        void proceed(xipc media /*session socket*/, text title)
+        void proceed(os::xipc media /*session socket*/, text title)
         {
             if (auto world = base::parent())
             {

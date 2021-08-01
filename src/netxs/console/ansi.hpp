@@ -15,10 +15,10 @@
 
 #define VT_PROC [](auto& q, auto& p)
 
-namespace netxs::console::ansi
+namespace netxs::ansi
 {
-    using namespace netxs::utf;
     using namespace netxs::ui::atoms;
+    using namespace netxs::utf;
 
     static constexpr auto ESCCSI = "\033[";
     static constexpr auto ESCOCS = "\033]";
