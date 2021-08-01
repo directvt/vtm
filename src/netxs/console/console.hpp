@@ -48,20 +48,20 @@ namespace netxs::events
 {
     struct e2
     {
-        #define EVENT(name) EVENT_XS(name)
-        #define GROUP(name) GROUP_XS(name)
-        #define    AT(name)    AT_XS(name)
-        #define SUBSET     SUBSET_XS
-
         using type = netxs::events::type;
-        static constexpr auto dtor = netxs::events::seed::dtor;
-        static constexpr auto _root_event = netxs::events::seed::_base;
-        EVENTPACK( root_event )
+        static constexpr auto tick = netxs::events::root::tick;
+        static constexpr auto dtor = netxs::events::root::dtor;
+
+        #define  EVENT  EVENT_XS
+        #define SUBSET SUBSET_XS
+        #define     OF     OF_XS
+        #define  GROUP  GROUP_XS
+
+        EVENTPACK( netxs::events::root::base )
         {
             any = _,
             EVENT( postrender ), // release: UI-tree post-rendering (arg: face).
             GROUP( render     ), // release: UI-tree rendering (arg: face).
-            GROUP( timer      ),
             GROUP( conio      ),
             GROUP( size       ), // release: Object size (arg: twod).
             GROUP( coor       ), // release: Object coor (arg: twod).
@@ -71,63 +71,56 @@ namespace netxs::events
             GROUP( config     ), // set/notify/get/global_set configuration data (tier::preview/tier::release/tier::request/tier::general)
             GROUP( command    ), // exec UI command (arg: iota)
             GROUP( bindings   ), // Dynamic Data Bindings.
-            GROUP( hids       ),
-            GROUP( custom     ), // Custom events subset.
 
-            SUBSET AT( render )
+            SUBSET OF( render )
             {
                 any = _,            // release any: UI-tree default rendering submission (arg: face).
                 EVENT( prerender ), // release: UI-tree pre-rendering, used by pro::cache (can interrupt SIGNAL) and any kind of highlighters (arg: face).
             };
-            SUBSET AT( size )
+            SUBSET OF( size )
             {
                 any = _,      // preview: checking by pro::limit (arg: twod).
                 EVENT( set ), // preview: checking by object; release: apply to object (arg: twod).
             };
-            SUBSET AT( coor )
+            SUBSET OF( coor )
             {
                 any = _,      // preview any: checking by pro::limit (arg: twod).
                 EVENT( set ), // preview: checking by object; release: apply to object (arg: twod).
             };
-            SUBSET AT( bindings )
+            SUBSET OF( bindings )
             {
                 any = _,
                 GROUP( list ), // release: UI-tree pre-rendering, used by pro::cache (can interrupt SIGNAL) and any kind of highlighters (arg: face).
 
-                SUBSET AT( list )
+                SUBSET OF( list )
                 {
                     any = _,
                     EVENT( users ), // list of connected users (arg: sptr<std::list<sptr<base>>>)
                     EVENT( apps  ), // list of running apps (arg: sptr<std::map<id_t, std::list<sptr<base>>>>)
                 };
             };
-            SUBSET AT( debug )
+            SUBSET OF( debug )
             {
                 any = _,
                 EVENT( logs   ), // logs output (arg: const text)
                 EVENT( output ), // logs has to be parsed (arg: const view)
                 EVENT( parsed ), // output parced logs (arg: const page)
             };
-            SUBSET AT( timer )
-            {
-                any = _,
-                EVENT( tick ), // timer tick (arg: current moment (now))
-                EVENT( fps  ), // request to set new fps (arg: new fps (iota); the value == -1 is used to request current fps)
-            };
-            SUBSET AT( config )
+            SUBSET OF( config )
             {
                 any = _,
                 EVENT( broadcast ), // release: broadcast source changed, args: sptr<bell>.
+                EVENT( fps       ), // request to set new fps (arg: new fps (iota); the value == -1 is used to request current fps)
                 GROUP( caret     ), // any kind of intervals property (arg: period)
 
-                SUBSET AT( caret )
+                SUBSET OF( caret )
                 {
                     any = _,
                     EVENT( blink ), // caret blinking interval (arg: period)
                     EVENT( style ), // caret style: 0 - underline, 1 - box (arg: iota)
                 };
             };
-            SUBSET AT( conio )
+            SUBSET OF( conio )
             {
                 any = _,
                 EVENT( unknown  ), // return platform unknown event code
@@ -143,7 +136,7 @@ namespace netxs::events
                 EVENT( pointer  ), // mouse pointer visibility (arg: bool)
                 //EVENT( menu   ), 
             };
-            SUBSET AT( data )
+            SUBSET OF( data )
             {
                 any = _,
                 EVENT( changed ), // return digest
@@ -152,14 +145,14 @@ namespace netxs::events
                 EVENT( flush   ),
                 EVENT( text    ), // release: signaling with a text string (args: const text).
             };
-            SUBSET AT( command )
+            SUBSET OF( command )
             {
                 any = _,
                 EVENT( quit   ), // return bye msg //errcode (arg: const view)
                 EVENT( cout   ), // Append extra data to output (arg: const text)
                 EVENT( custom ), // Custom command (arg: cmd_id iota)
             };
-            SUBSET AT( form )
+            SUBSET OF( form )
             {
                 any = _,
                 EVENT( canvas    ), // request global canvas (arg: sptr<core>)
@@ -176,7 +169,7 @@ namespace netxs::events
                 GROUP( state     ),
                 //EVENT( key       ),
 
-                SUBSET AT( draggable )
+                SUBSET OF( draggable )
                 {
                     any = _,
                     EVENT( left      ),
@@ -186,16 +179,16 @@ namespace netxs::events
                     EVENT( wheel     ),
                     EVENT( win       ),
                 };
-                SUBSET AT( layout )
+                SUBSET OF( layout )
                 {
                     any = _,
                     EVENT( shift        ), // request a global shifting  with delta (const twod)
                     EVENT( convey       ), // request a global conveying with delta (Inform all children to be conveyed) (arg: cube)
                     EVENT( order        ), // return
-                    EVENT( strike       ), // (always preview) inform about the child canvas has changed (arg: modified region rect)
                     EVENT( bubble       ), // order to popup the requested item through the visual tree (arg: form)
                     EVENT( expose       ), // order to bring the requested item on top of the visual tree (release: ask parent to expose specified child; preview: ask child to expose itself) (arg: base)
                     EVENT( appear       ), // fly tothe specified coords, arg: twod
+                    //EVENT( strike       ), // (always preview) inform about the child canvas has changed (arg: modified region rect)
                     //EVENT( coor       ), // return client rect coor (preview: subject to change)
                     //EVENT( size       ), // return client rect size (preview: subject to change)
                     //EVENT( rect       ), // return client rect (preview: subject to change)
@@ -206,40 +199,40 @@ namespace netxs::events
                     //EVENT( footer     ), // notify the client has changed footer (arg is only release: const rich)
                     //EVENT( clientrect ), // notify the client area has changed (arg is only release: rect)
                 };
-                SUBSET AT( highlight )
+                SUBSET OF( highlight )
                 {
                     any = _,
                     EVENT( on  ),
                     EVENT( off ),
                 };
-                //SUBSET AT( focus )
+                //SUBSET OF( focus )
                 //{
                 //    any = _,
                 //    EVENT( got  ), // notify that keybd focus has taken (release: hids)
                 //    EVENT( lost ), // notify that keybd focus got lost  (release: hids)
                 //};
-                SUBSET AT( upon )
+                SUBSET OF( upon )
                 {
                     any = _,
                     EVENT( redrawn     ), // inform about camvas is completely redrawn (arg: canvas face)
                     EVENT( cached      ), // inform about camvas is cached (arg: canvas face)
                     EVENT( wiped       ), // event after wipe the canvas (arg: canvas face)
-                    //EVENT( created     ), // event after itself creation (arg: itself bell_sptr)
                     EVENT( changed     ), // event after resize (arg: diff bw old and new size twod)
                     EVENT( dragged     ), // event after drag (arg: hids)
+                    //EVENT( created     ), // event after itself creation (arg: itself bell_sptr)
                     //EVENT( detached    ), // inform that subject is detached (arg: parent bell_sptr)
                     //EVENT( invalidated ), 
                     //EVENT( moved       ), // release: event after moveto (arg: diff bw old and new coor twod). preview: event after moved by somebody.
                     GROUP( vtree       ), // visual tree events (arg: parent base_sptr)
                     GROUP( scroll      ), // event after scroll (arg: rack)
 
-                    SUBSET AT( vtree )
+                    SUBSET OF( vtree )
                     {
                         any = _,
                         EVENT( attached ), // Child has been attached (arg: parent sptr<base>)
                         EVENT( detached ), // Child has been detached (arg: parent sptr<base>)
                     };
-                    SUBSET AT( scroll )
+                    SUBSET OF( scroll )
                     {
                         any = _,
                         EVENT( x      ), // event after scroll along X (arg: rack)
@@ -248,7 +241,7 @@ namespace netxs::events
                         EVENT( resety ), // event reset scroll along Y (arg: rack)
                     };
                 };
-                SUBSET AT( proceed )
+                SUBSET OF( proceed )
                 {
                     any = _,
                     EVENT( create      ), // return coordinates of the new object placeholder (arg: rect)
@@ -262,18 +255,18 @@ namespace netxs::events
                     //EVENT( draw        ), // ????  order to render itself to the canvas (arg: canvas face)
                     //EVENT( checkin     ), // order to register an output client canvas (arg: face_sptr)
                 };
-                SUBSET AT( cursor )
+                SUBSET OF( cursor )
                 {
                     any = _,
                     EVENT(blink),
                 };
-                SUBSET AT( animate )
+                SUBSET OF( animate )
                 {
                     any = _,
                     EVENT( start ),
                     EVENT( stop  ),
                 };
-                SUBSET AT( drag )
+                SUBSET OF( drag )
                 {
                     any = _,
                     GROUP( start  ), // notify about mouse drag start by pro::mouse (arg: hids)
@@ -281,7 +274,7 @@ namespace netxs::events
                     GROUP( cancel ), // notify about mouse drag cancel by pro::mouse (arg: hids)
                     GROUP( stop   ), // notify about mouse drag stop by pro::mouse (arg: hids)
 
-                    SUBSET AT( start )
+                    SUBSET OF( start )
                     {
                         any = _,
                         EVENT( left      ),
@@ -291,7 +284,7 @@ namespace netxs::events
                         EVENT( wheel     ),
                         EVENT( win       ),
                     };
-                    SUBSET AT( pull )
+                    SUBSET OF( pull )
                     {
                         any = _,
                         EVENT( left      ),
@@ -301,7 +294,7 @@ namespace netxs::events
                         EVENT( wheel     ),
                         EVENT( win       ),
                     };
-                    SUBSET AT( cancel )
+                    SUBSET OF( cancel )
                     {
                         any = _,
                         EVENT( left      ),
@@ -311,7 +304,7 @@ namespace netxs::events
                         EVENT( wheel     ),
                         EVENT( win       ),
                     };
-                    SUBSET AT( stop )
+                    SUBSET OF( stop )
                     {
                         any = _,
                         EVENT( left      ),
@@ -322,7 +315,7 @@ namespace netxs::events
                         EVENT( win       ),
                     };
                 };
-                SUBSET AT( prop )
+                SUBSET OF( prop )
                 {
                     any = _,
                     EVENT( header     ), // set form caption header (arg: text)
@@ -333,7 +326,7 @@ namespace netxs::events
                     EVENT( name       ), // user name (arg: text)
                     EVENT( viewport   ), // request: return form actual viewport (arg: rect)
                 };
-                SUBSET AT( global )
+                SUBSET OF( global )
                 {
                     any = _,
                     EVENT( ctxmenu  ), // request context menu at specified coords (arg: twod)
@@ -343,20 +336,20 @@ namespace netxs::events
                     GROUP( object   ), // global scene objects events
                     GROUP( user     ), // global scene users events
 
-                    SUBSET AT( object )
+                    SUBSET OF( object )
                     {
                         any = _,
                         EVENT( attached ), // global: object attached to the world (args: sptr<base>)
                         EVENT( detached ), // global: object detached from the world (args: sptr<base>)
                     };
-                    SUBSET AT( user )
+                    SUBSET OF( user )
                     {
                         any = _,
                         EVENT( attached ), // global: user attached to the world (args: sptr<base>)
                         EVENT( detached ), // global: user detached from the world (args: sptr<base>)
                     };
                 };
-                SUBSET AT( state )
+                SUBSET OF( state )
                 {
                     any = _,
                     EVENT( mouse  ), // notify the client is mouse active or not. The form is active when the number of client (form::eventa::mouse::enter - mouse::leave) is not zero. (arg is only release: iota - number of clients)
@@ -370,18 +363,16 @@ namespace netxs::events
         };
 
         #undef EVENT
-        #undef GROUP
-        #undef AT
         #undef SUBSET
+        #undef OF
+        #undef GROUP
     };
 
     using namespace netxs::utf;
     using namespace netxs::ui::atoms;
     using namespace netxs::datetime;
 
-    EVENT_BIND(e2::timer::any, moment);
-        EVENT_BIND(e2::timer::tick, moment);
-        EVENT_BIND(e2::timer::fps,  iota);
+    EVENT_BIND(e2::tick, moment);
 
     EVENT_BIND(e2::postrender,  console::face);
     EVENT_BIND(e2::render::any, console::face);
@@ -422,6 +413,7 @@ namespace netxs::events
 
     EVENT_BIND(e2::config::any, iota);
         EVENT_BIND(e2::config::broadcast, sptr<bell>);
+        EVENT_BIND(e2::config::fps, iota);
         EVENT_BIND(e2::config::caret::any, period);
             EVENT_BIND(e2::config::caret::blink, period);
             EVENT_BIND(e2::config::caret::style, iota);
@@ -490,7 +482,6 @@ namespace netxs::events
         EVENT_BIND(e2::form::layout::any, const twod);
             EVENT_BIND(e2::form::layout::shift , const twod);
             EVENT_BIND(e2::form::layout::convey, cube);
-            EVENT_BIND(e2::form::layout::strike, const rect);
             EVENT_BIND(e2::form::layout::bubble, console::base);
             EVENT_BIND(e2::form::layout::expose, console::base);
             EVENT_BIND(e2::form::layout::appear, twod);
@@ -1086,12 +1077,6 @@ namespace netxs::console
                 }
                 //strike();
             };
-            SUBMIT(tier::preview, e2::form::layout::strike, region)
-            {
-                //todo combine with a child region
-                invalid = true;
-                strike();
-            };
             SUBMIT(tier::release, e2::render::any, parent_canvas)
             {
                 if (base::brush.wdt())
@@ -1176,11 +1161,12 @@ namespace netxs::console
             return rect{ moveto(newloc.coor), resize(newloc.size) };
         }
         // base: Mark the visual subtree as requiring redrawing.
-        void strike(rect const& region)
+        void strike(rect region)
         {
+            region.coor += square.coor;
             if (auto parent_ptr = parent())
             {
-                parent_ptr->SIGNAL(tier::preview, e2::form::layout::strike, region);
+                parent_ptr->deface(region);
             }
         }
         // base: Mark the visual subtree as requiring redrawing.
@@ -1189,9 +1175,10 @@ namespace netxs::console
             strike(square);
         }
         // base: Mark the form and its subtree as requiring redrawing.
-        void deface(rect const& region)
+        virtual void deface(rect const& region)
         {
-            SIGNAL(tier::preview, e2::form::layout::strike, region);
+            invalid = true;
+            strike(region);
         }
         // base: Mark the form and its subtree as requiring redrawing.
         void deface()
@@ -1217,7 +1204,6 @@ namespace netxs::console
         // base: Remove the form from the visual tree.
         void detach()
         {
-            //e2::sync lock;
             if (auto parent_ptr = parent())
             {
                 strike();
@@ -1236,7 +1222,7 @@ namespace netxs::console
             detach();
         }
         // base: Recursively calculate global coordinate.
-        void global(twod& coor)
+        void global(twod& coor) override
         {
             coor -= square.coor;
             if (auto parent_ptr = parent())
@@ -1805,7 +1791,8 @@ namespace netxs::console
                         pacify(ID);
                     }
                 };
-                boss.SUBMIT_TV(tier::general, e2::timer::any, memo[ID], handler);
+                //boss.SUBMIT_TV(tier::general, e2::timer::any, memo[ID], handler);
+                boss.SUBMIT_TV(tier::general, e2::tick, memo[ID], handler);
                 boss.SIGNAL(tier::release, e2::form::animate::start, ID);
             }
             // pro::robot: Optional proceed every timer tick,
@@ -1874,7 +1861,8 @@ namespace netxs::console
                         if (!lambda(ID)) pacify(ID);
                     }
                 };
-                boss.SUBMIT_TV(tier::general, e2::timer::any, memo[ID], handler);
+                //boss.SUBMIT_TV(tier::general, e2::timer::any, memo[ID], handler);
+                boss.SUBMIT_TV(tier::general, e2::tick, memo[ID], handler);
                 //boss.SIGNAL(tier::release, e2::form::animate::start, ID);
             }
             // pro::timer: Start countdown.
@@ -2134,7 +2122,7 @@ namespace netxs::console
                 if (data.ctrl != state)
                 {
                     data.ctrl = state;
-                    boss.SIGNAL(tier::preview, e2::form::layout::strike, data.slot);
+                    boss.deface(data.slot);
                 }
             }
             void handle_init(hids& gear)
@@ -2149,7 +2137,7 @@ namespace netxs::console
                     data.ctrl = gear.meta(hids::ANYCTRL);
                     slot.coor = init = step = gear.coord;
                     slot.size = dot_00;
-                    boss.SIGNAL(tier::preview, e2::form::layout::strike, slot);
+                    boss.deface(slot);
                     gear.dismiss();
                 }
             }
@@ -2166,7 +2154,7 @@ namespace netxs::console
                     step += gear.delta.get();
                     slot.coor = std::min(init, step);
                     slot.size = std::max(std::abs(step - init), dot_00);
-                    boss.SIGNAL(tier::preview, e2::form::layout::strike, slot);
+                    boss.deface(slot);
                     gear.dismiss();
                 }
             }
@@ -2414,13 +2402,13 @@ namespace netxs::console
                     live = step == period::zero();
                     if (!live)
                     {
-                        boss.SUBMIT_T(tier::general, e2::timer::tick, memo, timestamp)
+                        boss.SUBMIT_T(tier::general, e2::tick, memo, timestamp)
                         {
                             if (timestamp > next)
                             {
                                 next = timestamp + step;
                                 live = !live;
-                                boss.SIGNAL(tier::preview, e2::form::layout::strike, body);
+                                boss.deface(body);
                             }
                         };
                     }
@@ -2449,7 +2437,7 @@ namespace netxs::console
                     memo.clear();
                     if (done)
                     {
-                        boss.SIGNAL(tier::preview, e2::form::layout::strike, body);
+                        boss.deface(body);
                         done = faux;
                     }
                 }
@@ -3177,10 +3165,6 @@ namespace netxs::console
                     if (found)
                         inst.SIGNAL(tier::release, e2::form::upon::vtree::detached, boss.This());
                 };
-                boss.SUBMIT_T(tier::preview, e2::form::layout::strike, memo, region)
-                {
-                    denote(region);
-                };
                 boss.SUBMIT_T(tier::release, e2::form::layout::bubble, memo, inst)
                 {
                     auto region = items.bubble(inst.bell::id);
@@ -3301,7 +3285,7 @@ namespace netxs::console
                 };
 
                 // Double escape catcher.
-                boss.SUBMIT_T(tier::general, e2::timer::tick, memo, timestamp)
+                boss.SUBMIT_T(tier::general, e2::tick, memo, timestamp)
                 {
                     if (wait && (timestamp > stop))
                     {
@@ -3345,7 +3329,7 @@ namespace netxs::console
                     //alibi.reset();
                 };
 
-                boss.SUBMIT_T(tier::general, e2::timer::tick, ping, something)
+                boss.SUBMIT_T(tier::general, e2::tick, ping, something)
                 {
                     if (tempus::now() > stop)
                     {
@@ -4186,6 +4170,12 @@ namespace netxs::console
         iota frate; // host: Frame rate value.
         hndl close; // host: Quit procedure.
 
+        void deface(rect const& region) override
+        {
+            base::deface(region);
+            scene.denote(region);
+        }
+
     public:
         // host: Create a new item of the specified subtype and attach it.
         template<class T>
@@ -4209,7 +4199,7 @@ namespace netxs::console
 
     protected:
         host(hndl exit_proc)
-            : synch(router(tier::general), e2::timer::tick),
+            : synch(router(tier::general), e2::tick),
               frate{ 0 },
               close{ exit_proc }
         {
@@ -4217,7 +4207,7 @@ namespace netxs::console
 
             keybd.accept(true); // Subscribe on keybd offers.
 
-            SUBMIT(tier::general, e2::timer::tick, timestamp)
+            SUBMIT(tier::general, e2::tick, timestamp)
             {
                 scene.redraw();
             };
@@ -4285,7 +4275,7 @@ namespace netxs::console
                     gear.dismiss();
                 }
             };
-            SUBMIT(tier::general, e2::timer::fps, fps)
+            SUBMIT(tier::general, e2::config::fps, fps)
             {
                 if (fps > 0)
                 {

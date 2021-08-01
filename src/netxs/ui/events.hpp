@@ -661,11 +661,11 @@ namespace netxs::events
     reactor bell::_globals<T>::general{ reactor::forward };
 
     #define EVENTS_NS netxs::events
-    #define EVENTPACK(name) private: enum : EVENTS_NS::type { _ = _##name, _counter_base = __COUNTER__ }; \
+    #define EVENTPACK(name) private: enum : EVENTS_NS::type { _ = name, _counter_base = __COUNTER__ }; \
                             public:  enum : EVENTS_NS::type
     #define  EVENT_XS(name) name = any | (((__COUNTER__ - _counter_base) << (EVENTS_NS::level(any) * EVENTS_NS::width)))
     #define  GROUP_XS(name) EVENT_XS( _##name )
-    #define     AT_XS(name) struct name { EVENTPACK( name )
+    #define     OF_XS(name) struct name { EVENTPACK( _##name )
     #define SUBSET_XS       };
 
     template<auto T>
@@ -722,31 +722,32 @@ namespace netxs::events
     #define SUBMIT_GLOBAL(item, token, arg) \
         bell::template submit_global<TYPECLUE(item)>(token) = [&] (ARGTYPE(item)&& arg)
 
-    //static constexpr type _root_event = 0;
-    struct seed
+    //todo unify seeding
+    struct root
     {
-        #define EVENT(name) EVENT_XS(name)
-        #define GROUP(name) GROUP_XS(name)
-        #define    AT(name)    AT_XS(name)
-        #define SUBSET     SUBSET_XS
+        #define  EVENT  EVENT_XS
+        #define SUBSET SUBSET_XS
+        #define     OF     OF_XS
+        #define  GROUP  GROUP_XS
 
-        static constexpr type _root_event = 0;
-        EVENTPACK( root_event )
+        EVENTPACK( 0 )
         {
             any = _,
+            EVENT( tick   ), // timer tick (arg: current moment (now))
             EVENT( dtor   ), // Notify about object destruction, release only (arg: const id_t)
-            GROUP( base   ),
-            GROUP( hids   ),
-            GROUP( custom ), // Custom events subset.
+            EVENT( base   ),
+            EVENT( hids   ),
+            EVENT( custom ), // Custom events subset.
         };
 
         #undef EVENT
-        #undef GROUP
-        #undef AT
         #undef SUBSET
+        #undef OF
+        #undef GROUP
     };
-    //todo e2::dtor
-    EVENT_BIND(seed::dtor, const id_t);
+
+    //todo bell::dtor
+    EVENT_BIND(root::dtor, const id_t);
 }
 
 #endif // NETXS_EVENTS_HPP

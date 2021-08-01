@@ -1464,7 +1464,7 @@ utility like ctags is used to locate the definitions.
                                        ->plugin<pro::mover>(window);
                     auto strob_shadow = ptr::shadow(strob);
                     bool stobe_state = true;
-                    strob->SUBMIT_BYVAL(tier::general, e2::timer::tick, now)
+                    strob->SUBMIT_BYVAL(tier::general, e2::tick, now)
                     {
                         stobe_state = !stobe_state;
                         if (auto strob = strob_shadow.lock())
@@ -1479,7 +1479,7 @@ utility like ctags is used to locate the definitions.
                 {
                     window->plugin<pro::title>("Frame rate adjustment")
                           ->plugin<pro::align>();
-                    window->attach<ui::stem_rate<tier::general, e2::timer::fps>>("Set frame rate", 1, 200, "fps")
+                    window->attach<ui::stem_rate<tier::general, e2::config::fps>>("Set frame rate", 1, 200, "fps")
                           ->color(0xFFFFFFFF, bluedk);
                     break;
                 }
@@ -2251,7 +2251,7 @@ utility like ctags is used to locate the definitions.
             creator(objs::RefreshRate, { twod{ 60, 41 } + sub_pos, { 35, 10 } });
         #endif
 
-        world->SIGNAL(tier::general, e2::timer::fps, 60);
+        world->SIGNAL(tier::general, e2::config::fps, 60);
 
         iota usr_count = 0;
         auto user = os::user();
@@ -2760,7 +2760,7 @@ utility like ctags is used to locate the definitions.
                 log("main: new thread constructed for ", peer);
             }
 
-            world->SIGNAL(tier::general, e2::timer::fps, 0);
+            world->SIGNAL(tier::general, e2::config::fps, 0);
         }
     }
     os::exit(0, "bye!");

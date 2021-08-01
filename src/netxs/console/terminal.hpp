@@ -13,27 +13,25 @@ namespace netxs::events
 {
     struct term
     {
-        #define EVENT(name) EVENT_XS(name)
-        #define GROUP(name) GROUP_XS(name)
-        #define    AT(name)    AT_XS(name)
-        #define SUBSET     SUBSET_XS
+        #define  EVENT  EVENT_XS
+        #define SUBSET SUBSET_XS
+        #define     OF     OF_XS
+        #define  GROUP  GROUP_XS
 
-        //static constexpr auto _custom = e2::_custom;
-        static constexpr auto _root_event = netxs::events::seed::_custom;
-        EVENTPACK( root_event )
+        EVENTPACK( netxs::events::root::custom )
         {
             any = _,
             EVENT( cmd    ),
             GROUP( layout ),
             GROUP( data   ),
 
-            SUBSET AT( layout )
+            SUBSET OF( layout )
             {
                 any = _,
                 EVENT( align  ),
                 EVENT( wrapln ),
             };
-            SUBSET AT( data )
+            SUBSET OF( data )
             {
                 any = _,
                 EVENT( in  ),
@@ -42,9 +40,9 @@ namespace netxs::events
         };
 
         #undef EVENT
-        #undef GROUP
-        #undef AT
         #undef SUBSET
+        #undef OF
+        #undef GROUP
     };
 
     EVENT_BIND(term::cmd, iota);
@@ -1969,7 +1967,7 @@ private:
             else
             {
                 log("term: submit for destruction on next frame/tick");
-                SUBMIT_T(tier::general, e2::timer::tick, shut_down_token, t)
+                SUBMIT_T(tier::general, e2::tick, shut_down_token, t)
                 {
                     shut_down_token.reset();
                     base::destroy();

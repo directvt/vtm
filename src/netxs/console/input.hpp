@@ -14,13 +14,12 @@ namespace netxs::events
 {
     struct hids
     {
-        #define EVENT(name) EVENT_XS(name)
-        #define GROUP(name) GROUP_XS(name)
-        #define    AT(name)    AT_XS(name)
-        #define SUBSET     SUBSET_XS
+        #define  EVENT  EVENT_XS
+        #define SUBSET SUBSET_XS
+        #define     OF     OF_XS
+        #define  GROUP  GROUP_XS
 
-        static constexpr auto _hids = netxs::events::seed::_hids;
-        EVENTPACK( hids )
+        EVENTPACK( netxs::events::root::hids )
         {
             any = _,
             EVENT( die     ), // release::global: Notify about the mouse controller is gone (args: hids).
@@ -29,31 +28,31 @@ namespace netxs::events
             GROUP( notify  ), // Form events that should be propagated down to the visual branch
             GROUP( upevent ), // events streamed up (to children) of the visual tree by base::
 
-            SUBSET AT( upevent )
+            SUBSET OF( upevent )
             {
                 any = _,
                 EVENT( kboffer ), // inform nested objects that the keybd focus should be taken (arg: hids)
             };
-            SUBSET AT( notify )
+            SUBSET OF( notify )
             {
                 any = _,
                 GROUP( mouse ), // request context menu at specified coords (arg: twod)
                 GROUP( keybd ), // request the prev scene window (arg: twod)
 
-                SUBSET AT( mouse )
+                SUBSET OF( mouse )
                 {
                     any = _,
                     EVENT( enter ), // inform the form about the mouse hover (arg: hids)
                     EVENT( leave ), // inform the form about the mouse leave (arg: hids)
                 };
-                SUBSET AT( keybd )
+                SUBSET OF( keybd )
                 {
                     any = _,
                     EVENT( got  ),
                     EVENT( lost ),
                 };
             };
-            SUBSET AT( keybd )
+            SUBSET OF( keybd )
             {
                 any = _,
                 EVENT( down    ),
@@ -61,13 +60,13 @@ namespace netxs::events
                 GROUP( control ),
                 GROUP( state   ),
 
-                SUBSET AT( control )
+                SUBSET OF( control )
                 {
                     any = _,
                     GROUP( up   ),
                     GROUP( down ),
 
-                    SUBSET AT( up )
+                    SUBSET OF( up )
                     {
                         any = _,
                         EVENT( alt_right   ),
@@ -77,7 +76,7 @@ namespace netxs::events
                         EVENT( shift_right ),
                         EVENT( shift_left  ),
                     };
-                    SUBSET AT( down )
+                    SUBSET OF( down )
                     {
                         any = _,
                         EVENT( alt_right   ),
@@ -88,13 +87,13 @@ namespace netxs::events
                         EVENT( shift_left  ),
                     };
                 };
-                SUBSET AT( state )
+                SUBSET OF( state )
                 {
                     any = _,
                     GROUP( on  ),
                     GROUP( off ),
 
-                    SUBSET AT( on )
+                    SUBSET OF( on )
                     {
                         any = _,
                         EVENT( numlock    ),
@@ -102,7 +101,7 @@ namespace netxs::events
                         EVENT( scrolllock ),
                         EVENT( insert     ),
                     };
-                    SUBSET AT( off )
+                    SUBSET OF( off )
                     {
                         any = _,
                         EVENT( numlock    ),
@@ -112,7 +111,7 @@ namespace netxs::events
                     };
                 };
             };
-            SUBSET AT( mouse )
+            SUBSET OF( mouse )
             {
                 any = _,
                 EVENT( move    ),
@@ -121,13 +120,13 @@ namespace netxs::events
                 GROUP( button  ),
                 GROUP( scroll  ),
 
-                SUBSET AT( scroll )
+                SUBSET OF( scroll )
                 {
                     any = _,
                     EVENT( up   ),
                     EVENT( down ),
                 };
-                SUBSET AT( button )
+                SUBSET OF( button )
                 {
                     any = _,
                     GROUP( up       ),
@@ -136,7 +135,7 @@ namespace netxs::events
                     GROUP( dblclick ),
                     GROUP( drag     ),
 
-                    SUBSET AT( up )
+                    SUBSET OF( up )
                     {
                         any = _,
                         EVENT( left      ),
@@ -146,7 +145,7 @@ namespace netxs::events
                         EVENT( wheel     ),
                         EVENT( win       ),
                     };
-                    SUBSET AT( down )
+                    SUBSET OF( down )
                     {
                         any = _,
                         EVENT( left      ),
@@ -156,7 +155,7 @@ namespace netxs::events
                         EVENT( wheel     ),
                         EVENT( win       ),
                     };
-                    SUBSET AT( click )
+                    SUBSET OF( click )
                     {
                         any = _,
                         EVENT( left      ),
@@ -166,7 +165,7 @@ namespace netxs::events
                         EVENT( wheel     ),
                         EVENT( win       ),
                     };
-                    SUBSET AT( dblclick )
+                    SUBSET OF( dblclick )
                     {
                         any = _,
                         EVENT( left      ),
@@ -176,7 +175,7 @@ namespace netxs::events
                         EVENT( wheel     ),
                         EVENT( win       ),
                     };
-                    SUBSET AT( drag )
+                    SUBSET OF( drag )
                     {
                         any = _,
                         GROUP( start  ),
@@ -184,7 +183,7 @@ namespace netxs::events
                         GROUP( cancel ),
                         GROUP( stop   ),
 
-                        SUBSET AT( start )
+                        SUBSET OF( start )
                         {
                             any = _,
                             EVENT( left      ),
@@ -194,7 +193,7 @@ namespace netxs::events
                             EVENT( wheel     ),
                             EVENT( win       ),
                         };
-                        SUBSET AT( pull )
+                        SUBSET OF( pull )
                         {
                             any = _,
                             EVENT( left      ),
@@ -204,7 +203,7 @@ namespace netxs::events
                             EVENT( wheel     ),
                             EVENT( win       ),
                         };
-                        SUBSET AT( cancel )
+                        SUBSET OF( cancel )
                         {
                             any = _,
                             EVENT( left      ),
@@ -214,7 +213,7 @@ namespace netxs::events
                             EVENT( wheel     ),
                             EVENT( win       ),
                         };
-                        SUBSET AT( stop )
+                        SUBSET OF( stop )
                         {
                             any = _,
                             EVENT( left      ),
@@ -230,9 +229,9 @@ namespace netxs::events
         };
 
         #undef EVENT
-        #undef GROUP
-        #undef AT
         #undef SUBSET
+        #undef OF
+        #undef GROUP
     };
 
     EVENT_BIND(hids::any, input::hids);
