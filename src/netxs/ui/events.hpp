@@ -20,6 +20,8 @@
 
 namespace netxs::events
 {
+    using type = unsigned int;
+
     enum class tier
     {
         // Forward means from particular to general: 1. event_group::item, 2. event_group::any
@@ -61,10 +63,6 @@ namespace netxs::events
        ~try_sync() { }
     };
 
-    using type = unsigned int;
-    static constexpr unsigned int width = 4;
-    static constexpr unsigned int _mask = (1 << width) - 1;
-
     /*************************************************************************************************
     toplevel = 0
 
@@ -80,6 +78,8 @@ namespace netxs::events
     =  =  =  =
     **************************************************************************************************/
 
+    static constexpr unsigned int width = 4;
+    static constexpr unsigned int _mask = (1 << width) - 1;
     // events: Return item/msg level by its ID.
     constexpr static iota level(type msg)
     {
@@ -91,6 +91,11 @@ namespace netxs::events
         }
         return level;
     }
+    // events: Return item/msg bit shift.
+    constexpr static iota level_width(type msg)
+    {
+        return level(msg) * width;
+    }
     // events: Return item/msg global level mask by its ID.
     constexpr static unsigned int level_mask(type msg)
     {
@@ -101,7 +106,6 @@ namespace netxs::events
         }
         return (1 << level) - 1;
     }
-
     // events: Increament level offset by width and return item's subgroup ID fof the specified level offset.
     template<class T>
     constexpr static T subgroup(T msg, type& itermask)
@@ -126,7 +130,7 @@ namespace netxs::events
     template<class T>
     constexpr static const T message(T base, type item)
     {
-        return static_cast<T>(base | ((item + 1) << level(base) * width));
+        return static_cast<T>(base | ((item + 1) << level_width(base)));
     }
     // events: Return item index inside the group by its ID.
     constexpr static unsigned int item(type msg)
@@ -145,6 +149,7 @@ namespace netxs::events
     }
 
     using hint = events::type;
+    using id_t = uint32_t;
     struct reactor
     {
         struct handler
@@ -208,18 +213,6 @@ namespace netxs::events
 
             return proc_ptr;
         }
-        //template<class F>
-        //auto subscribe(hint e)
-        //{
-        //	auto proc_ptr = std::make_shared<wrapper<F>>(nullptr);
-        //
-        //	e2::sync lock;
-        //
-        //	stock[e].push_back(proc_ptr);
-        //
-        //	return proc_ptr;
-        //}
-
         void _refreshandcopy(list& target)
         {
             target.remove_if([&](auto&& a)
@@ -310,7 +303,6 @@ namespace netxs::events
         }
     };
 
-    using id_t = uint32_t;
     template<class T>
     struct indexer
     {
@@ -326,7 +318,7 @@ namespace netxs::events
                                             // a copy of the object is deleted.
                                             // Thus, the original object instance
                                             // becomes invalid.
-                                            // We should delete the copy ctr.
+                                            // We should delete the copy ctor.
         indexer()
             : id { _counter() }
         { }
@@ -420,7 +412,7 @@ namespace netxs::events
         template<class V>
         struct _globals
         {
-            static reactor general; // bell: Ext link static.
+            static reactor general;
         };
         reactor& general;                     // bell: Global  events node relay.
         reactor  preview{ reactor::reverse }; // bell: Preview events node relay.
@@ -630,13 +622,16 @@ namespace netxs::events
     #define EVENTS_NS netxs::events
     #define EVENTPACK(name) private: enum : EVENTS_NS::type { _ = name, _counter_base = __COUNTER__ }; \
                             public:  enum : EVENTS_NS::type
-    #define  EVENT_XS(name) name = any | (((__COUNTER__ - _counter_base) << (EVENTS_NS::level(any) * EVENTS_NS::width)))
+    #define  EVENT_XS(name) name = any | ((__COUNTER__ - _counter_base) << EVENTS_NS::level_width(any))
     #define  GROUP_XS(name) EVENT_XS( _##name )
     #define     OF_XS(name) struct name { EVENTPACK( _##name )
     #define SUBSET_XS       };
 
-    template<auto T>
-    struct type_clue {};
+    namespace userland
+    {
+        template<auto T>
+        struct type_clue {};
+    }
 
     #define EVENT_BIND(item, item_t)                \
     template<> struct type_clue<item>               \
@@ -646,14 +641,14 @@ namespace netxs::events
         cause = static_cast<EVENTS_NS::type>(item); \
     }
 
-    #define EVENT_SAME(master, item)                       \
-    template<> struct type_clue<item>                      \
-    {                                                      \
-        using param = EVENTS_NS::type_clue<master>::param; \
-        static constexpr EVENTS_NS::type cause = item;     \
+    #define EVENT_SAME(master, item)                   \
+    template<> struct type_clue<item>                  \
+    {                                                  \
+        using param = type_clue<master>::param;        \
+        static constexpr EVENTS_NS::type cause = item; \
     }
 
-    #define TYPECLUE(item) EVENTS_NS::type_clue<item>
+    #define TYPECLUE(item) EVENTS_NS::userland::type_clue<item>
     #define  ARGTYPE(item) typename TYPECLUE(item)::param
 
     // Usage: SUBMIT(tier, item, arg) { ...expression; };
@@ -690,30 +685,33 @@ namespace netxs::events
         bell::template submit_global<TYPECLUE(item)>(token) = [&] (ARGTYPE(item)&& arg)
 
     //todo unify seeding
-    struct root
+    namespace userland
     {
-        #define  EVENT  EVENT_XS
-        #define SUBSET SUBSET_XS
-        #define     OF     OF_XS
-        #define  GROUP  GROUP_XS
-
-        EVENTPACK( 0 )
+        struct root
         {
-            any = _,
-            EVENT( dtor   ), // Notify about object destruction, release only (arg: const id_t)
-            EVENT( base   ),
-            EVENT( hids   ),
-            EVENT( custom ), // Custom events subset.
+            #define  EVENT  EVENT_XS
+            #define SUBSET SUBSET_XS
+            #define     OF     OF_XS
+            #define  GROUP  GROUP_XS
+
+            EVENTPACK( 0 )
+            {
+                any = _,
+                EVENT( dtor   ), // Notify about object destruction, release only (arg: const id_t)
+                EVENT( base   ),
+                EVENT( hids   ),
+                EVENT( custom ), // Custom events subset.
+            };
+
+            #undef EVENT
+            #undef SUBSET
+            #undef OF
+            #undef GROUP
         };
 
-        #undef EVENT
-        #undef SUBSET
-        #undef OF
-        #undef GROUP
-    };
-
-    //todo bell::dtor
-    EVENT_BIND(root::dtor, const id_t);
+        //todo bell::dtor
+        EVENT_BIND(root::dtor, const id_t);
+    }
 }
 
 #endif // NETXS_EVENTS_HPP

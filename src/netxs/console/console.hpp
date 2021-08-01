@@ -43,19 +43,19 @@ namespace netxs::console
     using registry_t = std::map<id_t, std::list<sptr<base>>>;
 }
 
-namespace netxs::events
+namespace netxs::events::userland
 {
     struct e2
     {
         using type = netxs::events::type;
-        static constexpr auto dtor = netxs::events::root::dtor;
+        static constexpr auto dtor = netxs::events::userland::root::dtor;
 
         #define  EVENT  EVENT_XS
         #define SUBSET SUBSET_XS
         #define     OF     OF_XS
         #define  GROUP  GROUP_XS
 
-        EVENTPACK( netxs::events::root::base )
+        EVENTPACK( netxs::events::userland::root::base )
         {
             any = _,
             EVENT( tick       ), // timer tick (arg: current moment (now))
@@ -534,7 +534,7 @@ namespace netxs::events
 
 namespace netxs::console
 {
-    using e2 = netxs::events::e2;
+    using e2 = netxs::events::userland::e2;
 
     //todo OMG!, make it in another way.
     class skin

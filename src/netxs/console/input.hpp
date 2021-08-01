@@ -10,7 +10,7 @@
 
 namespace netxs::input { class hids; }
 
-namespace netxs::events
+namespace netxs::events::userland
 {
     struct hids
     {
@@ -19,7 +19,7 @@ namespace netxs::events
         #define     OF     OF_XS
         #define  GROUP  GROUP_XS
 
-        EVENTPACK( netxs::events::root::hids )
+        EVENTPACK( netxs::events::userland::root::hids )
         {
             any = _,
             EVENT( die     ), // release::global: Notify about the mouse controller is gone (args: hids).
@@ -374,7 +374,7 @@ namespace netxs::input
     // console: Base mouse class.
     class sysmouse
     {
-        using usable = netxs::events::hids::mouse::button::click;
+        using usable = netxs::events::userland::hids::mouse::button::click;
 
     public:
         constexpr static int numofbutton = 6;
@@ -474,7 +474,7 @@ namespace netxs::input
     {
         using tail = netxs::datetime::tail<twod>;
         using idxs = std::vector<iota>;
-        using mouse_event = netxs::events::hids::mouse;
+        using mouse_event = netxs::events::userland::hids::mouse;
         enum bttns
         {
             first = sysmouse::left     ,
@@ -796,7 +796,7 @@ namespace netxs::input
         uint16_t virtcode = 0;
         uint16_t scancode = 0;
         wchar_t  character = 0;
-        hint     cause = netxs::events::hids::keybd::any;
+        hint     cause = netxs::events::userland::hids::keybd::any;
 
         void update	(syskeybd& k)
         {
@@ -819,7 +819,7 @@ namespace netxs::input
           public keybd
     {
     public:
-        using events = netxs::events::hids;
+        using events = netxs::events::userland::hids;
     private:
 
         using list = std::list<wptr<bell>>;

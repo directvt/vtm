@@ -9,7 +9,7 @@
 
 #include <cassert>
 
-namespace netxs::events
+namespace netxs::events::userland
 {
     struct term
     {
@@ -18,7 +18,7 @@ namespace netxs::events
         #define     OF     OF_XS
         #define  GROUP  GROUP_XS
 
-        EVENTPACK( netxs::events::root::custom )
+        EVENTPACK( netxs::events::userland::root::custom )
         {
             any = _,
             EVENT( cmd    ),
@@ -782,7 +782,7 @@ namespace netxs::app
         pro::caret caret{ *this }; // term: Caret controller.
 
 public:
-        using events = netxs::events::term;
+        using events = netxs::events::userland::term;
 
         //todo unify
         struct commands
