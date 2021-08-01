@@ -23,8 +23,6 @@
 // Highlight region ownership.
 //#define REGIONS
 
-#include "netxs/os/system.hpp"
-#include "netxs/text/utf.hpp"
 #include "netxs/console/terminal.hpp"
 #include "netxs/abstract/queue.hpp"
 
@@ -32,7 +30,6 @@
 
 using namespace std::placeholders;
 using namespace netxs::console;
-using namespace netxs::ui::atoms;
 using namespace netxs;
 
 text monotty_logo  = ansi::bgc(blackdk)  .add("▀▄");

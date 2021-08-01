@@ -20,8 +20,6 @@ namespace netxs::datetime
     using moment = std::chrono::time_point<std::chrono::steady_clock>;
     using namespace std::chrono_literals;
 
-    using iota = int32_t;
-
     // quartz: Round a chrono time moment in degree (def: milliseconds)
     //         units since epoch.
     template<class T, class degree = std::chrono::milliseconds>

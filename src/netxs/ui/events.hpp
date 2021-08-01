@@ -8,6 +8,7 @@
 
 #include "../abstract/ptr.hpp"
 #include "../abstract/hash.hpp"
+#include "../abstract/duplet.hpp"
 
 #include <vector>
 #include <mutex>
@@ -16,10 +17,6 @@
 #include <functional>
 #include <optional>
 #include <thread>
-
-#ifndef faux
-    #define faux (false)
-#endif
 
 namespace netxs::events
 {
@@ -65,7 +62,6 @@ namespace netxs::events
     };
 
     using type = unsigned int;
-    static const type _root_event = 0;
     static constexpr unsigned int width = 4;
     static constexpr unsigned int _mask = (1 << width) - 1;
 
@@ -148,6 +144,7 @@ namespace netxs::events
         return _instantiate<N>(base, std::make_index_sequence<N>{});
     }
 
+    using hint = events::type;
     struct reactor
     {
         struct handler
@@ -160,7 +157,6 @@ namespace netxs::events
         using hook =             sptr<handler>;
         using list = std::list  <wptr<handler>>;
         using vect = std::vector<wptr<handler>>;
-        using hint = events::type;
 
         template <typename F>
         struct wrapper : handler
@@ -314,10 +310,10 @@ namespace netxs::events
         }
     };
 
+    using id_t = uint32_t;
     template<class T>
     struct indexer
     {
-        using id_t = uint32_t;
         using imap = std::map<id_t, wptr<T>>;
         const id_t id;
 
@@ -387,9 +383,9 @@ namespace netxs::events
     };
 
     // events: Ext link statics, unique ONLY for concrete T.
-    template<class T> typename indexer<T>::id_t indexer<T>::newid = 0;
-    template<class T> typename indexer<T>::imap indexer<T>::store;
+    template<class T> id_t                      indexer<T>::newid = 0;
     template<class T> wptr<T>                   indexer<T>::empty;
+    template<class T> typename indexer<T>::imap indexer<T>::store;
 
     using hook = reactor::hook;
     class subs
@@ -402,7 +398,7 @@ namespace netxs::events
         {
             tokens.push_back(r.subscribe(e, h));
         }
-        void operator()(hook& t) { tokens.push_back(t); }
+        void operator()(hook& t)   { tokens.push_back(t); }
         hook& extra()       { return tokens.emplace_back(); }
         auto  count() const { return tokens.size();         }
         void  clear()       {        tokens.clear();        }
@@ -417,7 +413,7 @@ namespace netxs::events
     // events: Event x-mitter.
     struct bell : public indexer<bell>
     {
-        static constexpr id_t noid = std::numeric_limits<id_t>::max();
+        static constexpr auto noid = std::numeric_limits<id_t>::max();
         subs tracker;
 
     private:
@@ -653,9 +649,12 @@ namespace netxs::events
         {
             events::sync lock;
             //todo e2::dtor
-            //signal<e2_base::release>(e2::dtor, id);
+            //signal<tier::release>(e2::dtor, id);
             signal<tier::release>(1, id);
         }
+        // bell: Recursively calculate global coordinate.
+        virtual void global(twod& coor)
+        { }
     };
 
     template<class T>
@@ -678,14 +677,14 @@ namespace netxs::events
         using param = item_t;                       \
         static constexpr EVENTS_NS::type            \
         cause = static_cast<EVENTS_NS::type>(item); \
-    };
+    }
 
     #define EVENT_SAME(master, item)                       \
     template<> struct type_clue<item>                      \
     {                                                      \
         using param = EVENTS_NS::type_clue<master>::param; \
         static constexpr EVENTS_NS::type cause = item;     \
-    };
+    }
 
     #define TYPECLUE(item) EVENTS_NS::type_clue<item>
     #define  ARGTYPE(item) typename TYPECLUE(item)::param
@@ -722,6 +721,32 @@ namespace netxs::events
 
     #define SUBMIT_GLOBAL(item, token, arg) \
         bell::template submit_global<TYPECLUE(item)>(token) = [&] (ARGTYPE(item)&& arg)
+
+    //static constexpr type _root_event = 0;
+    struct seed
+    {
+        #define EVENT(name) EVENT_XS(name)
+        #define GROUP(name) GROUP_XS(name)
+        #define    AT(name)    AT_XS(name)
+        #define SUBSET     SUBSET_XS
+
+        static constexpr type _root_event = 0;
+        EVENTPACK( root_event )
+        {
+            any = _,
+            EVENT( dtor   ), // Notify about object destruction, release only (arg: const id_t)
+            GROUP( base   ),
+            GROUP( hids   ),
+            GROUP( custom ), // Custom events subset.
+        };
+
+        #undef EVENT
+        #undef GROUP
+        #undef AT
+        #undef SUBSET
+    };
+    //todo e2::dtor
+    EVENT_BIND(seed::dtor, const id_t);
 }
 
 #endif // NETXS_EVENTS_HPP

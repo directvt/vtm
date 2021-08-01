@@ -980,7 +980,7 @@ namespace netxs::ui
                     giveup(gear);
                 }
             };
-            SUBMIT(tier::general, hids::events::mouse::gone, gear)
+            SUBMIT(tier::general, hids::events::die, gear)
             {
                 if (gear.captured(bell::id))
                 {
@@ -1221,8 +1221,8 @@ namespace netxs::ui
         pro::timer timer{*this }; // grip: Minimize by timeout.
         pro::limit limit{*this }; // grip: Size limits.
 
-        using wptr = netxs::wptr<bell>;
-        using sptr = netxs::sptr<bell>;
+        using wptr = netxs::wptr<base>;
+        using sptr = netxs::sptr<base>;
 
         enum activity
         {
@@ -1510,7 +1510,7 @@ namespace netxs::ui
             {
                 giveup(gear);
             };
-            SUBMIT(tier::general, hids::events::mouse::gone, gear)
+            SUBMIT(tier::general, hids::events::die, gear)
             {
                 giveup(gear);
             };
@@ -2011,7 +2011,7 @@ namespace netxs::ui
                 {
                     giveup(gear);
                 };
-                grip_ctl->SUBMIT(tier::general, hids::events::mouse::gone, gear)
+                grip_ctl->SUBMIT(tier::general, hids::events::die, gear)
                 {
                     giveup(gear);
                 };

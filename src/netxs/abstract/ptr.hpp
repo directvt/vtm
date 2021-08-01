@@ -5,6 +5,7 @@
 #define NETXS_PTR_HPP
 
 #include <memory>
+#include <mutex>
 
 namespace netxs
 {

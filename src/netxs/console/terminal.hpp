@@ -5,7 +5,6 @@
 #define NETXS_TERMINAL_HPP
 
 #include "../ui/controls.hpp"
-#include "../os/system.hpp"
 #include "../abstract/ring.hpp"
 
 #include <cassert>
@@ -19,8 +18,9 @@ namespace netxs::events
         #define    AT(name)    AT_XS(name)
         #define SUBSET     SUBSET_XS
 
-        static constexpr events::type _custom = e2::_custom;
-        EVENTPACK( custom )
+        //static constexpr auto _custom = e2::_custom;
+        static constexpr auto _root_event = netxs::events::seed::_custom;
+        EVENTPACK( root_event )
         {
             any = _,
             EVENT( cmd    ),
@@ -47,13 +47,13 @@ namespace netxs::events
         #undef SUBSET
     };
 
-    EVENT_BIND(term::cmd, iota)
+    EVENT_BIND(term::cmd, iota);
 
-    EVENT_BIND(term::layout::align,  bias::type)
-    EVENT_BIND(term::layout::wrapln, wrap::type)
+    EVENT_BIND(term::layout::align,  bias::type);
+    EVENT_BIND(term::layout::wrapln, wrap::type);
 
-    EVENT_BIND(term::data::in,  view)
-    EVENT_BIND(term::data::out, view)
+    EVENT_BIND(term::data::in,  view);
+    EVENT_BIND(term::data::out, view);
 }
 
 namespace netxs::app
@@ -845,10 +845,10 @@ private:
                         else              serialize<x11>(gear, cause);
                         owner.write(queue);
                     };
-                    owner.SUBMIT_T(tier::general, hids::events::mouse::gone, token, gear)
+                    owner.SUBMIT_T(tier::general, hids::events::die, token, gear)
                     {
-                        log("term: hids::events::mouse::gone, id = ", gear.id);
-                        auto cause = hids::events::mouse::gone;
+                        log("term: hids::events::die, id = ", gear.id);
+                        auto cause = hids::events::die;
                         if (proto == sgr) serialize<sgr>(gear, cause);
                         else              serialize<x11>(gear, cause);
                         owner.write(queue);
@@ -931,7 +931,7 @@ private:
                     case m::scroll::up  : proceed<PROT>(gear, wheel_up, true); break;
                     case m::scroll::down: proceed<PROT>(gear, wheel_dn, true); break;
                     // Gone
-                    case m::gone:
+                    case hids::events::die:
                         release(gear);
                         if (auto buttons = gear.buttons())
                         {

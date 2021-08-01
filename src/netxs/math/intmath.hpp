@@ -16,6 +16,8 @@
 
 namespace netxs
 {
+    using iota = int32_t;
+
     constexpr size_t operator "" _sz (unsigned long long i)	{ return i; }
 
     struct noop { template<class ...T> void operator()(T...) {}; };

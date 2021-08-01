@@ -15,7 +15,7 @@ namespace netxs::ui::atoms
 {
     using utf::text;
     using utf::view;
-    using id_t = netxs::events::bell::id_t;
+    using netxs::events::id_t;
 
     static const char whitespace = 0x20;
     //static const char whitespace = '.';
