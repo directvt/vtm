@@ -1018,8 +1018,6 @@ namespace netxs::console
 
             auto& lyric = *this->lyric;
 
-            bool need_attetion = faux;
-
             //todo unify for size.y > 1
             auto newsz = caret + width;
             if (newsz > lyric.size().x)
