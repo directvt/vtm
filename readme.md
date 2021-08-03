@@ -8,7 +8,7 @@ Text-based desktop environment inside your terminal*
 
  - [Unicode/UTF-8](https://www.cl.cam.ac.uk/~mgk25/unicode.html)
  - [Grapheme Clustering](https://unicode.org/reports/tr29/#Grapheme_Cluster_Boundaries)
- - [24-bit True Color](https://gist.github.com/XVilka/8346728)
+ - [24-bit True Color](https://github.com//termstandard/colors)
  - [xterm-style Mouse Reporting](https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h2-Mouse-Tracking)
 
 #### [Tested Terminals](https://github.com/netxs-group/VTM/discussions/72)
@@ -74,8 +74,9 @@ cd ./Release
 powershell ../src/install/install.ps1
 ```
 
-# Binaries for `amd64`
+# Binaries
 
+[![](https://dice.netxs.online/cloud/vtm/status/macos_any)](https://github.com/netxs-group/VTM/releases/latest/download/vtm_macos_any.tar.gz)  
 [![](https://dice.netxs.online/cloud/vtm/status/macos)](https://github.com/netxs-group/VTM/releases/latest/download/vtm_macos_amd64.tar.gz)  
 [![](https://dice.netxs.online/cloud/vtm/status/freebsd)](https://github.com/netxs-group/VTM/releases/latest/download/vtm_freebsd_amd64.tar.gz)  
 [![](https://dice.netxs.online/cloud/vtm/status/netbsd)](https://github.com/netxs-group/VTM/releases/latest/download/vtm_netbsd_amd64.tar.gz)  
