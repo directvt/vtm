@@ -351,11 +351,11 @@ namespace netxs::console
             temp.size.x = border.east.step;
             fill(temp, fuse);
         }
-        template<class TEXT>
-        void  text(twod const& pos, TEXT const& txt, bool rtl = faux) // core: Put the specified text substring to the specified coordinates on the canvas.
+        template<class TEXT, class P = noop>
+        void  text(twod const& pos, TEXT const& txt, bool rtl = faux, P print = P()) // core: Put the specified text substring to the specified coordinates on the canvas.
         {
-            rtl ? txt.template output<true>(*this, pos)
-                : txt.template output<faux>(*this, pos);
+            rtl ? txt.template output<true>(*this, pos, print)
+                : txt.template output<faux>(*this, pos, print);
         }
         void operator += (core const& src) // core: Append specified canvas.
         {
@@ -646,20 +646,21 @@ namespace netxs::console
         {
             compose(block);
         }
-        template<class T>
-        void go(T const& block, core& canvas)
+
+        template<class T, class P = noop>
+        void go(T const& block, core& canvas, P printfx = P())
         {
             compose(block, [&](auto const& coord, auto const& subblock)
                            {
-                               canvas.text(coord, subblock, isr_to_l);
+                               canvas.text(coord, subblock, isr_to_l, printfx);
                            });
         }
-        template<bool USE_LOCUS = true, class T>
-        auto print(T const& block, core& canvas)
+        template<bool USE_LOCUS = true, class T, class P = noop>
+        auto print(T const& block, core& canvas, P printfx = P())
         {
             auto cp = USE_LOCUS ? forward(block)
                                 : flow::cp();
-            go(block, canvas);
+            go(block, canvas, printfx);
             return cp;
         }
         template<bool USE_LOCUS = true, class T>
@@ -796,8 +797,8 @@ namespace netxs::console
         constexpr auto  empty () const { return !width;                }
         constexpr auto  length() const { return  width;                }
 
-        template<bool RtoL>
-        auto output(core& canvas, twod const& pos) const  // shot: Print the source content using the specified print proc, which returns the number of characters printed.
+        template<bool RtoL, class P = noop>
+        auto output(core& canvas, twod const& pos, P print = P()) const  // shot: Print the source content using the specified print proc, which returns the number of characters printed.
         {
             //todo place is wrong if RtoL==true
             //rect place{ pos, { RtoL ? width, basis.size().y } };
@@ -808,7 +809,6 @@ namespace netxs::console
 
             if (joint)
             {
-                auto fuse = [&](auto& dst, auto& src) { dst.fusefull(src); };
 
                 if constexpr (RtoL)
                 {
@@ -820,7 +820,13 @@ namespace netxs::console
                     place.coor = joint.coor - place.coor;
                 }
                 place.coor.x += start;
-                netxs::inbody<RtoL>(canvas, basis, joint, place.coor, fuse);
+
+                if constexpr (std::is_same_v<P, noop>)
+                {
+                    auto fuse = [&](auto& dst, auto& src) { dst.fusefull(src); };
+                    netxs::inbody<RtoL>(canvas, basis, joint, place.coor, fuse);
+                }
+                else netxs::inbody<RtoL>(canvas, basis, joint, place.coor, print);
             }
 
             return width;
@@ -1216,15 +1222,15 @@ namespace netxs::console
         }
         // rope: Print the source content using the specified print proc,
         //       which returns the number of characters printed.
-        template<bool RtoL>
-        void output(core& canvas, twod locate) const
+        template<bool RtoL, class P = noop>
+        void output(core& canvas, twod locate, P print = P()) const
         {
             auto total = volume.x;
 
             auto draw = [&](auto& item, auto start, auto width)
             {
                 auto line = item.substr(start, width);
-                auto size = line.template output<RtoL>(canvas, locate);
+                auto size = line.template output<RtoL>(canvas, locate, print);
                 locate.x += size;
                 return size;
             };

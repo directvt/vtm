@@ -728,11 +728,12 @@ namespace netxs::console
             flow::print(block, *this);
         }
         // face: Print page.
-        void output(page const& textpage)
+        template<class P = noop>
+        void output(page const& textpage, P printfx = P())
         {
             auto publish = [&](auto const& combo)
             {
-                flow::print(combo, *this);
+                flow::print(combo, *this, printfx);
                 brush = combo.mark(); // Current mark of the last printed fragment.
             };
             textpage.stream(publish);
@@ -2764,9 +2765,20 @@ namespace netxs::console
                 {
                     if (live)
                     {
+                        auto contrast_fx = [](auto& dst, auto& src)
+                        {
+                            auto& fgc = src.fgc();
+                            if (fgc.chan.a == 0x00)
+                            {
+                                auto constexpr threshold = rgba{ tint::whitedk }.luma();
+                                if (dst.bgc().luma() >= threshold) dst.fgc(0xFF000000).fusefull(src);
+                                else                               dst.fgc(0xFFffffff).fusefull(src);
+                            }
+                            else dst.fusefull(src);
+                        };
                         auto saved_context = canvas.bump(dent{ 0,0,head_size.y,foot_size.y });
                         canvas.cup(dot_00);
-                        canvas.output(head_page);
+                        canvas.output(head_page, contrast_fx);
                         canvas.cup({ 0, head_size.y + boss.size().y });
                         canvas.output(foot_page);
                         canvas.bump(saved_context);

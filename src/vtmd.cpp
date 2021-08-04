@@ -1,7 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#define MONOTTY_VER "Monotty Desktopio v0.5.14"
+#define MONOTTY_VER "Monotty Desktopio v0.5.15"
 // Autostart demo apps.
 //#define DEMO
 // Enable keyboard input and disable exit by single Esc.
@@ -2144,7 +2144,7 @@ utility like ctags is used to locate the definitions.
                 log("inst: max count reached");
                 auto timeout = tempus::now() + del_timeout;
                 auto w_frame = wptr<ui::cake>{ frame };
-                frame->SUBMIT_BYVAL(tier::general, e2::timer::tick, timestamp)
+                frame->SUBMIT_BYVAL(tier::general, e2::tick, timestamp)
                 {
                     if (timestamp > timeout)
                     {
