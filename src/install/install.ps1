@@ -5,7 +5,7 @@ Break;
 }
 
 $PF = $ENV:ProgramFiles
-$vtm_dir = "$PF\VTM"
+$vtm_dir = "$PF\vtm"
 $PrintBar = $("-" * 40)
 
 $cwd = Split-Path -Path $myinvocation.mycommand.definition
@@ -44,7 +44,7 @@ cat ./readme.txt
 $PrintBar
 "
 Restart command line environment in
-order to be able to use VTM.
+order to be able to use vtm.
 "
 Write-Host -NoNewLine 'press any key...';
 $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown');
