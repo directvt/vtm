@@ -11,7 +11,7 @@ Text-based desktop environment inside your terminal*
  - [24-bit True Color](https://github.com//termstandard/colors)
  - [xterm-style Mouse Reporting](https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h2-Mouse-Tracking)
 
-#### [Tested Terminals](https://github.com/netxs-group/VTM/discussions/72)
+#### [Tested Terminals](https://github.com/netxs-group/vtm/discussions/72)
 
 # Demo
 
@@ -52,7 +52,7 @@ Build-time dependencies
  - [`gcc`](https://gcc.gnu.org/projects/cxx-status.html) or [`clang`](https://clang.llvm.org/cxx_status.html) with support for C++20
 
 ```bash
-git clone https://github.com/netxs-group/VTM.git && cd ./VTM
+git clone https://github.com/netxs-group/vtm.git && cd ./vtm
 cmake ./src -DCMAKE_BUILD_TYPE=Release
 cmake --build .
 cmake --install .
@@ -67,7 +67,7 @@ Build-time dependencies
 
 Use `Developer Command Prompt for VS 2019` as a build environment
 ```cmd
-git clone https://github.com/netxs-group/VTM.git && cd ./VTM
+git clone https://github.com/netxs-group/vtm.git && cd ./vtm
 cmake ./src -DCMAKE_BUILD_TYPE=Release "-GVisual Studio 16 2019"
 cmake --build . --config Release
 cd ./Release
@@ -76,13 +76,13 @@ powershell ../src/install/install.ps1
 
 # Binaries
 
-[![](https://dice.netxs.online/cloud/vtm/status/macos_any)](https://github.com/netxs-group/VTM/releases/latest/download/vtm_macos_any.tar.gz)  
-[![](https://dice.netxs.online/cloud/vtm/status/macos)](https://github.com/netxs-group/VTM/releases/latest/download/vtm_macos_amd64.tar.gz)  
-[![](https://dice.netxs.online/cloud/vtm/status/freebsd)](https://github.com/netxs-group/VTM/releases/latest/download/vtm_freebsd_amd64.tar.gz)  
-[![](https://dice.netxs.online/cloud/vtm/status/netbsd)](https://github.com/netxs-group/VTM/releases/latest/download/vtm_netbsd_amd64.tar.gz)  
-[![](https://dice.netxs.online/cloud/vtm/status/openbsd)](https://github.com/netxs-group/VTM/releases/latest/download/vtm_openbsd_amd64.tar.gz)  
-[![](https://dice.netxs.online/cloud/vtm/status/linux)](https://github.com/netxs-group/VTM/releases/latest/download/vtm_linux_amd64.tar.gz)  
-[![](https://dice.netxs.online/cloud/vtm/status/windows)](https://github.com/netxs-group/VTM/releases/latest/download/vtm_windows_amd64.zip)  
+[![](https://dice.netxs.online/cloud/vtm/status/macos_any)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_macos_any.tar.gz)  
+[![](https://dice.netxs.online/cloud/vtm/status/macos)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_macos_amd64.tar.gz)  
+[![](https://dice.netxs.online/cloud/vtm/status/freebsd)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_freebsd_amd64.tar.gz)  
+[![](https://dice.netxs.online/cloud/vtm/status/netbsd)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_netbsd_amd64.tar.gz)  
+[![](https://dice.netxs.online/cloud/vtm/status/openbsd)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_openbsd_amd64.tar.gz)  
+[![](https://dice.netxs.online/cloud/vtm/status/linux)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_linux_amd64.tar.gz)  
+[![](https://dice.netxs.online/cloud/vtm/status/windows)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_windows_amd64.zip)  
 
 ---
 
@@ -239,7 +239,7 @@ Module               | Options
 
 ---
 
-[![HitCount](https://views.whatilearened.today/views/github/netxs-group/VTM.svg)](https://github.com/netxs-group/VTM) [![Twitter handle][]][twitter badge]
+[![HitCount](https://views.whatilearened.today/views/github/netxs-group/vtm.svg)](https://github.com/netxs-group/vtm) [![Twitter handle][]][twitter badge]
 
 [//]: # (LINKS)
 [twitter handle]: https://img.shields.io/twitter/follow/desktopio.svg?style=social&label=Follow

@@ -5,62 +5,60 @@
 #define NETXS_TERMINAL_HPP
 
 #include "../ui/controls.hpp"
-#include "../os/system.hpp"
 #include "../abstract/ring.hpp"
 
 #include <cassert>
 
-namespace netxs
+namespace netxs::events::userland
 {
-    struct app
+    struct term
     {
-        struct term
-        {
-            #define EVENT(name) EVENT_VTM(name)
-            #define GROUP(name) GROUP_VTM(name)
-            #define    AT(name)    AT_VTM(name)
-            #define SUBSET     SUBSET_VTM
+        #define  EVENT  EVENT_XS
+        #define SUBSET SUBSET_XS
+        #define     OF     OF_XS
+        #define  GROUP  GROUP_XS
 
-            static const events::type _custom = e2::_custom;
-            EVENTPACK( custom )
+        EVENTPACK( netxs::events::userland::root::custom )
+        {
+            any = _,
+            EVENT( cmd    ),
+            GROUP( layout ),
+            GROUP( data   ),
+
+            SUBSET OF( layout )
             {
                 any = _,
-                EVENT( cmd    ),
-                GROUP( layout ),
-                GROUP( data   ),
-
-                SUBSET AT( layout )
-                {
-                    any = _,
-                    EVENT( align  ),
-                    EVENT( wrapln ),
-                };
-                SUBSET AT( data )
-                {
-                    any = _,
-                    EVENT( in  ),
-                    EVENT( out ),
-                };
+                EVENT( align  ),
+                EVENT( wrapln ),
             };
-
-            #undef EVENT
-            #undef GROUP
-            #undef AT
-            #undef SUBSET
+            SUBSET OF( data )
+            {
+                any = _,
+                EVENT( in  ),
+                EVENT( out ),
+            };
         };
+
+        #undef EVENT
+        #undef SUBSET
+        #undef OF
+        #undef GROUP
     };
 
-    EVENT_BIND(app::term::cmd, iota)
+    EVENT_BIND(term::cmd, iota);
 
-    EVENT_BIND(app::term::layout::align, bias::type)
-    EVENT_BIND(app::term::layout::wrapln, wrap::type)
+    //todo iota
+    EVENT_BIND(term::layout::align,  bias::type);
+    EVENT_BIND(term::layout::wrapln, wrap::type);
 
-    EVENT_BIND(app::term::data::in,  view)
-    EVENT_BIND(app::term::data::out, view)
+    EVENT_BIND(term::data::in,  view);
+    EVENT_BIND(term::data::out, view);
 }
 
-namespace netxs::ui
+namespace netxs::app
 {
+    using namespace netxs::console;
+
     // terminal: scrollback/altbuf internals.
     class rods
         : public flow
@@ -779,12 +777,14 @@ namespace netxs::ui
 
     // terminal: Built-in terminal app.
     class term
-        : public form<term>, public app
+        : public ui::form<term>
     {
         pro::caret caret{ *this }; // term: Caret controller.
 
-//todo unify
 public:
+        using events = netxs::events::userland::term;
+
+        //todo unify
         struct commands
         {
             enum type : iota
@@ -830,11 +830,11 @@ private:
                 state |= m;
                 if (state && !token.count()) // Do not subscribe if it is already subscribed
                 {
-                    owner.SUBMIT_T(tier::release, e2::hids::mouse::scroll::any, token, gear)
+                    owner.SUBMIT_T(tier::release, hids::events::mouse::scroll::any, token, gear)
                     {
                         gear.dismiss();
                     };
-                    owner.SUBMIT_T(tier::release, e2::hids::mouse::any, token, gear)
+                    owner.SUBMIT_T(tier::release, hids::events::mouse::any, token, gear)
                     {
                         auto c = gear.coord - (owner.base::size() - owner.screen.size);
                         moved = coord((state & mode::over) ? c
@@ -844,10 +844,10 @@ private:
                         else              serialize<x11>(gear, cause);
                         owner.write(queue);
                     };
-                    owner.SUBMIT_T(tier::general, e2::hids::mouse::gone, token, gear)
+                    owner.SUBMIT_T(tier::general, hids::events::die, token, gear)
                     {
-                        log("term: e2::hids::mouse::gone, id = ", gear.id);
-                        auto cause = e2::hids::mouse::gone;
+                        log("term: hids::events::die, id = ", gear.id);
+                        auto cause = hids::events::die;
                         if (proto == sgr) serialize<sgr>(gear, cause);
                         else              serialize<x11>(gear, cause);
                         owner.write(queue);
@@ -893,8 +893,8 @@ private:
             template<prot PROT>
             void serialize(hids& gear, id_t cause)
             {
-                using m = e2::hids::mouse;
-                using b = e2::hids::mouse::button;
+                using m = hids::events::mouse;
+                using b = hids::events::mouse::button;
                 constexpr static iota left = 0;
                 constexpr static iota mddl = 1;
                 constexpr static iota rght = 2;
@@ -915,7 +915,7 @@ private:
                     case b::drag::pull::left  : if (isdrag) proceed<PROT>(gear, idle + left, true); break;
                     case b::drag::pull::middle: if (isdrag) proceed<PROT>(gear, idle + mddl, true); break;
                     case b::drag::pull::right : if (isdrag) proceed<PROT>(gear, idle + rght, true); break;
-                    case e2::hids::mouse::move: if (ismove) proceed<PROT>(gear, idle + btup, faux); break;
+                    case m::move              : if (ismove) proceed<PROT>(gear, idle + btup, faux); break;
                     // Press
                     case b::down::leftright: capture(gear); break;
                     case b::down::left     : capture(gear); proceed<PROT>(gear, left, true); break;
@@ -930,7 +930,7 @@ private:
                     case m::scroll::up  : proceed<PROT>(gear, wheel_up, true); break;
                     case m::scroll::down: proceed<PROT>(gear, wheel_dn, true); break;
                     // Gone
-                    case m::gone:
+                    case hids::events::die:
                         release(gear);
                         if (auto buttons = gear.buttons())
                         {
@@ -961,12 +961,12 @@ private:
                 {
                     if (!token) // Do not subscribe if it is already subscribed)
                     {
-                        owner.SUBMIT_T(tier::release, e2::form::notify::keybd::any, token, gear)
+                        owner.SUBMIT_T(tier::release, hids::events::notify::keybd::any, token, gear)
                         {
                             switch(owner.bell::protos<tier::release>())
                             {
-                                case e2::form::notify::keybd::got:  queue.fcs(true); break;
-                                case e2::form::notify::keybd::lost: queue.fcs(faux); break;
+                                case hids::events::notify::keybd::got:  queue.fcs(true); break;
+                                case hids::events::notify::keybd::lost: queue.fcs(faux); break;
                                 default:
                                     break;
                             }
@@ -1117,7 +1117,7 @@ private:
                 using vt = ansi::parser<T>;
                 parser() : vt()
                 {
-                    using namespace netxs::console::ansi;
+                    using namespace netxs::ansi;
                     vt::csier.table_space[CSI_SPC_SRC] = VT_PROC{ p->na("CSI n SP A  Shift right n columns(s)."); }; // CSI n SP A  Shift right n columns(s).
                     vt::csier.table_space[CSI_SPC_SLC] = VT_PROC{ p->na("CSI n SP @  Shift left  n columns(s)."); }; // CSI n SP @  Shift left n columns(s).
                     vt::csier.table_space[CSI_SPC_CST] = VT_PROC{ p->boss.caret_style(q(1)); }; // CSI n SP q  Set caret style (DECSCUSR).
@@ -1253,7 +1253,7 @@ private:
                 style.wrp(w);
                 auto status = w == wrap::none ? WRAPPING
                                               :(wrap::type)w;
-                boss.base::broadcast->SIGNAL(tier::release, app::term::layout::wrapln, status);
+                boss.base::broadcast->SIGNAL(tier::release, app::term::events::layout::wrapln, status);
             }
             // scrollbuff: CCC_JET:  Set line alignment.
             void jet(iota j)
@@ -1263,7 +1263,7 @@ private:
                 style.jet(j);
                 auto status = j == bias::none ? bias::left
                                               :(bias::type)j;
-                boss.base::broadcast->SIGNAL(tier::release, app::term::layout::align, status);
+                boss.base::broadcast->SIGNAL(tier::release, app::term::events::layout::align, status);
             }
             // scrollbuff: ESC H  Place tabstop at the current caret posistion.
             void stb()
@@ -1940,7 +1940,7 @@ private:
         {
             while (alive)
             {
-                events::try_sync guard;
+                netxs::events::try_sync guard;
                 if (guard)
                 {
                     SIGNAL(tier::general, e2::debug::output, shadow); // Post for the Logs.
@@ -1968,7 +1968,7 @@ private:
             else
             {
                 log("term: submit for destruction on next frame/tick");
-                SUBMIT_T(tier::general, e2::timer::tick, shut_down_token, t)
+                SUBMIT_T(tier::general, e2::tick, shut_down_token, t)
                 {
                     shut_down_token.reset();
                     base::destroy();
@@ -1996,7 +1996,7 @@ private:
             #ifdef PROD
             form::keybd.accept(true); // Subscribe to keybd offers.
             #endif
-            base::broadcast->SUBMIT_T(tier::preview, app::term::cmd, bell::tracker, cmd)
+            base::broadcast->SUBMIT_T(tier::preview, app::term::events::cmd, bell::tracker, cmd)
             {
                 log("term: tier::preview, app::term::cmd, ", cmd);
                 reset_scroll_pos();
@@ -2026,13 +2026,13 @@ private:
                 }
                 input_hndl("");
             };
-            base::broadcast->SUBMIT_T(tier::preview, app::term::data::in, bell::tracker, data)
+            base::broadcast->SUBMIT_T(tier::preview, app::term::events::data::in, bell::tracker, data)
             {
                 log("term: app::term::data::in, ", utf::debase(data));
                 reset_scroll_pos();
                 input_hndl(data);
             };
-            base::broadcast->SUBMIT_T(tier::preview, app::term::data::out, bell::tracker, data)
+            base::broadcast->SUBMIT_T(tier::preview, app::term::events::data::out, bell::tracker, data)
             {
                 log("term: app::term::data::out, ", utf::debase(data));
                 reset_scroll_pos();
@@ -2064,7 +2064,7 @@ private:
                     }
                 };
             };
-            SUBMIT(tier::release, e2::hids::keybd::any, gear)
+            SUBMIT(tier::release, hids::events::keybd::any, gear)
             {
                 reset_scroll_pos();
                 //todo optimize/unify

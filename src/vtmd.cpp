@@ -1,7 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#define MONOTTY_VER "Monotty Desktopio v0.5.14"
+#define MONOTTY_VER "Monotty Desktopio v0.5.15"
 // Autostart demo apps.
 //#define DEMO
 // Enable keyboard input and disable exit by single Esc.
@@ -23,8 +23,6 @@
 // Highlight region ownership.
 //#define REGIONS
 
-#include "netxs/os/system.hpp"
-#include "netxs/text/utf.hpp"
 #include "netxs/console/terminal.hpp"
 #include "netxs/abstract/queue.hpp"
 
@@ -32,7 +30,6 @@
 
 using namespace std::placeholders;
 using namespace netxs::console;
-using namespace netxs::ui::atoms;
 using namespace netxs;
 
 text monotty_logo  = ansi::bgc(blackdk)  .add("▀▄");
@@ -349,7 +346,7 @@ public:
               .fgc().bgc();
         topic += label;
 
-        SUBMIT(tier::release, e2::hids::mouse::button::dblclick::right, gear)
+        SUBMIT(tier::release, hids::events::mouse::button::dblclick::right, gear)
         {
             clear();
             gear.dismiss();
@@ -584,7 +581,7 @@ int main(int argc, char* argv[])
             text intro = ansi::mgl(0).mgr(0)
                 .add(" ")
                 //+ ansi::jet(bias::right).mgl(1).mgr(1).wrp(true)
-                //+ "https://github.com/netxs-group/VTM\n\n"
+                //+ "https://github.com/netxs-group/vtm\n\n"
                 .jet(bias::center).wrp(wrap::off).fgc(whitelt).mgl(0).mgr(0).eol()
                 .fgc(c1).bgc(c2).add("▄")
                 .fgc(c2).bgc(c1).add("▄")
@@ -1299,7 +1296,7 @@ utility like ctags is used to locate the definitions.
                          ->plugin<pro::fader>(x3, c3, 150ms)
                          ->invoke([&](ui::pads& boss)
                             {
-                                boss.SUBMIT(tier::release, e2::hids::mouse::button::dblclick::left, gear)
+                                boss.SUBMIT(tier::release, hids::events::mouse::button::dblclick::left, gear)
                                 {
                                     auto backup = boss.This();
                                     boss.base::template riseup<tier::release, e2::form::proceed::detach>(backup);
@@ -1314,7 +1311,7 @@ utility like ctags is used to locate the definitions.
                          ->plugin<pro::fader>(x1, c1, 150ms)
                          ->invoke([&](auto& boss)
                             {
-                                boss.SUBMIT(tier::release, e2::hids::mouse::button::click::left, gear)
+                                boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                                 {
                                     auto backup = boss.This();
                                     boss.base::template riseup<tier::release, e2::form::proceed::detach>(backup);
@@ -1334,7 +1331,7 @@ utility like ctags is used to locate the definitions.
                              ->plugin<pro::fader>(x3, c3, 150ms)
                              ->invoke([&](ui::pads& boss)
                                 {
-                                    boss.SUBMIT(tier::release, e2::hids::mouse::button::dblclick::left, gear)
+                                    boss.SUBMIT(tier::release, hids::events::mouse::button::dblclick::left, gear)
                                     {
                                         auto backup = boss.This();
                                         boss.base::template riseup<tier::release, e2::form::proceed::detach>(backup);
@@ -1350,7 +1347,7 @@ utility like ctags is used to locate the definitions.
                          ->plugin<pro::fader>(x1, c1, 150ms)
                          ->invoke([&](auto& boss)
                             {
-                                boss.SUBMIT(tier::release, e2::hids::mouse::button::click::left, gear)
+                                boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                                 {
                                     auto backup = boss.This();
                                     boss.base::template riseup<tier::release, e2::form::proceed::detach>(backup);
@@ -1371,7 +1368,7 @@ utility like ctags is used to locate the definitions.
                 ->plugin<pro::focus>()
                 ->invoke([&](ui::cake& boss)
                 {
-                    boss.SUBMIT(tier::release, e2::hids::mouse::button::click::left, gear)
+                    boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                     {
                         auto& area = boss.base::area();
                         if (!area.size.inside(gear.coord))
@@ -1382,13 +1379,13 @@ utility like ctags is used to locate the definitions.
                         }
                         boss.base::deface();
                     };
-                    boss.SUBMIT(tier::release, e2::hids::mouse::button::click::leftright, gear)
+                    boss.SUBMIT(tier::release, hids::events::mouse::button::click::leftright, gear)
                     {
                         auto backup = boss.This();
                         boss.base::detach();
                         gear.dismiss();
                     };
-                    boss.SUBMIT(tier::release, e2::hids::mouse::button::click::middle, gear)
+                    boss.SUBMIT(tier::release, hids::events::mouse::button::click::middle, gear)
                     {
                         auto backup = boss.This();
                         boss.base::detach();
@@ -1467,7 +1464,7 @@ utility like ctags is used to locate the definitions.
                                        ->plugin<pro::mover>(window);
                     auto strob_shadow = ptr::shadow(strob);
                     bool stobe_state = true;
-                    strob->SUBMIT_BYVAL(tier::general, e2::timer::tick, now)
+                    strob->SUBMIT_BYVAL(tier::general, e2::tick, now)
                     {
                         stobe_state = !stobe_state;
                         if (auto strob = strob_shadow.lock())
@@ -1482,7 +1479,7 @@ utility like ctags is used to locate the definitions.
                 {
                     window->plugin<pro::title>("Frame rate adjustment")
                           ->plugin<pro::align>();
-                    window->attach<ui::stem_rate<tier::general, e2::timer::fps>>("Set frame rate", 1, 200, "fps")
+                    window->attach<ui::stem_rate<tier::general, e2::config::fps>>("Set frame rate", 1, 200, "fps")
                           ->color(0xFFFFFFFF, bluedk);
                     break;
                 }
@@ -1688,7 +1685,7 @@ utility like ctags is used to locate the definitions.
                             if (vtm_count < max_vtm)
                             {
                                 auto c = &vtm_count; (*c)++;
-                                scroll->attach<ui::term>("vtm")
+                                scroll->attach<app::term>("vtm")
                                       ->colors(whitelt, blackdk)
                                       ->SUBMIT_BYVAL(tier::release, e2::dtor, item_id)
                                         {
@@ -1722,7 +1719,7 @@ utility like ctags is used to locate the definitions.
                         auto layers = object->attach<slot::_2, ui::cake>()
                                             ->plugin<pro::limit>(dot_11, twod{ 400,200 });
                             auto scroll = layers->attach<ui::rail>();
-                            scroll->attach<ui::term>("far")
+                            scroll->attach<app::term>("far")
                                   ->colors(whitelt, blackdk);
                         layers->attach(scroll_bars_term(scroll));
                     break;
@@ -1747,25 +1744,25 @@ utility like ctags is used to locate the definitions.
 
                             #if defined(_WIN32)
 
-                                auto inst = scroll->attach<ui::term>("wsl mc");
+                                auto inst = scroll->attach<app::term>("wsl mc");
 
                             #elif defined(__linux__)
                                 #ifndef PROD
-                                    auto inst = scroll->attach<ui::term>("bash -c 'LC_ALL=en_US.UTF-8 mc -c -x -d'");
+                                    auto inst = scroll->attach<app::term>("bash -c 'LC_ALL=en_US.UTF-8 mc -c -x -d'");
                                 #else
-                                    auto inst = scroll->attach<ui::term>("bash -c 'LC_ALL=en_US.UTF-8 mc -c -x'");
+                                    auto inst = scroll->attach<app::term>("bash -c 'LC_ALL=en_US.UTF-8 mc -c -x'");
                                 #endif
                             #elif defined(__APPLE__)
 
-                                auto inst = scroll->attach<ui::term>("zsh -c 'LC_ALL=en_US.UTF-8 mc -c -x'");
+                                auto inst = scroll->attach<app::term>("zsh -c 'LC_ALL=en_US.UTF-8 mc -c -x'");
 
                             #elif defined(__FreeBSD__)
 
-                                auto inst = scroll->attach<ui::term>("csh -c 'LC_ALL=en_US.UTF-8 mc -c -x'");
+                                auto inst = scroll->attach<app::term>("csh -c 'LC_ALL=en_US.UTF-8 mc -c -x'");
 
                             #elif defined(__unix__)
 
-                                auto inst = scroll->attach<ui::term>("sh -c 'LC_ALL=en_US.UTF-8 mc -c -x'");
+                                auto inst = scroll->attach<app::term>("sh -c 'LC_ALL=en_US.UTF-8 mc -c -x'");
 
                             #endif
 
@@ -1789,30 +1786,30 @@ utility like ctags is used to locate the definitions.
                                     std::pair<text, std::function<void(ui::pads&)>>{ "T1",
                                     [](ui::pads& boss)
                                     {
-                                        boss.SUBMIT(tier::release, e2::hids::mouse::button::click::left, gear)
+                                        boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                                         {
                                             auto data = "ls /bin\n"s;
-                                            boss.base::broadcast->SIGNAL(tier::preview, app::term::data::out, data);
+                                            boss.base::broadcast->SIGNAL(tier::preview, app::term::events::data::out, data);
                                             gear.dismiss(true);
                                         };
                                     }},
                                     std::pair<text, std::function<void(ui::pads&)>>{ "T2",
                                     [](ui::pads& boss)
                                     {
-                                        boss.SUBMIT(tier::release, e2::hids::mouse::button::click::left, gear)
+                                        boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                                         {
                                             auto data = "ping -c 3 127.0.0.1 | ccze -A\n"s;
-                                            boss.base::broadcast->SIGNAL(tier::preview, app::term::data::out, data);
+                                            boss.base::broadcast->SIGNAL(tier::preview, app::term::events::data::out, data);
                                             gear.dismiss(true);
                                         };
                                     }},
                                     std::pair<text, std::function<void(ui::pads&)>>{ "T3",
                                     [](ui::pads& boss)
                                     {
-                                        boss.SUBMIT(tier::release, e2::hids::mouse::button::click::left, gear)
+                                        boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                                         {
                                             auto data = "curl wttr.in\n"s;
-                                            boss.base::broadcast->SIGNAL(tier::preview, app::term::data::out, data);
+                                            boss.base::broadcast->SIGNAL(tier::preview, app::term::events::data::out, data);
                                             gear.dismiss(true);
                                         };
                                     }},
@@ -1821,9 +1818,9 @@ utility like ctags is used to locate the definitions.
                                     std::pair<text, std::function<void(ui::pads&)>>{ "Clear",
                                     [](ui::pads& boss)
                                     {
-                                        boss.SUBMIT(tier::release, e2::hids::mouse::button::click::left, gear)
+                                        boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                                         {
-                                            boss.base::broadcast->SIGNAL(tier::preview, app::term::cmd, ui::term::commands::clear);
+                                            boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, app::term::commands::clear);
                                             gear.dismiss(true);
                                         };
                                     }},
@@ -1831,21 +1828,21 @@ utility like ctags is used to locate the definitions.
                                     std::pair<text, std::function<void(ui::pads&)>>{ "Reset",
                                     [](ui::pads& boss)
                                     {
-                                        boss.SUBMIT(tier::release, e2::hids::mouse::button::click::left, gear)
+                                        boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                                         {
-                                            boss.base::broadcast->SIGNAL(tier::preview, app::term::cmd, ui::term::commands::reset);
+                                            boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, app::term::commands::reset);
                                             gear.dismiss(true);
                                         };
                                     }},
                                     std::pair<text, std::function<void(ui::pads&)>>{ "=─",
                                     [](ui::pads& boss)
                                     {
-                                        boss.SUBMIT(tier::release, e2::hids::mouse::button::click::left, gear)
+                                        boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                                         {
-                                            boss.base::broadcast->SIGNAL(tier::preview, app::term::cmd, ui::term::commands::left);
+                                            boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, app::term::commands::left);
                                             gear.dismiss(true);
                                         };
-                                        boss.base::broadcast->SUBMIT(tier::release, app::term::layout::align, align)
+                                        boss.base::broadcast->SUBMIT(tier::release, app::term::events::layout::align, align)
                                         {
                                             //todo unify, get boss base colors, don't use x3
                                             boss.color(align == bias::left ? 0xFF00ff00 : x3.fgc(), x3.bgc());
@@ -1855,12 +1852,12 @@ utility like ctags is used to locate the definitions.
                                     std::pair<text, std::function<void(ui::pads&)>>{ "─=─",
                                     [](ui::pads& boss)
                                     {
-                                        boss.SUBMIT(tier::release, e2::hids::mouse::button::click::left, gear)
+                                        boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                                         {
-                                            boss.base::broadcast->SIGNAL(tier::preview, app::term::cmd, ui::term::commands::center);
+                                            boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, app::term::commands::center);
                                             gear.dismiss(true);
                                         };
-                                        boss.base::broadcast->SUBMIT(tier::release, app::term::layout::align, align)
+                                        boss.base::broadcast->SUBMIT(tier::release, app::term::events::layout::align, align)
                                         {
                                             //todo unify, get boss base colors, don't use x3
                                             boss.color(align == bias::center ? 0xFF00ff00 : x3.fgc(), x3.bgc());
@@ -1869,12 +1866,12 @@ utility like ctags is used to locate the definitions.
                                     std::pair<text, std::function<void(ui::pads&)>>{ "─=",
                                     [](ui::pads& boss)
                                     {
-                                        boss.SUBMIT(tier::release, e2::hids::mouse::button::click::left, gear)
+                                        boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                                         {
-                                            boss.base::broadcast->SIGNAL(tier::preview, app::term::cmd, ui::term::commands::right);
+                                            boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, app::term::commands::right);
                                             gear.dismiss(true);
                                         };
-                                        boss.base::broadcast->SUBMIT(tier::release, app::term::layout::align, align)
+                                        boss.base::broadcast->SUBMIT(tier::release, app::term::events::layout::align, align)
                                         {
                                             //todo unify, get boss base colors, don't use x3
                                             boss.color(align == bias::right ? 0xFF00ff00 : x3.fgc(), x3.bgc());
@@ -1883,13 +1880,12 @@ utility like ctags is used to locate the definitions.
                                     std::pair<text, std::function<void(ui::pads&)>>{ "Wrap",
                                     [](ui::pads& boss)
                                     {
-                                        boss.SUBMIT(tier::release, e2::hids::mouse::button::click::left, gear)
+                                        boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                                         {
-                                            //boss.base::broadcast->SIGNAL(tier::preview, app::term::cmd, ui::term::commands::togglewrp);
-                                            boss.base::broadcast->SIGNAL(tier::preview, ui::term::app::term::cmd, ui::term::commands::togglewrp);
+                                            boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, app::term::commands::togglewrp);
                                             gear.dismiss(true);
                                         };
-                                        boss.base::broadcast->SUBMIT(tier::release, app::term::layout::wrapln, wrapln)
+                                        boss.base::broadcast->SUBMIT(tier::release, app::term::events::layout::wrapln, wrapln)
                                         {
                                             //todo unify, get boss base colors, don't use x3
                                             boss.color(wrapln == wrap::on ? 0xFF00ff00 : x3.fgc(), x3.bgc());
@@ -1909,23 +1905,23 @@ utility like ctags is used to locate the definitions.
 
                                     #if defined(_WIN32)
 
-                                        auto inst = scroll->attach<ui::term>("bash");
+                                        auto inst = scroll->attach<app::term>("bash");
 
                                     #elif defined(__linux__)
 
-                                        auto inst = scroll->attach<ui::term>("bash");
+                                        auto inst = scroll->attach<app::term>("bash");
 
                                     #elif defined(__APPLE__)
 
-                                        auto inst = scroll->attach<ui::term>("zsh");
+                                        auto inst = scroll->attach<app::term>("zsh");
 
                                     #elif defined(__FreeBSD__)
 
-                                        auto inst = scroll->attach<ui::term>("csh");
+                                        auto inst = scroll->attach<app::term>("csh");
 
                                     #elif defined(__unix__)
 
-                                        auto inst = scroll->attach<ui::term>("sh");
+                                        auto inst = scroll->attach<app::term>("sh");
 
                                     #endif
 
@@ -1950,18 +1946,18 @@ utility like ctags is used to locate the definitions.
                                     std::pair<text, std::function<void(ui::pads&)>>{ ansi::esc("C").und(true).add("l").nil().add("ear"),
                                     [](ui::pads& boss)
                                     {
-                                        boss.SUBMIT(tier::release, e2::hids::mouse::button::click::left, gear)
+                                        boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                                         {
-                                            boss.base::broadcast->SIGNAL(tier::preview, app::term::cmd, ui::term::commands::clear);
+                                            boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, app::term::commands::clear);
                                             gear.dismiss(true);
                                         };
                                     }},
                                     std::pair<text, std::function<void(ui::pads&)>>{ ansi::esc("R").und(true).add("e").nil().add("set"),
                                     [](ui::pads& boss)
                                     {
-                                        boss.SUBMIT(tier::release, e2::hids::mouse::button::click::left, gear)
+                                        boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                                         {
-                                            boss.base::broadcast->SIGNAL(tier::preview, app::term::cmd, ui::term::commands::reset);
+                                            boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, app::term::commands::reset);
                                             gear.dismiss(true);
                                         };
                                     }},
@@ -1973,7 +1969,7 @@ utility like ctags is used to locate the definitions.
                                 auto scroll = layers->attach<ui::rail>()
                                                     ->plugin<pro::mover>(window)
                                                     ->colors(whitelt, 0xFF560000);
-                                    scroll->attach<ui::term>("powershell")
+                                    scroll->attach<app::term>("powershell")
                                         ->colors(whitelt, 0xFF562401);
                             auto scroll_bars = layers->attach<ui::fork>();
                                 auto vt = scroll_bars->attach<slot::_2, ui::grip<axis::Y>>(scroll);
@@ -1994,18 +1990,18 @@ utility like ctags is used to locate the definitions.
                                     std::pair<text, std::function<void(ui::pads&)>>{ ansi::esc("C").und(true).add("l").nil().add("ear"),
                                     [](ui::pads& boss)
                                     {
-                                        boss.SUBMIT(tier::release, e2::hids::mouse::button::click::left, gear)
+                                        boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                                         {
-                                            boss.base::broadcast->SIGNAL(tier::preview, app::term::cmd, ui::term::commands::clear);
+                                            boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, app::term::commands::clear);
                                             gear.dismiss(true);
                                         };
                                     }},
                                     std::pair<text, std::function<void(ui::pads&)>>{ ansi::esc("R").und(true).add("e").nil().add("set"),
                                     [](ui::pads& boss)
                                     {
-                                        boss.SUBMIT(tier::release, e2::hids::mouse::button::click::left, gear)
+                                        boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                                         {
-                                            boss.base::broadcast->SIGNAL(tier::preview, app::term::cmd, ui::term::commands::reset);
+                                            boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, app::term::commands::reset);
                                             gear.dismiss(true);
                                         };
                                     }},
@@ -2021,15 +2017,15 @@ utility like ctags is used to locate the definitions.
                         #endif
 
                             #if defined(_WIN32)
-                                auto inst = scroll->attach<ui::term>("cmd");
+                                auto inst = scroll->attach<app::term>("cmd");
                             #elif defined(__linux__)
-                                auto inst = scroll->attach<ui::term>("bash");
+                                auto inst = scroll->attach<app::term>("bash");
                             #elif defined(__APPLE__)
-                                auto inst = scroll->attach<ui::term>("zsh");
+                                auto inst = scroll->attach<app::term>("zsh");
                             #elif defined(__FreeBSD__)
-                                auto inst = scroll->attach<ui::term>("csh");
+                                auto inst = scroll->attach<app::term>("csh");
                             #elif defined(__unix__)
-                                auto inst = scroll->attach<ui::term>("sh");
+                                auto inst = scroll->attach<app::term>("sh");
                             #endif
 
                                 inst->colors(whitelt, blackdk);
@@ -2053,7 +2049,7 @@ utility like ctags is used to locate the definitions.
                                     std::pair<text, std::function<void(ui::pads&)>>{ "Codepoints",
                                     [](ui::pads& boss)
                                     {
-                                        boss.SUBMIT(tier::release, e2::hids::mouse::button::click::left, gear)
+                                        boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                                         {
                                             iota status = 1;
                                             boss.base::broadcast->SIGNAL(tier::request, e2::command::custom, status);
@@ -2069,7 +2065,7 @@ utility like ctags is used to locate the definitions.
                                     std::pair<text, std::function<void(ui::pads&)>>{ "Clear",
                                     [](ui::pads& boss)
                                     {
-                                        boss.SUBMIT(tier::release, e2::hids::mouse::button::click::left, gear)
+                                        boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                                         {
                                             boss.base::broadcast->SIGNAL(tier::preview, e2::command::custom, 0);
                                             gear.dismiss(true);
@@ -2086,7 +2082,7 @@ utility like ctags is used to locate the definitions.
                                   ->upload(ansi::fgc(yellowlt).mgl(4).mgr(4).wrp(wrap::off)
                                     + "\n\nLogs is not availabe in DEMO mode\n\n"
                                     + ansi::nil().wrp(wrap::on)
-                                    + "Use the full version of VTM to run Logs.");
+                                    + "Use the full version of vtm to run Logs.");
                             #else
                             scroll->attach<post_logs>()
                                   ->colors(whitelt, blackdk);
@@ -2105,7 +2101,7 @@ utility like ctags is used to locate the definitions.
                         auto& sizer = boss.template plugins<pro::sizer>();
                         sizer.props(outer, inner);
                         boss.SIGNAL(tier::preview, e2::form::prop::zorder, Z_order::backmost);
-                        boss.SUBMIT(tier::release, e2::hids::mouse::button::dblclick::left, gear)
+                        boss.SUBMIT(tier::release, hids::events::mouse::button::dblclick::left, gear)
                         {
                             auto& sizer = boss.template plugins<pro::sizer>();
                             auto [outer, inner] = sizer.get_props();
@@ -2148,7 +2144,7 @@ utility like ctags is used to locate the definitions.
                 log("inst: max count reached");
                 auto timeout = tempus::now() + del_timeout;
                 auto w_frame = wptr<ui::cake>{ frame };
-                frame->SUBMIT_BYVAL(tier::general, e2::timer::tick, timestamp)
+                frame->SUBMIT_BYVAL(tier::general, e2::tick, timestamp)
                 {
                     if (timestamp > timeout)
                     {
@@ -2205,7 +2201,7 @@ utility like ctags is used to locate the definitions.
                     auto frame = creator(current_default, location);
 
                     gear.kb_focus_taken = faux;
-                    frame->SIGNAL(tier::release, e2::form::upevent::kboffer, gear);
+                    frame->SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
                 }
             }
         };
@@ -2255,7 +2251,7 @@ utility like ctags is used to locate the definitions.
             creator(objs::RefreshRate, { twod{ 60, 41 } + sub_pos, { 35, 10 } });
         #endif
 
-        world->SIGNAL(tier::general, e2::timer::fps, 60);
+        world->SIGNAL(tier::general, e2::config::fps, 60);
 
         iota usr_count = 0;
         auto user = os::user();
@@ -2347,7 +2343,7 @@ utility like ctags is used to locate the definitions.
                                             ->invoke([&](auto& boss)
                                             {
                                                 auto data_src_shadow = ptr::shadow(data_src);
-                                                boss.SUBMIT_BYVAL(tier::release, e2::hids::mouse::button::click::left, gear)
+                                                boss.SUBMIT_BYVAL(tier::release, hids::events::mouse::button::click::left, gear)
                                                 {
                                                     if(auto data_src = data_src_shadow.lock())
                                                     {
@@ -2361,7 +2357,7 @@ utility like ctags is used to locate the definitions.
                                                         gear.dismiss();
                                                     }
                                                 };
-                                                boss.SUBMIT_BYVAL(tier::release, e2::hids::mouse::button::click::right, gear)
+                                                boss.SUBMIT_BYVAL(tier::release, hids::events::mouse::button::click::right, gear)
                                                 {
                                                     if(auto data_src = data_src_shadow.lock())
                                                     {
@@ -2394,7 +2390,7 @@ utility like ctags is used to locate the definitions.
                                                                 ->invoke([&](auto& boss)
                                                                 {
                                                                     auto data_src_shadow = ptr::shadow(data_src);
-                                                                    boss.SUBMIT_BYVAL(tier::release, e2::hids::mouse::button::click::left, gear)
+                                                                    boss.SUBMIT_BYVAL(tier::release, hids::events::mouse::button::click::left, gear)
                                                                     {
                                                                         if(auto data_src = data_src_shadow.lock())
                                                                         {
@@ -2423,7 +2419,7 @@ utility like ctags is used to locate the definitions.
                                                     {
                                                         boss.mouse.take_all_events(faux);
                                                         auto data_src_shadow = ptr::shadow(data_src);
-                                                        boss.SUBMIT_BYVAL(tier::release, e2::hids::mouse::button::click::left, gear)
+                                                        boss.SUBMIT_BYVAL(tier::release, hids::events::mouse::button::click::left, gear)
                                                         {
                                                             if(auto data_src = data_src_shadow.lock())
                                                             {
@@ -2444,7 +2440,7 @@ utility like ctags is used to locate the definitions.
                                                                 gear.dismiss();
                                                             }
                                                         };
-                                                        boss.SUBMIT_BYVAL(tier::release, e2::hids::mouse::button::click::right, gear)
+                                                        boss.SUBMIT_BYVAL(tier::release, hids::events::mouse::button::click::right, gear)
                                                         {
                                                             if(auto data_src = data_src_shadow.lock())
                                                             {
@@ -2489,7 +2485,7 @@ utility like ctags is used to locate the definitions.
                                                     ->invoke([&](auto& boss)
                                                     {
                                                         boss.mouse.take_all_events(faux);
-                                                        boss.SUBMIT_BYVAL(tier::release, e2::hids::mouse::button::click::left, gear)
+                                                        boss.SUBMIT_BYVAL(tier::release, hids::events::mouse::button::click::left, gear)
                                                         {
                                                             if (auto client = client_shadow.lock())
                                                             {
@@ -2497,7 +2493,7 @@ utility like ctags is used to locate the definitions.
                                                                 gear.dismiss();
                                                             }
                                                         };
-                                                        boss.SUBMIT_BYVAL(tier::release, e2::hids::mouse::button::dblclick::left, gear)
+                                                        boss.SUBMIT_BYVAL(tier::release, hids::events::mouse::button::dblclick::left, gear)
                                                         {
                                                             if (auto world = world_shadow.lock())
                                                             {
@@ -2630,7 +2626,7 @@ utility like ctags is used to locate the definitions.
                                                 {
                                                     auto task_menu_area_shadow = ptr::shadow(task_menu_area);
                                                     auto bttn_shadow = ptr::shadow(bttn);
-                                                    boss.SUBMIT_BYVAL(tier::release, e2::hids::mouse::button::click::left, gear)
+                                                    boss.SUBMIT_BYVAL(tier::release, hids::events::mouse::button::click::left, gear)
                                                     {
                                                         if(auto bttn = bttn_shadow.lock())
                                                         if(auto task_menu_area = task_menu_area_shadow.lock())
@@ -2684,7 +2680,7 @@ utility like ctags is used to locate the definitions.
                                                 {
                                                     auto userlist_area_shadow = ptr::shadow(userlist_area);
                                                     auto bttn_shadow = ptr::shadow(bttn);
-                                                    boss.SUBMIT_BYVAL(tier::release, e2::hids::mouse::button::click::left, gear)
+                                                    boss.SUBMIT_BYVAL(tier::release, hids::events::mouse::button::click::left, gear)
                                                     {
                                                         static bool state = faux;
                                                         if(auto bttn = bttn_shadow.lock())
@@ -2709,11 +2705,11 @@ utility like ctags is used to locate the definitions.
                                                                 ->plugin<pro::fader>(x2, c2, 150ms)
                                                                 ->invoke([&](auto& boss)
                                                                 {
-                                                                    boss.SUBMIT(tier::release, e2::hids::mouse::button::click::left, gear)
+                                                                    boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                                                                     {
                                                                         if (auto owner = base::getref(gear.id))
                                                                         {
-                                                                            owner->SIGNAL(tier::release, e2::term::quit, "taskbar: logout by button");
+                                                                            owner->SIGNAL(tier::release, e2::conio::quit, "taskbar: logout by button");
                                                                             gear.dismiss();
                                                                         }
                                                                     };
@@ -2723,7 +2719,7 @@ utility like ctags is used to locate the definitions.
                                                             ->plugin<pro::fader>(x1, c1, 150ms)
                                                             ->invoke([&](auto& boss)
                                                             {
-                                                                boss.SUBMIT(tier::release, e2::hids::mouse::button::click::left, gear)
+                                                                boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                                                                 {
                                                                     //todo unify, see system.h:1614
                                                                     #if defined(__APPLE__) || defined(__FreeBSD__)
@@ -2764,7 +2760,7 @@ utility like ctags is used to locate the definitions.
                 log("main: new thread constructed for ", peer);
             }
 
-            world->SIGNAL(tier::general, e2::timer::fps, 0);
+            world->SIGNAL(tier::general, e2::config::fps, 0);
         }
     }
     os::exit(0, "bye!");
