@@ -6,7 +6,6 @@
 #include <fstream> // std::ifstream
 
 using namespace netxs;
-using namespace netxs::console;
 using namespace std::chrono_literals;
 
 int main(int argc, char* argv[])

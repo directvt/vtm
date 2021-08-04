@@ -11,22 +11,22 @@
 
 #include "text/utf.hpp"
 
-namespace utils
+namespace netxs
 {
     namespace table
     {
         template<class char_T>
-        inline std::basic_string<char_T> convert(std::string const& str)
+        inline std::basic_string<char_T> convert(text const& str)
         {
             return std::basic_string<char_T>();
         }
         template <>
-        inline std::basic_string<char> convert<char>(std::string const& str)
+        inline std::basic_string<char> convert<char>(text const& str)
         {
             return str;
         }
         template <>
-        inline std::basic_string<wchar_t> convert<wchar_t>(std::string const& str)
+        inline std::basic_string<wchar_t> convert<wchar_t>(text const& str)
         {
             return utf::to_utf(str);
         }
@@ -46,7 +46,7 @@ namespace utils
             cell<W> values;
             for (auto& line : obj)
             {
-                values.push_back(utils::utf::to_utf(line));
+                values.push_back(utf::to_utf(line));
             }
             return values;
         }
@@ -90,7 +90,7 @@ namespace utils
                 {
                     for (size_t cell = 0; cell < row.size(); cell++)
                     {
-                        size_t max_width = 1 + utils::utf::maxlen(row[cell]) + 1;
+                        size_t max_width = 1 + utf::maxlen(row[cell]) + 1;
                         if (max_width > widths[cell])
                         {
                             widths[cell] = max_width;
@@ -105,16 +105,16 @@ namespace utils
                     line << left;
                     for (size_t i = 0; i + 1 < columns_count; i++)
                     {
-                        line << utils::utf::repeat(horizontal, widths[i]) << inner;
+                        line << utf::repeat(horizontal, widths[i]) << inner;
                     }
-                    line << utils::utf::repeat(horizontal, widths.back()) << right;
+                    line << utf::repeat(horizontal, widths.back()) << right;
                 };
 
                 stroke(top_left, top_cross, top_right);
                 for (size_t r = 0; r < table.size(); r++)
                 {
                     auto&  row_values = table[r];
-                    size_t rows_count = utils::utf::maxlen(row_values);
+                    size_t rows_count = utf::maxlen(row_values);
 
                     for (size_t j = 0; j < rows_count; j++)
                     {
@@ -122,7 +122,7 @@ namespace utils
                         for (size_t i = 0; i < columns_count; i++)
                         {
                             std::basic_string<T> cell_line = (j < row_values[i].size()) ? row_values[i][j] : empty;
-                            line << utils::utf::adjust(space + cell_line, widths[i], space);
+                            line << utf::adjust(space + cell_line, widths[i], space);
                             line << vertical;
                         }
                         line << end_line;

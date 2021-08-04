@@ -12,8 +12,8 @@
 
 namespace netxs::ui
 {
-    using namespace netxs::console;
     using namespace netxs::ui::atoms;
+    using namespace netxs::console;
 
     enum slot : id_t { _1, _2 };
     enum axis : id_t { X, Y };
@@ -932,8 +932,8 @@ namespace netxs::ui
                 }
             };
 
-            using bttn = e2::hids::mouse::button;
-            SUBMIT(tier::release, e2::hids::mouse::scroll::any, gear)
+            using bttn = hids::events::mouse::button;
+            SUBMIT(tier::release, hids::events::mouse::scroll::any, gear)
             {
                 auto dir = gear.whldt > 0;
                 if (permit == axes::ONLY_X || gear.meta(hids::ANYCTRL |
@@ -980,7 +980,7 @@ namespace netxs::ui
                     giveup(gear);
                 }
             };
-            SUBMIT(tier::general, e2::hids::mouse::gone, gear)
+            SUBMIT(tier::general, hids::events::die, gear)
             {
                 if (gear.captured(bell::id))
                 {
@@ -1221,8 +1221,8 @@ namespace netxs::ui
         pro::timer timer{*this }; // grip: Minimize by timeout.
         pro::limit limit{*this }; // grip: Size limits.
 
-        using wptr = netxs::wptr<bell>;
-        using sptr = netxs::sptr<bell>;
+        using wptr = netxs::wptr<base>;
+        using sptr = netxs::sptr<base>;
 
         enum activity
         {
@@ -1370,7 +1370,7 @@ namespace netxs::ui
             {
                 if (gear.captured(bell::id))
                 {
-                    if (this->bell::protos<tier::release>(e2::hids::mouse::button::drag::cancel::right))
+                    if (this->bell::protos<tier::release>(hids::events::mouse::button::drag::cancel::right))
                     {
                         gohome();
                     }
@@ -1409,8 +1409,8 @@ namespace netxs::ui
                 calc.resize(new_size);
             };
 
-            using bttn = e2::hids::mouse::button;
-            SUBMIT(tier::release, e2::hids::mouse::scroll::any, gear)
+            using bttn = hids::events::mouse::button;
+            SUBMIT(tier::release, hids::events::mouse::scroll::any, gear)
             {
                 if (gear.whldt)
                 {
@@ -1420,15 +1420,15 @@ namespace netxs::ui
                     gear.dismiss();
                 }
             };
-            SUBMIT(tier::release, e2::hids::mouse::move, gear)
+            SUBMIT(tier::release, hids::events::mouse::move, gear)
             {
                 calc.cursor_pos = xy(gear.mouse::coord);
             };
-            SUBMIT(tier::release, e2::hids::mouse::button::dblclick::left, gear)
+            SUBMIT(tier::release, hids::events::mouse::button::dblclick::left, gear)
             {
                 gear.dismiss(); // Do not pass double clicks outside.
             };
-            SUBMIT(tier::release, e2::hids::mouse::button::down::any, gear)
+            SUBMIT(tier::release, hids::events::mouse::button::down::any, gear)
             {
                 if (!on_pager)
                 if (this->bell::protos<tier::release>(bttn::down::left ) ||
@@ -1455,7 +1455,7 @@ namespace netxs::ui
                     }
                 }
             };
-            SUBMIT(tier::release, e2::hids::mouse::button::up::any, gear)
+            SUBMIT(tier::release, hids::events::mouse::button::up::any, gear)
             {
                 if (on_pager && gear.captured(bell::id))
                 {
@@ -1470,7 +1470,7 @@ namespace netxs::ui
                     }
                 }
             };
-            SUBMIT(tier::release, e2::hids::mouse::button::up::right, gear)
+            SUBMIT(tier::release, hids::events::mouse::button::up::right, gear)
             {
                 //if (!gear.captured(bell::id)) //todo why?
                 {
@@ -1479,7 +1479,7 @@ namespace netxs::ui
                 }
             };
 
-            SUBMIT(tier::release, e2::hids::mouse::button::drag::start::any, gear)
+            SUBMIT(tier::release, hids::events::mouse::button::drag::start::any, gear)
             {
                 if (on_pager) gear.dismiss();
                 else
@@ -1490,7 +1490,7 @@ namespace netxs::ui
                     }
                 }
             };
-            SUBMIT(tier::release, e2::hids::mouse::button::drag::pull::any, gear)
+            SUBMIT(tier::release, hids::events::mouse::button::drag::pull::any, gear)
             {
                 if (on_pager) gear.dismiss();
                 else
@@ -1506,15 +1506,15 @@ namespace netxs::ui
                     }
                 }
             };
-            SUBMIT(tier::release, e2::hids::mouse::button::drag::cancel::any, gear)
+            SUBMIT(tier::release, hids::events::mouse::button::drag::cancel::any, gear)
             {
                 giveup(gear);
             };
-            SUBMIT(tier::general, e2::hids::mouse::gone, gear)
+            SUBMIT(tier::general, hids::events::die, gear)
             {
                 giveup(gear);
             };
-            SUBMIT(tier::release, e2::hids::mouse::button::drag::stop::any, gear)
+            SUBMIT(tier::release, hids::events::mouse::button::drag::stop::any, gear)
             {
                 if (on_pager) gear.dismiss();
                 else
@@ -1547,7 +1547,7 @@ namespace netxs::ui
                 if (active) apply(activity::mouse_hover);
                 else timer.actify(activity::mouse_leave, ACTIVE_TIMEOUT, apply);
             };
-            //SUBMIT(tier::release, e2::hids::mouse::move, gear)
+            //SUBMIT(tier::release, hids::events::mouse::move, gear)
             //{
             //	auto apply = [&](auto active)
             //	{
@@ -1990,7 +1990,7 @@ namespace netxs::ui
                 grip_ctl = create<stem_rate_grip>(grip_suffix);
                 grip_ctl->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
 
-                grip_ctl->SUBMIT(tier::release, e2::hids::mouse::button::drag::start::left, gear)
+                grip_ctl->SUBMIT(tier::release, hids::events::mouse::button::drag::start::left, gear)
                 {
                     if (gear.capture(grip_ctl->id))
                     {
@@ -1998,7 +1998,7 @@ namespace netxs::ui
                         gear.dismiss();
                     }
                 };
-                grip_ctl->SUBMIT(tier::release, e2::hids::mouse::button::drag::pull::left, gear)
+                grip_ctl->SUBMIT(tier::release, hids::events::mouse::button::drag::pull::left, gear)
                 {
                     if (gear.captured(grip_ctl->id))
                     {
@@ -2007,15 +2007,15 @@ namespace netxs::ui
                         gear.dismiss();
                     }
                 };
-                grip_ctl->SUBMIT(tier::release, e2::hids::mouse::button::drag::cancel::left, gear)
+                grip_ctl->SUBMIT(tier::release, hids::events::mouse::button::drag::cancel::left, gear)
                 {
                     giveup(gear);
                 };
-                grip_ctl->SUBMIT(tier::general, e2::hids::mouse::gone, gear)
+                grip_ctl->SUBMIT(tier::general, hids::events::die, gear)
                 {
                     giveup(gear);
                 };
-                grip_ctl->SUBMIT(tier::release, e2::hids::mouse::button::drag::stop::left, gear)
+                grip_ctl->SUBMIT(tier::release, hids::events::mouse::button::drag::stop::left, gear)
                 {
                     if (gear.captured(grip_ctl->id))
                     {
@@ -2029,12 +2029,12 @@ namespace netxs::ui
                         gear.dismiss();
                     }
                 };
-                grip_ctl->SUBMIT(tier::release, e2::hids::mouse::scroll::up, gear)
+                grip_ctl->SUBMIT(tier::release, hids::events::mouse::scroll::up, gear)
                 {
                     move_grip(cur_val - 1);
                     gear.dismiss();
                 };
-                grip_ctl->SUBMIT(tier::release, e2::hids::mouse::scroll::down, gear)
+                grip_ctl->SUBMIT(tier::release, hids::events::mouse::scroll::down, gear)
                 {
                     move_grip(cur_val + 1);
                     gear.dismiss();
@@ -2045,18 +2045,18 @@ namespace netxs::ui
                 };
                 recalc();
             };
-            SUBMIT(tier::release, e2::hids::mouse::button::click::right, gear)
+            SUBMIT(tier::release, hids::events::mouse::button::click::right, gear)
             {
                 color(canvas.mark().fgc(), (tint)((++bgclr) % 16));
                 deface();
                 gear.dismiss();
             };
-            SUBMIT(tier::release, e2::hids::mouse::scroll::up, gear)
+            SUBMIT(tier::release, hids::events::mouse::scroll::up, gear)
             {
                 move_grip(cur_val - 10);
                 gear.dismiss();
             };
-            SUBMIT(tier::release, e2::hids::mouse::scroll::down, gear)
+            SUBMIT(tier::release, hids::events::mouse::scroll::down, gear)
             {
                 move_grip(cur_val + 10);
                 gear.dismiss();

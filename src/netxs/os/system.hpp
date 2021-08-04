@@ -89,11 +89,8 @@
 namespace netxs::os
 {
     using list = std::vector<text>;
-    using ui32 = uint32_t;
-    using iota = int32_t;
     using xipc = std::shared_ptr<class ipc>;
     using namespace std::chrono_literals;
-    using namespace netxs::console;
     using namespace netxs::ui::atoms;
 
     enum role { client, server };
@@ -2065,12 +2062,12 @@ namespace netxs::os
                                 case MOUSE_EVENT:
                                     break;
                                 case WINDOW_BUFFER_SIZE_EVENT: // Valid only for alt buffer.
-                                    yield += console::ansi::win({
+                                    yield += ansi::win({
                                         reply.Event.WindowBufferSizeEvent.dwSize.X,
                                         reply.Event.WindowBufferSizeEvent.dwSize.Y });
                                     break;
                                 case FOCUS_EVENT:
-                                    yield += console::ansi::fcs(
+                                    yield += ansi::fcs(
                                         reply.Event.FocusEvent.bSetFocus);
                                     break;
                                 default:

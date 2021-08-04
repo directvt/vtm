@@ -13,9 +13,10 @@
 
 namespace netxs::ui::atoms
 {
-    using utf::text;
-    using utf::view;
-    using id_t = netxs::events::bell::id_t;
+    using netxs::events::id_t;
+    using netxs::utf::text;
+    using netxs::utf::view;
+    using netxs::utf::qiew;
 
     static const char whitespace = 0x20;
     //static const char whitespace = '.';
@@ -173,11 +174,11 @@ namespace netxs::ui::atoms
             return chan.a;
         }
         // rgba: Colourimetric (perceptual luminance-preserving) conversion to greyscale.
-        auto luma() const
+        auto constexpr luma() const
         {
-            return static_cast<uint8_t>(0.2627 * chan.r
-                                      + 0.6780 * chan.g
-                                      + 0.0593 * chan.b);
+            return static_cast<uint8_t>(0.2627 * ((token & 0x0000FF) >> 0)
+                                      + 0.6780 * ((token & 0x00FF00) >> 8)
+                                      + 0.0593 * ((token & 0xFF0000) >> 16));
         }
         // rgba: Return 256-color 6x6x6 cube.
         auto to256cube() const

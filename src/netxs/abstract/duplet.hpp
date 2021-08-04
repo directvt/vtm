@@ -4,22 +4,15 @@
 #ifndef NETXS_DUPLET_HPP
 #define NETXS_DUPLET_HPP
 
-#include "../math/intmath.hpp"
+#include "../text/utf.hpp"
 #include "../abstract/fifo.hpp"
-
-#include <string>
 
 #if defined(__linux__) || defined(__APPLE__)
     #include <stdint.h>
 #endif
 
-#ifndef faux
-    #define faux (false)
-#endif
-
 namespace netxs
 {
-    using iota = int32_t;
     using fifo = netxs::generics::fifo<iota>;
 
     template<class T = int>

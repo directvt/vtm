@@ -8,6 +8,7 @@
 
 #include "../abstract/ptr.hpp"
 #include "../abstract/hash.hpp"
+#include "../abstract/duplet.hpp"
 
 #include <vector>
 #include <mutex>
@@ -17,12 +18,10 @@
 #include <optional>
 #include <thread>
 
-#ifndef faux
-    #define faux (false)
-#endif
-
 namespace netxs::events
 {
+    using type = unsigned int;
+
     enum class tier
     {
         // Forward means from particular to general: 1. event_group::item, 2. event_group::any
@@ -64,11 +63,6 @@ namespace netxs::events
        ~try_sync() { }
     };
 
-    using type = unsigned int;
-    static const type _root_event = 0;
-    static constexpr unsigned int width = 4;
-    static constexpr unsigned int _mask = (1 << width) - 1;
-
     /*************************************************************************************************
     toplevel = 0
 
@@ -84,6 +78,8 @@ namespace netxs::events
     =  =  =  =
     **************************************************************************************************/
 
+    static constexpr unsigned int width = 4;
+    static constexpr unsigned int _mask = (1 << width) - 1;
     // events: Return item/msg level by its ID.
     constexpr static iota level(type msg)
     {
@@ -95,6 +91,11 @@ namespace netxs::events
         }
         return level;
     }
+    // events: Return item/msg bit shift.
+    constexpr static iota level_width(type msg)
+    {
+        return level(msg) * width;
+    }
     // events: Return item/msg global level mask by its ID.
     constexpr static unsigned int level_mask(type msg)
     {
@@ -105,7 +106,6 @@ namespace netxs::events
         }
         return (1 << level) - 1;
     }
-
     // events: Increament level offset by width and return item's subgroup ID fof the specified level offset.
     template<class T>
     constexpr static T subgroup(T msg, type& itermask)
@@ -130,7 +130,7 @@ namespace netxs::events
     template<class T>
     constexpr static const T message(T base, type item)
     {
-        return static_cast<T>(base | ((item + 1) << level(base) * width));
+        return static_cast<T>(base | ((item + 1) << level_width(base)));
     }
     // events: Return item index inside the group by its ID.
     constexpr static unsigned int item(type msg)
@@ -148,6 +148,8 @@ namespace netxs::events
         return _instantiate<N>(base, std::make_index_sequence<N>{});
     }
 
+    using hint = events::type;
+    using id_t = uint32_t;
     struct reactor
     {
         struct handler
@@ -160,7 +162,6 @@ namespace netxs::events
         using hook =             sptr<handler>;
         using list = std::list  <wptr<handler>>;
         using vect = std::vector<wptr<handler>>;
-        using hint = events::type;
 
         template <typename F>
         struct wrapper : handler
@@ -212,18 +213,6 @@ namespace netxs::events
 
             return proc_ptr;
         }
-        //template<class F>
-        //auto subscribe(hint e)
-        //{
-        //	auto proc_ptr = std::make_shared<wrapper<F>>(nullptr);
-        //
-        //	e2::sync lock;
-        //
-        //	stock[e].push_back(proc_ptr);
-        //
-        //	return proc_ptr;
-        //}
-
         void _refreshandcopy(list& target)
         {
             target.remove_if([&](auto&& a)
@@ -317,7 +306,6 @@ namespace netxs::events
     template<class T>
     struct indexer
     {
-        using id_t = uint32_t;
         using imap = std::map<id_t, wptr<T>>;
         const id_t id;
 
@@ -330,7 +318,7 @@ namespace netxs::events
                                             // a copy of the object is deleted.
                                             // Thus, the original object instance
                                             // becomes invalid.
-                                            // We should delete the copy ctr.
+                                            // We should delete the copy ctor.
         indexer()
             : id { _counter() }
         { }
@@ -387,9 +375,9 @@ namespace netxs::events
     };
 
     // events: Ext link statics, unique ONLY for concrete T.
-    template<class T> typename indexer<T>::id_t indexer<T>::newid = 0;
-    template<class T> typename indexer<T>::imap indexer<T>::store;
+    template<class T> id_t                      indexer<T>::newid = 0;
     template<class T> wptr<T>                   indexer<T>::empty;
+    template<class T> typename indexer<T>::imap indexer<T>::store;
 
     using hook = reactor::hook;
     class subs
@@ -402,7 +390,7 @@ namespace netxs::events
         {
             tokens.push_back(r.subscribe(e, h));
         }
-        void operator()(hook& t) { tokens.push_back(t); }
+        void operator()(hook& t)   { tokens.push_back(t); }
         hook& extra()       { return tokens.emplace_back(); }
         auto  count() const { return tokens.size();         }
         void  clear()       {        tokens.clear();        }
@@ -417,14 +405,14 @@ namespace netxs::events
     // events: Event x-mitter.
     struct bell : public indexer<bell>
     {
-        static constexpr id_t noid = std::numeric_limits<id_t>::max();
+        static constexpr auto noid = std::numeric_limits<id_t>::max();
         subs tracker;
 
     private:
         template<class V>
         struct _globals
         {
-            static reactor general; // bell: Ext link static.
+            static reactor general;
         };
         reactor& general;                     // bell: Global  events node relay.
         reactor  preview{ reactor::reverse }; // bell: Preview events node relay.
@@ -434,29 +422,29 @@ namespace netxs::events
         template<class EVENT>
         struct submit_helper
         {
-            bell& boss;
+            bell& owner;
             tier  level;
 
-            submit_helper(bell& boss, tier level)
-                : boss{ boss }, level{ level }
+            submit_helper(bell& owner, tier level)
+                : owner{ owner }, level{ level }
             { }
 
             template<class F>
-            void operator=(F h) { boss.submit<EVENT>(level, h); }
+            void operator=(F h) { owner.submit<EVENT>(level, h); }
         };
         template<class EVENT>
         struct submit_helper_token
         {
-            bell& boss;
+            bell& owner;
             hook& token;
             tier  level;
 
-            submit_helper_token(bell& boss, tier level, hook& token)
-                : boss{ boss }, level{ level }, token{ token }
+            submit_helper_token(bell& owner, tier level, hook& token)
+                : owner{ owner }, level{ level }, token{ token }
             { }
 
             template<class F>
-            void operator=(F h) { boss.submit<EVENT>(level, token, h); }
+            void operator=(F h) { owner.submit<EVENT>(level, token, h); }
         };
         template<class EVENT>
         struct submit_helper_token_global
@@ -505,7 +493,6 @@ namespace netxs::events
         {
             return submit_helper_token<EVENT>(*this, level, tokens.extra());
         }
-
         // bell: Subscribe to an specified event on specified
         //       reaction node by defining an event handler.
         template<class EVENT>
@@ -517,8 +504,7 @@ namespace netxs::events
                 case tier::preview: tracker(preview, EVENT::cause, handler); break;
                 case tier::general: tracker(general, EVENT::cause, handler); break;
                 case tier::request: tracker(request, EVENT::cause, handler); break;
-                default:
-                    break;
+                default: break;
             }
         }
         // bell: Subscribe to an specified event
@@ -534,11 +520,9 @@ namespace netxs::events
                 case tier::preview: token = preview.subscribe(EVENT::cause, handler); break;
                 case tier::general: token = general.subscribe(EVENT::cause, handler); break;
                 case tier::request: token = request.subscribe(EVENT::cause, handler); break;
-                default:
-                    break;
+                default: break;
             }
         }
-
         // bell: Subscribe to an specified event
         //       on global reaction node by defining
         //       an event handler, and store the subscription
@@ -547,21 +531,6 @@ namespace netxs::events
         static auto submit_global(hook& token)
         {
             return submit_helper_token_global<EVENT>(token);
-        }
-        //todo used only with indexer::create
-        // bell: Rise specified evench execution branch on the specified relay node.
-        template<class F>
-        void signal_direct(tier level, type action, F&& data)
-        {
-            switch (level)
-            {
-                case tier::release: release(action, std::forward<F>(data)); break;
-                case tier::preview: preview(action, std::forward<F>(data)); break;
-                case tier::general: general(action, std::forward<F>(data)); break;
-                case tier::request: request(action, std::forward<F>(data)); break;
-                default:
-                    break;
-            }
         }
         // bell: Rise specified event execution branch on the specified relay node.
         //       Return number of active handlers.
@@ -574,8 +543,7 @@ namespace netxs::events
                 case tier::preview: return preview(action, std::forward<F>(data));
                 case tier::general: return general(action, std::forward<F>(data));
                 case tier::request: return request(action, std::forward<F>(data));
-                default:
-                    return 0_sz;
+                default:            return 0_sz;
             }
         }
         // bell: Rise specified event globally.
@@ -591,27 +559,17 @@ namespace netxs::events
         }
         // bell: Return an initial event of the current event execution branch.
         template<tier TIER>
-        auto protos() -> type
+        auto protos()
         {
             //todo type{ 0 }? e2::any?
             switch (TIER)
             {
-                case tier::release:
-                    return release.queue.empty() ? type{ 0 }
-                                                 : release.queue.back();
-                case tier::preview:
-                    return preview.queue.empty() ? type{ 0 }
-                                                 : preview.queue.back();
-                case tier::general:
-                    return general.queue.empty() ? type{ 0 }
-                                                 : general.queue.back();
-                case tier::request:
-                    return request.queue.empty() ? type{ 0 }
-                                                 : request.queue.back();
-                default:
-                    break;
+                case tier::release: return release.queue.empty() ? type{ 0 } : release.queue.back();
+                case tier::preview: return preview.queue.empty() ? type{ 0 } : preview.queue.back();
+                case tier::general: return general.queue.empty() ? type{ 0 } : general.queue.back();
+                case tier::request: return request.queue.empty() ? type{ 0 } : request.queue.back();
+                default:            return                         type{ 0 };
             }
-            return type{ 0 };
         }
         // bell: Return true if tha initial event equals to the specified.
         template<tier TIER>
@@ -620,18 +578,16 @@ namespace netxs::events
             return bell::protos<TIER>() == action;
         }
         // bell: Get the reference to the specified relay node.
-        reactor& router(tier level)
+        auto& router(tier level)
         {
             switch (level)
             {
+                default:
                 case tier::release: return release;
                 case tier::preview: return preview;
                 case tier::general: return general;
                 case tier::request: return request;
-                default:
-                    break;
             }
-            return release;
         }
         // bell: Interrupt current event branch on the specified relay node.
         void expire(tier level)
@@ -642,8 +598,7 @@ namespace netxs::events
                 case tier::preview: preview.discontinue(); break;
                 case tier::general: general.discontinue(); break;
                 case tier::request: request.discontinue(); break;
-                default:
-                    break;
+                default: break;
             }
         }
         bell()
@@ -653,42 +608,47 @@ namespace netxs::events
         {
             events::sync lock;
             //todo e2::dtor
-            //signal<e2_base::release>(e2::dtor, id);
+            //signal<tier::release>(e2::dtor, id);
             signal<tier::release>(1, id);
         }
+        // bell: Recursively calculate global coordinate.
+        virtual void global(twod& coor)
+        { }
     };
 
     template<class T>
     reactor bell::_globals<T>::general{ reactor::forward };
 
-    #define  EVENTPACK(name) private: enum : events::type { _ = _##name, _counter_base = __COUNTER__ }; \
-                              public: enum : events::type
-    #define  EVENT_VTM(name) name = any | (((__COUNTER__ - _counter_base) << (events::level(any) * events::width)))
-    #define  GROUP_VTM(name) EVENT_VTM( _##name )
-    #define     AT_VTM(name) struct name { EVENTPACK( name )
-    #define SUBSET_VTM       };
+    #define EVENTS_NS netxs::events
+    #define EVENTPACK(name) private: enum : EVENTS_NS::type { _ = name, _counter_base = __COUNTER__ }; \
+                            public:  enum : EVENTS_NS::type
+    #define  EVENT_XS(name) name = any | ((__COUNTER__ - _counter_base) << EVENTS_NS::level_width(any))
+    #define  GROUP_XS(name) EVENT_XS( _##name )
+    #define     OF_XS(name) struct name { EVENTPACK( _##name )
+    #define SUBSET_XS       };
 
-    template<auto T>
-    struct type_clue {};
+    namespace userland
+    {
+        template<auto T>
+        struct type_clue {};
+    }
 
-    #define EVENT_BIND(item, item_t)                    \
-    template<>                                          \
-    struct netxs::events::type_clue<item>               \
-    {                                                   \
-        using param = item_t;                           \
-        static constexpr netxs::events::type            \
-        cause = static_cast<netxs::events::type>(item); \
-    };
+    #define EVENT_BIND(item, item_t)                \
+    template<> struct type_clue<item>               \
+    {                                               \
+        using param = item_t;                       \
+        static constexpr EVENTS_NS::type            \
+        cause = static_cast<EVENTS_NS::type>(item); \
+    }
 
-    #define EVENT_SAME(master, item)                           \
-    template<>                                                 \
-    struct netxs::events::type_clue<item>                      \
-    {                                                          \
-        using param = netxs::events::type_clue<master>::param; \
-        static constexpr netxs::events::type cause = item;     \
-    };
+    #define EVENT_SAME(master, item)                   \
+    template<> struct type_clue<item>                  \
+    {                                                  \
+        using param = type_clue<master>::param;        \
+        static constexpr EVENTS_NS::type cause = item; \
+    }
 
-    #define TYPECLUE(item) netxs::events::type_clue<item>
+    #define TYPECLUE(item) EVENTS_NS::userland::type_clue<item>
     #define  ARGTYPE(item) typename TYPECLUE(item)::param
 
     // Usage: SUBMIT(tier, item, arg) { ...expression; };
@@ -723,6 +683,35 @@ namespace netxs::events
 
     #define SUBMIT_GLOBAL(item, token, arg) \
         bell::template submit_global<TYPECLUE(item)>(token) = [&] (ARGTYPE(item)&& arg)
+
+    //todo unify seeding
+    namespace userland
+    {
+        struct root
+        {
+            #define  EVENT  EVENT_XS
+            #define SUBSET SUBSET_XS
+            #define     OF     OF_XS
+            #define  GROUP  GROUP_XS
+
+            EVENTPACK( 0 )
+            {
+                any = _,
+                EVENT( dtor   ), // Notify about object destruction, release only (arg: const id_t)
+                EVENT( base   ),
+                EVENT( hids   ),
+                EVENT( custom ), // Custom events subset.
+            };
+
+            #undef EVENT
+            #undef SUBSET
+            #undef OF
+            #undef GROUP
+        };
+
+        //todo bell::dtor
+        EVENT_BIND(root::dtor, const id_t);
+    }
 }
 
 #endif // NETXS_EVENTS_HPP
