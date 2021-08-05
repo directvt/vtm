@@ -81,29 +81,24 @@ namespace netxs::events::userland2
         { }
     };
 
-    #define EVENTPACK2( name, event_data )  struct _##name##_group {}; \
-                                            using _group_type = _##name##_group; \
-                                            static constexpr auto _counter_base = __COUNTER__; \
-                                            static constexpr auto any = type_clue<_group_type, decltype(event_data)::_type, decltype(event_data)::_id>
+    #define EVENTPACK2( name, base ) struct _##name##_group {}; \
+                                     using _group_type = _##name##_group; \
+                                     static constexpr auto _counter_base = __COUNTER__; \
+                                     static constexpr auto any = type_clue<_group_type, decltype(base)::_type, decltype(base)::_id>
     #define  EVENT_XS2( name, type ) }; static constexpr auto name = type_clue<_group_type, type, decltype(any)::_id | ((__COUNTER__ - _counter_base) << EVENTS_NS::level_width(decltype(any)::_id))>{ 777
     #define  GROUP_XS2( name, type ) EVENT_XS2( _##name, type )
-    #define SUBSET_XS2( name ) }; struct name { \
-                                struct _##name##_group {}; \
-                                using _group_type = _##name##_group; \
-                                static constexpr auto _counter_base = __COUNTER__; \
-                                static constexpr auto any = type_clue<_group_type, decltype(_##name)::_type, decltype(_##name)::_id>
+    #define SUBSET_XS2( name ) }; struct name { EVENTPACK2( name, _##name )
 
-    #define EVENTPACK EVENTPACK2
-    #define     EVENT  EVENT_XS2
-    #define     GROUP  GROUP_XS2
-    #define    SUBSET SUBSET_XS2
+    #define  EVENT  EVENT_XS2
+    #define  GROUP  GROUP_XS2
+    #define SUBSET SUBSET_XS2
 
     struct root
     {
         struct _root_group2 {};
         static constexpr auto root_event = type_clue<_root_group2, void, 0>{};
 
-        EVENTPACK( root, root_event )
+        EVENTPACK2( root, root_event )
         {
             EVENT( dtor  , dtor_type   ),
             EVENT( base  , base_type   ),
@@ -114,7 +109,7 @@ namespace netxs::events::userland2
 
     struct term
     {
-        EVENTPACK( term, root::custom )
+        EVENTPACK2( term, root::custom )
         {
             EVENT( cmd   , cmd_type     ),
             GROUP( layout, _layout_type ),
@@ -134,10 +129,9 @@ namespace netxs::events::userland2
         };
     };
 
-    #undef EVENTPACK
-    #undef     EVENT
-    #undef     GROUP
-    #undef    SUBSET
+    #undef  EVENT
+    #undef  GROUP
+    #undef SUBSET
 
     struct tt
     {
