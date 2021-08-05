@@ -8,112 +8,32 @@
 #include "../abstract/ring.hpp"
 
 #include <cassert>
-
+/*
 namespace netxs::events::userland
-{
-    struct term
-    {
-        #define  EVENT  EVENT_XS
-        #define SUBSET SUBSET_XS
-        #define     OF     OF_XS
-        #define  GROUP  GROUP_XS
-
-        EVENTPACK( netxs::events::userland::root::custom )
-        {
-            any = _,
-            EVENT( cmd    ),
-            GROUP( layout ),
-            GROUP( data   ),
-
-            SUBSET OF( layout )
-            {
-                any = _,
-                EVENT( align  ),
-                EVENT( wrapln ),
-            };
-            SUBSET OF( data )
-            {
-                any = _,
-                EVENT( in  ),
-                EVENT( out ),
-            };
-        };
-
-        #undef EVENT
-        #undef SUBSET
-        #undef OF
-        #undef GROUP
-    };
-
-    EVENT_BIND(term::cmd, iota);
-
-    //todo iota
-    EVENT_BIND(term::layout::align,  bias::type);
-    EVENT_BIND(term::layout::wrapln, wrap::type);
-
-    EVENT_BIND(term::data::in,  view);
-    EVENT_BIND(term::data::out, view);
-}
-
-namespace netxs::events::userland2
 {
     using cmd_type = iota;
     using align_type = netxs::console::bias::type;
     using wrapln_type = netxs::console::wrap::type;
     using in_type =  netxs::console::view;
     using out_type = netxs::console::view;
-    using _data_type = void;
-    using _layout_type = void;
+    using data_type = void;
+    using layout_type = void;
     using dtor_type = void;
     using base_type = void;
     using hids_type = void;
     using custom_type = void;
 
-    template<class _group_type, class in_type, auto index>
-    struct type_clue : _group_type
+    #define  EVENT  EVENT_XS
+    #define  GROUP  GROUP_XS
+    #define SUBSET SUBSET_XS
+
+    struct term2
     {
-        using               _type = in_type;
-        using               _base = _group_type;
-        static constexpr auto _id = index;
-
-        template<class ...Args>
-        constexpr type_clue(Args&&...)
-        { }
-    };
-
-    #define EVENTPACK2( name, base ) struct _##name##_group {}; \
-                                     using _group_type = _##name##_group; \
-                                     static constexpr auto _counter_base = __COUNTER__; \
-                                     static constexpr auto any = type_clue<_group_type, decltype(base)::_type, decltype(base)::_id>
-    #define  EVENT_XS2( name, type ) }; static constexpr auto name = type_clue<_group_type, type, decltype(any)::_id | ((__COUNTER__ - _counter_base) << EVENTS_NS::level_width(decltype(any)::_id))>{ 777
-    #define  GROUP_XS2( name, type ) EVENT_XS2( _##name, type )
-    #define SUBSET_XS2( name ) }; struct name { EVENTPACK2( name, _##name )
-
-    #define  EVENT  EVENT_XS2
-    #define  GROUP  GROUP_XS2
-    #define SUBSET SUBSET_XS2
-
-    struct root
-    {
-        struct _root_group2 {};
-        static constexpr auto root_event = type_clue<_root_group2, void, 0>{};
-
-        EVENTPACK2( root, root_event )
-        {
-            EVENT( dtor  , dtor_type   ),
-            EVENT( base  , base_type   ),
-            EVENT( hids  , hids_type   ),
-            EVENT( custom, custom_type ),
-        };
-    };
-
-    struct term
-    {
-        EVENTPACK2( term, root::custom )
+        EVENTPACK( term2, root::custom )
         {
             EVENT( cmd   , cmd_type     ),
-            GROUP( layout, _layout_type ),
-            GROUP( data  , _data_type   ),
+            GROUP( layout, layout_type ),
+            GROUP( data  , data_type   ),
 
             SUBSET( layout )
             {
@@ -135,9 +55,33 @@ namespace netxs::events::userland2
 
     struct tt
     {
-        static constexpr auto _id = term::data::out;
+        static constexpr auto _id = term2::data::out;
         static constexpr auto _id1 = _id._id;
         using t = decltype(_id)::_type;
+    };
+}
+*/
+namespace netxs::events::userland
+{
+    struct term
+    {
+        EVENTPACK( term, netxs::events::userland::root::custom )
+        {
+            EVENT_XS( cmd   , iota ),
+            GROUP_XS( layout, iota ),
+            GROUP_XS( data  , iota ),
+
+            SUBSET_XS( layout )
+            {
+                EVENT_XS( align , bias::type ),
+                EVENT_XS( wrapln, wrap::type ),
+            };
+            SUBSET_XS( data )
+            {
+                EVENT_XS( in , view ),
+                EVENT_XS( out, view ),
+            };
+        };
     };
 }
 

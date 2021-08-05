@@ -45,400 +45,360 @@ namespace netxs::console
 
 namespace netxs::events::userland
 {
-    struct e2
-    {
-        using type = netxs::events::type;
-        static constexpr auto dtor = netxs::events::userland::root::dtor;
-
-        #define  EVENT  EVENT_XS
-        #define SUBSET SUBSET_XS
-        #define     OF     OF_XS
-        #define  GROUP  GROUP_XS
-
-        EVENTPACK( netxs::events::userland::root::base )
-        {
-            any = _,
-            EVENT( tick       ), // timer tick (arg: current moment (now))
-            EVENT( postrender ), // release: UI-tree post-rendering (arg: face).
-            GROUP( render     ), // release: UI-tree rendering (arg: face).
-            GROUP( conio      ),
-            GROUP( size       ), // release: Object size (arg: twod).
-            GROUP( coor       ), // release: Object coor (arg: twod).
-            GROUP( form       ),
-            GROUP( data       ),
-            GROUP( debug      ), // return info struct with telemtry data
-            GROUP( config     ), // set/notify/get/global_set configuration data (tier::preview/tier::release/tier::request/tier::general)
-            GROUP( command    ), // exec UI command (arg: iota)
-            GROUP( bindings   ), // Dynamic Data Bindings.
-
-            SUBSET OF( render )
-            {
-                any = _,            // release any: UI-tree default rendering submission (arg: face).
-                EVENT( prerender ), // release: UI-tree pre-rendering, used by pro::cache (can interrupt SIGNAL) and any kind of highlighters (arg: face).
-            };
-            SUBSET OF( size )
-            {
-                any = _,      // preview: checking by pro::limit (arg: twod).
-                EVENT( set ), // preview: checking by object; release: apply to object (arg: twod).
-            };
-            SUBSET OF( coor )
-            {
-                any = _,      // preview any: checking by pro::limit (arg: twod).
-                EVENT( set ), // preview: checking by object; release: apply to object (arg: twod).
-            };
-            SUBSET OF( bindings )
-            {
-                any = _,
-                GROUP( list ), // release: UI-tree pre-rendering, used by pro::cache (can interrupt SIGNAL) and any kind of highlighters (arg: face).
-
-                SUBSET OF( list )
-                {
-                    any = _,
-                    EVENT( users ), // list of connected users (arg: sptr<std::list<sptr<base>>>)
-                    EVENT( apps  ), // list of running apps (arg: sptr<std::map<id_t, std::list<sptr<base>>>>)
-                };
-            };
-            SUBSET OF( debug )
-            {
-                any = _,
-                EVENT( logs   ), // logs output (arg: const text)
-                EVENT( output ), // logs has to be parsed (arg: const view)
-                EVENT( parsed ), // output parced logs (arg: const page)
-            };
-            SUBSET OF( config )
-            {
-                any = _,
-                EVENT( broadcast ), // release: broadcast source changed, args: sptr<bell>.
-                EVENT( fps       ), // request to set new fps (arg: new fps (iota); the value == -1 is used to request current fps)
-                GROUP( caret     ), // any kind of intervals property (arg: period)
-
-                SUBSET OF( caret )
-                {
-                    any = _,
-                    EVENT( blink ), // caret blinking interval (arg: period)
-                    EVENT( style ), // caret style: 0 - underline, 1 - box (arg: iota)
-                };
-            };
-            SUBSET OF( conio )
-            {
-                any = _,
-                EVENT( unknown  ), // return platform unknown event code
-                EVENT( error    ), // return error code
-                EVENT( focus    ), // order to change focus (arg: bool)
-                EVENT( key      ), // keybd activity (arg: syskeybd)
-                EVENT( native   ), // extended functionality (arg: bool)
-                EVENT( mouse    ), // mouse activity (arg: sysmouse)
-                EVENT( size     ), // order to update terminal primary overlay (arg: newsize twod)
-                EVENT( layout   ),
-                EVENT( preclose ), // signal to quit after idle timeout (arg: bool - ready to shutdown)
-                EVENT( quit     ), // quit (arg: text - bye msg)
-                EVENT( pointer  ), // mouse pointer visibility (arg: bool)
-                //EVENT( menu   ), 
-            };
-            SUBSET OF( data )
-            {
-                any = _,
-                EVENT( changed ), // return digest
-                EVENT( request ),
-                EVENT( disable ),
-                EVENT( flush   ),
-                EVENT( text    ), // release: signaling with a text string (args: const text).
-            };
-            SUBSET OF( command )
-            {
-                any = _,
-                EVENT( quit   ), // return bye msg //errcode (arg: const view)
-                EVENT( cout   ), // Append extra data to output (arg: const text)
-                EVENT( custom ), // Custom command (arg: cmd_id iota)
-            };
-            SUBSET OF( form )
-            {
-                any = _,
-                EVENT( canvas    ), // request global canvas (arg: sptr<core>)
-                GROUP( draggable ), // signal to the form to enable draggablity for specified mouse button (arg: bool)
-                GROUP( layout    ),
-                GROUP( highlight ),
-                GROUP( upon      ),
-                GROUP( proceed   ),
-                GROUP( cursor    ),
-                GROUP( animate   ),
-                GROUP( drag      ),
-                GROUP( prop      ),
-                GROUP( global    ),
-                GROUP( state     ),
-                //EVENT( key       ),
-
-                SUBSET OF( draggable )
-                {
-                    any = _,
-                    EVENT( left      ),
-                    EVENT( right     ),
-                    EVENT( leftright ),
-                    EVENT( middle    ),
-                    EVENT( wheel     ),
-                    EVENT( win       ),
-                };
-                SUBSET OF( layout )
-                {
-                    any = _,
-                    EVENT( shift        ), // request a global shifting  with delta (const twod)
-                    EVENT( convey       ), // request a global conveying with delta (Inform all children to be conveyed) (arg: cube)
-                    EVENT( order        ), // return
-                    EVENT( bubble       ), // order to popup the requested item through the visual tree (arg: form)
-                    EVENT( expose       ), // order to bring the requested item on top of the visual tree (release: ask parent to expose specified child; preview: ask child to expose itself) (arg: base)
-                    EVENT( appear       ), // fly tothe specified coords, arg: twod
-                    //EVENT( strike       ), // (always preview) inform about the child canvas has changed (arg: modified region rect)
-                    //EVENT( coor       ), // return client rect coor (preview: subject to change)
-                    //EVENT( size       ), // return client rect size (preview: subject to change)
-                    //EVENT( rect       ), // return client rect (preview: subject to change)
-                    //EVENT( show       ), // order to make it visible (arg: bool notify or not)
-                    //EVENT( hide       ), // order to make it hidden (arg: bool notify or not)
-                    //EVENT( next       ), // request client for next child object (arg is only request: sptr<base>)
-                    //EVENT( prev       ), // request client for prev child object (arg is only request: sptr<base>)
-                    //EVENT( footer     ), // notify the client has changed footer (arg is only release: const rich)
-                    //EVENT( clientrect ), // notify the client area has changed (arg is only release: rect)
-                };
-                SUBSET OF( highlight )
-                {
-                    any = _,
-                    EVENT( on  ),
-                    EVENT( off ),
-                };
-                //SUBSET OF( focus )
-                //{
-                //    any = _,
-                //    EVENT( got  ), // notify that keybd focus has taken (release: hids)
-                //    EVENT( lost ), // notify that keybd focus got lost  (release: hids)
-                //};
-                SUBSET OF( upon )
-                {
-                    any = _,
-                    EVENT( redrawn     ), // inform about camvas is completely redrawn (arg: canvas face)
-                    EVENT( cached      ), // inform about camvas is cached (arg: canvas face)
-                    EVENT( wiped       ), // event after wipe the canvas (arg: canvas face)
-                    EVENT( changed     ), // event after resize (arg: diff bw old and new size twod)
-                    EVENT( dragged     ), // event after drag (arg: hids)
-                    //EVENT( created     ), // event after itself creation (arg: itself bell_sptr)
-                    //EVENT( detached    ), // inform that subject is detached (arg: parent bell_sptr)
-                    //EVENT( invalidated ), 
-                    //EVENT( moved       ), // release: event after moveto (arg: diff bw old and new coor twod). preview: event after moved by somebody.
-                    GROUP( vtree       ), // visual tree events (arg: parent base_sptr)
-                    GROUP( scroll      ), // event after scroll (arg: rack)
-
-                    SUBSET OF( vtree )
-                    {
-                        any = _,
-                        EVENT( attached ), // Child has been attached (arg: parent sptr<base>)
-                        EVENT( detached ), // Child has been detached (arg: parent sptr<base>)
-                    };
-                    SUBSET OF( scroll )
-                    {
-                        any = _,
-                        EVENT( x      ), // event after scroll along X (arg: rack)
-                        EVENT( y      ), // event after scroll along Y (arg: rack)
-                        EVENT( resetx ), // event reset scroll along X (arg: rack)
-                        EVENT( resety ), // event reset scroll along Y (arg: rack)
-                    };
-                };
-                SUBSET OF( proceed )
-                {
-                    any = _,
-                    EVENT( create      ), // return coordinates of the new object placeholder (arg: rect)
-                    EVENT( createby    ), // return gear with coordinates of the new object placeholder gear::slot (arg: gear)
-                    EVENT( destroy     ), // ??? bool return reference to the parent
-                    EVENT( render      ), // ask children to render itself to the parent canvas (arg: function drawfx to perform drawing)
-                    EVENT( attach      ), // order to attach a child (arg: parent base_sptr)
-                    EVENT( detach      ), // order to detach a child (tier::release - kill itself, tier::preview - detach the child specified in args) (arg: child  base_sptr)
-                    //EVENT( commit      ), // order to output the targets (arg: frame number iota)
-                    //EVENT( multirender ), // ask children to render itself to the set of canvases (arg: array of the face sptrs: cuts = vector<shared_ptr<face>>)
-                    //EVENT( draw        ), // ????  order to render itself to the canvas (arg: canvas face)
-                    //EVENT( checkin     ), // order to register an output client canvas (arg: face_sptr)
-                };
-                SUBSET OF( cursor )
-                {
-                    any = _,
-                    EVENT(blink),
-                };
-                SUBSET OF( animate )
-                {
-                    any = _,
-                    EVENT( start ),
-                    EVENT( stop  ),
-                };
-                SUBSET OF( drag )
-                {
-                    any = _,
-                    GROUP( start  ), // notify about mouse drag start by pro::mouse (arg: hids)
-                    GROUP( pull   ), // notify about mouse drag pull by pro::mouse (arg: hids)
-                    GROUP( cancel ), // notify about mouse drag cancel by pro::mouse (arg: hids)
-                    GROUP( stop   ), // notify about mouse drag stop by pro::mouse (arg: hids)
-
-                    SUBSET OF( start )
-                    {
-                        any = _,
-                        EVENT( left      ),
-                        EVENT( right     ),
-                        EVENT( leftright ),
-                        EVENT( middle    ),
-                        EVENT( wheel     ),
-                        EVENT( win       ),
-                    };
-                    SUBSET OF( pull )
-                    {
-                        any = _,
-                        EVENT( left      ),
-                        EVENT( right     ),
-                        EVENT( leftright ),
-                        EVENT( middle    ),
-                        EVENT( wheel     ),
-                        EVENT( win       ),
-                    };
-                    SUBSET OF( cancel )
-                    {
-                        any = _,
-                        EVENT( left      ),
-                        EVENT( right     ),
-                        EVENT( leftright ),
-                        EVENT( middle    ),
-                        EVENT( wheel     ),
-                        EVENT( win       ),
-                    };
-                    SUBSET OF( stop )
-                    {
-                        any = _,
-                        EVENT( left      ),
-                        EVENT( right     ),
-                        EVENT( leftright ),
-                        EVENT( middle    ),
-                        EVENT( wheel     ),
-                        EVENT( win       ),
-                    };
-                };
-                SUBSET OF( prop )
-                {
-                    any = _,
-                    EVENT( header     ), // set form caption header (arg: text)
-                    EVENT( footer     ), // set form caption footer (arg: text)
-                    EVENT( zorder     ), // set form z-order (arg: iota: -1 backmost, 0 plain, 1 topmost)
-                    EVENT( brush      ), // set form brush/color (arg: cell)
-                    EVENT( fullscreen ), // set fullscreen flag (arg: bool)
-                    EVENT( name       ), // user name (arg: text)
-                    EVENT( viewport   ), // request: return form actual viewport (arg: rect)
-                };
-                SUBSET OF( global )
-                {
-                    any = _,
-                    EVENT( ctxmenu  ), // request context menu at specified coords (arg: twod)
-                    EVENT( prev     ), // request the prev scene window (arg: twod)
-                    EVENT( next     ), // request the next scene window (arg: twod)
-                    EVENT( lucidity ), // set or request global window transparency (arg: iota: 0-255, -1 to request)
-                    GROUP( object   ), // global scene objects events
-                    GROUP( user     ), // global scene users events
-
-                    SUBSET OF( object )
-                    {
-                        any = _,
-                        EVENT( attached ), // global: object attached to the world (args: sptr<base>)
-                        EVENT( detached ), // global: object detached from the world (args: sptr<base>)
-                    };
-                    SUBSET OF( user )
-                    {
-                        any = _,
-                        EVENT( attached ), // global: user attached to the world (args: sptr<base>)
-                        EVENT( detached ), // global: user detached from the world (args: sptr<base>)
-                    };
-                };
-                SUBSET OF( state )
-                {
-                    any = _,
-                    EVENT( mouse  ), // notify the client is mouse active or not. The form is active when the number of client (form::eventa::mouse::enter - mouse::leave) is not zero. (arg is only release: iota - number of clients)
-                    EVENT( keybd  ), // notify the client is keybd active or not. The form is active when the number of client (form::eventa::keybd::got - keybd::lost) is not zero. (arg is only release: bool)
-                    EVENT( header ), // notify the client has changed title  (arg: para)
-                    EVENT( footer ), // notify the client has changed footer (arg: para)
-                    EVENT( params ), // notify the client has changed title params (arg: para)
-                    EVENT( color  ), // notify the client has changed tone (preview to set, arg: tone)
-                };
-            };
-        };
-
-        #undef EVENT
-        #undef SUBSET
-        #undef OF
-        #undef GROUP
-    };
-
     using namespace netxs::ui::atoms;
     using namespace netxs::datetime;
     using utf::text;
     using utf::view;
 
-    EVENT_BIND(e2::tick, moment);
+    struct e2
+    {
+        using type = netxs::events::type;
+        static constexpr auto dtor = netxs::events::userland::root::dtor;
 
-    EVENT_BIND(e2::postrender,  console::face);
-    EVENT_BIND(e2::render::any, console::face);
-        EVENT_BIND(e2::render::prerender, console::face);
+        EVENTPACK( e2, netxs::events::userland::root::base )
+        {
+            EVENT_XS( tick      , moment              ), // timer tick (arg: current moment (now))
+            EVENT_XS( postrender, console::face       ), // release: UI-tree post-rendering (arg: face).
+            GROUP_XS( render    , console::face       ), // release: UI-tree rendering (arg: face).
+            GROUP_XS( conio     , iota                ),
+            GROUP_XS( size      , twod                ), // release: Object size (arg: twod).
+            GROUP_XS( coor      , twod                ), // release: Object coor (arg: twod).
+            GROUP_XS( form      , bool                ),
+            GROUP_XS( data      , iota                ),
+            GROUP_XS( debug     , const view          ), // return info struct with telemtry data
+            GROUP_XS( config    , iota                ), // set/notify/get/global_set configuration data (tier::preview/tier::release/tier::request/tier::general)
+            GROUP_XS( command   , iota                ), // exec UI command (arg: iota)
+            GROUP_XS( bindings  , sptr<console::base> ), // Dynamic Data Bindings.
 
-    EVENT_BIND(e2::command::any, iota);
-        EVENT_BIND(e2::command::quit, const view);
-        EVENT_BIND(e2::command::cout, const text);
-        EVENT_BIND(e2::command::custom, iota);
+            SUBSET_XS( render ) // release any: UI-tree default rendering submission (arg: face).
+            {
+                EVENT_XS( prerender, console::face ), // release: UI-tree pre-rendering, used by pro::cache (can interrupt SIGNAL) and any kind of highlighters (arg: face).
+            };
+            SUBSET_XS( size ) // preview: checking by pro::limit (arg: twod).
+            {
+                EVENT_XS( set, twod ), // preview: checking by object; release: apply to object (arg: twod).
+            };
+            SUBSET_XS( coor ) // preview any: checking by pro::limit (arg: twod).
+            {
+                EVENT_XS( set, twod ), // preview: checking by object; release: apply to object (arg: twod).
+            };
+            SUBSET_XS( bindings )
+            {
+                GROUP_XS( list, iota ), // release: UI-tree pre-rendering, used by pro::cache (can interrupt SIGNAL) and any kind of highlighters (arg: face).
 
-    EVENT_BIND(e2::size::any, twod);
-        EVENT_BIND(e2::size::set, twod);
+                SUBSET_XS( list )
+                {
+                    EVENT_XS( users, sptr<std::list<sptr<console::base>>> ), // list of connected users (arg: sptr<std::list<sptr<base>>>)
+                    EVENT_XS( apps , sptr<console::registry_t>            ), // list of running apps (arg: sptr<std::map<id_t, std::list<sptr<base>>>>)
+                };
+            };
+            SUBSET_XS( debug )
+            {
+                EVENT_XS( logs  , const view          ), // logs output (arg: const text)
+                EVENT_XS( output, const view          ), // logs has to be parsed (arg: const view)
+                EVENT_XS( parsed, const console::page ), // output parced logs (arg: const page)
+            };
+            SUBSET_XS( config )
+            {
+                EVENT_XS( broadcast, sptr<bell> ), // release: broadcast source changed, args: sptr<bell>.
+                EVENT_XS( fps      , iota       ), // request to set new fps (arg: new fps (iota); the value == -1 is used to request current fps)
+                GROUP_XS( caret    , period     ), // any kind of intervals property (arg: period)
 
-    EVENT_BIND(e2::coor::any, twod);
-        EVENT_BIND(e2::coor::set, twod);
+                SUBSET_XS( caret )
+                {
+                    EVENT_XS( blink, period ), // caret blinking interval (arg: period)
+                    EVENT_XS( style, iota ), // caret style: 0 - underline, 1 - box (arg: iota)
+                };
+            };
+            SUBSET_XS( conio )
+            {
+                EVENT_XS( unknown , iota              ), // return platform unknown event code
+                EVENT_XS( error   , iota              ), // return error code
+                EVENT_XS( focus   , bool              ), // order to change focus (arg: bool)
+                EVENT_XS( mouse   , console::sysmouse ), // mouse activity (arg: sysmouse)
+                EVENT_XS( key     , console::syskeybd ), // keybd activity (arg: syskeybd)
+                EVENT_XS( size    , twod              ), // order to update terminal primary overlay (arg: newsize twod)
+                EVENT_XS( native  , bool              ), // extended functionality (arg: bool)
+                EVENT_XS( layout  , const twod        ),
+                EVENT_XS( preclose, const bool        ), // signal to quit after idle timeout (arg: bool - ready to shutdown)
+                EVENT_XS( quit    , const view        ), // quit (arg: text - bye msg)
+                EVENT_XS( pointer , const bool        ), // mouse pointer visibility (arg: bool)
+                //EVENT_XS( menu  , iota ), 
+            };
+            SUBSET_XS( data )
+            {
+                EVENT_XS( changed, iota            ), // return digest
+                EVENT_XS( request, iota            ),
+                EVENT_XS( disable, iota            ),
+                EVENT_XS( flush  , iota            ),
+                EVENT_XS( text   , const utf::text ), // release: signaling with a text string (args: const text).
+            };
+            SUBSET_XS( command )
+            {
+                EVENT_XS( quit  , const view ), // return bye msg //errcode (arg: const view)
+                EVENT_XS( cout  , const text ), // Append extra data to output (arg: const text)
+                EVENT_XS( custom, iota       ), // Custom command (arg: cmd_id iota)
+            };
+            SUBSET_XS( form )
+            {
+                EVENT_XS( canvas   , sptr<console::core> ), // request global canvas (arg: sptr<core>)
+                GROUP_XS( draggable, bool ), // signal to the form to enable draggablity for specified mouse button (arg: bool)
+                GROUP_XS( layout   ,  ),
+                GROUP_XS( highlight,  ),
+                GROUP_XS( upon     ,  ),
+                GROUP_XS( proceed  ,  ),
+                GROUP_XS( cursor   ,  ),
+                GROUP_XS( animate  ,  ),
+                GROUP_XS( drag     ,  ),
+                GROUP_XS( prop     , text ),
+                GROUP_XS( global   , twod ),
+                GROUP_XS( state    ,  ),
+                //EVENT_XS( key    ,    ),
 
-    EVENT_BIND(e2::debug::any, const view);
-        EVENT_BIND(e2::debug::logs   , const view);
-        EVENT_BIND(e2::debug::output , const view);
-        EVENT_BIND(e2::debug::parsed , const console::page);
+                SUBSET_XS( draggable )
+                {
+                    EVENT_XS( left     , bool ),
+                    EVENT_XS( right    , bool ),
+                    EVENT_XS( leftright, bool ),
+                    EVENT_XS( middle   , bool ),
+                    EVENT_XS( wheel    , bool ),
+                    EVENT_XS( win      , bool ),
+                };
+                SUBSET_XS( layout )
+                {
+                    EVENT_XS( shift        ), // request a global shifting  with delta (const twod)
+                    EVENT_XS( convey       ), // request a global conveying with delta (Inform all children to be conveyed) (arg: cube)
+                    EVENT_XS( order        ), // return
+                    EVENT_XS( bubble       ), // order to popup the requested item through the visual tree (arg: form)
+                    EVENT_XS( expose       ), // order to bring the requested item on top of the visual tree (release: ask parent to expose specified child; preview: ask child to expose itself) (arg: base)
+                    EVENT_XS( appear       ), // fly tothe specified coords, arg: twod
+                    //EVENT_XS( strike       ), // (always preview) inform about the child canvas has changed (arg: modified region rect)
+                    //EVENT_XS( coor       ), // return client rect coor (preview: subject to change)
+                    //EVENT_XS( size       ), // return client rect size (preview: subject to change)
+                    //EVENT_XS( rect       ), // return client rect (preview: subject to change)
+                    //EVENT_XS( show       ), // order to make it visible (arg: bool notify or not)
+                    //EVENT_XS( hide       ), // order to make it hidden (arg: bool notify or not)
+                    //EVENT_XS( next       ), // request client for next child object (arg is only request: sptr<base>)
+                    //EVENT_XS( prev       ), // request client for prev child object (arg is only request: sptr<base>)
+                    //EVENT_XS( footer     ), // notify the client has changed footer (arg is only release: const rich)
+                    //EVENT_XS( clientrect ), // notify the client area has changed (arg is only release: rect)
+                };
+                SUBSET_XS( highlight )
+                {
+                    EVENT_XS( on  ),
+                    EVENT_XS( off ),
+                };
+                //SUBSET_XS( focus )
+                //{
+                //    any = _,
+                //    EVENT_XS( got  ), // notify that keybd focus has taken (release: hids)
+                //    EVENT_XS( lost ), // notify that keybd focus got lost  (release: hids)
+                //};
+                SUBSET_XS( upon )
+                {
+                    EVENT_XS( redrawn     ), // inform about camvas is completely redrawn (arg: canvas face)
+                    EVENT_XS( cached      ), // inform about camvas is cached (arg: canvas face)
+                    EVENT_XS( wiped       ), // event after wipe the canvas (arg: canvas face)
+                    EVENT_XS( changed     ), // event after resize (arg: diff bw old and new size twod)
+                    EVENT_XS( dragged     ), // event after drag (arg: hids)
+                    //EVENT_XS( created     ), // event after itself creation (arg: itself bell_sptr)
+                    //EVENT_XS( detached    ), // inform that subject is detached (arg: parent bell_sptr)
+                    //EVENT_XS( invalidated ), 
+                    //EVENT_XS( moved       ), // release: event after moveto (arg: diff bw old and new coor twod). preview: event after moved by somebody.
+                    GROUP_XS( vtree       ), // visual tree events (arg: parent base_sptr)
+                    GROUP_XS( scroll      ), // event after scroll (arg: rack)
 
-    EVENT_BIND(e2::bindings::any, sptr<console::base>);
-        EVENT_BIND(e2::bindings::list::users, sptr<std::list<sptr<console::base>>>);
-        EVENT_BIND(e2::bindings::list::apps,  sptr<console::registry_t>);
+                    SUBSET_XS( vtree )
+                    {
+                        any = _,
+                        EVENT_XS( attached ), // Child has been attached (arg: parent sptr<base>)
+                        EVENT_XS( detached ), // Child has been detached (arg: parent sptr<base>)
+                    };
+                    SUBSET_XS( scroll )
+                    {
+                        EVENT_XS( x      ), // event after scroll along X (arg: rack)
+                        EVENT_XS( y      ), // event after scroll along Y (arg: rack)
+                        EVENT_XS( resetx ), // event reset scroll along X (arg: rack)
+                        EVENT_XS( resety ), // event reset scroll along Y (arg: rack)
+                    };
+                };
+                SUBSET_XS( proceed )
+                {
+                    EVENT_XS( create      ), // return coordinates of the new object placeholder (arg: rect)
+                    EVENT_XS( createby    ), // return gear with coordinates of the new object placeholder gear::slot (arg: gear)
+                    EVENT_XS( destroy     ), // ??? bool return reference to the parent
+                    EVENT_XS( render      ), // ask children to render itself to the parent canvas (arg: function drawfx to perform drawing)
+                    EVENT_XS( attach      ), // order to attach a child (arg: parent base_sptr)
+                    EVENT_XS( detach      ), // order to detach a child (tier::release - kill itself, tier::preview - detach the child specified in args) (arg: child  base_sptr)
+                    //EVENT_XS( commit      ), // order to output the targets (arg: frame number iota)
+                    //EVENT_XS( multirender ), // ask children to render itself to the set of canvases (arg: array of the face sptrs: cuts = vector<shared_ptr<face>>)
+                    //EVENT_XS( draw        ), // ????  order to render itself to the canvas (arg: canvas face)
+                    //EVENT_XS( checkin     ), // order to register an output client canvas (arg: face_sptr)
+                };
+                SUBSET_XS( cursor )
+                {
+                    EVENT_XS(blink),
+                };
+                SUBSET_XS( animate )
+                {
+                    EVENT_XS( start ),
+                    EVENT_XS( stop  ),
+                };
+                SUBSET_XS( drag )
+                {
+                    GROUP_XS( start  ), // notify about mouse drag start by pro::mouse (arg: hids)
+                    GROUP_XS( pull   ), // notify about mouse drag pull by pro::mouse (arg: hids)
+                    GROUP_XS( cancel ), // notify about mouse drag cancel by pro::mouse (arg: hids)
+                    GROUP_XS( stop   ), // notify about mouse drag stop by pro::mouse (arg: hids)
 
-    EVENT_BIND(e2::conio::any, iota);
-        EVENT_BIND(e2::conio::unknown , iota);
-        EVENT_BIND(e2::conio::error   , iota);
-        EVENT_BIND(e2::conio::focus   , bool);
-        EVENT_BIND(e2::conio::mouse   , console::sysmouse);
-        EVENT_BIND(e2::conio::key     , console::syskeybd);
-        EVENT_BIND(e2::conio::size    , twod);
-        EVENT_BIND(e2::conio::native  , bool);
-        EVENT_BIND(e2::conio::layout  , const twod);
-        EVENT_BIND(e2::conio::preclose, const bool);
-        EVENT_BIND(e2::conio::quit    , const view);
-        EVENT_BIND(e2::conio::pointer , const bool);
+                    SUBSET_XS( start )
+                    {
+                        EVENT_XS( left      ),
+                        EVENT_XS( right     ),
+                        EVENT_XS( leftright ),
+                        EVENT_XS( middle    ),
+                        EVENT_XS( wheel     ),
+                        EVENT_XS( win       ),
+                    };
+                    SUBSET_XS( pull )
+                    {
+                        EVENT_XS( left      ),
+                        EVENT_XS( right     ),
+                        EVENT_XS( leftright ),
+                        EVENT_XS( middle    ),
+                        EVENT_XS( wheel     ),
+                        EVENT_XS( win       ),
+                    };
+                    SUBSET_XS( cancel )
+                    {
+                        EVENT_XS( left      ),
+                        EVENT_XS( right     ),
+                        EVENT_XS( leftright ),
+                        EVENT_XS( middle    ),
+                        EVENT_XS( wheel     ),
+                        EVENT_XS( win       ),
+                    };
+                    SUBSET_XS( stop )
+                    {
+                        EVENT_XS( left      ),
+                        EVENT_XS( right     ),
+                        EVENT_XS( leftright ),
+                        EVENT_XS( middle    ),
+                        EVENT_XS( wheel     ),
+                        EVENT_XS( win       ),
+                    };
+                };
+                SUBSET_XS( prop )
+                {
+                    EVENT_XS( header    , text ), // set form caption header (arg: text)
+                    EVENT_XS( footer    , text ), // set form caption footer (arg: text)
+                    EVENT_XS( name      , text ), // user name (arg: text)
+                    EVENT_XS( zorder    , iota ), // set form z-order (arg: iota: -1 backmost, 0 plain, 1 topmost)
+                    EVENT_XS( brush     , const cell ), // set form brush/color (arg: cell)
+                    EVENT_XS( fullscreen, bool ), // set fullscreen flag (arg: bool)
+                    EVENT_XS( viewport  , rect ), // request: return form actual viewport (arg: rect)
+                };
+                SUBSET_XS( global )
+                {
+                    EVENT_XS( ctxmenu , twod ), // request context menu at specified coords (arg: twod)
+                    EVENT_XS( prev    ,  ), // request the prev scene window (arg: twod)
+                    EVENT_XS( next    ,  ), // request the next scene window (arg: twod)
+                    EVENT_XS( lucidity, iota ), // set or request global window transparency (arg: iota: 0-255, -1 to request)
+                    GROUP_XS( object  ,  ), // global scene objects events
+                    GROUP_XS( user    ,  ), // global scene users events
 
-    EVENT_BIND(e2::config::any, iota);
-        EVENT_BIND(e2::config::broadcast, sptr<bell>);
-        EVENT_BIND(e2::config::fps, iota);
-        EVENT_BIND(e2::config::caret::any, period);
-            EVENT_BIND(e2::config::caret::blink, period);
-            EVENT_BIND(e2::config::caret::style, iota);
+                    SUBSET_XS( object )
+                    {
+                        EVENT_XS( attached ), // global: object attached to the world (args: sptr<base>)
+                        EVENT_XS( detached ), // global: object detached from the world (args: sptr<base>)
+                    };
+                    SUBSET_XS( user )
+                    {
+                        EVENT_XS( attached ), // global: user attached to the world (args: sptr<base>)
+                        EVENT_XS( detached ), // global: user detached from the world (args: sptr<base>)
+                    };
+                };
+                SUBSET_XS( state )
+                {
+                    EVENT_XS( mouse  ), // notify the client is mouse active or not. The form is active when the number of client (form::eventa::mouse::enter - mouse::leave) is not zero. (arg is only release: iota - number of clients)
+                    EVENT_XS( keybd  ), // notify the client is keybd active or not. The form is active when the number of client (form::eventa::keybd::got - keybd::lost) is not zero. (arg is only release: bool)
+                    EVENT_XS( header ), // notify the client has changed title  (arg: para)
+                    EVENT_XS( footer ), // notify the client has changed footer (arg: para)
+                    EVENT_XS( params ), // notify the client has changed title params (arg: para)
+                    EVENT_XS( color  ), // notify the client has changed tone (preview to set, arg: tone)
+                };
+            };
+        };
+    };
 
-    EVENT_BIND(e2::data::any, iota);
-        EVENT_BIND(e2::data::changed, iota);
-        EVENT_BIND(e2::data::request, iota);
-        EVENT_BIND(e2::data::disable, iota);
-        EVENT_BIND(e2::data::flush  , iota);
-        EVENT_BIND(e2::data::text   , const text);
 
-    EVENT_BIND(e2::form::any, bool);
+    //EVENT_BIND(e2::tick, moment);
 
-        EVENT_BIND(e2::form::draggable::any, bool);
-            EVENT_BIND(e2::form::draggable::left     , bool);
-            EVENT_BIND(e2::form::draggable::leftright, bool);
-            EVENT_BIND(e2::form::draggable::middle   , bool);
-            EVENT_BIND(e2::form::draggable::right    , bool);
-            EVENT_BIND(e2::form::draggable::wheel    , bool);
-            EVENT_BIND(e2::form::draggable::win      , bool);
+    //EVENT_BIND(e2::postrender,  console::face);
+    //EVENT_BIND(e2::render::any, console::face);
+       // EVENT_BIND(e2::render::prerender, console::face);
 
-        EVENT_BIND(e2::form::canvas, sptr<console::core>);
-        EVENT_BIND(e2::form::global::any, twod);
-            EVENT_BIND(e2::form::global::ctxmenu , twod);
-            EVENT_BIND(e2::form::global::lucidity, iota);
+    //EVENT_BIND(e2::command::any, iota);
+        //EVENT_BIND(e2::command::quit, const view);
+        //EVENT_BIND(e2::command::cout, const text);
+        //EVENT_BIND(e2::command::custom, iota);
+
+//    EVENT_BIND(e2::size::any, twod);
+//        EVENT_BIND(e2::size::set, twod);
+//
+//    EVENT_BIND(e2::coor::any, twod);
+//        EVENT_BIND(e2::coor::set, twod);
+
+//    EVENT_BIND(e2::debug::any, const view);
+//        EVENT_BIND(e2::debug::logs   , const view);
+//        EVENT_BIND(e2::debug::output , const view);
+//        EVENT_BIND(e2::debug::parsed , const console::page);
+
+//    EVENT_BIND(e2::bindings::any, sptr<console::base>);
+//        EVENT_BIND(e2::bindings::list::users, sptr<std::list<sptr<console::base>>>);
+//        EVENT_BIND(e2::bindings::list::apps,  sptr<console::registry_t>);
+
+//    EVENT_BIND(e2::conio::any, iota);
+//        EVENT_BIND(e2::conio::unknown , iota);
+//        EVENT_BIND(e2::conio::error   , iota);
+//        EVENT_BIND(e2::conio::focus   , bool);
+//        EVENT_BIND(e2::conio::mouse   , console::sysmouse);
+//        EVENT_BIND(e2::conio::key     , console::syskeybd);
+//        EVENT_BIND(e2::conio::size    , twod);
+//        EVENT_BIND(e2::conio::native  , bool);
+//        EVENT_BIND(e2::conio::layout  , const twod);
+//        EVENT_BIND(e2::conio::preclose, const bool);
+//        EVENT_BIND(e2::conio::quit    , const view);
+//        EVENT_BIND(e2::conio::pointer , const bool);
+
+//    EVENT_BIND(e2::config::any, iota);
+//        EVENT_BIND(e2::config::broadcast, sptr<bell>);
+//        EVENT_BIND(e2::config::fps, iota);
+//        EVENT_BIND(e2::config::caret::any, period);
+//            EVENT_BIND(e2::config::caret::blink, period);
+//            EVENT_BIND(e2::config::caret::style, iota);
+//
+//    EVENT_BIND(e2::data::any, iota);
+//        EVENT_BIND(e2::data::changed, iota);
+//        EVENT_BIND(e2::data::request, iota);
+//        EVENT_BIND(e2::data::disable, iota);
+//        EVENT_BIND(e2::data::flush  , iota);
+//        EVENT_BIND(e2::data::text   , const text);
+
+    //EVENT_BIND(e2::form::any, bool);
+
+        //EVENT_BIND(e2::form::draggable::any, bool);
+            //EVENT_BIND(e2::form::draggable::left     , bool);
+            //EVENT_BIND(e2::form::draggable::leftright, bool);
+            //EVENT_BIND(e2::form::draggable::middle   , bool);
+            //EVENT_BIND(e2::form::draggable::right    , bool);
+            //EVENT_BIND(e2::form::draggable::wheel    , bool);
+            //EVENT_BIND(e2::form::draggable::win      , bool);
+
+        //EVENT_BIND(e2::form::canvas, sptr<console::core>);
+        //EVENT_BIND(e2::form::global::any, twod);
+        //    EVENT_BIND(e2::form::global::ctxmenu , twod);
+        //    EVENT_BIND(e2::form::global::lucidity, iota);
 
         EVENT_BIND(e2::form::prop::any, text);
             EVENT_BIND(e2::form::prop::header, text);

@@ -620,97 +620,115 @@ namespace netxs::events
     reactor bell::_globals<T>::general{ reactor::forward };
 
     #define EVENTS_NS netxs::events
-    #define EVENTPACK(name) private: enum : EVENTS_NS::type { _ = name, _counter_base = __COUNTER__ }; \
-                            public:  enum : EVENTS_NS::type
-    #define  EVENT_XS(name) name = any | ((__COUNTER__ - _counter_base) << EVENTS_NS::level_width(any))
-    #define  GROUP_XS(name) EVENT_XS( _##name )
-    #define     OF_XS(name) struct name { EVENTPACK( _##name )
-    #define SUBSET_XS       };
+//    #define EVENTPACK(name) private: enum : EVENTS_NS::type { _ = name, _counter_base = __COUNTER__ }; \
+//                            public:  enum : EVENTS_NS::type
+//    #define  EVENT_XS(name) name = any | ((__COUNTER__ - _counter_base) << EVENTS_NS::level_width(any))
+//    #define  GROUP_XS(name) EVENT_XS( _##name )
+//    #define     OF_XS(name) struct name { EVENTPACK( _##name )
+//    #define SUBSET_XS       };
+//
+//    namespace userland
+//    {
+//        template<auto T>
+//        struct type_clue {};
+//    }
+//
+//    #define EVENT_BIND(item, item_t)                \
+//    template<> struct type_clue<item>               \
+//    {                                               \
+//        using param = item_t;                       \
+//        static constexpr EVENTS_NS::type            \
+//        cause = static_cast<EVENTS_NS::type>(item); \
+//    }
+//
+//    #define EVENT_SAME(master, item)                   \
+//    template<> struct type_clue<item>                  \
+//    {                                                  \
+//        using param = type_clue<master>::param;        \
+//        static constexpr EVENTS_NS::type cause = item; \
+//    }
+//
+//    #define TYPECLUE(item) EVENTS_NS::userland::type_clue<item>
+//    #define  ARGTYPE(item) typename TYPECLUE(item)::param
 
-    namespace userland
-    {
-        template<auto T>
-        struct type_clue {};
-    }
+    #define  ARGTYPE(item) decltype(item)::_type
+    #define ARGVALUE(item) decltype(item)::_id
 
-    #define EVENT_BIND(item, item_t)                \
-    template<> struct type_clue<item>               \
-    {                                               \
-        using param = item_t;                       \
-        static constexpr EVENTS_NS::type            \
-        cause = static_cast<EVENTS_NS::type>(item); \
-    }
-
-    #define EVENT_SAME(master, item)                   \
-    template<> struct type_clue<item>                  \
-    {                                                  \
-        using param = type_clue<master>::param;        \
-        static constexpr EVENTS_NS::type cause = item; \
-    }
-
-    #define TYPECLUE(item) EVENTS_NS::userland::type_clue<item>
-    #define  ARGTYPE(item) typename TYPECLUE(item)::param
 
     // Usage: SUBMIT(tier, item, arg) { ...expression; };
     #define SUBMIT(level, item, arg) \
-        bell::template submit2<TYPECLUE(item)>(level) = [&] (ARGTYPE(item)&& arg)
+        bell::template submit2<item>(level) = [&] (ARGTYPE(item)&& arg)
 
     // Usage: SUBMIT_BYVAL(tier, item, arg) { ...expression; };
     //        Note: It is a mutable closure!
     #define SUBMIT_BYVAL(level, item, arg) \
-        bell::template submit2<TYPECLUE(item)>(level) = [=] (ARGTYPE(item)&& arg) mutable
+        bell::template submit2<item>(level) = [=] (ARGTYPE(item)&& arg) mutable
 
     // Usage: SUBMIT_BYVAL_T(tier, item, token, arg) { ...expression; };
     //        Note: It is a mutable closure!
     #define SUBMIT_BYVAL_T(level, item, token, arg) \
-        bell::template submit2<TYPECLUE(item)>(level, token) = [=] (ARGTYPE(item)&& arg) mutable
+        bell::template submit2<item>(level, token) = [=] (ARGTYPE(item)&& arg) mutable
 
     #define SUBMIT_V(level, item, hndl) \
-        bell::template submit<TYPECLUE(item)>(level, hndl)
+        bell::template submit<item>(level, hndl)
 
     #define SUBMIT_TV(level, item, token, hndl) \
-        bell::template submit<TYPECLUE(item)>(level, token, hndl)
+        bell::template submit<item>(level, token, hndl)
 
     // Usage: SUBMIT_BYVAL(tier, item, token/tokens, arg) { ...expression; };
     #define SUBMIT_T(level, item, token, arg) \
-        bell::template submit2<TYPECLUE(item)>(level, token) = [&] (ARGTYPE(item)&& arg)
+        bell::template submit2<item>(level, token) = [&] (ARGTYPE(item)&& arg)
 
     #define SIGNAL(level, item, arg) \
-        bell::template signal<level>(item, static_cast<ARGTYPE(item)&&>(arg))
+        bell::template signal<level>(ARGVALUE(item), static_cast<ARGTYPE(item)&&>(arg))
 
     #define SIGNAL_GLOBAL(item, arg) \
-        bell::template signal_global(item, static_cast<ARGTYPE(item)&&>(arg))
+        bell::template signal_global(ARGVALUE(item), static_cast<ARGTYPE(item)&&>(arg))
 
     #define SUBMIT_GLOBAL(item, token, arg) \
-        bell::template submit_global<TYPECLUE(item)>(token) = [&] (ARGTYPE(item)&& arg)
+        bell::template submit_global<item>(token) = [&] (ARGTYPE(item)&& arg)
+
+    template<class _group_type, class _in_type, auto _item_id>
+    struct type_clue : _group_type
+    {
+        using              _type = _in_type;
+        using              _base = _group_type;
+        static constexpr auto id = _item_id;
+
+        template<class ...Args>
+        constexpr type_clue(Args&&...)
+        { }
+
+        template<std::size_t N>
+        static constexpr auto group() { return events::group<N>(_item_id); }
+        static constexpr auto index() { return events::item    (_item_id); }
+    };
+
+    #define EVENTPACK( name, base ) struct _##name##_group {}; \
+                                    using _group_type = _##name##_group; \
+                                    static constexpr auto _counter_base = __COUNTER__; \
+                                    static constexpr auto any = type_clue<_group_type, decltype(base)::_type, decltype(base)::id>
+    #define  EVENT_XS( name, type ) }; static constexpr auto name = type_clue<_group_type, type, decltype(any)::id | ((__COUNTER__ - _counter_base) << EVENTS_NS::level_width(decltype(any)::id))>{ 777
+    #define  GROUP_XS( name, type ) EVENT_XS( _##name, type )
+    #define SUBSET_XS( name )       }; struct name { EVENTPACK( name, _##name )
 
     //todo unify seeding
     namespace userland
     {
+        struct _root_nope {};
         struct root
         {
-            #define  EVENT  EVENT_XS
-            #define SUBSET SUBSET_XS
-            #define     OF     OF_XS
-            #define  GROUP  GROUP_XS
+            struct _root_group2 {};
+            static constexpr auto root_event = type_clue<_root_group2, void, 0>{};
 
-            EVENTPACK( 0 )
+            EVENTPACK( root, root_event )
             {
-                any = _,
-                EVENT( dtor   ), // Notify about object destruction, release only (arg: const id_t)
-                EVENT( base   ),
-                EVENT( hids   ),
-                EVENT( custom ), // Custom events subset.
+                EVENT_XS( dtor  , _root_nope ),
+                EVENT_XS( base  , _root_nope ),
+                EVENT_XS( hids  , _root_nope ),
+                EVENT_XS( custom, _root_nope ),
             };
-
-            #undef EVENT
-            #undef SUBSET
-            #undef OF
-            #undef GROUP
         };
-
-        //todo bell::dtor
-        EVENT_BIND(root::dtor, const id_t);
     }
 }
 
