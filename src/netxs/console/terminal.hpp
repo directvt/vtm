@@ -55,6 +55,98 @@ namespace netxs::events::userland
     EVENT_BIND(term::data::out, view);
 }
 
+namespace netxs::events::userland2
+{
+    using cmd_type = iota;
+    using align_type = netxs::console::bias::type;
+    using wrapln_type = netxs::console::wrap::type;
+    using in_type =  netxs::console::view;
+    using out_type = netxs::console::view;
+    using _data_type = void;
+    using _layout_type = void;
+    using dtor_type = void;
+    using base_type = void;
+    using hids_type = void;
+    using custom_type = void;
+
+    template<class _group_type, class in_type, auto index>
+    struct type_clue : _group_type
+    {
+        using               _type = in_type;
+        using               _base = _group_type;
+        static constexpr auto _id = index;
+
+        template<class ...Args>
+        constexpr type_clue(Args&&...)
+        { }
+    };
+
+    #define EVENTPACK2( name, event_data )  struct _##name##_group {}; \
+                                            using _group_type = _##name##_group; \
+                                            static constexpr auto _counter_base = __COUNTER__; \
+                                            static constexpr auto any = type_clue<_group_type, decltype(event_data)::_type, decltype(event_data)::_id>
+    #define  EVENT_XS2( name, type ) }; static constexpr auto name = type_clue<_group_type, type, decltype(any)::_id | ((__COUNTER__ - _counter_base) << EVENTS_NS::level_width(decltype(any)::_id))>{ 777
+    #define  GROUP_XS2( name, type ) EVENT_XS2( _##name, type )
+    #define SUBSET_XS2( name ) }; struct name { \
+                                struct _##name##_group {}; \
+                                using _group_type = _##name##_group; \
+                                static constexpr auto _counter_base = __COUNTER__; \
+                                static constexpr auto any = type_clue<_group_type, decltype(_##name)::_type, decltype(_##name)::_id>
+
+    #define EVENTPACK EVENTPACK2
+    #define     EVENT  EVENT_XS2
+    #define     GROUP  GROUP_XS2
+    #define    SUBSET SUBSET_XS2
+
+    struct root
+    {
+        struct _root_group2 {};
+        static constexpr auto root_event = type_clue<_root_group2, void, 0>{};
+
+        EVENTPACK( root, root_event )
+        {
+            EVENT( dtor  , dtor_type   ),
+            EVENT( base  , base_type   ),
+            EVENT( hids  , hids_type   ),
+            EVENT( custom, custom_type ),
+        };
+    };
+
+    struct term
+    {
+        EVENTPACK( term, root::custom )
+        {
+            EVENT( cmd   , cmd_type     ),
+            GROUP( layout, _layout_type ),
+            GROUP( data  , _data_type   ),
+
+            SUBSET( layout )
+            {
+                EVENT( align , align_type  ),
+                EVENT( wrapln, wrapln_type ),
+            };
+            
+            SUBSET( data )
+            {
+                EVENT( in , in_type  ),
+                EVENT( out, out_type ),
+            };
+        };
+    };
+
+    #undef EVENTPACK
+    #undef     EVENT
+    #undef     GROUP
+    #undef    SUBSET
+
+    struct tt
+    {
+        static constexpr auto _id = term::data::out;
+        static constexpr auto _id1 = _id._id;
+        using t = decltype(_id)::_type;
+    };
+}
+
 namespace netxs::app
 {
     using namespace netxs::console;
