@@ -1,7 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#define MONOTTY_VER "Monotty Desktopio v0.5.15"
+#define MONOTTY_VER "Monotty Desktopio v0.5.16"
 // Autostart demo apps.
 //#define DEMO
 // Enable keyboard input and disable exit by single Esc.
@@ -2567,7 +2567,8 @@ utility like ctags is used to locate the definitions.
                                             ->invoke([&](auto& boss)
                                             {
                                                 boss.mouse.template draggable<sysmouse::left>();
-                                                boss.SUBMIT(tier::release, events::message(e2::form::drag::pull::any, sysmouse::left), gear)
+                                                //boss.SUBMIT(tier::release, e2::form_drag_pull<sysmouse::left>, gear)
+                                                boss.SUBMIT(tier::release, e2::form::drag::pull::_<sysmouse::left>, gear)
                                                 {
                                                     auto& limits = boss.template plugins<pro::limit>();
                                                     auto lims = limits.get();

@@ -107,30 +107,26 @@ namespace netxs::events
         return (1 << level) - 1;
     }
     // events: Increament level offset by width and return item's subgroup ID fof the specified level offset.
-    template<class T>
-    constexpr static T subgroup(T msg, type& itermask)
+    constexpr static auto subgroup(type msg, type& itermask)
     {
         itermask = (itermask << width) + _mask;
-        return static_cast<T>(msg & itermask);
+        return msg & itermask;
     }
-    template<class T>
-    constexpr static T subgroup_fwd(T msg, type& itermask)
+    constexpr static auto subgroup_fwd(type msg, type& itermask)
     {
         auto result = msg & itermask;
         itermask = (itermask >> width);
-        return static_cast<T>(result);
+        return result;
     }
     // events: Return event's group ID.
-    template<class T>
-    constexpr static T parent(T msg)
+    constexpr static auto parent(type msg)
     {
-        return static_cast<T>(msg & ((1 << ((level(msg) - 1) * width)) - 1));
+        return msg & ((1 << ((level(msg) - 1) * width)) - 1);
     }
     // events: Return the event ID of the specified item inside the group.
-    template<class T>
-    constexpr static const T message(T base, type item)
+    constexpr static const auto message(type base, type item)
     {
-        return static_cast<T>(base | ((item + 1) << level_width(base)));
+        return base | ((item + 1) << level_width(base));
     }
     // events: Return item index inside the group by its ID.
     constexpr static unsigned int item(type msg)
@@ -390,10 +386,10 @@ namespace netxs::events
         {
             tokens.push_back(r.subscribe(e, h));
         }
-        void operator()(hook& t)   { tokens.push_back(t); }
-        hook& extra()       { return tokens.emplace_back(); }
-        auto  count() const { return tokens.size();         }
-        void  clear()       {        tokens.clear();        }
+        void operator()(hook& t){        tokens.push_back(t);   }
+        hook& extra()           { return tokens.emplace_back(); }
+        auto  count() const     { return tokens.size();         }
+        void  clear()           {        tokens.clear();        }
         void  merge(subs const& memo)
         {
             tokens.reserve(tokens.size() + memo.tokens.size());
@@ -458,8 +454,8 @@ namespace netxs::events
             template<class F>
             void operator=(F h)
             {
-                auto handler = std::function<void(typename EVENT::param &&)>{ h };
-                token = _globals<void>::general.subscribe(EVENT::cause, handler);
+                auto handler = std::function<void(typename EVENT::type &&)>{ h };
+                token = _globals<void>::general.subscribe(EVENT::id, handler);
             }
         };
 
@@ -496,14 +492,14 @@ namespace netxs::events
         // bell: Subscribe to an specified event on specified
         //       reaction node by defining an event handler.
         template<class EVENT>
-        void submit(tier level, std::function<void(typename EVENT::param &&)> handler)
+        void submit(tier level, std::function<void(typename EVENT::type &&)> handler)
         {
             switch (level)
             {
-                case tier::release: tracker(release, EVENT::cause, handler); break;
-                case tier::preview: tracker(preview, EVENT::cause, handler); break;
-                case tier::general: tracker(general, EVENT::cause, handler); break;
-                case tier::request: tracker(request, EVENT::cause, handler); break;
+                case tier::release: tracker(release, EVENT::id, handler); break;
+                case tier::preview: tracker(preview, EVENT::id, handler); break;
+                case tier::general: tracker(general, EVENT::id, handler); break;
+                case tier::request: tracker(request, EVENT::id, handler); break;
                 default: break;
             }
         }
@@ -512,14 +508,14 @@ namespace netxs::events
         //       an event handler, and store the subscription
         //       in the specified token.
         template<class EVENT>
-        void submit(tier level, hook& token, std::function<void(typename EVENT::param &&)> handler)
+        void submit(tier level, hook& token, std::function<void(typename EVENT::type &&)> handler)
         {
             switch (level)
             {
-                case tier::release: token = release.subscribe(EVENT::cause, handler); break;
-                case tier::preview: token = preview.subscribe(EVENT::cause, handler); break;
-                case tier::general: token = general.subscribe(EVENT::cause, handler); break;
-                case tier::request: token = request.subscribe(EVENT::cause, handler); break;
+                case tier::release: token = release.subscribe(EVENT::id, handler); break;
+                case tier::preview: token = preview.subscribe(EVENT::id, handler); break;
+                case tier::general: token = general.subscribe(EVENT::id, handler); break;
+                case tier::request: token = request.subscribe(EVENT::id, handler); break;
                 default: break;
             }
         }
@@ -572,10 +568,10 @@ namespace netxs::events
             }
         }
         // bell: Return true if tha initial event equals to the specified.
-        template<tier TIER>
-        auto protos(type action)
+        template<tier TIER, class EVENT>
+        auto protos(EVENT)
         {
-            return bell::protos<TIER>() == action;
+            return bell::protos<TIER>() == EVENT::id;
         }
         // bell: Get the reference to the specified relay node.
         auto& router(tier level)
@@ -619,65 +615,59 @@ namespace netxs::events
     template<class T>
     reactor bell::_globals<T>::general{ reactor::forward };
 
+    template<class _parent_type, class _in_type, auto _item_id>
+    struct type_clue
+    {
+        using               type = _in_type;
+        using               base = _parent_type;
+        static constexpr auto id = _item_id;
+
+        template<class ...Args>
+        constexpr type_clue(Args&&...) { }
+        constexpr type_clue(type_clue &&)     = default;
+        constexpr type_clue(type_clue const&) = default;
+
+        template<std::size_t N>
+        static constexpr auto group() { return events::group<N>(id); }
+        static constexpr auto index() { return events::item    (id); }
+    };
+
+    template<class ...Args>
+    struct array
+    {
+        using storage = std::tuple<typename std::remove_cv<Args>::type...>;
+        constexpr array(Args...) { }
+        template<auto N> static constexpr auto at = std::template get<N>( storage{} );
+    };
+
     #define EVENTS_NS netxs::events
-//    #define EVENTPACK(name) private: enum : EVENTS_NS::type { _ = name, _counter_base = __COUNTER__ }; \
-//                            public:  enum : EVENTS_NS::type
-//    #define  EVENT_XS(name) name = any | ((__COUNTER__ - _counter_base) << EVENTS_NS::level_width(any))
-//    #define  GROUP_XS(name) EVENT_XS( _##name )
-//    #define     OF_XS(name) struct name { EVENTPACK( _##name )
-//    #define SUBSET_XS       };
-//
-//    namespace userland
-//    {
-//        template<auto T>
-//        struct type_clue {};
-//    }
-//
-//    #define EVENT_BIND(item, item_t)                \
-//    template<> struct type_clue<item>               \
-//    {                                               \
-//        using param = item_t;                       \
-//        static constexpr EVENTS_NS::type            \
-//        cause = static_cast<EVENTS_NS::type>(item); \
-//    }
-//
-//    #define EVENT_SAME(master, item)                   \
-//    template<> struct type_clue<item>                  \
-//    {                                                  \
-//        using param = type_clue<master>::param;        \
-//        static constexpr EVENTS_NS::type cause = item; \
-//    }
-//
-//    #define TYPECLUE(item) EVENTS_NS::userland::type_clue<item>
-//    #define  ARGTYPE(item) typename TYPECLUE(item)::param
 
-    #define  ARGTYPE(item) decltype(item)::_type
-    #define ARGVALUE(item) decltype(item)::_id
-
+    #define  ARGTYPE(item) typename decltype(item)::type
+    #define ARGVALUE(item)          decltype(item)::id
 
     // Usage: SUBMIT(tier, item, arg) { ...expression; };
     #define SUBMIT(level, item, arg) \
-        bell::template submit2<item>(level) = [&] (ARGTYPE(item)&& arg)
+        bell::template submit2<decltype(item)>(level) = [&] (ARGTYPE(item)&& arg)
 
     // Usage: SUBMIT_BYVAL(tier, item, arg) { ...expression; };
     //        Note: It is a mutable closure!
     #define SUBMIT_BYVAL(level, item, arg) \
-        bell::template submit2<item>(level) = [=] (ARGTYPE(item)&& arg) mutable
+        bell::template submit2<decltype(item)>(level) = [=] (ARGTYPE(item)&& arg) mutable
 
     // Usage: SUBMIT_BYVAL_T(tier, item, token, arg) { ...expression; };
     //        Note: It is a mutable closure!
     #define SUBMIT_BYVAL_T(level, item, token, arg) \
-        bell::template submit2<item>(level, token) = [=] (ARGTYPE(item)&& arg) mutable
+        bell::template submit2<decltype(item)>(level, token) = [=] (ARGTYPE(item)&& arg) mutable
 
     #define SUBMIT_V(level, item, hndl) \
-        bell::template submit<item>(level, hndl)
+        bell::template submit<decltype(item)>(level, hndl)
 
     #define SUBMIT_TV(level, item, token, hndl) \
-        bell::template submit<item>(level, token, hndl)
+        bell::template submit<decltype(item)>(level, token, hndl)
 
     // Usage: SUBMIT_BYVAL(tier, item, token/tokens, arg) { ...expression; };
     #define SUBMIT_T(level, item, token, arg) \
-        bell::template submit2<item>(level, token) = [&] (ARGTYPE(item)&& arg)
+        bell::template submit2<decltype(item)>(level, token) = [&] (ARGTYPE(item)&& arg)
 
     #define SIGNAL(level, item, arg) \
         bell::template signal<level>(ARGVALUE(item), static_cast<ARGTYPE(item)&&>(arg))
@@ -686,40 +676,24 @@ namespace netxs::events
         bell::template signal_global(ARGVALUE(item), static_cast<ARGTYPE(item)&&>(arg))
 
     #define SUBMIT_GLOBAL(item, token, arg) \
-        bell::template submit_global<item>(token) = [&] (ARGTYPE(item)&& arg)
+        bell::template submit_global<decltype(item)>(token) = [&] (ARGTYPE(item)&& arg)
 
-    template<class _group_type, class _in_type, auto _item_id>
-    struct type_clue : _group_type
-    {
-        using              _type = _in_type;
-        using              _base = _group_type;
-        static constexpr auto id = _item_id;
-
-        template<class ...Args>
-        constexpr type_clue(Args&&...)
-        { }
-
-        template<std::size_t N>
-        static constexpr auto group() { return events::group<N>(_item_id); }
-        static constexpr auto index() { return events::item    (_item_id); }
-    };
-
-    #define EVENTPACK( name, base ) struct _##name##_group {}; \
-                                    using _group_type = _##name##_group; \
+    #define EVENTPACK( name, base ) using _group_type = name; \
                                     static constexpr auto _counter_base = __COUNTER__; \
-                                    static constexpr auto any = type_clue<_group_type, decltype(base)::_type, decltype(base)::id>
+                                    static constexpr auto any = type_clue<_group_type, decltype(base)::type, decltype(base)::id>
     #define  EVENT_XS( name, type ) }; static constexpr auto name = type_clue<_group_type, type, decltype(any)::id | ((__COUNTER__ - _counter_base) << EVENTS_NS::level_width(decltype(any)::id))>{ 777
     #define  GROUP_XS( name, type ) EVENT_XS( _##name, type )
     #define SUBSET_XS( name )       }; struct name { EVENTPACK( name, _##name )
-
+    #define  INDEX_XS(  ... )       }; template<auto N> static constexpr \
+                                    auto _ = decltype(EVENTS_NS::array{ __VA_ARGS__ })::at<N>; \
+                                    static constexpr auto _dummy = std::tuple{ 777
     //todo unify seeding
     namespace userland
     {
         struct _root_nope {};
         struct root
         {
-            struct _root_group2 {};
-            static constexpr auto root_event = type_clue<_root_group2, void, 0>{};
+            static constexpr auto root_event = type_clue<root, void, 0>{};
 
             EVENTPACK( root, root_event )
             {

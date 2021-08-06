@@ -166,6 +166,8 @@ namespace netxs::events::userland
                             EVENT_XS( middle   , input::hids ),
                             EVENT_XS( wheel    , input::hids ),
                             EVENT_XS( win      , input::hids ),
+
+                            INDEX_XS( left, right, leftright, middle, wheel, win ),
                         };
                         SUBSET_XS( pull )
                         {
@@ -175,6 +177,8 @@ namespace netxs::events::userland
                             EVENT_XS( middle   , input::hids ),
                             EVENT_XS( wheel    , input::hids ),
                             EVENT_XS( win      , input::hids ),
+
+                            INDEX_XS( left, right, leftright, middle, wheel, win ),
                         };
                         SUBSET_XS( cancel )
                         {
@@ -184,6 +188,8 @@ namespace netxs::events::userland
                             EVENT_XS( middle   , input::hids ),
                             EVENT_XS( wheel    , input::hids ),
                             EVENT_XS( win      , input::hids ),
+
+                            INDEX_XS( left, right, leftright, middle, wheel, win ),
                         };
                         SUBSET_XS( stop )
                         {
@@ -193,6 +199,8 @@ namespace netxs::events::userland
                             EVENT_XS( middle   , input::hids ),
                             EVENT_XS( wheel    , input::hids ),
                             EVENT_XS( win      , input::hids ),
+
+                            INDEX_XS( left, right, leftright, middle, wheel, win ),
                         };
                     };
                 };
@@ -387,7 +395,7 @@ namespace netxs::input
         idxs  pressed_list;
         idxs  flipped_list;
 
-        void update	(sysmouse& m)
+        void update(sysmouse& m)
         {
             //if (m.shuffle)
             //{
@@ -555,7 +563,7 @@ namespace netxs::input
             }
         }
         template<class TT>
-        void action (TT const& event_subset, iota _index)
+        void action(TT const& event_subset, iota _index)
         {
             index = _index;
             action(event_subset[index]);
@@ -676,10 +684,10 @@ namespace netxs::input
 
         static constexpr auto enter_event   = events::notify::mouse::enter.id;
         static constexpr auto leave_event   = events::notify::mouse::leave.id;
-        static constexpr auto focus_take    = events::notify::keybd::got.id;
-        static constexpr auto focus_lost    = events::notify::keybd::lost.id;
-        static constexpr auto kboffer_event = events::upevent::kboffer.id;
-        static constexpr auto gone_event    = events::die.id;
+        static constexpr auto focus_take    = events::notify::keybd::got  .id;
+        static constexpr auto focus_lost    = events::notify::keybd::lost .id;
+        static constexpr auto kboffer_event = events::upevent::kboffer    .id;
+        static constexpr auto gone_event    = events::die                 .id;
 
     public:
         id_t const& id;    // hids: Owner/gear ID.
