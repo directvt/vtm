@@ -838,10 +838,7 @@ namespace netxs::ui
         pro::robot robot{*this }; // rail: Animation controller.
 
         template<auto N> static constexpr
-        auto events = decltype(netxs::events::array{ e2::form::upon::scroll::x,
-                                                     e2::form::upon::scroll::y,
-                                                     e2::form::upon::scroll::resetx,
-                                                     e2::form::upon::scroll::resety })::at<N>;
+        auto events = e2::form::upon::scroll::_<N>;
         bool strict[2] = { true, true }; // rail: Don't allow overscroll.
         bool manual[2] = { true, true }; // rail: Manaul scrolling (no auto align).
         bool locked{}; // rail: Client is under resizing.
@@ -1231,11 +1228,10 @@ namespace netxs::ui
             pager_first = 10,
             pager_next  = 11,
         };
+
         template<auto N> static constexpr
-        auto events = decltype(netxs::events::array{ e2::form::upon::scroll::x,
-                                                     e2::form::upon::scroll::y,
-                                                     e2::form::upon::scroll::resetx,
-                                                     e2::form::upon::scroll::resety })::at<N>;
+        auto events = e2::form::upon::scroll::_<N>;
+
         static inline auto  xy(twod const& p) { return AXIS == axis::X ? p.x : p.y; }
         static inline auto  yx(twod const& p) { return AXIS == axis::Y ? p.x : p.y; }
         static inline auto& xy(twod&       p) { return AXIS == axis::X ? p.x : p.y; }

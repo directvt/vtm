@@ -163,7 +163,7 @@ namespace netxs::events::userland
                     EVENT_XS( wheel    , bool ),
                     EVENT_XS( win      , bool ),
 
-                    INDEX_XS( left, right, leftright, middle, wheel, win),
+                    INDEX_XS( left, right, leftright, middle, wheel, win ),
                 };
                 SUBSET_XS( layout )
                 {
@@ -214,6 +214,8 @@ namespace netxs::events::userland
                         EVENT_XS( y     , rack ), // event after scroll along Y.
                         EVENT_XS( resetx, rack ), // event reset scroll along X.
                         EVENT_XS( resety, rack ), // event reset scroll along Y.
+
+                        INDEX_XS( x, y, resetx, resety ),
                     };
                 };
                 SUBSET_XS( proceed )
