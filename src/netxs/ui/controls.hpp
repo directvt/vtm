@@ -129,8 +129,9 @@ namespace netxs::ui
         template<auto PROPERTY, class C, class P>
         auto attach_element(C& data_src_sptr, P item_template)
         {
+            using prop_t = decltype(PROPERTY)::type;
             auto backup = This<T>();
-            ARGTYPE(PROPERTY) arg_value;
+            prop_t arg_value;
             data_src_sptr->SIGNAL(tier::request, PROPERTY, arg_value);
             auto new_item = item_template(data_src_sptr, arg_value)
                                  ->depend(data_src_sptr);

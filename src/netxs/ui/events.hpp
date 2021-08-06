@@ -78,10 +78,10 @@ namespace netxs::events
     =  =  =  =
     **************************************************************************************************/
 
-    static constexpr unsigned int width = 4;
-    static constexpr unsigned int _mask = (1 << width) - 1;
+    static constexpr auto width = 4;
+    static constexpr type _mask = (1 << width) - 1;
     // events: Return item/msg level by its ID.
-    constexpr static iota level(type msg)
+    constexpr static auto level(type msg)
     {
         if (msg == 0) return 0;
         iota level = 1;
@@ -92,12 +92,12 @@ namespace netxs::events
         return level;
     }
     // events: Return item/msg bit shift.
-    constexpr static iota level_width(type msg)
+    constexpr static auto level_width(type msg)
     {
         return level(msg) * width;
     }
     // events: Return item/msg global level mask by its ID.
-    constexpr static unsigned int level_mask(type msg)
+    constexpr static type level_mask(type msg)
     {
         unsigned int level = 0;
         while ((msg = msg >> width))
@@ -124,12 +124,12 @@ namespace netxs::events
         return msg & ((1 << ((level(msg) - 1) * width)) - 1);
     }
     // events: Return the event ID of the specified item inside the group.
-    constexpr static const auto message(type base, type item)
+    constexpr static auto message(type base, type item)
     {
         return base | ((item + 1) << level_width(base));
     }
     // events: Return item index inside the group by its ID.
-    constexpr static unsigned int item(type msg)
+    constexpr static auto item(type msg)
     {
         return (msg >> ((level(msg) - 1) * width)) - 1;
     }
@@ -310,11 +310,11 @@ namespace netxs::events
         static imap    store;
 
     protected:
-        indexer(indexer const&) = delete;	// id is flushed out when
-                                            // a copy of the object is deleted.
-                                            // Thus, the original object instance
-                                            // becomes invalid.
-                                            // We should delete the copy ctor.
+        indexer(indexer const&) = delete; // id is flushed out when
+                                          // a copy of the object is deleted.
+                                          // Thus, the original object instance
+                                          // becomes invalid.
+                                          // We should delete the copy ctor.
         indexer()
             : id { _counter() }
         { }
@@ -397,6 +397,62 @@ namespace netxs::events
                 tokens.push_back(t);
         }
     };
+
+    template<class _parent_type, class _object_type, auto _event_id>
+    struct type_clue
+    {
+        using type = _object_type;
+        using base = _parent_type;
+        static constexpr auto id = _event_id;
+
+        template<class ...Args> constexpr type_clue(Args&&...) { }
+        template<std::size_t N>
+        static constexpr auto group() { return events::group<N>(id); }
+        static constexpr auto index() { return events::item    (id); }
+    };
+
+    template<class ...Args>
+    struct array
+    {
+        constexpr array(Args...) { }
+        template<auto N> static constexpr
+        auto at = std::get<N>( std::tuple<typename std::remove_cv<Args>::type...>{} );
+    };
+
+    #define SUBMIT(        level, item, arg)        bell::template submit2<decltype(item)>(level)        = [&] (typename decltype(item)::type && arg)
+    #define SUBMIT_BYVAL(  level, item, arg)        bell::template submit2<decltype(item)>(level)        = [=] (typename decltype(item)::type && arg) mutable
+    #define SUBMIT_T(      level, item, token, arg) bell::template submit2<decltype(item)>(level, token) = [&] (typename decltype(item)::type && arg)
+    #define SUBMIT_BYVAL_T(level, item, token, arg) bell::template submit2<decltype(item)>(level, token) = [=] (typename decltype(item)::type && arg) mutable
+    #define SUBMIT_TV(     level, item, token, hndl)bell::template submit <decltype(item)>(level, token, hndl)
+    #define SUBMIT_V(      level, item, hndl)       bell::template submit <decltype(item)>(level, hndl)
+    #define SIGNAL(        level, item, arg)        bell::template signal<level>(decltype(item)::id, static_cast<typename decltype(item)::type &&>(arg))
+    #define SIGNAL_GLOBAL( item, arg)               bell::template signal_global(decltype(item)::id, static_cast<typename decltype(item)::type &&>(arg))
+    #define SUBMIT_GLOBAL( item, token, arg)        bell::template submit_global<decltype(item)>(token) =  [&]  (typename decltype(item)::type &&  arg)
+
+    #define EVENTPACK( name, base ) using _group_type = name; \
+                                    static constexpr auto _counter_base = __COUNTER__; \
+                                    public: static constexpr auto any = type_clue<_group_type, decltype(base)::type, decltype(base)::id>
+    #define  EVENT_XS( name, type ) }; static constexpr auto name = type_clue<_group_type, type, decltype(any)::id | ((__COUNTER__ - _counter_base) << netxs::events::level_width(decltype(any)::id))>{ 777
+    #define  GROUP_XS( name, type ) EVENT_XS( _##name, type )
+    #define SUBSET_XS( name )       }; class name { EVENTPACK( name, _##name )
+    #define  INDEX_XS(  ... )       }; template<auto N> static constexpr \
+                                    auto _ = decltype(netxs::events::array{ __VA_ARGS__ })::at<N>; \
+                                    private: static constexpr auto _dummy = { 777
+    //todo unify seeding
+    namespace userland
+    {
+        struct root
+        {
+            static constexpr auto root_event = type_clue<root, void, 0>{};
+            EVENTPACK( root, root_event )
+            {
+                EVENT_XS( dtor  , const id_t ),
+                EVENT_XS( base  , root ),
+                EVENT_XS( hids  , root ),
+                EVENT_XS( custom, root ),
+            };
+        };
+    }
 
     // events: Event x-mitter.
     struct bell : public indexer<bell>
@@ -603,107 +659,14 @@ namespace netxs::events
         ~bell()
         {
             events::sync lock;
-            //todo e2::dtor
-            //signal<tier::release>(e2::dtor, id);
-            signal<tier::release>(1, id);
+            SIGNAL(tier::release, userland::root::dtor, id);
         }
         // bell: Recursively calculate global coordinate.
         virtual void global(twod& coor)
         { }
     };
 
-    template<class T>
-    reactor bell::_globals<T>::general{ reactor::forward };
-
-    template<class _parent_type, class _in_type, auto _item_id>
-    struct type_clue
-    {
-        using               type = _in_type;
-        using               base = _parent_type;
-        static constexpr auto id = _item_id;
-
-        template<class ...Args>
-        constexpr type_clue(Args&&...) { }
-        constexpr type_clue(type_clue &&)     = default;
-        constexpr type_clue(type_clue const&) = default;
-
-        template<std::size_t N>
-        static constexpr auto group() { return events::group<N>(id); }
-        static constexpr auto index() { return events::item    (id); }
-    };
-
-    template<class ...Args>
-    struct array
-    {
-        using storage = std::tuple<typename std::remove_cv<Args>::type...>;
-        constexpr array(Args...) { }
-        template<auto N> static constexpr auto at = std::template get<N>( storage{} );
-    };
-
-    #define EVENTS_NS netxs::events
-
-    #define  ARGTYPE(item) typename decltype(item)::type
-    #define ARGVALUE(item)          decltype(item)::id
-
-    // Usage: SUBMIT(tier, item, arg) { ...expression; };
-    #define SUBMIT(level, item, arg) \
-        bell::template submit2<decltype(item)>(level) = [&] (ARGTYPE(item)&& arg)
-
-    // Usage: SUBMIT_BYVAL(tier, item, arg) { ...expression; };
-    //        Note: It is a mutable closure!
-    #define SUBMIT_BYVAL(level, item, arg) \
-        bell::template submit2<decltype(item)>(level) = [=] (ARGTYPE(item)&& arg) mutable
-
-    // Usage: SUBMIT_BYVAL_T(tier, item, token, arg) { ...expression; };
-    //        Note: It is a mutable closure!
-    #define SUBMIT_BYVAL_T(level, item, token, arg) \
-        bell::template submit2<decltype(item)>(level, token) = [=] (ARGTYPE(item)&& arg) mutable
-
-    #define SUBMIT_V(level, item, hndl) \
-        bell::template submit<decltype(item)>(level, hndl)
-
-    #define SUBMIT_TV(level, item, token, hndl) \
-        bell::template submit<decltype(item)>(level, token, hndl)
-
-    // Usage: SUBMIT_BYVAL(tier, item, token/tokens, arg) { ...expression; };
-    #define SUBMIT_T(level, item, token, arg) \
-        bell::template submit2<decltype(item)>(level, token) = [&] (ARGTYPE(item)&& arg)
-
-    #define SIGNAL(level, item, arg) \
-        bell::template signal<level>(ARGVALUE(item), static_cast<ARGTYPE(item)&&>(arg))
-
-    #define SIGNAL_GLOBAL(item, arg) \
-        bell::template signal_global(ARGVALUE(item), static_cast<ARGTYPE(item)&&>(arg))
-
-    #define SUBMIT_GLOBAL(item, token, arg) \
-        bell::template submit_global<decltype(item)>(token) = [&] (ARGTYPE(item)&& arg)
-
-    #define EVENTPACK( name, base ) using _group_type = name; \
-                                    static constexpr auto _counter_base = __COUNTER__; \
-                                    static constexpr auto any = type_clue<_group_type, decltype(base)::type, decltype(base)::id>
-    #define  EVENT_XS( name, type ) }; static constexpr auto name = type_clue<_group_type, type, decltype(any)::id | ((__COUNTER__ - _counter_base) << EVENTS_NS::level_width(decltype(any)::id))>{ 777
-    #define  GROUP_XS( name, type ) EVENT_XS( _##name, type )
-    #define SUBSET_XS( name )       }; struct name { EVENTPACK( name, _##name )
-    #define  INDEX_XS(  ... )       }; template<auto N> static constexpr \
-                                    auto _ = decltype(EVENTS_NS::array{ __VA_ARGS__ })::at<N>; \
-                                    static constexpr auto _dummy = std::tuple{ 777
-    //todo unify seeding
-    namespace userland
-    {
-        struct _root_nope {};
-        struct root
-        {
-            static constexpr auto root_event = type_clue<root, void, 0>{};
-
-            EVENTPACK( root, root_event )
-            {
-                EVENT_XS( dtor  , _root_nope ),
-                EVENT_XS( base  , _root_nope ),
-                EVENT_XS( hids  , _root_nope ),
-                EVENT_XS( custom, _root_nope ),
-            };
-        };
-    }
+    template<class T> reactor bell::_globals<T>::general{ reactor::forward };
 }
 
 #endif // NETXS_EVENTS_HPP

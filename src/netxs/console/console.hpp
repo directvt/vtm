@@ -2584,7 +2584,7 @@ namespace netxs::console
                         canvas.cup(dot_00);
                         canvas.output(head_page, contrast_fx);
                         canvas.cup({ 0, head_size.y + boss.size().y });
-                        canvas.output(foot_page);
+                        canvas.output(foot_page, contrast_fx);
                         canvas.bump(saved_context);
                     }
                 };
