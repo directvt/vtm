@@ -21,11 +21,15 @@
 namespace netxs::events
 {
     using type = unsigned int;
+    using id_t = uint32_t;
 
+    enum class execution_order
+    {
+        forward, // Execute concrete event  first. Forward means from particular to general: 1. event_group::item, 2. event_group::any
+        reverse, // Execute global   events first. Reverse means from general to particular: 1. event_group::any , 2. event_group::item
+    };
     enum class tier
     {
-        // Forward means from particular to general: 1. event_group::item, 2. event_group::any
-        // Reverse means from general to particular: 1. event_group::any , 2. event_group::item
         release, // events: Run forwrad handlers with fixed param. Preserve subscription order.
         preview, // events: Run reverse handlers with fixed a param intended to change. Preserve subscription order.
         general, // events: Run forwrad handlers for all objects. Preserve subscription order.
@@ -79,104 +83,67 @@ namespace netxs::events
     **************************************************************************************************/
 
     static constexpr auto width = 4;
-    static constexpr type _mask = (1 << width) - 1;
+
     // events: Return item/msg level by its ID.
-    constexpr static auto level(type msg)
+    constexpr static inline auto level(type msg)
     {
         if (msg == 0) return 0;
-        iota level = 1;
+        auto level = 1;
         while ((msg = msg >> width))
         {
             level++;
         }
         return level;
     }
-    // events: Return item/msg bit shift.
-    constexpr static auto level_width(type msg)
-    {
-        return level(msg) * width;
-    }
     // events: Return item/msg global level mask by its ID.
-    constexpr static type level_mask(type msg)
+    constexpr static inline type level_mask(type msg)
     {
-        unsigned int level = 0;
+        auto level = 0;
         while ((msg = msg >> width))
         {
             level += width;
         }
         return (1 << level) - 1;
     }
-    // events: Increament level offset by width and return item's subgroup ID fof the specified level offset.
-    constexpr static auto subgroup_rev(type msg, type& itermask)
-    {
-        itermask = (itermask << width) + _mask;
-        return msg & itermask;
-    }
-    constexpr static auto subgroup_fwd(type msg, type& itermask)
-    {
-        auto result = msg & itermask;
-        itermask = (itermask >> width);
-        return result;
-    }
-    // events: Return event's group ID.
-    constexpr static auto parent(type msg)
-    {
-        return msg & ((1 << ((level(msg) - 1) * width)) - 1);
-    }
-    // events: Return the event ID of the specified item inside the group.
-    constexpr static auto message(type base, type item)
-    {
-        return base | ((item + 1) << level_width(base));
-    }
-    // events: Return item index inside the group by its ID.
-    constexpr static auto item(type msg)
-    {
-        return (msg >> ((level(msg) - 1) * width)) - 1;
-    }
-    template<std::size_t N, std::size_t... I>
-    constexpr static auto _instantiate(type base, std::index_sequence<I...>)
-    {
-        return std::array<unsigned int, N>{ message(base, I)... };
-    }
-    template<std::size_t N>
-    constexpr static auto group(type base)
-    {
-        return _instantiate<N>(base, std::make_index_sequence<N>{});
-    }
+    template<type event>             constexpr auto offset = level(event) * width; // events: Return item/msg bit shift.
+    template<type event>             constexpr auto parent =          event & ((1 << (offset<event> - width)) - 1); // events: Return event's group ID.
+    template<type event>             constexpr auto number =               (event >> (offset<event> - width)) - 1; // events: Return item index inside the group by its ID.
+    template<type group, auto index> constexpr auto entity = group | ((index + 1) <<  offset<group>); // events: Event ID of the specified item inside the group.
 
-    enum execution_order
+    template<type group, auto... index>
+    constexpr auto _instantiate(std::index_sequence<index...>)
     {
-        forward, // Execute concrete event first.
-        reverse, // Execute global events first.
-    };
+        return std::array<type, sizeof...(index)>{ entity<group, index>... };
+    }
+    template<type group, auto count> constexpr auto subset = _instantiate<group>(std::make_index_sequence<count>{});
+
     struct handler
     {
         virtual ~handler() { }
     };
-    using hook =             sptr<handler>;
-    using list = std::list  <wptr<handler>>;
-    using vect = std::vector<wptr<handler>>;
-    using id_t = uint32_t;
+    using hook = sptr<handler>;
 
     template<execution_order ORDER = execution_order::forward>
     struct reactor
     {
         template <class F>
         using hndl = std::function<void(F&&)>;
+        using list = std::  list<wptr<handler>>;
+        using vect = std::vector<wptr<handler>>;
 
         template <class F>
         struct wrapper : handler
         {
             hndl<F> proc;
-            wrapper(hndl<F> && param)
-                : proc{ param }
+            wrapper(hndl<F> && proc)
+                : proc{ proc }
             { }
         };
 
-        std::map<type, list> stock; // reactor: handlers repository.
-        std::vector<type>    queue; // reactor: event queue.
-        vect                 qcopy; // reactor: copy of the current pretenders to exec on current event.
-        bool                 alive; // reactor: current exec branch interruptor.
+        std::map<type, list> stock; // reactor: Handlers repository.
+        std::vector<type>    queue; // reactor: Event queue.
+        vect                 qcopy; // reactor: Copy of the current pretenders to exec on current event.
+        bool                 alive; // reactor: Current exec branch interruptor.
 
         void merge(reactor const& r)
         {
@@ -229,20 +196,24 @@ namespace netxs::events
             {
                 type itermask = events::level_mask(event);
                 type subgroup = event;
-                _refreshandcopy(stock[event]);
+                _refreshandcopy(stock[subgroup]);
                 while (subgroup)
                 {
-                    subgroup = events::subgroup_fwd(event, itermask);
+                    subgroup = event & itermask;
+                    itermask >>= events::width;
                     _refreshandcopy(stock[subgroup]);
                 }
             }
             else
             {
+                static constexpr type mask = (1 << events::width) - 1;
                 type itermask = 0;
                 type subgroup;
                 do
                 {
-                    subgroup = events::subgroup_rev(event, itermask);
+                    itermask = itermask << events::width | mask;
+                    subgroup = event & itermask;
+
                     _refreshandcopy(stock[subgroup]);
                 }
                 while (subgroup != event);
@@ -255,7 +226,7 @@ namespace netxs::events
                 auto iter = head;
                 do
                 {
-                    if (auto proc_ptr = qcopy[iter].lock())
+                    if (auto proc_ptr = qcopy[iter].lock()) // qcopy could be reallocated.
                     {
                         if (auto compatible = static_cast<wrapper<F>*>(proc_ptr.get()))
                         {
@@ -384,8 +355,8 @@ namespace netxs::events
 
         template<class ...Args> constexpr type_clue(Args&&...) { }
         template<std::size_t N>
-        static constexpr auto group() { return events::group<N>(id); }
-        static constexpr auto index() { return events::item    (id); }
+        static constexpr auto group() { return events::subset<id, N>; }
+        static constexpr auto index() { return events::number<id>;    }
     };
 
     template<class ...Args>
@@ -409,7 +380,7 @@ namespace netxs::events
     #define EVENTPACK( name, base ) using _group_type = name; \
                                     static constexpr auto _counter_base = __COUNTER__; \
                                     public: static constexpr auto any = type_clue<_group_type, decltype(base)::type, decltype(base)::id>
-    #define  EVENT_XS( name, type ) }; static constexpr auto name = type_clue<_group_type, type, decltype(any)::id | ((__COUNTER__ - _counter_base) << netxs::events::level_width(decltype(any)::id))>{ 777
+    #define  EVENT_XS( name, type ) }; static constexpr auto name = type_clue<_group_type, type, decltype(any)::id | ((__COUNTER__ - _counter_base) << netxs::events::offset<decltype(any)::id>)>{ 777
     #define  GROUP_XS( name, type ) EVENT_XS( _##name, type )
     #define SUBSET_XS( name )       }; class name { EVENTPACK( name, _##name )
     #define  INDEX_XS(  ... )       }; template<auto N> static constexpr \
@@ -445,10 +416,10 @@ namespace netxs::events
         {
             static fwd_reactor general;
         };
-        fwd_reactor& general; // bell: Global  events node relay.
-        rev_reactor  preview; // bell: Preview events node relay.
-        fwd_reactor  request; // bell: Request events node relay.
-        fwd_reactor  release; // bell: Release events node relay.
+        fwd_reactor& general; // bell: Global  event relay.
+        rev_reactor  preview; // bell: Preview event relay.
+        fwd_reactor  request; // bell: Request event relay.
+        fwd_reactor  release; // bell: Release event relay.
 
         template<tier TIER, class EVENT>
         struct submit_helper
