@@ -5252,7 +5252,7 @@ again:
                         #ifdef DEBUG_OVERLAY
                             debug.bypass = true;
                             //input.fire(hids::events::mouse::hover);
-                            input.fire(hids::events::mouse::move);
+                            input.fire(hids::events::mouse::move.id);
                             debug.bypass = faux;
                         #else
                             input.fire(hids::events::mouse::move.id);

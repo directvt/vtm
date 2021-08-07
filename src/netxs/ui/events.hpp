@@ -84,31 +84,41 @@ namespace netxs::events
 
     static constexpr auto width = 4;
 
-    // events: Return item/msg level by its ID.
-    constexpr static inline auto level(type msg)
+    // events: Return item/msg level by its ID. Find the log base 2**width.
+    constexpr static inline auto level(type event)
     {
-        if (msg == 0) return 0;
+        if (event == 0) return 0;
         auto level = 1;
-        while ((msg = msg >> width))
+        while (event >>= width)
         {
-            level++;
+            ++level;
         }
         return level;
     }
-    // events: Return item/msg global level mask by its ID.
-    constexpr static inline type level_mask(type msg)
+    // events: Return item/msg global level mask by its ID. Find the log base 2**width.
+    constexpr static inline type level_mask(type event)
     {
         auto level = 0;
-        while ((msg = msg >> width))
+        while (event >>= width)
         {
             level += width;
         }
         return (1 << level) - 1;
+        //constexpr auto c = __COUNTER__ + 1;
+        //if (!(event >>= width)) return (1 << (__COUNTER__ - c) * width) - 1;
+        //if (!(event >>= width)) return (1 << (__COUNTER__ - c) * width) - 1;
+        //if (!(event >>= width)) return (1 << (__COUNTER__ - c) * width) - 1;
+        //if (!(event >>= width)) return (1 << (__COUNTER__ - c) * width) - 1;
+        //if (!(event >>= width)) return (1 << (__COUNTER__ - c) * width) - 1;
+        //if (!(event >>= width)) return (1 << (__COUNTER__ - c) * width) - 1;
+        //if (!(event >>= width)) return (1 << (__COUNTER__ - c) * width) - 1;
+        //if (!(event >>= width)) return (1 << (__COUNTER__ - c) * width) - 1;
+        //return std::numeric_limits<type>::max();
     }
-    template<type event>             constexpr auto offset = level(event) * width; // events: Return item/msg bit shift.
-    template<type event>             constexpr auto parent =          event & ((1 << (offset<event> - width)) - 1); // events: Return event's group ID.
-    template<type event>             constexpr auto number =               (event >> (offset<event> - width)) - 1; // events: Return item index inside the group by its ID.
-    template<type group, auto index> constexpr auto entity = group | ((index + 1) <<  offset<group>); // events: Event ID of the specified item inside the group.
+    template<type event>             constexpr auto offset = level(event) * width;                                  // events: Item/msg bit shift.
+    template<type event>             constexpr auto parent =          event & ((1 << (offset<event> - width)) - 1); // events: Event's group ID.
+    template<type event>             constexpr auto number =               (event >> (offset<event> - width)) - 1;  // events: Item index inside the group by its ID.
+    template<type group, auto index> constexpr auto entity = group | ((index + 1) <<  offset<group>);               // events: Event ID of the specified item inside the group.
 
     template<type group, auto... index>
     constexpr auto _instantiate(std::index_sequence<index...>)
@@ -213,7 +223,6 @@ namespace netxs::events
                 {
                     itermask = itermask << events::width | mask;
                     subgroup = event & itermask;
-
                     _refreshandcopy(stock[subgroup]);
                 }
                 while (subgroup != event);
