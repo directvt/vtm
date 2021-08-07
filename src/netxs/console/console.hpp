@@ -844,7 +844,7 @@ namespace netxs::console
                     {
                         if (gear.focus_taken())
                         {
-                            parent_ptr->bell::expire(tier::release);
+                            parent_ptr->bell::expire<tier::release>();
                         }
                         else
                         {
@@ -3240,7 +3240,7 @@ namespace netxs::console
                         if (!gear.focus_taken())
                         {
                             gear.set_kb_focus(boss.This());
-                            boss.bell::expire(tier::release);
+                            boss.bell::expire<tier::release>();
                         }
                     };
                 }
@@ -3279,7 +3279,7 @@ namespace netxs::console
                     gear.pass<tier::preview>(boss.parent(), offset);
 
                     if (gear) gear.okay(boss);
-                    else      boss.bell::expire(tier::preview);
+                    else      boss.bell::expire<tier::preview>();
                 };
                 // pro::mouse: Forward all not expired mouse events to all parents.
                 boss.SUBMIT_T(tier::release, hids::events::mouse::any, memo, gear)
@@ -3645,7 +3645,7 @@ namespace netxs::console
                             boss.base::ruined(faux);
                         }
                         parent_canvas.plot(canvas);
-                        boss.bell::expire(tier::release);
+                        boss.bell::expire<tier::release>();
                     };
                 }
             }
@@ -3979,7 +3979,7 @@ namespace netxs::console
         pro::mouse mouse{*this }; // host: Mouse controller.
         pro::scene scene{*this }; // host: Scene controller.
 
-        using tick = quartz<events::reactor, e2::type>;
+        using tick = quartz<events::reactor<>, e2::type>;
         using hndl = std::function<void(view)>;
 
         tick synch; // host: Frame rate synchronizator.
@@ -4015,7 +4015,7 @@ namespace netxs::console
 
     protected:
         host(hndl exit_proc)
-            : synch(router(tier::general), e2::tick.id),
+            : synch(router<tier::general>(), e2::tick.id),
               frate{ 0 },
               close{ exit_proc }
         {
@@ -5411,7 +5411,7 @@ again:
                     mark.bga(mark.bga() / 2);
                     parent_canvas.fill(area, [&](cell& c){ c.fuse(mark); });
                 }
-                bell::expire(tier::release); // In order to disable base::render for gate.
+                this->bell::expire<tier::release>(); // In order to disable base::render for gate.
             };
             SUBMIT(tier::release, e2::postrender, parent_canvas)
             {

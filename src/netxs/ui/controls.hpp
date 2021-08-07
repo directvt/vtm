@@ -138,7 +138,7 @@ namespace netxs::ui
             auto item_shadow = ptr::shadow(new_item);
             auto data_shadow = ptr::shadow(data_src_sptr);
             auto boss_shadow = ptr::shadow(backup);
-            data_src_sptr->SUBMIT_BYVAL_T(tier::release, PROPERTY, memomap[data_src_sptr->id], arg_new_value)
+            data_src_sptr->SUBMIT_T_BYVAL(tier::release, PROPERTY, memomap[data_src_sptr->id], arg_new_value)
             {
                 if (auto boss_ptr = boss_shadow.lock())
                 if (auto data_src = data_shadow.lock())
@@ -1634,7 +1634,7 @@ namespace netxs::ui
                 parent_canvas.view(view);
                 if (client)
                     parent_canvas.render(client, base::coor());
-                bell::expire(tier::release);
+                this->bell::expire<tier::release>();
             };
         }
         // pads: Attach specified item.

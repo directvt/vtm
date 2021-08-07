@@ -2516,7 +2516,7 @@ utility like ctags is used to locate the definitions.
                                                         if (auto client = client_shadow.lock())
                                                         {
                                                             auto mark_shadow = ptr::shadow(boss.template This<ui::item>());
-                                                            client->SUBMIT_BYVAL_T(tier::release, e2::data::changed, boss.tracker, data)
+                                                            client->SUBMIT_T_BYVAL(tier::release, e2::data::changed, boss.tracker, data)
                                                             {
                                                                 auto selected = id == data;
                                                                 if(auto mark = mark_shadow.lock())

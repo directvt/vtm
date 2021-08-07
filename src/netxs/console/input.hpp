@@ -213,11 +213,11 @@ namespace netxs::input
 {
     using namespace netxs::ui::atoms;
     using namespace netxs::datetime;
+    using hint = netxs::events::type;
     using netxs::events::bell;
     using netxs::events::subs;
     using netxs::events::tier;
     using netxs::events::hook;
-    using netxs::events::hint;
     using netxs::events::id_t;
 
     // console: Base mouse class.
