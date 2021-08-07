@@ -8,59 +8,7 @@
 #include "../abstract/ring.hpp"
 
 #include <cassert>
-/*
-namespace netxs::events::userland
-{
-    using cmd_type = iota;
-    using align_type = netxs::console::bias::type;
-    using wrapln_type = netxs::console::wrap::type;
-    using in_type =  netxs::console::view;
-    using out_type = netxs::console::view;
-    using data_type = void;
-    using layout_type = void;
-    using dtor_type = void;
-    using base_type = void;
-    using hids_type = void;
-    using custom_type = void;
 
-    #define  EVENT  EVENT_XS
-    #define  GROUP  GROUP_XS
-    #define SUBSET SUBSET_XS
-
-    struct term2
-    {
-        EVENTPACK( term2, root::custom )
-        {
-            EVENT( cmd   , cmd_type     ),
-            GROUP( layout, layout_type ),
-            GROUP( data  , data_type   ),
-
-            SUBSET( layout )
-            {
-                EVENT( align , align_type  ),
-                EVENT( wrapln, wrapln_type ),
-            };
-            
-            SUBSET( data )
-            {
-                EVENT( in , in_type  ),
-                EVENT( out, out_type ),
-            };
-        };
-    };
-
-    #undef  EVENT
-    #undef  GROUP
-    #undef SUBSET
-
-    struct tt
-    {
-        static constexpr auto _id = term2::data::out;
-        static constexpr auto _id1 = _id._id;
-        using t = decltype(_id)::_type;
-    };
-}
-*/
 namespace netxs::events::userland
 {
     struct term
