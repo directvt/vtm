@@ -2567,7 +2567,6 @@ utility like ctags is used to locate the definitions.
                                             ->invoke([&](auto& boss)
                                             {
                                                 boss.mouse.template draggable<sysmouse::left>();
-                                                //boss.SUBMIT(tier::release, e2::form_drag_pull<sysmouse::left>, gear)
                                                 boss.SUBMIT(tier::release, e2::form::drag::pull::_<sysmouse::left>, gear)
                                                 {
                                                     auto& limits = boss.template plugins<pro::limit>();
