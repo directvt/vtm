@@ -14,361 +14,210 @@ namespace netxs::events::userland
 {
     struct hids
     {
-        #define  EVENT  EVENT_XS
-        #define SUBSET SUBSET_XS
-        #define     OF     OF_XS
-        #define  GROUP  GROUP_XS
-
-        EVENTPACK( netxs::events::userland::root::hids )
+        EVENTPACK( hids, netxs::events::userland::root::hids )
         {
-            any = _,
-            EVENT( die     ), // release::global: Notify about the mouse controller is gone (args: hids).
-            GROUP( keybd   ),
-            GROUP( mouse   ),
-            GROUP( notify  ), // Form events that should be propagated down to the visual branch
-            GROUP( upevent ), // events streamed up (to children) of the visual tree by base::
+            EVENT_XS( die    , input::hids ), // release::global: Notify about the mouse controller is gone.
+            GROUP_XS( keybd  , input::hids ),
+            GROUP_XS( mouse  , input::hids ),
+            GROUP_XS( notify , input::hids ), // Form events that should be propagated down to the visual branch.
+            GROUP_XS( upevent, input::hids ), // events streamed up (to children) of the visual tree by base::.
 
-            SUBSET OF( upevent )
+            SUBSET_XS( upevent )
             {
-                any = _,
-                EVENT( kboffer ), // inform nested objects that the keybd focus should be taken (arg: hids)
+                EVENT_XS( kboffer, input::hids ), // inform nested objects that the keybd focus should be taken.
             };
-            SUBSET OF( notify )
+            SUBSET_XS( notify )
             {
-                any = _,
-                GROUP( mouse ), // request context menu at specified coords (arg: twod)
-                GROUP( keybd ), // request the prev scene window (arg: twod)
+                GROUP_XS( mouse, input::hids ), // request context menu at specified coords.
+                GROUP_XS( keybd, input::hids ), // request the prev scene window.
 
-                SUBSET OF( mouse )
+                SUBSET_XS( mouse )
                 {
-                    any = _,
-                    EVENT( enter ), // inform the form about the mouse hover (arg: hids)
-                    EVENT( leave ), // inform the form about the mouse leave (arg: hids)
+                    EVENT_XS( enter, input::hids ), // inform the form about the mouse hover.
+                    EVENT_XS( leave, input::hids ), // inform the form about the mouse leave.
                 };
-                SUBSET OF( keybd )
+                SUBSET_XS( keybd )
                 {
-                    any = _,
-                    EVENT( got  ),
-                    EVENT( lost ),
+                    EVENT_XS( got , input::hids ),
+                    EVENT_XS( lost, input::hids ),
                 };
             };
-            SUBSET OF( keybd )
+            SUBSET_XS( keybd )
             {
-                any = _,
-                EVENT( down    ),
-                EVENT( up      ),
-                GROUP( control ),
-                GROUP( state   ),
+                EVENT_XS( down   , input::hids ),
+                EVENT_XS( up     , input::hids ),
+                GROUP_XS( control, input::hids ),
+                GROUP_XS( state  , input::hids ),
 
-                SUBSET OF( control )
+                SUBSET_XS( control )
                 {
-                    any = _,
-                    GROUP( up   ),
-                    GROUP( down ),
+                    GROUP_XS( up  , input::hids ),
+                    GROUP_XS( down, input::hids ),
 
-                    SUBSET OF( up )
+                    SUBSET_XS( up )
                     {
-                        any = _,
-                        EVENT( alt_right   ),
-                        EVENT( alt_left    ),
-                        EVENT( ctrl_right  ),
-                        EVENT( ctrl_left   ),
-                        EVENT( shift_right ),
-                        EVENT( shift_left  ),
+                        EVENT_XS( alt_right  , input::hids ),
+                        EVENT_XS( alt_left   , input::hids ),
+                        EVENT_XS( ctrl_right , input::hids ),
+                        EVENT_XS( ctrl_left  , input::hids ),
+                        EVENT_XS( shift_right, input::hids ),
+                        EVENT_XS( shift_left , input::hids ),
                     };
-                    SUBSET OF( down )
+                    SUBSET_XS( down )
                     {
-                        any = _,
-                        EVENT( alt_right   ),
-                        EVENT( alt_left    ),
-                        EVENT( ctrl_right  ),
-                        EVENT( ctrl_left   ),
-                        EVENT( shift_right ),
-                        EVENT( shift_left  ),
+                        EVENT_XS( alt_right  , input::hids ),
+                        EVENT_XS( alt_left   , input::hids ),
+                        EVENT_XS( ctrl_right , input::hids ),
+                        EVENT_XS( ctrl_left  , input::hids ),
+                        EVENT_XS( shift_right, input::hids ),
+                        EVENT_XS( shift_left , input::hids ),
                     };
                 };
-                SUBSET OF( state )
+                SUBSET_XS( state )
                 {
-                    any = _,
-                    GROUP( on  ),
-                    GROUP( off ),
+                    GROUP_XS( on , input::hids ),
+                    GROUP_XS( off, input::hids ),
 
-                    SUBSET OF( on )
+                    SUBSET_XS( on )
                     {
-                        any = _,
-                        EVENT( numlock    ),
-                        EVENT( capslock   ),
-                        EVENT( scrolllock ),
-                        EVENT( insert     ),
+                        EVENT_XS( numlock   , input::hids ),
+                        EVENT_XS( capslock  , input::hids ),
+                        EVENT_XS( scrolllock, input::hids ),
+                        EVENT_XS( insert    , input::hids ),
                     };
-                    SUBSET OF( off )
+                    SUBSET_XS( off )
                     {
-                        any = _,
-                        EVENT( numlock    ),
-                        EVENT( capslock   ),
-                        EVENT( scrolllock ),
-                        EVENT( insert     ),
+                        EVENT_XS( numlock   , input::hids ),
+                        EVENT_XS( capslock  , input::hids ),
+                        EVENT_XS( scrolllock, input::hids ),
+                        EVENT_XS( insert    , input::hids ),
                     };
                 };
             };
-            SUBSET OF( mouse )
+            SUBSET_XS( mouse )
             {
-                any = _,
-                EVENT( move    ),
-                EVENT( shuffle ), // movement within one cell
-                EVENT( focus   ),
-                GROUP( button  ),
-                GROUP( scroll  ),
+                EVENT_XS( move   , input::hids ),
+                EVENT_XS( shuffle, input::hids ), // movement within one cell.
+                EVENT_XS( focus  , input::hids ),
+                GROUP_XS( button , input::hids ),
+                GROUP_XS( scroll , input::hids ),
 
-                SUBSET OF( scroll )
+                SUBSET_XS( scroll )
                 {
-                    any = _,
-                    EVENT( up   ),
-                    EVENT( down ),
+                    EVENT_XS( up  , input::hids ),
+                    EVENT_XS( down, input::hids ),
                 };
-                SUBSET OF( button )
+                SUBSET_XS( button )
                 {
-                    any = _,
-                    GROUP( up       ),
-                    GROUP( down     ),
-                    GROUP( click    ),
-                    GROUP( dblclick ),
-                    GROUP( drag     ),
+                    GROUP_XS( up      , input::hids ),
+                    GROUP_XS( down    , input::hids ),
+                    GROUP_XS( click   , input::hids ),
+                    GROUP_XS( dblclick, input::hids ),
+                    GROUP_XS( drag    , input::hids ),
 
-                    SUBSET OF( up )
+                    SUBSET_XS( up )
                     {
-                        any = _,
-                        EVENT( left      ),
-                        EVENT( right     ),
-                        EVENT( leftright ),
-                        EVENT( middle    ),
-                        EVENT( wheel     ),
-                        EVENT( win       ),
+                        EVENT_XS( left     , input::hids ),
+                        EVENT_XS( right    , input::hids ),
+                        EVENT_XS( leftright, input::hids ),
+                        EVENT_XS( middle   , input::hids ),
+                        EVENT_XS( wheel    , input::hids ),
+                        EVENT_XS( win      , input::hids ),
                     };
-                    SUBSET OF( down )
+                    SUBSET_XS( down )
                     {
-                        any = _,
-                        EVENT( left      ),
-                        EVENT( right     ),
-                        EVENT( leftright ),
-                        EVENT( middle    ),
-                        EVENT( wheel     ),
-                        EVENT( win       ),
+                        EVENT_XS( left     , input::hids ),
+                        EVENT_XS( right    , input::hids ),
+                        EVENT_XS( leftright, input::hids ),
+                        EVENT_XS( middle   , input::hids ),
+                        EVENT_XS( wheel    , input::hids ),
+                        EVENT_XS( win      , input::hids ),
                     };
-                    SUBSET OF( click )
+                    SUBSET_XS( click )
                     {
-                        any = _,
-                        EVENT( left      ),
-                        EVENT( right     ),
-                        EVENT( leftright ),
-                        EVENT( middle    ),
-                        EVENT( wheel     ),
-                        EVENT( win       ),
+                        EVENT_XS( left     , input::hids ),
+                        EVENT_XS( right    , input::hids ),
+                        EVENT_XS( leftright, input::hids ),
+                        EVENT_XS( middle   , input::hids ),
+                        EVENT_XS( wheel    , input::hids ),
+                        EVENT_XS( win      , input::hids ),
                     };
-                    SUBSET OF( dblclick )
+                    SUBSET_XS( dblclick )
                     {
-                        any = _,
-                        EVENT( left      ),
-                        EVENT( right     ),
-                        EVENT( leftright ),
-                        EVENT( middle    ),
-                        EVENT( wheel     ),
-                        EVENT( win       ),
+                        EVENT_XS( left     , input::hids ),
+                        EVENT_XS( right    , input::hids ),
+                        EVENT_XS( leftright, input::hids ),
+                        EVENT_XS( middle   , input::hids ),
+                        EVENT_XS( wheel    , input::hids ),
+                        EVENT_XS( win      , input::hids ),
                     };
-                    SUBSET OF( drag )
+                    SUBSET_XS( drag )
                     {
-                        any = _,
-                        GROUP( start  ),
-                        GROUP( pull   ),
-                        GROUP( cancel ),
-                        GROUP( stop   ),
+                        GROUP_XS( start , input::hids ),
+                        GROUP_XS( pull  , input::hids ),
+                        GROUP_XS( cancel, input::hids ),
+                        GROUP_XS( stop  , input::hids ),
 
-                        SUBSET OF( start )
+                        SUBSET_XS( start )
                         {
-                            any = _,
-                            EVENT( left      ),
-                            EVENT( right     ),
-                            EVENT( leftright ),
-                            EVENT( middle    ),
-                            EVENT( wheel     ),
-                            EVENT( win       ),
+                            EVENT_XS( left     , input::hids ),
+                            EVENT_XS( right    , input::hids ),
+                            EVENT_XS( leftright, input::hids ),
+                            EVENT_XS( middle   , input::hids ),
+                            EVENT_XS( wheel    , input::hids ),
+                            EVENT_XS( win      , input::hids ),
+
+                            INDEX_XS( left, right, leftright, middle, wheel, win ),
                         };
-                        SUBSET OF( pull )
+                        SUBSET_XS( pull )
                         {
-                            any = _,
-                            EVENT( left      ),
-                            EVENT( right     ),
-                            EVENT( leftright ),
-                            EVENT( middle    ),
-                            EVENT( wheel     ),
-                            EVENT( win       ),
+                            EVENT_XS( left     , input::hids ),
+                            EVENT_XS( right    , input::hids ),
+                            EVENT_XS( leftright, input::hids ),
+                            EVENT_XS( middle   , input::hids ),
+                            EVENT_XS( wheel    , input::hids ),
+                            EVENT_XS( win      , input::hids ),
+
+                            INDEX_XS( left, right, leftright, middle, wheel, win ),
                         };
-                        SUBSET OF( cancel )
+                        SUBSET_XS( cancel )
                         {
-                            any = _,
-                            EVENT( left      ),
-                            EVENT( right     ),
-                            EVENT( leftright ),
-                            EVENT( middle    ),
-                            EVENT( wheel     ),
-                            EVENT( win       ),
+                            EVENT_XS( left     , input::hids ),
+                            EVENT_XS( right    , input::hids ),
+                            EVENT_XS( leftright, input::hids ),
+                            EVENT_XS( middle   , input::hids ),
+                            EVENT_XS( wheel    , input::hids ),
+                            EVENT_XS( win      , input::hids ),
+
+                            INDEX_XS( left, right, leftright, middle, wheel, win ),
                         };
-                        SUBSET OF( stop )
+                        SUBSET_XS( stop )
                         {
-                            any = _,
-                            EVENT( left      ),
-                            EVENT( right     ),
-                            EVENT( leftright ),
-                            EVENT( middle    ),
-                            EVENT( wheel     ),
-                            EVENT( win       ),
+                            EVENT_XS( left     , input::hids ),
+                            EVENT_XS( right    , input::hids ),
+                            EVENT_XS( leftright, input::hids ),
+                            EVENT_XS( middle   , input::hids ),
+                            EVENT_XS( wheel    , input::hids ),
+                            EVENT_XS( win      , input::hids ),
+
+                            INDEX_XS( left, right, leftright, middle, wheel, win ),
                         };
                     };
                 };
             };
         };
-
-        #undef EVENT
-        #undef SUBSET
-        #undef OF
-        #undef GROUP
     };
-
-    EVENT_BIND(hids::any, input::hids);
-
-        EVENT_SAME(hids::any, hids::die);
-
-        EVENT_SAME(hids::any, hids::upevent::any);
-            EVENT_SAME(hids::any, hids::upevent::kboffer);
-
-        EVENT_SAME(hids::any, hids::notify::any);
-            EVENT_SAME(hids::any, hids::notify::mouse::any);
-                EVENT_SAME(hids::any, hids::notify::mouse::enter);
-                EVENT_SAME(hids::any, hids::notify::mouse::leave);
-
-            EVENT_SAME(hids::any, hids::notify::keybd::any);
-                EVENT_SAME(hids::any, hids::notify::keybd::got);
-                EVENT_SAME(hids::any, hids::notify::keybd::lost);
-
-        EVENT_SAME(hids::any, hids::mouse::any);
-            EVENT_SAME(hids::any, hids::mouse::scroll::any);
-                EVENT_SAME(hids::any, hids::mouse::scroll::up);
-                EVENT_SAME(hids::any, hids::mouse::scroll::down);
-
-            EVENT_SAME(hids::any, hids::mouse::move);
-            EVENT_SAME(hids::any, hids::mouse::shuffle);
-            EVENT_SAME(hids::any, hids::mouse::focus);
-
-            EVENT_SAME(hids::any, hids::mouse::button::any);
-                EVENT_SAME(hids::any, hids::mouse::button::up::any);
-                    EVENT_SAME(hids::any, hids::mouse::button::up::left);
-                    EVENT_SAME(hids::any, hids::mouse::button::up::right);
-                    EVENT_SAME(hids::any, hids::mouse::button::up::middle);
-                    EVENT_SAME(hids::any, hids::mouse::button::up::wheel);
-                    EVENT_SAME(hids::any, hids::mouse::button::up::win);
-                    EVENT_SAME(hids::any, hids::mouse::button::up::leftright);
-
-                EVENT_SAME(hids::any, hids::mouse::button::down::any);
-                    EVENT_SAME(hids::any, hids::mouse::button::down::left);
-                    EVENT_SAME(hids::any, hids::mouse::button::down::right);
-                    EVENT_SAME(hids::any, hids::mouse::button::down::middle);
-                    EVENT_SAME(hids::any, hids::mouse::button::down::wheel);
-                    EVENT_SAME(hids::any, hids::mouse::button::down::win);
-                    EVENT_SAME(hids::any, hids::mouse::button::down::leftright);
-
-                EVENT_SAME(hids::any, hids::mouse::button::click::any);
-                    EVENT_SAME(hids::any, hids::mouse::button::click::left);
-                    EVENT_SAME(hids::any, hids::mouse::button::click::right);
-                    EVENT_SAME(hids::any, hids::mouse::button::click::middle);
-                    EVENT_SAME(hids::any, hids::mouse::button::click::wheel);
-                    EVENT_SAME(hids::any, hids::mouse::button::click::win);
-                    EVENT_SAME(hids::any, hids::mouse::button::click::leftright);
-
-                EVENT_SAME(hids::any, hids::mouse::button::dblclick::any);
-                    EVENT_SAME(hids::any, hids::mouse::button::dblclick::left);
-                    EVENT_SAME(hids::any, hids::mouse::button::dblclick::right);
-                    EVENT_SAME(hids::any, hids::mouse::button::dblclick::middle);
-                    EVENT_SAME(hids::any, hids::mouse::button::dblclick::wheel);
-                    EVENT_SAME(hids::any, hids::mouse::button::dblclick::win);
-                    EVENT_SAME(hids::any, hids::mouse::button::dblclick::leftright);
-
-                EVENT_SAME(hids::any, hids::mouse::button::drag::any);
-                    EVENT_SAME(hids::any, hids::mouse::button::drag::start::any);
-                        EVENT_SAME(hids::any, hids::mouse::button::drag::start::left);
-                        EVENT_SAME(hids::any, hids::mouse::button::drag::start::right);
-                        EVENT_SAME(hids::any, hids::mouse::button::drag::start::middle);
-                        EVENT_SAME(hids::any, hids::mouse::button::drag::start::wheel);
-                        EVENT_SAME(hids::any, hids::mouse::button::drag::start::win);
-                        EVENT_SAME(hids::any, hids::mouse::button::drag::start::leftright);
-
-                    EVENT_SAME(hids::any, hids::mouse::button::drag::pull::any);
-                        EVENT_SAME(hids::any, hids::mouse::button::drag::pull::left);
-                        EVENT_SAME(hids::any, hids::mouse::button::drag::pull::right);
-                        EVENT_SAME(hids::any, hids::mouse::button::drag::pull::middle);
-                        EVENT_SAME(hids::any, hids::mouse::button::drag::pull::wheel);
-                        EVENT_SAME(hids::any, hids::mouse::button::drag::pull::win);
-                        EVENT_SAME(hids::any, hids::mouse::button::drag::pull::leftright);
-
-                    EVENT_SAME(hids::any, hids::mouse::button::drag::cancel::any);
-                        EVENT_SAME(hids::any, hids::mouse::button::drag::cancel::left);
-                        EVENT_SAME(hids::any, hids::mouse::button::drag::cancel::right);
-                        EVENT_SAME(hids::any, hids::mouse::button::drag::cancel::middle);
-                        EVENT_SAME(hids::any, hids::mouse::button::drag::cancel::wheel);
-                        EVENT_SAME(hids::any, hids::mouse::button::drag::cancel::win);
-                        EVENT_SAME(hids::any, hids::mouse::button::drag::cancel::leftright);
-
-                    EVENT_SAME(hids::any, hids::mouse::button::drag::stop::any);
-                        EVENT_SAME(hids::any, hids::mouse::button::drag::stop::left);
-                        EVENT_SAME(hids::any, hids::mouse::button::drag::stop::right);
-                        EVENT_SAME(hids::any, hids::mouse::button::drag::stop::middle);
-                        EVENT_SAME(hids::any, hids::mouse::button::drag::stop::wheel);
-                        EVENT_SAME(hids::any, hids::mouse::button::drag::stop::win);
-                        EVENT_SAME(hids::any, hids::mouse::button::drag::stop::leftright);
-
-        EVENT_SAME(hids::any, hids::keybd::any);
-            EVENT_SAME(hids::any, hids::keybd::down);
-            EVENT_SAME(hids::any, hids::keybd::up);
-
-            EVENT_SAME(hids::any, hids::keybd::control::any);
-                EVENT_SAME(hids::any, hids::keybd::control::down::any);
-                    EVENT_SAME(hids::any, hids::keybd::control::down::alt_right);
-                    EVENT_SAME(hids::any, hids::keybd::control::down::alt_left);
-                    EVENT_SAME(hids::any, hids::keybd::control::down::ctrl_right);
-                    EVENT_SAME(hids::any, hids::keybd::control::down::ctrl_left);
-                    EVENT_SAME(hids::any, hids::keybd::control::down::shift_right);
-                    EVENT_SAME(hids::any, hids::keybd::control::down::shift_left);
-
-                EVENT_SAME(hids::any, hids::keybd::control::up::any);
-                    EVENT_SAME(hids::any, hids::keybd::control::up::alt_right);
-                    EVENT_SAME(hids::any, hids::keybd::control::up::alt_left);
-                    EVENT_SAME(hids::any, hids::keybd::control::up::ctrl_right);
-                    EVENT_SAME(hids::any, hids::keybd::control::up::ctrl_left);
-                    EVENT_SAME(hids::any, hids::keybd::control::up::shift_right);
-                    EVENT_SAME(hids::any, hids::keybd::control::up::shift_left);
-
-                EVENT_SAME(hids::any, hids::keybd::state::any);
-                    EVENT_SAME(hids::any, hids::keybd::state::on::any);
-                        EVENT_SAME(hids::any, hids::keybd::state::on::numlock);
-                        EVENT_SAME(hids::any, hids::keybd::state::on::capslock);
-                        EVENT_SAME(hids::any, hids::keybd::state::on::scrolllock);
-                        EVENT_SAME(hids::any, hids::keybd::state::on::insert);
-
-                    EVENT_SAME(hids::any, hids::keybd::state::off::any);
-                        EVENT_SAME(hids::any, hids::keybd::state::off::numlock);
-                        EVENT_SAME(hids::any, hids::keybd::state::off::capslock);
-                        EVENT_SAME(hids::any, hids::keybd::state::off::scrolllock);
-                        EVENT_SAME(hids::any, hids::keybd::state::off::insert);
 }
 
 namespace netxs::input
 {
     using namespace netxs::ui::atoms;
     using namespace netxs::datetime;
+    using hint = netxs::events::type;
     using netxs::events::bell;
     using netxs::events::subs;
     using netxs::events::tier;
     using netxs::events::hook;
-    using netxs::events::hint;
     using netxs::events::id_t;
 
     // console: Base mouse class.
@@ -380,12 +229,12 @@ namespace netxs::input
         constexpr static int numofbutton = 6;
         enum bttns
         {
-            left      = events::item(usable::left     ),
-            right     = events::item(usable::right    ),
-            leftright = events::item(usable::leftright),
-            middle    = events::item(usable::middle   ),
-            wheel     = events::item(usable::wheel    ),
-            win       = events::item(usable::win      ),
+            left      = usable::left     .index(),
+            right     = usable::right    .index(),
+            leftright = usable::leftright.index(),
+            middle    = usable::middle   .index(),
+            wheel     = usable::wheel    .index(),
+            win       = usable::win      .index(),
             total     = numofbutton,
         };
 
@@ -485,18 +334,18 @@ namespace netxs::input
             joint = sysmouse::leftright,
             total = sysmouse::total    ,
         };
-        constexpr static auto dragstrt = netxs::events::group<total>(mouse_event::button::drag::start::any);
-        constexpr static auto dragpull = netxs::events::group<total>(mouse_event::button::drag::pull::any);
-        constexpr static auto dragcncl = netxs::events::group<total>(mouse_event::button::drag::cancel::any);
-        constexpr static auto dragstop = netxs::events::group<total>(mouse_event::button::drag::stop::any);
-        constexpr static auto released = netxs::events::group<total>(mouse_event::button::up::any);
-        constexpr static auto pushdown = netxs::events::group<total>(mouse_event::button::down::any);
-        constexpr static auto sglclick = netxs::events::group<total>(mouse_event::button::click::any);
-        constexpr static auto dblclick = netxs::events::group<total>(mouse_event::button::dblclick::any);
-        constexpr static auto movement = mouse_event::move;
-        constexpr static auto idleness = mouse_event::shuffle;
-        constexpr static auto scrollup = mouse_event::scroll::up;
-        constexpr static auto scrolldn = mouse_event::scroll::down;
+        constexpr static auto dragstrt = mouse_event::button::drag::start:: any.group<total>();
+        constexpr static auto dragpull = mouse_event::button::drag::pull::  any.group<total>();
+        constexpr static auto dragcncl = mouse_event::button::drag::cancel::any.group<total>();
+        constexpr static auto dragstop = mouse_event::button::drag::stop::  any.group<total>();
+        constexpr static auto released = mouse_event::button::up::          any.group<total>();
+        constexpr static auto pushdown = mouse_event::button::down::        any.group<total>();
+        constexpr static auto sglclick = mouse_event::button::click::       any.group<total>();
+        constexpr static auto dblclick = mouse_event::button::dblclick::    any.group<total>();
+        constexpr static auto movement = mouse_event::move.id;
+        constexpr static auto idleness = mouse_event::shuffle.id;
+        constexpr static auto scrollup = mouse_event::scroll::up.id;
+        constexpr static auto scrolldn = mouse_event::scroll::down.id;
 
     public:
         static constexpr iota none = -1; // mouse: No active buttons.
@@ -546,7 +395,7 @@ namespace netxs::input
         idxs  pressed_list;
         idxs  flipped_list;
 
-        void update	(sysmouse& m)
+        void update(sysmouse& m)
         {
             //if (m.shuffle)
             //{
@@ -714,7 +563,7 @@ namespace netxs::input
             }
         }
         template<class TT>
-        void action (TT const& event_subset, iota _index)
+        void action(TT const& event_subset, iota _index)
         {
             index = _index;
             action(event_subset[index]);
@@ -796,7 +645,7 @@ namespace netxs::input
         uint16_t virtcode = 0;
         uint16_t scancode = 0;
         wchar_t  character = 0;
-        hint     cause = netxs::events::userland::hids::keybd::any;
+        hint     cause = netxs::events::userland::hids::keybd::any.id;
 
         void update	(syskeybd& k)
         {
@@ -833,12 +682,12 @@ namespace netxs::input
         //todo revise
         uint32_t ctlstate = 0;
 
-        static constexpr auto enter_event   = events::notify::mouse::enter;
-        static constexpr auto leave_event   = events::notify::mouse::leave;
-        static constexpr auto focus_take    = events::notify::keybd::got;
-        static constexpr auto focus_lost    = events::notify::keybd::lost;
-        static constexpr auto kboffer_event = events::upevent::kboffer;
-        static constexpr auto gone_event    = events::die;
+        static constexpr auto enter_event   = events::notify::mouse::enter.id;
+        static constexpr auto leave_event   = events::notify::mouse::leave.id;
+        static constexpr auto focus_take    = events::notify::keybd::got  .id;
+        static constexpr auto focus_lost    = events::notify::keybd::lost .id;
+        static constexpr auto kboffer_event = events::upevent::kboffer    .id;
+        static constexpr auto gone_event    = events::die                 .id;
 
     public:
         id_t const& id;    // hids: Owner/gear ID.
@@ -924,7 +773,7 @@ namespace netxs::input
                 {
                     auto start = mouse::start;
                     mouse::start = start_id;
-                    last->SIGNAL(tier::release, leave_event, *this);
+                    last->bell::template signal<tier::release>(leave_event, *this);
                     mouse::start = start;
                 }
                 else log("hids: error condition: Clients count is broken, dangling id ", last_id);
@@ -944,7 +793,7 @@ namespace netxs::input
                 // acquired by children.
                 auto start_l = mouse::start;
                 mouse::start = 0; // The first one to track the mouse will assign itself by calling gear.direct<true>(id).
-                boss.SIGNAL(tier::release, enter_event, *this);
+                boss.bell::template signal<tier::release>(enter_event, *this);
                 mouse_leave(mouse::hover, start_l);
                 mouse::hover = boss.id;
             }
@@ -1091,7 +940,7 @@ namespace netxs::input
         {
             clear_kb_focus();
             kb_focus_taken = faux;
-            inst.SIGNAL(tier::release, kboffer_event, *this);
+            inst.bell::template signal<tier::release>(kboffer_event, *this);
         }
     };
 }
