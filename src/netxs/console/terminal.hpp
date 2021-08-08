@@ -207,7 +207,7 @@ namespace netxs::app
                 auto x = hz_pos % panel.x;
                 auto y = hz_pos / panel.x + vt_pos;
                 auto right_most = x == 0
-                               && hz_pos == curln.length()
+                               //&& hz_pos == curln.length()
                                && (coord.x != x || coord.y != y);
                 if (right_most) coord = { panel.x, y - 1 };
                 else            coord = { x      , y     };
@@ -666,6 +666,21 @@ namespace netxs::app
                 xsize.drop(line);
                 line.wipe(brush.spare);
                 ++begin_it;
+            }
+        }
+        void clear_overlapping_lines()
+        {
+            auto& cur_line = *batch;
+            auto height = line_height(cur_line);
+            //auto batch_get = batch.get();
+            //auto batch_length = batch.length();
+            //auto overflow = std::max(0, batch_get + height - (batch_length - 1));
+            auto h = height - 1;// -overflow;
+            if (h > 0)
+            {
+                auto head_iter = batch.current() + 1;
+                auto tail_iter = head_iter + h;
+                zeroise(head_iter, tail_iter);
             }
         }
         // rods: Shift by n the scroll region.
@@ -1318,11 +1333,11 @@ private:
                 auto[top, end] = get_scroll_region();
                 if (n > 0 && coord.y >= top && coord.y <= end)
                 {
+                    dissect();
                     auto old_top = sctop;
                     sctop = coord.y + 1;
                     scroll_region(-n, faux);
                     sctop = old_top;
-                    coord.x = 0;
                     set_coord();
                 }
             }
@@ -1473,6 +1488,7 @@ private:
                 {
                     //todo support negative n
                 }
+                clear_overlapping_lines();
             }
             // scrollbuff: '\x7F'  Delete characters backwards.
             void del(iota n)
@@ -1515,22 +1531,18 @@ private:
             void up(iota n)
             {
                 finalize();
-                //log("up 1 batch id ", batch->id(), " coord ", coord);
                 if (coord.x == panel.x && batch->style.wrapln == wrap::on)
                 {
                     coord.x = 0;
                     --n;
                 }
                 coord.y -= n;
-                //log("up 2 batch id ", batch->id(), " coord ", coord);
                 set_coord();
-                //log("up 3 batch id ", batch->id(), " coord ", coord);
             }
             // scrollbuff: Line feed (move caret down).
             void dn(iota n)
             {
                 finalize();
-                //log("dn 1 batch id ", batch->id(), " coord ", coord);
                 if (coord.x == panel.x && batch->style.wrapln == wrap::on)
                 {
                     coord.x = 0;
@@ -1546,35 +1558,25 @@ private:
                 }
                 else
                 {
-                    //log("dn 2.0 coord ", coord);
                     coord.y += n;
-                    //log("dn 2.1 coord ", coord);
                 }
-                //log("dn 2 batch id ", batch->id(), " coord ", coord);
                 set_coord();
-                //log("dn 3 batch id ", batch->id(), " coord ", coord);
             }
             // scrollbuff: '\r'  Go to home of visible line instead of home of para.
             void home()
             {
-                //log("home 0 batch id ", batch->id(), " coord ", coord);
                 finalize();
-                //log("home 1 batch id ", batch->id(), " coord ", coord);
                 coord.x = 0;
                 set_coord();
-                ///log("home 2 batch id ", batch->id(), " coord ", coord);
             }
             // scrollbuff: '\n' || '\r\n'  Carriage return + Line feed.
             void eol(iota n)
             {
                 finalize();
                 //todo Check the temp caret position (deffered wrap)
-                //log("cr 1 batch id ", batch->id(), " chx ", batch->chx(), " coord ", coord);
                 coord.x = 0;
                 coord.y += n;
-                //log("cr 2 batch id ", batch->id(), " chx ", batch->chx(), " coord ", coord);
                 set_coord();
-                //log("cr 3 batch id ", batch->id(), " chx ", batch->chx(), " coord ", coord);
             }
             // scrollbuff: CSI n J  Erase display.
             void ed(iota n)
@@ -1607,14 +1609,15 @@ private:
                 iota start;
                 iota count;
                 auto caret = std::max(0, batch->chx());
+                auto width = batch->length();
                 auto wraps = batch->style.wrapln == wrap::on;
                 switch (n)
                 {
                     default:
                     case commands::erase::line::right: // n = 0 (default)  Erase to Right.
                         start = caret;
-                        count = wraps ? panel.x - (caret + panel.x) % panel.x
-                                      : std::max(0, std::max(panel.x, batch->length()) - caret);
+                        count = wraps ? coord.x == panel.x ? 0 : panel.x - (caret + panel.x) % panel.x
+                                      : std::max(0, std::max(panel.x, width) - caret);
                         break;
                     case commands::erase::line::left: // n = 1  Erase to Left.
                         start = wraps ? caret - caret % panel.x
@@ -1629,10 +1632,8 @@ private:
                         break;
                 }
                 auto blank = cell{ brush }.txt(' ');
-                //log("el 1 batch id ", batch->id(), " \\e[K from ", start, " count ", count);
                 batch->ins<true>(start, count, blank);
-                batch->trim(brush.spare);
-                //log("el 2 batch id ", batch->id(), " chx ", batch->chx(), " coord ", coord);
+                clear_overlapping_lines();
             }
 
             struct info

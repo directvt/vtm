@@ -70,6 +70,7 @@ namespace netxs::generics
                                                  : b - a;           }
         auto  begin()             { return iter{ *this, 0    };     }
         auto  end()               { return iter{ *this, size };     }
+        auto  current()           { return iter{ *this, cart };     }
         auto& operator[] (iota i) { return buff[mod(head + i)];     }
         auto& back()              { return buff[tail];              }
         auto& front()             { return buff[head];              }
