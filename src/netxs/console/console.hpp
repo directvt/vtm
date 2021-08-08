@@ -1049,14 +1049,14 @@ namespace netxs::console
         // base: Fire an event on yourself and pass it parent if not handled.
         // Usage example:
         //          base::riseup<tier::preview, e2::form::prop::header>(txt);
-        template<tier TIER, auto EVENT, class T>
-        void riseup(T&& data)
+        template<tier TIER, class EVENT, class T>
+        void riseup(EVENT, T&& data)
         {
-            if (!SIGNAL(TIER, EVENT, data))
+            if (!SIGNAL(TIER, EVENT{}, data))
             {
                 base::toboss([&](auto& boss)
                 {
-                    boss.base::template riseup<TIER, EVENT>(std::forward<T>(data));
+                    boss.base::template riseup<TIER>(EVENT{}, std::forward<T>(data));
                 });
             }
         }

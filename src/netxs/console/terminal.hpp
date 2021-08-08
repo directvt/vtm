@@ -987,7 +987,7 @@ private:
                                   props[ansi::OSC_LABEL] = txt;
                     auto& utf8 = (props[ansi::OSC_TITLE] = txt);
                     utf8 = jet_left + utf8;
-                    owner.base::riseup<tier::preview, e2::form::prop::header>(utf8);
+                    owner.base::riseup<tier::preview>(e2::form::prop::header, utf8);
                 }
                 else
                 {
@@ -995,7 +995,7 @@ private:
                     if (property == ansi::OSC_TITLE)
                     {
                         utf8 = jet_left + utf8;
-                        owner.base::riseup<tier::preview, e2::form::prop::header>(utf8);
+                        owner.base::riseup<tier::preview>(e2::form::prop::header, utf8);
                     }
                 }
             }
@@ -2017,7 +2017,7 @@ private:
             };
             SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
             {
-                this->base::riseup<tier::request, e2::form::prop::header>(winprops.get(ansi::OSC_TITLE));
+                this->base::riseup<tier::request>(e2::form::prop::header, winprops.get(ansi::OSC_TITLE));
                 this->SUBMIT_T(tier::release, e2::size::set, oneshot_resize_token, new_sz)
                 {
                     if (new_sz.y > 0)
@@ -2099,7 +2099,7 @@ private:
             {
                 if (status.update(*target))
                 {
-                    this->base::riseup<tier::preview, e2::form::prop::footer>(status.data);
+                    this->base::riseup<tier::preview>(e2::form::prop::footer, status.data);
                 }
                 target->output(parent_canvas);
                 //target->test_basis(parent_canvas);

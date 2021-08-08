@@ -4,8 +4,6 @@
 #ifndef NETXS_EVENTS_HPP
 #define NETXS_EVENTS_HPP
 
-// Description: Compile-time type-safe hierarchical delegates.
-
 #include "../abstract/ptr.hpp"
 #include "../abstract/hash.hpp"
 #include "../abstract/duplet.hpp"
@@ -33,7 +31,7 @@ namespace netxs::events
         release, // events: Run forwrad handlers with fixed param. Preserve subscription order.
         preview, // events: Run reverse handlers with fixed a param intended to change. Preserve subscription order.
         general, // events: Run forwrad handlers for all objects. Preserve subscription order.
-        request, // events: Run forwrad a handler that provides the current value of the param. To avoid overriding, the handler should be the only one. Preserve subscription order.
+        request, // events: Run forwrad a handler that provides the current value of the param. To avoid being overridden, the handler should be the only one. Preserve subscription order.
     };
 
     template<class V> struct _globals { static std::recursive_mutex              mutex; };
