@@ -672,10 +672,10 @@ namespace netxs::app
         {
             auto& cur_line = *batch;
             auto height = line_height(cur_line);
-            //auto batch_get = batch.get();
-            //auto batch_length = batch.length();
-            //auto overflow = std::max(0, batch_get + height - (batch_length - 1));
-            auto h = height - 1;// -overflow;
+            auto batch_get = batch.get();
+            auto batch_length = batch.length();
+            auto overflow = std::max(0, batch_get + height - (batch_length - 1));
+            auto h = height - 1 - overflow;
             if (h > 0)
             {
                 auto head_iter = batch.current() + 1;
