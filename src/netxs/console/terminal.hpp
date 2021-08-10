@@ -52,6 +52,7 @@ namespace netxs::app
                 autowrap,
                 count,
             };
+            iota depth   { 0              };
             iota cur_size{ 0              };
             type cur_type{ type::leftside };
 
@@ -63,7 +64,7 @@ namespace netxs::app
             line(deco const& style)
                 : para{ style }
             { }
-            line(iota newid, deco const& style = {})
+            line(ui32 newid, deco const& style = {})
                 : para{ newid, style }
             { }
             auto get_type()
@@ -200,36 +201,41 @@ namespace netxs::app
         auto get_coord()
         {
             auto& curln =*batch;
+            auto& style = batch->style;
             auto vt_pos = batch.get() - basis;
             auto hz_pos = curln.chx();
-            if (hz_pos >= panel.x && curln.style.wrapln == wrap::on)
+            if (hz_pos >= panel.x && style.wrapln == wrap::on)
             {
-                auto x = hz_pos % panel.x;
-                auto y = hz_pos / panel.x + vt_pos;
-                auto right_most = x == 0
-                               //&& hz_pos == curln.length()
-                               && (coord.x != x || coord.y != y);
-                if (right_most) coord = { panel.x, y - 1 };
-                else            coord = { x      , y     };
+                coord.x = hz_pos % panel.x;
+                coord.y = hz_pos / panel.x + vt_pos;
+                //auto x = hz_pos % panel.x;
+                //auto y = hz_pos / panel.x + vt_pos;
+                //auto right_most = x == 0;
+                //               //&& hz_pos == curln.length()
+                //               //&& (coord.x != x || coord.y != y);
+                //if (right_most) coord = { panel.x, y - 1 };
+                //else            coord = { x      , y     };
             }
             else coord = { hz_pos, vt_pos };
+            if      (style.adjust == bias::right ) coord.x =  panel.x - coord.x  - 1;
+            else if (style.adjust == bias::center) coord.x = (panel.x + coord.x) / 2;
         }
         // rods: Return current 0-based caret position in the scrollback.
         auto cp()
         {
             auto pos = coord;
-            auto style = batch->style;
+            auto& style = batch->style;
             if (pos.x == panel.x && style.wrapln == wrap::on)
             {
-                if (pos.y != panel.y - 1) // The last position on the screen(c).
+                if (pos.y != panel.y - 1)
                 {
                     pos.x = 0;
                     pos.y++;
                 }
-                else pos.x--;
+                else pos.x--; // The last position on the screen(c).
             }
             pos.y += basis;
-            if      (style.adjust == bias::right)  pos.x = panel.x - pos.x - 1;
+            if      (style.adjust == bias::right ) pos.x =  panel.x - pos.x  - 1;
             else if (style.adjust == bias::center) pos.x = (panel.x + pos.x) / 2;
             return pos;
         }
@@ -282,30 +288,36 @@ namespace netxs::app
             while(amount--) batch.pop();
             align_basis();
         }
-        auto get_line_index_by_id(iota id)
+        auto get_line_index_by_id(ui32 id)
         {
-            return id - batch.front().selfid;
+            // ring buffer is never larger than max_int32
+            return static_cast<iota>(id - batch.front().selfid);
         }
         // rods: Map caret position from viewport to scrollback (set insertion point).
         void set_coord(twod new_coord)
         {
-            new_coord.y = std::max(new_coord.y, -basis);
-            coord = new_coord;
-            new_coord.y += basis; // place coord inside the batch
-            auto add_count = new_coord.y + 1 - batch.length();
+            new_coord.y = std::max(0, new_coord.y);
+            new_coord.y += basis;
+            auto add_count = new_coord.y - (batch.length() - 1);
             if (add_count > 0) add_lines(add_count);
-            new_coord.y = std::min(new_coord.y, batch.length() - 1); // The batch can remain the same size (cuz ring)
-            auto& new_line = batch[new_coord.y];
-            auto index = get_line_index_by_id(new_line.selfid); // current index inside batch
-            if (new_line.selfid != new_line.bossid) // bossid always less or eq selfid
+            new_coord.y = std::min(new_coord.y, batch.length() - 1); // The batch can remain the same size (cuz ring).
+            auto& cur_line = batch[new_coord.y];
+            coord.x = new_coord.x;
+            coord.y = new_coord.y - basis;
+            if (cur_line.depth)
             {
-                auto delta = new_line.selfid - new_line.bossid;
-                index -= delta;
-                new_coord.x += delta * panel.x;
-                //todo implement checking hit by x
+                //todo check all lines between boss and current
+                auto pos_at_master = panel.x * cur_line.depth + coord.x;
+                auto boss_index = std::max(0, new_coord.y - cur_line.depth);
+                if (pos_at_master < batch[boss_index].length())
+                {
+                    new_coord.y = boss_index;
+                    new_coord.x = pos_at_master;
+                }
             }
-            batch.set(index);
+            batch. set(new_coord.y);
             batch->chx(new_coord.x);
+
             //todo implement the case when the coord is set to the viewport outside
             //     after the right side: disable wrapping (on overlapped line too)
             //     before the left side: disable wrapping + bias::right (on overlapped line too)
@@ -323,70 +335,121 @@ namespace netxs::app
         void finalize()
         {
             auto& cur_line1 = *batch;
-            auto myid = cur_line1.selfid;
-            cur_line1.style = style;
-            auto old_height = line_height(cur_line1);
-                              cur_line1.cook();
-                              //todo revise
-                              //cur_line1.trim(brush.spare, max_line_len);
-            auto new_height = line_height(cur_line1);
-            auto caret = batch.get();
-            if (new_height > old_height)
+            cur_line1.style = style; //todo revise
+            if (auto shift = cur_line1.step())
             {
-                //Scroll current region if needed (same as in scrollbuffer::dn())
-                auto n = new_height - old_height;
-                auto[top, end] = get_scroll_region();
-                if (n > 0 && scroll_region_used() && coord.y <= end
-                                                  && coord.y + n > end)
+                auto myid = cur_line1.selfid;
+                auto old_height = line_height(cur_line1) - 1;
+                                cur_line1.cook(); //todo revise cur_line1.trim(brush.spare, max_line_len);
+                auto new_height = line_height(cur_line1) - 1;
+                auto index = batch.get();
+                auto delta = new_height - old_height;
+                if (delta)
                 {
-                    n -= end - coord.y;
-                    coord.y = end;
-                    scroll_region(-n, true);
-                }
-
-                // Add empty lines if needed
-                auto overflow = caret + new_height - batch.length();
-                if (overflow > 0) add_lines(overflow);
-
-                // Update bossid id on overlapped below lines
-                auto from = caret + new_height - 1;
-                auto upto = caret + old_height;
-                for_each(from, upto, [&](para& l)
-                {
-                    auto open = l.bossid - myid > 0;
-                    if  (open)  l.bossid = myid;
-                    return open;
-                });
-            }
-            else if (new_height < old_height)
-            {
-                // Update bossid id on opened below lines
-                auto from = caret + old_height - 1;
-                auto upto = caret + new_height;
-                for_each(from, upto, [&](para& l)
-                {
-                    if (l.bossid != myid) return faux; // this line, like all those lying above, is covered with a long super line above, don't touch it
-                    // Looking for who else covers the current line below
-                    auto from2 = caret + 1;
-                    auto upto2 = from--;
-                    for_each(from2, upto2, [&](para& l2)
+                    //Scroll current region if needed (same as in scrollbuffer::dn())
+                    //auto n = new_height - old_height;
+                    auto[top, end] = get_scroll_region();
+                    //if (scroll_region_used() && coord.y <= end
+                    //                         && coord.y + delta > end)
+                    //auto new_pos = coord.y + delta;
+                    auto new_pos = index - basis + new_height - 1;
+                    if (new_pos > end)
                     {
-                        auto h = line_height(l2);
-                        auto d = upto2 - from2++;
-                        if (h > d)
+                        if (coord.y <= end)
                         {
-                            l.bossid = l2.selfid;
-                            return faux;
+                            auto n = end - new_pos;
+                            coord.y += n;
+                            scroll_region(n, true);
                         }
-                        return true;
-                    });
-                    return true;
-                });
-            }
+                        else if (new_pos >= panel.y)
+                        {
+                            end = panel.y - 1;
+                            auto n = new_pos - end;
+                            coord.y -= n;
+                            add_lines(n);
+                        }
+                        //else coord.y = new_pos;
+                    }
+                    //else coord.y = new_pos;
 
-            get_coord();
-            auto& cur_line3 = *batch;
-            xsize.take(cur_line3);
+                    // Add empty lines if needed
+                    //auto overflow = caret + new_height - batch.length();
+                    //if (overflow > 0) add_lines(overflow);
+
+                    // Update lines depth
+                    auto depth = new_height;
+                    auto from = index + depth;
+                    auto upto = index + old_height;
+                    for_each(from, upto, [&](line& l)
+                    {
+                        auto open = l.depth < depth;
+                        if (open) l.depth = depth--;
+                        return open;
+                    });
+                }
+                //else if (new_height < old_height)
+                //{
+                //    // Update bossid id on opened below lines
+                //    auto from = index + old_height - 1;
+                //    auto upto = index + new_height;
+                //    for_each(from, upto, [&](para& l)
+                //    {
+                //        if (l.bossid != myid) return faux; // this line, like all those lying above, is covered with a long super line above, don't touch it
+                //        // Looking for who else covers the current line below
+                //        auto from2 = index + 1;
+                //        auto upto2 = from--;
+                //        for_each(from2, upto2, [&](para& l2)
+                //        {
+                //            auto h = line_height(l2);
+                //            auto d = upto2 - from2++;
+                //            if (h > d)
+                //            {
+                //                l.bossid = l2.selfid;
+                //                return faux;
+                //            }
+                //            return true;
+                //        });
+                //        return true;
+                //    });
+                //}
+                //get_coord();
+                auto& cur_line3 = *batch;
+                xsize.take(cur_line3);
+
+                if (style.wrapln == wrap::on)
+                {
+                    if (style.adjust == bias::right)
+                    {
+                        coord.x -= shift;
+                        if (coord.x < 0)
+                        {
+                            coord.y += (panel.x - coord.x) / panel.x;
+                            coord.x = (panel.x - coord.x) % panel.x;
+                            if (coord.x == 0)
+                            {
+                                coord.x = -1;
+                                coord.y -= 1;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        coord.x += shift;
+                        if (coord.x > panel.x)
+                        {
+                            coord.y += coord.x / panel.x;
+                            coord.x %= panel.x;
+                            if (coord.x == 0)
+                            {
+                                coord.x = panel.x;
+                                coord.y -= 1;
+                            }
+                        }
+                    }
+                }
+                else coord.x += style.adjust == bias::right ?-shift
+                                                            : shift;
+            }
         }
         void clear_all(bool preserve_brush = faux)
         {
@@ -395,6 +458,7 @@ namespace netxs::app
             //todo unify
             style.wrapln = WRAPPING;
             saved = dot_00;
+            coord = dot_00;
             basis = 0;
             batch.clear();
             batch.push(0);
@@ -522,16 +586,16 @@ namespace netxs::app
         {
             auto cur_index = std::min(batch.length() - 1, basis + coord.y);
             auto line_iter = batch.begin() + cur_index;
-            auto master_id = line_iter->bossid;
-            auto mas_index = get_line_index_by_id(master_id);
+            auto mas_index = std::max(0, cur_index - line_iter->depth);
             auto head = batch.begin() + mas_index;
             auto tail = line_iter;
+            auto depth = (cur_index - mas_index) * panel.x;
             do
             {
-                auto required_len = (cur_index - mas_index) * panel.x + coord.x; // todo optimize
+                auto required_len = depth + coord.x;
                 auto& line = *head;
                 line.trimto(required_len);
-                mas_index++;
+                depth -= panel.x;
             }
             while(head++ != tail);
         }
@@ -550,7 +614,7 @@ namespace netxs::app
             {
                 auto& lyric = *current++;
                 lyric.wipe(brush.spare);
-                lyric.open();
+                lyric.depth = 0;
             }
             set_coord();
         }
@@ -559,11 +623,12 @@ namespace netxs::app
             // Insert spaces on all lines above including the current line,
             //   begining from bossid of the viewport top line
             //   ending the current line
-            auto top_index = get_line_index_by_id(batch[basis].bossid);
-            auto cur_index = batch.get();
             auto begin = batch.begin();
-            auto upper = begin + top_index;
+            auto cur_index = batch.get();
+            //auto top_index = get_line_index_by_id(batch[basis].bossid);
             auto under = begin + cur_index;
+            auto top_index = std::max(0, cur_index - under->depth);
+            auto upper = begin + top_index;
             auto count = coord.y * panel.x + coord.x;
             auto start = (basis - top_index) * panel.x;
             do
@@ -575,23 +640,30 @@ namespace netxs::app
             }
             while(upper++ != under);
         }
-        // rods: Rebuild overlaps from bottom to line with selfid=top_id (inclusive).
-        void rebuild_upto_id(iota top_id)
+        // rods: Rebuild overlaps from bottom to line with index (inclusive).
+        void rebuild_upto_index(iota index)
         {
-            auto tail = batch.end();
-            auto head = tail - (batch.length() - std::max(0, get_line_index_by_id(top_id)));
+            auto batch_end = batch.end();
+            auto tail = batch_end;
+            auto head = tail - (batch.length() - index);
             do
             {
                 auto& line =*--tail;
-                line.trim(brush.spare, max_line_len);
-                auto below = tail + (line_height(line) - 1);
-                auto over = below - batch.end();
-                if (over >= 0) add_lines(++over);
-                do  // Assign iff line isn't overlapped by somaething higher
-                {   // Comparing the difference with zero In order to support id incrementing overflow
-                    below->bossid = line.selfid;
+                line.trimto(max_line_len);
+                auto depth = line_height(line);
+                auto below = tail + depth - 1;
+                auto over = below - batch_end;
+                if (over >= 0)
+                {
+                    add_lines(++over);
+                    batch_end = batch.end();
                 }
-                while(tail != below--);
+                do
+                {
+                    below->depth = --depth;
+                  --below;
+                }
+                while(depth);
             }
             while(tail != head);
         }
@@ -601,8 +673,7 @@ namespace netxs::app
             align_basis();
             auto maxy = xsize.max<line::autowrap>() / panel.x;
             auto head = std::max(0, basis - maxy);
-            rebuild_upto_id(batch[head].selfid);
-            get_coord();
+            rebuild_upto_index(head);
         }
         // rods: For bug testing purposes.
         auto get_content()
@@ -620,15 +691,17 @@ namespace netxs::app
         void dissect(buff::iter line_iter)
         {
             auto& trim_line = *line_iter;
-            if (trim_line.bossid != trim_line.selfid)
+            if (trim_line.depth)
             {
-                auto mas_index = get_line_index_by_id(trim_line.bossid);
+                auto cur_index = get_line_index_by_id(trim_line.selfid);
+                auto mas_index = std::max(0, cur_index - trim_line.depth);
                 auto max_width = iota{ 0 };
                 auto head_iter = batch.begin() + mas_index;
                 //todo the case when wrap::on is over the wrap::off and the remainder is wider than panel.x
-                do
+                //todo revise: recursive connection has jitter
+                while (line_iter-- != head_iter);
                 {
-                    auto& line_inst = *--line_iter;
+                    auto& line_inst = *line_iter;
                     max_width += panel.x;
                     if (line_inst.style.wrapln == wrap::on)
                     {
@@ -639,16 +712,16 @@ namespace netxs::app
                             line_inst.trimto(max_width);
                         }
                     }
-                }
-                while (line_iter != head_iter);
+                };
             }
         }
         // rods: Dissect auto-wrapped line at the current coord.
         void dissect()
         {
-            auto current_it = batch.begin() + basis + coord.y;
+            auto index = basis + coord.y;
+            auto current_it = batch.begin() + index;
             dissect(current_it);
-            rebuild_upto_id(current_it->selfid);
+            rebuild_upto_index(index);
             set_coord();
         }
         // rods: Move block to the specified destination. If begin_it > end_it decrement is used.
@@ -693,7 +766,7 @@ namespace netxs::app
                 auto all_it = nul_it + basis;
                 auto end_it = all_it + end;
                 auto top_it = all_it + top;
-                auto bossid = all_it->bossid;
+                auto top_id = std::max(0, basis - all_it->depth);
                 auto height = end - top + 1;
                 auto footer = batch.end() - end_it - 1;
                 if (footer < 0)
@@ -746,7 +819,7 @@ namespace netxs::app
                         move_to(a, b, top_it);
                     }
                 }
-                rebuild_upto_id(bossid);
+                rebuild_upto_index(top_id);
             }
         }
         // rods: Trim all autowrap lines by the specified size.
@@ -758,8 +831,7 @@ namespace netxs::app
             {
                 while (tail != head)
                 {
-                    --tail;
-                    dissect(tail);
+                    dissect(--tail);
                     auto& line = *tail;
                     if (line.style.wrapln == wrap::on) line.trimto(new_size.x);
                 }
@@ -1215,7 +1287,8 @@ private:
                 batch->locus.push(property);
             }
             void post(utf::frag const& cluster) { batch->post(cluster, rods::brush); }
-            void cook()                         { finalize(); }
+            void cook()                         { 
+                finalize(); }
 
             template<class T>
             void na(T&& note)
@@ -1531,11 +1604,6 @@ private:
             void up(iota n)
             {
                 finalize();
-                if (coord.x == panel.x && batch->style.wrapln == wrap::on)
-                {
-                    coord.x = 0;
-                    --n;
-                }
                 coord.y -= n;
                 set_coord();
             }
@@ -1543,10 +1611,6 @@ private:
             void dn(iota n)
             {
                 finalize();
-                if (coord.x == panel.x && batch->style.wrapln == wrap::on)
-                {
-                    coord.x = 0;
-                }
                 // Scroll regions up if coord.y == scend and scroll region are defined.
                 auto[top, end] = get_scroll_region();
                 if (n > 0 && scroll_region_used() && coord.y    <= end
@@ -1567,15 +1631,6 @@ private:
             {
                 finalize();
                 coord.x = 0;
-                set_coord();
-            }
-            // scrollbuff: '\n' || '\r\n'  Carriage return + Line feed.
-            void eol(iota n)
-            {
-                finalize();
-                //todo Check the temp caret position (deffered wrap)
-                coord.x = 0;
-                coord.y += n;
                 set_coord();
             }
             // scrollbuff: CSI n J  Erase display.
@@ -1631,9 +1686,14 @@ private:
                                       : std::max(panel.x, batch->length());
                         break;
                 }
-                auto blank = cell{ brush }.txt(' ');
-                batch->ins<true>(start, count, blank);
-                clear_overlapping_lines();
+                if (count)
+                {
+                    //auto blank = cell{ brush }.txt(' ');
+                    auto blank = cell{ brush }.bgc(greendk).txt(' ');
+                    batch->ins<true>(start, count, blank);
+                    //batch->trim(blank);
+                    clear_overlapping_lines();
+                }
             }
 
             struct info
@@ -2033,6 +2093,7 @@ private:
                             screen.size = new_sz;
                             altbuf.resize<faux>(new_sz.y);
                             target->rebuild_viewport();
+                            target->get_coord();
                             target->recalc_pads(oversz);
                             new_sz = recalc();
                             ptycon.resize(screen.size);

@@ -17,7 +17,7 @@ else ()
     if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
         #static linkage
         #set (CMAKE_CXX_FLAGS "-static-libstdc++ -static-libgcc -pthread -s")
-        set (CMAKE_CXX_FLAGS "-pthread -s")
+        #set (CMAKE_CXX_FLAGS "-pthread -s")
     else ()
         set (CMAKE_CXX_FLAGS "-pthread")
     endif ()

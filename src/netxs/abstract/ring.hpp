@@ -26,6 +26,7 @@ namespace netxs::generics
               : buff{ buff },
                 addr{ addr }
             { }
+            auto  operator =  (iter const& m)       { addr = m.addr;                 }
             auto  operator -  (iter const& r)       { return addr - r.addr;          }
             auto  operator -  (iota n)              { return iter{ buff, addr - n }; }
             auto  operator +  (iota n)              { return iter{ buff, addr + n }; }

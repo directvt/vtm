@@ -848,8 +848,7 @@ namespace netxs::console
         using mark   = ansi::mark;
         using deco   = ansi::deco;
 
-        iota selfid = 0;
-        iota bossid = 0; // para: Index of the top visible text line.
+        ui32 selfid = 0;
 
         text debug; // para: debug string.
         writ locus;
@@ -867,10 +866,9 @@ namespace netxs::console
         para(deco const& style)
             : style{ style }
         { }
-        para(iota newid, deco const& style = {})
+        para(ui32 newid, deco const& style = {})
             : style  { style },
-              selfid { newid },
-              bossid { newid }
+              selfid { newid }
         { }
         para(view utf8)
         {
@@ -908,13 +906,12 @@ namespace netxs::console
         }
         bool   bare() const { return locus.bare();    } // para: Does the paragraph have no locator.
         auto length() const { return lyric->size().x; } // para: Return printable length.
-        auto   step() const { return lyric->size().x - caret; } // para: Return step back.
+        auto   step() const { return width;           } // para: The next caret step.
         auto   size() const { return lyric->size();   } // para: Return 2D volume size.
         auto&  back() const { return brush;           } // para: Return current brush.
         bool   busy() const { return length() || !proto.empty() || brush.busy(); } // para: Is it filled.
         void   ease()   { brush.nil(); lyric->each([&](auto& c) { c.clr(brush); });  } // para: Reset color for all text.
         void   link(id_t id)         { lyric->each([&](auto& c) { c.link(id);   });  } // para: Set object ID for each cell.
-        void   open()                { bossid = selfid;  } // para: Set paragraph open(uncovered, ie not covered by the lines above).
         void   wipe(cell c = cell{}) // para: Clear the text and locus, and reset SGR attributes.
         {
             width = 0;
@@ -1059,7 +1056,7 @@ namespace netxs::console
         }
 
         auto id() const        { return selfid;  }
-        void id(iota newid)    { selfid = newid; }
+        void id(ui32 newid)    { selfid = newid; }
 
         auto chx() const       { return caret;    }
         void chx(iota new_pos)

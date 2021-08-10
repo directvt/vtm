@@ -682,7 +682,7 @@ namespace netxs::ui
     {
         struct item
         {
-            iota id;
+            ui32 id;
             twod coor;
         };
 
