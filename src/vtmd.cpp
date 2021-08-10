@@ -1,7 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#define MONOTTY_VER "Monotty Desktopio v0.5.15"
+#define MONOTTY_VER "Monotty Desktopio v0.5.16"
 // Autostart demo apps.
 //#define DEMO
 // Enable keyboard input and disable exit by single Esc.
@@ -422,7 +422,7 @@ int main(int argc, char* argv[])
         });
 
     {
-        auto banner = [&]() { log("Monotty Desktopio Environment Server"); };
+        auto banner = [&]() { log(MONOTTY_VER"\nDesktop Environment Server"); };
         bool daemon = faux;
         auto getopt = os::args{ argc, argv };
         while (getopt)
@@ -1299,7 +1299,7 @@ utility like ctags is used to locate the definitions.
                                 boss.SUBMIT(tier::release, hids::events::mouse::button::dblclick::left, gear)
                                 {
                                     auto backup = boss.This();
-                                    boss.base::template riseup<tier::release, e2::form::proceed::detach>(backup);
+                                    boss.base::template riseup<tier::release>(e2::form::proceed::detach, backup);
                                     gear.dismiss();
                                 };
                             })
@@ -1314,7 +1314,7 @@ utility like ctags is used to locate the definitions.
                                 boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                                 {
                                     auto backup = boss.This();
-                                    boss.base::template riseup<tier::release, e2::form::proceed::detach>(backup);
+                                    boss.base::template riseup<tier::release>(e2::form::proceed::detach, backup);
                                 };
                             })
                          ->attach<ui::item>("×");
@@ -1334,7 +1334,7 @@ utility like ctags is used to locate the definitions.
                                     boss.SUBMIT(tier::release, hids::events::mouse::button::dblclick::left, gear)
                                     {
                                         auto backup = boss.This();
-                                        boss.base::template riseup<tier::release, e2::form::proceed::detach>(backup);
+                                        boss.base::template riseup<tier::release>(e2::form::proceed::detach, backup);
                                         gear.dismiss();
                                     };
                                 })
@@ -1350,7 +1350,7 @@ utility like ctags is used to locate the definitions.
                                 boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                                 {
                                     auto backup = boss.This();
-                                    boss.base::template riseup<tier::release, e2::form::proceed::detach>(backup);
+                                    boss.base::template riseup<tier::release>(e2::form::proceed::detach, backup);
                                 };
                             })
                          ->template attach<ui::item>("×");
@@ -1479,7 +1479,7 @@ utility like ctags is used to locate the definitions.
                 {
                     window->plugin<pro::title>("Frame rate adjustment")
                           ->plugin<pro::align>();
-                    window->attach<ui::stem_rate<tier::general, e2::config::fps>>("Set frame rate", 1, 200, "fps")
+                    window->attach<ui::stem_rate<tier::general, decltype(e2::config::fps)>>("Set frame rate", 1, 200, "fps")
                           ->color(0xFFFFFFFF, bluedk);
                     break;
                 }
@@ -2467,7 +2467,7 @@ utility like ctags is used to locate the definitions.
                                             auto head = head_area->template attach<ui::item>(objs_desc[class_id], true);
                                         auto list_pads = block->template attach<slot::_2, ui::pads>(dent{ 0,0,0,0 }, dent{ 0,0,0,0 });
                                 auto insts = list_pads->template attach<ui::list>()
-                                                      ->template attach_collection<e2::form::prop::header>(inst_ptr_list, app_template);
+                                                      ->attach_collection(e2::form::prop::header, inst_ptr_list, app_template);
                             }
                         }
                         return apps;
@@ -2516,7 +2516,7 @@ utility like ctags is used to locate the definitions.
                                                         if (auto client = client_shadow.lock())
                                                         {
                                                             auto mark_shadow = ptr::shadow(boss.template This<ui::item>());
-                                                            client->SUBMIT_BYVAL_T(tier::release, e2::data::changed, boss.tracker, data)
+                                                            client->SUBMIT_T_BYVAL(tier::release, e2::data::changed, boss.tracker, data)
                                                             {
                                                                 auto selected = id == data;
                                                                 if(auto mark = mark_shadow.lock())
@@ -2545,7 +2545,7 @@ utility like ctags is used to locate the definitions.
                     auto branch_template = [&](auto& data_src, auto& usr_list)
                     {
                         auto users = base::create<ui::list>()
-                            ->attach_collection<e2::form::prop::name>(*usr_list, user_template);
+                            ->attach_collection(e2::form::prop::name, *usr_list, user_template);
                         return users;
                     };
                     {
@@ -2567,7 +2567,7 @@ utility like ctags is used to locate the definitions.
                                             ->invoke([&](auto& boss)
                                             {
                                                 boss.mouse.template draggable<sysmouse::left>();
-                                                boss.SUBMIT(tier::release, events::message(e2::form::drag::pull::any, sysmouse::left), gear)
+                                                boss.SUBMIT(tier::release, e2::form::drag::pull::_<sysmouse::left>, gear)
                                                 {
                                                     auto& limits = boss.template plugins<pro::limit>();
                                                     auto lims = limits.get();
@@ -2618,10 +2618,10 @@ utility like ctags is used to locate the definitions.
                                         auto task_menu_area = applist_area->attach<ui::fork>(axis::Y, 0, 0);
                                             auto menu_scrl = task_menu_area->attach<slot::_1, ui::rail>(axes::ONLY_Y)
                                                                            ->colors(0x00, 0x00); //todo mouse events passthrough
-                                                auto menuitems = menu_scrl->attach_element<e2::bindings::list::apps>(world, menuitems_template);
+                                                auto menuitems = menu_scrl->attach_element(e2::bindings::list::apps, world, menuitems_template);
                                             auto tasks_scrl = task_menu_area->attach<slot::_2, ui::rail>(axes::ONLY_Y)
                                                                             ->colors(0x00, 0x00); //todo mouse events passthrough
-                                                auto apps = tasks_scrl->attach_element<e2::bindings::list::apps>(world, apps_template);
+                                                auto apps = tasks_scrl->attach_element(e2::bindings::list::apps, world, apps_template);
                                     label_pads->invoke([&](auto& boss)
                                                 {
                                                     auto task_menu_area_shadow = ptr::shadow(task_menu_area);
@@ -2672,9 +2672,9 @@ utility like ctags is used to locate the definitions.
                                                     auto bttn = bttn_pads->attach<ui::item>("<", faux);
                                     auto userlist_area = users_area->attach<slot::_2, ui::pads>()
                                                                    ->plugin<pro::limit>();
-                                        auto users = userlist_area->attach_element<e2::bindings::list::users>(world, branch_template);
+                                        auto users = userlist_area->attach_element(e2::bindings::list::users, world, branch_template);
                                         //auto users_rail = userlist_area->attach<ui::rail>();
-                                        //auto users = users_rail->attach_element<e2::bindings::list::users>(world, branch_template);
+                                        //auto users = users_rail->attach_element(e2::bindings::list::users, world, branch_template);
                                     //todo unify
                                     bttn_pads->invoke([&](auto& boss)
                                                 {

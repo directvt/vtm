@@ -13,46 +13,24 @@ namespace netxs::events::userland
 {
     struct term
     {
-        #define  EVENT  EVENT_XS
-        #define SUBSET SUBSET_XS
-        #define     OF     OF_XS
-        #define  GROUP  GROUP_XS
-
-        EVENTPACK( netxs::events::userland::root::custom )
+        EVENTPACK( term, netxs::events::userland::root::custom )
         {
-            any = _,
-            EVENT( cmd    ),
-            GROUP( layout ),
-            GROUP( data   ),
+            EVENT_XS( cmd   , iota ),
+            GROUP_XS( layout, iota ),
+            GROUP_XS( data  , iota ),
 
-            SUBSET OF( layout )
+            SUBSET_XS( layout )
             {
-                any = _,
-                EVENT( align  ),
-                EVENT( wrapln ),
+                EVENT_XS( align , bias::type ),
+                EVENT_XS( wrapln, wrap::type ),
             };
-            SUBSET OF( data )
+            SUBSET_XS( data )
             {
-                any = _,
-                EVENT( in  ),
-                EVENT( out ),
+                EVENT_XS( in , view ),
+                EVENT_XS( out, view ),
             };
         };
-
-        #undef EVENT
-        #undef SUBSET
-        #undef OF
-        #undef GROUP
     };
-
-    EVENT_BIND(term::cmd, iota);
-
-    //todo iota
-    EVENT_BIND(term::layout::align,  bias::type);
-    EVENT_BIND(term::layout::wrapln, wrap::type);
-
-    EVENT_BIND(term::data::in,  view);
-    EVENT_BIND(term::data::out, view);
 }
 
 namespace netxs::app
@@ -847,7 +825,7 @@ private:
                     owner.SUBMIT_T(tier::general, hids::events::die, token, gear)
                     {
                         log("term: hids::events::die, id = ", gear.id);
-                        auto cause = hids::events::die;
+                        auto cause = hids::events::die.id;
                         if (proto == sgr) serialize<sgr>(gear, cause);
                         else              serialize<x11>(gear, cause);
                         owner.write(queue);
@@ -911,26 +889,26 @@ private:
                 switch (cause)
                 {
                     // Move
-                    case b::drag::pull::leftright:
-                    case b::drag::pull::left  : if (isdrag) proceed<PROT>(gear, idle + left, true); break;
-                    case b::drag::pull::middle: if (isdrag) proceed<PROT>(gear, idle + mddl, true); break;
-                    case b::drag::pull::right : if (isdrag) proceed<PROT>(gear, idle + rght, true); break;
-                    case m::move              : if (ismove) proceed<PROT>(gear, idle + btup, faux); break;
+                    case b::drag::pull::leftright.id:
+                    case b::drag::pull::left     .id: if (isdrag) proceed<PROT>(gear, idle + left, true); break;
+                    case b::drag::pull::middle   .id: if (isdrag) proceed<PROT>(gear, idle + mddl, true); break;
+                    case b::drag::pull::right    .id: if (isdrag) proceed<PROT>(gear, idle + rght, true); break;
+                    case m::move                 .id: if (ismove) proceed<PROT>(gear, idle + btup, faux); break;
                     // Press
-                    case b::down::leftright: capture(gear); break;
-                    case b::down::left     : capture(gear); proceed<PROT>(gear, left, true); break;
-                    case b::down::middle   : capture(gear); proceed<PROT>(gear, mddl, true); break;
-                    case b::down::right    : capture(gear); proceed<PROT>(gear, rght, true); break;
+                    case b::down::leftright.id: capture(gear); break;
+                    case b::down::left     .id: capture(gear); proceed<PROT>(gear, left, true); break;
+                    case b::down::middle   .id: capture(gear); proceed<PROT>(gear, mddl, true); break;
+                    case b::down::right    .id: capture(gear); proceed<PROT>(gear, rght, true); break;
                     // Release
-                    case b::up::leftright:   release(gear); break;
-                    case b::up::left     :   release(gear); proceed<PROT>(gear, up_left); break;
-                    case b::up::middle   :   release(gear); proceed<PROT>(gear, up_mddl); break;
-                    case b::up::right    :   release(gear); proceed<PROT>(gear, up_rght); break;
+                    case b::up::leftright.id:   release(gear); break;
+                    case b::up::left     .id:   release(gear); proceed<PROT>(gear, up_left); break;
+                    case b::up::middle   .id:   release(gear); proceed<PROT>(gear, up_mddl); break;
+                    case b::up::right    .id:   release(gear); proceed<PROT>(gear, up_rght); break;
                     // Wheel
-                    case m::scroll::up  : proceed<PROT>(gear, wheel_up, true); break;
-                    case m::scroll::down: proceed<PROT>(gear, wheel_dn, true); break;
+                    case m::scroll::up  .id: proceed<PROT>(gear, wheel_up, true); break;
+                    case m::scroll::down.id: proceed<PROT>(gear, wheel_dn, true); break;
                     // Gone
-                    case hids::events::die:
+                    case hids::events::die.id:
                         release(gear);
                         if (auto buttons = gear.buttons())
                         {
@@ -965,10 +943,9 @@ private:
                         {
                             switch(owner.bell::protos<tier::release>())
                             {
-                                case hids::events::notify::keybd::got:  queue.fcs(true); break;
-                                case hids::events::notify::keybd::lost: queue.fcs(faux); break;
-                                default:
-                                    break;
+                                case hids::events::notify::keybd::got .id: queue.fcs(true); break;
+                                case hids::events::notify::keybd::lost.id: queue.fcs(faux); break;
+                                default: break;
                             }
                             owner.write(queue);
                         };
@@ -1010,7 +987,7 @@ private:
                                   props[ansi::OSC_LABEL] = txt;
                     auto& utf8 = (props[ansi::OSC_TITLE] = txt);
                     utf8 = jet_left + utf8;
-                    owner.base::riseup<tier::preview, e2::form::prop::header>(utf8);
+                    owner.base::riseup<tier::preview>(e2::form::prop::header, utf8);
                 }
                 else
                 {
@@ -1018,7 +995,7 @@ private:
                     if (property == ansi::OSC_TITLE)
                     {
                         utf8 = jet_left + utf8;
-                        owner.base::riseup<tier::preview, e2::form::prop::header>(utf8);
+                        owner.base::riseup<tier::preview>(e2::form::prop::header, utf8);
                     }
                 }
             }
@@ -2040,7 +2017,7 @@ private:
             };
             SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
             {
-                this->base::riseup<tier::request, e2::form::prop::header>(winprops.get(ansi::OSC_TITLE));
+                this->base::riseup<tier::request>(e2::form::prop::header, winprops.get(ansi::OSC_TITLE));
                 this->SUBMIT_T(tier::release, e2::size::set, oneshot_resize_token, new_sz)
                 {
                     if (new_sz.y > 0)
@@ -2122,7 +2099,7 @@ private:
             {
                 if (status.update(*target))
                 {
-                    this->base::riseup<tier::preview, e2::form::prop::footer>(status.data);
+                    this->base::riseup<tier::preview>(e2::form::prop::footer, status.data);
                 }
                 target->output(parent_canvas);
                 //target->test_basis(parent_canvas);

@@ -71,7 +71,7 @@ namespace netxs::datetime
                 prior =  now;
 
                 now = tempus::now();
-                alarm(cause, now);
+                alarm.notify(cause, now);
 
                 if (letup)
                 {

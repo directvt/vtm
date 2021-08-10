@@ -76,8 +76,7 @@ powershell ../src/install/install.ps1
 
 # Binaries
 
-[![](https://dice.netxs.online/cloud/vtm/status/macos_any)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_macos_any.tar.gz)  
-[![](https://dice.netxs.online/cloud/vtm/status/macos)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_macos_amd64.tar.gz)  
+[![](https://dice.netxs.online/cloud/vtm/status/macos)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_macos_any.tar.gz)  
 [![](https://dice.netxs.online/cloud/vtm/status/freebsd)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_freebsd_amd64.tar.gz)  
 [![](https://dice.netxs.online/cloud/vtm/status/netbsd)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_netbsd_amd64.tar.gz)  
 [![](https://dice.netxs.online/cloud/vtm/status/openbsd)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_openbsd_amd64.tar.gz)  

@@ -126,18 +126,19 @@ namespace netxs::ui
             return backup;
         }
         // form: Create and attach a new item using a template and dynamic datasource.
-        template<auto PROPERTY, class C, class P>
-        auto attach_element(C& data_src_sptr, P item_template)
+        template<class PROPERTY, class C, class P>
+        auto attach_element(PROPERTY, C& data_src_sptr, P item_template)
         {
+            using prop_t = typename PROPERTY::type;
             auto backup = This<T>();
-            ARGTYPE(PROPERTY) arg_value;
-            data_src_sptr->SIGNAL(tier::request, PROPERTY, arg_value);
+            prop_t arg_value;
+            data_src_sptr->SIGNAL(tier::request, PROPERTY{}, arg_value);
             auto new_item = item_template(data_src_sptr, arg_value)
                                  ->depend(data_src_sptr);
             auto item_shadow = ptr::shadow(new_item);
             auto data_shadow = ptr::shadow(data_src_sptr);
             auto boss_shadow = ptr::shadow(backup);
-            data_src_sptr->SUBMIT_BYVAL_T(tier::release, PROPERTY, memomap[data_src_sptr->id], arg_new_value)
+            data_src_sptr->SUBMIT_T_BYVAL(tier::release, PROPERTY{}, memomap[data_src_sptr->id], arg_new_value)
             {
                 if (auto boss_ptr = boss_shadow.lock())
                 if (auto data_src = data_shadow.lock())
@@ -153,13 +154,13 @@ namespace netxs::ui
             return new_item;
         }
         // form: Create and attach a new item using a template and dynamic datasource.
-        template<auto PROPERTY, class S, class P>
-        auto attach_collection(S& data_collection_src, P item_template)
+        template<class PROPERTY, class S, class P>
+        auto attach_collection(PROPERTY, S& data_collection_src, P item_template)
         {
             auto backup = This<T>();
             for(auto& data_src_sptr : data_collection_src)
             {
-                attach_element<PROPERTY>(data_src_sptr, item_template);
+                attach_element(PROPERTY{}, data_src_sptr, item_template);
             }
             return backup;
         }
@@ -837,11 +838,8 @@ namespace netxs::ui
     {
         pro::robot robot{*this }; // rail: Animation controller.
 
-        static constexpr decltype(e2::form::upon::scroll::any) 
-                              events[] = { e2::form::upon::scroll::x,
-                                           e2::form::upon::scroll::y,
-                                           e2::form::upon::scroll::resetx,
-                                           e2::form::upon::scroll::resety };
+        template<auto N> static constexpr
+        auto events = e2::form::upon::scroll::_<N>;
         bool strict[2] = { true, true }; // rail: Don't allow overscroll.
         bool manual[2] = { true, true }; // rail: Manaul scrolling (no auto align).
         bool locked{}; // rail: Client is under resizing.
@@ -876,7 +874,7 @@ namespace netxs::ui
         template<axis AXIS>
         auto follow(sptr<base> master = {})
         {
-            if (master) master->SUBMIT_T(tier::release, events[AXIS], fasten, master_scinfo)
+            if (master) master->SUBMIT_T(tier::release, events<AXIS>, fasten, master_scinfo)
             {
                 AXIS == axis::X ? scroll<X>(scinfo.window.coor.x - master_scinfo.window.coor.x)
                                 : scroll<Y>(scinfo.window.coor.y - master_scinfo.window.coor.y);
@@ -900,16 +898,16 @@ namespace netxs::ui
                     auto& item = *client;
                     switch (this->bell::protos<tier::preview>())
                     {
-                        case events[X]:
+                        case events<X>.id:
                             scroll<X>(scinfo.window.coor.x - info.window.coor.x);
                             break;
-                        case events[Y]:
+                        case events<Y>.id:
                             scroll<Y>(scinfo.window.coor.y - info.window.coor.y);
                             break;
-                        case events[X + 2]:
+                        case events<X + 2>.id:
                             cancel<X, true>();
                             break;
-                        case events[Y + 2]:
+                        case events<Y + 2>.id:
                             cancel<Y, true>();
                             break;
                     }
@@ -1148,7 +1146,7 @@ namespace netxs::ui
                 scinfo.region = block.size;
                 scinfo.window.coor =-block.coor; // Viewport.
                 scinfo.window.size = frame;      //
-                SIGNAL(tier::release, events[AXIS], scinfo);
+                SIGNAL(tier::release, events<AXIS>, scinfo);
 
                 block.coor += basis; // Client origin basis.
                 locked = true;
@@ -1177,8 +1175,8 @@ namespace netxs::ui
             {
                 scinfo.region = {};
                 scinfo.window.coor = {};
-                this->SIGNAL(tier::release, events[axis::X], scinfo);
-                this->SIGNAL(tier::release, events[axis::Y], scinfo);
+                this->SIGNAL(tier::release, events<axis::X>, scinfo);
+                this->SIGNAL(tier::release, events<axis::Y>, scinfo);
                 tokens.clear();
                 fasten.clear();
             };
@@ -1231,11 +1229,10 @@ namespace netxs::ui
             pager_first = 10,
             pager_next  = 11,
         };
-        static constexpr decltype(e2::form::upon::scroll::any)
-                              events[] = { e2::form::upon::scroll::x,
-                                           e2::form::upon::scroll::y,
-                                           e2::form::upon::scroll::resetx,
-                                           e2::form::upon::scroll::resety };
+
+        template<auto N> static constexpr
+        auto events = e2::form::upon::scroll::_<N>;
+
         static inline auto  xy(twod const& p) { return AXIS == axis::X ? p.x : p.y; }
         static inline auto  yx(twod const& p) { return AXIS == axis::Y ? p.x : p.y; }
         static inline auto& xy(twod&       p) { return AXIS == axis::X ? p.x : p.y; }
@@ -1345,17 +1342,17 @@ namespace netxs::ui
 
         bool on_pager = faux;
 
-        template<auto EVENT = events[AXIS]>
-        void send()
+        template<class EVENT = decltype(events<AXIS>)>
+        void send(EVENT)
         {
             if (auto master = this->boss.lock())
             {
-                master->SIGNAL(tier::preview, EVENT, calc.master_inf);
+                master->SIGNAL(tier::preview, EVENT{}, calc.master_inf);
             }
         }
         void gohome()
         {
-            send<events[AXIS + 2]>();
+            send(events<AXIS + 2>);
         }
         void config(iota width)
         {
@@ -1384,7 +1381,7 @@ namespace netxs::ui
         {
             if (on_pager && calc.follow())
             {
-                send<events[AXIS]>();
+                send(events<AXIS>);
             }
             return on_pager;
         }
@@ -1398,7 +1395,7 @@ namespace netxs::ui
         {
             config(thin);
 
-            boss->SUBMIT_T(tier::release, events[AXIS], memo, scinfo)
+            boss->SUBMIT_T(tier::release, events<AXIS>, memo, scinfo)
             {
                 calc.update(scinfo);
                 base::deface();
@@ -1416,7 +1413,7 @@ namespace netxs::ui
                 {
                     auto dir = gear.whldt < 0 ? 1 : -1;
                     calc.pager(dir);
-                    send<events[AXIS]>();
+                    send(events<AXIS>);
                     gear.dismiss();
                 }
             };
@@ -1431,7 +1428,7 @@ namespace netxs::ui
             SUBMIT(tier::release, hids::events::mouse::button::down::any, gear)
             {
                 if (!on_pager)
-                if (this->bell::protos<tier::release>(bttn::down::left ) ||
+                if (this->bell::protos<tier::release>(bttn::down::left) ||
                     this->bell::protos<tier::release>(bttn::down::right))
                 if (auto dir = calc.inside(xy(gear.mouse::coord)))
                 {
@@ -1500,7 +1497,7 @@ namespace netxs::ui
                         if (auto delta = xy(gear.mouse::delta.get()))
                         {
                             calc.stepby(delta);
-                            send<events[AXIS]>();
+                            send(events<AXIS>);
                             gear.dismiss();
                         }
                     }
@@ -1637,7 +1634,7 @@ namespace netxs::ui
                 parent_canvas.view(view);
                 if (client)
                     parent_canvas.render(client, base::coor());
-                bell::expire(tier::release);
+                this->bell::expire<tier::release>();
             };
         }
         // pads: Attach specified item.
@@ -1837,7 +1834,7 @@ namespace netxs::ui
         }
     };
 
-    template<tier TIER, auto EVENT>
+    template<tier TIER, class EVENT>
     class stem_rate
         : public base
     {
@@ -1927,7 +1924,7 @@ namespace netxs::ui
         {
             if (_move_grip(new_val))
             {
-                SIGNAL(TIER, EVENT, cur_val);
+                SIGNAL(TIER, EVENT{}, cur_val);
             }
         }
         void giveup(hids& gear)
@@ -1954,7 +1951,7 @@ namespace netxs::ui
             SUBMIT(tier::request, e2::form::canvas, canvas) { canvas = coreface; };
 
             cur_val = -1;
-            SIGNAL(TIER, EVENT, cur_val);
+            SIGNAL(TIER, EVENT{}, cur_val);
 
             limit.set(twod{ utf::length(caption) + (pad + 2) * 2,
                            10 });
@@ -1978,7 +1975,7 @@ namespace netxs::ui
                     base::deface();
                 }
             };
-            SUBMIT(TIER, EVENT, cur_val)
+            SUBMIT(TIER, EVENT{}, cur_val)
             {
                 if (cur_val >= min_val)
                 {
