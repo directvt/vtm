@@ -580,15 +580,15 @@ namespace netxs::console
         void compose(T const& block, P print = P())
         {
             // Local settings take precedence over global ones (deco::*).
-            iswrapln = block.style.wrapln ? block.style.wrapln == wrap::on
-                                          : deco::wrapln == wrap::on;
-            isr_to_l = block.style.r_to_l ? block.style.r_to_l == rtol::rtl
-                                          : deco::r_to_l == rtol::rtl;
-            isrlfeed = block.style.rlfeed ? block.style.rlfeed == feed::rev
-                                          : deco::rlfeed == feed::rev;
-            tabwidth = block.style.tablen ? block.style.tablen
-                                          : deco::tablen;
-            if (block.style.adjust)
+            iswrapln = block.style.wrapln != wrap::none ? block.style.wrapln == wrap::on
+                                                        :       deco::wrapln == wrap::on;
+            isr_to_l = block.style.r_to_l != rtol::none ? block.style.r_to_l == rtol::rtl
+                                                        :       deco::r_to_l == rtol::rtl;
+            isrlfeed = block.style.rlfeed != feed::none ? block.style.rlfeed == feed::rev
+                                                        :       deco::rlfeed == feed::rev;
+            tabwidth = block.style.tablen != 0          ? block.style.tablen
+                                                        :       deco::tablen;
+            if (block.style.adjust != bias::none)
             {
                 arighted = block.style.adjust == bias::right;
                 centered = block.style.adjust == bias::center;
@@ -1478,9 +1478,9 @@ namespace netxs::console
             test();
             layer->locus.push(cmd);
         }
-        void post(utf::frag const& cluster) { layer->post(cluster, brush); }
-        void cook() { layer->style = style; layer->cook(); }
-        auto size() const { return static_cast<iota>(batch.size()); }
+        void post(utf::frag const& cluster) {                       layer->post(cluster, brush); }
+        void cook()                         { layer->style = style; layer->cook();               }
+        auto size() const                   { return static_cast<iota>(batch.size());            }
 
         auto& current()       { return *layer; } // page: Access to the current paragraph.
         auto& current() const { return *layer; } // page: RO access to the current paragraph.

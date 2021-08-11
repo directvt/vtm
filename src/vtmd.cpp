@@ -3,7 +3,7 @@
 
 #define MONOTTY_VER "Monotty Desktopio v0.5.17"
 // Autostart demo apps.
-//#define DEMO
+#define DEMO
 // Enable keyboard input and disable exit by single Esc.
 #define PROD
 
@@ -1890,6 +1890,7 @@ utility like ctags is used to locate the definitions.
                                             //todo unify, get boss base colors, don't use x3
                                             boss.color(wrapln == wrap::on ? 0xFF00ff00 : x3.fgc(), x3.bgc());
                                         };
+                                        boss.color(WRAPPING == wrap::on ? 0xFF00ff00 : x3.fgc(), x3.bgc());
                                     }},
                                 }))
                                           ->plugin<pro::mover>(window);

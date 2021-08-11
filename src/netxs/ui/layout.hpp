@@ -1138,10 +1138,10 @@ namespace netxs::ui::atoms
     template<class T> text                     cell::glyf<T>::empty;
     template<class T> std::map<uint64_t, text> cell::glyf<T>::jumbo;
 
-    struct bias { enum type : iota { none, left, right, center, }; };
-    struct wrap { enum type : iota { none, on,  off,            }; };
-    struct rtol { enum type : iota { none, rtl, ltr,            }; };
-    struct feed { enum type : iota { none, rev, fwd,            }; };
+    enum class bias : iota { none, left, right, center, };
+    enum class wrap : iota { none, on,  off,            };
+    enum class rtol : iota { none, rtl, ltr,            };
+    enum class feed : iota { none, rev, fwd,            };
 
     struct rect
     {

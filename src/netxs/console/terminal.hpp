@@ -21,8 +21,8 @@ namespace netxs::events::userland
 
             SUBSET_XS( layout )
             {
-                EVENT_XS( align , bias::type ),
-                EVENT_XS( wrapln, wrap::type ),
+                EVENT_XS( align , bias ),
+                EVENT_XS( wrapln, wrap ),
             };
             SUBSET_XS( data )
             {
@@ -206,15 +206,15 @@ namespace netxs::app
             auto hz_pos = curln.chx();
             if (hz_pos >= panel.x && style.wrapln == wrap::on)
             {
-                coord.x = hz_pos % panel.x;
-                coord.y = hz_pos / panel.x + vt_pos;
-                //auto x = hz_pos % panel.x;
-                //auto y = hz_pos / panel.x + vt_pos;
-                //auto right_most = x == 0;
-                //               //&& hz_pos == curln.length()
-                //               //&& (coord.x != x || coord.y != y);
-                //if (right_most) coord = { panel.x, y - 1 };
-                //else            coord = { x      , y     };
+                //coord.x = hz_pos % panel.x;
+                //coord.y = hz_pos / panel.x + vt_pos;
+                auto x = hz_pos % panel.x;
+                auto y = hz_pos / panel.x + vt_pos;
+                auto right_most = x == 0;
+                               //&& hz_pos == curln.length()
+                               //&& (coord.x != x || coord.y != y);
+                if (right_most) coord = { panel.x, y - 1 };
+                else            coord = { x      , y     };
             }
             else coord = { hz_pos, vt_pos };
             if      (style.adjust == bias::right ) coord.x =  panel.x - coord.x  - 1;
@@ -317,6 +317,7 @@ namespace netxs::app
             }
             batch. set(new_coord.y);
             batch->chx(new_coord.x);
+            batch->style = style;
 
             //todo implement the case when the coord is set to the viewport outside
             //     after the right side: disable wrapping (on overlapped line too)
@@ -332,30 +333,76 @@ namespace netxs::app
             if (from < upto) while(proc(*head) && head++ != tail);
             else             while(proc(*head) && head-- != tail);
         }
-        void finalize()
+        void finalize(line& cur_line)
         {
-            auto& cur_line1 = *batch;
-            cur_line1.style = style; //todo revise
-            if (auto shift = cur_line1.step())
+            auto& style = cur_line.style;
+            auto shift = cur_line.step();
+            bool line_feed = faux;
+            switch(style.adjust)
             {
-                auto myid = cur_line1.selfid;
-                auto old_height = line_height(cur_line1) - 1;
-                                cur_line1.cook(); //todo revise cur_line1.trim(brush.spare, max_line_len);
-                auto new_height = line_height(cur_line1) - 1;
-                auto index = batch.get();
-                auto delta = new_height - old_height;
-                if (delta)
+                case bias::left:
+                case bias::right:
                 {
-                    //Scroll current region if needed (same as in scrollbuffer::dn())
-                    //auto n = new_height - old_height;
+                    auto pos_x = coord.x + shift;
+                    if (style.wrapln == wrap::on && pos_x > panel.x)
+                    {
+                        line_feed = true;
+                        coord.x  = pos_x % panel.x;
+                        coord.y += pos_x / panel.x;
+                        if (coord.x == 0)
+                        {
+                            coord.y--;
+                            coord.x = panel.x;
+                        }
+                    }
+                    else coord.x = pos_x;
+                    break;
+                }
+                case bias::center:
+                {
+                    //auto old_height = line_height(cur_line);
+                    auto old_hz_pos = cur_line.chx();
+                    auto old_length = cur_line.length();
+                    auto new_hz_pos = old_hz_pos + shift;
+                    auto new_length = std::max(old_length, new_hz_pos);
+
+                    if (style.wrapln == wrap::on && new_length > panel.x)
+                    {
+                        auto vt_pos = batch.get() - basis;
+                        //auto old_rem = old_length % panel.x;
+                        //auto new_rem = new_length % panel.x;
+                        //auto old_first_block = old_length - old_rem;
+                        //auto new_first_block = new_length - new_rem;
+
+                        auto old_coord_y = coord.y;
+                        coord.x = new_hz_pos % panel.x;
+                        coord.y = new_hz_pos / panel.x + vt_pos;
+                        if (coord.x == 0)
+                        {
+                            coord.y--;
+                            coord.x = panel.x;
+                        }
+                        line_feed = old_coord_y != coord.y;
+                    }
+                    else coord.x = new_hz_pos;
+                    break;
+                }
+            };
+
+            if (line_feed)
+            {
+                auto old_height = line_height(cur_line) - 1;
+                cur_line.cook();
+                auto new_height = line_height(cur_line) - 1;
+                if (auto delta = new_height - old_height)
+                {
+                    auto index = batch.get();
+                    auto old_pos = index - basis + old_height;
+                    auto new_pos = index - basis + new_height;
                     auto[top, end] = get_scroll_region();
-                    //if (scroll_region_used() && coord.y <= end
-                    //                         && coord.y + delta > end)
-                    //auto new_pos = coord.y + delta;
-                    auto new_pos = index - basis + new_height - 1;
                     if (new_pos > end)
                     {
-                        if (coord.y <= end)
+                        if (old_pos <= end)
                         {
                             auto n = end - new_pos;
                             coord.y += n;
@@ -368,100 +415,34 @@ namespace netxs::app
                             coord.y -= n;
                             add_lines(n);
                         }
-                        //else coord.y = new_pos;
                     }
-                    //else coord.y = new_pos;
-
-                    // Add empty lines if needed
-                    //auto overflow = caret + new_height - batch.length();
-                    //if (overflow > 0) add_lines(overflow);
-
                     // Update lines depth
-                    auto depth = new_height;
-                    auto from = index + depth;
+                    auto from = index + new_height;
                     auto upto = index + old_height;
                     for_each(from, upto, [&](line& l)
                     {
-                        auto open = l.depth < depth;
-                        if (open) l.depth = depth--;
+                        auto open = l.depth < new_height;
+                        if  (open)  l.depth = new_height--;
                         return open;
                     });
                 }
-                //else if (new_height < old_height)
-                //{
-                //    // Update bossid id on opened below lines
-                //    auto from = index + old_height - 1;
-                //    auto upto = index + new_height;
-                //    for_each(from, upto, [&](para& l)
-                //    {
-                //        if (l.bossid != myid) return faux; // this line, like all those lying above, is covered with a long super line above, don't touch it
-                //        // Looking for who else covers the current line below
-                //        auto from2 = index + 1;
-                //        auto upto2 = from--;
-                //        for_each(from2, upto2, [&](para& l2)
-                //        {
-                //            auto h = line_height(l2);
-                //            auto d = upto2 - from2++;
-                //            if (h > d)
-                //            {
-                //                l.bossid = l2.selfid;
-                //                return faux;
-                //            }
-                //            return true;
-                //        });
-                //        return true;
-                //    });
-                //}
-                //get_coord();
-                auto& cur_line3 = *batch;
-                xsize.take(cur_line3);
-
-                if (style.wrapln == wrap::on)
-                {
-                    if (style.adjust == bias::right)
-                    {
-                        coord.x -= shift;
-                        if (coord.x < 0)
-                        {
-                            coord.y += (panel.x - coord.x) / panel.x;
-                            coord.x = (panel.x - coord.x) % panel.x;
-                            if (coord.x == 0)
-                            {
-                                coord.x = -1;
-                                coord.y -= 1;
-                            }
-                        }
-                    }
-                    else
-                    {
-                        coord.x += shift;
-                        if (coord.x > panel.x)
-                        {
-                            coord.y += coord.x / panel.x;
-                            coord.x %= panel.x;
-                            if (coord.x == 0)
-                            {
-                                coord.x = panel.x;
-                                coord.y -= 1;
-                            }
-                        }
-                    }
-                }
-                else coord.x += style.adjust == bias::right ?-shift
-                                                            : shift;
             }
+            else cur_line.cook();
+
+            auto& cur_line3 = *batch;
+            xsize.take(cur_line3);
         }
         void clear_all(bool preserve_brush = faux)
         {
             if (!preserve_brush) brush.reset();
-            style.glb();
+            //style.glb();
             //todo unify
-            style.wrapln = WRAPPING;
+            //style.wrapln = WRAPPING;
             saved = dot_00;
             coord = dot_00;
             basis = 0;
             batch.clear();
-            batch.push(0);
+            batch.push(0, style);
             align_basis();
         }
         template<bool BOTTOM_ANCHORED = true>
@@ -594,6 +575,7 @@ namespace netxs::app
             {
                 auto required_len = depth + coord.x;
                 auto& line = *head;
+                //todo wrap == on only
                 line.trimto(required_len);
                 depth -= panel.x;
             }
@@ -774,7 +756,7 @@ namespace netxs::app
                     add_lines(-footer);
                     footer = 0;
                 }
-                if (n > 0) // Scroll down (move down the text block).
+                if (n > 0) // Scroll down (move text block down).
                 {
                     n = std::min(n, height);
                     auto a = top_it - 1;
@@ -787,7 +769,7 @@ namespace netxs::app
                     move_to(b, a, end_it);
                     zeroise(top_it, top_it + n);
                 }
-                else // Scroll up (move up the text block).
+                else // Scroll up (move text block up).
                 {
                     n = std::min(-n, height);
                     auto a = top_it + n;
@@ -833,7 +815,10 @@ namespace netxs::app
                 {
                     dissect(--tail);
                     auto& line = *tail;
-                    if (line.style.wrapln == wrap::on) line.trimto(new_size.x);
+                    //todo revise
+                    //if (line.style.wrapln == wrap::on) line.trimto(new_size.x);
+                    line.trimto(new_size.x);
+                    xsize.take(line);
                 }
             }
             else while (--tail != head) dissect(tail);
@@ -1068,7 +1053,7 @@ private:
             void set(text const& property, view txt)
             {
                 static auto jet_left = ansi::jet(bias::left);
-                owner.target->finalize();
+                owner.target->cook();
                 if (property == ansi::OSC_LABEL_TITLE)
                 {
                                   props[ansi::OSC_LABEL] = txt;
@@ -1089,7 +1074,7 @@ private:
             // win_cntrl: Manage terminal window props (XTWINOPS).
             void manage(fifo& q)
             {
-                owner.target->finalize();
+                owner.target->cook();
                 static constexpr iota get_label = 20; // Report icon   label. (Report as OSC L label ST).
                 static constexpr iota get_title = 21; // Report window title. (Report as OSC l title ST).
                 static constexpr iota put_stack = 22; // Push icon label and window title to   stack.
@@ -1227,8 +1212,8 @@ private:
                     vt::csier.table[CSI_CCC][CCC_RST] = VT_PROC{ p->style.glb(); p->style.wrapln = WRAPPING; };  // fx_ccc_rst
                     vt::csier.table[CSI_CCC][CCC_SBS] = VT_PROC{ p->boss.scrollbuffer_size(q); };  // CCC_SBS: Set scrollback size.
                     vt::csier.table[CSI_CCC][CCC_EXT] = VT_PROC{ p->boss.native(q(1)); };  // CCC_EXT: Setup extended functionality.
-                    vt::csier.table[CSI_CCC][CCC_WRP] = VT_PROC{ p->wrp(q(0)); };  // CCC_WRP
-                    vt::csier.table[CSI_CCC][CCC_JET] = VT_PROC{ p->jet(q(0)); };  // CCC_JET
+                    vt::csier.table[CSI_CCC][CCC_WRP] = VT_PROC{ p->wrp(static_cast<wrap>(q(0))); };  // CCC_WRP
+                    vt::csier.table[CSI_CCC][CCC_JET] = VT_PROC{ p->jet(static_cast<bias>(q(0))); };  // CCC_JET
 
                     vt::intro[ctrl::ESC][ESC_IND] = VT_PROC{ p->dn(1); }; // ESC D  Caret Down.
                     vt::intro[ctrl::ESC][ESC_IR ] = VT_PROC{ p->ri (); }; // ESC M  Reverse index.
@@ -1277,7 +1262,7 @@ private:
             //             task(...), post(...), cook(...)
             void task(ansi::rule const& property)
             {
-                finalize();
+                cook();
                 auto& cur_line = *batch;
                 if (cur_line.busy())
                 {
@@ -1287,8 +1272,14 @@ private:
                 batch->locus.push(property);
             }
             void post(utf::frag const& cluster) { batch->post(cluster, rods::brush); }
-            void cook()                         { 
-                finalize(); }
+            void inline cook()
+            { 
+                auto& cur_line1 = *batch;
+                if (cur_line1.step())
+                {
+                    finalize(cur_line1);
+                }
+            }
 
             template<class T>
             void na(T&& note)
@@ -1311,35 +1302,53 @@ private:
                 log("CSI ", params, " ", (unsigned char)i, "(", std::to_string(i), ") is not implemented.");
             }
             // scrollbuff: CCC_WRP:  Set autowrap mode.
-            void wrp(iota w)
+            void wrp(wrap w)
             {
-                finalize();
+                cook();
                 dissect();
                 style.wrp(w);
+                batch->style.wrp(w);
                 auto status = w == wrap::none ? WRAPPING
-                                              :(wrap::type)w;
+                                              : w;
                 boss.base::broadcast->SIGNAL(tier::release, app::term::events::layout::wrapln, status);
             }
             // scrollbuff: CCC_JET:  Set line alignment.
-            void jet(iota j)
+            void jet(bias j)
             {
-                finalize();
+                cook();
                 dissect();
                 style.jet(j);
+                batch->style.jet(j);
                 auto status = j == bias::none ? bias::left
-                                              :(bias::type)j;
+                                              : j;
                 boss.base::broadcast->SIGNAL(tier::release, app::term::events::layout::align, status);
+            }
+            void style_status(deco const& s)
+            {
+                auto& style = batch->style;
+                if (s.wrapln != style.wrapln)
+                {
+                    auto status = style.wrapln == wrap::none ? WRAPPING
+                                                             : style.wrapln;
+                    boss.base::broadcast->SIGNAL(tier::release, app::term::events::layout::wrapln, status);
+                }
+                if (s.adjust != style.adjust)
+                {
+                    auto status = style.adjust == bias::none ? bias::left
+                                                             : style.adjust;
+                    boss.base::broadcast->SIGNAL(tier::release, app::term::events::layout::align, status);
+                }
             }
             // scrollbuff: ESC H  Place tabstop at the current caret posistion.
             void stb()
             {
-                finalize();
+                cook();
                 tabstop = std::max(1, coord.x + 1);
             }
             // scrollbuff: TAB  Horizontal tab.
             void tab(iota n)
             {
-                finalize();
+                cook();
                 if (n > 0)
                 {
                     auto a = n * tabstop - coord.x % tabstop;
@@ -1361,20 +1370,20 @@ private:
             // scrollbuff: ESC 7 or CSU s  Save caret position.
             void scp()
             {
-                finalize();
+                cook();
                 saved = coord;
             }
             // scrollbuff: ESC 8 or CSU u  Restore caret position.
             void rcp()
             {
-                finalize();
+                cook();
                 coord = saved;
                 set_coord();
             }
             // scrollbuff: CSI n T/S  Scroll down/up, scrolled up lines are pushed to the scrollback buffer.
             void scl(iota n)
             {
-                finalize();
+                cook();
                 scroll_region(n, n > 0 ? faux : true);
                 set_coord();
             }
@@ -1384,7 +1393,7 @@ private:
                /* Works only if caret is in the scroll region.
                 * Inserts n lines at the current row and removes n lines at the scroll bottom.
                 */
-                finalize();
+                cook();
                 auto[top, end] = get_scroll_region();
                 if (n > 0 && coord.y >= top && coord.y <= end)
                 {
@@ -1402,7 +1411,7 @@ private:
                /* Works only if caret is in the scroll region.
                 * Deletes n lines at the current row and add n lines at the scroll bottom.
                 */
-                finalize();
+                cook();
                 auto[top, end] = get_scroll_region();
                 if (n > 0 && coord.y >= top && coord.y <= end)
                 {
@@ -1422,7 +1431,7 @@ private:
                  * - move caret one line up if it is outside of scrolling region or below the top line of scrolling region.
                  * - one line scroll down if caret is on the top line of scroll region.
                  */
-                finalize();
+                cook();
                 auto[top, end] = get_scroll_region();
                 if (coord.y != top)
                 {
@@ -1446,7 +1455,7 @@ private:
                 *   Don't change cursor pos.
                 *   Existing chars after cursor shifts to the right.
                 */
-                finalize();
+                cook();
                 if (n > 0)
                 {
                     auto size  = batch->length();
@@ -1487,7 +1496,8 @@ private:
                         }
                     }
                     batch->chx(pos);
-                    finalize();
+                    //todo recalc viewport layout
+                    //cook();
                 }
             }
             // scrollbuff: Shift left n columns(s).
@@ -1499,10 +1509,10 @@ private:
             {
                 if (n > 0)
                 {
-                    finalize();
+                    cook();
                     auto pos = batch->chx();
                     batch->ins(n, rods::brush);
-                    finalize();
+                    cook();
                     batch->chx(pos);
                 }
             }
@@ -1515,7 +1525,7 @@ private:
                  *    Character attributes move with the characters.
                  *    The terminal adds blank characters at the right margin.
                  */
-                finalize();
+                cook();
                 auto& frag =*(batch->lyric);
                 auto  size = batch->length();
                 auto  coor = batch->chx();
@@ -1571,28 +1581,28 @@ private:
             // scrollbuff: Move caret forward by n.
             void cuf(iota n)
             {
-                finalize();
+                cook();
                 coord.x += n;
                 set_coord();
             }
             // scrollbuff: CSI n G  Absolute horizontal caret position (1-based).
             void chx(iota n)
             {
-                finalize();
+                cook();
                 coord.x = n - 1;
                 set_coord();
             }
             // scrollbuff: CSI n d  Absolute vertical caret position (1-based).
             void chy(iota n)
             {
-                finalize();
+                cook();
                 coord.y = n - 1;
                 set_coord();
             }
             // scrollbuff: CSI y; x H/F  Caret position (1-based).
             void cup(fifo& queue)
             {
-                finalize();
+                cook();
                 auto y = queue(1);
                 auto x = queue(1);
                 auto p = twod{ x, y };
@@ -1603,14 +1613,14 @@ private:
             // scrollbuff: Line reverse feed (move caret up).
             void up(iota n)
             {
-                finalize();
+                cook();
                 coord.y -= n;
                 set_coord();
             }
             // scrollbuff: Line feed (move caret down).
             void dn(iota n)
             {
-                finalize();
+                cook();
                 // Scroll regions up if coord.y == scend and scroll region are defined.
                 auto[top, end] = get_scroll_region();
                 if (n > 0 && scroll_region_used() && coord.y    <= end
@@ -1629,14 +1639,14 @@ private:
             // scrollbuff: '\r'  Go to home of visible line instead of home of para.
             void home()
             {
-                finalize();
+                cook();
                 coord.x = 0;
                 set_coord();
             }
             // scrollbuff: CSI n J  Erase display.
             void ed(iota n)
             {
-                finalize();
+                cook();
                 switch (n)
                 {
                     case commands::erase::display::below: // n = 0 (default)  Erase viewport after caret.
@@ -1660,7 +1670,7 @@ private:
             // scrollbuff: CSI n K  Erase line (don't move caret).
             void el(iota n)
             {
-                finalize();
+                cook();
                 iota start;
                 iota count;
                 auto caret = std::max(0, batch->chx());
@@ -1688,8 +1698,8 @@ private:
                 }
                 if (count)
                 {
-                    //auto blank = cell{ brush }.txt(' ');
-                    auto blank = cell{ brush }.bgc(greendk).txt(' ');
+                    auto blank = cell{ brush }.txt(' ');
+                    //auto blank = cell{ brush }.bgc(greendk).bga(0x7f).txt(' ');
                     batch->ins<true>(start, count, blank);
                     //batch->trim(blank);
                     clear_overlapping_lines();
@@ -1759,14 +1769,14 @@ private:
         // term: Soft terminal reset (DECSTR).
         void decstr()
         {
-            target->finalize();
+            target->cook();
             normal.clear_all(true);
             altbuf.clear_all(true);
             target = &normal;
         }
         void decset(fifo& queue)
         {
-            target->finalize();
+            target->cook();
             while (auto q = queue(0))
             {
                 switch (q)
@@ -1775,7 +1785,7 @@ private:
                         mode_DECCKM = true;
                         break;
                     case 7:    // Enable auto-wrap.
-                        target->style.wrp(wrap::on);
+                        target->wrp(wrap::on);
                         break;
                     case 12:   // Enable caret blinking.
                         caret.blink_period();
@@ -1820,7 +1830,7 @@ private:
                         break;
                     case 1047: // Use alternate screen buffer.
                     case 1049: // Save cursor and Use alternate screen buffer, clearing it first.  This control combines the effects of the 1047 and 1048  modes.
-                        target->finalize();
+                        altbuf.style_status(target->style);
                         target = &altbuf;
                         altbuf.clear_all(true);
                         break;
@@ -1834,7 +1844,7 @@ private:
         }
         void decrst(fifo& queue)
         {
-            target->finalize();
+            target->cook();
             while (auto q = queue(0))
             {
                 switch (q)
@@ -1843,7 +1853,7 @@ private:
                         mode_DECCKM = faux;
                         break;
                     case 7:    // Disable auto-wrap.
-                        target->style.wrp(wrap::off);
+                        target->wrp(wrap::off);
                         break;
                     case 12:   // Disable caret blinking.
                         caret.blink_period(period::zero());
@@ -1888,7 +1898,7 @@ private:
                         break;
                     case 1047: // Use normal screen buffer.
                     case 1049: // Use normal screen buffer and restore cursor.
-                        target->finalize();
+                        normal.style_status(target->style);
                         target = &normal;
                         break;
                     case 2004: // Disable bracketed paste mode.

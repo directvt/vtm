@@ -263,6 +263,13 @@ namespace netxs::ansi
             {
                 itos(data);
             }
+            else if constexpr (std::is_same_v<D, bias>
+                            || std::is_same_v<D, wrap>
+                            || std::is_same_v<D, rtol>
+                            || std::is_same_v<D, feed>)
+            {
+                itos(static_cast<iota>(data));
+            }
             else if constexpr (std::is_same_v<D, twod>)
             {
                 operator+=("{ "); itos(data.x); operator+=(", ");
@@ -566,14 +573,14 @@ namespace netxs::ansi
         esc& mgr (iota n)        { return add("\033[8:" , n  , CSI_CCC); } // esc: Right margin. Positive - native binding. Negative - opposite binding.
         esc& mgt (iota n)        { return add("\033[9:" , n  , CSI_CCC); } // esc: Top margin. Positive - native binding. Negative - opposite binding.
         esc& mgb (iota n)        { return add("\033[10:", n  , CSI_CCC); } // esc: Bottom margin. Positive - native binding. Negative - opposite binding.
-        esc& jet (iota n)        { return add("\033[11:", n  , CSI_CCC); } // esc: Text alignment.
-        esc& wrp (iota n)        { return add("\033[12:", n  , CSI_CCC); } // esc: Text wrapping.
-        esc& rtl (iota n)        { return add("\033[13:", n  , CSI_CCC); } // esc: Text right-to-left.
-        esc& rlf (iota n)        { return add("\033[14:", n  , CSI_CCC); } // esc: Reverse line feed.
-        esc& jet_or (iota n)     { return add("\033[15:", n  , CSI_CCC); } // esc: Text alignment.
-        esc& wrp_or (iota n)     { return add("\033[16:", n  , CSI_CCC); } // esc: Text wrapping.
-        esc& rtl_or (iota n)     { return add("\033[17:", n  , CSI_CCC); } // esc: Text right-to-left.
-        esc& rlf_or (iota n)     { return add("\033[18:", n  , CSI_CCC); } // esc: Reverse line feed.
+        esc& jet (bias n)        { return add("\033[11:", n  , CSI_CCC); } // esc: Text alignment.
+        esc& wrp (wrap n)        { return add("\033[12:", n  , CSI_CCC); } // esc: Text wrapping.
+        esc& rtl (rtol n)        { return add("\033[13:", n  , CSI_CCC); } // esc: Text right-to-left.
+        esc& rlf (feed n)        { return add("\033[14:", n  , CSI_CCC); } // esc: Reverse line feed.
+        esc& jet_or (bias n)     { return add("\033[15:", n  , CSI_CCC); } // esc: Text alignment.
+        esc& wrp_or (wrap n)     { return add("\033[16:", n  , CSI_CCC); } // esc: Text wrapping.
+        esc& rtl_or (rtol n)     { return add("\033[17:", n  , CSI_CCC); } // esc: Text right-to-left.
+        esc& rlf_or (feed n)     { return add("\033[18:", n  , CSI_CCC); } // esc: Reverse line feed.
         esc& idx (iota i)        { return add("\033[19:", i  , CSI_CCC); } // esc: Split the text run and associate the fragment with an id.
         esc& ref (iota i)        { return add("\033[23:", i  , CSI_CCC); } // esc: Create the reference to the existing paragraph.
         esc& ext (iota b)        { return add("\033[25:", b  , CSI_CCC); } // esc: Extended functionality support, 0 - faux, 1 - true.
@@ -667,14 +674,14 @@ namespace netxs::ansi
     static esc ext (bool b)          { return esc{}.ext (b); } // ansi: Extended functionality.
     static esc show_mouse(bool b)    { return esc{}.show_mouse(b); } // esc: Should the mouse poiner to be drawn.
 
-    static esc jet (iota n)          { return esc{}.jet (n); } // ansi: Text alignment.
-    static esc wrp (iota n)          { return esc{}.wrp (n); } // ansi: Text wrapping.
-    static esc rtl (iota n)          { return esc{}.rtl (n); } // ansi: Text right-to-left.
-    static esc rlf (iota n)          { return esc{}.rlf (n); } // ansi: Reverse line feed.
-    static esc jet_or (iota n)       { return esc{}.jet_or (n); } // ansi: Set text alignment if it is not set.
-    static esc wrp_or (iota n)       { return esc{}.wrp_or (n); } // ansi: Set text wrapping if it is not set.
-    static esc rtl_or (iota n)       { return esc{}.rtl_or (n); } // ansi: Set text right-to-left if it is not set.
-    static esc rlf_or (iota n)       { return esc{}.rlf_or (n); } // ansi: Set reverse line feed if it is not set.
+    static esc jet (bias n)          { return esc{}.jet (n); } // ansi: Text alignment.
+    static esc wrp (wrap n)          { return esc{}.wrp (n); } // ansi: Text wrapping.
+    static esc rtl (rtol n)          { return esc{}.rtl (n); } // ansi: Text right-to-left.
+    static esc rlf (feed n)          { return esc{}.rlf (n); } // ansi: Reverse line feed.
+    static esc jet_or (bias n)       { return esc{}.jet_or (n); } // ansi: Set text alignment if it is not set.
+    static esc wrp_or (wrap n)       { return esc{}.wrp_or (n); } // ansi: Set text wrapping if it is not set.
+    static esc rtl_or (rtol n)       { return esc{}.rtl_or (n); } // ansi: Set text right-to-left if it is not set.
+    static esc rlf_or (feed n)       { return esc{}.rlf_or (n); } // ansi: Set reverse line feed if it is not set.
 
     static esc rst ()                { return esc{}.rst ( ); } // ansi: Reset formatting parameters.
     static esc nop ()                { return esc{}.nop ( ); } // ansi: No operation. Split the text run.
@@ -762,30 +769,30 @@ namespace netxs::ansi
     struct deco
     {
         static constexpr iota maxtab = 256; // deco: Tab length limit.
-        iota adjust = bias::none; // deco: Horizontal alignment.
-        iota wrapln = wrap::none; // deco: Auto wrapping.
-        iota r_to_l = rtol::none; // deco: RTL.
-        iota rlfeed = feed::none; // deco: Reverse line feed.
+        bias adjust = bias::none; // deco: Horizontal alignment.
+        wrap wrapln = wrap::none; // deco: Auto wrapping.
+        rtol r_to_l = rtol::none; // deco: RTL.
+        feed rlfeed = feed::none; // deco: Reverse line feed.
         iota tablen = 0;          // deco: Tab length.
         dent margin;              // deco: Page margins.
 
-        auto& wrp(bool  b) { wrapln = b ? wrap::on  : wrap::off;  return *this; } // deco: Set auto wrapping.
-        auto& rtl(bool  b) { r_to_l = b ? rtol::rtl : rtol::ltr;  return *this; } // deco: Set RTL.
-        auto& rlf(bool  b) { rlfeed = b ? feed::rev : feed::fwd;  return *this; } // deco: Set revverse line feed.
-        auto& jet(iota  n = bias::none)        { adjust = n;      return *this; } // deco: Paragraph adjustment.
-        auto& wrp(iota  n = wrap::none)        { wrapln = n;      return *this; } // deco: Auto wrapping.
-        auto& rtl(iota  n = rtol::none)        { r_to_l = n;      return *this; } // deco: RTL.
-        auto& rlf(iota  n = feed::none)        { rlfeed = n;      return *this; } // deco: Reverse line feed.
-        auto& jet_or(iota  n)     { if (!adjust) adjust = n;      return *this; } // deco: Paragraph adjustment.
-        auto& wrp_or(iota  n)     { if (!wrapln) wrapln = n;      return *this; } // deco: Auto wrapping.
-        auto& rtl_or(iota  n)     { if (!r_to_l) r_to_l = n;      return *this; } // deco: RTL.
-        auto& rlf_or(iota  n)     { if (!rlfeed) rlfeed = n;      return *this; } // deco: Reverse line feed.
-        auto& tbs(iota  n = 0)                 { tablen = std::min(n, maxtab); return *this; } // deco: fx_ccc_tbs.
-        auto& mgl(iota  n = 0)                 { margin.west = n; return *this; } // deco: fx_ccc_mgl.
-        auto& mgr(iota  n = 0)                 { margin.east = n; return *this; } // deco: fx_ccc_mgr.
-        auto& mgt(iota  n = 0)                 { margin.head = n; return *this; } // deco: fx_ccc_mgt.
-        auto& mgb(iota  n = 0)                 { margin.foot = n; return *this; } // deco: fx_ccc_mgb.
-        auto& mgn(fifo& q)                     { margin.set(q);   return *this; } // deco: fx_ccc_mgn.
+        auto& wrp   (bool  b)              { wrapln = b ? wrap::on  : wrap::off;   return *this; } // deco: Set auto wrapping.
+        auto& rtl   (bool  b)              { r_to_l = b ? rtol::rtl : rtol::ltr;   return *this; } // deco: Set RTL.
+        auto& rlf   (bool  b)              { rlfeed = b ? feed::rev : feed::fwd;   return *this; } // deco: Set revverse line feed.
+        auto& jet   (bias  n = bias::none) { adjust = n;                           return *this; } // deco: Paragraph adjustment.
+        auto& wrp   (wrap  n = wrap::none) { wrapln = n;                           return *this; } // deco: Auto wrapping.
+        auto& rtl   (rtol  n = rtol::none) { r_to_l = n;                           return *this; } // deco: RTL.
+        auto& rlf   (feed  n = feed::none) { rlfeed = n;                           return *this; } // deco: Reverse line feed.
+        auto& jet_or(bias  n)              { if (adjust == bias::none) adjust = n; return *this; } // deco: Paragraph adjustment.
+        auto& wrp_or(wrap  n)              { if (wrapln == wrap::none) wrapln = n; return *this; } // deco: Auto wrapping.
+        auto& rtl_or(rtol  n)              { if (r_to_l == rtol::none) r_to_l = n; return *this; } // deco: RTL.
+        auto& rlf_or(feed  n)              { if (rlfeed == feed::none) rlfeed = n; return *this; } // deco: Reverse line feed.
+        auto& tbs   (iota  n = 0)          { tablen = std::min(n, maxtab);         return *this; } // deco: fx_ccc_tbs.
+        auto& mgl   (iota  n = 0)          { margin.west = n;                      return *this; } // deco: fx_ccc_mgl.
+        auto& mgr   (iota  n = 0)          { margin.east = n;                      return *this; } // deco: fx_ccc_mgr.
+        auto& mgt   (iota  n = 0)          { margin.head = n;                      return *this; } // deco: fx_ccc_mgt.
+        auto& mgb   (iota  n = 0)          { margin.foot = n;                      return *this; } // deco: fx_ccc_mgb.
+        auto& mgn   (fifo& q)              { margin.set(q);                        return *this; } // deco: fx_ccc_mgn.
         auto& rst()  // deco: Reset to none.
         {
             adjust = bias::none;
@@ -925,14 +932,14 @@ namespace netxs::ansi
                     csi_ccc[CCC_MGT   ] = VT_PROC{ p->style.mgt   (q(0)); }; // fx_ccc_mgt
                     csi_ccc[CCC_MGB   ] = VT_PROC{ p->style.mgb   (q(0)); }; // fx_ccc_mgb
                     csi_ccc[CCC_TBS   ] = VT_PROC{ p->style.tbs   (q(0)); }; // fx_ccc_tbs
-                    csi_ccc[CCC_JET   ] = VT_PROC{ p->style.jet   (q(0)); }; // fx_ccc_jet
-                    csi_ccc[CCC_WRP   ] = VT_PROC{ p->style.wrp   (q(0)); }; // fx_ccc_wrp
-                    csi_ccc[CCC_RTL   ] = VT_PROC{ p->style.rtl   (q(0)); }; // fx_ccc_rtl
-                    csi_ccc[CCC_RLF   ] = VT_PROC{ p->style.rlf   (q(0)); }; // fx_ccc_rlf
-                    csi_ccc[CCC_JET_or] = VT_PROC{ p->style.jet_or(q(0)); }; // fx_ccc_or_jet
-                    csi_ccc[CCC_WRP_or] = VT_PROC{ p->style.wrp_or(q(0)); }; // fx_ccc_or_wrp
-                    csi_ccc[CCC_RTL_or] = VT_PROC{ p->style.rtl_or(q(0)); }; // fx_ccc_or_rtl
-                    csi_ccc[CCC_RLF_or] = VT_PROC{ p->style.rlf_or(q(0)); }; // fx_ccc_or_rlf
+                    csi_ccc[CCC_JET   ] = VT_PROC{ p->style.jet   (static_cast<bias>(q(0))); }; // fx_ccc_jet
+                    csi_ccc[CCC_WRP   ] = VT_PROC{ p->style.wrp   (static_cast<wrap>(q(0))); }; // fx_ccc_wrp
+                    csi_ccc[CCC_RTL   ] = VT_PROC{ p->style.rtl   (static_cast<rtol>(q(0))); }; // fx_ccc_rtl
+                    csi_ccc[CCC_RLF   ] = VT_PROC{ p->style.rlf   (static_cast<feed>(q(0))); }; // fx_ccc_rlf
+                    csi_ccc[CCC_JET_or] = VT_PROC{ p->style.jet_or(static_cast<bias>(q(0))); }; // fx_ccc_or_jet
+                    csi_ccc[CCC_WRP_or] = VT_PROC{ p->style.wrp_or(static_cast<wrap>(q(0))); }; // fx_ccc_or_wrp
+                    csi_ccc[CCC_RTL_or] = VT_PROC{ p->style.rtl_or(static_cast<rtol>(q(0))); }; // fx_ccc_or_rtl
+                    csi_ccc[CCC_RLF_or] = VT_PROC{ p->style.rlf_or(static_cast<feed>(q(0))); }; // fx_ccc_or_rlf
 
                     csi_ccc[CCC_NOP] = nullptr;
                     csi_ccc[CCC_IDX] = nullptr;
