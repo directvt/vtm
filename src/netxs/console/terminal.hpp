@@ -197,47 +197,51 @@ namespace netxs::app
             }
             else return faux;
         }
-        // rods: Map caret position from scrollback to viewport.
+        // rods: Return current 0-based caret position in the scrollback.
         auto get_coord()
         {
+            twod coor;
             auto& curln =*batch;
             auto& style = batch->style;
-            auto vt_pos = batch.get() - basis;
+            coor.y = batch.get();
             auto hz_pos = curln.chx();
-            if (hz_pos >= panel.x && style.wrapln == wrap::on)
+
+            if (style.adjust == bias::center)
             {
-                //coord.x = hz_pos % panel.x;
-                //coord.y = hz_pos / panel.x + vt_pos;
-                auto x = hz_pos % panel.x;
-                auto y = hz_pos / panel.x + vt_pos;
-                auto right_most = x == 0;
-                               //&& hz_pos == curln.length()
-                               //&& (coord.x != x || coord.y != y);
-                if (right_most) coord = { panel.x, y - 1 };
-                else            coord = { x      , y     };
-            }
-            else coord = { hz_pos, vt_pos };
-            if      (style.adjust == bias::right ) coord.x =  panel.x - coord.x  - 1;
-            else if (style.adjust == bias::center) coord.x = (panel.x + coord.x) / 2;
-        }
-        // rods: Return current 0-based caret position in the scrollback.
-        auto cp()
-        {
-            auto pos = coord;
-            auto& style = batch->style;
-            if (pos.x == panel.x && style.wrapln == wrap::on)
-            {
-                if (pos.y != panel.y - 1)
+                auto length = curln.length();
+                if (style.wrapln == wrap::on)
                 {
-                    pos.x = 0;
-                    pos.y++;
+                    coor.y += hz_pos / panel.x;
+                    auto reminder = length % panel.x;
+                    auto first_block = length - reminder;
+                    auto lastblock = hz_pos - first_block;
+                    if (lastblock < 0)
+                    {
+                        coor.x = hz_pos % panel.x;
+                    }
+                    else
+                    {
+                        coor.x = (panel.x - reminder) / 2 + lastblock;
+                    }
                 }
-                else pos.x--; // The last position on the screen(c).
+                else
+                {
+                    coor.x = (panel.x - length) / 2 + hz_pos;
+                }
             }
-            pos.y += basis;
-            if      (style.adjust == bias::right ) pos.x =  panel.x - pos.x  - 1;
-            else if (style.adjust == bias::center) pos.x = (panel.x + pos.x) / 2;
-            return pos;
+            else
+            {
+                if (hz_pos > panel.x && style.wrapln == wrap::on)
+                {
+                    coor.x  = hz_pos % panel.x;
+                    coor.y += hz_pos / panel.x;
+                }
+                else coor.x = hz_pos;
+
+                if (style.adjust == bias::right) coor.x = panel.x - coor.x - 1;
+            }
+
+            return coor;
         }
         auto line_height(para const& l)
         {
@@ -336,99 +340,59 @@ namespace netxs::app
         void finalize(line& cur_line)
         {
             auto& style = cur_line.style;
+            //cur_line.style = style;
             auto shift = cur_line.step();
-            bool line_feed = faux;
-            switch(style.adjust)
+            auto pos_x = coord.x + shift;
+            if (style.wrapln == wrap::on && pos_x > panel.x)
             {
-                case bias::left:
-                case bias::right:
+                coord.x  = pos_x % panel.x;
+                coord.y += pos_x / panel.x;
+                if (coord.x == 0)
                 {
-                    auto pos_x = coord.x + shift;
-                    if (style.wrapln == wrap::on && pos_x > panel.x)
-                    {
-                        line_feed = true;
-                        coord.x  = pos_x % panel.x;
-                        coord.y += pos_x / panel.x;
-                        if (coord.x == 0)
-                        {
-                            coord.y--;
-                            coord.x = panel.x;
-                        }
-                    }
-                    else coord.x = pos_x;
-                    break;
+                    coord.y--;
+                    coord.x = panel.x;
                 }
-                case bias::center:
-                {
-                    //auto old_height = line_height(cur_line);
-                    auto old_hz_pos = cur_line.chx();
-                    auto old_length = cur_line.length();
-                    auto new_hz_pos = old_hz_pos + shift;
-                    auto new_length = std::max(old_length, new_hz_pos);
 
-                    if (style.wrapln == wrap::on && new_length > panel.x)
-                    {
-                        auto vt_pos = batch.get() - basis;
-                        //auto old_rem = old_length % panel.x;
-                        //auto new_rem = new_length % panel.x;
-                        //auto old_first_block = old_length - old_rem;
-                        //auto new_first_block = new_length - new_rem;
-
-                        auto old_coord_y = coord.y;
-                        coord.x = new_hz_pos % panel.x;
-                        coord.y = new_hz_pos / panel.x + vt_pos;
-                        if (coord.x == 0)
-                        {
-                            coord.y--;
-                            coord.x = panel.x;
-                        }
-                        line_feed = old_coord_y != coord.y;
-                    }
-                    else coord.x = new_hz_pos;
-                    break;
-                }
-            };
-
-            if (line_feed)
-            {
                 auto old_height = line_height(cur_line) - 1;
                 cur_line.cook();
                 auto new_height = line_height(cur_line) - 1;
                 if (auto delta = new_height - old_height)
                 {
                     auto index = batch.get();
-                    auto old_pos = index - basis + old_height;
-                    auto new_pos = index - basis + new_height;
-                    auto[top, end] = get_scroll_region();
-                    if (new_pos > end)
+                    auto old_pos = index + old_height;
+                    auto new_pos = index + new_height;
+                    auto [top, end] = get_scroll_region();
+                    end += basis;
+                    if (old_pos <= end && new_pos > end)
                     {
-                        if (old_pos <= end)
-                        {
                             auto n = end - new_pos;
                             coord.y += n;
                             scroll_region(n, true);
-                        }
-                        else if (new_pos >= panel.y)
+                    }
+                    else
+                    {
+                        auto n = new_pos - batch.length() + 1;
+                        if (n > 0)
                         {
-                            end = panel.y - 1;
-                            auto n = new_pos - end;
-                            coord.y -= n;
+                            //todo remove when coord become scrollback wide
+                            coord.y -= std::max(0, n - std::max(0, panel.y - batch.length()));
                             add_lines(n);
                         }
+                        for_each(new_pos, old_pos, [&](line& l)
+                        {
+                            auto open = l.depth < new_height;
+                            if  (open)  l.depth = new_height--;
+                            return open;
+                        });
                     }
-                    // Update lines depth
-                    auto from = index + new_height;
-                    auto upto = index + old_height;
-                    for_each(from, upto, [&](line& l)
-                    {
-                        auto open = l.depth < new_height;
-                        if  (open)  l.depth = new_height--;
-                        return open;
-                    });
                 }
             }
-            else cur_line.cook();
-
+            else
+            {
+                cur_line.cook();
+                coord.x = pos_x;
+            }
+            log(coord);
             auto& cur_line3 = *batch;
             xsize.take(cur_line3);
         }
@@ -815,10 +779,11 @@ namespace netxs::app
                 {
                     dissect(--tail);
                     auto& line = *tail;
-                    //todo revise
-                    //if (line.style.wrapln == wrap::on) line.trimto(new_size.x);
-                    line.trimto(new_size.x);
-                    xsize.take(line);
+                    if (line.style.wrapln == wrap::on)
+                    {
+                        line.trimto(new_size.x);
+                        xsize.take(line);
+                    }
                 }
             }
             else while (--tail != head) dissect(tail);
@@ -1698,8 +1663,8 @@ private:
                 }
                 if (count)
                 {
-                    auto blank = cell{ brush }.txt(' ');
-                    //auto blank = cell{ brush }.bgc(greendk).bga(0x7f).txt(' ');
+                    //auto blank = cell{ brush }.txt(' ');
+                    auto blank = cell{ brush }.bgc(greendk).bga(0x7f).txt(' ');
                     batch->ins<true>(start, count, blank);
                     //batch->trim(blank);
                     clear_overlapping_lines();
@@ -1966,24 +1931,6 @@ private:
                 queue.clear();
             }
         }
-        auto recalc()
-        {
-            auto cursor_coor = target->cp();
-            auto scroll_size = screen.size;
-            auto follow_view = screen.coor.y == -base::coor().y;
-            //todo unify, Allow overscroll at the bottom.
-            //scroll_size.y = std::max({ screen.size.y + basis, cursor_coor.y + 1, target->height() });
-            scroll_size.y = std::max({ screen.size.y, cursor_coor.y + 1, target->height() });
-            screen.coor.y = scroll_size.y - screen.size.y;
-            if (follow_view) reset_scroll_pos();
-            if (!screen.hittest(cursor_coor)) // compat: get caret back to the viewport if it placed outside
-            {
-                cursor_coor = std::clamp(cursor_coor, screen.coor, screen.coor + screen.size - dot_11);
-                target->set_coord(cursor_coor - screen.coor);
-            }
-            caret.coor(cursor_coor);
-            return scroll_size;
-        }
         void input_hndl(view shadow)
         {
             while (alive)
@@ -1993,12 +1940,6 @@ private:
                 {
                     SIGNAL(tier::general, e2::debug::output, shadow); // Post for the Logs.
                     ansi::parse(shadow, target); // Append target using current insertion point.
-                    auto adjust_pads = target->recalc_pads(oversz);
-                    auto scroll_size = recalc();
-                    if (scroll_size != base::size() || adjust_pads)
-                    {
-                        SIGNAL(tier::release, e2::size::set, scroll_size); // Update scrollbars.
-                    }
                     base::deface();
                     break;
                 }
@@ -2103,9 +2044,6 @@ private:
                             screen.size = new_sz;
                             altbuf.resize<faux>(new_sz.y);
                             target->rebuild_viewport();
-                            target->get_coord();
-                            target->recalc_pads(oversz);
-                            new_sz = recalc();
                             ptycon.resize(screen.size);
                         };
                         ptycon.start(cmdline, new_sz, [&](auto utf8_shadow) { input_hndl(utf8_shadow); },
@@ -2169,11 +2107,35 @@ private:
             };
             SUBMIT(tier::release, e2::render::any, parent_canvas)
             {
-                if (status.update(*target))
+                auto& console = *target;
+                if (status.update(console))
                 {
                     this->base::riseup<tier::preview>(e2::form::prop::footer, status.data);
                 }
-                target->output(parent_canvas);
+                auto cursor_coor = console.get_coord();
+                caret.coor(cursor_coor);
+                auto adjust_pads = console.recalc_pads(oversz);
+                //auto scroll_size = recalc(cursor_coor);
+                auto scroll_size = screen.size;
+                auto follow_view = screen.coor.y == -base::coor().y;
+                //scroll_size.y = std::max({ screen.size.y, cursor_coor.y + 1, console.height() });
+                //scroll_size.y = std::max({ screen.size.y, cursor_coor.y + 1 - screen.coor.y, console.height() });
+                scroll_size.y = std::max({ screen.size.y, console.height() });
+                screen.coor.y = scroll_size.y - screen.size.y;
+                if (follow_view) reset_scroll_pos();
+                //if (!screen.hittest(cursor_coor)) // compat: get caret back to the viewport if it placed outside
+                //{
+                //    cursor_coor = std::clamp(cursor_coor, screen.coor, screen.coor + screen.size - dot_11);
+                //    target->set_coord(cursor_coor - screen.coor);
+                //}
+                if (scroll_size != base::size() || adjust_pads)
+                {
+                    this->SIGNAL(tier::release, e2::size::set, scroll_size); // Update scrollbars.
+                }
+                console.output(parent_canvas);
+
+
+
                 //target->test_basis(parent_canvas);
             };
         }
