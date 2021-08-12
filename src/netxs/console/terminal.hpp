@@ -155,7 +155,7 @@ namespace netxs::app
         buff        batch; // rods: Rods inner container.
         vect        cache; // rods: Temporary container for scrolling regions.
         twod const& panel; // rods: Viewport size.
-        twod        coord; // rods: Actual caret position inside viewport(panel). 0-based.
+        twod        coord; // rods: Scrollback caret position; 0-based.
         iota        sctop; // rods: Scrolling region top;    1-based, "0" to use top of viewport.
         iota        scend; // rods: Scrolling region bottom; 1-based, "0" to use bottom of viewport.
         iota        basis; // rods: Index of O(0, 0).
@@ -255,8 +255,8 @@ namespace netxs::app
         {
             auto top = sctop ? sctop - 1 : 0;
             auto end = scend ? scend - 1 : panel.y - 1;
-            end = std::clamp(end, 0, panel.y - 1);
-            top = std::clamp(top, 0, end);
+            end = basis + std::clamp(end, 0, panel.y - 1);
+            top = basis + std::clamp(top, 0, end);
             return std::pair{ top, end };
         }
         // rods: Set the scrolling region using 1-based top and bottom. Use 0 to reset.
@@ -297,17 +297,15 @@ namespace netxs::app
             // ring buffer is never larger than max_int32
             return static_cast<iota>(id - batch.front().selfid);
         }
-        // rods: Map caret position from viewport to scrollback (set insertion point).
+        // rods: Set scrollback caret position.
         void set_coord(twod new_coord)
         {
             new_coord.y = std::max(0, new_coord.y);
-            new_coord.y += basis;
             auto add_count = new_coord.y - (batch.length() - 1);
             if (add_count > 0) add_lines(add_count);
             new_coord.y = std::min(new_coord.y, batch.length() - 1); // The batch can remain the same size (cuz ring).
             auto& cur_line = batch[new_coord.y];
-            coord.x = new_coord.x;
-            coord.y = new_coord.y - basis;
+            coord = new_coord;
             if (cur_line.depth)
             {
                 //todo check all lines between boss and current
@@ -362,7 +360,6 @@ namespace netxs::app
                     auto old_pos = index + old_height;
                     auto new_pos = index + new_height;
                     auto [top, end] = get_scroll_region();
-                    end += basis;
                     if (old_pos <= end && new_pos > end)
                     {
                             auto n = end - new_pos;
@@ -372,12 +369,7 @@ namespace netxs::app
                     else
                     {
                         auto n = new_pos - batch.length() + 1;
-                        if (n > 0)
-                        {
-                            //todo remove when coord become scrollback wide
-                            coord.y -= std::max(0, n - std::max(0, panel.y - batch.length()));
-                            add_lines(n);
-                        }
+                        if (n > 0) add_lines(n);
                         for_each(new_pos, old_pos, [&](line& l)
                         {
                             auto open = l.depth < new_height;
@@ -529,7 +521,8 @@ namespace netxs::app
         // rods: Trim all lines above and current line.
         void trim_to_current()
         {
-            auto cur_index = std::min(batch.length() - 1, basis + coord.y);
+            //todo remove, revise cur_index == coord.y
+            auto cur_index = std::min(coord.y, batch.length() - 1);
             auto line_iter = batch.begin() + cur_index;
             auto mas_index = std::max(0, cur_index - line_iter->depth);
             auto head = batch.begin() + mas_index;
@@ -552,7 +545,8 @@ namespace netxs::app
             //pop_lines(batch.length() - (cur_index + 1));
 
             // "ED2 Erase viewport" MUST keep empty lines.
-            auto cur_index = std::min(batch.length() - 1, basis + coord.y); //batch.get();
+            //todo remove, revise cur_index == coord.y
+            auto cur_index = std::min(coord.y, batch.length() - 1);
             auto begin = batch.begin();
             auto end = batch.end();
             auto current = begin + cur_index;
@@ -575,7 +569,7 @@ namespace netxs::app
             auto under = begin + cur_index;
             auto top_index = std::max(0, cur_index - under->depth);
             auto upper = begin + top_index;
-            auto count = coord.y * panel.x + coord.x;
+            auto count = (coord.y - basis) * panel.x + coord.x;
             auto start = (basis - top_index) * panel.x;
             do
             {
@@ -664,10 +658,9 @@ namespace netxs::app
         // rods: Dissect auto-wrapped line at the current coord.
         void dissect()
         {
-            auto index = basis + coord.y;
-            auto current_it = batch.begin() + index;
+            auto current_it = batch.begin() + coord.y;
             dissect(current_it);
-            rebuild_upto_index(index);
+            rebuild_upto_index(coord.y);
             set_coord();
         }
         // rods: Move block to the specified destination. If begin_it > end_it decrement is used.
@@ -710,8 +703,8 @@ namespace netxs::app
                 auto[top, end] = get_scroll_region();
                 auto nul_it = batch.begin();
                 auto all_it = nul_it + basis;
-                auto end_it = all_it + end;
-                auto top_it = all_it + top;
+                auto end_it = nul_it + end;
+                auto top_it = nul_it + top;
                 auto top_id = std::max(0, basis - all_it->depth);
                 auto height = end - top + 1;
                 auto footer = batch.end() - end_it - 1;
@@ -739,6 +732,7 @@ namespace netxs::app
                     auto a = top_it + n;
                     if (use_scrollback)
                     {
+                        top -= basis;
                         if (top)
                         {
                             auto buffer = cache.begin();
@@ -1337,12 +1331,14 @@ private:
             {
                 cook();
                 saved = coord;
+                saved.y -= basis;
             }
             // scrollbuff: ESC 8 or CSU u  Restore caret position.
             void rcp()
             {
                 cook();
                 coord = saved;
+                coord.y += basis;
                 set_coord();
             }
             // scrollbuff: CSI n T/S  Scroll down/up, scrolled up lines are pushed to the scrollback buffer.
@@ -1363,7 +1359,7 @@ private:
                 if (n > 0 && coord.y >= top && coord.y <= end)
                 {
                     auto old_top = sctop;
-                    sctop = coord.y + 1;
+                    sctop = coord.y + 1 - basis;
                     scroll_region(n, faux);
                     sctop = old_top;
                     coord.x = 0;
@@ -1382,7 +1378,7 @@ private:
                 {
                     dissect();
                     auto old_top = sctop;
-                    sctop = coord.y + 1;
+                    sctop = coord.y + 1 - basis;
                     scroll_region(-n, faux);
                     sctop = old_top;
                     set_coord();
@@ -1476,9 +1472,12 @@ private:
                 {
                     cook();
                     auto pos = batch->chx();
+                    auto coor = coord;
                     batch->ins(n, rods::brush);
                     cook();
                     batch->chx(pos);
+                    //todo revise
+                    coord = coor;
                 }
             }
             // scrollbuff: CSI n P  Delete (not Erase) letters under the caret.
@@ -1561,7 +1560,7 @@ private:
             void chy(iota n)
             {
                 cook();
-                coord.y = n - 1;
+                coord.y = n - 1 + basis;
                 set_coord();
             }
             // scrollbuff: CSI y; x H/F  Caret position (1-based).
@@ -1573,6 +1572,7 @@ private:
                 auto p = twod{ x, y };
                 coord = std::clamp(p, dot_11, panel);
                 coord-= dot_11;
+                coord.y += basis;
                 set_coord();
             }
             // scrollbuff: Line reverse feed (move caret up).
@@ -1622,7 +1622,7 @@ private:
                         clear_above();
                         break;
                     case commands::erase::display::viewport: // n = 2  Erase viewport.
-                        set_coord(dot_00);
+                        set_coord(twod{ 0, basis });
                         ed(commands::erase::display::below);
                     break;
                     case commands::erase::display::scrollback: // n = 3  Erase scrollback.
