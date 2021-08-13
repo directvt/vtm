@@ -2058,35 +2058,18 @@ namespace netxs::console
                             {
                                 area.coor -= dot_11;
                                 area.size += dot_22;
-
-                                // Calc average bg brightness.
-                                auto count = 0;
-                                auto light = 0;
-                                auto sumfx = [&](cell& c)
-                                {
-                                    count++;
-                                    auto& clr = c.bgc();
-                                    light += clr.chan.r + clr.chan.g + clr.chan.b;
-                                };
-                                auto head = area;
-                                head.size.y = 1;
-                                canvas.each(head, sumfx);
-                                auto b = count ? light / (count * 3) : 0;
-
-                                // Draw the frame.
                                 auto mark = skin::color(tone::kb_focus);
                                 auto fill = [&](cell& c) { c.fuse(mark); };
                                 canvas.cage(area, dot_11, fill);
-                                coder.wrp(wrap::off).fgc(b > 130 ? 0xFF000000
-                                                                 : 0xFFFFFFFF).add("capture area: ", slot);
-                                auto size = para(coder);
+                                coder.wrp(wrap::off).add("capture area: ", slot);
+                                //todo optimize para
+                                auto caption = para(coder);
                                 coder.clear();
-                                //canvas.cup(area.coor);
-                                //canvas.output(size);
-
-                                auto header = *size.lyric;
-                                header.move(area.coor + canvas.coor());
-                                canvas.fill(header);
+                                auto header = *caption.lyric;
+                                auto coor = area.coor + canvas.coor();
+                                coor.y--;
+                                header.move(coor);
+                                canvas.fill(header, cell::shaders::contrast);
                             }
                             else
                             {
@@ -2094,6 +2077,15 @@ namespace netxs::console
                                 canvas.view(area);
                                 canvas.fill(area, [&](cell& c) { c.fuse(mark); c.und(faux); });
                                 canvas.blur(10);
+                                coder.wrp(wrap::off).add(' ').add(slot.size.x).add(" × ").add(slot.size.y).add(' ');
+                                //todo optimize para
+                                auto caption = para(coder);
+                                coder.clear();
+                                auto header = *caption.lyric;
+                                auto coor = area.coor + area.size;
+                                coor.x -= caption.length() - 1;
+                                header.move(coor);
+                                canvas.fill(header, cell::shaders::contrast);
                                 canvas.view(temp);
                             }
                         }
@@ -2569,22 +2561,11 @@ namespace netxs::console
                 {
                     if (live)
                     {
-                        auto contrast_fx = [](auto& dst, auto& src)
-                        {
-                            auto& fgc = src.fgc();
-                            if (fgc.chan.a == 0x00)
-                            {
-                                auto constexpr threshold = rgba{ tint::whitedk }.luma();
-                                if (dst.bgc().luma() >= threshold) dst.fgc(0xFF000000).fusefull(src);
-                                else                               dst.fgc(0xFFffffff).fusefull(src);
-                            }
-                            else dst.fusefull(src);
-                        };
                         auto saved_context = canvas.bump(dent{ 0,0,head_size.y,foot_size.y });
                         canvas.cup(dot_00);
-                        canvas.output(head_page, contrast_fx);
+                        canvas.output(head_page, cell::shaders::contrast);
                         canvas.cup({ 0, head_size.y + boss.size().y });
-                        canvas.output(foot_page, contrast_fx);
+                        canvas.output(foot_page, cell::shaders::contrast);
                         canvas.bump(saved_context);
                     }
                 };

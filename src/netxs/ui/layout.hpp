@@ -1131,6 +1131,28 @@ namespace netxs::ui::atoms
             }
             return faux;
         }
+
+        class shaders
+        {
+            struct contrast_t
+            {
+                template<class D, class S>
+                inline void operator() (D& dst, S& src)
+                {
+                    auto& fgc = src.fgc();
+                    if (fgc.chan.a == 0x00)
+                    {
+                        auto constexpr threshold = rgba{ tint::whitedk }.luma() - 0xF;
+                        if (dst.bgc().luma() >= threshold) dst.fgc(0xFF000000).fusefull(src);
+                        else                               dst.fgc(0xFFffffff).fusefull(src);
+                    }
+                    else dst.fusefull(src);
+                }
+            };
+
+        public:
+            static constexpr auto contrast = contrast_t{};
+        };
     };
 
     // Extern link statics.

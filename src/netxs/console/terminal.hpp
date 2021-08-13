@@ -221,17 +221,17 @@ namespace netxs::app
                     }
                     else
                     {
-                        coor.x = (panel.x - reminder) / 2 + lastblock;
+                        coor.x = panel.x / 2 - reminder / 2 + lastblock;
                     }
                 }
                 else
                 {
-                    coor.x = (panel.x - length) / 2 + hz_pos;
+                    coor.x = panel.x / 2 - length / 2 + hz_pos;
                 }
             }
             else
             {
-                if (hz_pos > panel.x && style.wrapln == wrap::on)
+                if (hz_pos >= panel.x && style.wrapln == wrap::on)
                 {
                     coor.x  = hz_pos % panel.x;
                     coor.y += hz_pos / panel.x;
@@ -294,8 +294,7 @@ namespace netxs::app
         }
         auto get_line_index_by_id(ui32 id)
         {
-            // ring buffer is never larger than max_int32
-            return static_cast<iota>(id - batch.front().selfid);
+            return static_cast<iota>(id - batch.front().selfid); // ring buffer size is never larger than max_int32.
         }
         // rods: Set scrollback caret position.
         void set_coord(twod new_coord)
@@ -306,16 +305,17 @@ namespace netxs::app
             new_coord.y = std::min(new_coord.y, batch.length() - 1); // The batch can remain the same size (cuz ring).
             auto& cur_line = batch[new_coord.y];
             coord = new_coord;
-            if (cur_line.depth)
+            auto boss_index = new_coord.y - cur_line.depth;
+            if (cur_line.depth && boss_index >= 0)
             {
-                //todo check all lines between boss and current
-                auto pos_at_master = panel.x * cur_line.depth + coord.x;
-                auto boss_index = std::max(0, new_coord.y - cur_line.depth);
-                if (pos_at_master < batch[boss_index].length())
-                {
-                    new_coord.y = boss_index;
-                    new_coord.x = pos_at_master;
-                }
+                new_coord.y = boss_index;
+                new_coord.x = panel.x * cur_line.depth + coord.x;
+                //auto pos_at_master = panel.x * cur_line.depth + coord.x;
+                //if (pos_at_master < batch[boss_index].length())
+                //{
+                //    new_coord.y = boss_index;
+                //    new_coord.x = pos_at_master;
+                //}
             }
             batch. set(new_coord.y);
             batch->chx(new_coord.x);
@@ -359,6 +359,7 @@ namespace netxs::app
                     auto index = batch.get();
                     auto old_pos = index + old_height;
                     auto new_pos = index + new_height;
+                    coord.y = new_pos;
                     auto [top, end] = get_scroll_region();
                     if (old_pos <= end && new_pos > end)
                     {
@@ -368,8 +369,18 @@ namespace netxs::app
                     }
                     else
                     {
-                        auto n = new_pos - batch.length() + 1;
-                        if (n > 0) add_lines(n);
+                        auto n = new_pos - (batch.length() - 1);
+                        if (n > 0)
+                        {
+                            add_lines(n);
+                            auto delta = coord.y - batch.length() - 1;
+                            if (delta > 0) // Coz ring buffer.
+                            {
+                                new_pos -= delta;
+                                old_pos -= delta;
+                                coord.y -= delta;
+                            }
+                        }
                         for_each(new_pos, old_pos, [&](line& l)
                         {
                             auto open = l.depth < new_height;

@@ -188,6 +188,11 @@ namespace netxs::console
             force ? netxs::onbody(*this, block, full)
                   : netxs::onbody(*this, block, fuse);
         }
+        template<class P>
+        void  fill(core const& block, P fuse) // core: Fill by the specified face using its coordinates.
+        {
+            netxs::onbody(*this, block, fuse);
+        }
         void  fill(core const& block, bool force = faux) // core: Fill by the specified face using its coordinates.
         {
             auto flat = [](auto& dst, auto& src) { dst.set(src); };
@@ -1488,31 +1493,6 @@ namespace netxs::console
         void  tab(iota n) { layer->ins(n, brush); } // page: Inset tabs via space.
     };
 
-    //todo revise
-    //struct meta ///<summary> richtext: . </summary>
-    //{
-    //	bool rigid;
-    //	cell brush;
-    //	rect field;
-        // core: Fill the specified region with the its own color and copying method.
-        //void	draw (mesh const& shape)
-        //{
-        //	for (auto& part : shape)
-        //	{
-        //		fill(part.field, part.brush, part.rigid);
-        //	}
-        //}
-        // core: Fill the specified region with the specified color.
-        //void	draw (mesh const& shape, cell const& elem)
-        //{
-        //	for (auto& part : shape)
-        //	{
-        //		fill(part.field, elem, part.rigid);
-        //	}
-        //}
-    //};
-    //
-    //using mesh = std::vector<meta>;
 
     class tone
     {
