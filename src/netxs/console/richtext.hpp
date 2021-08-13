@@ -1148,7 +1148,7 @@ namespace netxs::console
             return *this;
         }
         //todo make it 2D
-        // para: Insert fragment at the specified position.
+        // para: Insert (overwrite) fragment at the specified position.
         void insert(iota at, shot const& fragment)
         {
             auto& line = *lyric;
@@ -1162,6 +1162,103 @@ namespace netxs::console
             while(head != tail)
             {
                  *head++ = *frag++;
+            }
+        }
+        // para: Inject n blanks after caret.
+        void inject(iota n, cell mark)
+        {
+            auto size = length();
+            auto pos  = chx();
+            auto& line = *this->lyric;
+            //mark.txt(whitespace);
+            mark.txt(whitespace).bgc(magentadk).bga(0x7f);
+            if (pos < size)
+            {
+                // Move existing chars to the right (backward decrement).
+                line.crop(size + n);
+                auto data = line.data(); 
+                auto src = data + size;
+                auto dst = src + n;
+                auto end = data + pos + n;
+                while (dst != end)
+                {
+                    *--dst = *--src;
+                }
+                // Fill blanks.
+                dst = line.data() + pos;
+                end = dst + n;
+                while (dst != end)
+                {
+                    *dst++ = mark;
+                }
+            }
+            else
+            {
+                line.crop(pos + n);
+                auto data = line.data(); 
+                // Fill blanks.
+                auto dst = data + size;
+                auto end = data + pos + n;
+                while (dst != end)
+                {
+                    *dst++ = mark;
+                }
+            }
+            chx(pos + n);
+        }
+        // para: Delete n chars after caret.
+        void del(iota n, cell mark, iota margin)
+        {
+           /* del:
+            *    As characters are deleted, the remaining characters
+            *    between the caret and right margin move to the left.
+            *    Character attributes move with the characters.
+            *    The terminal adds blank characters at the right margin.
+            */
+            auto& frag =*lyric;
+            auto  size = length();
+            auto  coor = chx();
+            //mark.txt(whitespace);
+            mark.txt(whitespace).bgc(reddk).bga(0x7f);
+            //todo unify for size.y > 1
+            if (n > 0)
+            {
+                if (coor < size)
+                {
+                    auto max_n = margin - coor % margin;
+                    n = std::min(n, max_n);
+                    auto right_margin = max_n + coor;
+                    //todo unify all
+                    if (n >= size - coor)
+                    {
+                        auto dst = frag.data() + coor;
+                        auto end = frag.data() + size;
+                        while (dst != end)
+                        {
+                            *dst++ = mark;
+                        }
+                    }
+                    else
+                    {
+                        if (size < right_margin) frag.crop(right_margin);
+                        auto dst = frag.data() + coor;
+                        auto src = frag.data() + coor + n;
+                        auto end = dst + (max_n - n);
+                        while (dst != end)
+                        {
+                            *dst++ = *src++;
+                        }
+                        end = frag.data() + right_margin;
+                        while (dst != end)
+                        {
+                            *dst++ = mark;
+                        }
+                    }
+                }
+            }
+            else
+            {
+                //todo support negative n
             }
         }
     };

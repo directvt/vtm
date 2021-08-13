@@ -166,8 +166,8 @@ namespace netxs::generics
         }
         auto& operator  * () { return buff[cart];           }
         auto  operator -> () { return buff.begin() + cart;  }
-        auto  set(iota i)    { return cart = mod(head + i); }
-        auto  get() const    { return dst(head, cart);      }
+        auto  index (iota i) { return cart = mod(head + i); }
+        auto  index () const { return dst(head, cart);      }
     };
 }
 
