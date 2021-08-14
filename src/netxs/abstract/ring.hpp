@@ -4,19 +4,17 @@
 #ifndef NETXS_RING_HPP
 #define NETXS_RING_HPP
 
-#include <cassert>
-
 #ifndef faux
     #define faux (false)
 #endif
 
 namespace netxs::generics
 {
-    template<class T, class DTOR>
+    template<class vect>
     struct ring
     {
-        using type = typename T::value_type;
-        using iota = int32_t;
+        using type = typename vect::value_type;
+        using iota = typename type::iota;
 
         struct iter
         {
@@ -43,15 +41,14 @@ namespace netxs::generics
 
         iota step; // ring: Unlimited buffer increment step (zero for fixed size buffer).
         iota peak; // ring: Limit of the ring buffer.
-        T    buff; // ring: Inner container.
+        vect buff; // ring: Inner container.
         iota size; // ring: Elements count.
         iota cart; // ring: Active item position.
         iota head; // ring: Front index.
         iota tail; // ring: Back index.
         iota mxsz; // ring: Max unlimited buffer size.
-        DTOR wipe; // ring: Item invalidation functor.
 
-        ring(iota ring_size, iota grow_by, DTOR unregister_proc)
+        ring(iota ring_size, iota grow_by)
             : step{ grow_by                                 },
               peak{ !ring_size ? step : ring_size           },
               buff( peak                                    ), // Rounded brackets! Not curly! In oreder to call T::ctor().
@@ -59,9 +56,11 @@ namespace netxs::generics
               cart{ 0                                       },
               head{ 0                                       },
               tail{ peak - 1                                },
-              mxsz{ std::numeric_limits<iota>::max() - step },
-              wipe{ unregister_proc                         }
+              mxsz{ std::numeric_limits<iota>::max() - step }
         { }
+
+        virtual void free(type&) = 0;
+
         void inc(iota& a) const   { if  (++a == peak) a = 0;        }
         void dec(iota& a) const   { if  (--a < 0    ) a = peak - 1; }
         auto mod(iota  a) const   { return a < 0  ? ++a % peak - 1 + peak
@@ -90,7 +89,7 @@ namespace netxs::generics
         {
             if (full())
             {
-                wipe(front()); // Cleanup destructed item
+                free(front());
                 if (cart == head) inc(head), cart = head;
                 else              inc(head);
             }
@@ -102,9 +101,9 @@ namespace netxs::generics
         }
         void pop()
         {
-            assert(size > 0);
-            wipe(back()); // Cleanup destructed item
-            back() = type{};
+            auto& item = back();
+            free(item);
+            item = type{};
             if (cart == tail) dec(tail), cart = tail;
             else              dec(tail);
             --size;
@@ -121,15 +120,15 @@ namespace netxs::generics
         {
             if (new_size > 0)
             {
-                T temp;
+                vect temp;
                 temp.reserve(new_size);
                 if constexpr (BOTTOM_ANCHORED)
                 {
                     if (size > new_size)
                     {
-                        do // Cleanup destructed items
+                        do
                         {
-                            wipe(front());
+                            free(front());
                             inc(head);
                         }
                         while(--size != new_size);
@@ -140,9 +139,9 @@ namespace netxs::generics
                 {
                     if (size > new_size)
                     {
-                        do // Cleanup destructed items
+                        do
                         {
-                            wipe(back());
+                            free(back());
                             dec(tail);
                         }
                         while(--size != new_size);

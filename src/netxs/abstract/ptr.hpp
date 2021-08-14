@@ -90,6 +90,16 @@ namespace netxs
         return  thing;
     }
 
+    template<class...> struct change_value_type_helper;
+    template<template<class...> class C, class... ARGS>
+    struct change_value_type_helper<C<ARGS...>>
+    {
+        template<class... NEW_ARGS>
+        using new_type = C<NEW_ARGS...>;
+    };
+    template<class C, class T>
+    using change_value_type = typename change_value_type_helper<C>::template new_type<T>;
+
     namespace ptr
     {
         // ptr: Move block to the specified destination. If begin_it > end_it decrement is used.

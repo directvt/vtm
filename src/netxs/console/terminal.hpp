@@ -37,37 +37,32 @@ namespace netxs::app
 {
     using namespace netxs::console;
 
-    // terminal: scrollback/altbuf internals.
+    // terminal: scrollback internals.
     class rods
         : public flow
     {
         struct line
             : public para
         {
+            using para::para;
+            using iota = netxs::iota;
+
             enum type : iota
             {
-                centered,
-                leftside,
+                leftside, // default
                 rghtside,
+                centered,
                 autowrap,
                 count,
             };
-            iota depth   { 0              };
-            iota cur_size{ 0              };
-            type cur_type{ type::leftside };
 
-            line()                         = default;
-            line(line&&)                   = default;
-            line(line const&)              = default;
-            line& operator = (line&&)      = default;
-            line& operator = (line const&) = default;
-            line(deco const& style)
-                : para{ style }
-            { }
-            line(ui32 newid, deco const& style = {})
-                : para{ newid, style }
-            { }
-            auto get_type()
+            //todo deprecated
+            iota depth   {};
+
+            iota _size{};
+            type _kind{};
+
+            auto get_kind() const
             {
                 return style.wrapln == wrap::on    ? type::autowrap :
                        style.adjust == bias::left  ? type::leftside :
@@ -77,81 +72,83 @@ namespace netxs::app
             void wipe(cell const& brush)
             {
                 para::wipe(brush);
-                cur_size = 0;
-                cur_type = type::leftside;
+                _size = {};
+                _kind = {};
             }
             void resite(line& p)
             {
-                cur_size = p.cur_size;
-                cur_type = p.cur_type;
-                p.cur_size = 0;
-                p.cur_type = type::leftside;
+                _size = p._size;
+                _kind = p._kind;
+                p._size = {};
+                p._kind = {};
                 para::resite(p);
             }
         };
 
-        struct rama
+        using vect = std::vector<line>;
+        using ring = generics::ring<vect>;
+
+        struct buff : public ring
         {
+            using ring::ring;
+            using type = typename line::type;
+
             struct maxs : public std::vector<iota>
             {
                 iota max = 0;
                 maxs() : std::vector<iota>(1) { }
-                void prev_max() { while(max > 0 && !at(--max)); }
-            };
-            using type = line::type;
-            std::array<maxs, type::count> lens;
+                void prev_max() { while(max > 0 && !std::vector<iota>::at(--max)); }
+            }
+            lens[line::count];
 
-            void take(type new_type, iota new_size, type& cur_type, iota& cur_size)
+            void take(type& kind, iota& size, type new_kind, iota new_size)
             {
-                if (cur_size != new_size || cur_type != new_type)
+                if (size != new_size || kind != new_kind)
                 {
-                    auto& new_lens = lens[new_type];
+                    auto& new_lens = lens[new_kind];
                     if (new_lens.size() <= new_size) new_lens.resize(new_size * 2 + 1);
 
-                    if (new_size < cur_size) drop(cur_type, cur_size);
-                    else                   --lens[cur_type][cur_size];
+                    if (new_size < size) free(kind, size);
+                    else               --lens[kind][size];
 
                     ++new_lens[new_size];
                     if (new_lens.max < new_size) new_lens.max = new_size;
 
-                    cur_size = new_size;
-                    cur_type = new_type;
+                    size = new_size;
+                    kind = new_kind;
                 }
             }
-            void drop(type cur_type, iota cur_size)
+            void free(type kind, iota size)
             {
-                auto& cur_lens =       lens[cur_type];
-                auto cur_count = --cur_lens[cur_size];
-                if (cur_size == cur_lens.max && cur_count == 0)
+                auto& cur_lens =       lens[kind];
+                auto cur_count = --cur_lens[size];
+                if (size == cur_lens.max && cur_count == 0)
                 {
                     cur_lens.prev_max();
                 }
             }
-            void take(line& l) { take(l.get_type(), l.length(), l.cur_type, l.cur_size); }
-            void drop(line& l) { drop(l.cur_type, l.cur_size); }
-            template<type T>
-            auto max() { return lens[T].max; }
+            template<class LINE>
+            void take(LINE&& l)          { take(l._kind, l._size, l.get_kind(), l.length()); }
+            void free(line&  l) override { free(l._kind, l._size);                           }
+            template<auto N> auto max()  { return lens[N].max;                             }
         };
 
         // For debug
         friend auto& operator<< (std::ostream& s, rods& c)
         {
-            return s << "{ " << c.xsize.lens[0].max << ","
-                             << c.xsize.lens[1].max << ","
-                             << c.xsize.lens[2].max << ","
-                             << c.xsize.lens[3].max << " }";
+            return s << "{ " << c.batch.max<line::leftside>() << ","
+                             << c.batch.max<line::rghtside>() << ","
+                             << c.batch.max<line::centered>() << ","
+                             << c.batch.max<line::autowrap>() << " }";
         }
 
     protected:
-        using vect = std::vector<line>;
-        using buff = netxs::generics::ring<vect, std::function<void(line&)>>;
         using mark = ansi::mark;
         using deco = ansi::deco;
 
         //todo unify
         static constexpr iota max_line_len = 65536;
 
-        rama        xsize; // rods: Oversize manager.
         buff        batch; // rods: Rods inner container.
         vect        cache; // rods: Temporary container for scrolling regions.
         twod const& panel; // rods: Viewport size.
@@ -167,7 +164,7 @@ namespace netxs::app
 
         rods(twod const& viewport, iota buffer_size, iota grow_step)
             : flow { viewport.x, batch.size },
-              batch{ buffer_size, grow_step, [&](auto& line){ xsize.drop(line); } },
+              batch{ buffer_size, grow_step },
               panel{ viewport               },
               basis{ 0                      },
               sctop{ 0                      },
@@ -183,9 +180,9 @@ namespace netxs::app
         }
         auto recalc_pads(side& oversz)
         {
-            auto left = std::max(0, xsize.max<line::rghtside>() - panel.x);
-            auto rght = std::max(0, xsize.max<line::leftside>() - panel.x);
-            auto cntr = std::max(0, xsize.max<line::centered>() - panel.x);
+            auto left = std::max(0, batch.max<line::rghtside>() - panel.x);
+            auto rght = std::max(0, batch.max<line::leftside>() - panel.x);
+            auto cntr = std::max(0, batch.max<line::centered>() - panel.x);
             auto both = cntr >> 1;
             left = std::max(left, both);
             rght = std::max(rght, both + (cntr & 1));
@@ -296,20 +293,10 @@ namespace netxs::app
             {
                 new_coord.y = boss_index;
                 new_coord.x = panel.x * cur_line.depth + coord.x;
-                //auto pos_at_master = panel.x * cur_line.depth + coord.x;
-                //if (pos_at_master < batch[boss_index].length())
-                //{
-                //    new_coord.y = boss_index;
-                //    new_coord.x = pos_at_master;
-                //}
             }
             batch.index(new_coord.y);
             batch->chx(new_coord.x);
             batch->style = style;
-
-            //todo implement the case when the coord is set to the viewport outside
-            //     after the right side: disable wrapping (on overlapped line too)
-            //     before the left side: disable wrapping + bias::right (on overlapped line too)
         }
         // rods: Map caret pos from viewport to scrollback.
         void set_coord() { set_coord(coord); }
@@ -388,8 +375,7 @@ namespace netxs::app
                 coord.x = pos_x;
             }
             log(coord, ", batch len ",  batch.length(), ", cur height ", batch->length());
-            auto& cur_line3 = *batch;
-            xsize.take(cur_line3);
+            batch.take(*batch);
         }
         void clear_all(bool preserve_brush = faux)
         {
@@ -418,7 +404,7 @@ namespace netxs::app
             auto full = canvas.full();
             auto head = view.coor.y - full.coor.y;
             auto tail = head + panel.y;
-            auto maxy = xsize.max<line::autowrap>() / panel.x;
+            auto maxy = batch.max<line::autowrap>() / panel.x;
             head = std::clamp(head - maxy, 0, batch.size);
             tail = std::clamp(tail,        0, batch.size);
             auto coor = twod{ 0, tail };
@@ -512,15 +498,6 @@ namespace netxs::app
             flow::ac(coor);
             flow::go(p, canvas);
         }
-        //void remove_empties()
-        //{
-        //    auto head = batch.begin();
-        //    auto tail = batch.end();
-        //    //while(head != --tail && tail->length() == 0) batch.pop();
-        //    while(head != --tail
-        //       && tail->length() == 0
-        //       && tail->selfid == tail->bossid) batch.pop();
-        //}
         // rods: Trim all lines above and current line.
         void trim_to_current()
         {
@@ -614,7 +591,7 @@ namespace netxs::app
         void rebuild_viewport()
         {
             align_basis();
-            auto maxy = xsize.max<line::autowrap>() / panel.x;
+            auto maxy = batch.max<line::autowrap>() / panel.x;
             auto head = std::max(0, basis - maxy);
             rebuild_upto_index(head);
         }
@@ -678,7 +655,7 @@ namespace netxs::app
             while(begin_it != end_it)
             {
                 auto& line = *begin_it;
-                xsize.drop(line);
+                batch.free(line);
                 line.wipe(brush.spare);
                 ++begin_it;
             }
@@ -779,7 +756,7 @@ namespace netxs::app
                     if (line.style.wrapln == wrap::on)
                     {
                         line.trimto(new_size.x);
-                        xsize.take(line);
+                        batch.take(line);
                     }
                 }
             }
