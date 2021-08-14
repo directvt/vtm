@@ -37,7 +37,7 @@ namespace netxs::app
 {
     using namespace netxs::console;
 
-    // terminal: scrollback internals.
+    // terminal: Scrollback internals.
     class rods
         : public flow
     {
@@ -97,7 +97,7 @@ namespace netxs::app
             {
                 iota max = 0;
                 maxs() : std::vector<iota>(1) { }
-                void prev_max() { while(max > 0 && !std::vector<iota>::at(--max)); }
+                void prev_max() { while(max > 0 && !at(--max)); }
             }
             lens[line::count];
 
@@ -130,7 +130,7 @@ namespace netxs::app
             template<class LINE>
             void take(LINE&& l)          { take(l._kind, l._size, l.get_kind(), l.length()); }
             void free(line&  l) override { free(l._kind, l._size);                           }
-            template<auto N> auto max()  { return lens[N].max;                             }
+            template<auto N> auto max()  { return lens[N].max;                               }
         };
 
         // For debug
