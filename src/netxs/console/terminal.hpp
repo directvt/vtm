@@ -1306,22 +1306,18 @@ private:
             {
                 cook();
                 dissect();
-                style.wrp(w);
                 batch->style.wrp(w);
-                auto status = w == wrap::none ? WRAPPING
-                                              : w;
-                boss.base::broadcast->SIGNAL(tier::release, app::term::events::layout::wrapln, status);
+                style_status(style);
+                style.wrp(w);
             }
             // scrollbuff: CCC_JET:  Set line alignment.
             void jet(bias j)
             {
                 cook();
                 dissect();
-                style.jet(j);
                 batch->style.jet(j);
-                auto status = j == bias::none ? bias::left
-                                              : j;
-                boss.base::broadcast->SIGNAL(tier::release, app::term::events::layout::align, status);
+                style_status(style);
+                style.jet(j);
             }
             void style_status(deco const& s)
             {
