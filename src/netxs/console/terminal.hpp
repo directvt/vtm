@@ -1238,8 +1238,7 @@ private:
 
                 auto& utf8 = cluster.text;
                 auto& attr = cluster.attr;
-
-                if (unsigned w = attr.ucwidth)
+                if (auto w = attr.ucwidth)
                 {
                     width += w;
                     brush.set_gc(utf8, w);
@@ -1277,6 +1276,8 @@ private:
                 if (width)
                 {
                     fin(proto, width);
+                    proto.clear();
+                    width = 0;
                 }
             }
 

@@ -862,20 +862,18 @@ namespace netxs::console
         rich(rich const&)              = default;
         rich& operator = (rich&&)      = default;
         rich& operator = (rich const&) = default;
-
-        auto size  () const { return lyric.size();   }
-        auto length() const { return lyric.size().x; }
-        auto shadow() const { return shot{ lyric };  }
+ 
+        auto size  () const                    { return lyric.size();               }
+        auto length() const                    { return lyric.size().x;             }
+        auto shadow() const                    { return shot{ lyric };              }
         auto substr(iota at, iota width) const { return shadow().substr(at, width); }
-        void trim  (iota max_size) { if (length() > max_size) lyric.crop(max_size); }
-        void reserv(iota oversize) { if (oversize > length()) lyric.crop(oversize); }
-        // rich: Move all from p.
+        void trim  (iota max_size)             { if (length() > max_size) lyric.crop(max_size); }
+        void reserv(iota oversize)             { if (oversize > length()) lyric.crop(oversize); }
         void resite(rich& p)
         {
             style = p.style;
             lyric = std::move(p.lyric);
         }
-        // rich: Wipe content.
         void wipe()
         {
             style.rst();
@@ -891,7 +889,6 @@ namespace netxs::console
             if (max_size && max_size < new_size) new_size = max_size;
             if (new_size != length()) lyric.crop(new_size);
         }
-        // rich: Insert n cells.
         template<bool AUTOGROW = faux>
         void merge(iota at, iota count, cell const& blank)
         {
@@ -903,7 +900,6 @@ namespace netxs::console
             auto end = dst + count;
             while(dst != end) *dst++ = blank;
         }
-        // rich: Insert (overwrite) fragment at the specified position.
         void merge(iota at, shot const& fragment)
         {
             auto len = fragment.length();
@@ -935,7 +931,7 @@ namespace netxs::console
                 {
                     //todo implemet controls/commands
                     // winsrv2019's cmd.exe sets title with a zero at the end
-                    //fuse(cell{ c, whitespace });
+                    //*dst++ = cell{ c, whitespace };
                 }
                 else if (w > 2)
                 {
@@ -945,7 +941,6 @@ namespace netxs::console
                 }
             }
         }
-        // rich: Insert n blanks after caret.
         void insert(iota at, iota count, cell blank)
         {
             auto size = length();
@@ -963,7 +958,7 @@ namespace netxs::console
             }
             while (src != end) *src++ = blank;
         }
-        // rich: Delete n chars after caret and add blank characters at the right margin.
+        // rich: Delete n chars and add blanks at the right margin.
         void cutoff(iota at, iota count, cell blank, iota margin)
         {
             auto size = length();
