@@ -912,6 +912,18 @@ namespace netxs::console
         }
         void merge(iota at, grid& proto, iota width)
         {
+            //if (front)
+            //{
+            //	//+ evaluate TAB etc
+            //	//+ bidi
+            //	//+ eliminate non-printable and with cwidth == 0 (\0, \t, \b, etc...)
+            //	//+ while (--wide)
+            //	//	{
+            //	//		/* IT IS UNSAFE IF REALLOCATION OCCURS. BOOK ALWAYS */
+            //	//		lyric.emplace_back(cluster, console::whitespace);
+            //	//	}
+            //	//+ convert front into the screen-like sequence (unfold, remmove zerospace chars)
+            //
             reserv(at + width);
             auto ptr = lyric.iter();
             auto dst = ptr + at;
@@ -995,11 +1007,11 @@ namespace netxs::console
     {
         using corx = sptr<core>;
 
+    public:
         grid proto;     // para: Proto lyric.
         iota width = 0; // para: Length of the proto lyric.
         iota caret = 0; // para: Cursor position inside lyric.
 
-    public:
         template<class T>
         using parser = ansi::parser<T>; // Use default static parser.
         using mark   = ansi::mark;
@@ -1081,68 +1093,13 @@ namespace netxs::console
             lyric->kill();
         }
         void task(ansi::rule const& cmd) { if (!busy()) locus.push(cmd); } // para: Add locus command. In case of text presence try to change current target otherwise abort content building.
-        void post(utf::frag const& cluster, cell& brush)                   // para: Add grapheme cluster.
-        {
-            static ansi::marker<cell> marker;
-
-            auto& utf8 = cluster.text;
-            auto& attr = cluster.attr;
-
-            if (unsigned w = attr.ucwidth)
-            {
-                width += w;
-                brush.set_gc(utf8, w);
-                proto.push_back(brush);
-
-                debug += (debug.size() ? "_"s : ""s) + text(utf8);
-            }
-            else
-            {
-                if (auto set_prop = marker.setter[attr.control])
-                {
-                    if (proto.size())
-                    {
-                        set_prop(proto.back());
-                    }
-                    else
-                    {
-                        auto empty = brush;
-                        empty.txt(whitespace).wdt(w);
-                        set_prop(empty);
-                        proto.push_back(empty);
-                    }
-                }
-                else
-                {
-                    brush.set_gc(utf8, w);
-                    proto.push_back(brush);
-                }
-                auto i = utf::to_hex((size_t)attr.control, 5, true);
-                debug += (debug.size() ? "_<fn:"s : "<fn:"s) + i + ">"s;
-            }
-        }
         void post(utf::frag const& cluster) // para: Add grapheme cluster.
         {
-            post(cluster, brush);
+            ansi::post(*this, cluster);
         }
         // para: Convert into the screen-adapted sequence (unfold, remove zerospace chars, etc.).
         void cook()
         {
-            //log(" para cook ", " para id ", this);
-
-            //	//if (front)
-            //	//{
-            //	//	//+ evaluate TAB etc
-            //	//	//+ bidi
-            //	//	//+ eliminate non-printable and with cwidth == 0 (\0, \t, \b, etc...)
-            //	//	//+ while (--wide)
-            //	//	//	{
-            //	//	//		/* IT IS UNSAFE IF REALLOCATION OCCURS. BOOK ALWAYS */
-            //	//	//		lyric.emplace_back(cluster, console::whitespace);
-            //	//	//	}
-            //	//	//+ convert front into the screen-like sequence (unfold, remmove zerospace chars)
-            //	//
-
             auto merge = [&](auto fuse) {
                 for (auto& c : proto)
                 {
@@ -1190,25 +1147,6 @@ namespace netxs::console
             caret = newsz;
             proto.clear();
             width = 0;
-
-            /// for the lyric of rich
-            //auto newsz = caret + width;
-            //if (caret == lyric.size())
-            //{
-            //	lyric.reserve(newsz);
-            //	merge([&](auto c) { lyric.push_back(c); });
-            //}
-            //else
-            //{
-            //	if (newsz > lyric.size()) lyric.resize(newsz, cell{ whitespace });
-            //
-            //	auto it = lyric.begin() + caret;
-            //	merge([&](auto c) { *it++ = c; });
-            //}
-            //
-            //caret = newsz;
-            //proto.clear();
-            //width = 0;
         }
 
         auto id() const        { return index;  }
@@ -1562,9 +1500,16 @@ namespace netxs::console
             test();
             layer->locus.push(cmd);
         }
-        void post(utf::frag const& cluster) {                       layer->post(cluster, brush); }
-        void cook()                         { layer->style = style; layer->cook();               }
-        auto size() const                   { return static_cast<iota>(batch.size());            }
+        void post(utf::frag const& cluster)
+        {
+            //layer->post(cluster, brush);
+            auto tmp = layer->brush;
+            layer->brush = brush;
+            ansi::post(*layer, cluster);
+            layer->brush = tmp;
+        }
+        void cook()       { layer->style = style; layer->cook();    }
+        auto size() const { return static_cast<iota>(batch.size()); }
 
         auto& current()       { return *layer; } // page: Access to the current paragraph.
         auto& current() const { return *layer; } // page: RO access to the current paragraph.

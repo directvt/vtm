@@ -1232,44 +1232,9 @@ private:
                 //} 
                 //batch->locus.push(property);
             }
-            void post(utf::frag const& cluster, cell& brush)
-            {
-                static ansi::marker<cell> marker;
-
-                auto& utf8 = cluster.text;
-                auto& attr = cluster.attr;
-                if (auto w = attr.ucwidth)
-                {
-                    width += w;
-                    brush.set_gc(utf8, w);
-                    proto.push_back(brush);
-                }
-                else
-                {
-                    if (auto set_prop = marker.setter[attr.control])
-                    {
-                        if (proto.size())
-                        {
-                            set_prop(proto.back());
-                        }
-                        else
-                        {
-                            auto empty = brush;
-                            empty.txt(whitespace).wdt(w);
-                            set_prop(empty);
-                            proto.push_back(empty);
-                        }
-                    }
-                    else
-                    {
-                        brush.set_gc(utf8, w);
-                        proto.push_back(brush);
-                    }
-                }
-            }
             void post(utf::frag const& cluster)
             {
-                post(cluster, rods::brush);
+                ansi::post(*this, cluster);
             }
             void inline cook()
             { 

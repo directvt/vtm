@@ -1274,24 +1274,66 @@ namespace netxs::ansi
 
     //todo should we parse these controls as a C0-like?
     //     split paragraphs when flow direction changes, for example.
-    template<class CELL>
     struct marker
     {
-        using changer = std::array<void (*)(CELL &), ctrl::COUNT>;
+        using changer = std::array<void (*)(cell&), ctrl::COUNT>;
         changer	setter = {};
         marker()
         {
-            setter[ctrl::ALM                 ] = [](CELL& p) { p.rtl(true);    };
-            setter[ctrl::RLM                 ] = [](CELL& p) { p.rtl(true);    };
-            setter[ctrl::LRM                 ] = [](CELL& p) { p.rtl(faux);    };
-            setter[ctrl::SHY                 ] = [](CELL& p) { p.hyphen(true); };
-            setter[ctrl::FUNCTION_APPLICATION] = [](CELL& p) { p.fnappl(true); };
-            setter[ctrl::INVISIBLE_TIMES     ] = [](CELL& p) { p.itimes(true); };
-            setter[ctrl::INVISIBLE_SEPARATOR ] = [](CELL& p) { p.isepar(true); };
-            setter[ctrl::INVISIBLE_PLUS      ] = [](CELL& p) { p.inplus(true); };
-            setter[ctrl::ZWNBSP              ] = [](CELL& p) { p.zwnbsp(true); };
+            setter[ctrl::ALM                 ] = [](cell& p) { p.rtl(true);    };
+            setter[ctrl::RLM                 ] = [](cell& p) { p.rtl(true);    };
+            setter[ctrl::LRM                 ] = [](cell& p) { p.rtl(faux);    };
+            setter[ctrl::SHY                 ] = [](cell& p) { p.hyphen(true); };
+            setter[ctrl::FUNCTION_APPLICATION] = [](cell& p) { p.fnappl(true); };
+            setter[ctrl::INVISIBLE_TIMES     ] = [](cell& p) { p.itimes(true); };
+            setter[ctrl::INVISIBLE_SEPARATOR ] = [](cell& p) { p.isepar(true); };
+            setter[ctrl::INVISIBLE_PLUS      ] = [](cell& p) { p.inplus(true); };
+            setter[ctrl::ZWNBSP              ] = [](cell& p) { p.zwnbsp(true); };
         }
     };
+
+    template<class T>
+    static void post(T& client, utf::frag const& cluster)
+    {
+        static ansi::marker marker;
+        auto& width = client.width;
+        auto& brush = client.brush;
+        auto& proto = client.proto;
+
+        auto& utf8 = cluster.text;
+        auto& attr = cluster.attr;
+        if (auto w = attr.ucwidth)
+        {
+            width += w;
+            brush.set_gc(utf8, w);
+            proto.push_back(client.brush);
+            //debug += (debug.size() ? "_"s : ""s) + text(utf8);
+        }
+        else
+        {
+            if (auto set_prop = marker.setter[attr.control])
+            {
+                if (proto.size())
+                {
+                    set_prop(proto.back());
+                }
+                else
+                {
+                    auto empty = brush;
+                    empty.txt(whitespace).wdt(w);
+                    set_prop(empty);
+                    proto.push_back(empty);
+                }
+            }
+            else
+            {
+                brush.set_gc(utf8, w);
+                proto.push_back(brush);
+            }
+            //auto i = utf::to_hex((size_t)attr.control, 5, true);
+            //debug += (debug.size() ? "_<fn:"s : "<fn:"s) + i + ">"s;
+        }
+    }
 
     // ansi: Caret manipulation command list.
     struct writ
