@@ -845,16 +845,17 @@ namespace netxs::console
     public:
         using deco = ansi::deco;
 
-        ui32 index = 0;
-        core lyric;
+        ui32 index;
         deco style;
+        core lyric;
 
         rich(deco const& style)
-            : style{ style }
+            : index{ 0     },
+              style{ style }
         { }
         rich(ui32 newid, deco const& style = {})
-            : style { style },
-              index { newid }
+            : index{ newid },
+              style{ style }
         { }
         rich()                         = default;
         rich(rich&&)                   = default;
@@ -862,26 +863,12 @@ namespace netxs::console
         rich& operator = (rich&&)      = default;
         rich& operator = (rich const&) = default;
 
-        // rich: Return line shadow.
-        shot shadow() const
-        {
-            return lyric;
-        }
-        // rich: Return line substring shadow.
-        shot substr(iota at, iota width) const
-        {
-            return shadow().substr(at, width);
-        }
-        // rich: Return line length.
-        auto length() const
-        {
-            return lyric.size().x;
-        }
-        // rich: Return 2D volume size.
-        auto size() const
-        {
-            return lyric.size();
-        }
+        auto size  () const { return lyric.size();   }
+        auto length() const { return lyric.size().x; }
+        auto shadow() const { return shot{ lyric };  }
+        auto substr(iota at, iota width) const { return shadow().substr(at, width); }
+        void trim  (iota max_size) { if (length() > max_size) lyric.crop(max_size); }
+        void reserv(iota oversize) { if (oversize > length()) lyric.crop(oversize); }
         // rich: Move all from p.
         void resite(rich& p)
         {
@@ -893,14 +880,6 @@ namespace netxs::console
         {
             style.rst();
             lyric.kill();
-        }
-        void trim(iota max_size)
-        {
-            if (length() > max_size) lyric.crop(max_size);
-        }
-        void reserv(iota oversize)
-        {
-            if (oversize > length()) lyric.crop(oversize);
         }
         void deflate(cell const& blank, iota max_size = 0)
         {
@@ -1049,8 +1028,8 @@ namespace netxs::console
             : style{ style }
         { }
         para(ui32 newid, deco const& style = {})
-            : style { style },
-              index { newid }
+            : style{ style },
+              index{ newid }
         { }
         para(view utf8)
         {
