@@ -74,13 +74,14 @@ namespace netxs::console
     public:
         core() = default;
 
-        constexpr auto& size() const        { return region.size;   }
-        auto& coor() const                  { return region.coor;   }
-        auto& area() const                  { return region;        }
-        auto  hash()                        { return digest;        } // core: Return the digest value that associatated with the current canvas size.
-        auto  data() const                  { return canvas.data(); }
-        auto  data()                        { return canvas.data(); }
-        auto& pick()                        { return canvas;        }
+        constexpr auto& size() const        { return region.size;        }
+        auto& coor() const                  { return region.coor;        }
+        auto& area() const                  { return region;             }
+        auto  hash()                        { return digest;             } // core: Return the digest value that associatated with the current canvas size.
+        auto  data() const                  { return canvas.data();      }
+        auto  data()                        { return canvas.data();      }
+        auto& pick()                        { return canvas;             }
+        auto  iter()                        { return canvas.begin();     }
         auto  test(twod const& coord) const { return region.size.inside(coord); } // core: Check the coor inside the canvas.
         auto  data(twod const& coord)       { return  data() + coord.x + coord.y * region.size.x; } // core: Return the offset of the cell corresponding to the specified coordinates.
         auto  data(twod const& coord) const { return  data() + coord.x + coord.y * region.size.x; } // core: Return the const offset value of the cell.
@@ -105,7 +106,7 @@ namespace netxs::console
                 canvas.assign(region.size.x * region.size.y, marker);
             }
         }
-        void  crop(iota newsizex) // core: Resize while saving the textline.
+        void crop(iota newsizex) // core: Resize while saving the textline.
         {
             region.size.x = newsizex;
             region.size.y = 1;
@@ -114,7 +115,7 @@ namespace netxs::console
             digest++;
         }
         //todo unify
-        void  crop(twod const& newsize) // core: Resize while saving the bitmap.
+        void crop(twod const& newsize) // core: Resize while saving the bitmap.
         {
             core block{ region.coor, newsize };
 
@@ -126,7 +127,7 @@ namespace netxs::console
             swap(block);
             digest++;
         }
-        void  crop(twod const& newsize, cell const& c) // core: Resize while saving the bitmap.
+        void crop(twod const& newsize, cell const& c) // core: Resize while saving the bitmap.
         {
             core block{ region.coor, newsize, c };
 
@@ -138,16 +139,16 @@ namespace netxs::console
             swap(block);
             digest++;
         }
-        void  kill() // core: Collapse canvas to size zero (see para).
+        void kill() // core: Collapse canvas to size zero (see para).
         {
             region.size.x = 0;
             client.size.x = 0;
             canvas.resize(0);
             digest++;
         }
-        void  wipe(cell const& c) { std::fill(canvas.begin(), canvas.end(), c); } // core: Fill the canvas with the specified marker.
-        void  wipe() { wipe(marker); } // core: Fill the canvas with the default color.
-        void  wipe(id_t id)            // core: Fill the canvas with the specified id.
+        void wipe(cell const& c) { std::fill(canvas.begin(), canvas.end(), c); } // core: Fill the canvas with the specified marker.
+        void wipe() { wipe(marker); } // core: Fill the canvas with the default color.
+        void wipe(id_t id)            // core: Fill the canvas with the specified id.
         {
             auto my = marker.link();
             marker.link(id);
@@ -155,7 +156,7 @@ namespace netxs::console
             marker.link(my);
         }
         template<class P>
-        void  each(P proc) // core: Exec a proc for each cell.
+        void each(P proc) // core: Exec a proc for each cell.
         {
             for (auto& c : canvas)
             {
@@ -163,12 +164,12 @@ namespace netxs::console
             }
         }
         template<class P>
-        void  each(rect const& region, P proc) // core: Exec a proc for each cell of the specified region.
+        void each(rect const& region, P proc) // core: Exec a proc for each cell of the specified region.
         {
             netxs::onrect(*this, region, proc);
         }
-        auto  copy(grid& target) const { target = canvas; return region.size; } // core: Copy only grid of the canvas to the specified grid bitmap.
-        void  copy(core& target, bool copymetadata = faux) const // core: Copy the canvas to the specified target bitmap. The target bitmap must be the same size.
+        auto copy(grid& target) const { target = canvas; return region.size; } // core: Copy only grid of the canvas to the specified grid bitmap.
+        void copy(core& target, bool copymetadata = faux) const // core: Copy the canvas to the specified target bitmap. The target bitmap must be the same size.
         {
             auto full = [](auto& dst, auto& src) { dst = src; };
             auto flat = [](auto& dst, auto& src) { dst.set(src); };
@@ -180,7 +181,7 @@ namespace netxs::console
             //target.marker = marker;
             //flow::cursor
         }
-        void  plot(core const& block, bool force = faux) // core: Place the specified face using its coordinates.
+        void plot(core const& block, bool force = faux) // core: Place the specified face using its coordinates.
         {
             auto full = [](auto& dst, auto& src) { dst = src; };
             auto fuse = [](auto& dst, auto& src) { dst.fusefull(src); };
@@ -189,11 +190,11 @@ namespace netxs::console
                   : netxs::onbody(*this, block, fuse);
         }
         template<class P>
-        void  fill(core const& block, P fuse) // core: Fill by the specified face using its coordinates.
+        void fill(core const& block, P fuse) // core: Fill by the specified face using its coordinates.
         {
             netxs::onbody(*this, block, fuse);
         }
-        void  fill(core const& block, bool force = faux) // core: Fill by the specified face using its coordinates.
+        void fill(core const& block, bool force = faux) // core: Fill by the specified face using its coordinates.
         {
             auto flat = [](auto& dst, auto& src) { dst.set(src); };
             auto fuse = [](auto& dst, auto& src) { dst.fuse(src); };
@@ -201,11 +202,11 @@ namespace netxs::console
             force ? netxs::onbody(*this, block, flat)
                   : netxs::onbody(*this, block, fuse);
         }
-        void  fill(sptr<core> block_ptr, bool force = faux) // core: Fill by the specified face using its coordinates.
+        void fill(sptr<core> block_ptr, bool force = faux) // core: Fill by the specified face using its coordinates.
         {
             if (block_ptr) fill(*block_ptr, force);
         }
-        void  fill(ui::rect block, cell const& brush, bool force = faux) // core: Fill the specified region with the specified color. If forced == true use direct copy instead of mixing.
+        void fill(ui::rect block, cell const& brush, bool force = faux) // core: Fill the specified region with the specified color. If forced == true use direct copy instead of mixing.
         {
             auto flat = [brush](auto& dst) { dst = brush ; };
             auto fuse = [brush](auto& dst) { dst.fusefull(brush); };
@@ -214,23 +215,23 @@ namespace netxs::console
             force ? netxs::onrect(*this, block, flat)
                   : netxs::onrect(*this, block, fuse);
         }
-        void  fill(cell const& brush, bool force = faux) // core: Fill the client area with the specified color. If forced == true use direct copy instead of mixing.
+        void fill(cell const& brush, bool force = faux) // core: Fill the client area with the specified color. If forced == true use direct copy instead of mixing.
         {
             fill(view(), brush, force);
         }
         template<class P>
-        void  fill(ui::rect block, P fuse) // core: Process the specified region by the specified proc.
+        void fill(ui::rect block, P fuse) // core: Process the specified region by the specified proc.
         {
             block.normalize_itself();
             block.coor += region.coor;
             netxs::onrect(*this, block, fuse);
         }
         template<class P>
-        void  fill(P fuse) // core: Fill the client area using lambda.
+        void fill(P fuse) // core: Fill the client area using lambda.
         {
             fill(view(), fuse);
         }
-        void  grad(rgba const& c1, rgba const& c2) // core: Fill the specified region with the linear gradient.
+        void grad(rgba const& c1, rgba const& c2) // core: Fill the specified region with the linear gradient.
         {
             auto mx = (float)region.size.x;
             auto my = (float)region.size.y;
@@ -258,8 +259,8 @@ namespace netxs::console
             };
             netxs::onrect(*this, region, allfx, eolfx);
         }
-        void  swap(core& target) { canvas.swap(target.canvas); } // core: Unconditionally swap canvases.
-        auto  swap(grid& target)                                 // core: Move the canvas to the specified array and return the current layout size.
+        void swap(core& target) { canvas.swap(target.canvas); } // core: Unconditionally swap canvases.
+        auto swap(grid& target)                                 // core: Move the canvas to the specified array and return the current layout size.
         {
             if (auto size = canvas.size())
             {
@@ -357,7 +358,7 @@ namespace netxs::console
             fill(temp, fuse);
         }
         template<class TEXT, class P = noop>
-        void  text(twod const& pos, TEXT const& txt, bool rtl = faux, P print = P()) // core: Put the specified text substring to the specified coordinates on the canvas.
+        void text(twod const& pos, TEXT const& txt, bool rtl = faux, P print = P()) // core: Put the specified text substring to the specified coordinates on the canvas.
         {
             rtl ? txt.template output<true>(*this, pos, print)
                 : txt.template output<faux>(*this, pos, print);
@@ -838,6 +839,183 @@ namespace netxs::console
         }
     };
 
+    // richtext: Enriched text line.
+    class rich
+    {
+    public:
+        using deco = ansi::deco;
+
+        ui32 index = 0;
+        core lyric;
+        deco style;
+
+        rich(deco const& style)
+            : style{ style }
+        { }
+        rich(ui32 newid, deco const& style = {})
+            : style { style },
+              index { newid }
+        { }
+        rich()                         = default;
+        rich(rich&&)                   = default;
+        rich(rich const&)              = default;
+        rich& operator = (rich&&)      = default;
+        rich& operator = (rich const&) = default;
+
+        // rich: Return line shadow.
+        shot shadow() const
+        {
+            return lyric;
+        }
+        // rich: Return line substring shadow.
+        shot substr(iota at, iota width) const
+        {
+            return shadow().substr(at, width);
+        }
+        // rich: Return line length.
+        auto length() const
+        {
+            return lyric.size().x;
+        }
+        // rich: Return 2D volume size.
+        auto size() const
+        {
+            return lyric.size();
+        }
+        // rich: Move all from p.
+        void resite(rich& p)
+        {
+            style = p.style;
+            lyric = std::move(p.lyric);
+        }
+        // rich: Wipe content.
+        void wipe()
+        {
+            style.rst();
+            lyric.kill();
+        }
+        void trim(iota max_size)
+        {
+            if (length() > max_size) lyric.crop(max_size);
+        }
+        void reserv(iota oversize)
+        {
+            if (oversize > length()) lyric.crop(oversize);
+        }
+        void deflate(cell const& blank, iota max_size = 0)
+        {
+            auto& data = lyric.pick();
+            auto  tail = data.rbegin();
+            auto  head = data.rend();
+            while(head != tail && *tail != blank) ++tail;
+            auto new_size = static_cast<iota>(head - tail);
+            if (max_size && max_size < new_size) new_size = max_size;
+            if (new_size != length()) lyric.crop(new_size);
+        }
+        // rich: Insert n cells.
+        template<bool AUTOGROW = faux>
+        void merge(iota at, iota count, cell const& blank)
+        {
+            auto size = length();
+            if constexpr (AUTOGROW) reserv(at + count);
+            else                    count = std::clamp(count, 0, size - at);
+            auto ptr = lyric.iter();
+            auto dst = ptr + at;
+            auto end = dst + count;
+            while(dst != end) *dst++ = blank;
+        }
+        // rich: Insert (overwrite) fragment at the specified position.
+        void merge(iota at, shot const& fragment)
+        {
+            auto len = fragment.length();
+            reserv(len + at);
+            auto ptr = lyric.iter();
+            auto dst = ptr + at;
+            auto end = dst + len;
+            auto src = fragment.data();
+            while(dst != end) *dst++ = *src++;
+        }
+        void merge(iota at, grid& proto, iota width)
+        {
+            reserv(at + width);
+            auto ptr = lyric.iter();
+            auto dst = ptr + at;
+            for (auto& c : proto)
+            {
+                auto w = c.wdt();
+                if (w == 1)
+                {
+                    *dst++ = c;
+                }
+                else if (w == 2)
+                {
+                    *dst++ = c.wdt(2);
+                    *dst++ = c.wdt(3);
+                }
+                else if (w == 0)
+                {
+                    //todo implemet controls/commands
+                    // winsrv2019's cmd.exe sets title with a zero at the end
+                    //fuse(cell{ c, whitespace });
+                }
+                else if (w > 2)
+                {
+                    // Forbid using super wide characters until terminal emulators support the fragmentation attribute.
+                    c.txt(utf::REPLACEMENT_CHARACTER_UTF8_VIEW);
+                    while (w--) *dst++ = c;
+                }
+            }
+        }
+        // rich: Insert n blanks after caret.
+        void insert(iota at, iota count, cell blank)
+        {
+            auto size = length();
+            //blank.txt(whitespace);
+            blank.txt(whitespace).bgc(magentadk).bga(0x7f);
+            lyric.crop(std::max(at, size) + count);
+            auto ptr = lyric.iter();
+            auto end = ptr + count + at;
+            auto src = ptr + size;
+            if (at < size)
+            {
+                auto dst = src + count;
+                while (dst != end) *--dst = *--src;
+                src = ptr + at;
+            }
+            while (src != end) *src++ = blank;
+        }
+        // rich: Delete n chars after caret and add blank characters at the right margin.
+        void cutoff(iota at, iota count, cell blank, iota margin)
+        {
+            auto size = length();
+            //blank.txt(whitespace);
+            blank.txt(whitespace).bgc(reddk).bga(0x7f);
+            if (count > 0 && at < size)
+            {
+                margin -= at % margin;
+                count = std::min(count, margin);
+                if (count >= size - at)
+                {
+                    auto ptr = lyric.iter();
+                    auto dst = ptr + at;
+                    auto end = ptr + size;
+                    while (dst != end) *dst++ = blank;
+                }
+                else
+                {
+                    reserv(margin + at);
+                    auto ptr = lyric.iter();
+                    auto dst = ptr + at;
+                    auto src = dst + count;
+                    auto end = dst - count + margin;
+                    while (dst != end) *dst++ = *src++;
+                    end += count; //end = ptr + right_margin;
+                    while (dst != end) *dst++ = blank;
+                }
+            }
+        }
+    };
+
     // richtext: Enriched text paragraph.
     class para
     {
@@ -853,12 +1031,11 @@ namespace netxs::console
         using mark   = ansi::mark;
         using deco   = ansi::deco;
 
-        ui32 selfid = 0;
-
-        text debug; // para: debug string.
+        ui32 index = 0;
         writ locus;
         corx lyric = std::make_shared<core>();
 
+        text debug; // para: debug string.
         mark brush; // para: Brush for parser.
         deco style; // para: Style for parser.
 
@@ -872,8 +1049,8 @@ namespace netxs::console
             : style{ style }
         { }
         para(ui32 newid, deco const& style = {})
-            : style  { style },
-              selfid { newid }
+            : style { style },
+              index { newid }
         { }
         para(view utf8)
         {
@@ -1034,7 +1211,7 @@ namespace netxs::console
             }
 
             auto it = lyric.data() + caret;
-            merge([&](auto c) { *it++ = c; });
+            merge([&](auto& c) { *it++ = c; });
 
             caret = newsz;
             proto.clear();
@@ -1060,8 +1237,8 @@ namespace netxs::console
             //width = 0;
         }
 
-        auto id() const        { return selfid;  }
-        void id(ui32 newid)    { selfid = newid; }
+        auto id() const        { return index;  }
+        void id(ui32 newid)    { index = newid; }
 
         auto chx() const       { return caret;    }
         void chx(iota new_pos)
@@ -1073,56 +1250,16 @@ namespace netxs::console
             }
             else caret = new_pos; 
         }
-
-        void trimto(iota max_width)
+        auto& set (cell const& c)
         {
-            if (length() > max_width)
-            {
-                auto& lyric = *this->lyric;
-                lyric.crop(max_width);
-            }
+            brush.set(c);
+            return *this;
         }
-        void trim(cell const& default_cell, iota maxs = 0)
-        {
-            auto& lyric = *this->lyric;
-
-            auto& data = lyric.pick();
-            auto  head = data.rbegin();
-            auto  tail = data.rend();
-            while (head != tail)
-            {
-                auto& c = *head;
-                if (c != default_cell) break;
-                //if (!c.issame_visual(default_cell)) break;
-                ++head;
-            }
-
-            auto size = maxs ? std::min(maxs, static_cast<iota>(tail - head))
-                                            : static_cast<iota>(tail - head);
-            if (size != lyric.size().x)
-            {
-                lyric.crop({ size, 1 });
-            }
-        }
-        // para: Insert n spaces (= Erase n, CSI n X).
-        void ins(iota n, cell& brush)
-        {
-            static const utf::frag space = utf::frag
-            {
-                utf::WHITESPACE_CHARACTER_UTF8_VIEW,
-                utf::prop(0x20, 1)
-            };
-
-            for (auto i = 0; i < n; ++i)
-                post(space, brush);
-        }
-        void ins(iota n)
-        {
-            ins(n, brush);
-        }
+        // para: Insert n cells.
         template<bool AUTOGROW = faux>
-        void ins(iota start, iota count, cell const& brush)
+        void ins(iota count, cell const& brush)
         {
+            auto start = chx();
             auto region = rect{ { start, 0 }, { count, 1 } };
             if constexpr (AUTOGROW)
             {
@@ -1131,135 +1268,6 @@ namespace netxs::console
                 if (oldsize != newsize) lyric->crop(newsize.size, brush);
             }
             lyric->each(region, [&](cell& c) { c = brush; });
-        }
-        // para: for bug testing.
-        auto get_utf8()
-        {
-            text yield;
-            auto& lyric = *this->lyric;
-            lyric.each(
-                [&](cell& c) { yield += c.txt(); }
-            );
-            return yield;
-        }
-        auto& set (cell const& c)
-        {
-            brush.set(c);
-            return *this;
-        }
-        //todo make it 2D
-        // para: Insert (overwrite) fragment at the specified position.
-        void insert(iota at, shot const& fragment)
-        {
-            auto& line = *lyric;
-            auto  size = fragment.length();
-            auto  full = at + size;
-            if   (full > length()) line.crop(full);
-            auto& data = line.pick();
-            auto  head = data.begin() + at;
-            auto  tail = head + size;
-            auto  frag = fragment.data();
-            while(head != tail)
-            {
-                 *head++ = *frag++;
-            }
-        }
-        // para: Inject n blanks after caret.
-        void inject(iota n, cell mark)
-        {
-            auto size = length();
-            auto pos  = chx();
-            auto& line = *this->lyric;
-            //mark.txt(whitespace);
-            mark.txt(whitespace).bgc(magentadk).bga(0x7f);
-            if (pos < size)
-            {
-                // Move existing chars to the right (backward decrement).
-                line.crop(size + n);
-                auto data = line.data(); 
-                auto src = data + size;
-                auto dst = src + n;
-                auto end = data + pos + n;
-                while (dst != end)
-                {
-                    *--dst = *--src;
-                }
-                // Fill blanks.
-                dst = line.data() + pos;
-                end = dst + n;
-                while (dst != end)
-                {
-                    *dst++ = mark;
-                }
-            }
-            else
-            {
-                line.crop(pos + n);
-                auto data = line.data(); 
-                // Fill blanks.
-                auto dst = data + size;
-                auto end = data + pos + n;
-                while (dst != end)
-                {
-                    *dst++ = mark;
-                }
-            }
-            chx(pos + n);
-        }
-        // para: Delete n chars after caret.
-        void del(iota n, cell mark, iota margin)
-        {
-           /* del:
-            *    As characters are deleted, the remaining characters
-            *    between the caret and right margin move to the left.
-            *    Character attributes move with the characters.
-            *    The terminal adds blank characters at the right margin.
-            */
-            auto& frag =*lyric;
-            auto  size = length();
-            auto  coor = chx();
-            //mark.txt(whitespace);
-            mark.txt(whitespace).bgc(reddk).bga(0x7f);
-            //todo unify for size.y > 1
-            if (n > 0)
-            {
-                if (coor < size)
-                {
-                    auto max_n = margin - coor % margin;
-                    n = std::min(n, max_n);
-                    auto right_margin = max_n + coor;
-                    //todo unify all
-                    if (n >= size - coor)
-                    {
-                        auto dst = frag.data() + coor;
-                        auto end = frag.data() + size;
-                        while (dst != end)
-                        {
-                            *dst++ = mark;
-                        }
-                    }
-                    else
-                    {
-                        if (size < right_margin) frag.crop(right_margin);
-                        auto dst = frag.data() + coor;
-                        auto src = frag.data() + coor + n;
-                        auto end = dst + (max_n - n);
-                        while (dst != end)
-                        {
-                            *dst++ = *src++;
-                        }
-                        end = frag.data() + right_margin;
-                        while (dst != end)
-                        {
-                            *dst++ = mark;
-                        }
-                    }
-                }
-            }
-            else
-            {
-                //todo support negative n
-            }
         }
     };
 

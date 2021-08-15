@@ -11,7 +11,8 @@
 #ifdef DEMO
     #define WRAPPING (wrap::off)
 #else
-    #define WRAPPING (wrap::on)
+    //#define WRAPPING (wrap::on)
+    #define WRAPPING (wrap::off)
 #endif
 
 // Enable to show debug overlay.

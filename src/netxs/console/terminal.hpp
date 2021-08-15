@@ -42,9 +42,9 @@ namespace netxs::app
         : public flow
     {
         struct line
-            : public para
+            : public rich
         {
-            using para::para;
+            using rich::rich;
             using iota = netxs::iota;
 
             enum type : iota
@@ -69,9 +69,9 @@ namespace netxs::app
                        style.adjust == bias::right ? type::rghtside :
                                                      type::centered ;
             }
-            void wipe(cell const& brush)
+            void wipe()
             {
-                para::wipe(brush);
+                rich::wipe();
                 _size = {};
                 _kind = {};
             }
@@ -81,7 +81,7 @@ namespace netxs::app
                 _kind = p._kind;
                 p._size = {};
                 p._kind = {};
-                para::resite(p);
+                rich::resite(p);
             }
         };
 
@@ -127,10 +127,9 @@ namespace netxs::app
                     cur_lens.prev_max();
                 }
             }
-            template<class LINE>
-            void take(LINE&& l)          { take(l._kind, l._size, l.get_kind(), l.length()); }
-            void free(line&  l) override { free(l._kind, l._size);                           }
-            template<auto N> auto max()  { return lens[N].max;                               }
+            void take(line& l)          { take(l._kind, l._size, l.get_kind(), l.length()); }
+            void free(line& l) override { free(l._kind, l._size);                           }
+            template<auto N> auto max() { return lens[N].max;                               }
         };
 
         // For debug
@@ -161,6 +160,8 @@ namespace netxs::app
     public:
         mark        brush; // rods: Current brush for parser (default fg/bg-colors).
         deco        style; // rods: Parser style state.
+        iota        chx{};
+        iota        step{};
 
         rods(twod const& viewport, iota buffer_size, iota grow_step)
             : flow { viewport.x, batch.size },
@@ -199,7 +200,8 @@ namespace netxs::app
         {
             auto& curln =*batch;
             auto& style = batch->style;
-            auto  caret = twod{ curln.chx(), batch.index() };
+            //auto  caret = twod{ curln.chx(), batch.index() };
+            auto  caret = twod{ chx, batch.index() };
 
             if (style.adjust == bias::left)
             {
@@ -226,7 +228,7 @@ namespace netxs::app
             }
             return caret;
         }
-        auto line_height(para const& l)
+        auto line_height(rich const& l)
         {
             auto width = l.length();
             return width > panel.x
@@ -265,7 +267,7 @@ namespace netxs::app
         void add_lines(iota amount)
         {
             assert(amount > 0);
-            auto newid = batch.back().selfid;
+            auto newid = batch.back().index;
             while(amount-- > 0 ) batch.push(++newid, style);
             align_basis();
         }
@@ -277,7 +279,7 @@ namespace netxs::app
         }
         auto get_line_index_by_id(ui32 id)
         {
-            return static_cast<iota>(id - batch.front().selfid); // ring buffer size is never larger than max_int32.
+            return static_cast<iota>(id - batch.front().index); // ring buffer size is never larger than max_int32.
         }
         // rods: Set scrollback caret position.
         void set_coord(twod new_coord)
@@ -295,7 +297,8 @@ namespace netxs::app
                 new_coord.x = panel.x * cur_line.depth + coord.x;
             }
             batch.index(new_coord.y);
-            batch->chx(new_coord.x);
+            //batch->chx(new_coord.x);
+            chx = new_coord.x;
             batch->style = style;
         }
         // rods: Map caret pos from viewport to scrollback.
@@ -308,7 +311,21 @@ namespace netxs::app
             if (from < upto) while(proc(*head) && head++ != tail);
             else             while(proc(*head) && head-- != tail);
         }
-        void finalize(line& cur_line)
+        void ins_spc(iota n)
+        {
+            batch->merge(chx, n, brush);
+        }
+        void fin(grid& proto, iota width)
+        {
+            auto& cur_line = *batch;
+            auto& style = cur_line.style;
+            coord.x += width;
+            cur_line.merge(chx, proto, width);
+            chx += width;
+            batch.take(*batch);
+        }
+        /*
+        void fin_old(line& cur_line)
         {
             auto& style = cur_line.style;
             //cur_line.style = style;
@@ -377,6 +394,7 @@ namespace netxs::app
             log(coord, ", batch len ",  batch.length(), ", cur height ", batch->length());
             batch.take(*batch);
         }
+        */
         void clear_all(bool preserve_brush = faux)
         {
             if (!preserve_brush) brush.reset();
@@ -513,7 +531,7 @@ namespace netxs::app
                 auto required_len = depth + coord.x;
                 auto& line = *head;
                 //todo wrap == on only
-                line.trimto(required_len);
+                line.trim(required_len);
                 depth -= panel.x;
             }
             while(head++ != tail);
@@ -533,7 +551,7 @@ namespace netxs::app
             while(current != end)
             {
                 auto& lyric = *current++;
-                lyric.wipe(brush.spare);
+                lyric.wipe();
                 lyric.depth = 0;
             }
             set_coord();
@@ -554,8 +572,8 @@ namespace netxs::app
             do
             {
                 auto& lyric = *upper;
-                lyric.ins(start, count, brush.spare);
-                lyric.trim(brush.spare);
+                lyric.merge(start, count, brush.spare);
+                lyric.deflate(brush.spare);
                 start -= panel.x;
             }
             while(upper++ != under);
@@ -569,7 +587,7 @@ namespace netxs::app
             do
             {
                 auto& line =*--tail;
-                line.trimto(max_line_len);
+                line.trim(max_line_len);
                 auto depth = line_height(line);
                 auto below = tail + depth - 1;
                 auto over = below - batch_end;
@@ -603,7 +621,7 @@ namespace netxs::app
             for(auto& l : batch)
             {
                 yield += "\n =>" + std::to_string(i++) + "<= ";
-                yield += l.get_utf8();
+                l.lyric.each([&](cell& c) { yield += c.txt(); });
             }
             return yield;
         }
@@ -613,7 +631,7 @@ namespace netxs::app
             auto& trim_line = *line_iter;
             if (trim_line.depth)
             {
-                auto cur_index = get_line_index_by_id(trim_line.selfid);
+                auto cur_index = get_line_index_by_id(trim_line.index);
                 auto mas_index = std::max(0, cur_index - trim_line.depth);
                 auto max_width = iota{ 0 };
                 auto head_iter = batch.begin() + mas_index;
@@ -628,8 +646,8 @@ namespace netxs::app
                         auto remainder = line_inst.length() - max_width;
                         if (remainder > 0)
                         {
-                            trim_line.insert(0, line_inst.substr(max_width, remainder));
-                            line_inst.trimto(max_width);
+                            trim_line.merge(0, line_inst.substr(max_width, remainder));
+                            line_inst.trim(max_width);
                         }
                     }
                 };
@@ -656,7 +674,7 @@ namespace netxs::app
             {
                 auto& line = *begin_it;
                 batch.free(line);
-                line.wipe(brush.spare);
+                line.wipe();
                 ++begin_it;
             }
         }
@@ -755,7 +773,7 @@ namespace netxs::app
                     auto& line = *tail;
                     if (line.style.wrapln == wrap::on)
                     {
-                        line.trimto(new_size.x);
+                        line.trim(new_size.x);
                         batch.take(line);
                     }
                 }
@@ -1192,6 +1210,9 @@ private:
             static constexpr iota default_tabstop = 8;
             iota tabstop = default_tabstop; // scrollbuff: Tabstop current value.
 
+            grid proto;
+            iota width{};
+
             scrollbuff(term& boss, iota max_scrollback_size, iota grow_step = 0)
                 : rods(boss.screen.size, max_scrollback_size, grow_step),
                   boss{ boss }
@@ -1202,21 +1223,60 @@ private:
             void task(ansi::rule const& property)
             {
                 cook();
-                auto& cur_line = *batch;
-                if (cur_line.busy())
-                {
-                    add_lines(1);
-                    batch.index(batch.length() - 1);
-                } 
-                batch->locus.push(property);
+                log("scrollbuff: locus extensions are not supported");
+                //auto& cur_line = *batch;
+                //if (cur_line.busy())
+                //{
+                //    add_lines(1);
+                //    batch.index(batch.length() - 1);
+                //} 
+                //batch->locus.push(property);
             }
-            void post(utf::frag const& cluster) { batch->post(cluster, rods::brush); }
+            void post(utf::frag const& cluster, cell& brush)
+            {
+                static ansi::marker<cell> marker;
+
+                auto& utf8 = cluster.text;
+                auto& attr = cluster.attr;
+
+                if (unsigned w = attr.ucwidth)
+                {
+                    width += w;
+                    brush.set_gc(utf8, w);
+                    proto.push_back(brush);
+                }
+                else
+                {
+                    if (auto set_prop = marker.setter[attr.control])
+                    {
+                        if (proto.size())
+                        {
+                            set_prop(proto.back());
+                        }
+                        else
+                        {
+                            auto empty = brush;
+                            empty.txt(whitespace).wdt(w);
+                            set_prop(empty);
+                            proto.push_back(empty);
+                        }
+                    }
+                    else
+                    {
+                        brush.set_gc(utf8, w);
+                        proto.push_back(brush);
+                    }
+                }
+            }
+            void post(utf::frag const& cluster)
+            {
+                post(cluster, rods::brush);
+            }
             void inline cook()
             { 
-                auto& cur_line1 = *batch;
-                if (cur_line1.step())
+                if (width)
                 {
-                    finalize(cur_line1);
+                    fin(proto, width);
                 }
             }
 
@@ -1291,7 +1351,7 @@ private:
                 if (n > 0)
                 {
                     auto a = n * tabstop - coord.x % tabstop;
-                    batch->ins(a, rods::brush);
+                    rods::ins_spc(a);
                 }
                 else if (n < 0)
                 {
@@ -1399,13 +1459,13 @@ private:
                 if (n > 0)
                 {
                     cook();
-                    auto pos = batch->chx();
-                    auto coor = coord;
-                    batch->inject(n, rods::brush);
-                    cook();
-                    batch->chx(pos);
+                    //auto pos = chx;
+                    //auto coor = coord;
+                    batch->insert(rods::chx, n, rods::brush);
+                    //cook();
+                    //chx = pos;
                     //todo revise
-                    coord = coor;
+                    //coord = coor;
                 }
             }
             // scrollbuff: Shift left n columns(s).
@@ -1418,20 +1478,20 @@ private:
                 if (n > 0)
                 {
                     cook();
-                    auto pos = batch->chx();
-                    auto coor = coord;
-                    batch->ins(n, rods::brush);
-                    cook();
-                    batch->chx(pos);
+                    //auto pos = batch->chx();
+                    //auto coor = coord;
+                    batch->merge(rods::chx, n, rods::brush);
+                    //cook();
+                    //batch->chx(pos);
                     //todo revise
-                    coord = coor;
+                    //coord = coor;
                 }
             }
             // scrollbuff: CSI n P  Delete (not Erase) letters under the caret.
             void dch(iota n)
             {
                 cook();
-                batch->del(n, rods::brush, panel.x);
+                batch->cutoff(rods::chx, n, rods::brush, panel.x);
                 clear_overlapping_lines();
             }
             // scrollbuff: '\x7F'  Delete characters backwards.
@@ -1444,14 +1504,16 @@ private:
             {
                 cook();
                 coord.x += n;
-                set_coord();
+                rods::chx += n;
+                //set_coord();
             }
             // scrollbuff: CSI n G  Absolute horizontal caret position (1-based).
             void chx(iota n)
             {
                 cook();
                 coord.x = n - 1;
-                set_coord();
+                rods::chx = n - 1;
+                //set_coord();
             }
             // scrollbuff: CSI n d  Absolute vertical caret position (1-based).
             void chy(iota n)
@@ -1535,7 +1597,7 @@ private:
                 cook();
                 iota start;
                 iota count;
-                auto caret = std::max(0, batch->chx());
+                auto caret = std::max(0, rods::chx);
                 auto width = batch->length();
                 auto wraps = batch->style.wrapln == wrap::on;
                 switch (n)
@@ -1562,8 +1624,8 @@ private:
                 {
                     //auto blank = cell{ brush }.txt(' ');
                     auto blank = cell{ brush }.bgc(greendk).bga(0x7f).txt(' ');
-                    batch->ins<true>(start, count, blank);
-                    //batch->trim(blank);
+                    batch->merge<true>(start, count, blank);
+                    //batch->deflate(blank);
                     clear_overlapping_lines();
                 }
             }
