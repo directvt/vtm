@@ -3625,7 +3625,7 @@ namespace netxs::console
                             boss.SIGNAL(tier::release, e2::render::any, canvas);
                             boss.base::ruined(faux);
                         }
-                        parent_canvas.plot(canvas);
+                        parent_canvas.fill(canvas, cell::shaders::fusefull);
                         boss.bell::expire<tier::release>();
                     };
                 }
@@ -5414,7 +5414,7 @@ again:
                         area.coor.x -= (iota)header.size().x / 2;
                         //todo unify header coords
                         header.move(area.coor);
-                        parent_canvas.fill(header);
+                        parent_canvas.fill(header, cell::shaders::fuse);
                     }
                 }
                 else
@@ -5438,7 +5438,7 @@ again:
                         if (show_mouse) brush.txt("\u2588"/* █ */).fgc(0xFF00ff00);
                         else            brush.txt(whitespace).bgc(greenlt);
                     }
-                    parent_canvas.fill(area, brush);
+                    parent_canvas.fill(area, cell::shaders::fuse(brush));
                 }
                 #ifdef REGIONS
                 parent_canvas.each([](cell& c){

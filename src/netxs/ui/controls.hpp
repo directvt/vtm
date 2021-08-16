@@ -1829,7 +1829,7 @@ namespace netxs::ui
                     canvas.output(topic);
                     base::ruined(faux);
                 }
-                parent_canvas.plot(canvas);
+                parent_canvas.fill(canvas, cell::shaders::fusefull);
             };
         }
     };
@@ -2071,7 +2071,7 @@ namespace netxs::ui
                     canvas.render(grip_ctl, base::coor());
                     base::ruined(faux);
                 }
-                parent_canvas.plot(canvas);
+                parent_canvas.fill(canvas, cell::shaders::fusefull);
             };
         }
     };

@@ -118,10 +118,7 @@ namespace netxs::console
         void crop(twod const& newsize) // core: Resize while saving the bitmap.
         {
             core block{ region.coor, newsize };
-
-            auto full = [](auto& dst, auto& src) { dst = src; };
-            netxs::onbody(block, *this, full);
-
+            netxs::onbody(block, *this, cell::shaders::full);
             region.size = newsize;
             client.size = region.size;
             swap(block);
@@ -130,10 +127,7 @@ namespace netxs::console
         void crop(twod const& newsize, cell const& c) // core: Resize while saving the bitmap.
         {
             core block{ region.coor, newsize, c };
-
-            auto full = [](auto& dst, auto& src) { dst = src; };
-            netxs::onbody(block, *this, full);
-
+            netxs::onbody(block, *this, cell::shaders::full);
             region.size = newsize;
             client.size = region.size;
             swap(block);
@@ -146,9 +140,9 @@ namespace netxs::console
             canvas.resize(0);
             digest++;
         }
-        void wipe(cell const& c) { std::fill(canvas.begin(), canvas.end(), c); } // core: Fill the canvas with the specified marker.
-        void wipe() { wipe(marker); } // core: Fill the canvas with the default color.
-        void wipe(id_t id)            // core: Fill the canvas with the specified id.
+        void wipe(cell const& c) { std::fill(canvas.begin(), canvas.end(), c); } // core: Fill canvas with specified marker.
+        void wipe()              { wipe(marker); } // core: Fill canvas with default color.
+        void wipe(id_t id)                         // core: Fill canvas with specified id.
         {
             auto my = marker.link();
             marker.link(id);
@@ -168,56 +162,23 @@ namespace netxs::console
         {
             netxs::onrect(*this, region, proc);
         }
-        auto copy(grid& target) const { target = canvas; return region.size; } // core: Copy only grid of the canvas to the specified grid bitmap.
-        void copy(core& target, bool copymetadata = faux) const // core: Copy the canvas to the specified target bitmap. The target bitmap must be the same size.
+        auto copy(grid& target) const // core: Copy only grid of the canvas to the specified grid bitmap.
         {
-            auto full = [](auto& dst, auto& src) { dst = src; };
-            auto flat = [](auto& dst, auto& src) { dst.set(src); };
-
-            copymetadata ? netxs::oncopy(target, *this, full)
-                         : netxs::oncopy(target, *this, flat);
-
+            target = canvas;
+            return region.size;
+        }                                                      
+        template<class P>
+        void copy(core& target, P proc) const // core: Copy the canvas to the specified target bitmap. The target bitmap must be the same size.
+        {
+            netxs::oncopy(target, *this, proc);
             //todo should we copy all members?
             //target.marker = marker;
             //flow::cursor
-        }
-        void plot(core const& block, bool force = faux) // core: Place the specified face using its coordinates.
-        {
-            auto full = [](auto& dst, auto& src) { dst = src; };
-            auto fuse = [](auto& dst, auto& src) { dst.fusefull(src); };
-
-            force ? netxs::onbody(*this, block, full)
-                  : netxs::onbody(*this, block, fuse);
         }
         template<class P>
         void fill(core const& block, P fuse) // core: Fill by the specified face using its coordinates.
         {
             netxs::onbody(*this, block, fuse);
-        }
-        void fill(core const& block, bool force = faux) // core: Fill by the specified face using its coordinates.
-        {
-            auto flat = [](auto& dst, auto& src) { dst.set(src); };
-            auto fuse = [](auto& dst, auto& src) { dst.fuse(src); };
-
-            force ? netxs::onbody(*this, block, flat)
-                  : netxs::onbody(*this, block, fuse);
-        }
-        void fill(sptr<core> block_ptr, bool force = faux) // core: Fill by the specified face using its coordinates.
-        {
-            if (block_ptr) fill(*block_ptr, force);
-        }
-        void fill(ui::rect block, cell const& brush, bool force = faux) // core: Fill the specified region with the specified color. If forced == true use direct copy instead of mixing.
-        {
-            auto flat = [brush](auto& dst) { dst = brush ; };
-            auto fuse = [brush](auto& dst) { dst.fusefull(brush); };
-
-            block.coor += region.coor;
-            force ? netxs::onrect(*this, block, flat)
-                  : netxs::onrect(*this, block, fuse);
-        }
-        void fill(cell const& brush, bool force = faux) // core: Fill the client area with the specified color. If forced == true use direct copy instead of mixing.
-        {
-            fill(view(), brush, force);
         }
         template<class P>
         void fill(ui::rect block, P fuse) // core: Process the specified region by the specified proc.
@@ -371,14 +332,12 @@ namespace netxs::console
             auto new_sz = twod{ a_size.x + b_size.x, std::max(a_size.y, b_size.y) };
             core block{ region.coor, new_sz, marker };
 
-            auto full = [](auto& dst, auto& src) { dst = src; };
-
-            auto region = rect{ twod{0,new_sz.y - a_size.y}, a_size };
-            netxs::inbody<faux>(block, *this, region, dot_00, full);
+            auto region = rect{ twod{ 0, new_sz.y - a_size.y }, a_size };
+            netxs::inbody<faux>(block, *this, region, dot_00, cell::shaders::full);
             region.coor.x += a_size.x;
             region.coor.y += new_sz.y - a_size.y;
             region.size = b_size;
-            netxs::inbody<faux>(block,   src, region, dot_00, full);
+            netxs::inbody<faux>(block, src, region, dot_00, cell::shaders::full);
 
             swap(block);
             digest++;
@@ -698,7 +657,7 @@ namespace netxs::console
                 if (n > 0 ? --n : ++n) dx(tablen * n);
             }
         }
-        twod cp() const // flow: Return absolute cursor position.
+        twod cp () const // flow: Return absolute cursor position.
         {
             twod coor{ caretpos };
 
@@ -714,7 +673,7 @@ namespace netxs::console
             boundary |= cp; /* |= cursor*/;
             return cp;
         }
-        void zz	(twod const& offset = dot_00)
+        void zz (twod const& offset = dot_00)
         {
             deco::glb();
             caretpos = dot_00;
@@ -976,7 +935,7 @@ namespace netxs::console
     // richtext: Enriched text paragraph.
     class para
     {
-        using corx = sptr<core>;
+        using corx = sptr<rich>;
 
     public:
         grid proto;     // para: Proto lyric.
@@ -990,7 +949,7 @@ namespace netxs::console
 
         ui32 index = 0;
         writ locus;
-        corx lyric = std::make_shared<core>();
+        corx lyric = std::make_shared<rich>();
 
         text debug; // para: debug string.
         mark brush; // para: Brush for parser.
@@ -1025,7 +984,7 @@ namespace netxs::console
             wipe(brush);
             return operator += (utf8);
         }
-        void decouple() { lyric = std::make_shared<core>(*lyric); } // para: Make canvas isolated copy.
+        void decouple() { lyric = std::make_shared<rich>(*lyric); } // para: Make canvas isolated copy.
         shot   shadow() const { return *lyric; } // para: Return paragraph shadow.
         shot   substr(iota start, iota width) const // para: Return paragraph substring shadow.
         {
@@ -1486,7 +1445,6 @@ namespace netxs::console
 
         void  tab(iota n) { (**layer).ins(n, brush); } // page: Inset tabs via space.
     };
-
 
     class tone
     {

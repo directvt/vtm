@@ -1134,10 +1134,23 @@ namespace netxs::ui::atoms
 
         class shaders
         {
-            struct contrast_t
+            template<class FUNC>
+            struct brush_t
             {
+                template<class CELL>
+                struct func
+                {
+                    CELL brush;
+                    static constexpr auto f = FUNC{};
+                    constexpr func(CELL const& c) : brush{ c } { }
+                    template<class D> inline void operator() (D& dst) const { f(dst, brush); }
+                };
+            };
+            struct contrast_t : public brush_t<contrast_t>
+            {
+                template<class C> constexpr inline auto operator() (C brush) const { return func<C>(brush); }
                 template<class D, class S>
-                inline void operator() (D& dst, S& src)
+                inline void operator() (D& dst, S& src) const
                 {
                     auto& fgc = src.fgc();
                     if (fgc.chan.a == 0x00)
@@ -1149,9 +1162,33 @@ namespace netxs::ui::atoms
                     else dst.fusefull(src);
                 }
             };
+            struct flat_t : public brush_t<flat_t>
+            {
+                template<class C> constexpr inline auto operator() (C brush) const { return func<C>(brush); }
+                template<class D, class S>  inline void operator() (D& dst, S& src) const { dst.set(src); }
+            };
+            struct full_t : public brush_t<full_t>
+            {
+                template<class C> constexpr inline auto operator() (C brush) const { return func<C>(brush); }
+                template<class D, class S>  inline void operator() (D& dst, S& src) const { dst = src; }
+            };
+            struct fuse_t : public brush_t<fuse_t>
+            {
+                template<class C> constexpr inline auto operator() (C brush) const { return func<C>(brush); }
+                template<class D, class S>  inline void operator() (D& dst, S& src) const { dst.fuse(src); }
+            };
+            struct fusefull_t : public brush_t<fusefull_t>
+            {
+                template<class C> constexpr inline auto operator() (C brush) const { return func<C>(brush); }
+                template<class D, class S>  inline void operator() (D& dst, S& src) const { dst.fusefull(src); }
+            };
 
         public:
             static constexpr auto contrast = contrast_t{};
+            static constexpr auto fusefull = fusefull_t{};
+            static constexpr auto     fuse =     fuse_t{};
+            static constexpr auto     flat =     flat_t{};
+            static constexpr auto     full =     full_t{};
         };
     };
 
