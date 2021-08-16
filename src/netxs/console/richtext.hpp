@@ -841,76 +841,47 @@ namespace netxs::console
 
     // richtext: Enriched text line.
     class rich
+        : public core
     {
     public:
-        using deco = ansi::deco;
-
-        ui32 index;
-        deco style;
-        core lyric;
-
-        rich(deco const& style)
-            : index{ 0     },
-              style{ style }
-        { }
-        rich(ui32 newid, deco const& style = {})
-            : index{ newid },
-              style{ style }
-        { }
-        rich()                         = default;
-        rich(rich&&)                   = default;
-        rich(rich const&)              = default;
-        rich& operator = (rich&&)      = default;
-        rich& operator = (rich const&) = default;
- 
-        auto size  () const                    { return lyric.size();               }
-        auto length() const                    { return lyric.size().x;             }
-        auto shadow() const                    { return shot{ lyric };              }
-        auto substr(iota at, iota width) const { return shadow().substr(at, width); }
-        void trim  (iota max_size)             { if (length() > max_size) lyric.crop(max_size); }
-        void reserv(iota oversize)             { if (oversize > length()) lyric.crop(oversize); }
-        void resite(rich& p)
+        void resite(rich& p)                   { core::operator= (std::move(p));          }
+        auto length() const                    { return size().x;                         }
+        auto shadow() const                    { return shot{ *this };                    }
+        auto substr(iota at, iota width) const { return shadow().substr(at, width);       }
+        void trimto(iota max_size)             { if (length() > max_size) crop(max_size); }
+        void reserv(iota oversize)             { if (oversize > length()) crop(oversize); }
+        void shrink(cell const& blank, iota max_size = 0)
         {
-            style = p.style;
-            lyric = std::move(p.lyric);
-        }
-        void wipe()
-        {
-            style.rst();
-            lyric.kill();
-        }
-        void deflate(cell const& blank, iota max_size = 0)
-        {
-            auto& data = lyric.pick();
+            auto& data = pick();
             auto  tail = data.rbegin();
             auto  head = data.rend();
             while(head != tail && *tail != blank) ++tail;
             auto new_size = static_cast<iota>(head - tail);
             if (max_size && max_size < new_size) new_size = max_size;
-            if (new_size != length()) lyric.crop(new_size);
+            if (new_size != length()) crop(new_size);
         }
         template<bool AUTOGROW = faux>
-        void merge(iota at, iota count, cell const& blank)
+        void splice(iota at, iota count, cell const& blank)
         {
-            auto size = length();
+            auto len = length();
             if constexpr (AUTOGROW) reserv(at + count);
-            else                    count = std::clamp(count, 0, size - at);
-            auto ptr = lyric.iter();
+            else                    count = std::clamp(count, 0, len - at);
+            auto ptr = iter();
             auto dst = ptr + at;
             auto end = dst + count;
             while(dst != end) *dst++ = blank;
         }
-        void merge(iota at, shot const& fragment)
+        void splice(iota at, shot const& fragment)
         {
             auto len = fragment.length();
             reserv(len + at);
-            auto ptr = lyric.iter();
+            auto ptr = iter();
             auto dst = ptr + at;
             auto end = dst + len;
             auto src = fragment.data();
             while(dst != end) *dst++ = *src++;
         }
-        void merge(iota at, grid& proto, iota width)
+        void splice(iota at, grid& proto, iota width)
         {
             //if (front)
             //{
@@ -925,7 +896,7 @@ namespace netxs::console
             //	//+ convert front into the screen-like sequence (unfold, remmove zerospace chars)
             //
             reserv(at + width);
-            auto ptr = lyric.iter();
+            auto ptr = iter();
             auto dst = ptr + at;
             for (auto& c : proto)
             {
@@ -955,14 +926,14 @@ namespace netxs::console
         }
         void insert(iota at, iota count, cell blank)
         {
-            auto size = length();
+            auto len = length();
             //blank.txt(whitespace);
             blank.txt(whitespace).bgc(magentadk).bga(0x7f);
-            lyric.crop(std::max(at, size) + count);
-            auto ptr = lyric.iter();
+            crop(std::max(at, len) + count);
+            auto ptr = iter();
             auto end = ptr + count + at;
-            auto src = ptr + size;
-            if (at < size)
+            auto src = ptr + len;
+            if (at < len)
             {
                 auto dst = src + count;
                 while (dst != end) *--dst = *--src;
@@ -973,24 +944,24 @@ namespace netxs::console
         // rich: Delete n chars and add blanks at the right margin.
         void cutoff(iota at, iota count, cell blank, iota margin)
         {
-            auto size = length();
+            auto len = length();
             //blank.txt(whitespace);
             blank.txt(whitespace).bgc(reddk).bga(0x7f);
-            if (count > 0 && at < size)
+            if (count > 0 && at < len)
             {
                 margin -= at % margin;
                 count = std::min(count, margin);
-                if (count >= size - at)
+                if (count >= len - at)
                 {
-                    auto ptr = lyric.iter();
+                    auto ptr = iter();
                     auto dst = ptr + at;
-                    auto end = ptr + size;
+                    auto end = ptr + len;
                     while (dst != end) *dst++ = blank;
                 }
                 else
                 {
                     reserv(margin + at);
-                    auto ptr = lyric.iter();
+                    auto ptr = iter();
                     auto dst = ptr + at;
                     auto src = dst + count;
                     auto end = dst - count + margin;
@@ -1053,18 +1024,6 @@ namespace netxs::console
         {
             wipe(brush);
             return operator += (utf8);
-        }
-        // para: Move all from p.
-        void resite(para& p)
-        {
-            width = p.width;
-            caret = p.caret;
-            style = p.style;
-            locus = std::move(p.locus);
-            proto = std::move(p.proto);
-            debug = std::move(p.debug);
-            lyric = std::move(p.lyric);
-            p.lyric = std::make_shared<core>();
         }
         void decouple() { lyric = std::make_shared<core>(*lyric); } // para: Make canvas isolated copy.
         shot   shadow() const { return *lyric; } // para: Return paragraph shadow.
@@ -1149,10 +1108,9 @@ namespace netxs::console
             width = 0;
         }
 
-        auto id() const        { return index;  }
-        void id(ui32 newid)    { index = newid; }
-
-        auto chx() const       { return caret;    }
+        void id (ui32 newid)   { index = newid; }
+        auto id () const       { return index;  }
+        auto chx() const       { return caret;  }
         void chx(iota new_pos)
         {
             if (new_pos < 0)
@@ -1186,7 +1144,7 @@ namespace netxs::console
     // richtext: Cascade of the identical paragraphs.
     class rope
     {
-        using iter = std::list<para>::const_iterator;
+        using iter = std::list<sptr<para>>::const_iterator;
         iter source;
         iter finish;
         iota prefix;
@@ -1199,7 +1157,7 @@ namespace netxs::console
               finish{ finish },
               suffix{ suffix },
               volume{ volume }
-              ,style{source->style}
+              ,style{(**source).style}
         { }
 
     public:
@@ -1211,29 +1169,29 @@ namespace netxs::console
               prefix{ 0    },
               suffix{ 0    },
               volume{ size }
-              ,style{head->style}
+              ,style{(**head).style}
         { }
 
-        operator writ const& () const { return *source; }
+        operator writ const& () const { return **source; }
 
         // rope: Return a substring rope the source content.
         //       ! No checking of boundaries !
         rope substr(iota start, iota width) const
         {
             auto first = source;
-            auto piece = first->size().x;
+            auto piece = (**first).size().x;
 
             while (piece <= start)
             {
                 start -= piece;
-                piece = (++first)->size().x;
+                piece = (**++first).size().x;
             }
 
             auto end = first;
             piece -= start;
             while (piece < width)
             {
-                piece += (++end)->size().x;
+                piece += (**++end).size().x;
             }
             piece -= width;
 
@@ -1271,7 +1229,7 @@ namespace netxs::console
                 };
 
                 auto refer = finish;
-                auto& item = *refer;
+                auto& item = **refer;
                 auto piece = item.size().x - suffix;
 
                 iota start, width, yield;
@@ -1280,7 +1238,7 @@ namespace netxs::console
 
                 while (total -= yield)
                 {
-                    auto& item = *--refer;
+                    auto& item = **--refer;
                     piece = item.size().x;
 
                     crop(piece, total, start, width);
@@ -1290,43 +1248,45 @@ namespace netxs::console
             else
             {
                 auto refer = source;
-                auto& item = *refer;
+                auto& item = **refer;
                 auto yield = draw(item, prefix, total);
 
                 while (total -= yield)
                 {
-                    auto& item = *++refer;
+                    auto& item = **++refer;
                     yield = draw(item, 0, total);
                 }
             }
         }
         constexpr
-        auto  size  () const { return volume;         } // rope: Return volume of the source content.
-        auto  length() const { return volume.x;       } // rope: Return the length of the source content.
-        auto& mark  () const { return finish->brush;  } // rope: Return the the last paragraph brush state.
-        auto  id    () const { return source->id();   } // rope: Return paragraph id.
-        auto  caret () const { return source->chx();  } // rope: Return interal paragraph caret.
+        auto  size  () const { return volume;            } // rope: Return volume of the source content.
+        auto  length() const { return volume.x;          } // rope: Return the length of the source content.
+        auto& mark  () const { return (**finish).brush;  } // rope: Return the the last paragraph brush state.
+        auto  id    () const { return (**source).id();   } // rope: Return paragraph id.
+        auto  caret () const { return (**source).chx();  } // rope: Return interal paragraph caret.
     };
 
     // richtext: Enriched text page.
     class page
     {
-        using list = std::list<para>;
+        using list = std::list<sptr<para>>;
         using iter = list::iterator;
-        using imap = std::map<iota, iter>;
+        using imap = std::map<iota, wptr<para>>;
         using mark = ansi::mark;
         using deco = ansi::deco;
 
     public:
-        iota parid = 1;               // page: Current paragraph id.
-        list batch = { para(parid) }; // page: The list of the rich-text paragraphs.
+        ui32 index = {};              // page: Current paragraph id.
+        list batch = { std::make_shared<para>(index) }; // page: Paragraph list.
         iter layer = batch.begin();   // page: Current paragraph.
-        imap parts;                   // page: Embedded text blocks.
-        iota limit = std::numeric_limits<iota>::max(); // page: Paragraphs number limit.
+        imap parts;                   // page: Paragraph index.
 
         mark brush; // page: Parser brush.
         deco style; // page: Parser style.
 
+        //todo use ring
+        iota limit = std::numeric_limits<iota>::max(); // page: Paragraphs number limit.
+        //todo use ring
         // page: Remove over limit paragraphs.
         void shrink()
         {
@@ -1339,8 +1299,8 @@ namespace netxs::console
                 {
                     batch.pop_front();
                 }
-                batch.front().locus.clear();
-                // Update current layer tr if it gets out.
+                batch.front()->locus.clear();
+                // Update current layer ptr if it gets out.
                 if (item < size - limit) layer = batch.begin();
             }
         }
@@ -1352,11 +1312,11 @@ namespace netxs::console
             parser() : vt()
             {
                 using namespace netxs::ansi;
-                vt::intro[ctrl::CR ]     = VT_PROC{ q.pop_if(ctrl::EOL); p->task({ fn::nl,1 }); };
-                vt::intro[ctrl::TAB]     = VT_PROC{ p->task({ fn::tb,q.pop_all(ctrl::TAB) }); };
-                vt::intro[ctrl::EOL]     = VT_PROC{ p->task({ fn::nl,q.pop_all(ctrl::EOL) }); };
-                vt::csier.table[CSI__ED] = VT_PROC{ p->task({ fn::ed, q(0) }); }; // CSI Ps J
-                vt::csier.table[CSI__EL] = VT_PROC{ p->task({ fn::el, q(0) }); }; // CSI Ps K
+                vt::intro[ctrl::CR ]              = VT_PROC{ q.pop_if(ctrl::EOL); p->task({ fn::nl,1 }); };
+                vt::intro[ctrl::TAB]              = VT_PROC{ p->task({ fn::tb, q.pop_all(ctrl::TAB) }); };
+                vt::intro[ctrl::EOL]              = VT_PROC{ p->task({ fn::nl, q.pop_all(ctrl::EOL) }); };
+                vt::csier.table[CSI__ED]          = VT_PROC{ p->task({ fn::ed, q(0) }); }; // CSI Ps J
+                vt::csier.table[CSI__EL]          = VT_PROC{ p->task({ fn::el, q(0) }); }; // CSI Ps K
                 vt::csier.table[CSI_CCC][CCC_NOP] = VT_PROC{ p->fork(); };
                 vt::csier.table[CSI_CCC][CCC_IDX] = VT_PROC{ p->fork(q(0)); };
                 vt::csier.table[CSI_CCC][CCC_REF] = VT_PROC{ p->bind(q(0)); };
@@ -1373,21 +1333,19 @@ namespace netxs::console
             ansi::parse(utf8, this);
         }
 
-        // page: Acquire para by id.
-        auto& operator [] (iota index)
+        // page: Acquire para's core by id.
+        auto& operator[] (iota id)
         {
-            if (netxs::on_key(parts, index))
+            if (netxs::on_key(parts, id))
             {
-                return *parts[index];
+                if (auto item = parts[id].lock()) return *item;
             }
-            else
-            {
-                fork(index);
-                return *layer;
-            }
+            fork(id);
+            parts.emplace(id, *layer);
+            return **layer;
         }
         // page: Wipe current content and store parsed UTF-8 text string.
-        auto& operator =  (view utf8)
+        auto& operator = (view utf8)
         {
             clear();
             ansi::parse(utf8, this);
@@ -1408,7 +1366,7 @@ namespace netxs::console
             for (auto& a: p.batch)
             {
                 batch.push_back(a);
-                batch.back().id(++parid);
+                batch.back()->id(++index);
             }
             shrink();
             layer = std::prev(batch.end());
@@ -1432,9 +1390,10 @@ namespace netxs::console
             parts.clear();
             batch.resize(1);
             layer = batch.begin();
-            parid = 1;
-            batch.front().id(parid);
-            layer->wipe(brush);
+            index = 0;
+            auto& item = **layer;
+            item.id(index);
+            item.wipe(brush);
             return *this;
         }
 
@@ -1450,11 +1409,11 @@ namespace netxs::console
             auto tail = batch.end();
             while (last != tail)
             {
-                auto size = last->size();
+                auto size = (**last).size();
                 auto head = last;
                 while (++last != tail
-                      && last->bare()
-                      && size.y == (next = last->size()).y)
+                      && (**last).bare()
+                      && size.y == (next = (**last).size()).y)
                 {
                     size.x += next.x;
                 }
@@ -1467,20 +1426,20 @@ namespace netxs::console
         void fork()
         {
             if constexpr (COOK) cook();
-            layer = batch.insert(std::next(layer), style);
-            layer->id(++parid);
+            layer = batch.insert(std::next(layer), std::make_shared<para>(style));
+            (**layer).id(++index);
             shrink();
         }
         // page: Split the text run and associate the next paragraph with id.
         void fork(iota id)
         {
             fork();
-            parts[id] = layer;
+            parts[id] = *layer;
         }
         void test()
         {
             cook();
-            if (layer->busy()) fork<faux>();
+            if ((**layer).busy()) fork<faux>();
         }
         // page: Make a shared copy of an existing paragraph,
         //       or create a new one if it doesn't exist.
@@ -1489,32 +1448,43 @@ namespace netxs::console
             test();
             auto it = parts.find(id);
             if (it != parts.end())
-                layer->lyric = (*it).second->lyric;
-            else
-                parts.emplace(id, layer);
+            {
+                if (auto item = it->second.lock())
+                {
+                    (**layer).lyric = item->lyric;
+                    return;
+                }
+            }
+            parts.emplace(id, *layer);
         }
         // page: Add locus command. In case of text presence to change
         //       current target otherwise abort content building.
         void task(ansi::rule const& cmd)
         {
             test();
-            layer->locus.push(cmd);
+            (**layer).locus.push(cmd);
         }
         void post(utf::frag const& cluster)
         {
             //layer->post(cluster, brush);
-            auto tmp = layer->brush;
-            layer->brush = brush;
-            ansi::post(*layer, cluster);
-            layer->brush = tmp;
+            auto& item = **layer;
+            auto tmp = item.brush;
+            item.brush = brush;
+            ansi::post(item, cluster);
+            item.brush = tmp;
         }
-        void cook()       { layer->style = style; layer->cook();    }
+        void cook()
+        {
+            auto& item = **layer;
+            item.style = style;
+            item.cook();
+        }
         auto size() const { return static_cast<iota>(batch.size()); }
 
-        auto& current()       { return *layer; } // page: Access to the current paragraph.
-        auto& current() const { return *layer; } // page: RO access to the current paragraph.
+        auto& current()       { return **layer; } // page: Access to the current paragraph.
+        auto& current() const { return **layer; } // page: RO access to the current paragraph.
 
-        void  tab(iota n) { layer->ins(n, brush); } // page: Inset tabs via space.
+        void  tab(iota n) { (**layer).ins(n, brush); } // page: Inset tabs via space.
     };
 
 

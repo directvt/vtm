@@ -46,6 +46,16 @@ namespace netxs::app
         {
             using rich::rich;
             using iota = netxs::iota;
+            using deco = ansi::deco;
+
+            line(deco const& style)
+                : index{ 0     },
+                  style{ style }
+            { }
+            line(ui32 newid, deco const& style = {})
+                : index{ newid },
+                  style{ style }
+            { }
 
             enum type : iota
             {
@@ -59,6 +69,9 @@ namespace netxs::app
             //todo deprecated
             iota depth   {};
 
+            ui32 index;
+            deco style;
+
             iota _size{};
             type _kind{};
 
@@ -71,12 +84,14 @@ namespace netxs::app
             }
             void wipe()
             {
-                rich::wipe();
+                rich::kill();
+                style.rst();
                 _size = {};
                 _kind = {};
             }
             void resite(line& p)
             {
+                style = p.style;
                 _size = p._size;
                 _kind = p._kind;
                 p._size = {};
@@ -228,7 +243,7 @@ namespace netxs::app
             }
             return caret;
         }
-        auto line_height(rich const& l)
+        auto line_height(line const& l)
         {
             auto width = l.length();
             return width > panel.x
@@ -313,14 +328,14 @@ namespace netxs::app
         }
         void ins_spc(iota n)
         {
-            batch->merge(chx, n, brush);
+            batch->splice(chx, n, brush);
         }
         void fin(grid& proto, iota width)
         {
             auto& cur_line = *batch;
             auto& style = cur_line.style;
             coord.x += width;
-            cur_line.merge(chx, proto, width);
+            cur_line.splice(chx, proto, width);
             chx += width;
             batch.take(*batch);
         }
@@ -531,7 +546,7 @@ namespace netxs::app
                 auto required_len = depth + coord.x;
                 auto& line = *head;
                 //todo wrap == on only
-                line.trim(required_len);
+                line.trimto(required_len);
                 depth -= panel.x;
             }
             while(head++ != tail);
@@ -572,8 +587,8 @@ namespace netxs::app
             do
             {
                 auto& lyric = *upper;
-                lyric.merge(start, count, brush.spare);
-                lyric.deflate(brush.spare);
+                lyric.splice(start, count, brush.spare);
+                lyric.shrink(brush.spare);
                 start -= panel.x;
             }
             while(upper++ != under);
@@ -587,7 +602,7 @@ namespace netxs::app
             do
             {
                 auto& line =*--tail;
-                line.trim(max_line_len);
+                line.trimto(max_line_len);
                 auto depth = line_height(line);
                 auto below = tail + depth - 1;
                 auto over = below - batch_end;
@@ -621,7 +636,7 @@ namespace netxs::app
             for(auto& l : batch)
             {
                 yield += "\n =>" + std::to_string(i++) + "<= ";
-                l.lyric.each([&](cell& c) { yield += c.txt(); });
+                l.each([&](cell& c) { yield += c.txt(); });
             }
             return yield;
         }
@@ -646,8 +661,8 @@ namespace netxs::app
                         auto remainder = line_inst.length() - max_width;
                         if (remainder > 0)
                         {
-                            trim_line.merge(0, line_inst.substr(max_width, remainder));
-                            line_inst.trim(max_width);
+                            trim_line.splice(0, line_inst.substr(max_width, remainder));
+                            line_inst.trimto(max_width);
                         }
                     }
                 };
@@ -773,7 +788,7 @@ namespace netxs::app
                     auto& line = *tail;
                     if (line.style.wrapln == wrap::on)
                     {
-                        line.trim(new_size.x);
+                        line.trimto(new_size.x);
                         batch.take(line);
                     }
                 }
@@ -1442,7 +1457,7 @@ private:
                     cook();
                     //auto pos = batch->chx();
                     //auto coor = coord;
-                    batch->merge(rods::chx, n, rods::brush);
+                    batch->splice(rods::chx, n, rods::brush);
                     //cook();
                     //batch->chx(pos);
                     //todo revise
@@ -1586,8 +1601,8 @@ private:
                 {
                     //auto blank = cell{ brush }.txt(' ');
                     auto blank = cell{ brush }.bgc(greendk).bga(0x7f).txt(' ');
-                    batch->merge<true>(start, count, blank);
-                    //batch->deflate(blank);
+                    batch->splice<true>(start, count, blank);
+                    //batch->shrink(blank);
                     clear_overlapping_lines();
                 }
             }
