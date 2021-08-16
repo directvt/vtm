@@ -507,7 +507,6 @@ namespace netxs::console
     {
         using vrgb = std::vector<irgb>;
 
-        cell brush;
         twod anker;     // face: The position of the nearest visible paragraph.
         id_t piece = 1; // face: The nearest to top paragraph.
 
@@ -538,7 +537,6 @@ namespace netxs::console
             auto publish = [&](auto const& combo)
             {
                 flow::print(combo, *this, printfx);
-                brush = combo.mark(); // Current mark of the last printed fragment.
             };
             textpage.stream(publish);
         }
@@ -553,7 +551,6 @@ namespace netxs::console
             auto gain = [&](auto const& combo)
             {
                 auto pred = flow::print(combo, *this);
-                brush = combo.mark(); // Current mark of the last printed fragment.
 
                 auto post = flow::cp();
                 if (!done)

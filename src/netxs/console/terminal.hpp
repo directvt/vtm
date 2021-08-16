@@ -5,7 +5,6 @@
 #define NETXS_TERMINAL_HPP
 
 #include "../ui/controls.hpp"
-#include "../abstract/ring.hpp"
 
 #include <cassert>
 
@@ -157,7 +156,6 @@ namespace netxs::app
         }
 
     protected:
-        using mark = ansi::mark;
         using deco = ansi::deco;
 
         //todo unify
@@ -173,10 +171,8 @@ namespace netxs::app
         twod        saved; // rods: Saved caret position;
 
     public:
-        mark        brush; // rods: Current brush for parser (default fg/bg-colors).
         deco        style; // rods: Parser style state.
         iota        chx{};
-        iota        step{};
 
         rods(twod const& viewport, iota buffer_size, iota grow_step)
             : flow { viewport.x, batch.size },
@@ -326,10 +322,6 @@ namespace netxs::app
             if (from < upto) while(proc(*head) && head++ != tail);
             else             while(proc(*head) && head-- != tail);
         }
-        void ins_spc(iota n)
-        {
-            batch->splice(chx, n, brush);
-        }
         void fin(grid& proto, iota width)
         {
             auto& cur_line = *batch;
@@ -410,9 +402,8 @@ namespace netxs::app
             batch.take(*batch);
         }
         */
-        void clear_all(bool preserve_brush = faux)
+        void clear_all()
         {
-            if (!preserve_brush) brush.reset();
             //style.glb();
             //todo unify
             //style.wrapln = WRAPPING;
@@ -571,7 +562,7 @@ namespace netxs::app
             }
             set_coord();
         }
-        void clear_above()
+        void clear_above(ansi::mark const& brush)
         {
             // Insert spaces on all lines above including the current line,
             //   begining from bossid of the viewport top line
@@ -1132,6 +1123,10 @@ private:
                 };
             };
 
+            using mark = ansi::mark;
+            grid proto;
+            iota width = 0;
+            mark brush; // scrollbuff: Current brush for parser (default fg/bg-colors).
             template<class T>
             struct parser : public ansi::parser<T>
             {
@@ -1224,9 +1219,6 @@ private:
             //todo magic numbers
             static constexpr iota default_tabstop = 8;
             iota tabstop = default_tabstop; // scrollbuff: Tabstop current value.
-
-            grid proto;
-            iota width{};
 
             scrollbuff(term& boss, iota max_scrollback_size, iota grow_step = 0)
                 : rods(boss.screen.size, max_scrollback_size, grow_step),
@@ -1328,7 +1320,7 @@ private:
                 if (n > 0)
                 {
                     auto a = n * tabstop - coord.x % tabstop;
-                    rods::ins_spc(a);
+                    batch->splice(rods::chx, a, brush);
                 }
                 else if (n < 0)
                 {
@@ -1438,7 +1430,7 @@ private:
                     cook();
                     //auto pos = chx;
                     //auto coor = coord;
-                    batch->insert(rods::chx, n, rods::brush);
+                    batch->insert(rods::chx, n, brush);
                     //cook();
                     //chx = pos;
                     //todo revise
@@ -1457,7 +1449,7 @@ private:
                     cook();
                     //auto pos = batch->chx();
                     //auto coor = coord;
-                    batch->splice(rods::chx, n, rods::brush);
+                    batch->splice(rods::chx, n, brush);
                     //cook();
                     //batch->chx(pos);
                     //todo revise
@@ -1468,7 +1460,7 @@ private:
             void dch(iota n)
             {
                 cook();
-                batch->cutoff(rods::chx, n, rods::brush, panel.x);
+                batch->cutoff(rods::chx, n, brush, panel.x);
                 clear_overlapping_lines();
             }
             // scrollbuff: '\x7F'  Delete characters backwards.
@@ -1555,14 +1547,14 @@ private:
                         del_below();
                         break;
                     case commands::erase::display::above: // n = 1  Erase viewport before caret.
-                        clear_above();
+                        clear_above(brush);
                         break;
                     case commands::erase::display::viewport: // n = 2  Erase viewport.
                         set_coord(twod{ 0, basis });
                         ed(commands::erase::display::below);
                     break;
                     case commands::erase::display::scrollback: // n = 3  Erase scrollback.
-                        clear_all(true);
+                        clear_all();
                     break;
                     default:
                         break;
@@ -1671,8 +1663,8 @@ private:
         void decstr()
         {
             target->cook();
-            normal.clear_all(true);
-            altbuf.clear_all(true);
+            normal.clear_all();
+            altbuf.clear_all();
             target = &normal;
         }
         void decset(fifo& queue)
@@ -1734,7 +1726,7 @@ private:
                     case 1049: // Save caret pos and Use alternate screen buffer, clearing it first.  This control combines the effects of the 1047 and 1048  modes.
                         altbuf.style_status(target->style);
                         target = &altbuf;
-                        altbuf.clear_all(true);
+                        altbuf.clear_all();
                         break;
                     case 2004: // Set bracketed paste mode.
                         bracketed_paste_mode = true;

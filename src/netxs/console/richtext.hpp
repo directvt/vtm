@@ -6,6 +6,7 @@
 
 #include "ansi.hpp"
 #include "../text/logger.hpp"
+#include "../abstract/ring.hpp"
 
 namespace netxs::console
 {
@@ -938,22 +939,23 @@ namespace netxs::console
         using corx = sptr<rich>;
 
     public:
+        using mark = ansi::mark;
+        using deco = ansi::deco;
+        using iota = netxs::iota; // for ring, todo unify
+
         grid proto;     // para: Proto lyric.
         iota width = 0; // para: Length of the proto lyric.
-        iota caret = 0; // para: Cursor position inside lyric.
-
+        mark brush;     // para: Brush for parser.
         template<class T>
         using parser = ansi::parser<T>; // Use default static parser.
-        using mark   = ansi::mark;
-        using deco   = ansi::deco;
+
+
+        deco style;     // para: Style for parser.
+        iota caret = 0; // para: Cursor position inside lyric.
 
         ui32 index = 0;
         writ locus;
         corx lyric = std::make_shared<rich>();
-
-        text debug; // para: debug string.
-        mark brush; // para: Brush for parser.
-        deco style; // para: Style for parser.
 
         para()                         = default;
         para(para&&)                   = default;
@@ -1005,7 +1007,6 @@ namespace netxs::console
             brush.reset(c);
             //todo revise
             //style.rst();
-            debug.clear();
             proto.clear();
             locus.kill();
             lyric->kill();
@@ -1018,85 +1019,17 @@ namespace netxs::console
         // para: Convert into the screen-adapted sequence (unfold, remove zerospace chars, etc.).
         void cook()
         {
-            auto merge = [&](auto fuse) {
-                for (auto& c : proto)
-                {
-                    auto w = c.wdt();
-                    if (w == 1)
-                    {
-                        fuse(c);
-                    }
-                    else if (w == 2)
-                    {
-                        fuse(c.wdt(2));
-                        fuse(c.wdt(3));
-                        w -= 2;
-                    }
-                    else if (w == 0)
-                    {
-                        //todo implemet controls/commands
-                        // winsrv2019's cmd.exe sets title with a zero at the end
-                        //fuse(cell{ c, whitespace });
-                    }
-                    else if (w > 2)
-                    {
-                        // Forbid using wide characters until terminal emulators support the fragmentation attribute.
-                        auto dumb = c.txt(utf::REPLACEMENT_CHARACTER_UTF8_VIEW);
-                        while (w--)
-                        {
-                            fuse(dumb);
-                        }
-                    }
-                }
-            };
-
-            auto& lyric = *this->lyric;
-
-            //todo unify for size.y > 1
-            auto newsz = caret + width;
-            if (newsz > lyric.size().x)
-            {
-                lyric.crop(twod{ newsz, std::max(lyric.size().y,1) });
-            }
-
-            auto it = lyric.data() + caret;
-            merge([&](auto& c) { *it++ = c; });
-
-            caret = newsz;
+            lyric->splice(caret, proto, width);
+            caret += width;
             proto.clear();
             width = 0;
         }
-
         void id (ui32 newid)   { index = newid; }
         auto id () const       { return index;  }
-        auto chx() const       { return caret;  }
-        void chx(iota new_pos)
-        {
-            if (new_pos < 0)
-            {
-                //todo investigate the reason
-                caret = 0;
-            }
-            else caret = new_pos; 
-        }
         auto& set (cell const& c)
         {
             brush.set(c);
             return *this;
-        }
-        // para: Insert n cells.
-        template<bool AUTOGROW = faux>
-        void ins(iota count, cell const& brush)
-        {
-            auto start = chx();
-            auto region = rect{ { start, 0 }, { count, 1 } };
-            if constexpr (AUTOGROW)
-            {
-                auto oldsize = rect{ dot_00, size() };
-                auto newsize = oldsize | region.trunc(dot_mx);
-                if (oldsize != newsize) lyric->crop(newsize.size, brush);
-            }
-            lyric->each(region, [&](cell& c) { c = brush; });
         }
     };
 
@@ -1220,9 +1153,7 @@ namespace netxs::console
         constexpr
         auto  size  () const { return volume;            } // rope: Return volume of the source content.
         auto  length() const { return volume.x;          } // rope: Return the length of the source content.
-        auto& mark  () const { return (**finish).brush;  } // rope: Return the the last paragraph brush state.
         auto  id    () const { return (**source).id();   } // rope: Return paragraph id.
-        auto  caret () const { return (**source).chx();  } // rope: Return interal paragraph caret.
     };
 
     // richtext: Enriched text page.
@@ -1240,20 +1171,16 @@ namespace netxs::console
         iter layer = batch.begin();   // page: Current paragraph.
         imap parts;                   // page: Paragraph index.
 
-        mark brush; // page: Parser brush.
         deco style; // page: Parser style.
 
         //todo use ring
         iota limit = std::numeric_limits<iota>::max(); // page: Paragraphs number limit.
-        //todo use ring
-        // page: Remove over limit paragraphs.
-        void shrink()
+        void shrink() // page: Remove over limit paragraphs.
         {
             auto size = batch.size();
             if (size > limit)
             {
                 auto item = static_cast<iota>(std::distance(batch.begin(), layer));
-
                 while (batch.size() > limit)
                 {
                     batch.pop_front();
@@ -1263,7 +1190,20 @@ namespace netxs::console
                 if (item < size - limit) layer = batch.begin();
             }
         }
+        void maxlen(iota m) { limit = std::max(1, m); shrink(); } // page: Set the limit of paragraphs.
+        auto maxlen() { return limit; } // page: Get the limit of paragraphs.
 
+        using ring = generics::ring<std::vector<para>>;
+        struct buff : public ring
+        {
+            using ring::ring;
+            void free(para& p) override { }
+        };
+
+
+        grid proto;     // page: Proto lyric.
+        iota width = 0; // page: Proto lyric length.
+        mark brush;     // page: Parser brush.
         template<class T>
         struct parser : public ansi::parser<T>
         {
@@ -1286,13 +1226,23 @@ namespace netxs::console
         page ()                        = default;
         page (page&&)                  = default;
         page (page const&)             = default;
-        page (view const& utf8)
-            : page()
+        page              (view utf8) {          ansi::parse(utf8, this);               }
+        auto& operator =  (view utf8) { clear(); ansi::parse(utf8, this); return *this; }
+        auto& operator += (view utf8) {          ansi::parse(utf8, this); return *this; }
+        auto& operator += (page const& p)
         {
-            ansi::parse(utf8, this);
+            parts.insert(p.parts.begin(), p.parts.end()); // Part id should be unique across pages
+            //batch.splice(std::next(layer), p.batch);
+            for (auto& a: p.batch)
+            {
+                batch.push_back(a);
+                batch.back()->id(++index);
+            }
+            shrink();
+            layer = std::prev(batch.end());
+            return *this;
         }
-
-        // page: Acquire para's core by id.
+        // page: Acquire para by id.
         auto& operator[] (iota id)
         {
             if (netxs::on_key(parts, id))
@@ -1303,47 +1253,8 @@ namespace netxs::console
             parts.emplace(id, *layer);
             return **layer;
         }
-        // page: Wipe current content and store parsed UTF-8 text string.
-        auto& operator = (view utf8)
-        {
-            clear();
-            ansi::parse(utf8, this);
-            return *this;
-        }
-        // page: Parse UTF-8 text string and appends result.
-        auto& operator += (view utf8)
-        {
-            ansi::parse(utf8, this);
-            return *this;
-        }
-        // page: Append another page. Move semantic
-        page& operator += (page const& p)
-        {
-            //parts.insert(p.parts.begin(), p.parts.end()); // Part id should be unique across pages
-            //batch.splice(std::next(layer), p.batch);
-
-            for (auto& a: p.batch)
-            {
-                batch.push_back(a);
-                batch.back()->id(++index);
-            }
-            shrink();
-            layer = std::prev(batch.end());
-            return *this;
-        }
-        // page: Set the limit of paragraphs.
-        void maxlen(iota m)
-        {
-            limit = std::max(1, m);
-            shrink();
-        }
-        // page: Get the limit of paragraphs.
-        auto maxlen()
-        {
-            return limit;
-        }
         // page: Clear the list of paragraphs.
-        page& clear (bool preserve_state = faux)
+        page& clear(bool preserve_state = faux)
         {
             if (!preserve_state) brush.reset();
             parts.clear();
@@ -1355,11 +1266,10 @@ namespace netxs::console
             item.wipe(brush);
             return *this;
         }
-
         // page: Disintegrate the page content into atomic contiguous pieces - ropes.
         //       Call publish(rope{first, last, length}):
         //       a range of [ first,last ] is the uniform consecutive paragraphs set.
-        //       Length is the sum of the length of each paragraph.
+        //       Length is the sum of the lengths of the paragraphs.
         template<class F>
         void stream(F publish) const
         {
@@ -1376,7 +1286,6 @@ namespace netxs::console
                 {
                     size.x += next.x;
                 }
-
                 publish(rope{ head, std::prev(last), size });
             }
         }
@@ -1400,8 +1309,7 @@ namespace netxs::console
             cook();
             if ((**layer).busy()) fork<faux>();
         }
-        // page: Make a shared copy of an existing paragraph,
-        //       or create a new one if it doesn't exist.
+        // page: Make a shared copy of lyric of existing paragraph.
         void bind(iota id)
         {
             test();
@@ -1416,34 +1324,29 @@ namespace netxs::console
             }
             parts.emplace(id, *layer);
         }
-        // page: Add locus command. In case of text presence to change
-        //       current target otherwise abort content building.
+        // page: Add a locus command. In case of text presence change current target.
         void task(ansi::rule const& cmd)
         {
             test();
-            (**layer).locus.push(cmd);
+            auto& item = **layer;
+            item.locus.push(cmd);
         }
         void post(utf::frag const& cluster)
         {
-            //layer->post(cluster, brush);
-            auto& item = **layer;
-            auto tmp = item.brush;
-            item.brush = brush;
-            ansi::post(item, cluster);
-            item.brush = tmp;
+            ansi::post(*this, cluster);
         }
         void cook()
         {
             auto& item = **layer;
+            item.lyric->splice(item.caret, proto, width);
             item.style = style;
-            item.cook();
+            item.caret+= width;
+            proto.clear();
+            width = 0;
         }
-        auto size() const { return static_cast<iota>(batch.size()); }
-
+        auto  size()    const { return static_cast<iota>(batch.size()); }
         auto& current()       { return **layer; } // page: Access to the current paragraph.
         auto& current() const { return **layer; } // page: RO access to the current paragraph.
-
-        void  tab(iota n) { (**layer).ins(n, brush); } // page: Inset tabs via space.
     };
 
     class tone
