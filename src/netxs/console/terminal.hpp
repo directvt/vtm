@@ -76,10 +76,10 @@ namespace netxs::app
 
             auto get_kind() const
             {
-                return style.wrapln == wrap::on    ? type::autowrap :
-                       style.adjust == bias::left  ? type::leftside :
-                       style.adjust == bias::right ? type::rghtside :
-                                                     type::centered ;
+                return style.wrp() == wrap::on    ? type::autowrap :
+                       style.jet() == bias::left  ? type::leftside :
+                       style.jet() == bias::right ? type::rghtside :
+                                                    type::centered ;
             }
             void wipe()
             {
@@ -174,7 +174,7 @@ namespace netxs::app
         deco        style; // rods: Parser style state.
         iota        chx{};
 
-        rods(twod const& viewport, iota buffer_size, iota grow_step)
+        rods(twod const& viewport, iota buffer_size, iota grow_step, deco style)
             : flow { viewport.x, batch.size },
               batch{ buffer_size, grow_step },
               panel{ viewport               },
@@ -182,8 +182,6 @@ namespace netxs::app
               sctop{ 0                      },
               scend{ 0                      }
         {
-            style.glb();
-            style.wrapln = WRAPPING;
             batch.push(style); // At least one row must exist.
         }
         auto& height() const
@@ -214,9 +212,9 @@ namespace netxs::app
             //auto  caret = twod{ curln.chx(), batch.index() };
             auto  caret = twod{ chx, batch.index() };
 
-            if (style.adjust == bias::left)
+            if (style.jet() == bias::left)
             {
-                if (caret.x >= panel.x && style.wrapln == wrap::on)
+                if (caret.x >= panel.x && style.wrp() == wrap::on)
                 {
                     caret.y += caret.x / panel.x;
                     caret.x %= panel.x;
@@ -225,7 +223,7 @@ namespace netxs::app
             else
             {
                 auto width = curln.length(); //todo max with caret.x?
-                if (style.wrapln == wrap::on)
+                if (style.wrp() == wrap::on)
                 {
                     auto tail = width % panel.x;
                     auto left = caret.x < width - tail;
@@ -234,8 +232,8 @@ namespace netxs::app
                     if (left) return caret;
                     width = tail;
                 }
-                if      (style.adjust == bias::right ) caret.x += panel.x     - width - 1;
-                else if (style.adjust == bias::center) caret.x += panel.x / 2 - width / 2;
+                if      (style.jet() == bias::right ) caret.x += panel.x     - width - 1;
+                else if (style.jet() == bias::center) caret.x += panel.x / 2 - width / 2;
             }
             return caret;
         }
@@ -243,8 +241,8 @@ namespace netxs::app
         {
             auto width = l.length();
             return width > panel.x
-                && l.style.wrapln == wrap::on ? (width + panel.x - 1) / panel.x
-                                              : 1;
+                && l.style.wrp() == wrap::on ? (width + panel.x - 1) / panel.x
+                                             : 1;
         }
         // rods: Return 0-based scroll region pair, inclusive.
         auto get_scroll_region()
@@ -279,6 +277,7 @@ namespace netxs::app
         {
             assert(amount > 0);
             auto newid = batch.back().index;
+            auto style = batch->style;
             while(amount-- > 0 ) batch.push(++newid, style);
             align_basis();
         }
@@ -295,6 +294,7 @@ namespace netxs::app
         // rods: Set scrollback caret position.
         void set_coord(twod new_coord)
         {
+            auto style = batch->style;
             new_coord.y = std::max(0, new_coord.y);
             auto add_count = new_coord.y - (batch.length() - 1);
             if (add_count > 0) add_lines(add_count);
@@ -407,6 +407,7 @@ namespace netxs::app
             //style.glb();
             //todo unify
             //style.wrapln = WRAPPING;
+            auto style = batch->style;
             saved = dot_00;
             coord = dot_00;
             basis = 0;
@@ -458,8 +459,8 @@ namespace netxs::app
                     if (rght_rect.size.y == 1)
                     {
                         auto left_dot = full.coor.x;
-                        if      (cur_line.style.adjust == bias::center) left_dot += half_size_x - length / 2;
-                        else if (cur_line.style.adjust == bias::right)  left_dot += full.size.x - length;
+                        if      (cur_line.style.jet() == bias::center) left_dot += half_size_x - length / 2;
+                        else if (cur_line.style.jet() == bias::right)  left_dot += full.size.x - length;
 
                         auto rght_dot = left_dot + length;
                         if (left_dot < left_edge_x)
@@ -481,13 +482,13 @@ namespace netxs::app
                         {
                             left_rect.coor.y = rght_rect.coor.y;
                             left_rect.size.y = rght_rect.size.y;
-                            if (cur_line.style.adjust == bias::center)
+                            if (cur_line.style.jet() == bias::center)
                             {
                                 auto l = length % view.size.x;
                                 auto scnd_left_dot = left_dot + half_size_x - l / 2;
                                 if (scnd_left_dot >= left_edge_x) --left_rect.size.y;
                             }
-                            else if (cur_line.style.adjust == bias::right)
+                            else if (cur_line.style.jet() == bias::right)
                             {
                                 auto l = length % view.size.x;
                                 auto scnd_left_dot = rght_dot - l;
@@ -497,13 +498,13 @@ namespace netxs::app
                         }
                         if (rght_dot > rght_edge_x)
                         {
-                            if (cur_line.style.adjust == bias::center)
+                            if (cur_line.style.jet() == bias::center)
                             {
                                 auto l = length % view.size.x;
                                 auto scnd_rght_dot = left_dot + half_size_x - l / 2 + l;
                                 if (scnd_rght_dot <= rght_edge_x) --rght_rect.size.y;
                             }
-                            else if (cur_line.style.adjust == bias::left)
+                            else if (cur_line.style.jet() == bias::left)
                             {
                                 auto l = length % view.size.x;
                                 auto scnd_rght_dot = left_dot + l;
@@ -647,7 +648,7 @@ namespace netxs::app
                 {
                     auto& line_inst = *line_iter;
                     max_width += panel.x;
-                    if (line_inst.style.wrapln == wrap::on)
+                    if (line_inst.style.wrp() == wrap::on)
                     {
                         auto remainder = line_inst.length() - max_width;
                         if (remainder > 0)
@@ -777,7 +778,7 @@ namespace netxs::app
                 {
                     dissect(--tail);
                     auto& line = *tail;
-                    if (line.style.wrapln == wrap::on)
+                    if (line.style.wrp() == wrap::on)
                     {
                         line.trimto(new_size.x);
                         batch.take(line);
@@ -1176,7 +1177,7 @@ private:
 
                     vt::csier.table[CSI_WIN] = VT_PROC{ p->boss.winprops.manage(q); };  // CSI n;m;k t  Terminal window options (XTWINOPS).
 
-                    vt::csier.table[CSI_CCC][CCC_RST] = VT_PROC{ p->style.glb(); p->style.wrapln = WRAPPING; };  // fx_ccc_rst
+                    vt::csier.table[CSI_CCC][CCC_RST] = VT_PROC{ p->style.glb(); p->style.wrp(WRAPPING); };  // fx_ccc_rst
                     vt::csier.table[CSI_CCC][CCC_SBS] = VT_PROC{ p->boss.scrollbuffer_size(q); };  // CCC_SBS: Set scrollback size.
                     vt::csier.table[CSI_CCC][CCC_EXT] = VT_PROC{ p->boss.native(q(1)); };  // CCC_EXT: Setup extended functionality.
                     vt::csier.table[CSI_CCC][CCC_WRP] = VT_PROC{ p->wrp(static_cast<wrap>(q(0))); };  // CCC_WRP
@@ -1221,7 +1222,7 @@ private:
             iota tabstop = default_tabstop; // scrollbuff: Tabstop current value.
 
             scrollbuff(term& boss, iota max_scrollback_size, iota grow_step = 0)
-                : rods(boss.screen.size, max_scrollback_size, grow_step),
+                : rods(boss.screen.size, max_scrollback_size, grow_step, ansi::def_style),
                   boss{ boss }
             { }
 
@@ -1273,37 +1274,45 @@ private:
                 }
                 log("CSI ", params, " ", (unsigned char)i, "(", std::to_string(i), ") is not implemented.");
             }
+            // scrollbuff: Toggle autowrap mode.
+            void toggle_wrp()
+            {
+                wrp(batch->style.wrp() == wrap::on ? wrap::off
+                                                   : wrap::on);
+            }
             // scrollbuff: CCC_WRP:  Set autowrap mode.
             void wrp(wrap w)
             {
                 cook();
                 dissect();
+                //todo unify
+                auto style = batch->style;
                 batch->style.wrp(w);
                 style_status(style);
-                style.wrp(w);
             }
             // scrollbuff: CCC_JET:  Set line alignment.
             void jet(bias j)
             {
                 cook();
                 dissect();
+                //todo unify
+                auto style = batch->style;
                 batch->style.jet(j);
                 style_status(style);
-                style.jet(j);
             }
             void style_status(deco const& s)
             {
                 auto& style = batch->style;
-                if (s.wrapln != style.wrapln)
+                if (s.wrp() != style.wrp())
                 {
-                    auto status = style.wrapln == wrap::none ? WRAPPING
-                                                             : style.wrapln;
+                    auto status = style.wrp() == wrap::none ? WRAPPING
+                                                            : style.wrp();
                     boss.base::broadcast->SIGNAL(tier::release, app::term::events::layout::wrapln, status);
                 }
-                if (s.adjust != style.adjust)
+                if (s.jet() != style.jet())
                 {
-                    auto status = style.adjust == bias::none ? bias::left
-                                                             : style.adjust;
+                    auto status = style.jet() == bias::none ? bias::left
+                                                            : style.jet();
                     boss.base::broadcast->SIGNAL(tier::release, app::term::events::layout::align, status);
                 }
             }
@@ -1568,7 +1577,7 @@ private:
                 iota count;
                 auto caret = std::max(0, rods::chx);
                 auto width = batch->length();
-                auto wraps = batch->style.wrapln == wrap::on;
+                auto wraps = batch->style.wrp() == wrap::on;
                 switch (n)
                 {
                     default:
@@ -1900,7 +1909,7 @@ private:
             this->SIGNAL(tier::release, e2::coor::set, -screen.coor);
         }
     public:
-        ~term(){ alive = faux; }
+       ~term(){ alive = faux; }
         term(text cmd_line, iota max_scrollback_size = default_size, iota grow_step = default_step)
             : mtracker{ *this },
               ftracker{ *this },
@@ -1931,8 +1940,7 @@ private:
                         target->jet(bias::right);
                         break;
                     case term::commands::togglewrp:
-                        target->wrp(target->style.wrapln == wrap::on ? wrap::off
-                                                                     : wrap::on);
+                        target->toggle_wrp();
                         break;
                     case term::commands::reset:
                         decstr();

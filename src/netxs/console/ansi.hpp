@@ -758,72 +758,68 @@ namespace netxs::ansi
               fresh{ brush },
               spare{ brush }
         { }
-        void reset()              { *this = fresh; }
-        void reset(cell const& c) { *this = fresh = c; }
+        void reset()              { *this = fresh;          }
+        void reset(cell const& c) { *this = fresh = c;      }
         auto busy() const         { return  fresh != *this; } // mark: Is the marker modified.
         void  sav()               { spare.set(*this);       } // mark: Save current SGR attributes.
         void  nil()               { this->set(spare);       } // mark: Restore saved SGR attributes.
         void  rfg()               { this->fgc(spare.fgc()); } // mark: Reset SGR Foreground color.
         void  rbg()               { this->bgc(spare.bgc()); } // mark: Reset SGR Background color.
     };
-    struct deco
+    union deco
     {
-        static constexpr iota maxtab = 256; // deco: Tab length limit.
-        bias adjust = bias::none; // deco: Horizontal alignment.
-        wrap wrapln = wrap::none; // deco: Auto wrapping.
-        rtol r_to_l = rtol::none; // deco: RTL.
-        feed rlfeed = feed::none; // deco: Reverse line feed.
-        iota tablen = 0;          // deco: Tab length.
-        dent margin;              // deco: Page margins.
+        using dent = ui::atoms::dent_t<int8_t>;
+        static constexpr iota maxtab = 255; // deco: Tab length limit.
+        struct
+        {
+            wrap wrapln : 2; // deco: Autowrap.
+            bias adjust : 2; // deco: Horizontal alignment.
+            rtol r_to_l : 2; // deco: RTL.
+            feed rlfeed : 2; // deco: Reverse line feed.
+            byte tablen : 8; // deco: Tab length.
+            dent margin;     // deco: Page margins.
+        }__attribute__((packed)) v;
+        ui64 token;
 
-        auto& wrp   (bool  b)              { wrapln = b ? wrap::on  : wrap::off;   return *this; } // deco: Set auto wrapping.
-        auto& rtl   (bool  b)              { r_to_l = b ? rtol::rtl : rtol::ltr;   return *this; } // deco: Set RTL.
-        auto& rlf   (bool  b)              { rlfeed = b ? feed::rev : feed::fwd;   return *this; } // deco: Set revverse line feed.
-        auto& jet   (bias  n = bias::none) { adjust = n;                           return *this; } // deco: Paragraph adjustment.
-        auto& wrp   (wrap  n = wrap::none) { wrapln = n;                           return *this; } // deco: Auto wrapping.
-        auto& rtl   (rtol  n = rtol::none) { r_to_l = n;                           return *this; } // deco: RTL.
-        auto& rlf   (feed  n = feed::none) { rlfeed = n;                           return *this; } // deco: Reverse line feed.
-        auto& jet_or(bias  n)              { if (adjust == bias::none) adjust = n; return *this; } // deco: Paragraph adjustment.
-        auto& wrp_or(wrap  n)              { if (wrapln == wrap::none) wrapln = n; return *this; } // deco: Auto wrapping.
-        auto& rtl_or(rtol  n)              { if (r_to_l == rtol::none) r_to_l = n; return *this; } // deco: RTL.
-        auto& rlf_or(feed  n)              { if (rlfeed == feed::none) rlfeed = n; return *this; } // deco: Reverse line feed.
-        auto& tbs   (iota  n = 0)          { tablen = std::min(n, maxtab);         return *this; } // deco: fx_ccc_tbs.
-        auto& mgl   (iota  n = 0)          { margin.west = n;                      return *this; } // deco: fx_ccc_mgl.
-        auto& mgr   (iota  n = 0)          { margin.east = n;                      return *this; } // deco: fx_ccc_mgr.
-        auto& mgt   (iota  n = 0)          { margin.head = n;                      return *this; } // deco: fx_ccc_mgt.
-        auto& mgb   (iota  n = 0)          { margin.foot = n;                      return *this; } // deco: fx_ccc_mgb.
-        auto& mgn   (fifo& q)              { margin.set(q);                        return *this; } // deco: fx_ccc_mgn.
-        auto& rst()  // deco: Reset to none.
-        {
-            adjust = bias::none;
-            wrapln = wrap::none;
-            r_to_l = rtol::none;
-            rlfeed = feed::none;
-            tablen = 0;
-            margin.reset();
-            return *this;
-        }
-        auto& glb()  // deco: Reset to default.
-        {
-            adjust = bias::left;
-            wrapln = wrap::on;
-            r_to_l = rtol::ltr;
-            rlfeed = feed::fwd;
-            tablen = 8;
-            margin.reset();
-            return *this;
-        }
-        auto& set(deco const& l)  // deco: Copy.
-        {
-            adjust = l.adjust;
-            wrapln = l.wrapln;
-            r_to_l = l.r_to_l;
-            rlfeed = l.rlfeed;
-            margin = l.margin;
-            tablen = l.tablen;
-            return *this;
-        }
+        constexpr deco()                          : token { 0 }       { }
+        constexpr deco            (deco const& d) : token { d.token } { }
+        constexpr void operator = (deco const& d) { token = d.token;    }
+        constexpr deco(iota)
+            : v{ .wrapln = wrap::on,
+                 .adjust = bias::left,
+                 .r_to_l = rtol::ltr,
+                 .rlfeed = feed::fwd,
+                 .tablen = 8,
+                 .margin = {} }
+        { }
+
+        auto  wrp   () const  { return v.wrapln;                                        } // deco: Return Auto wrapping.
+        auto  jet   () const  { return v.adjust;                                        } // deco: Return Paragraph adjustment.
+        auto  rtl   () const  { return v.r_to_l;                                        } // deco: Return RTL.
+        auto  rlf   () const  { return v.rlfeed;                                        } // deco: Return Reverse line feed.
+        auto  tbs   () const  { return v.tablen;                                        } // deco: Return Reverse line feed.
+        auto& mgn   () const  { return v.margin;                                        } // deco: Return margins.
+        auto& wrp   (bool  b) { v.wrapln = b ? wrap::on  : wrap::off;     return *this; } // deco: Set auto wrapping.
+        auto& rtl   (bool  b) { v.r_to_l = b ? rtol::rtl : rtol::ltr;     return *this; } // deco: Set RTL.
+        auto& rlf   (bool  b) { v.rlfeed = b ? feed::rev : feed::fwd;     return *this; } // deco: Set revverse line feed.
+        auto& wrp   (wrap  n) { v.wrapln = n;                             return *this; } // deco: Auto wrapping.
+        auto& jet   (bias  n) { v.adjust = n;                             return *this; } // deco: Paragraph adjustment.
+        auto& rtl   (rtol  n) { v.r_to_l = n;                             return *this; } // deco: RTL.
+        auto& rlf   (feed  n) { v.rlfeed = n;                             return *this; } // deco: Reverse line feed.
+        auto& wrp_or(wrap  n) { if (v.wrapln == wrap::none) v.wrapln = n; return *this; } // deco: Auto wrapping.
+        auto& jet_or(bias  n) { if (v.adjust == bias::none) v.adjust = n; return *this; } // deco: Paragraph adjustment.
+        auto& rtl_or(rtol  n) { if (v.r_to_l == rtol::none) v.r_to_l = n; return *this; } // deco: RTL.
+        auto& rlf_or(feed  n) { if (v.rlfeed == feed::none) v.rlfeed = n; return *this; } // deco: Reverse line feed.
+        auto& tbs   (iota  n) { v.tablen = std::min(n, maxtab);           return *this; } // deco: fx_ccc_tbs.
+        auto& mgl   (iota  n) { v.margin.west.step = n;                   return *this; } // deco: fx_ccc_mgl.
+        auto& mgr   (iota  n) { v.margin.east.step = n;                   return *this; } // deco: fx_ccc_mgr.
+        auto& mgt   (iota  n) { v.margin.head.step = n;                   return *this; } // deco: fx_ccc_mgt.
+        auto& mgb   (iota  n) { v.margin.foot.step = n;                   return *this; } // deco: fx_ccc_mgb.
+        auto& mgn   (fifo& q) { v.margin.set(q);                          return *this; } // deco: fx_ccc_mgn.
+        auto& rst   ()        { token = 0;                                return *this; } // deco: Reset.
+        constexpr auto& glb() { operator=(deco(0));                       return *this; }  // deco: Reset to default.
     };
+    static constexpr auto def_style = deco(0);
 
     template<class Q, class C>
     using func = netxs::generics::tree <Q, C*, std::function<void(Q&, C*&)>>;
@@ -1299,6 +1295,7 @@ namespace netxs::ansi
         auto& width = client.width;
         auto& brush = client.brush;
         auto& proto = client.proto;
+        //auto& debug = client.debug;
 
         auto& utf8 = cluster.text;
         auto& attr = cluster.attr;

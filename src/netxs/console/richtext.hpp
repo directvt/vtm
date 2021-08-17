@@ -347,7 +347,6 @@ namespace netxs::console
 
     // richtext: The text feeder.
     class flow
-        : public ansi::deco
     {
         using deco = ansi::deco;
         rect textline{ }; // flow: Textline placeholder.
@@ -362,6 +361,7 @@ namespace netxs::console
         rect pagerect{ }; // flow: Client full area. Used as a nested areas (coords++) accumulator.
         rect pagecopy{ }; // flow: Client full area saver.
         deco selfcopy{ }; // flow: Flow state storage.
+        deco runstyle{ }; // flow: Flow state.
         iota highness{1}; // flow: Last processed line height.
 
         iota const& size_x;
@@ -524,7 +524,7 @@ namespace netxs::console
             : size_x { size_x },
               size_y { size_y }
         {
-            deco::glb();
+            runstyle = ansi::def_style;
         }
         flow(twod const& size )
             : flow { size.x, size.y }
@@ -546,27 +546,27 @@ namespace netxs::console
         void compose(T const& block, P print = P())
         {
             // Local settings take precedence over global ones (deco::*).
-            iswrapln = block.style.wrapln != wrap::none ? block.style.wrapln == wrap::on
-                                                        :       deco::wrapln == wrap::on;
-            isr_to_l = block.style.r_to_l != rtol::none ? block.style.r_to_l == rtol::rtl
-                                                        :       deco::r_to_l == rtol::rtl;
-            isrlfeed = block.style.rlfeed != feed::none ? block.style.rlfeed == feed::rev
-                                                        :       deco::rlfeed == feed::rev;
-            tabwidth = block.style.tablen != 0          ? block.style.tablen
-                                                        :       deco::tablen;
-            if (block.style.adjust != bias::none)
+            iswrapln = block.style.wrp() != wrap::none ? block.style.wrp() == wrap::on
+                                                       :    runstyle.wrp() == wrap::on;
+            isr_to_l = block.style.rtl() != rtol::none ? block.style.rtl() == rtol::rtl
+                                                       :    runstyle.rtl() == rtol::rtl;
+            isrlfeed = block.style.rlf() != feed::none ? block.style.rlf() == feed::rev
+                                                       :    runstyle.rlf() == feed::rev;
+            tabwidth = block.style.tbs() != 0          ? block.style.tbs()
+                                                       :    runstyle.tbs();
+            if (block.style.jet() != bias::none)
             {
-                arighted = block.style.adjust == bias::right;
-                centered = block.style.adjust == bias::center;
+                arighted = block.style.jet() == bias::right;
+                centered = block.style.jet() == bias::center;
             }
             else
             {
-                arighted = deco::adjust == bias::right;
-                centered = deco::adjust == bias::center;
+                arighted = runstyle.jet() == bias::right;
+                centered = runstyle.jet() == bias::center;
             }
             // Combine local and global margins.
-            textpads = deco::margin;
-            textpads += block.style.margin;
+            textpads =     runstyle.mgn();
+            textpads += block.style.mgn();
 
             auto block_size = block.size(); // 2D size.
             textsize = get_len(block_size); // 1D length.
@@ -638,22 +638,23 @@ namespace netxs::console
             return cp;
         }
 
-        void ax	(iota x)        { caretpos.x  = x;               }
-        void ay	(iota y)        { caretpos.y  = y;               }
-        void ac	(twod const& c) { ax(c.x); ay(c.y);              }
-        void ox	(iota x)        { caretpos.x  = x - 1;           }
-        void oy	(iota y)        { caretpos.y  = y - 1;           }
-        void oc	(twod const& c) { ox(c.x); oy(c.y);              }
-        void dx	(iota n)        { caretpos.x += n;               }
-        void dy	(iota n)        { caretpos.y += n;               }
-        void nl	(iota n)        { ax(0); dy(n);                  }
-        void px	(iota x)        { ax(margin.h_ratio(x, size_x)); }
-        void py	(iota y)        { ay(margin.v_ratio(y, size_y)); }
-        void pc	(twod const& c) { px(c.x); py(c.y);              }
+        void ax	(iota x)        { caretpos.x  = x;                       }
+        void ay	(iota y)        { caretpos.y  = y;                       }
+        void ac	(twod const& c) { ax(c.x); ay(c.y);                      }
+        void ox	(iota x)        { caretpos.x  = x - 1;                   }
+        void oy	(iota y)        { caretpos.y  = y - 1;                   }
+        void oc	(twod const& c) { ox(c.x); oy(c.y);                      }
+        void dx	(iota n)        { caretpos.x += n;                       }
+        void dy	(iota n)        { caretpos.y += n;                       }
+        void nl	(iota n)        { ax(0); dy(n);                          }
+        void px	(iota x)        { ax(runstyle.mgn().h_ratio(x, size_x)); }
+        void py	(iota y)        { ay(runstyle.mgn().v_ratio(y, size_y)); }
+        void pc	(twod const& c) { px(c.x); py(c.y);                      }
         void tb	(iota n)
         {
             if (n)
             {
+                auto tablen = runstyle.tbs();
                 dx(tablen - caretpos.x % tablen);
                 if (n > 0 ? --n : ++n) dx(tablen * n);
             }
@@ -662,8 +663,8 @@ namespace netxs::console
         {
             twod coor{ caretpos };
 
-            if (adjust == bias::right) coor.x = textpads.width (size_x) - 1 - coor.x;
-            if (rlfeed == feed::rev  ) coor.y = textpads.height(size_y) - 1 - coor.y;
+            if (runstyle.jet() == bias::right) coor.x = textpads.width (size_x) - 1 - coor.x;
+            if (runstyle.rlf() == feed::rev  ) coor.y = textpads.height(size_y) - 1 - coor.y;
 
             coor += textpads.corner();
             return coor;
@@ -676,30 +677,30 @@ namespace netxs::console
         }
         void zz (twod const& offset = dot_00)
         {
-            deco::glb();
+            runstyle.glb();
             caretpos = dot_00;
             pagerect.coor = offset;
         }
         void sc () // flow: Save current state.
         {
-            selfcopy.set(*this);
+            selfcopy = runstyle;
             caretsav = caretpos;
             pagecopy.coor = pagerect.coor;
         }
         void rc () // flow: Restore state.
         {
-            deco::set(selfcopy);
+            runstyle = selfcopy;
             caretpos = caretsav;
             pagerect.coor = pagecopy.coor;
         }
         auto get_state()
         {
-            return std::tuple<deco,twod,twod>{ *this, caretpos, pagerect.coor };
+            return std::tuple<deco,twod,twod>{ runstyle, caretpos, pagerect.coor };
         }
         template<class S>
         auto set_state(S const& state)
         {
-            deco::set(      std::get<0>(state));
+            runstyle      = std::get<0>(state);
             caretpos      = std::get<1>(state);
             pagerect.coor = std::get<2>(state);
         }
@@ -946,13 +947,11 @@ namespace netxs::console
         grid proto;     // para: Proto lyric.
         iota width = 0; // para: Length of the proto lyric.
         mark brush;     // para: Brush for parser.
+        deco style;     // para: Style for parser.
         template<class T>
         using parser = ansi::parser<T>; // Use default static parser.
 
-
-        deco style;     // para: Style for parser.
         iota caret = 0; // para: Cursor position inside lyric.
-
         ui32 index = 0;
         writ locus;
         corx lyric = std::make_shared<rich>();
@@ -1171,8 +1170,6 @@ namespace netxs::console
         iter layer = batch.begin();   // page: Current paragraph.
         imap parts;                   // page: Paragraph index.
 
-        deco style; // page: Parser style.
-
         //todo use ring
         iota limit = std::numeric_limits<iota>::max(); // page: Paragraphs number limit.
         void shrink() // page: Remove over limit paragraphs.
@@ -1204,6 +1201,7 @@ namespace netxs::console
         grid proto;     // page: Proto lyric.
         iota width = 0; // page: Proto lyric length.
         mark brush;     // page: Parser brush.
+        deco style;     // page: Parser style.
         template<class T>
         struct parser : public ansi::parser<T>
         {
