@@ -45,7 +45,6 @@ namespace netxs::app
         {
             using rich::rich;
             using iota = netxs::iota;
-            using deco = ansi::deco;
 
             line(deco const& style)
                 : index{ 0     },
@@ -156,8 +155,6 @@ namespace netxs::app
         }
 
     protected:
-        using deco = ansi::deco;
-
         //todo unify
         static constexpr iota max_line_len = 65536;
 
@@ -171,10 +168,9 @@ namespace netxs::app
         twod        saved; // rods: Saved caret position;
 
     public:
-        deco        style; // rods: Parser style state.
         iota        chx{};
 
-        rods(twod const& viewport, iota buffer_size, iota grow_step, deco style)
+        rods(twod const& viewport, iota buffer_size, iota grow_step, deco const& style)
             : flow { viewport.x, batch.size },
               batch{ buffer_size, grow_step },
               panel{ viewport               },
@@ -208,7 +204,7 @@ namespace netxs::app
         auto get_coord()
         {
             auto& curln =*batch;
-            auto& style = batch->style;
+            auto& style = curln.style;
             //auto  caret = twod{ curln.chx(), batch.index() };
             auto  caret = twod{ chx, batch.index() };
 
@@ -322,12 +318,12 @@ namespace netxs::app
             if (from < upto) while(proc(*head) && head++ != tail);
             else             while(proc(*head) && head-- != tail);
         }
-        void fin(grid& proto, iota width)
+        void fin(grid& proto, iota width, deco const& style)
         {
             auto& cur_line = *batch;
-            auto& style = cur_line.style;
             coord.x += width;
             cur_line.splice(chx, proto, width);
+            cur_line.style = style;
             chx += width;
             batch.take(*batch);
         }
@@ -1125,9 +1121,10 @@ private:
             };
 
             using mark = ansi::mark;
-            grid proto;
-            iota width = 0;
-            mark brush; // scrollbuff: Current brush for parser (default fg/bg-colors).
+            grid proto{}; // parser_base: Proto lyric.
+            iota width{}; // parser_base: Proto lyric length.
+            mark brush{}; // parser_base: Parser brush.
+            deco style{}; // parser_base: Parser style.
             template<class T>
             struct parser : public ansi::parser<T>
             {
@@ -1248,7 +1245,7 @@ private:
             { 
                 if (width)
                 {
-                    fin(proto, width);
+                    fin(proto, width, style);
                     proto.clear();
                     width = 0;
                 }
@@ -1576,8 +1573,9 @@ private:
                 iota start;
                 iota count;
                 auto caret = std::max(0, rods::chx);
-                auto width = batch->length();
-                auto wraps = batch->style.wrp() == wrap::on;
+                auto& line = *batch;
+                auto width = line.length();
+                auto wraps = line.style.wrp() == wrap::on;
                 switch (n)
                 {
                     default:
@@ -1602,7 +1600,7 @@ private:
                 {
                     //auto blank = cell{ brush }.txt(' ');
                     auto blank = cell{ brush }.bgc(greendk).bga(0x7f).txt(' ');
-                    batch->splice<true>(start, count, blank);
+                    line.splice<true>(start, count, blank);
                     //batch->shrink(blank);
                     clear_overlapping_lines();
                 }

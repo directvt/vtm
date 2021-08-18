@@ -1677,8 +1677,6 @@ namespace netxs::ui::atoms
         }
     }__attribute__((packed));
 
-    using dent = dent_t<int8_t>;
-
     // layout: Scroll info.
     struct rack
     {
@@ -1696,6 +1694,23 @@ namespace netxs::ui::atoms
             return s << p.str();
         }
     };
+    // layout: Extract 1D length.
+    template<class T>
+    static inline iota getlen(T p)
+    {
+        if constexpr (std::is_same_v<T, twod>) return p.x;
+        else                                   return static_cast<iota>(p);
+    }
+    // layout: Extract 2D size.
+    template<class T>
+    static inline rect getvol(T p)
+    {
+        if constexpr (std::is_same_v<T, twod>) return { dot_00, p };
+        else                                   return { dot_00, { static_cast<iota>(p),  1 } };
+    }
+
+    using grid = std::vector<cell>;
+    using dent = dent_t<int8_t>;
 }
 namespace netxs::ui
 {

@@ -818,6 +818,43 @@ namespace netxs::ansi
         auto& mgn   (fifo& q) { v.margin.set(q);                          return *this; } // deco: fx_ccc_mgn.
         auto& rst   ()        { token = 0;                                return *this; } // deco: Reset.
         constexpr auto& glb() { operator=(deco(0));                       return *this; }  // deco: Reset to default.
+
+        struct runtime
+        {
+            bool iswrapln;
+            bool isr_to_l;
+            bool isrlfeed;
+            bool straight; // runtime: Text substring retrieving direction.
+            bool centered;
+            bool arighted;
+            iota tabwidth;
+            dent textpads;
+
+            void combine(deco const& global, deco const& custom)
+            {
+                // Custom settings take precedence over global.
+                auto s_wrp = custom.wrp(); iswrapln = s_wrp != wrap::none ? s_wrp == wrap::on  : global.wrp() == wrap::on;
+                auto s_rtl = custom.rtl(); isr_to_l = s_rtl != rtol::none ? s_rtl == rtol::rtl : global.rtl() == rtol::rtl;
+                auto s_rlf = custom.rlf(); isrlfeed = s_rlf != feed::none ? s_rlf == feed::rev : global.rlf() == feed::rev;
+                auto s_tbs = custom.tbs(); tabwidth = s_tbs != 0          ? s_tbs              : global.tbs();
+                auto s_jet = custom.jet();
+                if (s_jet != bias::none)
+                {
+                    arighted = s_jet == bias::right;
+                    centered = s_jet == bias::center;
+                }
+                else
+                {
+                    auto g_jet = global.jet(); 
+                    arighted = g_jet == bias::right;
+                    centered = g_jet == bias::center;
+                }
+                straight = iswrapln || isr_to_l == arighted;
+                // Combine local and global margins.
+                textpads = global.mgn();
+                textpads+= custom.mgn();
+            }
+        };
     };
     static constexpr auto def_style = deco(0);
 
