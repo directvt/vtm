@@ -1197,10 +1197,10 @@ namespace netxs::ui::atoms
     template<class T> text                     cell::glyf<T>::empty;
     template<class T> std::map<uint64_t, text> cell::glyf<T>::jumbo;
 
-    enum class bias : unsigned { none, left, right, center, };
-    enum class wrap : unsigned { none, on,  off,            };
-    enum class rtol : unsigned { none, rtl, ltr,            };
-    enum class feed : unsigned { none, rev, fwd,            };
+    enum class bias : unsigned char { none, left, right, center, };
+    enum class wrap : unsigned char { none, on,  off,            };
+    enum class rtol : unsigned char { none, rtl, ltr,            };
+    enum class feed : unsigned char { none, rev, fwd,            };
 
     struct rect
     {
@@ -1675,7 +1675,7 @@ namespace netxs::ui::atoms
                            pad1.head.step - pad2.head.step,
                            pad1.foot.step - pad2.foot.step };
         }
-    }__attribute__((packed));
+    };
 
     // layout: Scroll info.
     struct rack
@@ -1694,6 +1694,7 @@ namespace netxs::ui::atoms
             return s << p.str();
         }
     };
+
     // layout: Extract 1D length.
     template<class T>
     static inline iota getlen(T p)

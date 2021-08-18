@@ -347,7 +347,7 @@ namespace netxs::console
 
     // richtext: The text feeder.
     class flow
-        : protected deco::runtime
+        : protected ansi::runtime
     {
         rect textline{ }; // flow: Textline placeholder.
         iota textsize{ }; // flow: Full textline length (1D).
@@ -1142,7 +1142,6 @@ namespace netxs::console
             using ring::ring;
             void free(para& p) override { }
         };
-
 
         grid proto{}; // parser_base: Proto lyric.
         iota width{}; // parser_base: Proto lyric length.

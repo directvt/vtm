@@ -766,9 +766,9 @@ namespace netxs::ansi
         void  rfg()               { this->fgc(spare.fgc()); } // mark: Reset SGR Foreground color.
         void  rbg()               { this->bgc(spare.bgc()); } // mark: Reset SGR Background color.
     };
+    #pragma pack(push,1)
     union deco
     {
-        using dent = ui::atoms::dent_t<int8_t>;
         static constexpr iota maxtab = 255; // deco: Tab length limit.
         struct
         {
@@ -778,7 +778,7 @@ namespace netxs::ansi
             feed rlfeed : 2; // deco: Reverse line feed.
             byte tablen : 8; // deco: Tab length.
             dent margin;     // deco: Page margins.
-        }__attribute__((packed)) v;
+        } v;
         ui64 token;
 
         constexpr deco()                          : token { 0 }       { }
@@ -818,45 +818,47 @@ namespace netxs::ansi
         auto& mgn   (fifo& q) { v.margin.set(q);                          return *this; } // deco: fx_ccc_mgn.
         auto& rst   ()        { token = 0;                                return *this; } // deco: Reset.
         constexpr auto& glb() { operator=(deco(0));                       return *this; }  // deco: Reset to default.
-
-        struct runtime
-        {
-            bool iswrapln;
-            bool isr_to_l;
-            bool isrlfeed;
-            bool straight; // runtime: Text substring retrieving direction.
-            bool centered;
-            bool arighted;
-            iota tabwidth;
-            dent textpads;
-
-            void combine(deco const& global, deco const& custom)
-            {
-                // Custom settings take precedence over global.
-                auto s_wrp = custom.wrp(); iswrapln = s_wrp != wrap::none ? s_wrp == wrap::on  : global.wrp() == wrap::on;
-                auto s_rtl = custom.rtl(); isr_to_l = s_rtl != rtol::none ? s_rtl == rtol::rtl : global.rtl() == rtol::rtl;
-                auto s_rlf = custom.rlf(); isrlfeed = s_rlf != feed::none ? s_rlf == feed::rev : global.rlf() == feed::rev;
-                auto s_tbs = custom.tbs(); tabwidth = s_tbs != 0          ? s_tbs              : global.tbs();
-                auto s_jet = custom.jet();
-                if (s_jet != bias::none)
-                {
-                    arighted = s_jet == bias::right;
-                    centered = s_jet == bias::center;
-                }
-                else
-                {
-                    auto g_jet = global.jet(); 
-                    arighted = g_jet == bias::right;
-                    centered = g_jet == bias::center;
-                }
-                straight = iswrapln || isr_to_l == arighted;
-                // Combine local and global margins.
-                textpads = global.mgn();
-                textpads+= custom.mgn();
-            }
-        };
     };
+    #pragma pack(pop)
+
     static constexpr auto def_style = deco(0);
+
+    struct runtime
+    {
+        bool iswrapln;
+        bool isr_to_l;
+        bool isrlfeed;
+        bool straight; // runtime: Text substring retrieving direction.
+        bool centered;
+        bool arighted;
+        iota tabwidth;
+        dent textpads;
+
+        void combine(deco const& global, deco const& custom)
+        {
+            // Custom settings take precedence over global.
+            auto s_wrp = custom.wrp(); iswrapln = s_wrp != wrap::none ? s_wrp == wrap::on  : global.wrp() == wrap::on;
+            auto s_rtl = custom.rtl(); isr_to_l = s_rtl != rtol::none ? s_rtl == rtol::rtl : global.rtl() == rtol::rtl;
+            auto s_rlf = custom.rlf(); isrlfeed = s_rlf != feed::none ? s_rlf == feed::rev : global.rlf() == feed::rev;
+            auto s_tbs = custom.tbs(); tabwidth = s_tbs != 0          ? s_tbs              : global.tbs();
+            auto s_jet = custom.jet();
+            if (s_jet != bias::none)
+            {
+                arighted = s_jet == bias::right;
+                centered = s_jet == bias::center;
+            }
+            else
+            {
+                auto g_jet = global.jet(); 
+                arighted = g_jet == bias::right;
+                centered = g_jet == bias::center;
+            }
+            straight = iswrapln || isr_to_l == arighted;
+            // Combine local and global margins.
+            textpads = global.mgn();
+            textpads+= custom.mgn();
+        }
+    };
 
     template<class Q, class C>
     using func = netxs::generics::tree <Q, C*, std::function<void(Q&, C*&)>>;
