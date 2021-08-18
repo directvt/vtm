@@ -884,20 +884,11 @@ namespace netxs::console
 
     // richtext: Enriched text paragraph.
     class para
+        : public ansi::parser
     {
         using corx = sptr<rich>;
 
     public:
-        using mark = ansi::mark;
-        using iota = netxs::iota; // for ring, todo unify
-
-        grid proto{}; // parser_base: Proto lyric.
-        iota width{}; // parser_base: Proto lyric length.
-        mark brush{}; // parser_base: Parser brush.
-        deco style{}; // parser_base: Parser style.
-        template<class T>
-        using parser = ansi::parser<T>; // Use default static parser.
-
         iota caret = 0; // para: Cursor position inside lyric.
         ui32 index = 0;
         writ locus;
@@ -909,12 +900,13 @@ namespace netxs::console
         para& operator = (para&&)      = default;
         para& operator = (para const&) = default;
 
+        using parser::parser;
         para(deco const& style)
-            : style{ style }
+            : parser{ style }
         { }
         para(ui32 newid, deco const& style = {})
-            : style{ style },
-              index{ newid }
+            : parser{ style },
+              index { newid }
         { }
         para(view utf8)
         {
@@ -958,10 +950,6 @@ namespace netxs::console
             lyric->kill();
         }
         void task(ansi::rule const& cmd) { if (!busy()) locus.push(cmd); } // para: Add locus command. In case of text presence try to change current target otherwise abort content building.
-        void post(utf::frag const& cluster) // para: Add grapheme cluster.
-        {
-            ansi::post(*this, cluster);
-        }
         // para: Convert into the screen-adapted sequence (unfold, remove zerospace chars, etc.).
         void cook()
         {
@@ -1104,11 +1092,11 @@ namespace netxs::console
 
     // richtext: Enriched text page.
     class page
+        : public ansi::parser
     {
         using list = std::list<sptr<para>>;
         using iter = list::iterator;
         using imap = std::map<iota, wptr<para>>;
-        using mark = ansi::mark;
 
     public:
         ui32 index = {};              // page: Current paragraph id.
@@ -1143,27 +1131,19 @@ namespace netxs::console
             void free(para& p) override { }
         };
 
-        grid proto{}; // parser_base: Proto lyric.
-        iota width{}; // parser_base: Proto lyric length.
-        mark brush{}; // parser_base: Parser brush.
-        deco style{}; // parser_base: Parser style.
         template<class T>
-        struct parser : public ansi::parser<T>
+        static void parser_config(T& vt)
         {
-            using vt = ansi::parser<T>;
-            parser() : vt()
-            {
-                using namespace netxs::ansi;
-                vt::intro[ctrl::CR ]              = VT_PROC{ q.pop_if(ctrl::EOL); p->task({ fn::nl,1 }); };
-                vt::intro[ctrl::TAB]              = VT_PROC{ p->task({ fn::tb, q.pop_all(ctrl::TAB) }); };
-                vt::intro[ctrl::EOL]              = VT_PROC{ p->task({ fn::nl, q.pop_all(ctrl::EOL) }); };
-                vt::csier.table[CSI__ED]          = VT_PROC{ p->task({ fn::ed, q(0) }); }; // CSI Ps J
-                vt::csier.table[CSI__EL]          = VT_PROC{ p->task({ fn::el, q(0) }); }; // CSI Ps K
-                vt::csier.table[CSI_CCC][CCC_NOP] = VT_PROC{ p->fork(); };
-                vt::csier.table[CSI_CCC][CCC_IDX] = VT_PROC{ p->fork(q(0)); };
-                vt::csier.table[CSI_CCC][CCC_REF] = VT_PROC{ p->bind(q(0)); };
-            }
-        };
+            using namespace netxs::ansi;
+            vt.intro[ctrl::CR ]              = VT_PROC{ q.pop_if(ctrl::EOL); p->task({ fn::nl,1 }); };
+            vt.intro[ctrl::TAB]              = VT_PROC{ p->task({ fn::tb, q.pop_all(ctrl::TAB) }); };
+            vt.intro[ctrl::EOL]              = VT_PROC{ p->task({ fn::nl, q.pop_all(ctrl::EOL) }); };
+            vt.csier.table[CSI__ED]          = VT_PROC{ p->task({ fn::ed, q(0) }); }; // CSI Ps J
+            vt.csier.table[CSI__EL]          = VT_PROC{ p->task({ fn::el, q(0) }); }; // CSI Ps K
+            vt.csier.table[CSI_CCC][CCC_NOP] = VT_PROC{ p->fork(); };
+            vt.csier.table[CSI_CCC][CCC_IDX] = VT_PROC{ p->fork(q(0)); };
+            vt.csier.table[CSI_CCC][CCC_REF] = VT_PROC{ p->bind(q(0)); };
+        }
 
         page& operator = (page const&) = default;
         page ()                        = default;
@@ -1273,10 +1253,6 @@ namespace netxs::console
             test();
             auto& item = **layer;
             item.locus.push(cmd);
-        }
-        void post(utf::frag const& cluster)
-        {
-            ansi::post(*this, cluster);
         }
         void cook()
         {

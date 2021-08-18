@@ -44,7 +44,6 @@ namespace netxs::app
             : public rich
         {
             using rich::rich;
-            using iota = netxs::iota;
 
             line(deco const& style)
                 : index{ 0     },
@@ -1092,7 +1091,8 @@ private:
 
         // term: VT-behavior of the rods.
         struct scrollbuff
-            : public rods
+            : public rods,
+              public ansi::parser
         {
             struct commands
             {
@@ -1120,98 +1120,89 @@ private:
                 };
             };
 
-            using mark = ansi::mark;
-            grid proto{}; // parser_base: Proto lyric.
-            iota width{}; // parser_base: Proto lyric length.
-            mark brush{}; // parser_base: Parser brush.
-            deco style{}; // parser_base: Parser style.
             template<class T>
-            struct parser : public ansi::parser<T>
+            static void parser_config(T& vt)
             {
-                using vt = ansi::parser<T>;
-                parser() : vt()
+                using namespace netxs::ansi;
+                vt.csier.table_space[CSI_SPC_SRC] = VT_PROC{ p->na("CSI n SP A  Shift right n columns(s)."); }; // CSI n SP A  Shift right n columns(s).
+                vt.csier.table_space[CSI_SPC_SLC] = VT_PROC{ p->na("CSI n SP @  Shift left  n columns(s)."); }; // CSI n SP @  Shift left n columns(s).
+                vt.csier.table_space[CSI_SPC_CST] = VT_PROC{ p->boss.caret_style(q(1)); }; // CSI n SP q  Set caret style (DECSCUSR).
+                vt.csier.table_hash [CSI_HSH_SCP] = VT_PROC{ p->na("CSI n # P  Push current palette colors onto stack. n default is 0."); }; // CSI n # P  Push current palette colors onto stack. n default is 0.
+                vt.csier.table_hash [CSI_HSH_RCP] = VT_PROC{ p->na("CSI n # Q  Pop  current palette colors onto stack. n default is 0."); }; // CSI n # Q  Pop  current palette colors onto stack. n default is 0.
+                vt.csier.table_excl [CSI_EXL_RST] = VT_PROC{ p->boss.decstr( ); }; // CSI ! p  Soft terminal reset (DECSTR)
+
+                vt.csier.table[CSI_CUU] = VT_PROC{ p->up ( q(1)); };  // CSI n A
+                vt.csier.table[CSI_CUD] = VT_PROC{ p->dn ( q(1)); };  // CSI n B
+                vt.csier.table[CSI_CUF] = VT_PROC{ p->cuf( q(1)); };  // CSI n C
+                vt.csier.table[CSI_CUB] = VT_PROC{ p->cuf(-q(1)); };  // CSI n D
+
+                vt.csier.table[CSI_CHT] = VT_PROC{ p->tab( q(1)); };  // CSI n I  Caret forward  n tabs, default n=1.
+                vt.csier.table[CSI_CBT] = VT_PROC{ p->tab(-q(1)); };  // CSI n Z  Caret backward n tabs, default n=1.
+                vt.csier.table[CSI_TBC] = VT_PROC{ p->tbc( q(1)); };  // CSI n g  Reset tabstop value.
+
+                vt.csier.table[CSI_CUD2]= VT_PROC{ p->dn ( q(1)); };  // CSI n e  Move caret down. Same as CUD.
+
+                vt.csier.table[CSI_CNL] = vt.csier.table[CSI_CUD];   // CSI n E
+                vt.csier.table[CSI_CPL] = vt.csier.table[CSI_CUU];   // CSI n F
+                vt.csier.table[CSI_CHX] = VT_PROC{ p->chx( q(1)); };  // CSI n G  Move caret hz absolute.
+                vt.csier.table[CSI_CHY] = VT_PROC{ p->chy( q(1)); };  // CSI n d  Move caret vt absolute.
+                vt.csier.table[CSI_CUP] = VT_PROC{ p->cup( q   ); };  // CSI y ; x H (1-based)
+                vt.csier.table[CSI_HVP] = VT_PROC{ p->cup( q   ); };  // CSI y ; x f (1-based)
+
+                vt.csier.table[CSI_DCH] = VT_PROC{ p->dch( q(1)); };  // CSI n P  Delete n chars.
+                vt.csier.table[CSI_ECH] = VT_PROC{ p->ech( q(1)); };  // CSI n X  Erase n chars.
+                vt.csier.table[CSI_ICH] = VT_PROC{ p->ich( q(1)); };  // CSI n @  Insert n chars.
+
+                vt.csier.table[CSI__ED] = VT_PROC{ p->ed ( q(0)); };  // CSI n J
+                vt.csier.table[CSI__EL] = VT_PROC{ p->el ( q(0)); };  // CSI n K
+                vt.csier.table[CSI__IL] = VT_PROC{ p->il ( q(1)); };  // CSI n L  Insert n lines.
+                vt.csier.table[CSI__DL] = VT_PROC{ p->dl ( q(1)); };  // CSI n M  Delete n lines.
+                vt.csier.table[CSI__SD] = VT_PROC{ p->scl( q(1)); };  // CSI n T  Scroll down by n lines, scrolled out lines are lost.
+                vt.csier.table[CSI__SU] = VT_PROC{ p->scl(-q(1)); };  // CSI n S  Scroll   up by n lines, scrolled out lines are pushed to the scrollback.
+                vt.csier.table[CSI_SCP] = VT_PROC{ p->scp(     ); };  // CSI   s  Save caret position.
+                vt.csier.table[CSI_RCP] = VT_PROC{ p->rcp(     ); };  // CSI   u  Restore caret position.
+
+                vt.csier.table[DECSTBM] = VT_PROC{ p->scr( q   ); };  // CSI r; b r  Set scrolling region (t/b: top+bottom).
+
+                vt.csier.table[CSI_WIN] = VT_PROC{ p->boss.winprops.manage(q); };  // CSI n;m;k t  Terminal window options (XTWINOPS).
+
+                vt.csier.table[CSI_CCC][CCC_RST] = VT_PROC{ p->style.glb(); p->style.wrp(WRAPPING); };  // fx_ccc_rst
+                vt.csier.table[CSI_CCC][CCC_SBS] = VT_PROC{ p->boss.scrollbuffer_size(q); };  // CCC_SBS: Set scrollback size.
+                vt.csier.table[CSI_CCC][CCC_EXT] = VT_PROC{ p->boss.native(q(1)); };  // CCC_EXT: Setup extended functionality.
+                vt.csier.table[CSI_CCC][CCC_WRP] = VT_PROC{ p->wrp(static_cast<wrap>(q(0))); };  // CCC_WRP
+                vt.csier.table[CSI_CCC][CCC_JET] = VT_PROC{ p->jet(static_cast<bias>(q(0))); };  // CCC_JET
+
+                vt.intro[ctrl::ESC][ESC_IND] = VT_PROC{ p->dn(1); }; // ESC D  Caret Down.
+                vt.intro[ctrl::ESC][ESC_IR ] = VT_PROC{ p->ri (); }; // ESC M  Reverse index.
+                vt.intro[ctrl::ESC][ESC_HTS] = VT_PROC{ p->stb(); }; // ESC H  Place tabstop at the current caret posistion.
+                vt.intro[ctrl::ESC][ESC_RIS] = VT_PROC{ p->boss.decstr(); }; // ESC c Reset to initial state (same as DECSTR).
+                vt.intro[ctrl::ESC][ESC_SC ] = VT_PROC{ p->scp(); }; // ESC 7 (same as CSI s) Save caret position.
+                vt.intro[ctrl::ESC][ESC_RC ] = VT_PROC{ p->rcp(); }; // ESC 8 (same as CSI u) Restore caret position.
+
+                vt.intro[ctrl::BS ] = VT_PROC{ p->cuf(-q.pop_all(ctrl::BS )); };
+                vt.intro[ctrl::DEL] = VT_PROC{ p->del( q.pop_all(ctrl::DEL)); };
+                vt.intro[ctrl::TAB] = VT_PROC{ p->tab( q.pop_all(ctrl::TAB)); };
+                vt.intro[ctrl::CR ] = VT_PROC{ p->home(); };
+                vt.intro[ctrl::EOL] = VT_PROC{ p->dn ( q.pop_all(ctrl::EOL)); };
+
+                vt.csier.table_quest[DECSET] = VT_PROC{ p->boss.decset(q); };
+                vt.csier.table_quest[DECRST] = VT_PROC{ p->boss.decrst(q); };
+
+                vt.oscer[OSC_LABEL_TITLE] = VT_PROC{ p->boss.winprops.set(OSC_LABEL_TITLE, q); };
+                vt.oscer[OSC_LABEL]       = VT_PROC{ p->boss.winprops.set(OSC_LABEL,       q); };
+                vt.oscer[OSC_TITLE]       = VT_PROC{ p->boss.winprops.set(OSC_TITLE,       q); };
+                vt.oscer[OSC_XPROP]       = VT_PROC{ p->boss.winprops.set(OSC_XPROP,       q); };
+
+                // Log all unimplemented CSI commands.
+                for (auto i = 0; i < 0x100; ++i)
                 {
-                    using namespace netxs::ansi;
-                    vt::csier.table_space[CSI_SPC_SRC] = VT_PROC{ p->na("CSI n SP A  Shift right n columns(s)."); }; // CSI n SP A  Shift right n columns(s).
-                    vt::csier.table_space[CSI_SPC_SLC] = VT_PROC{ p->na("CSI n SP @  Shift left  n columns(s)."); }; // CSI n SP @  Shift left n columns(s).
-                    vt::csier.table_space[CSI_SPC_CST] = VT_PROC{ p->boss.caret_style(q(1)); }; // CSI n SP q  Set caret style (DECSCUSR).
-                    vt::csier.table_hash [CSI_HSH_SCP] = VT_PROC{ p->na("CSI n # P  Push current palette colors onto stack. n default is 0."); }; // CSI n # P  Push current palette colors onto stack. n default is 0.
-                    vt::csier.table_hash [CSI_HSH_RCP] = VT_PROC{ p->na("CSI n # Q  Pop  current palette colors onto stack. n default is 0."); }; // CSI n # Q  Pop  current palette colors onto stack. n default is 0.
-                    vt::csier.table_excl [CSI_EXL_RST] = VT_PROC{ p->boss.decstr( ); }; // CSI ! p  Soft terminal reset (DECSTR)
-
-                    vt::csier.table[CSI_CUU] = VT_PROC{ p->up ( q(1)); };  // CSI n A
-                    vt::csier.table[CSI_CUD] = VT_PROC{ p->dn ( q(1)); };  // CSI n B
-                    vt::csier.table[CSI_CUF] = VT_PROC{ p->cuf( q(1)); };  // CSI n C
-                    vt::csier.table[CSI_CUB] = VT_PROC{ p->cuf(-q(1)); };  // CSI n D
-
-                    vt::csier.table[CSI_CHT] = VT_PROC{ p->tab( q(1)); };  // CSI n I  Caret forward  n tabs, default n=1.
-                    vt::csier.table[CSI_CBT] = VT_PROC{ p->tab(-q(1)); };  // CSI n Z  Caret backward n tabs, default n=1.
-                    vt::csier.table[CSI_TBC] = VT_PROC{ p->tbc( q(1)); };  // CSI n g  Reset tabstop value.
-
-                    vt::csier.table[CSI_CUD2]= VT_PROC{ p->dn ( q(1)); };  // CSI n e  Move caret down. Same as CUD.
-
-                    vt::csier.table[CSI_CNL] = vt::csier.table[CSI_CUD];   // CSI n E
-                    vt::csier.table[CSI_CPL] = vt::csier.table[CSI_CUU];   // CSI n F
-                    vt::csier.table[CSI_CHX] = VT_PROC{ p->chx( q(1)); };  // CSI n G  Move caret hz absolute.
-                    vt::csier.table[CSI_CHY] = VT_PROC{ p->chy( q(1)); };  // CSI n d  Move caret vt absolute.
-                    vt::csier.table[CSI_CUP] = VT_PROC{ p->cup( q   ); };  // CSI y ; x H (1-based)
-                    vt::csier.table[CSI_HVP] = VT_PROC{ p->cup( q   ); };  // CSI y ; x f (1-based)
-
-                    vt::csier.table[CSI_DCH] = VT_PROC{ p->dch( q(1)); };  // CSI n P  Delete n chars.
-                    vt::csier.table[CSI_ECH] = VT_PROC{ p->ech( q(1)); };  // CSI n X  Erase n chars.
-                    vt::csier.table[CSI_ICH] = VT_PROC{ p->ich( q(1)); };  // CSI n @  Insert n chars.
-
-                    vt::csier.table[CSI__ED] = VT_PROC{ p->ed ( q(0)); };  // CSI n J
-                    vt::csier.table[CSI__EL] = VT_PROC{ p->el ( q(0)); };  // CSI n K
-                    vt::csier.table[CSI__IL] = VT_PROC{ p->il ( q(1)); };  // CSI n L  Insert n lines.
-                    vt::csier.table[CSI__DL] = VT_PROC{ p->dl ( q(1)); };  // CSI n M  Delete n lines.
-                    vt::csier.table[CSI__SD] = VT_PROC{ p->scl( q(1)); };  // CSI n T  Scroll down by n lines, scrolled out lines are lost.
-                    vt::csier.table[CSI__SU] = VT_PROC{ p->scl(-q(1)); };  // CSI n S  Scroll   up by n lines, scrolled out lines are pushed to the scrollback.
-                    vt::csier.table[CSI_SCP] = VT_PROC{ p->scp(     ); };  // CSI   s  Save caret position.
-                    vt::csier.table[CSI_RCP] = VT_PROC{ p->rcp(     ); };  // CSI   u  Restore caret position.
-
-                    vt::csier.table[DECSTBM] = VT_PROC{ p->scr( q   ); };  // CSI r; b r  Set scrolling region (t/b: top+bottom).
-
-                    vt::csier.table[CSI_WIN] = VT_PROC{ p->boss.winprops.manage(q); };  // CSI n;m;k t  Terminal window options (XTWINOPS).
-
-                    vt::csier.table[CSI_CCC][CCC_RST] = VT_PROC{ p->style.glb(); p->style.wrp(WRAPPING); };  // fx_ccc_rst
-                    vt::csier.table[CSI_CCC][CCC_SBS] = VT_PROC{ p->boss.scrollbuffer_size(q); };  // CCC_SBS: Set scrollback size.
-                    vt::csier.table[CSI_CCC][CCC_EXT] = VT_PROC{ p->boss.native(q(1)); };  // CCC_EXT: Setup extended functionality.
-                    vt::csier.table[CSI_CCC][CCC_WRP] = VT_PROC{ p->wrp(static_cast<wrap>(q(0))); };  // CCC_WRP
-                    vt::csier.table[CSI_CCC][CCC_JET] = VT_PROC{ p->jet(static_cast<bias>(q(0))); };  // CCC_JET
-
-                    vt::intro[ctrl::ESC][ESC_IND] = VT_PROC{ p->dn(1); }; // ESC D  Caret Down.
-                    vt::intro[ctrl::ESC][ESC_IR ] = VT_PROC{ p->ri (); }; // ESC M  Reverse index.
-                    vt::intro[ctrl::ESC][ESC_HTS] = VT_PROC{ p->stb(); }; // ESC H  Place tabstop at the current caret posistion.
-                    vt::intro[ctrl::ESC][ESC_RIS] = VT_PROC{ p->boss.decstr(); }; // ESC c Reset to initial state (same as DECSTR).
-                    vt::intro[ctrl::ESC][ESC_SC ] = VT_PROC{ p->scp(); }; // ESC 7 (same as CSI s) Save caret position.
-                    vt::intro[ctrl::ESC][ESC_RC ] = VT_PROC{ p->rcp(); }; // ESC 8 (same as CSI u) Restore caret position.
-
-                    vt::intro[ctrl::BS ] = VT_PROC{ p->cuf(-q.pop_all(ctrl::BS )); };
-                    vt::intro[ctrl::DEL] = VT_PROC{ p->del( q.pop_all(ctrl::DEL)); };
-                    vt::intro[ctrl::TAB] = VT_PROC{ p->tab( q.pop_all(ctrl::TAB)); };
-                    vt::intro[ctrl::CR ] = VT_PROC{ p->home(); };
-                    vt::intro[ctrl::EOL] = VT_PROC{ p->dn ( q.pop_all(ctrl::EOL)); };
-
-                    vt::csier.table_quest[DECSET] = VT_PROC{ p->boss.decset(q); };
-                    vt::csier.table_quest[DECRST] = VT_PROC{ p->boss.decrst(q); };
-
-                    vt::oscer[OSC_LABEL_TITLE] = VT_PROC{ p->boss.winprops.set(OSC_LABEL_TITLE, q); };
-                    vt::oscer[OSC_LABEL]       = VT_PROC{ p->boss.winprops.set(OSC_LABEL,       q); };
-                    vt::oscer[OSC_TITLE]       = VT_PROC{ p->boss.winprops.set(OSC_TITLE,       q); };
-                    vt::oscer[OSC_XPROP]       = VT_PROC{ p->boss.winprops.set(OSC_XPROP,       q); };
-
-                    // Log all unimplemented CSI commands.
-                    for (auto i = 0; i < 0x100; ++i)
+                    auto& proc = vt.csier.table[i];
+                    if (!proc)
                     {
-                        auto& proc = vt::csier.table[i];
-                        if (!proc)
-                        {
-                           proc = [i](auto& q, auto& p) { p->not_implemented_CSI(i, q); };
-                        }
+                        proc = [i](auto& q, auto& p) { p->not_implemented_CSI(i, q); };
                     }
                 }
-            };
+            }
 
             term& boss;
             //todo magic numbers
@@ -1236,10 +1227,6 @@ private:
                 //    batch.index(batch.length() - 1);
                 //} 
                 //batch->locus.push(property);
-            }
-            void post(utf::frag const& cluster)
-            {
-                ansi::post(*this, cluster);
             }
             void inline cook()
             { 

@@ -10,11 +10,10 @@
 
 namespace netxs::generics
 {
-    template<class vect>
+    template<class vect, class iota = int32_t>
     struct ring
     {
         using type = typename vect::value_type;
-        using iota = typename type::iota;
 
         struct iter
         {

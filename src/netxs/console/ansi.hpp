@@ -860,6 +860,26 @@ namespace netxs::ansi
         }
     };
 
+    //todo should we parse these controls as a C0-like?
+    //     split paragraphs when flow direction changes, for example.
+    struct marker
+    {
+        using changer = std::array<void (*)(cell&), ctrl::COUNT>;
+        changer	setter = {};
+        marker()
+        {
+            setter[ctrl::ALM                 ] = [](cell& p) { p.rtl(true);    };
+            setter[ctrl::RLM                 ] = [](cell& p) { p.rtl(true);    };
+            setter[ctrl::LRM                 ] = [](cell& p) { p.rtl(faux);    };
+            setter[ctrl::SHY                 ] = [](cell& p) { p.hyphen(true); };
+            setter[ctrl::FUNCTION_APPLICATION] = [](cell& p) { p.fnappl(true); };
+            setter[ctrl::INVISIBLE_TIMES     ] = [](cell& p) { p.itimes(true); };
+            setter[ctrl::INVISIBLE_SEPARATOR ] = [](cell& p) { p.isepar(true); };
+            setter[ctrl::INVISIBLE_PLUS      ] = [](cell& p) { p.inplus(true); };
+            setter[ctrl::ZWNBSP              ] = [](cell& p) { p.zwnbsp(true); };
+        }
+    };
+
     template<class Q, class C>
     using func = netxs::generics::tree <Q, C*, std::function<void(Q&, C*&)>>;
 
@@ -1056,24 +1076,24 @@ namespace netxs::ansi
         void proceed_asterisk  (fifo& q, T*& p) { table_asterisk.execute(q, p); }
     };
 
-    template<class T> struct _glb { static typename T::template parser<T> parser; };
-    template<class T> typename T::template parser<T> _glb<T>::parser;
+    template<class T> struct _glb { static typename T::template vt_parser<T>          vt_parser; };
+    template<class T>                      typename T::template vt_parser<T> _glb<T>::vt_parser;
 
-    template<class T> inline void parse(view utf8, T*&  dest) { _glb<T>::parser.parse(utf8, dest); }
-    template<class T> inline void parse(view utf8, T*&& dest) { T* dptr = dest; parse(utf8, dptr); }
+    template<class T> inline void parse(view utf8, T*&  dest) { _glb<T>::vt_parser.parse(utf8, dest); }
+    template<class T> inline void parse(view utf8, T*&& dest) { T* dptr = dest;    parse(utf8, dptr); }
 
     template<class T> using esc_t = func<qiew, T>;
     template<class T> using osc_h = std::function<void(view&, T*&)>;
     template<class T> using osc_t = std::map<text, osc_h<T>>;
 
     template<class T>
-    struct parser
+    struct vt_parser
     {
-        ansi::esc_t<T> intro; // parser:  C0 table.
-        ansi::csi_t<T> csier; // parser: CSI table.
-        ansi::osc_t<T> oscer; // parser: OSC table.
+        ansi::esc_t<T> intro; // vt_parser:  C0 table.
+        ansi::csi_t<T> csier; // vt_parser: CSI table.
+        ansi::osc_t<T> oscer; // vt_parser: OSC table.
 
-        parser()
+        vt_parser()
         {
             intro.resize(ctrl::NON_CONTROL);
             //intro[ctrl::BS ] = backspace;
@@ -1092,7 +1112,7 @@ namespace netxs::ansi
                 //esc['M'  ] = __ri;
         }
 
-        // ansi: Static UTF-8/ANSI parser proc.
+        // vt_parser: Static UTF-8/ANSI parser proc.
         void parse(view utf8, T*& client)
         {
             auto s = [&](auto& traits, auto& utf8)
@@ -1106,15 +1126,15 @@ namespace netxs::ansi
             utf::decode(s, y, utf8);
             client->cook();
         }
-        // ansi: Static UTF-8/ANSI parser proc.
+        // vt_parser: Static UTF-8/ANSI parser proc.
         void parse(view utf8, T*&& client)
         {
             T* p = client;
-            parse(p, utf8);
+            parse(utf8, p);
         }
 
     private:
-        // Control Sequence Introducer (CSI) parser.
+        // vt_parser: Control Sequence Introducer (CSI) parser.
         static void xcsi(qiew& ascii, T*& client)
         {
             // Take the control sequence from the string until CSI (cmd >= 0x40 && cmd <= 0x7E) command occured
@@ -1160,7 +1180,7 @@ namespace netxs::ansi
                     }
                 };
 
-                auto& csier = _glb<T>::parser.csier;
+                auto& csier = _glb<T>::vt_parser.csier;
                 auto c = ascii.front();
                 if (cmds(c))
                 {
@@ -1195,7 +1215,7 @@ namespace netxs::ansi
             }
         }
 
-        // Operating System Command (OSC) parser.
+        // vt_parser: Operating System Command (OSC) parser.
         static void xosc(qiew& ascii, T*& client)
         {
             // Take the string until ST (='\e\\'='ESC\' aka String Terminator) or BEL (='\x07')
@@ -1223,7 +1243,7 @@ namespace netxs::ansi
                 auto delm = tail; // Semicolon ';' position
                 auto exec = [&](auto pad)
                 {
-                    auto& oscer = _glb<T>::parser.oscer;
+                    auto& oscer = _glb<T>::vt_parser.oscer;
                     text cmd(base, delm);
                     ++delm;
                     auto size = head - delm;
@@ -1280,7 +1300,7 @@ namespace netxs::ansi
             }
         }
 
-        // Set keypad mode.
+        // vt_parser: Set keypad mode.
         static void keym(qiew& ascii, T*& p)
         {
             // Keypad mode	Application ESC =
@@ -1293,7 +1313,7 @@ namespace netxs::ansi
             //}
         }
 
-        // Designate G0 Character Set.
+        // vt_parser: Designate G0 Character Set.
         static void g0__(qiew& ascii, T*& p)
         {
             // ESC ( C
@@ -1307,69 +1327,74 @@ namespace netxs::ansi
         }
     };
 
-    //todo should we parse these controls as a C0-like?
-    //     split paragraphs when flow direction changes, for example.
-    struct marker
+    class parser
     {
-        using changer = std::array<void (*)(cell&), ctrl::COUNT>;
-        changer	setter = {};
-        marker()
+        //todo use C++20 requires expressions
+        template <class A>
+        struct has
         {
-            setter[ctrl::ALM                 ] = [](cell& p) { p.rtl(true);    };
-            setter[ctrl::RLM                 ] = [](cell& p) { p.rtl(true);    };
-            setter[ctrl::LRM                 ] = [](cell& p) { p.rtl(faux);    };
-            setter[ctrl::SHY                 ] = [](cell& p) { p.hyphen(true); };
-            setter[ctrl::FUNCTION_APPLICATION] = [](cell& p) { p.fnappl(true); };
-            setter[ctrl::INVISIBLE_TIMES     ] = [](cell& p) { p.itimes(true); };
-            setter[ctrl::INVISIBLE_SEPARATOR ] = [](cell& p) { p.isepar(true); };
-            setter[ctrl::INVISIBLE_PLUS      ] = [](cell& p) { p.inplus(true); };
-            setter[ctrl::ZWNBSP              ] = [](cell& p) { p.zwnbsp(true); };
-        }
-    };
+            template <class B> static int16_t _(decltype(&B::template parser_config<ansi::vt_parser<B>>));
+            template <class B> static uint8_t _(...);
+            static constexpr bool parser_config = sizeof(_<A>(nullptr)) - 1;
+        };
 
-    template<class T>
-    static void post(T& client, utf::frag const& cluster)
-    {
-        static ansi::marker marker;
-        auto& width = client.width;
-        auto& brush = client.brush;
-        auto& proto = client.proto;
-        //auto& debug = client.debug;
+    public:
+        deco style{}; // parser: Parser style.
+        grid proto{}; // parser: Proto lyric.
+        iota width{}; // parser: Proto lyric length.
+        mark brush{}; // parser: Parser brush.
+        //text debug{};
 
-        auto& utf8 = cluster.text;
-        auto& attr = cluster.attr;
-        if (auto w = attr.ucwidth)
+        template<class T>
+        struct vt_parser : public ansi::vt_parser<T>
         {
-            width += w;
-            brush.set_gc(utf8, w);
-            proto.push_back(client.brush);
-            //debug += (debug.size() ? "_"s : ""s) + text(utf8);
-        }
-        else
-        {
-            if (auto set_prop = marker.setter[attr.control])
+            using vt = ansi::vt_parser<T>;
+            vt_parser() : vt()
             {
-                if (proto.size())
-                {
-                    set_prop(proto.back());
-                }
-                else
-                {
-                    auto empty = brush;
-                    empty.txt(whitespace).wdt(w);
-                    set_prop(empty);
-                    proto.push_back(empty);
-                }
+                if constexpr (has<T>::parser_config) T::parser_config(*this);
+                //T::parser_config(*this);
+            }
+        };
+
+        void post(utf::frag const& cluster)
+        {
+            static ansi::marker marker;
+
+            auto& utf8 = cluster.text;
+            auto& attr = cluster.attr;
+            if (auto w = attr.ucwidth)
+            {
+                width += w;
+                brush.set_gc(utf8, w);
+                proto.push_back(brush);
+                //debug += (debug.size() ? "_"s : ""s) + text(utf8);
             }
             else
             {
-                brush.set_gc(utf8, w);
-                proto.push_back(brush);
+                if (auto set_prop = marker.setter[attr.control])
+                {
+                    if (proto.size())
+                    {
+                        set_prop(proto.back());
+                    }
+                    else
+                    {
+                        auto empty = brush;
+                        empty.txt(whitespace).wdt(w);
+                        set_prop(empty);
+                        proto.push_back(empty);
+                    }
+                }
+                else
+                {
+                    brush.set_gc(utf8, w);
+                    proto.push_back(brush);
+                }
+                //auto i = utf::to_hex((size_t)attr.control, 5, true);
+                //debug += (debug.size() ? "_<fn:"s : "<fn:"s) + i + ">"s;
             }
-            //auto i = utf::to_hex((size_t)attr.control, 5, true);
-            //debug += (debug.size() ? "_<fn:"s : "<fn:"s) + i + ">"s;
         }
-    }
+    };
 
     // ansi: Caret manipulation command list.
     struct writ
