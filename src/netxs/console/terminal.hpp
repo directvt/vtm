@@ -1861,7 +1861,7 @@ private:
                 if (guard)
                 {
                     SIGNAL(tier::general, e2::debug::output, shadow); // Post for the Logs.
-                    ansi::parse(shadow, target); // Append target using current insertion point.
+                    ansi::parse(shadow, target);
                     base::deface();
                     break;
                 }

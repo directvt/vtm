@@ -1416,8 +1416,8 @@ namespace netxs::ansi
                 width = 0;
             }
         }
-        virtual void meta(deco& old_style, deco& new_style) = 0;
-        virtual void data(grid& proto, iota width)          = 0;
+        virtual void meta(deco& old_style, deco& new_style) { };
+        virtual void data(grid& proto, iota width)          { };
     };
 
     // ansi: Caret manipulation command list.

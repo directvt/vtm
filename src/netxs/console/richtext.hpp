@@ -904,13 +904,11 @@ namespace netxs::console
             : parser{ style },
               index { newid }
         { }
-        para(view utf8)
-        {
-            ansi::parse(utf8, this);
-        }
 
-        auto& operator += (view utf8) { ansi::parse(utf8, this); return *this;  }
-        auto& operator  = (view utf8) { wipe(brush); return operator += (utf8); }
+        para              (view utf8) {              ansi::parse(utf8, this);               }
+        auto& operator  = (view utf8) { wipe(brush); ansi::parse(utf8, this); return *this; }
+        auto& operator += (view utf8) {              ansi::parse(utf8, this); return *this; }
+
         operator writ const& () const { return locus; }
 
         void decouple() { lyric = std::make_shared<rich>(*lyric); } // para: Make canvas isolated copy.
@@ -939,9 +937,6 @@ namespace netxs::console
             lyric->kill();
         }
         void task(ansi::rule const& cmd) { if (!busy()) locus.push(cmd); } // para: Add locus command. In case of text presence try to change current target otherwise abort content building.
-        void meta(deco& old_style, deco& new_style) override
-        {
-        }
         // para: Convert into the screen-adapted sequence (unfold, remove zerospace chars, etc.).
         void data(grid& proto, iota width) override
         {
@@ -950,7 +945,7 @@ namespace netxs::console
         }
         void id(ui32 newid) { index = newid; }
         auto id() const     { return index;  }
-        //todo move to parser
+
         auto& set(cell const& c) { brush.set(c); return *this; }
     };
 
@@ -1131,15 +1126,15 @@ namespace netxs::console
             vt.csier.table[CSI_CCC][CCC_IDX] = VT_PROC{ p->fork(q(0)); };
             vt.csier.table[CSI_CCC][CCC_REF] = VT_PROC{ p->bind(q(0)); };
         }
+        page              (view utf8) {          ansi::parse(utf8, this);               }
+        auto& operator  = (view utf8) { clear(); ansi::parse(utf8, this); return *this; }
+        auto& operator += (view utf8) {          ansi::parse(utf8, this); return *this; }
 
-        page& operator = (page const&) = default;
         page ()                        = default;
         page (page&&)                  = default;
         page (page const&)             = default;
-        page              (view utf8) {          ansi::parse(utf8, this);               }
-        auto& operator =  (view utf8) { clear(); ansi::parse(utf8, this); return *this; }
-        auto& operator += (view utf8) {          ansi::parse(utf8, this); return *this; }
-        auto& operator += (page const& p)
+        page& operator = (page const&) = default;
+        auto& operator+= (page const& p)
         {
             parts.insert(p.parts.begin(), p.parts.end()); // Part id should be unique across pages
             //batch.splice(std::next(layer), p.batch);
@@ -1252,9 +1247,30 @@ namespace netxs::console
             item.lyric->splice(item.caret, proto, width);
             item.caret+= width;
         }
-        auto  size()    const { return static_cast<iota>(batch.size()); }
         auto& current()       { return **layer; } // page: Access to the current paragraph.
         auto& current() const { return **layer; } // page: RO access to the current paragraph.
+        auto  size()    const { return static_cast<iota>(batch.size()); }
+    };
+
+    // Derivative vt-parser example.
+    struct derived_from_page
+        : public page
+    {
+        template<class T>
+        static void parser_config(T& vt)
+        {
+            page::parser_config(vt); // Inherit base vt-functionality.
+
+            // Override vt-functionality.
+            using namespace netxs::ansi;
+            vt.intro[ctrl::TAB] = VT_PROC{ p->tabs(q.pop_all(ctrl::TAB)); };
+        }
+
+        derived_from_page (view utf8) {          ansi::parse(utf8, this);               }
+        auto& operator  = (view utf8) { clear(); ansi::parse(utf8, this); return *this; }
+        auto& operator += (view utf8) {          ansi::parse(utf8, this); return *this; }
+
+        void tabs(iota) { log("Tabs are not supported"); }
     };
 
     class tone
