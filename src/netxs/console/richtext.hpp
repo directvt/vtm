@@ -894,16 +894,12 @@ namespace netxs::console
         writ locus;
         corx lyric = std::make_shared<rich>();
 
+        using parser::parser;
         para()                         = default;
         para(para&&)                   = default;
         para(para const&)              = default;
         para& operator = (para&&)      = default;
         para& operator = (para const&) = default;
-
-        using parser::parser;
-        para(deco const& style)
-            : parser{ style }
-        { }
         para(ui32 newid, deco const& style = {})
             : parser{ style },
               index { newid }
@@ -913,17 +909,10 @@ namespace netxs::console
             ansi::parse(utf8, this);
         }
 
+        auto& operator += (view utf8) { ansi::parse(utf8, this); return *this;  }
+        auto& operator  = (view utf8) { wipe(brush); return operator += (utf8); }
         operator writ const& () const { return locus; }
-        auto& operator += (view utf8) // para: Append a new text using current attributes.
-        {
-            ansi::parse(utf8, this);
-            return *this;
-        }
-        auto& operator = (view utf8) // para: Replace with a new text. Preserve current attributes.
-        {
-            wipe(brush);
-            return operator += (utf8);
-        }
+
         void decouple() { lyric = std::make_shared<rich>(*lyric); } // para: Make canvas isolated copy.
         shot   shadow() const { return *lyric; } // para: Return paragraph shadow.
         shot   substr(iota start, iota width) const // para: Return paragraph substring shadow.
@@ -945,26 +934,24 @@ namespace netxs::console
             brush.reset(c);
             //todo revise
             //style.rst();
-            proto.clear();
+            //proto.clear();
             locus.kill();
             lyric->kill();
         }
         void task(ansi::rule const& cmd) { if (!busy()) locus.push(cmd); } // para: Add locus command. In case of text presence try to change current target otherwise abort content building.
+        void meta(deco& old_style, deco& new_style) override
+        {
+        }
         // para: Convert into the screen-adapted sequence (unfold, remove zerospace chars, etc.).
-        void cook()
+        void data(grid& proto, iota width) override
         {
             lyric->splice(caret, proto, width);
             caret += width;
-            proto.clear();
-            width = 0;
         }
-        void id (ui32 newid)   { index = newid; }
-        auto id () const       { return index;  }
-        auto& set (cell const& c)
-        {
-            brush.set(c);
-            return *this;
-        }
+        void id(ui32 newid) { index = newid; }
+        auto id() const     { return index;  }
+        //todo move to parser
+        auto& set(cell const& c) { brush.set(c); return *this; }
     };
 
     // richtext: Cascade of the identical paragraphs.
@@ -1179,14 +1166,14 @@ namespace netxs::console
         // page: Clear the list of paragraphs.
         page& clear(bool preserve_state = faux)
         {
-            if (!preserve_state) brush.reset();
+            if (!preserve_state) parser::brush.reset();
             parts.clear();
             batch.resize(1);
             layer = batch.begin();
             index = 0;
             auto& item = **layer;
             item.id(index);
-            item.wipe(brush);
+            item.wipe(parser::brush);
             return *this;
         }
         // page: Disintegrate the page content into atomic contiguous pieces - ropes.
@@ -1213,11 +1200,11 @@ namespace netxs::console
             }
         }
         // page: Split the text run.
-        template<bool COOK = true>
+        template<bool FLUSH = true>
         void fork()
         {
-            if constexpr (COOK) cook();
-            layer = batch.insert(std::next(layer), std::make_shared<para>(style));
+            if constexpr (FLUSH) parser::flush();
+            layer = batch.insert(std::next(layer), std::make_shared<para>(parser::style));
             (**layer).id(++index);
             shrink();
         }
@@ -1229,7 +1216,7 @@ namespace netxs::console
         }
         void test()
         {
-            cook();
+            parser::flush();
             if ((**layer).busy()) fork<faux>();
         }
         // page: Make a shared copy of lyric of existing paragraph.
@@ -1254,14 +1241,16 @@ namespace netxs::console
             auto& item = **layer;
             item.locus.push(cmd);
         }
-        void cook()
+        void meta(deco& old_style, deco& new_style) override
+        {
+            auto& item = **layer;
+            item.style = new_style;
+        }
+        void data(grid& proto, iota width) override
         {
             auto& item = **layer;
             item.lyric->splice(item.caret, proto, width);
-            item.style = style;
             item.caret+= width;
-            proto.clear();
-            width = 0;
         }
         auto  size()    const { return static_cast<iota>(batch.size()); }
         auto& current()       { return **layer; } // page: Access to the current paragraph.

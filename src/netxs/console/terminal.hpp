@@ -317,12 +317,11 @@ namespace netxs::app
             if (from < upto) while(proc(*head) && head++ != tail);
             else             while(proc(*head) && head-- != tail);
         }
-        void fin(grid& proto, iota width, deco const& style)
+        void proceed(grid& proto, iota width)
         {
             auto& cur_line = *batch;
             coord.x += width;
             cur_line.splice(chx, proto, width);
-            cur_line.style = style;
             chx += width;
             batch.take(*batch);
         }
@@ -1012,7 +1011,7 @@ private:
             void set(text const& property, view txt)
             {
                 static auto jet_left = ansi::jet(bias::left);
-                owner.target->cook();
+                owner.target->flush();
                 if (property == ansi::OSC_LABEL_TITLE)
                 {
                                   props[ansi::OSC_LABEL] = txt;
@@ -1033,7 +1032,7 @@ private:
             // win_cntrl: Manage terminal window props (XTWINOPS).
             void manage(fifo& q)
             {
-                owner.target->cook();
+                owner.target->flush();
                 static constexpr iota get_label = 20; // Report icon   label. (Report as OSC L label ST).
                 static constexpr iota get_title = 21; // Report window title. (Report as OSC l title ST).
                 static constexpr iota put_stack = 22; // Push icon label and window title to   stack.
@@ -1166,11 +1165,9 @@ private:
 
                 vt.csier.table[CSI_WIN] = VT_PROC{ p->boss.winprops.manage(q); };  // CSI n;m;k t  Terminal window options (XTWINOPS).
 
-                vt.csier.table[CSI_CCC][CCC_RST] = VT_PROC{ p->style.glb(); p->style.wrp(WRAPPING); };  // fx_ccc_rst
                 vt.csier.table[CSI_CCC][CCC_SBS] = VT_PROC{ p->boss.scrollbuffer_size(q); };  // CCC_SBS: Set scrollback size.
                 vt.csier.table[CSI_CCC][CCC_EXT] = VT_PROC{ p->boss.native(q(1)); };  // CCC_EXT: Setup extended functionality.
-                vt.csier.table[CSI_CCC][CCC_WRP] = VT_PROC{ p->wrp(static_cast<wrap>(q(0))); };  // CCC_WRP
-                vt.csier.table[CSI_CCC][CCC_JET] = VT_PROC{ p->jet(static_cast<bias>(q(0))); };  // CCC_JET
+                vt.csier.table[CSI_CCC][CCC_RST] = VT_PROC{ p->style.glb(); p->style.wrp(WRAPPING); };  // fx_ccc_rst
 
                 vt.intro[ctrl::ESC][ESC_IND] = VT_PROC{ p->dn(1); }; // ESC D  Caret Down.
                 vt.intro[ctrl::ESC][ESC_IR ] = VT_PROC{ p->ri (); }; // ESC M  Reverse index.
@@ -1215,10 +1212,10 @@ private:
             { }
 
             // scrollbuff: Base-CSI contract (see ansi::csi_t).
-            //             task(...), post(...), cook(...)
+            //             task(...), meta(...), data(...)
             void task(ansi::rule const& property)
             {
-                cook();
+                parser::flush();
                 log("scrollbuff: locus extensions are not supported");
                 //auto& cur_line = *batch;
                 //if (cur_line.busy())
@@ -1228,14 +1225,14 @@ private:
                 //} 
                 //batch->locus.push(property);
             }
-            void inline cook()
+            void meta(deco& old_style, deco& new_style) override
+            {
+                dissect();
+                style_status(new_style);
+            }
+            void data(grid& proto, iota width) override
             { 
-                if (width)
-                {
-                    fin(proto, width, style);
-                    proto.clear();
-                    width = 0;
-                }
+                proceed(proto, width);
             }
 
             template<class T>
@@ -1259,57 +1256,58 @@ private:
                 log("CSI ", params, " ", (unsigned char)i, "(", std::to_string(i), ") is not implemented.");
             }
             // scrollbuff: Toggle autowrap mode.
-            void toggle_wrp()
+            void toggle_wrap()
             {
-                wrp(batch->style.wrp() == wrap::on ? wrap::off
-                                                   : wrap::on);
+                auto style = batch->style;
+                style.wrp(style.wrp() == wrap::on ? wrap::off
+                                                  : wrap::on);
+                style_status(style);
             }
             // scrollbuff: CCC_WRP:  Set autowrap mode.
             void wrp(wrap w)
             {
-                cook();
-                dissect();
-                //todo unify
                 auto style = batch->style;
-                batch->style.wrp(w);
+                style.wrp(w);
                 style_status(style);
             }
             // scrollbuff: CCC_JET:  Set line alignment.
             void jet(bias j)
             {
-                cook();
-                dissect();
-                //todo unify
                 auto style = batch->style;
-                batch->style.jet(j);
+                style.jet(j);
                 style_status(style);
             }
+            //todo use constexpr
             void style_status(deco const& s)
             {
                 auto& style = batch->style;
-                if (s.wrp() != style.wrp())
+                if (style != s)
                 {
-                    auto status = style.wrp() == wrap::none ? WRAPPING
-                                                            : style.wrp();
-                    boss.base::broadcast->SIGNAL(tier::release, app::term::events::layout::wrapln, status);
-                }
-                if (s.jet() != style.jet())
-                {
-                    auto status = style.jet() == bias::none ? bias::left
-                                                            : style.jet();
-                    boss.base::broadcast->SIGNAL(tier::release, app::term::events::layout::align, status);
+                    if (s.wrp() != style.wrp())
+                    {
+                        auto status = s.wrp() == wrap::none ? WRAPPING
+                                                            : s.wrp();
+                        boss.base::broadcast->SIGNAL(tier::release, app::term::events::layout::wrapln, status);
+                    }
+                    if (s.jet() != style.jet())
+                    {
+                        auto status = s.jet() == bias::none ? bias::left
+                                                            : s.jet();
+                        boss.base::broadcast->SIGNAL(tier::release, app::term::events::layout::align, status);
+                    }
+                    style = s;
                 }
             }
             // scrollbuff: ESC H  Place tabstop at the current caret posistion.
             void stb()
             {
-                cook();
+                parser::flush();
                 tabstop = std::max(1, coord.x + 1);
             }
             // scrollbuff: TAB  Horizontal tab.
             void tab(iota n)
             {
-                cook();
+                parser::flush();
                 if (n > 0)
                 {
                     auto a = n * tabstop - coord.x % tabstop;
@@ -1331,14 +1329,14 @@ private:
             // scrollbuff: ESC 7 or CSU s  Save caret position.
             void scp()
             {
-                cook();
+                parser::flush();
                 saved = coord;
                 saved.y -= basis;
             }
             // scrollbuff: ESC 8 or CSU u  Restore caret position.
             void rcp()
             {
-                cook();
+                parser::flush();
                 coord = saved;
                 coord.y += basis;
                 set_coord();
@@ -1346,7 +1344,7 @@ private:
             // scrollbuff: CSI n T/S  Scroll down/up, scrolled up lines are pushed to the scrollback buffer.
             void scl(iota n)
             {
-                cook();
+                parser::flush();
                 scroll_region(n, n > 0 ? faux : true);
                 set_coord();
             }
@@ -1356,7 +1354,7 @@ private:
                /* Works only if caret is in the scroll region.
                 * Inserts n lines at the current row and removes n lines at the scroll bottom.
                 */
-                cook();
+                parser::flush();
                 auto[top, end] = get_scroll_region();
                 if (n > 0 && coord.y >= top && coord.y <= end)
                 {
@@ -1374,7 +1372,7 @@ private:
                /* Works only if caret is in the scroll region.
                 * Deletes n lines at the current row and add n lines at the scroll bottom.
                 */
-                cook();
+                parser::flush();
                 auto[top, end] = get_scroll_region();
                 if (n > 0 && coord.y >= top && coord.y <= end)
                 {
@@ -1394,7 +1392,7 @@ private:
                  * - move caret one line up if it is outside of scrolling region or below the top line of scrolling region.
                  * - one line scroll down if caret is on the top line of scroll region.
                  */
-                cook();
+                parser::flush();
                 auto[top, end] = get_scroll_region();
                 if (coord.y != top)
                 {
@@ -1420,11 +1418,11 @@ private:
                 */
                 if (n > 0)
                 {
-                    cook();
+                    parser::flush();
                     //auto pos = chx;
                     //auto coor = coord;
                     batch->insert(rods::chx, n, brush);
-                    //cook();
+                    //parser::flush();
                     //chx = pos;
                     //todo revise
                     //coord = coor;
@@ -1439,11 +1437,11 @@ private:
             {
                 if (n > 0)
                 {
-                    cook();
+                    parser::flush();
                     //auto pos = batch->chx();
                     //auto coor = coord;
                     batch->splice(rods::chx, n, brush);
-                    //cook();
+                    //parser::flush();
                     //batch->chx(pos);
                     //todo revise
                     //coord = coor;
@@ -1452,7 +1450,7 @@ private:
             // scrollbuff: CSI n P  Delete (not Erase) letters under the caret.
             void dch(iota n)
             {
-                cook();
+                parser::flush();
                 batch->cutoff(rods::chx, n, brush, panel.x);
                 clear_overlapping_lines();
             }
@@ -1464,7 +1462,7 @@ private:
             // scrollbuff: Move caret forward by n.
             void cuf(iota n)
             {
-                cook();
+                parser::flush();
                 coord.x += n;
                 rods::chx += n;
                 //set_coord();
@@ -1472,7 +1470,7 @@ private:
             // scrollbuff: CSI n G  Absolute horizontal caret position (1-based).
             void chx(iota n)
             {
-                cook();
+                parser::flush();
                 coord.x = n - 1;
                 rods::chx = n - 1;
                 //set_coord();
@@ -1480,14 +1478,14 @@ private:
             // scrollbuff: CSI n d  Absolute vertical caret position (1-based).
             void chy(iota n)
             {
-                cook();
+                parser::flush();
                 coord.y = n - 1 + basis;
                 set_coord();
             }
             // scrollbuff: CSI y; x H/F  Caret position (1-based).
             void cup(fifo& queue)
             {
-                cook();
+                parser::flush();
                 auto y = queue(1);
                 auto x = queue(1);
                 auto p = twod{ x, y };
@@ -1499,14 +1497,14 @@ private:
             // scrollbuff: Line reverse feed (move caret up).
             void up(iota n)
             {
-                cook();
+                parser::flush();
                 coord.y -= n;
                 set_coord();
             }
             // scrollbuff: Line feed (move caret down).
             void dn(iota n)
             {
-                cook();
+                parser::flush();
                 // Scroll regions up if coord.y == scend and scroll region are defined.
                 auto[top, end] = get_scroll_region();
                 if (n > 0 && scroll_region_used() && coord.y    <= end
@@ -1525,14 +1523,14 @@ private:
             // scrollbuff: '\r'  Go to home of visible line instead of home of para.
             void home()
             {
-                cook();
+                parser::flush();
                 coord.x = 0;
                 set_coord();
             }
             // scrollbuff: CSI n J  Erase display.
             void ed(iota n)
             {
-                cook();
+                parser::flush();
                 switch (n)
                 {
                     case commands::erase::display::below: // n = 0 (default)  Erase viewport after caret.
@@ -1556,7 +1554,7 @@ private:
             // scrollbuff: CSI n K  Erase line (don't move caret).
             void el(iota n)
             {
-                cook();
+                parser::flush();
                 iota start;
                 iota count;
                 auto caret = std::max(0, rods::chx);
@@ -1656,14 +1654,14 @@ private:
         // term: Soft terminal reset (DECSTR).
         void decstr()
         {
-            target->cook();
+            target->flush();
             normal.clear_all();
             altbuf.clear_all();
             target = &normal;
         }
         void decset(fifo& queue)
         {
-            target->cook();
+            target->flush();
             while (auto q = queue(0))
             {
                 switch (q)
@@ -1732,7 +1730,7 @@ private:
         }
         void decrst(fifo& queue)
         {
-            target->cook();
+            target->flush();
             while (auto q = queue(0))
             {
                 switch (q)
@@ -1925,7 +1923,7 @@ private:
                         target->jet(bias::right);
                         break;
                     case term::commands::togglewrp:
-                        target->toggle_wrp();
+                        target->toggle_wrap();
                         break;
                     case term::commands::reset:
                         decstr();

@@ -781,9 +781,11 @@ namespace netxs::ansi
         } v;
         ui64 token;
 
-        constexpr deco()                          : token { 0 }       { }
-        constexpr deco            (deco const& d) : token { d.token } { }
-        constexpr void operator = (deco const& d) { token = d.token;    }
+        constexpr deco()                          : token { 0 }            { }
+        constexpr deco            (deco const& d) : token { d.token }      { }
+        constexpr void operator = (deco const& d) { token = d.token;         }
+        constexpr bool operator== (deco const& d) { return token == d.token; }
+        constexpr bool operator!= (deco const& d) { return token != d.token; }
         constexpr deco(iota)
             : v{ .wrapln = wrap::on,
                  .adjust = bias::left,
@@ -905,9 +907,9 @@ namespace netxs::ansi
         {
            /* Contract for client p
             * Unicode
-            * - void post(utf::frag const& cluster); // Proceed grapheme cluster.
             * - void task(ansi::rule const& cmd);    // Proceed curses command.
-            * - void cook();                         // Finalize paragraph.
+            * - void meta(deco& old, deco& new);     // Proceed new style.
+            * - void data(grid& proto, iota width);  // Proceed new cells.
             * SGR:
             * - void nil();                          // Reset all SGR to default.
             * - void sav();                          // Set current SGR as default.
@@ -1124,7 +1126,7 @@ namespace netxs::ansi
             auto y = [&](auto& cluster) { client->post(cluster); };
 
             utf::decode(s, y, utf8);
-            client->cook();
+            client->flush();
         }
         // vt_parser: Static UTF-8/ANSI parser proc.
         void parse(view utf8, T*&& client)
@@ -1340,10 +1342,17 @@ namespace netxs::ansi
 
     public:
         deco style{}; // parser: Parser style.
+        deco state{}; // parser: Parser style last state.
         grid proto{}; // parser: Proto lyric.
         iota width{}; // parser: Proto lyric length.
         mark brush{}; // parser: Parser brush.
         //text debug{};
+
+        parser() = default;
+        parser(deco style)
+            : style{ style },
+              state{ style }
+        { };
 
         template<class T>
         struct vt_parser : public ansi::vt_parser<T>
@@ -1352,7 +1361,6 @@ namespace netxs::ansi
             vt_parser() : vt()
             {
                 if constexpr (has<T>::parser_config) T::parser_config(*this);
-                //T::parser_config(*this);
             }
         };
 
@@ -1394,6 +1402,22 @@ namespace netxs::ansi
                 //debug += (debug.size() ? "_<fn:"s : "<fn:"s) + i + ">"s;
             }
         }
+        inline void flush()
+        {
+            if (state != style)
+            {
+                meta(state, style);
+                state = style;
+            }
+            if (width)
+            {
+                data(proto, width);
+                proto.clear();
+                width = 0;
+            }
+        }
+        virtual void meta(deco& old_style, deco& new_style) = 0;
+        virtual void data(grid& proto, iota width)          = 0;
     };
 
     // ansi: Caret manipulation command list.
