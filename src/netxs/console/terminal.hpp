@@ -95,6 +95,13 @@ namespace netxs::app
                 p._kind = {};
                 rich::resite(p);
             }
+            auto height(iota width)
+            {
+                auto len = length();
+                return len > width
+                    && style.wrp() == wrap::on ? (len + width - 1) / width
+                                               : 1;
+            }
         };
 
         using vect = std::vector<line>;
@@ -232,13 +239,6 @@ namespace netxs::app
             }
             return coord;
         }
-        auto line_height(line const& l)
-        {
-            auto width = l.length();
-            return width > panel.x
-                && l.style.wrp() == wrap::on ? (width + panel.x - 1) / panel.x
-                                             : 1;
-        }
         // rods: Return 0-based scroll region pair, inclusive.
         auto get_scroll_region()
         {
@@ -309,14 +309,6 @@ namespace netxs::app
         }
         // rods: Map cursor pos from viewport to scrollback.
         void set_coord() { set_coord(coord); }
-        template<class P>
-        void for_each(iota from, iota upto, P proc)
-        {
-            auto head = batch.begin() + from;
-            auto tail = batch.begin() + upto;
-            if (from < upto) while(proc(*head) && head++ != tail);
-            else             while(proc(*head) && head-- != tail);
-        }
 
         struct item_t
         {
@@ -338,21 +330,35 @@ namespace netxs::app
                   panel{ panel },
                   basis{ 0     }
             { }
-            auto count() { return ring::size; }
+            //auto count() { return ring::size; }
+            void rebuild()
+            {
+                panel.y = 0;
+                auto my_it = begin();
+                auto proc = [&](auto&& l)
+                {
+                    auto& item = *my_it++;
+                    item.offset = panel.y;
+                    item.height = l.height(panel.x);
+                    panel.y += item.height;
+                };
+                batch.for_each(basis, basis + ring::size, proc);
+            }
             template<bool BOTTOM_ANCHORED>
             void resize(twod const& new_size)
             {
+                auto delta_y = new_size.y - ring::size;
+                auto delta_x = new_size.x - panel.x;
                 ring::resize<BOTTOM_ANCHORED>(new_size.y, ring::step);
-                auto delta = new_size - panel;
-                if (delta.x)
+                if (delta_x)
                 {
-                    //rebuild viewport
                     panel.x = new_size.x;
                 }
-                if (delta.y > 0)
+                if (delta_y > 0)
                 {
                     if constexpr (BOTTOM_ANCHORED)
                     {
+                        basis -= delta;
                         //push_front(from basis, n = - delta.y)
                         //panel.y += summ(height);
                     }
@@ -362,6 +368,7 @@ namespace netxs::app
                         //panel.y += summ(height);
                     }
                 }
+                rebuild();
             }
             void output(face& canvas)
             {
@@ -521,7 +528,7 @@ namespace netxs::app
                 flow::go(cur_line, canvas);
                 if (auto length = cur_line.length()) // Mark lines not shown in full.
                 {
-                    rght_rect.size.y = line_height(cur_line);
+                    rght_rect.size.y = cur_line.height(panel.x);
                     if (rght_rect.size.y == 1)
                     {
                         auto left_dot = full.coor.x;
@@ -661,7 +668,7 @@ namespace netxs::app
             {
                 auto& curln =*--tail;
                 curln.trimto(max_line_len);
-                auto depth = line_height(curln);
+                auto depth = curln.height(panel.x);
                 auto below = tail + depth - 1;
                 auto over = below - batch_end;
                 if (over >= 0)
@@ -754,7 +761,7 @@ namespace netxs::app
         void clear_overlapping_lines()
         {
             auto& curln = batch.current();
-            auto height = line_height(curln);
+            auto height = curln.height(panel.x);
             auto batch_get = batch.index();
             auto batch_length = batch.length();
             auto overflow = std::max(0, batch_get + height - (batch_length - 1));

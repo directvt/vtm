@@ -74,6 +74,7 @@ namespace netxs::generics
         auto& back()              { return buff[tail];              }
         auto& front()             { return buff[head];              }
         auto& length() const      { return size;                    }
+    private:
         auto  full()
         {
             if (size == peak)
@@ -99,6 +100,7 @@ namespace netxs::generics
             if (cart == tail) dec(tail), cart = tail;
             else              dec(tail);
         }
+    public:
         template<class ...Args>
         auto& push_back(Args&&... args)
         {
@@ -181,6 +183,22 @@ namespace netxs::generics
         auto  operator -> () { return buff.begin() + cart;  }
         auto  index (iota i) { return cart = mod(head + i); }
         auto  index () const { return dst(head, cart);      }
+        template<class P>
+        void for_each(iota from, iota upto, P proc)
+        {
+            auto head = begin() + from;
+            auto tail = begin() + upto;
+            if constexpr (std::is_same_v< decltype(proc(*head)), bool >)
+            {
+                     if (from < upto) while(proc(*head) && ++head != tail);
+                else if (from > upto) while(proc(*head) && --head != tail);
+            }
+            else
+            {
+                     if (from < upto) do { proc(*head); } while(++head != tail);
+                else if (from > upto) do { proc(*head); } while(--head != tail);
+            }
+        }
     };
 }
 
