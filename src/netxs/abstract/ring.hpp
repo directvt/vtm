@@ -83,16 +83,27 @@ namespace netxs::generics
             }
             return faux;
         }
+        inline void undock_front()
+        {
+            auto& item = front();
+            undock(item);
+            item = type{};
+            if (cart == head) inc(head), cart = head;
+            else              inc(head);
+        }
+        inline void undock_back()
+        {
+            auto& item = back();
+            undock(item);
+            item = type{};
+            if (cart == tail) dec(tail), cart = tail;
+            else              dec(tail);
+        }
         template<class ...Args>
         auto& push_back(Args&&... args)
         {
-            if (full())
-            {
-                undock(front());
-                if (cart == head) inc(head), cart = head;
-                else              inc(head);
-            }
-            else ++size;
+            if (full()) undock_front();
+            else        ++size;
             inc(tail);
             auto& item = back();
             item = type(std::forward<Args>(args)...);
@@ -101,30 +112,18 @@ namespace netxs::generics
         template<class ...Args>
         auto& push_front(Args&&... args)
         {
-            if (full())
-            {
-                undock(back());
-                if (cart == tail) dec(tail), cart = tail;
-                else              dec(tail);
-            }
-            else ++size;
+            if (full()) undock_back();
+            else        ++size;
             dec(head);
             auto& item = front();
             item = type(std::forward<Args>(args)...);
             return item;
         }
-        void pop()
-        {
-            auto& item = back();
-            undock(item);
-            item = type{};
-            if (cart == tail) dec(tail), cart = tail;
-            else              dec(tail);
-            --size;
-        }
+        void pop_back () { undock_back();  --size; }
+        void pop_front() { undock_front(); --size; }
         void clear()
         {
-            while(size) pop();
+            while(size) pop_back(); //todo undock?
             cart = 0;
             head = 0;
             tail = peak - 1;

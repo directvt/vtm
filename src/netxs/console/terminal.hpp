@@ -279,7 +279,7 @@ namespace netxs::app
         void pop_lines(iota amount)
         {
             assert(amount >= 0 && amount < batch.length());
-            while(amount--) batch.pop();
+            while(amount--) batch.pop_back();
             align_basis();
         }
         auto get_line_index_by_id(ui32 id)
