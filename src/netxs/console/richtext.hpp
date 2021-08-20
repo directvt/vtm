@@ -1110,7 +1110,7 @@ namespace netxs::console
         struct buff : public ring
         {
             using ring::ring;
-            void free(para& p) override { }
+            void undock(para& p) override { }
         };
 
         template<class T>

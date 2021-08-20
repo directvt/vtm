@@ -58,7 +58,7 @@ namespace netxs::generics
               mxsz{ std::numeric_limits<iota>::max() - step }
         { }
 
-        virtual void free(type&) = 0;
+        virtual void undock(type&) = 0;
 
         void inc(iota& a) const   { if  (++a == peak) a = 0;        }
         void dec(iota& a) const   { if  (--a < 0    ) a = peak - 1; }
@@ -69,7 +69,7 @@ namespace netxs::generics
                                                  : b - a;           }
         auto  begin()             { return iter{ *this, 0    };     }
         auto  end()               { return iter{ *this, size };     }
-        auto  current()           { return iter{ *this, cart };     }
+        auto  current_it()        { return iter{ *this, cart };     }
         auto& operator[] (iota i) { return buff[mod(head + i)];     }
         auto& back()              { return buff[tail];              }
         auto& front()             { return buff[head];              }
@@ -84,11 +84,11 @@ namespace netxs::generics
             return faux;
         }
         template<class ...Args>
-        auto& push(Args&&... args)
+        auto& push_back(Args&&... args)
         {
             if (full())
             {
-                free(front());
+                undock(front());
                 if (cart == head) inc(head), cart = head;
                 else              inc(head);
             }
@@ -98,10 +98,25 @@ namespace netxs::generics
             item = type(std::forward<Args>(args)...);
             return item;
         }
+        template<class ...Args>
+        auto& push_front(Args&&... args)
+        {
+            if (full())
+            {
+                undock(back());
+                if (cart == tail) dec(tail), cart = tail;
+                else              dec(tail);
+            }
+            else ++size;
+            dec(head);
+            auto& item = front();
+            item = type(std::forward<Args>(args)...);
+            return item;
+        }
         void pop()
         {
             auto& item = back();
-            free(item);
+            undock(item);
             item = type{};
             if (cart == tail) dec(tail), cart = tail;
             else              dec(tail);
@@ -127,7 +142,7 @@ namespace netxs::generics
                     {
                         do
                         {
-                            free(front());
+                            undock(front());
                             inc(head);
                         }
                         while(--size != new_size);
@@ -140,7 +155,7 @@ namespace netxs::generics
                     {
                         do
                         {
-                            free(back());
+                            undock(back());
                             dec(tail);
                         }
                         while(--size != new_size);
@@ -162,6 +177,7 @@ namespace netxs::generics
             }
             else step = grow_by;
         }
+        auto& current     () { return buff[cart];           }
         auto& operator  * () { return buff[cart];           }
         auto  operator -> () { return buff.begin() + cart;  }
         auto  index (iota i) { return cart = mod(head + i); }

@@ -113,15 +113,15 @@ namespace netxs::app
             }
             lens[line::count];
 
-            void take(type& kind, iota& size, type new_kind, iota new_size)
+            void enlist(type& kind, iota& size, type new_kind, iota new_size)
             {
                 if (size != new_size || kind != new_kind)
                 {
                     auto& new_lens = lens[new_kind];
                     if (new_lens.size() <= new_size) new_lens.resize(new_size * 2 + 1);
 
-                    if (new_size < size) free(kind, size);
-                    else               --lens[kind][size];
+                    if (new_size < size) undock(kind, size);
+                    else                 --lens[kind][size];
 
                     ++new_lens[new_size];
                     if (new_lens.max < new_size) new_lens.max = new_size;
@@ -130,7 +130,7 @@ namespace netxs::app
                     kind = new_kind;
                 }
             }
-            void free(type kind, iota size)
+            void undock(type kind, iota size)
             {
                 auto& cur_lens =       lens[kind];
                 auto cur_count = --cur_lens[size];
@@ -139,9 +139,9 @@ namespace netxs::app
                     cur_lens.prev_max();
                 }
             }
-            void take(line& l)          { take(l._kind, l._size, l.get_kind(), l.length()); }
-            void free(line& l) override { free(l._kind, l._size);                           }
-            template<auto N> auto max() { return lens[N].max;                               }
+            void enlist(line& l)          { enlist(l._kind, l._size, l.get_kind(), l.length()); }
+            void undock(line& l) override { undock(l._kind, l._size);                           }
+            template<auto N> auto max()   { return lens[N].max;                                 }
         };
 
         // For debug
@@ -160,14 +160,14 @@ namespace netxs::app
         buff        batch; // rods: Rods inner container.
         vect        cache; // rods: Temporary container for scrolling regions.
         twod const& panel; // rods: Viewport size.
-        twod        coord; // rods: Scrollback caret position; 0-based.
+        twod        coord; // rods: Scrollback cursor position; 0-based.
         iota        sctop; // rods: Scrolling region top;    1-based, "0" to use top of viewport.
         iota        scend; // rods: Scrolling region bottom; 1-based, "0" to use bottom of viewport.
         iota        basis; // rods: Index of O(0, 0).
-        twod        saved; // rods: Saved caret position;
+        twod        saved; // rods: Saved cursor position;
 
     public:
-        iota        chx{};
+        iota        caret;
 
         rods(twod const& viewport, iota buffer_size, iota grow_step, deco const& style)
             : flow { viewport.x, batch.size },
@@ -175,9 +175,10 @@ namespace netxs::app
               panel{ viewport               },
               basis{ 0                      },
               sctop{ 0                      },
-              scend{ 0                      }
+              scend{ 0                      },
+              caret{ 0                      }
         {
-            batch.push(style); // At least one row must exist.
+            batch.push_back(style); // At least one row must exist.
         }
         auto& height() const
         {
@@ -199,38 +200,37 @@ namespace netxs::app
             }
             else return faux;
         }
-        // rods: Return current 0-based caret position in the scrollback.
+        // rods: Return current 0-based cursor position in the scrollback.
         auto get_coord()
         {
-            auto& curln =*batch;
+            auto& curln = batch.current();
             auto& style = curln.style;
-            //auto  caret = twod{ curln.chx(), batch.index() };
-            auto  caret = twod{ chx, batch.index() };
+            auto  coord = twod{ caret, batch.index() };
 
             if (style.jet() == bias::left)
             {
-                if (caret.x >= panel.x && style.wrp() == wrap::on)
+                if (coord.x >= panel.x && style.wrp() == wrap::on)
                 {
-                    caret.y += caret.x / panel.x;
-                    caret.x %= panel.x;
+                    coord.y += coord.x / panel.x;
+                    coord.x %= panel.x;
                 }
             }
             else
             {
-                auto width = curln.length(); //todo max with caret.x?
+                auto width = curln.length(); //todo max with coord.x?
                 if (style.wrp() == wrap::on)
                 {
                     auto tail = width % panel.x;
-                    auto left = caret.x < width - tail;
-                    caret.y  += caret.x / panel.x;
-                    caret.x  %= panel.x;
-                    if (left) return caret;
+                    auto left = coord.x < width - tail;
+                    coord.y  += coord.x / panel.x;
+                    coord.x  %= panel.x;
+                    if (left) return coord;
                     width = tail;
                 }
-                if      (style.jet() == bias::right ) caret.x += panel.x     - width - 1;
-                else if (style.jet() == bias::center) caret.x += panel.x / 2 - width / 2;
+                if      (style.jet() == bias::right ) coord.x += panel.x     - width - 1;
+                else if (style.jet() == bias::center) coord.x += panel.x / 2 - width / 2;
             }
-            return caret;
+            return coord;
         }
         auto line_height(line const& l)
         {
@@ -273,7 +273,7 @@ namespace netxs::app
             assert(amount > 0);
             auto newid = batch.back().index;
             auto style = batch->style;
-            while(amount-- > 0 ) batch.push(++newid, style);
+            while(amount-- > 0 ) batch.push_back(++newid, style);
             align_basis();
         }
         void pop_lines(iota amount)
@@ -286,7 +286,7 @@ namespace netxs::app
         {
             return static_cast<iota>(id - batch.front().index); // ring buffer size is never larger than max_int32.
         }
-        // rods: Set scrollback caret position.
+        // rods: Set scrollback cursor position.
         void set_coord(twod new_coord)
         {
             auto style = batch->style;
@@ -303,11 +303,11 @@ namespace netxs::app
                 new_coord.x = panel.x * cur_line.depth + coord.x;
             }
             batch.index(new_coord.y);
-            //batch->chx(new_coord.x);
-            chx = new_coord.x;
+            //batch->caret(new_coord.x);
+            caret = new_coord.x;
             batch->style = style;
         }
-        // rods: Map caret pos from viewport to scrollback.
+        // rods: Map cursor pos from viewport to scrollback.
         void set_coord() { set_coord(coord); }
         template<class P>
         void for_each(iota from, iota upto, P proc)
@@ -317,13 +317,85 @@ namespace netxs::app
             if (from < upto) while(proc(*head) && head++ != tail);
             else             while(proc(*head) && head-- != tail);
         }
+
+        struct item_t
+        {
+            iota height;
+            iota offset;
+        };
+        struct viewport : public generics::ring<std::vector<item_t>>
+        {
+            using buff = rods::buff&;
+            buff batch;
+            twod panel;// panel.y = summ(lines)
+            iota basis;//=vertical pos in buff
+
+            iota vertical_offset{}; // vertical offset inside viewport (for double scroll position = { global_pos, viewport_pos })
+
+            viewport(rods::buff& batch, twod panel)
+                : ring { std::max(panel.y, 256), 256 },
+                  batch{ batch },
+                  panel{ panel },
+                  basis{ 0     }
+            { }
+            auto count() { return ring::size; }
+            template<bool BOTTOM_ANCHORED>
+            void resize(twod const& new_size)
+            {
+                ring::resize<BOTTOM_ANCHORED>(new_size.y, ring::step);
+                auto delta = new_size - panel;
+                if (delta.x)
+                {
+                    //rebuild viewport
+                    panel.x = new_size.x;
+                }
+                if (delta.y > 0)
+                {
+                    if constexpr (BOTTOM_ANCHORED)
+                    {
+                        //push_front(from basis, n = - delta.y)
+                        //panel.y += summ(height);
+                    }
+                    else
+                    {
+                        //push_back(from basis + panel.y, n = delta.y)
+                        //panel.y += summ(height);
+                    }
+                }
+            }
+            void output(face& canvas)
+            {
+
+            }
+            void rebase(iota new_basis)
+            {
+                new_basis = std::max(0, new_basis);
+                auto n = new_basis - basis;
+                     if (n > 0) movedn( n);
+                else if (n < 0) moveup(-n);
+            }
+            void moveup(iota n)
+            {
+                if (n > basis ) n = basis;
+                basis -= n;
+                //push_front(n);
+            }
+            void movedn(iota n)
+            {
+                basis += n;
+                //push_back(n);
+            }
+            void enlist(item_t& line)          { panel.y += line.height; }
+            void undock(item_t& line) override { panel.y -= line.height; }
+        };
+
         void proceed(grid& proto, iota width)
         {
-            auto& cur_line = *batch;
+            auto& curln = batch.current();
+            curln.splice(caret, proto, width);
+            batch.enlist(curln);
             coord.x += width;
-            cur_line.splice(chx, proto, width);
-            chx += width;
-            batch.take(*batch);
+            caret += width;
         }
         /*
         void fin_old(line& cur_line)
@@ -393,7 +465,7 @@ namespace netxs::app
                 coord.x = pos_x;
             }
             log(coord, ", batch len ",  batch.length(), ", cur height ", batch->length());
-            batch.take(*batch);
+            batch.enlist(batch.current());
         }
         */
         void clear_all()
@@ -406,7 +478,7 @@ namespace netxs::app
             coord = dot_00;
             basis = 0;
             batch.clear();
-            batch.push(0, style);
+            batch.push_back(0, style);
             align_basis();
         }
         template<bool BOTTOM_ANCHORED = true>
@@ -530,9 +602,9 @@ namespace netxs::app
             do
             {
                 auto required_len = depth + coord.x;
-                auto& line = *head;
+                auto& curln = *head;
                 //todo wrap == on only
-                line.trimto(required_len);
+                curln.trimto(required_len);
                 depth -= panel.x;
             }
             while(head++ != tail);
@@ -587,9 +659,9 @@ namespace netxs::app
             auto head = tail - (batch.length() - index);
             do
             {
-                auto& line =*--tail;
-                line.trimto(max_line_len);
-                auto depth = line_height(line);
+                auto& curln =*--tail;
+                curln.trimto(max_line_len);
+                auto depth = line_height(curln);
                 auto below = tail + depth - 1;
                 auto over = below - batch_end;
                 if (over >= 0)
@@ -673,23 +745,23 @@ namespace netxs::app
         {
             while(begin_it != end_it)
             {
-                auto& line = *begin_it;
-                batch.free(line);
-                line.wipe();
+                auto& curln = *begin_it;
+                batch.undock(curln);
+                curln.wipe();
                 ++begin_it;
             }
         }
         void clear_overlapping_lines()
         {
-            auto& cur_line = *batch;
-            auto height = line_height(cur_line);
+            auto& curln = batch.current();
+            auto height = line_height(curln);
             auto batch_get = batch.index();
             auto batch_length = batch.length();
             auto overflow = std::max(0, batch_get + height - (batch_length - 1));
             auto h = height - 1 - overflow;
             if (h > 0)
             {
-                auto head_iter = batch.current() + 1;
+                auto head_iter = batch.current_it() + 1;
                 auto tail_iter = head_iter + h;
                 zeroise(head_iter, tail_iter);
             }
@@ -771,11 +843,11 @@ namespace netxs::app
                 while (tail != head)
                 {
                     dissect(--tail);
-                    auto& line = *tail;
-                    if (line.style.wrp() == wrap::on)
+                    auto& curln = *tail;
+                    if (curln.style.wrp() == wrap::on)
                     {
-                        line.trimto(new_size.x);
-                        batch.take(line);
+                        curln.trimto(new_size.x);
+                        batch.enlist(curln);
                     }
                 }
             }
@@ -787,7 +859,7 @@ namespace netxs::app
     class term
         : public ui::form<term>
     {
-        pro::caret caret{ *this }; // term: Caret controller.
+        pro::caret cursor{ *this }; // term: Caret controller.
 
 public:
         using events = netxs::events::userland::term;
@@ -1125,7 +1197,7 @@ private:
                 using namespace netxs::ansi;
                 vt.csier.table_space[CSI_SPC_SRC] = VT_PROC{ p->na("CSI n SP A  Shift right n columns(s)."); }; // CSI n SP A  Shift right n columns(s).
                 vt.csier.table_space[CSI_SPC_SLC] = VT_PROC{ p->na("CSI n SP @  Shift left  n columns(s)."); }; // CSI n SP @  Shift left n columns(s).
-                vt.csier.table_space[CSI_SPC_CST] = VT_PROC{ p->boss.caret_style(q(1)); }; // CSI n SP q  Set caret style (DECSCUSR).
+                vt.csier.table_space[CSI_SPC_CST] = VT_PROC{ p->boss.cursor_style(q(1)); }; // CSI n SP q  Set cursor style (DECSCUSR).
                 vt.csier.table_hash [CSI_HSH_SCP] = VT_PROC{ p->na("CSI n # P  Push current palette colors onto stack. n default is 0."); }; // CSI n # P  Push current palette colors onto stack. n default is 0.
                 vt.csier.table_hash [CSI_HSH_RCP] = VT_PROC{ p->na("CSI n # Q  Pop  current palette colors onto stack. n default is 0."); }; // CSI n # Q  Pop  current palette colors onto stack. n default is 0.
                 vt.csier.table_excl [CSI_EXL_RST] = VT_PROC{ p->boss.decstr( ); }; // CSI ! p  Soft terminal reset (DECSTR)
@@ -1139,12 +1211,12 @@ private:
                 vt.csier.table[CSI_CBT] = VT_PROC{ p->tab(-q(1)); };  // CSI n Z  Caret backward n tabs, default n=1.
                 vt.csier.table[CSI_TBC] = VT_PROC{ p->tbc( q(1)); };  // CSI n g  Reset tabstop value.
 
-                vt.csier.table[CSI_CUD2]= VT_PROC{ p->dn ( q(1)); };  // CSI n e  Move caret down. Same as CUD.
+                vt.csier.table[CSI_CUD2]= VT_PROC{ p->dn ( q(1)); };  // CSI n e  Move cursor down. Same as CUD.
 
                 vt.csier.table[CSI_CNL] = vt.csier.table[CSI_CUD];   // CSI n E
                 vt.csier.table[CSI_CPL] = vt.csier.table[CSI_CUU];   // CSI n F
-                vt.csier.table[CSI_CHX] = VT_PROC{ p->chx( q(1)); };  // CSI n G  Move caret hz absolute.
-                vt.csier.table[CSI_CHY] = VT_PROC{ p->chy( q(1)); };  // CSI n d  Move caret vt absolute.
+                vt.csier.table[CSI_CHX] = VT_PROC{ p->chx( q(1)); };  // CSI n G  Move cursor hz absolute.
+                vt.csier.table[CSI_CHY] = VT_PROC{ p->chy( q(1)); };  // CSI n d  Move cursor vt absolute.
                 vt.csier.table[CSI_CUP] = VT_PROC{ p->cup( q   ); };  // CSI y ; x H (1-based)
                 vt.csier.table[CSI_HVP] = VT_PROC{ p->cup( q   ); };  // CSI y ; x f (1-based)
 
@@ -1158,8 +1230,8 @@ private:
                 vt.csier.table[CSI__DL] = VT_PROC{ p->dl ( q(1)); };  // CSI n M  Delete n lines.
                 vt.csier.table[CSI__SD] = VT_PROC{ p->scl( q(1)); };  // CSI n T  Scroll down by n lines, scrolled out lines are lost.
                 vt.csier.table[CSI__SU] = VT_PROC{ p->scl(-q(1)); };  // CSI n S  Scroll   up by n lines, scrolled out lines are pushed to the scrollback.
-                vt.csier.table[CSI_SCP] = VT_PROC{ p->scp(     ); };  // CSI   s  Save caret position.
-                vt.csier.table[CSI_RCP] = VT_PROC{ p->rcp(     ); };  // CSI   u  Restore caret position.
+                vt.csier.table[CSI_SCP] = VT_PROC{ p->scp(     ); };  // CSI   s  Save cursor position.
+                vt.csier.table[CSI_RCP] = VT_PROC{ p->rcp(     ); };  // CSI   u  Restore cursor position.
 
                 vt.csier.table[DECSTBM] = VT_PROC{ p->scr( q   ); };  // CSI r; b r  Set scrolling region (t/b: top+bottom).
 
@@ -1171,10 +1243,10 @@ private:
 
                 vt.intro[ctrl::ESC][ESC_IND] = VT_PROC{ p->dn(1); }; // ESC D  Caret Down.
                 vt.intro[ctrl::ESC][ESC_IR ] = VT_PROC{ p->ri (); }; // ESC M  Reverse index.
-                vt.intro[ctrl::ESC][ESC_HTS] = VT_PROC{ p->stb(); }; // ESC H  Place tabstop at the current caret posistion.
+                vt.intro[ctrl::ESC][ESC_HTS] = VT_PROC{ p->stb(); }; // ESC H  Place tabstop at the current cursor posistion.
                 vt.intro[ctrl::ESC][ESC_RIS] = VT_PROC{ p->boss.decstr(); }; // ESC c Reset to initial state (same as DECSTR).
-                vt.intro[ctrl::ESC][ESC_SC ] = VT_PROC{ p->scp(); }; // ESC 7 (same as CSI s) Save caret position.
-                vt.intro[ctrl::ESC][ESC_RC ] = VT_PROC{ p->rcp(); }; // ESC 8 (same as CSI u) Restore caret position.
+                vt.intro[ctrl::ESC][ESC_SC ] = VT_PROC{ p->scp(); }; // ESC 7 (same as CSI s) Save cursor position.
+                vt.intro[ctrl::ESC][ESC_RC ] = VT_PROC{ p->rcp(); }; // ESC 8 (same as CSI u) Restore cursor position.
 
                 vt.intro[ctrl::BS ] = VT_PROC{ p->cuf(-q.pop_all(ctrl::BS )); };
                 vt.intro[ctrl::DEL] = VT_PROC{ p->del( q.pop_all(ctrl::DEL)); };
@@ -1217,7 +1289,7 @@ private:
             {
                 parser::flush();
                 log("scrollbuff: locus extensions are not supported");
-                //auto& cur_line = *batch;
+                //auto& cur_line = batch.current();
                 //if (cur_line.busy())
                 //{
                 //    add_lines(1);
@@ -1298,7 +1370,7 @@ private:
                     style = s;
                 }
             }
-            // scrollbuff: ESC H  Place tabstop at the current caret posistion.
+            // scrollbuff: ESC H  Place tabstop at the current cursor posistion.
             void stb()
             {
                 parser::flush();
@@ -1311,7 +1383,7 @@ private:
                 if (n > 0)
                 {
                     auto a = n * tabstop - coord.x % tabstop;
-                    batch->splice(rods::chx, a, brush);
+                    batch->splice(rods::caret, a, brush);
                 }
                 else if (n < 0)
                 {
@@ -1326,14 +1398,14 @@ private:
             {
                 tabstop = default_tabstop;
             }
-            // scrollbuff: ESC 7 or CSU s  Save caret position.
+            // scrollbuff: ESC 7 or CSU s  Save cursor position.
             void scp()
             {
                 parser::flush();
                 saved = coord;
                 saved.y -= basis;
             }
-            // scrollbuff: ESC 8 or CSU u  Restore caret position.
+            // scrollbuff: ESC 8 or CSU u  Restore cursor position.
             void rcp()
             {
                 parser::flush();
@@ -1348,10 +1420,10 @@ private:
                 scroll_region(n, n > 0 ? faux : true);
                 set_coord();
             }
-            // scrollbuff: CSI n L  Insert n lines. Place caret to the begining of the current.
+            // scrollbuff: CSI n L  Insert n lines. Place cursor to the begining of the current.
             void il(iota n)
             {
-               /* Works only if caret is in the scroll region.
+               /* Works only if cursor is in the scroll region.
                 * Inserts n lines at the current row and removes n lines at the scroll bottom.
                 */
                 parser::flush();
@@ -1366,10 +1438,10 @@ private:
                     set_coord();
                 }
             }
-            // scrollbuff: CSI n M Delete n lines. Place caret to the begining of the current.
+            // scrollbuff: CSI n M Delete n lines. Place cursor to the begining of the current.
             void dl(iota n)
             {
-               /* Works only if caret is in the scroll region.
+               /* Works only if cursor is in the scroll region.
                 * Deletes n lines at the current row and add n lines at the scroll bottom.
                 */
                 parser::flush();
@@ -1389,8 +1461,8 @@ private:
             {
                 /*
                  * Reverse index
-                 * - move caret one line up if it is outside of scrolling region or below the top line of scrolling region.
-                 * - one line scroll down if caret is on the top line of scroll region.
+                 * - move cursor one line up if it is outside of scrolling region or below the top line of scrolling region.
+                 * - one line scroll down if cursor is on the top line of scroll region.
                  */
                 parser::flush();
                 auto[top, end] = get_scroll_region();
@@ -1408,22 +1480,22 @@ private:
                 auto end = queue(0);
                 set_scroll_region(top, end);
             }
-            // scrollbuff: CSI n @  Insert n blanks after caret. Don't change caret pos.
+            // scrollbuff: CSI n @  Insert n blanks after cursor. Don't change cursor pos.
             void ich(iota n)
             {
                 /*
                 *   Inserts n blanks.
-                *   Don't change caret pos.
-                *   Existing chars after caret shifts to the right.
+                *   Don't change cursor pos.
+                *   Existing chars after cursor shifts to the right.
                 */
                 if (n > 0)
                 {
                     parser::flush();
-                    //auto pos = chx;
+                    //auto pos = caret;
                     //auto coor = coord;
-                    batch->insert(rods::chx, n, brush);
+                    batch->insert(rods::caret, n, brush);
                     //parser::flush();
-                    //chx = pos;
+                    //caret = pos;
                     //todo revise
                     //coord = coor;
                 }
@@ -1432,26 +1504,26 @@ private:
             void shl(iota n)
             {
             }
-            // scrollbuff: CSI n X  Erase/put n chars after caret. Don't change caret pos.
+            // scrollbuff: CSI n X  Erase/put n chars after cursor. Don't change cursor pos.
             void ech(iota n)
             {
                 if (n > 0)
                 {
                     parser::flush();
-                    //auto pos = batch->chx();
+                    //auto pos = batch->caret();
                     //auto coor = coord;
-                    batch->splice(rods::chx, n, brush);
+                    batch->splice(rods::caret, n, brush);
                     //parser::flush();
-                    //batch->chx(pos);
+                    //batch->caret(pos);
                     //todo revise
                     //coord = coor;
                 }
             }
-            // scrollbuff: CSI n P  Delete (not Erase) letters under the caret.
+            // scrollbuff: CSI n P  Delete (not Erase) letters under the cursor.
             void dch(iota n)
             {
                 parser::flush();
-                batch->cutoff(rods::chx, n, brush, panel.x);
+                batch->cutoff(rods::caret, n, brush, panel.x);
                 clear_overlapping_lines();
             }
             // scrollbuff: '\x7F'  Delete characters backwards.
@@ -1459,23 +1531,23 @@ private:
             {
                 log("not implemented: '\\x7F' Delete characters backwards.");
             }
-            // scrollbuff: Move caret forward by n.
+            // scrollbuff: Move cursor forward by n.
             void cuf(iota n)
             {
                 parser::flush();
                 coord.x += n;
-                rods::chx += n;
+                rods::caret += n;
                 //set_coord();
             }
-            // scrollbuff: CSI n G  Absolute horizontal caret position (1-based).
+            // scrollbuff: CSI n G  Absolute horizontal cursor position (1-based).
             void chx(iota n)
             {
                 parser::flush();
                 coord.x = n - 1;
-                rods::chx = n - 1;
+                rods::caret = n - 1;
                 //set_coord();
             }
-            // scrollbuff: CSI n d  Absolute vertical caret position (1-based).
+            // scrollbuff: CSI n d  Absolute vertical cursor position (1-based).
             void chy(iota n)
             {
                 parser::flush();
@@ -1494,14 +1566,14 @@ private:
                 coord.y += basis;
                 set_coord();
             }
-            // scrollbuff: Line reverse feed (move caret up).
+            // scrollbuff: Line reverse feed (move cursor up).
             void up(iota n)
             {
                 parser::flush();
                 coord.y -= n;
                 set_coord();
             }
-            // scrollbuff: Line feed (move caret down).
+            // scrollbuff: Line feed (move cursor down).
             void dn(iota n)
             {
                 parser::flush();
@@ -1533,11 +1605,11 @@ private:
                 parser::flush();
                 switch (n)
                 {
-                    case commands::erase::display::below: // n = 0 (default)  Erase viewport after caret.
+                    case commands::erase::display::below: // n = 0 (default)  Erase viewport after cursor.
                         trim_to_current();
                         del_below();
                         break;
-                    case commands::erase::display::above: // n = 1  Erase viewport before caret.
+                    case commands::erase::display::above: // n = 1  Erase viewport before cursor.
                         clear_above(brush);
                         break;
                     case commands::erase::display::viewport: // n = 2  Erase viewport.
@@ -1551,16 +1623,16 @@ private:
                         break;
                 }
             }
-            // scrollbuff: CSI n K  Erase line (don't move caret).
+            // scrollbuff: CSI n K  Erase line (don't move cursor).
             void el(iota n)
             {
                 parser::flush();
-                iota start;
-                iota count;
-                auto caret = std::max(0, rods::chx);
-                auto& line = *batch;
-                auto width = line.length();
-                auto wraps = line.style.wrp() == wrap::on;
+                iota  start;
+                iota  count;
+                auto  caret = std::max(0, rods::caret); //todo why?
+                auto& curln = batch.current();
+                auto  width = curln.length();
+                auto  wraps = curln.style.wrp() == wrap::on;
                 switch (n)
                 {
                     default:
@@ -1585,7 +1657,7 @@ private:
                 {
                     //auto blank = cell{ brush }.txt(' ');
                     auto blank = cell{ brush }.bgc(greendk).bga(0x7f).txt(' ');
-                    line.splice<true>(start, count, blank);
+                    curln.splice<true>(start, count, blank);
                     //batch->shrink(blank);
                     clear_overlapping_lines();
                 }
@@ -1672,11 +1744,11 @@ private:
                     case 7:    // Enable auto-wrap.
                         target->wrp(wrap::on);
                         break;
-                    case 12:   // Enable caret blinking.
-                        caret.blink_period();
+                    case 12:   // Enable cursor blinking.
+                        cursor.blink_period();
                         break;
                     case 25:   // Caret on.
-                        caret.show();
+                        cursor.show();
                         break;
                     case 9:    // Enable X10 mouse reporting protocol.
                         log("decset: CSI ? 9 h  X10 Mouse reporting protocol is not supported");
@@ -1711,11 +1783,11 @@ private:
                     case 1016: // Enable Pixels (subcell) mouse mode.
                         log("decset: CSI ? 1016 h  Pixels (subcell) mouse mode is not supported");
                         break;
-                    case 1048: // Save caret pos.
+                    case 1048: // Save cursor pos.
                         target->scp();
                         break;
                     case 1047: // Use alternate screen buffer.
-                    case 1049: // Save caret pos and Use alternate screen buffer, clearing it first.  This control combines the effects of the 1047 and 1048  modes.
+                    case 1049: // Save cursor pos and Use alternate screen buffer, clearing it first.  This control combines the effects of the 1047 and 1048  modes.
                         altbuf.style_status(target->style);
                         target = &altbuf;
                         altbuf.clear_all();
@@ -1741,11 +1813,11 @@ private:
                     case 7:    // Disable auto-wrap.
                         target->wrp(wrap::off);
                         break;
-                    case 12:   // Disable caret blinking.
-                        caret.blink_period(period::zero());
+                    case 12:   // Disable cursor blinking.
+                        cursor.blink_period(period::zero());
                         break;
                     case 25:   // Caret off.
-                        caret.hide();
+                        cursor.hide();
                         break;
                     case 9:    // Disable X10 mouse reporting protocol.
                         log("decset: CSI ? 9 l  X10 Mouse tracking protocol is not supported");
@@ -1780,11 +1852,11 @@ private:
                     case 1016: // Disable Pixels (subcell) mouse mode.
                         log("decset: CSI ? 1016 l  Pixels (subcell) mouse mode is not supported");
                         break;
-                    case 1048: // Restore caret pos.
+                    case 1048: // Restore cursor pos.
                         target->rcp();
                         break;
                     case 1047: // Use normal screen buffer.
-                    case 1049: // Use normal screen buffer and restore caret.
+                    case 1049: // Use normal screen buffer and restore cursor.
                         normal.style_status(target->style);
                         target = &normal;
                         break;
@@ -1796,37 +1868,37 @@ private:
                 }
             }
         }
-        void caret_style(iota style)
+        void cursor_style(iota style)
         {
             switch (style)
             {
             case 0: // n = 0  blinking box
             case 1: // n = 1  blinking box (default)
-                caret.blink_period();
-                caret.style(true);
+                cursor.blink_period();
+                cursor.style(true);
                 break;
             case 2: // n = 2  steady box
-                caret.blink_period(period::zero());
-                caret.style(true);
+                cursor.blink_period(period::zero());
+                cursor.style(true);
                 break;
             case 3: // n = 3  blinking underline
-                caret.blink_period();
-                caret.style(faux);
+                cursor.blink_period();
+                cursor.style(faux);
                 break;
             case 4: // n = 4  steady underline
-                caret.blink_period(period::zero());
-                caret.style(faux);
+                cursor.blink_period(period::zero());
+                cursor.style(faux);
                 break;
             case 5: // n = 5  blinking I-bar
-                caret.blink_period();
-                caret.style(true);
+                cursor.blink_period();
+                cursor.style(true);
                 break;
             case 6: // n = 6  steady I-bar
-                caret.blink_period(period::zero());
-                caret.style(true);
+                cursor.blink_period(period::zero());
+                cursor.style(true);
                 break;
             default:
-                log("term: unsupported caret style requested, ", style);
+                log("term: unsupported cursor style requested, ", style);
                 break;
             }
         }
@@ -1888,7 +1960,7 @@ private:
         }
         void reset_scroll_pos()
         {
-            //todo caret following
+            //todo cursor following
             this->SIGNAL(tier::release, e2::coor::set, -screen.coor);
         }
     public:
@@ -1902,7 +1974,7 @@ private:
               altbuf  { *this, 1                  , 0         },
               target  { &normal }
         {
-            caret.show();
+            cursor.show();
 
             #ifdef PROD
             form::keybd.accept(true); // Subscribe to keybd offers.
@@ -2034,7 +2106,7 @@ private:
                     this->base::riseup<tier::preview>(e2::form::prop::footer, status.data);
                 }
                 auto cursor_coor = console.get_coord();
-                caret.coor(cursor_coor);
+                cursor.coor(cursor_coor);
                 auto adjust_pads = console.recalc_pads(oversz);
                 //auto scroll_size = recalc(cursor_coor);
                 auto scroll_size = screen.size;
@@ -2044,7 +2116,7 @@ private:
                 scroll_size.y = std::max({ screen.size.y, console.height() });
                 screen.coor.y = scroll_size.y - screen.size.y;
                 if (follow_view) reset_scroll_pos();
-                //if (!screen.hittest(cursor_coor)) // compat: get caret back to the viewport if it placed outside
+                //if (!screen.hittest(cursor_coor)) // compat: get cursor back to the viewport if it placed outside
                 //{
                 //    cursor_coor = std::clamp(cursor_coor, screen.coor, screen.coor + screen.size - dot_11);
                 //    target->set_coord(cursor_coor - screen.coor);
