@@ -38,7 +38,6 @@ namespace netxs::app
 
     // terminal: Scrollback internals.
     class rods
-        : public flow
     {
         struct line
             : public rich
@@ -160,10 +159,12 @@ namespace netxs::app
                              << c.batch.max<line::autowrap>() << " }";
         }
 
-    protected:
+    //protected:
+    public:
         //todo unify
         static constexpr iota max_line_len = 65536;
 
+        flow        maker; // rods: .
         buff        batch; // rods: Rods inner container.
         vect        cache; // rods: Temporary container for scrolling regions.
         twod const& panel; // rods: Viewport size.
@@ -177,7 +178,7 @@ namespace netxs::app
         iota        caret;
 
         rods(twod const& viewport, iota buffer_size, iota grow_step, deco const& style)
-            : flow { viewport.x, batch.size },
+            : maker{ viewport.x, batch.size },
               batch{ buffer_size, grow_step },
               panel{ viewport               },
               basis{ 0                      },
@@ -319,16 +320,20 @@ namespace netxs::app
         {
             using buff = rods::buff&;
             buff batch;
+            flow& maker;
+            iota vsize;
             twod panel;// panel.y = summ(lines)
             iota basis;//=vertical pos in buff
 
             iota vertical_offset{}; // vertical offset inside viewport (for double scroll position = { global_pos, viewport_pos })
 
-            viewport(rods::buff& batch, twod panel)
+            viewport(rods::buff& batch, twod panel, flow& maker)
                 : ring { std::max(panel.y, 256), 256 },
                   batch{ batch },
                   panel{ panel },
-                  basis{ 0     }
+                  basis{ 0     },
+                  maker{ maker },
+                  vsize{ 0 }
             { }
             //auto count() { return ring::size; }
             void rebuild()
@@ -343,6 +348,7 @@ namespace netxs::app
                     panel.y += item.height;
                 };
                 batch.for_each(basis, basis + ring::size, proc);
+                vsize = batch.size - ring::size + panel.y;
             }
             template<bool BOTTOM_ANCHORED>
             void resize(twod const& new_size)
@@ -358,7 +364,7 @@ namespace netxs::app
                 {
                     if constexpr (BOTTOM_ANCHORED)
                     {
-                        basis -= delta;
+                        basis -= delta_y;
                         //push_front(from basis, n = - delta.y)
                         //panel.y += summ(height);
                     }
@@ -372,7 +378,38 @@ namespace netxs::app
             }
             void output(face& canvas)
             {
-
+                maker.reset(canvas);
+                auto view = canvas.view();
+                auto full = canvas.full();
+                auto head = view.coor.y - full.coor.y;
+                auto tail = head + panel.y;
+                auto maxy = batch.max<line::autowrap>() / panel.x;
+                head = std::clamp(head - maxy, 0, batch.size);
+                tail = std::clamp(tail,        0, batch.size);
+                auto coor = twod{ 0, tail };
+                auto line_it = batch.begin() + coor.y;
+                auto left_edge_x = view.coor.x;
+                auto half_size_x = full.size.x / 2;
+                auto left_rect = rect{{ left_edge_x, coor.y + full.coor.y }, dot_11 };
+                auto rght_rect = left_rect;
+                rght_rect.coor.x+= view.size.x - 1;
+                auto rght_edge_x = rght_rect.coor.x + 1;
+                //todo unify/optimize
+                auto fill = [&](auto& area, auto chr)
+                {
+                    if (auto r = view.clip(area))
+                        canvas.fill(r, [&](auto& c){ c.txt(chr).fgc(tint::greenlt); });
+                };
+                auto data_it = begin();
+                while(coor.y != tail)
+                {
+                    auto& curln = *line_it++;
+                    auto& curdt = *data_it++;
+                    coor.y += curdt.height;
+                    rght_rect.coor.y += curdt.height;
+                    maker.ac(coor);
+                    maker.go(curln, canvas);
+                }
             }
             void rebase(iota new_basis)
             {
@@ -497,7 +534,7 @@ namespace netxs::app
         }
         void output(face& canvas)
         {
-            flow::reset(canvas);
+            maker.reset(canvas);
             auto view = canvas.view();
             auto full = canvas.full();
             auto head = view.coor.y - full.coor.y;
@@ -523,9 +560,9 @@ namespace netxs::app
             {
                 --coor.y;
                 --rght_rect.coor.y;
-                flow::ac(coor);
+                maker.ac(coor);
                 auto& cur_line = *--line_it;
-                flow::go(cur_line, canvas);
+                maker.go(cur_line, canvas);
                 if (auto length = cur_line.length()) // Mark lines not shown in full.
                 {
                     rght_rect.size.y = cur_line.height(panel.x);
@@ -593,8 +630,8 @@ namespace netxs::app
         {
             para p{ansi::bgc(redlt).add(" ").nil()};
             auto coor = twod{ 0, basis };
-            flow::ac(coor);
-            flow::go(p, canvas);
+            maker.ac(coor);
+            maker.go(p, canvas);
         }
         // rods: Trim all lines above and current line.
         void trim_to_current()
@@ -2132,7 +2169,12 @@ private:
                 {
                     this->SIGNAL(tier::release, e2::size::set, scroll_size); // Update scrollbars.
                 }
-                console.output(parent_canvas);
+                //console.output(parent_canvas);
+
+
+                rods::viewport v{target->batch, screen.size, target->maker};
+                v.rebuild();
+                v.output(parent_canvas);
 
 
 
