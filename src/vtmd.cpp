@@ -1821,7 +1821,7 @@ utility like ctags is used to locate the definitions.
                                     {
                                         boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                                         {
-                                            boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, app::term::commands::clear);
+                                            boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, app::term::commands::ui::clear);
                                             gear.dismiss(true);
                                         };
                                     }},
@@ -1831,7 +1831,7 @@ utility like ctags is used to locate the definitions.
                                     {
                                         boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                                         {
-                                            boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, app::term::commands::reset);
+                                            boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, app::term::commands::ui::reset);
                                             gear.dismiss(true);
                                         };
                                     }},
@@ -1840,7 +1840,7 @@ utility like ctags is used to locate the definitions.
                                     {
                                         boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                                         {
-                                            boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, app::term::commands::left);
+                                            boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, app::term::commands::ui::left);
                                             gear.dismiss(true);
                                         };
                                         boss.base::broadcast->SUBMIT(tier::release, app::term::events::layout::align, align)
@@ -1855,7 +1855,7 @@ utility like ctags is used to locate the definitions.
                                     {
                                         boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                                         {
-                                            boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, app::term::commands::center);
+                                            boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, app::term::commands::ui::center);
                                             gear.dismiss(true);
                                         };
                                         boss.base::broadcast->SUBMIT(tier::release, app::term::events::layout::align, align)
@@ -1869,7 +1869,7 @@ utility like ctags is used to locate the definitions.
                                     {
                                         boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                                         {
-                                            boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, app::term::commands::right);
+                                            boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, app::term::commands::ui::right);
                                             gear.dismiss(true);
                                         };
                                         boss.base::broadcast->SUBMIT(tier::release, app::term::events::layout::align, align)
@@ -1883,7 +1883,7 @@ utility like ctags is used to locate the definitions.
                                     {
                                         boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                                         {
-                                            boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, app::term::commands::togglewrp);
+                                            boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, app::term::commands::ui::togglewrp);
                                             gear.dismiss(true);
                                         };
                                         boss.base::broadcast->SUBMIT(tier::release, app::term::events::layout::wrapln, wrapln)
@@ -1950,7 +1950,7 @@ utility like ctags is used to locate the definitions.
                                     {
                                         boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                                         {
-                                            boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, app::term::commands::clear);
+                                            boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, app::term::commands::ui::clear);
                                             gear.dismiss(true);
                                         };
                                     }},
@@ -1959,7 +1959,7 @@ utility like ctags is used to locate the definitions.
                                     {
                                         boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                                         {
-                                            boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, app::term::commands::reset);
+                                            boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, app::term::commands::ui::reset);
                                             gear.dismiss(true);
                                         };
                                     }},
@@ -1994,7 +1994,7 @@ utility like ctags is used to locate the definitions.
                                     {
                                         boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                                         {
-                                            boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, app::term::commands::clear);
+                                            boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, app::term::commands::ui::clear);
                                             gear.dismiss(true);
                                         };
                                     }},
@@ -2003,7 +2003,7 @@ utility like ctags is used to locate the definitions.
                                     {
                                         boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                                         {
-                                            boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, app::term::commands::reset);
+                                            boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, app::term::commands::ui::reset);
                                             gear.dismiss(true);
                                         };
                                     }},

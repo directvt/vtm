@@ -4,13 +4,11 @@
 #ifndef NETXS_RING_HPP
 #define NETXS_RING_HPP
 
-#ifndef faux
-    #define faux (false)
-#endif
+#include "../math/intmath.hpp"
 
 namespace netxs::generics
 {
-    template<class vect, class iota = int32_t>
+    template<class vect, bool USE_UNDOCK = faux>
     struct ring
     {
         using type = typename vect::value_type;
@@ -47,7 +45,7 @@ namespace netxs::generics
         iota tail; // ring: Back index.
         iota mxsz; // ring: Max unlimited buffer size.
 
-        ring(iota ring_size, iota grow_by)
+        ring(iota ring_size, iota grow_by = 0)
             : step{ grow_by                                 },
               peak{ !ring_size ? step : ring_size           },
               buff( peak                                    ), // Rounded brackets! Not curly! In oreder to call T::ctor().
@@ -58,7 +56,7 @@ namespace netxs::generics
               mxsz{ std::numeric_limits<iota>::max() - step }
         { }
 
-        virtual void undock(type&) = 0;
+        virtual void undock(type&) { };
 
         void inc(iota& a) const   { if  (++a == peak) a = 0;        }
         void dec(iota& a) const   { if  (--a < 0    ) a = peak - 1; }
@@ -87,7 +85,7 @@ namespace netxs::generics
         inline void undock_front()
         {
             auto& item = front();
-            undock(item);
+            if constexpr (USE_UNDOCK) undock(item);
             item = type{};
             if (cart == head) inc(head), cart = head;
             else              inc(head);
@@ -95,7 +93,7 @@ namespace netxs::generics
         inline void undock_back()
         {
             auto& item = back();
-            undock(item);
+            if constexpr (USE_UNDOCK) undock(item);
             item = type{};
             if (cart == tail) dec(tail), cart = tail;
             else              dec(tail);
@@ -125,7 +123,8 @@ namespace netxs::generics
         void pop_front() { undock_front(); --size; }
         void clear()
         {
-            while(size) pop_back(); //todo undock?
+            if constexpr (USE_UNDOCK) while(size) pop_back(); //todo undock?
+            else                      size = 0;
             cart = 0;
             head = 0;
             tail = peak - 1;
@@ -135,15 +134,14 @@ namespace netxs::generics
         {
             if (new_size > 0)
             {
-                vect temp;
-                temp.reserve(new_size);
                 if constexpr (BOTTOM_ANCHORED)
                 {
                     if (size > new_size)
                     {
+                        //todo optimize
                         do
                         {
-                            undock(front());
+                            if constexpr (USE_UNDOCK) undock(front());
                             inc(head);
                         }
                         while(--size != new_size);
@@ -154,15 +152,18 @@ namespace netxs::generics
                 {
                     if (size > new_size)
                     {
+                        //todo optimize
                         do
                         {
-                            undock(back());
+                            if constexpr (USE_UNDOCK) undock(back());
                             dec(tail);
                         }
                         while(--size != new_size);
                     }
                     cart = std::min(size - 1, dst(head, cart));
                 }
+                vect temp;
+                temp.reserve(new_size);
                 auto i = size;
                 while(i--)
                 {
