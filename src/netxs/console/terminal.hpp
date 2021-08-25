@@ -85,6 +85,21 @@ namespace netxs::app
         {
             using rich::rich;
 
+            line(line&& l)
+                : rich { std::forward<rich>(l) },
+                  index{ l.index }
+            {
+                style = l.style;
+                _size = l._size;
+                _kind = l._kind;
+                l._size = {};
+                l._kind = {};
+            }
+            line(line const& l)
+                : rich { l       },
+                  index{ l.index },
+                  style{ l.style }
+            { }
             line(deco const& style)
                 : index{ 0     },
                   style{ style }
@@ -93,6 +108,8 @@ namespace netxs::app
                 : index{ newid },
                   style{ style }
             { }
+            line& operator = (line&&)      = default;
+            line& operator = (line const&) = default;
 
             enum type : iota
             {
@@ -126,15 +143,15 @@ namespace netxs::app
                 _size = {};
                 _kind = {};
             }
-            void resite(line& p)
-            {
-                style = p.style;
-                _size = p._size;
-                _kind = p._kind;
-                p._size = {};
-                p._kind = {};
-                rich::resite(p);
-            }
+            //void resite(line& l)
+            //{
+            //    style = l.style;
+            //    _size = l._size;
+            //    _kind = l._kind;
+            //    l._size = {};
+            //    l._kind = {};
+            //    rich::resite(l);
+            //}
             auto height(iota width)
             {
                 auto len = length();
@@ -223,7 +240,7 @@ namespace netxs::app
     public:
         flow        maker; // rods: .
         buff        batch; // rods: Rods inner container.
-        vect        cache; // rods: Temporary container for scrolling regions.
+        vect        cache; // rods: Temporary line container.
         twod const& panel; // rods: Viewport size.
         twod        coord; // rods: Scrollback cursor position; 0-based.
         iota        sctop; // rods: Scrolling region top;    1-based, "0" to use top of viewport.
@@ -513,7 +530,7 @@ namespace netxs::app
                     auto n = new_pos - (panel.y - 1);
                     if (n > 0)
                     {
-                        add_lines(n);
+                        //add_lines(n);
                         auto delta = coord.y - (panel.y - 1);
                         if (delta > 0) coord.y -= delta; // Coz ring buffer.
                     }
@@ -660,10 +677,11 @@ namespace netxs::app
             };
             while(coor.y != head)
             {
-                --coor.y;
-                --rght_rect.coor.y;
-                maker.ac(coor);
                 auto& cur_line = *--line_it;
+                auto d = cur_line.height(panel.x);
+                coor.y -= d;
+                rght_rect.coor.y -= d;
+                maker.ac(coor);
                 maker.go(cur_line, canvas);
                 if (auto length = cur_line.length()) // Mark lines not shown in full.
                 {
@@ -745,25 +763,47 @@ namespace netxs::app
         }
         void clear_above(ansi::mark const& brush)
         {
-            // Insert spaces on all lines above including the current line,
-            //   begining from bossid of the viewport top line
-            //   ending the current line
-            auto begin = batch.begin();
-            auto cur_index = batch.index();
-            //auto top_index = get_line_index_by_id(batch[basis].bossid);
-            auto under = begin + cur_index;
-            auto top_index = std::max(0, cur_index - under->depth);
-            auto upper = begin + top_index;
-            auto count = (coord.y - basis) * panel.x + coord.x;
-            auto start = (basis - top_index) * panel.x;
-            do
-            {
-                auto& lyric = *upper;
-                lyric.splice(start, count, brush.spare);
-                lyric.shrink(brush.spare);
-                start -= panel.x;
-            }
-            while(upper++ != under);
+            // Clear all lines from the viewport top line ending the current line.
+            dissect(coord.y);
+            dissect(0);
+            //move [coord.y, panel.y) to cache
+        //    auto back_index = batch.back().index;
+        //    auto block_size = back_index - index[coord.y].index + 1;
+        //    auto all_size = back_index - index[0].index + 1;
+        //    cache.reserve(block_size);
+        //    auto start = batch.end() - block_size;
+        //    netxs::move_block(start, batch.end(), cache.begin());
+        //    //pop upto index[0].index inclusive
+        //    pop_lines(all_size);
+        //    auto top_it = batch.end() - 1;
+        //    //push coord.y empty lines
+        //    //push cache.size lines
+        //    add_lines(coord.y + block_size);
+        //    //move back from cache [coord.y, panel.y)
+        //    netxs::move_block(cache.begin(), cache.end(), top_it + coord.y);
+        //    index_rebuild();
+            
+
+
+            //auto& topln = batch[get_line_index_by_id(index[0].index)];
+            //topln.trimto(index[0].start);
+
+            //auto begin = batch.begin();
+            //auto cur_index = batch.index();
+            ////auto top_index = get_line_index_by_id(batch[basis].bossid);
+            //auto under = begin + cur_index;
+            //auto top_index = std::max(0, cur_index - under->depth);
+            //auto upper = begin + top_index;
+            //auto count = (coord.y - basis) * panel.x + coord.x;
+            //auto start = (basis - top_index) * panel.x;
+            //do
+            //{
+            //    auto& lyric = *upper;
+            //    lyric.splice(start, count, brush.spare);
+            //    lyric.shrink(brush.spare);
+            //    start -= panel.x;
+            //}
+            //while(upper++ != under);
         }
         // rods: Rebuild overlaps from bottom to the top visible line.
         void rebuild_viewport(twod const& new_sz)
@@ -784,45 +824,33 @@ namespace netxs::app
             return yield;
         }
         // rods: Dissect auto-wrapped lines at the specified iterator.
-        void dissect(buff::iter line_iter)
+        void dissect(iota y_pos)
         {
-            auto& trim_line = *line_iter;
-            if (trim_line.depth)
-            {
-                auto cur_index = get_line_index_by_id(trim_line.index);
-                auto mas_index = std::max(0, cur_index - trim_line.depth);
-                auto max_width = iota{ 0 };
-                auto head_iter = batch.begin() + mas_index;
-                //todo the case when wrap::on is over the wrap::off and the remainder is wider than panel.x
-                //todo revise: recursive connection has jitter
-                while (line_iter-- != head_iter);
-                {
-                    auto& line_inst = *line_iter;
-                    max_width += panel.x;
-                    if (line_inst.style.wrp() == wrap::on)
-                    {
-                        auto remainder = line_inst.length() - max_width;
-                        if (remainder > 0)
-                        {
-                            trim_line.splice(0, line_inst.substr(max_width, remainder));
-                            line_inst.trimto(max_width);
-                        }
-                    }
-                };
-            }
+            if (y_pos >= index.size) throw;
+            auto& linid = index[y_pos];
+            if (linid.start == 0) return;
+            auto block_size = batch.back().index - linid.index + 1;
+            auto block_it = batch.end() - block_size;
+
+            auto res_line = *block_it;
+            block_it->trimto(linid.start);
+
+            add_lines(1);
+            netxs::move_block(batch.end() - 2, block_it, batch.end() - 1);
+            ++block_it;
+            block_it->splice(0, res_line.substr(linid.start));
+            
+            //renumerate
+            do    block_it++->index = ++res_line.index;
+            while(block_it != batch.end());
+            //todo optimize
+            index_rebuild();
         }
         // rods: Dissect auto-wrapped line at the current coord.
         void dissect()
         {
-            auto current_it = batch.begin() + coord.y;
-            dissect(current_it);
+            dissect(coord.y);
             set_coord();
-        }
-        // rods: Move block to the specified destination. If begin_it > end_it decrement is used.
-        template<class SRC, class DST>
-        void move_to(SRC begin_it, SRC end_it, DST dest_it)
-        {
-            ptr::move_block(begin_it, end_it, dest_it, [](auto& s, auto& d) { d.resite(s); });
         }
         template<class SRC>
         void zeroise(SRC begin_it, SRC end_it)
@@ -838,6 +866,7 @@ namespace netxs::app
         // rods: Shift by n the scroll region.
         void scroll_region(iota n, bool use_scrollback)
         {
+            /*
             if (n)
             {
                 auto[top, end] = get_scroll_region();
@@ -863,7 +892,7 @@ namespace netxs::app
                     dissect(top_it);
                     if (footer) dissect(c);
                     zeroise(b + 1, c);
-                    move_to(b, a, end_it);
+                    netxs::move_block(b, a, end_it);
                     zeroise(top_it, top_it + n);
                 }
                 else // Scroll up (move text block up).
@@ -878,16 +907,16 @@ namespace netxs::app
                             if (basis) dissect(all_it);
                             dissect(top_it);
                             dissect(a);
-                            move_to(all_it, top_it,       buffer    ); // Move fixed header block to the temporary cache.
-                            move_to(top_it, a,            all_it    ); // Move up by the "top" the first n lines of scrolling region.
-                            move_to(buffer, buffer + top, all_it + n); // Move back fixed header block from the temporary cache.
+                            netxs::move_block(all_it, top_it,       buffer    ); // Move fixed header block to the temporary cache.
+                            netxs::move_block(top_it, a,            all_it    ); // Move up by the "top" the first n lines of scrolling region.
+                            netxs::move_block(buffer, buffer + top, all_it + n); // Move back fixed header block from the temporary cache.
                         }
                         add_lines(n);
                         auto c = batch.end() - 1;
                         auto b = c - n;
                         auto d = b - footer;
                         dissect(d + 1);
-                        move_to(b, d, c); // Move down footer block by n.
+                        netxs::move_block(b, d, c); // Move down footer block by n.
                     }
                     else
                     {
@@ -895,14 +924,16 @@ namespace netxs::app
                         dissect(a);
                         if (footer) dissect(b);
                         zeroise(top_it, a);
-                        move_to(a, b, top_it);
+                        netxs::move_block(a, b, top_it);
                     }
                 }
             }
+            */
         }
         // rods: Trim all autowrap lines by the specified size.
         void trim_to_size(twod const& new_size)
         {
+            /*
             auto head = batch.begin() + basis;
             auto tail = batch.end() - std::max(0, panel.y - new_size.y);
             if (new_size.x < panel.x)
@@ -919,6 +950,7 @@ namespace netxs::app
                 }
             }
             else while (--tail != head) dissect(tail);
+            */
         }
     };
 
@@ -1410,7 +1442,7 @@ private:
                 if (n > 0)
                 {
                     auto a = n * tabstop - coord.x % tabstop;
-                    ech_imp<true>(a, brush)
+                    ech_imp<true>(a, brush);
                 }
                 else if (n < 0)
                 {

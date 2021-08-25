@@ -121,6 +121,33 @@ namespace netxs::generics
         }
         void pop_back () { undock_back();  --size; }
         void pop_front() { undock_front(); --size; }
+        void insert(iota n)
+        {
+            auto d = dst(head, cart);
+            if (size >> 1 > d)
+            {
+                //n = std::clamp(n, 0, );
+                //d = std::max(0, );
+                auto head = begin();
+                auto tail = head + d;
+                while (n--) push_front();
+                move_block(head, tail, begin(), [](auto& s, auto& d) { d = std::move(s); });
+            }
+            else
+            {
+                //n = std::clamp(n, 0, );
+                //d = std::max(0, );
+                auto head = end() - 1;
+                auto tail = head - d;
+                while (n--) push_back();
+                move_block(head, tail, end() - 1, [](auto& s, auto& d) { d = std::move(s); });
+            }
+        }
+        void remove(iota n)
+        {
+            //undock_front();
+            //size -= n;
+        }
         void clear()
         {
             if constexpr (USE_UNDOCK) while(size) pop_back(); //todo undock?
@@ -182,8 +209,8 @@ namespace netxs::generics
         auto& current     () { return buff[cart];           }
         auto& operator  * () { return buff[cart];           }
         auto  operator -> () { return buff.begin() + cart;  }
-        auto  index (iota i) { return cart = mod(head + i); }
         auto  index () const { return dst(head, cart);      }
+        void  index (iota i) { cart = mod(head + i);        }
         template<class P>
         void for_each(iota from, iota upto, P proc)
         {

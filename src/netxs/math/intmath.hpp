@@ -22,6 +22,8 @@ namespace netxs
     using ui32 = uint32_t;
     using ui64 = uint64_t;
 
+    static constexpr iota maxiota = std::numeric_limits<iota>::max();
+
     constexpr size_t operator "" _sz (unsigned long long i)	{ return i; }
 
     struct noop { template<class ...T> constexpr void operator()(T...) {}; };
@@ -601,6 +603,35 @@ namespace netxs
         draw(set);
 
         return true;
+    }
+
+    // intmath: Move block to the specified destination. If begin_it > end_it decrement is used.
+    template<class SRC, class DST>
+    void move_block(SRC begin_it, SRC end_it, DST dest_it)
+    {
+        if (auto direction = end_it - begin_it)
+        {
+            if (direction > 0)
+            {
+                do
+                {
+                    *begin_it = std::move(*dest_it);
+                    ++begin_it;
+                    ++dest_it;
+                }
+                while(begin_it != end_it);
+            }
+            else
+            {
+                do
+                {
+                    *begin_it = std::move(*dest_it);
+                    --begin_it;
+                    --dest_it;
+                }
+                while(begin_it != end_it);
+            }
+        }
     }
 
     namespace _private

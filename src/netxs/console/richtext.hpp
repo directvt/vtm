@@ -73,7 +73,11 @@ namespace netxs::console
         rect client;
 
     public:
-        core() = default;
+        core()                         = default;
+        core(core&&)                   = default;
+        core(core const&)              = default;
+        core& operator = (core&&)      = default;
+        core& operator = (core const&) = default;
 
         constexpr auto& size() const        { return region.size;        }
         auto& coor() const                  { return region.coor;        }
@@ -667,8 +671,6 @@ namespace netxs::console
     // richtext: The shadow of the para.
     class shot
     {
-        static constexpr iota maxlen = std::numeric_limits<iota>::max();
-
         core const& basis;
         iota        start;
         iota        width;
@@ -698,7 +700,7 @@ namespace netxs::console
         { }
 
         constexpr
-        auto substr(iota begin, iota piece = maxlen) const
+        auto substr(iota begin, iota piece = maxiota) const
         {
             auto w = basis.size().x;
             auto a = start + std::max(begin, 0);
@@ -753,12 +755,11 @@ namespace netxs::console
         : public core
     {
     public:
-        void resite(rich& p)                   { core::operator= (std::move(p));          }
-        auto length() const                    { return size().x;                         }
-        auto shadow() const                    { return shot{ *this };                    }
-        auto substr(iota at, iota width) const { return shadow().substr(at, width);       }
-        void trimto(iota max_size)             { if (length() > max_size) crop(max_size); }
-        void reserv(iota oversize)             { if (oversize > length()) crop(oversize); }
+        auto length() const                              { return size().x;                         }
+        auto shadow() const                              { return shot{ *this };                    }
+        auto substr(iota at, iota width = maxiota) const { return shadow().substr(at, width);       }
+        void trimto(iota max_size)                       { if (length() > max_size) crop(max_size); }
+        void reserv(iota oversize)                       { if (oversize > length()) crop(oversize); }
         void shrink(cell const& blank, iota max_size = 0)
         {
             auto& data = pick();
