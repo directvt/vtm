@@ -99,12 +99,22 @@ namespace netxs::generics
             else              dec(tail);
         }
     public:
-        template<class ...Args>
-        auto& push_back(Args&&... args)
+        void push_back()
         {
             if (full()) undock_front();
             else        ++size;
             inc(tail);
+        }
+        void push_front()
+        {
+            if (full()) undock_back();
+            else        ++size;
+            dec(head);
+        }
+        template<class ...Args>
+        auto& push_back(Args&&... args)
+        {
+            push_back();
             auto& item = back();
             item = type(std::forward<Args>(args)...);
             return item;
@@ -112,41 +122,55 @@ namespace netxs::generics
         template<class ...Args>
         auto& push_front(Args&&... args)
         {
-            if (full()) undock_back();
-            else        ++size;
-            dec(head);
+            push_front();
             auto& item = front();
             item = type(std::forward<Args>(args)...);
             return item;
         }
         void pop_back () { undock_back();  --size; }
         void pop_front() { undock_front(); --size; }
-        void insert(iota n)
+        template<class ...Args>
+        auto& insert(Args&&... args)
         {
             auto d = dst(head, cart);
             if (size >> 1 > d)
             {
-                //n = std::clamp(n, 0, );
-                //d = std::max(0, );
                 auto head = begin();
                 auto tail = head + d;
-                while (n--) push_front();
-                move_block(head, tail, begin(), [](auto& s, auto& d) { d = std::move(s); });
+                push_front();
+                move_block(head, tail, begin());
+                auto& item = *tail;
+                item = type(std::forward<Args>(args)...);
+                return item;
             }
             else
             {
-                //n = std::clamp(n, 0, );
-                //d = std::max(0, );
                 auto head = end() - 1;
                 auto tail = head - d;
-                while (n--) push_back();
-                move_block(head, tail, end() - 1, [](auto& s, auto& d) { d = std::move(s); });
+                push_back();
+                move_block(head, tail, end() - 1);
+                auto& item = *tail;
+                item = type(std::forward<Args>(args)...);
+                return item;
             }
         }
         void remove(iota n)
         {
-            //undock_front();
-            //size -= n;
+            auto d = dst(head, cart);
+            if (size >> 1 > d)
+            {
+                //auto head = begin();
+                //auto tail = head + d;
+                //move_block(head, tail, begin());
+                //while (n--) pop_front();
+            }
+            else
+            {
+                //auto head = end() - 1;
+                //auto tail = head - d;
+                //move_block(head, tail, end() - 1);
+                //while (n--) pop_back();
+            }
         }
         void clear()
         {
