@@ -79,6 +79,14 @@ namespace netxs::console
         core& operator = (core&&)      = default;
         core& operator = (core const&) = default;
 
+        friend void swap(core& lhs, core& rhs)
+        {
+            std::swap(lhs.digest, rhs.digest);
+            std::swap(lhs.marker, rhs.marker);
+            std::swap(lhs.region, rhs.region);
+            std::swap(lhs.canvas, rhs.canvas);
+            std::swap(lhs.client, rhs.client);
+        }
         constexpr auto& size() const        { return region.size;        }
         auto& coor() const                  { return region.coor;        }
         auto& area() const                  { return region;             }

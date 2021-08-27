@@ -605,35 +605,6 @@ namespace netxs
         return true;
     }
 
-    // intmath: Move block to the specified destination. If begin_it > end_it decrement is used.
-    template<class SRC, class DST>
-    void move_block(SRC begin_it, SRC end_it, DST dest_it)
-    {
-        if (auto direction = end_it - begin_it)
-        {
-            if (direction > 0)
-            {
-                do
-                {
-                    *begin_it = std::move(*dest_it);
-                    ++begin_it;
-                    ++dest_it;
-                }
-                while(begin_it != end_it);
-            }
-            else
-            {
-                do
-                {
-                    *begin_it = std::move(*dest_it);
-                    --begin_it;
-                    --dest_it;
-                }
-                while(begin_it != end_it);
-            }
-        }
-    }
-
     namespace _private
     {
         ///<summary> intmath:
@@ -733,6 +704,45 @@ namespace netxs
                 d_ptr += d_dty;
             }
         }
+        // intmath: Move block to the specified destination. If begin_it > end_it decrement is used.
+        template<class SRC, class DST, class P>
+        void proc_block(SRC begin_it, SRC end_it, DST dest_it, P proc)
+        {
+            if (auto direction = end_it - begin_it)
+            {
+                if (direction > 0)
+                {
+                    do
+                    {
+                        proc(*begin_it, *dest_it);
+                        ++begin_it;
+                        ++dest_it;
+                    }
+                    while(begin_it != end_it);
+                }
+                else
+                {
+                    do
+                    {
+                        proc(*begin_it, *dest_it);
+                        --begin_it;
+                        --dest_it;
+                    }
+                    while(begin_it != end_it);
+                }
+            }
+        }
+    }
+
+    template<class SRC, class DST>
+    void move_block(SRC begin_it, SRC end_it, DST dest_it)
+    {
+        _private::proc_block(begin_it, end_it, dest_it, [](auto& src, auto& dst){ dst = std::move(src); });
+    }
+    template<class SRC, class DST>
+    void swap_block(SRC begin_it, SRC end_it, DST dest_it)
+    {
+        _private::proc_block(begin_it, end_it, dest_it, [](auto& src, auto& dst){ std::swap(src, dst); });
     }
 
     /// <summary> intmath:

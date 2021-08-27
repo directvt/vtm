@@ -72,6 +72,12 @@ namespace netxs::generics
         auto& back()              { return buff[tail];              }
         auto& front()             { return buff[head];              }
         auto& length() const      { return size;                    }
+        auto& current     ()      { return buff[cart];           }
+        auto& operator  * ()      { return buff[cart];           }
+        auto  operator -> ()      { return buff.begin() + cart;  }
+        auto  index () const      { return dst(head, cart);      }
+        void  index (iota i)      { cart = mod(head + i);        }
+
     private:
         auto  full()
         {
@@ -99,22 +105,12 @@ namespace netxs::generics
             else              dec(tail);
         }
     public:
-        void push_back()
+        template<class ...Args>
+        auto& push_back(Args&&... args)
         {
             if (full()) undock_front();
             else        ++size;
             inc(tail);
-        }
-        void push_front()
-        {
-            if (full()) undock_back();
-            else        ++size;
-            dec(head);
-        }
-        template<class ...Args>
-        auto& push_back(Args&&... args)
-        {
-            push_back();
             auto& item = back();
             item = type(std::forward<Args>(args)...);
             return item;
@@ -122,7 +118,9 @@ namespace netxs::generics
         template<class ...Args>
         auto& push_front(Args&&... args)
         {
-            push_front();
+            if (full()) undock_back();
+            else        ++size;
+            dec(head);
             auto& item = front();
             item = type(std::forward<Args>(args)...);
             return item;
@@ -132,45 +130,47 @@ namespace netxs::generics
         template<class ...Args>
         auto& insert(Args&&... args)
         {
-            auto d = dst(head, cart);
+            auto d = dst(head, cart) + 1;
             if (size >> 1 > d)
             {
                 auto head = begin();
                 auto tail = head + d;
-                push_front();
-                move_block(head, tail, begin());
-                auto& item = *tail;
-                item = type(std::forward<Args>(args)...);
-                return item;
+                push_front(std::forward<Args>(args)...);
+                swap_block(head, tail, begin());
+                cart = tail.addr;
             }
             else
             {
-                auto head = end() - 1;
+                auto dest = end();
+                auto head = dest - 1;
                 auto tail = head - d;
-                push_back();
-                move_block(head, tail, end() - 1);
-                auto& item = *tail;
-                item = type(std::forward<Args>(args)...);
-                return item;
+                push_back(std::forward<Args>(args)...);
+                swap_block(head, tail, dest);
+                cart = tail.addr;
             }
+            return buff[cart];
         }
         void remove(iota n)
         {
-            auto d = dst(head, cart);
-            if (size >> 1 > d)
+            auto maxn = dst(cart, tail) + 1;
+            if (n > maxn) n = maxn;
+            auto top_block = size - maxn;
+            auto btm_block = maxn - n;
+            if (btm_block > top_block)
             {
-                //auto head = begin();
-                //auto tail = head + d;
-                //move_block(head, tail, begin());
-                //while (n--) pop_front();
+                auto tail = begin() - 1;
+                auto head = tail + top_block;
+                swap_block(head, tail, head + n);
+                while (n--) pop_front();
             }
             else
             {
-                //auto head = end() - 1;
-                //auto tail = head - d;
-                //move_block(head, tail, end() - 1);
-                //while (n--) pop_back();
+                auto tail = end();
+                auto head = tail - btm_block;
+                swap_block(head, tail, head - n);
+                while (n--) pop_back();
             }
+            index(top_block);
         }
         void clear()
         {
@@ -230,11 +230,6 @@ namespace netxs::generics
             }
             else step = grow_by;
         }
-        auto& current     () { return buff[cart];           }
-        auto& operator  * () { return buff[cart];           }
-        auto  operator -> () { return buff.begin() + cart;  }
-        auto  index () const { return dst(head, cart);      }
-        void  index (iota i) { cart = mod(head + i);        }
         template<class P>
         void for_each(iota from, iota upto, P proc)
         {

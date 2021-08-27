@@ -129,6 +129,14 @@ namespace netxs::app
             iota _size{};
             type _kind{};
 
+            friend void swap(line& lhs, line& rhs)
+            {
+                std::swap<rich>(lhs, rhs);
+                std::swap(lhs.index, rhs.index);
+                std::swap(lhs.style, rhs.style);
+                std::swap(lhs._size, rhs._size);
+                std::swap(lhs._kind, rhs._kind);
+            }
             auto get_kind() const
             {
                 return style.wrp() == wrap::on    ? type::autowrap :

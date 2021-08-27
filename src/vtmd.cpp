@@ -422,6 +422,62 @@ int main(int argc, char* argv[])
             else buff += utf8;
         });
 
+    generics::ring<std::vector<iota>> q{ 10 };
+    auto ints = { 0,1,2,3,4,5,6,7,8,9,10 };
+    for (int i : ints) q.push_back(i);
+    for (auto i : q) log(i);
+
+    log("push_front 11 ---");
+    for (int i : ints) q.push_back(i);
+    q.index(0);
+    q.push_front(11);
+    for (auto i : q) log(i);
+
+    log("push_back 12 ---");
+    for (int i : ints) q.push_back(i);
+    q.index(0);
+    q.push_back(12);
+    for (auto i : q) log(i);
+
+    log("remove btm 3 from 5 ---");
+    for (int i : ints) q.push_back(i);
+    q.index(5);
+    q.remove(3);
+    for (auto i : q) log(i);
+
+    log("remove top 3 from 2 ---");
+    for (int i : ints) q.push_back(i);
+    q.index(2);
+    q.remove(3);
+    for (auto i : q) log(i);
+
+    log("insert(90) at 2 ---");
+    for (int i : ints) q.push_back(i);
+    q.index(2);
+    log("q=", q.insert(90));
+    for (auto i : q) log(i);
+
+    log("insert(30) at 6 ---");
+    for (int i : ints) q.push_back(i);
+    q.index(6);
+    log("q=", q.insert(30));
+    for (auto i : q) log(i);
+
+    log("insert(70) at 0 ---");
+    for (int i : ints) q.push_back(i);
+    q.index(0);
+    log("q=", q.insert(70));
+    for (auto i : q) log(i);
+
+    log("insert(17) at 9 ---");
+    for (int i : ints) q.push_back(i);
+    q.index(9);
+    log("q=", q.insert(17));
+    for (auto i : q) log(i);
+    log("---");
+
+    throw;
+
     {
         auto banner = [&]() { log(MONOTTY_VER"\nDesktop Environment Server"); };
         bool daemon = faux;
