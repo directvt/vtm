@@ -120,12 +120,8 @@ namespace netxs::app
                 count,
             };
 
-            //todo deprecated
-            iota depth   {};
-
             ui32 index;
             deco style;
-
             iota _size{};
             type _kind{};
 
@@ -151,15 +147,6 @@ namespace netxs::app
                 _size = {};
                 _kind = {};
             }
-            //void resite(line& l)
-            //{
-            //    style = l.style;
-            //    _size = l._size;
-            //    _kind = l._kind;
-            //    l._size = {};
-            //    l._kind = {};
-            //    rich::resite(l);
-            //}
             iota height(iota width)
             {
                 auto len = length();
@@ -229,6 +216,12 @@ namespace netxs::app
             void enlist(line& l)          { enlist(l._kind, l._size, l.get_kind(), l.length()); }
             void undock(line& l) override { undock(l._kind, l._size);                           }
             template<auto N> auto max()   { return lens[N].max;                                 }
+            auto index_by_id(ui32 id)
+            {
+                //No need to disturb distant objects, it may already be in the swap.
+                //return static_cast<iota>(id - batch.front().index); // ring buffer size is never larger than max_int32.
+                return static_cast<iota>(length() - (back().index - id)); // ring buffer size is never larger than max_int32.
+            }
         };
 
         // For debug
@@ -242,15 +235,11 @@ namespace netxs::app
 
     //protected:
     public:
-        //todo unify
-        static constexpr iota max_line_len = 65536;
-
-    public:
-        flow        maker; // rods: .
+        flow        maker; // rods: . deprecated
         buff        batch; // rods: Rods inner container.
         vect        cache; // rods: Temporary line container.
         twod const& panel; // rods: Viewport size.
-        twod        coord; // rods: Scrollback cursor position; 0-based.
+        twod        coord; // rods: Viewport cursor position; 0-based.
         iota        sctop; // rods: Scrolling region top;    1-based, "0" to use top of viewport.
         iota        scend; // rods: Scrolling region bottom; 1-based, "0" to use bottom of viewport.
         iota        basis; // rods: Index of O(0, 0).
@@ -275,7 +264,7 @@ namespace netxs::app
             index.clear();
             index.resize(panel.y);
             auto tail = batch.end();
-            auto head = tail - std::min(batch.size, index.peak);
+            auto head = tail - std::min(batch.length(), panel.y);
             while(head != tail)
             {
                 auto& curln = *head++;
@@ -292,9 +281,10 @@ namespace netxs::app
             }
         }
 
-        auto& height() const
+        auto height() const
         {
-            return batch.size;
+            //todo return batch.length() - index.size + panel.y;
+            return batch.length();
         }
         auto recalc_pads(side& oversz)
         {
@@ -312,7 +302,7 @@ namespace netxs::app
             }
             else return faux;
         }
-        // rods: Return current 0-based cursor position in the scrollback.
+        // rods: Return current 0-based cursor position in the viewport.
         auto get_coord()
         {
             auto& curln = batch.current();
@@ -321,8 +311,8 @@ namespace netxs::app
             auto remain = index[coord.y].width;
             if (remain == panel.x && style.wrp() == wrap::on) return coord;
             auto coor = coord;
-            if     (style.jet() == bias::right )   coor.x += panel.x     - remain - 1;
-            else /*(style.jet() == bias::center)*/ coor.x += panel.x / 2 - remain / 2;
+            if    (style.jet() == bias::right )  coor.x += panel.x     - remain - 1;
+            else /*style.jet() == bias::center*/ coor.x += panel.x / 2 - remain / 2;
             return coor;
         }
         // rods: Return 0-based scroll region pair, inclusive.
@@ -339,10 +329,10 @@ namespace netxs::app
         {
             sctop = top;
             scend = bottom;
-            if (scend && batch.length() < panel.y)
-            {
-                add_lines(panel.y - batch.length());
-            }
+            //if (scend && batch.length() < panel.y)
+            //{
+            //    add_lines(panel.y - batch.length());
+            //}
             cache.resize(std::max(0, top - 1));
         }
         // rods: Return true if the scrolling region is set.
@@ -355,8 +345,11 @@ namespace netxs::app
             assert(amount > 0);
             auto newid = batch.back().index;
             auto style = batch->style;
-            while(amount-- > 0 ) batch.push_back(++newid, style);
-            index_rebuild();
+            while(amount-- > 0 )
+            {
+                auto& l = batch.push_back(++newid, style);
+                index.push_back(l.index, 0, 0);
+            }
         }
         void pop_lines(iota amount)
         {
@@ -364,30 +357,26 @@ namespace netxs::app
             while(amount--) batch.pop_back();
             index_rebuild();
         }
-        auto get_line_index_by_id(ui32 id)
-        {
-            //No need to disturb distant objects, it may already be in the swap.
-            //return static_cast<iota>(id - batch.front().index); // ring buffer size is never larger than max_int32.
-            return static_cast<iota>(batch.size - (batch.back().index - id)); // ring buffer size is never larger than max_int32.
-        }
-        // rods: Set scrollback cursor position.
-        void set_coord(twod new_coord)
+        // rods: Map the current cursor position to the scrollback.
+        void set_coord()
         {
             auto style = batch->style;
-            new_coord.y = std::max(0, new_coord.y);
+            coord.y = std::clamp(coord.y, 0, panel.y - 1);
 
-            auto add_count = new_coord.y - (batch.length() - 1);
+            auto add_count = coord.y - (index.length() - 1);
             if (add_count > 0) add_lines(add_count);
-            new_coord.y = std::min(new_coord.y, batch.length() - 1); // The batch can remain the same size (cuz ring).
 
-            coord = new_coord;
-            auto& mapln = index[new_coord.y];
+            auto& mapln = index[coord.y];
             batch.index(mapln.index);
-            batch.caret = mapln.start + new_coord.x;
+            batch.caret = mapln.start + coord.x;
             batch->style = style;
         }
-        // rods: Map cursor pos from viewport to scrollback.
-        void set_coord() { set_coord(coord); }
+        // rods: Set viewport cursor position.
+        void set_coord(twod const& new_coord)
+        {
+            coord = new_coord;
+            set_coord();
+        }
 
 
 /*
@@ -641,13 +630,9 @@ namespace netxs::app
         }
         void clear_all()
         {
-            //style.glb();
-            //todo unify
-            //style.wrapln = WRAPPING;
             auto style = batch->style;
             saved = dot_00;
             coord = dot_00;
-            //basis = 0;
             batch.clear();
             batch.push_back(0, style);
             index_rebuild();
@@ -667,8 +652,8 @@ namespace netxs::app
             auto head = view.coor.y - full.coor.y;
             auto tail = head + panel.y;
             auto maxy = batch.max<line::autowrap>() / panel.x;
-            head = std::clamp(head - maxy, 0, batch.size);
-            tail = std::clamp(tail,        0, batch.size);
+            head = std::clamp(head - maxy, 0, batch.length());
+            tail = std::clamp(tail,        0, batch.length());
             auto coor = twod{ 0, tail };
             auto line_it = batch.begin() + coor.y;
             auto left_edge_x = view.coor.x;
@@ -764,9 +749,10 @@ namespace netxs::app
         // rods: Remove all lines below except the current. "ED2 Erase viewport" keeps empty lines.
         void del_below()
         {
-            pop_lines(batch.size - batch.index());
-            add_lines(panel.y - coord.y);
-            batch.current().trimto(index[coord.y].start + coord.x);
+            pop_lines(batch.length() - 1 - batch.index());
+            add_lines(panel.y - 1 - coord.y);
+            auto& curln = batch.current();
+            curln.trimto(index[coord.y].start + coord.x);
             index_rebuild();
         }
         void clear_above(ansi::mark const& brush)
@@ -2115,9 +2101,8 @@ private:
                     this->base::riseup<tier::preview>(e2::form::prop::footer, status.data);
                 }
                 //vsize = batch.size - ring::size + panel.y;
-                auto basis = target->batch.size - target->index.size;
                 auto cursor_coor = console.get_coord();
-                cursor_coor.y += basis;
+                cursor_coor.y += console.height() - console.index.size;
                 cursor.coor(cursor_coor);
                 auto adjust_pads = console.recalc_pads(oversz);
                 //auto scroll_size = recalc(cursor_coor);
