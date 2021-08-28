@@ -13,6 +13,22 @@ namespace netxs::generics
     {
         using type = typename vect::value_type;
 
+        iota step; // ring: Unlimited buffer increment step (zero for fixed size buffer).
+        iota head; // ring: Front index.
+        iota tail; // ring: Back index.
+        iota peak; // ring: Limit of the ring buffer.
+        vect buff; // ring: Inner container.
+        iota size; // ring: Elements count.
+        iota cart; // ring: Active item position.
+        iota mxsz; // ring: Max unlimited buffer size.
+
+        void inc(iota& a) const { if  (++a == peak) a = 0;        }
+        void dec(iota& a) const { if  (--a < 0    ) a = peak - 1; }
+        auto mod(iota  a) const { return a < 0  ? ++a % peak - 1 + peak
+                                                :   a % peak;     }
+        auto dst(iota  a, iota b) const
+                                { return b < a ? b - a + peak
+                                               : b - a;           }
         struct iter
         {
             ring& buff;
@@ -21,67 +37,49 @@ namespace netxs::generics
               : buff{ buff },
                 addr{ addr }
             { }
-            auto  operator =  (iter const& m)       { addr = m.addr;                 }
-            auto  operator -  (iter const& r)       { return addr - r.addr;          }
-            auto  operator -  (iota n)              { return iter{ buff, addr - n }; }
-            auto  operator +  (iota n)              { return iter{ buff, addr + n }; }
-            auto  operator ++ (iota)                { return iter{ buff, addr++   }; }
-            auto  operator -- (iota)                { return iter{ buff, addr--   }; }
-            auto& operator ++ ()                    { ++addr; return *this;          }
-            auto& operator -- ()                    { --addr; return *this;          }
-            auto& operator *  ()                    { return   buff[addr];           }
-            auto  operator -> ()                    { return &(buff[addr]);          }
-            auto  operator != (iter const& m) const { return addr != m.addr;         }
-            auto  operator == (iter const& m) const { return addr == m.addr;         }
-            friend auto operator - (iter const& n, iter const& m) { return n.addr - m.addr; }
+            //auto  operator -  (iter const& r) const { return addr - r.addr;                                         }
+            auto  operator -  (iota n)        const { return iter{ buff, buff.mod(addr - n) };                      }
+            auto  operator +  (iota n)        const { return iter{ buff, buff.mod(addr + n) };                      }
+            auto  operator ++ (iota)                { auto temp = iter{ buff, addr }; buff.inc(addr); return temp;  }
+            auto  operator -- (iota)                { auto temp = iter{ buff, addr }; buff.dec(addr); return temp;  }
+            auto& operator ++ ()                    {                                 buff.inc(addr); return *this; }
+            auto& operator -- ()                    {                                 buff.dec(addr); return *this; }
+            auto& operator *  ()                    { return   buff.buff[addr];                                     }
+            auto  operator -> ()                    { return &(buff.buff[addr]);                                    }
+            auto  operator != (iter const& m) const { return addr != m.addr;                                        }
+            auto  operator == (iter const& m) const { return addr == m.addr;                                        }
         };
 
-        iota step; // ring: Unlimited buffer increment step (zero for fixed size buffer).
-        iota peak; // ring: Limit of the ring buffer.
-        vect buff; // ring: Inner container.
-        iota size; // ring: Elements count.
-        iota cart; // ring: Active item position.
-        iota head; // ring: Front index.
-        iota tail; // ring: Back index.
-        iota mxsz; // ring: Max unlimited buffer size.
-
         ring(iota ring_size, iota grow_by = 0)
-            : step{ grow_by                                 },
-              peak{ !ring_size ? step : ring_size           },
-              buff( peak                                    ), // Rounded brackets! Not curly! In oreder to call T::ctor().
-              size{ 0                                       },
-              cart{ 0                                       },
-              head{ 0                                       },
-              tail{ peak - 1                                },
-              mxsz{ std::numeric_limits<iota>::max() - step }
+            : step{ grow_by                      },
+              head{ 0                            },
+              tail{ ring_size ? ring_size : step },
+              peak{ tail + 1                     },
+              buff( peak                         ), // Rounded brackets! Not curly! In oreder to call T::ctor().
+              size{ 0                            },
+              cart{ 0                            },
+              mxsz{ maxiota - step               }
         { }
 
         virtual void undock(type&) { };
 
-        void inc(iota& a) const   { if  (++a == peak) a = 0;        }
-        void dec(iota& a) const   { if  (--a < 0    ) a = peak - 1; }
-        auto mod(iota  a) const   { return a < 0  ? ++a % peak - 1 + peak
-                                                  :   a % peak;     }
-        auto dst(iota  a, iota b) const
-                                  { return b < a ? b - a + peak
-                                                 : b - a;           }
-        auto  begin()             { return iter{ *this, 0    };     }
-        auto  end()               { return iter{ *this, size };     }
-        auto  current_it()        { return iter{ *this, cart };     }
-        auto& operator[] (iota i) { return buff[mod(head + i)];     }
-        auto& back()              { return buff[tail];              }
-        auto& front()             { return buff[head];              }
-        auto& length() const      { return size;                    }
-        auto& current     ()      { return buff[cart];           }
-        auto& operator  * ()      { return buff[cart];           }
-        auto  operator -> ()      { return buff.begin() + cart;  }
-        auto  index () const      { return dst(head, cart);      }
-        void  index (iota i)      { cart = mod(head + i);        }
+        auto  current_it()        { return iter{ *this, cart };          }
+        auto  begin()             { return iter{ *this, head };          }
+        auto  end()               { return iter{ *this, mod(tail + 1) }; }
+        auto& operator[] (iota i) { return buff[mod(head + i)];          }
+        auto& back()              { return buff[tail];                   }
+        auto& front()             { return buff[head];                   }
+        auto& length() const      { return size;                         }
+        auto& current     ()      { return buff[cart];                   }
+        auto& operator  * ()      { return buff[cart];                   }
+        auto  operator -> ()      { return buff.begin() + cart;          }
+        auto  index () const      { return dst(head, cart);              }
+        void  index (iota i)      { cart = mod(head + i);                }
 
     private:
         auto  full()
         {
-            if (size == peak)
+            if (size == peak - 1)
             {
                 if (step && peak < mxsz) resize(peak + step, step);
                 else                     return true;
@@ -133,20 +131,46 @@ namespace netxs::generics
             auto d = dst(head, cart) + 1;
             if (size >> 1 > d)
             {
-                auto head = begin();
-                auto tail = head + d;
-                push_front(std::forward<Args>(args)...);
-                swap_block(head, tail, begin());
-                cart = tail.addr;
+                auto it_1 = begin();
+                auto it_2 = it_1 + d;
+                if (!full())
+                {
+                    ++size;
+                    dec(head);
+                    auto& item = front();
+                    item = type(std::forward<Args>(args)...);
+                }
+                else
+                {
+                    auto& item = front();
+                    if constexpr (USE_UNDOCK) undock(item);
+                    item = type(std::forward<Args>(args)...);
+                    ++it_1;
+                }
+                swap_block<true>(it_1, it_2, begin());
+                --it_2;
+                cart = it_2.addr;
             }
             else
             {
                 auto dest = end();
-                auto head = dest - 1;
-                auto tail = head - d;
-                push_back(std::forward<Args>(args)...);
-                swap_block(head, tail, dest);
-                cart = tail.addr;
+                auto it_1 = dest - 1;
+                d = size - d;
+                auto it_2 = it_1 - d;
+                if (full())
+                {
+                    auto& item = front();
+                    if constexpr (USE_UNDOCK) undock(item);
+                    item = type{};
+                    if (cart == head) inc(head), cart = head;
+                    else              inc(head);
+                }
+                else ++size;
+                inc(tail);
+                back() = type(std::forward<Args>(args)...);
+                swap_block<faux>(it_1, it_2, end() - 1);
+                ++it_2;
+                cart = it_2.addr;
             }
             return buff[cart];
         }
@@ -160,14 +184,14 @@ namespace netxs::generics
             {
                 auto tail = begin() - 1;
                 auto head = tail + top_block;
-                swap_block(head, tail, head + n);
+                swap_block<faux>(head, tail, head + n);
                 while (n--) pop_front();
             }
             else
             {
                 auto tail = end();
                 auto head = tail - btm_block;
-                swap_block(head, tail, head - n);
+                swap_block<true>(head, tail, head - n);
                 while (n--) pop_back();
             }
             index(top_block);
@@ -189,7 +213,7 @@ namespace netxs::generics
                 {
                     if (size > new_size)
                     {
-                        //todo optimize
+                        //todo optimize for !USE_UNDOCK
                         do
                         {
                             if constexpr (USE_UNDOCK) undock(front());
@@ -203,7 +227,7 @@ namespace netxs::generics
                 {
                     if (size > new_size)
                     {
-                        //todo optimize
+                        //todo optimize for !USE_UNDOCK
                         do
                         {
                             if constexpr (USE_UNDOCK) undock(back());

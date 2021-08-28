@@ -160,7 +160,7 @@ namespace netxs::app
             //    l._kind = {};
             //    rich::resite(l);
             //}
-            auto height(iota width)
+            iota height(iota width)
             {
                 auto len = length();
                 return len > width
@@ -764,7 +764,7 @@ namespace netxs::app
         // rods: Remove all lines below except the current. "ED2 Erase viewport" keeps empty lines.
         void del_below()
         {
-            pop_lines(batch.index() - batch.size);
+            pop_lines(batch.size - batch.index());
             add_lines(panel.y - coord.y);
             batch.current().trimto(index[coord.y].start + coord.x);
             index_rebuild();
