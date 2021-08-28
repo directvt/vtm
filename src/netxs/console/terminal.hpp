@@ -757,9 +757,9 @@ namespace netxs::app
         }
         void clear_above(ansi::mark const& brush)
         {
-            // Clear all lines from the viewport top line ending the current line.
-            dissect(coord.y);
+            // Clear all lines from the viewport top line to the current line.
             dissect(0);
+            dissect(coord.y);
             //move [coord.y, panel.y) to cache
         //    auto back_index = batch.back().index;
         //    auto block_size = back_index - index[coord.y].index + 1;
@@ -821,30 +821,36 @@ namespace netxs::app
         void dissect(iota y_pos)
         {
             if (y_pos >= index.size) throw;
+
             auto& linid = index[y_pos];
             if (linid.start == 0) return;
-            auto block_size = batch.back().index - linid.index + 1;
-            auto block_it = batch.end() - block_size;
 
-            auto res_line = *block_it;
-            block_it->trimto(linid.start);
+            auto temp = std::move(batch.current());
+            batch.insert(temp.index, temp.style);
+            auto curit = batch.current_it();
+            auto head = curit;
+            auto tail = batch.end();
+            do ++head++->index;
+            while(head != tail);
 
-            add_lines(1);
-            netxs::move_block(batch.end() - 2, block_it, batch.end() - 1);
-            ++block_it;
-            block_it->splice(0, res_line.substr(linid.start));
-            
-            //renumerate
-            do    block_it++->index = ++res_line.index;
-            while(block_it != batch.end());
-            //todo optimize
+            auto& newln = *curit;
+            newln.splice(0, temp.substr(linid.start));
+            batch.enlist(newln);
+            if (curit != batch.begin())
+            {
+                --curit;
+                auto& curln = *curit;
+                curln = std::move(temp);
+                batch.undock(curln);
+                curln.trimto(linid.start);
+                batch.enlist(curln);
+            }
             index_rebuild();
         }
         // rods: Dissect auto-wrapped line at the current coord.
         void dissect()
         {
             dissect(coord.y);
-            set_coord();
         }
         template<class SRC>
         void zeroise(SRC begin_it, SRC end_it)
