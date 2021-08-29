@@ -240,7 +240,7 @@ namespace netxs::generics
                     cart = std::min(size - 1, dst(head, cart));
                 }
                 vect temp;
-                temp.reserve(new_size);
+                temp.reserve(++new_size);
                 auto i = size;
                 while(i--)
                 {

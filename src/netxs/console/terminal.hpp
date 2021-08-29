@@ -177,7 +177,7 @@ namespace netxs::app
             using ring::ring;
             using type = typename line::type;
 
-            iota caret;
+            iota caret{};
 
             struct maxs : public std::vector<iota>
             {
@@ -281,7 +281,7 @@ namespace netxs::app
             }
         }
 
-        auto height() const
+        auto height() const //todo temp solution
         {
             //todo return batch.length() - index.size + panel.y;
             iota vsize = 0;
@@ -366,10 +366,18 @@ namespace netxs::app
         void set_coord()
         {
             auto style = batch->style;
-            coord.y = std::clamp(coord.y, 0, panel.y - 1);
 
-            auto add_count = coord.y - (index.length() - 1);
-            if (add_count > 0) add_lines(add_count);
+            if (coord.y <= 0) coord.y = 0;
+            else
+            {
+                auto add_count = coord.y - (index.length() - 1);
+                if (add_count > 0)
+                {
+                    add_lines(add_count);
+                    auto maxy = panel.y - 1;
+                    if (coord.y > maxy) coord.y = maxy;
+                }
+            }
 
             auto& mapln = index[coord.y];
             batch.index(mapln.index);
@@ -507,38 +515,6 @@ namespace netxs::app
             void undock(item_t& line) override { panel.y -= line.height; }
         };
 */
-        template<class P>
-        void check_autogrow(line& curln, P proc)
-        {
-            auto old_height = curln.height(panel.x) - 1;
-            proc();
-            batch.enlist(curln);
-            auto new_height = curln.height(panel.x) - 1;
-            if (auto delta = new_height - old_height)
-            {
-                auto old_pos = coord.y + old_height;
-                auto new_pos = coord.y + new_height;
-                coord.y = new_pos;
-                auto [top, end] = get_scroll_region();
-                if (old_pos <= end && new_pos > end)
-                {
-                        auto n = end - new_pos;
-                        scroll_region(n, true);
-                        auto delta = coord.y - batch.length() - 1;
-                        if (delta > 0) coord.y -= delta; // Coz ring buffer.
-                }
-                else
-                {
-                    auto n = new_pos - (panel.y - 1);
-                    if (n > 0)
-                    {
-                        //add_lines(n);
-                        auto delta = coord.y - (panel.y - 1);
-                        if (delta > 0) coord.y -= delta; // Coz ring buffer.
-                    }
-                }
-            }
-        }
         void el_imp(iota n, cell const& brush)
         {
             iota  start;
@@ -571,20 +547,16 @@ namespace netxs::app
             {
                 //auto blank = cell{ brush }.txt(' ');
                 auto blank = cell{ brush }.bgc(greendk).bga(0x7f).txt(' ');
-                check_autogrow(curln, [&]()
-                {
-                    curln.splice<true>(start, count, blank);
-                });
+                //todo check_autogrow
+                curln.splice<true>(start, count, blank);
                 //batch->shrink(blank);
             }
         }
         void ins_imp(iota n, cell const& brush)
         {
             auto& curln = batch.current();
-            check_autogrow(curln, [&]()
-            {
-                curln.insert(batch.caret, n, brush);
-            });
+            //todo check_autogrow
+            curln.insert(batch.caret, n, brush);
         }
         template<bool AUTO_GROW = faux>
         void ech_imp(iota n, cell const& brush)
@@ -592,10 +564,8 @@ namespace netxs::app
             auto& curln = batch.current();
             if constexpr (AUTO_GROW)
             {
-                check_autogrow(curln, [&]()
-                {
-                    curln.splice<true>(batch.caret, n, brush);
-                });
+                //todo check_autogrow
+                curln.splice<true>(batch.caret, n, brush);
             }
             else curln.splice(batch.caret, n, brush);
         }
@@ -619,10 +589,39 @@ namespace netxs::app
                     coord.y--;
                     coord.x = panel.x;
                 }
-                check_autogrow(curln, [&]()
+
+
+                curln.splice(batch.caret, proto, shift);
+                batch.enlist(curln);
+
+                /*
+                auto old_height = curln.height(panel.x) - 1;
+                auto new_height = curln.height(panel.x) - 1;
+                if (auto delta = new_height - old_height)
                 {
-                    curln.splice(batch.caret, proto, shift);
-                });
+                    auto old_pos = coord.y + old_height;
+                    auto new_pos = coord.y + new_height;
+                    coord.y = new_pos;
+                    auto [top, end] = get_scroll_region();
+                    if (old_pos <= end && new_pos > end)
+                    {
+                            auto n = end - new_pos;
+                            scroll_region(n, true);
+                            auto delta = coord.y - batch.length() - 1;
+                            if (delta > 0) coord.y -= delta; // Coz ring buffer.
+                    }
+                    else
+                    {
+                        auto n = new_pos - (panel.y - 1);
+                        if (n > 0)
+                        {
+                            //add_lines(n);
+                            auto delta = coord.y - (panel.y - 1);
+                            if (delta > 0) coord.y -= delta; // Coz ring buffer.
+                        }
+                    }
+                }
+                */
             }
             else
             {
@@ -649,7 +648,7 @@ namespace netxs::app
             set_scroll_region(0, 0);
             index_rebuild();
         }
-        void output(face& canvas) //todo rough output, not optimized
+        void output(face& canvas) //todo temp solution, rough output, not optimized
         {
             maker.reset(canvas);
             auto view = canvas.view();
@@ -1678,7 +1677,7 @@ private:
                         data.clear();
                         data.jet(bias::right)
                             .add("size=", size,
-                                " peak=", peak,
+                                " peak=", peak - 1,
                                 " type=");
                         if (step) data.add("unlimited, grow by ", step);
                         else      data.add("fixed");
