@@ -147,7 +147,7 @@ namespace netxs::app
                 _size = {};
                 _kind = {};
             }
-            iota height(iota width)
+            iota height(iota width) const
             {
                 auto len = length();
                 return len > width
@@ -284,7 +284,12 @@ namespace netxs::app
         auto height() const
         {
             //todo return batch.length() - index.size + panel.y;
-            return batch.length();
+            iota vsize = 0;
+            for (auto& l : batch)
+            {
+                vsize += l.height(panel.x);
+            }
+            return vsize;
         }
         auto recalc_pads(side& oversz)
         {
@@ -644,46 +649,39 @@ namespace netxs::app
             set_scroll_region(0, 0);
             index_rebuild();
         }
-        void output(face& canvas)
+        void output(face& canvas) //todo rough output, not optimized
         {
             maker.reset(canvas);
             auto view = canvas.view();
             auto full = canvas.full();
-            auto head = view.coor.y - full.coor.y;
-            auto tail = head + panel.y;
-            auto maxy = batch.max<line::autowrap>() / panel.x;
-            head = std::clamp(head - maxy, 0, batch.length());
-            tail = std::clamp(tail,        0, batch.length());
-            auto coor = twod{ 0, tail };
-            auto line_it = batch.begin() + coor.y;
+            auto coor = dot_00;
+            auto head = batch.begin();
+            auto tail = batch.end();
             auto left_edge_x = view.coor.x;
             auto half_size_x = full.size.x / 2;
             auto left_rect = rect{{ left_edge_x, coor.y + full.coor.y }, dot_11 };
             auto rght_rect = left_rect;
             rght_rect.coor.x+= view.size.x - 1;
             auto rght_edge_x = rght_rect.coor.x + 1;
-            //todo unify/optimize
             auto fill = [&](auto& area, auto chr)
             {
                 if (auto r = view.clip(area))
                     canvas.fill(r, [&](auto& c){ c.txt(chr).fgc(tint::greenlt); });
             };
-            while(coor.y != head)
+            while(head != tail)
             {
-                auto& cur_line = *--line_it;
-                auto d = cur_line.height(panel.x);
-                coor.y -= d;
-                rght_rect.coor.y -= d;
+                auto& curln = *head++;
                 maker.ac(coor);
-                maker.go(cur_line, canvas);
-                if (auto length = cur_line.length()) // Mark lines not shown in full.
+                maker.go(curln, canvas);   
+                auto height = curln.height(panel.x);
+                if (auto length = curln.length()) // Mark lines not shown in full.
                 {
-                    rght_rect.size.y = cur_line.height(panel.x);
+                    rght_rect.size.y = height;
                     if (rght_rect.size.y == 1)
                     {
                         auto left_dot = full.coor.x;
-                        if      (cur_line.style.jet() == bias::center) left_dot += half_size_x - length / 2;
-                        else if (cur_line.style.jet() == bias::right)  left_dot += full.size.x - length;
+                        if      (curln.style.jet() == bias::center) left_dot += half_size_x - length / 2;
+                        else if (curln.style.jet() == bias::right)  left_dot += full.size.x - length;
 
                         auto rght_dot = left_dot + length;
                         if (left_dot < left_edge_x)
@@ -705,13 +703,13 @@ namespace netxs::app
                         {
                             left_rect.coor.y = rght_rect.coor.y;
                             left_rect.size.y = rght_rect.size.y;
-                            if (cur_line.style.jet() == bias::center)
+                            if (curln.style.jet() == bias::center)
                             {
                                 auto l = length % view.size.x;
                                 auto scnd_left_dot = left_dot + half_size_x - l / 2;
                                 if (scnd_left_dot >= left_edge_x) --left_rect.size.y;
                             }
-                            else if (cur_line.style.jet() == bias::right)
+                            else if (curln.style.jet() == bias::right)
                             {
                                 auto l = length % view.size.x;
                                 auto scnd_left_dot = rght_dot - l;
@@ -721,13 +719,13 @@ namespace netxs::app
                         }
                         if (rght_dot > rght_edge_x)
                         {
-                            if (cur_line.style.jet() == bias::center)
+                            if (curln.style.jet() == bias::center)
                             {
                                 auto l = length % view.size.x;
                                 auto scnd_rght_dot = left_dot + half_size_x - l / 2 + l;
                                 if (scnd_rght_dot <= rght_edge_x) --rght_rect.size.y;
                             }
-                            else if (cur_line.style.jet() == bias::left)
+                            else if (curln.style.jet() == bias::left)
                             {
                                 auto l = length % view.size.x;
                                 auto scnd_rght_dot = left_dot + l;
@@ -737,6 +735,8 @@ namespace netxs::app
                         }
                     }
                 }
+                coor.y           += height;
+                rght_rect.coor.y += height;
             }
         }
         //void test_basis(face& canvas)
@@ -2108,7 +2108,7 @@ private:
                 }
                 //vsize = batch.size - ring::size + panel.y;
                 auto cursor_coor = console.get_coord();
-                cursor_coor.y += console.height() - console.index.size;
+                cursor_coor.y += std::max(0, console.height() - screen.size.y);
                 cursor.coor(cursor_coor);
                 auto adjust_pads = console.recalc_pads(oversz);
                 //auto scroll_size = recalc(cursor_coor);

@@ -29,23 +29,23 @@ namespace netxs::generics
         auto dst(iota  a, iota b) const
                                 { return b < a ? b - a + peak
                                                : b - a;           }
+        template<class RING>
         struct iter
         {
-            ring& buff;
+            RING& buff;
             iota  addr;
-            iter(ring& buff, iota addr)
+            iter(RING& buff, iota addr)
               : buff{ buff },
                 addr{ addr }
             { }
-            //auto  operator -  (iter const& r) const { return addr - r.addr;                                         }
             auto  operator -  (iota n)        const { return iter{ buff, buff.mod(addr - n) };                      }
             auto  operator +  (iota n)        const { return iter{ buff, buff.mod(addr + n) };                      }
             auto  operator ++ (iota)                { auto temp = iter{ buff, addr }; buff.inc(addr); return temp;  }
             auto  operator -- (iota)                { auto temp = iter{ buff, addr }; buff.dec(addr); return temp;  }
             auto& operator ++ ()                    {                                 buff.inc(addr); return *this; }
             auto& operator -- ()                    {                                 buff.dec(addr); return *this; }
-            auto& operator *  ()                    { return   buff.buff[addr];                                     }
-            auto  operator -> ()                    { return &(buff.buff[addr]);                                    }
+            auto& operator *  ()                    { return buff.buff[addr];                                       }
+            auto  operator -> ()                    { return buff.buff.begin() + addr;                              }
             auto  operator != (iter const& m) const { return addr != m.addr;                                        }
             auto  operator == (iter const& m) const { return addr == m.addr;                                        }
         };
@@ -66,6 +66,8 @@ namespace netxs::generics
         auto  current_it()        { return iter{ *this, cart };          }
         auto  begin()             { return iter{ *this, head };          }
         auto  end()               { return iter{ *this, mod(tail + 1) }; }
+        auto  begin() const       { return iter{ *this, head };          }
+        auto  end()   const       { return iter{ *this, mod(tail + 1) }; }
         auto& operator[] (iota i) { return buff[mod(head + i)];          }
         auto& back()              { return buff[tail];                   }
         auto& front()             { return buff[head];                   }
