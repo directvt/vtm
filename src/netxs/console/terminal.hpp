@@ -246,8 +246,10 @@ namespace netxs::app
         twod        saved; // rods: Saved cursor position;
         indx        index;
 
+        iota vsize{ 1 }; // temp
+
         rods(twod const& viewport, iota buffer_size, iota grow_step, deco const& style)
-            : maker{ viewport.x, batch.size },
+            : maker{ viewport.x, vsize      },
               batch{ buffer_size, grow_step },
               panel{ viewport               },
               basis{ 0                      },
@@ -281,10 +283,10 @@ namespace netxs::app
             }
         }
 
-        auto height() const //todo temp solution
+        auto height() //todo temp solution
         {
             //todo return batch.length() - index.size + panel.y;
-            iota vsize = 0;
+            vsize = 0;
             for (auto& l : batch)
             {
                 vsize += l.height(panel.x);
@@ -579,7 +581,7 @@ namespace netxs::app
         void proceed(grid& proto, iota shift)
         {
             auto& curln = batch.current();
-            auto pos_x = coord.x + shift;
+            coord.x += shift;
             if (coord.x > panel.x && curln.style.wrp() == wrap::on)
             {
                 coord.y += coord.x / panel.x;
@@ -627,7 +629,6 @@ namespace netxs::app
             {
                 curln.splice(batch.caret, proto, shift);
                 batch.enlist(curln);
-                coord.x = pos_x;
             }
             index_rebuild();
             batch.caret += shift;
@@ -671,7 +672,7 @@ namespace netxs::app
             {
                 auto& curln = *head++;
                 maker.ac(coor);
-                maker.go(curln, canvas);   
+                maker.go(curln, canvas);
                 auto height = curln.height(panel.x);
                 if (auto length = curln.length()) // Mark lines not shown in full.
                 {
