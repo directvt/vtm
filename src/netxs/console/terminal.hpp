@@ -310,12 +310,13 @@ namespace netxs::app
         {
             auto& curln = batch.current();
             auto& style = curln.style;
-            if (style.jet() == bias::left) return coord;
+            auto  align = style.jet();
+            if (align == bias::left || align == bias::none) return coord;
             auto remain = index[coord.y].width;
             if (remain == panel.x && style.wrp() == wrap::on) return coord;
             auto coor = coord;
-            if    (style.jet() == bias::right )  coor.x += panel.x     - remain - 1;
-            else /*style.jet() == bias::center*/ coor.x += panel.x / 2 - remain / 2;
+            if    (align == bias::right )  coor.x += panel.x     - remain - 1;
+            else /*align == bias::center*/ coor.x += panel.x / 2 - remain / 2;
             return coor;
         }
         // rods: Return 0-based scroll region pair, inclusive.
@@ -1394,6 +1395,11 @@ private:
                     }
                 }
                 log("CSI ", params, " ", (unsigned char)i, "(", std::to_string(i), ") is not implemented.");
+            }
+            void clear_all()
+            {
+                rods::clear_all();
+                parser::state = {};
             }
             // scrollbuff: ESC H  Place tabstop at the current cursor posistion.
             void stb()

@@ -2233,12 +2233,12 @@ utility like ctags is used to locate the definitions.
 
         #ifdef DEMO
             auto sub_pos = twod{ 12+17, 0 };
-            creator(objs::Test, { twod{ 22, 1  } + sub_pos, { 70, 21 } });
-            creator(objs::Shop, { twod{ 4 , 6  } + sub_pos, { 80, 38 } });
-            creator(objs::Calc, { twod{ 15, 15 } + sub_pos, { 65, 23 } });
-            creator(objs::Text, { twod{ 30, 22 } + sub_pos, { 59, 26 } });
-            creator(objs::MC,   { twod{ 49, 28 } + sub_pos, { 63, 22 } });
-            creator(objs::Term, { twod{ 34, 38 } + sub_pos, { 57, 16 } });
+            creator(objs::Test, { twod{ 22     , 1  } + sub_pos, { 70, 21 } });
+            creator(objs::Shop, { twod{ 4      , 6  } + sub_pos, { 80, 38 } });
+            creator(objs::Calc, { twod{ 15     , 15 } + sub_pos, { 65, 23 } });
+            creator(objs::Text, { twod{ 30     , 22 } + sub_pos, { 59, 26 } });
+            creator(objs::MC,   { twod{ 49     , 28 } + sub_pos, { 63, 22 } });
+            creator(objs::Term, { twod{ 34     , 38 } + sub_pos, { 57, 16 } });
             creator(objs::Term, { twod{ 44 + 85, 35 } + sub_pos, { 57, 15 } });
             creator(objs::Term, { twod{ 40 + 85, 42 } + sub_pos, { 57, 15 } });
 

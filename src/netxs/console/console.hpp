@@ -2079,7 +2079,7 @@ namespace netxs::console
                                 auto caption = para(coder);
                                 coder.clear();
                                 auto header = *caption.lyric;
-                                auto coor = area.coor + area.size;
+                                auto coor = area.coor + area.size + canvas.coor();
                                 coor.x -= caption.length() - 1;
                                 header.move(coor);
                                 canvas.fill(header, cell::shaders::contrast);
