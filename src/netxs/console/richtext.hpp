@@ -1245,10 +1245,10 @@ namespace netxs::console
             auto& item = **layer;
             item.locus.push(cmd);
         }
-        void meta(deco& old_style, deco& new_style) override
+        void meta(deco const& old_style) override
         {
             auto& item = **layer;
-            item.style = new_style;
+            item.style = parser::style;
         }
         void data(grid& proto, iota width) override
         {

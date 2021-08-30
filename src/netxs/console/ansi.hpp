@@ -1406,7 +1406,7 @@ namespace netxs::ansi
         {
             if (state != style)
             {
-                meta(state, style);
+                meta(state);
                 state = style;
             }
             if (width)
@@ -1416,8 +1416,8 @@ namespace netxs::ansi
                 width = 0;
             }
         }
-        virtual void meta(deco& old_style, deco& new_style) { };
-        virtual void data(grid& proto, iota width)          { };
+        virtual void meta(deco const& old_style)   { };
+        virtual void data(grid& proto, iota width) { };
     };
 
     // ansi: Caret manipulation command list.

@@ -100,10 +100,6 @@ namespace netxs::app
                   index{ l.index },
                   style{ l.style }
             { }
-            line(deco const& style)
-                : index{ 0     },
-                  style{ style }
-            { }
             line(ui32 newid, deco const& style = {})
                 : index{ newid },
                   style{ style }
@@ -143,7 +139,7 @@ namespace netxs::app
             void wipe()
             {
                 rich::kill();
-                style.rst();
+                //style.rst();
                 _size = {};
                 _kind = {};
             }
@@ -248,7 +244,7 @@ namespace netxs::app
 
         iota vsize{ 1 }; // temp
 
-        rods(twod const& viewport, iota buffer_size, iota grow_step, deco const& style)
+        rods(twod const& viewport, iota buffer_size, iota grow_step)
             : maker{ viewport.x, vsize      },
               batch{ buffer_size, grow_step },
               panel{ viewport               },
@@ -257,7 +253,7 @@ namespace netxs::app
               scend{ 0                      },
               index{ std::max(1,viewport.y) }
         {
-            batch.push_back(style); // At least one row must exist.
+            batch.push_back(0); // At least one line must exist.
             index_rebuild();
         }
 
@@ -635,11 +631,10 @@ namespace netxs::app
         }
         void clear_all()
         {
-            auto style = batch->style;
             saved = dot_00;
             coord = dot_00;
             batch.clear();
-            batch.push_back(0, style);
+            batch.push_back(0);
             index_rebuild();
         }
         template<bool BOTTOM_ANCHORED = true>
@@ -1338,9 +1333,11 @@ private:
             iota tabstop = default_tabstop; // scrollbuff: Tabstop current value.
 
             scrollbuff(term& boss, iota max_scrollback_size, iota grow_step = 0)
-                : rods(boss.screen.size, max_scrollback_size, grow_step, ansi::def_style),
+                : rods(boss.screen.size, max_scrollback_size, grow_step),
                   boss{ boss }
-            { }
+            {
+                parser::style = ansi::def_style;
+            }
 
             // scrollbuff: Base-CSI contract (see ansi::csi_t).
             //             task(...), meta(...), data(...)
@@ -1356,10 +1353,22 @@ private:
                 //} 
                 //batch->locus.push(property);
             }
-            void meta(deco& old_style, deco& new_style) override
+            void meta(deco const& old_style) override
             {
                 dissect();
-                style_status(new_style);
+                batch->style = parser::style;
+                if (parser::style.wrp() != old_style.wrp())
+                {
+                    auto status = parser::style.wrp() == wrap::none ? WRAPPING
+                                                                    : parser::style.wrp();
+                    boss.base::broadcast->SIGNAL(tier::release, app::term::events::layout::wrapln, status);
+                }
+                if (parser::style.jet() != old_style.jet())
+                {
+                    auto status = parser::style.jet() == bias::none ? bias::left
+                                                                    : parser::style.jet();
+                    boss.base::broadcast->SIGNAL(tier::release, app::term::events::layout::align, status);
+                }
             }
             void data(grid& proto, iota width) override
             { 
@@ -1385,49 +1394,6 @@ private:
                     }
                 }
                 log("CSI ", params, " ", (unsigned char)i, "(", std::to_string(i), ") is not implemented.");
-            }
-            // scrollbuff: Toggle autowrap mode.
-            void toggle_wrap()
-            {
-                auto style = batch->style;
-                style.wrp(style.wrp() == wrap::on ? wrap::off
-                                                  : wrap::on);
-                style_status(style);
-            }
-            // scrollbuff: CCC_WRP:  Set autowrap mode.
-            void wrp(wrap w)
-            {
-                auto style = batch->style;
-                style.wrp(w);
-                style_status(style);
-            }
-            // scrollbuff: CCC_JET:  Set line alignment.
-            void jet(bias j)
-            {
-                auto style = batch->style;
-                style.jet(j);
-                style_status(style);
-            }
-            //todo use constexpr
-            void style_status(deco const& s)
-            {
-                auto& style = batch->style;
-                if (style != s)
-                {
-                    if (s.wrp() != style.wrp())
-                    {
-                        auto status = s.wrp() == wrap::none ? WRAPPING
-                                                            : s.wrp();
-                        boss.base::broadcast->SIGNAL(tier::release, app::term::events::layout::wrapln, status);
-                    }
-                    if (s.jet() != style.jet())
-                    {
-                        auto status = s.jet() == bias::none ? bias::left
-                                                            : s.jet();
-                        boss.base::broadcast->SIGNAL(tier::release, app::term::events::layout::align, status);
-                    }
-                    style = s;
-                }
             }
             // scrollbuff: ESC H  Place tabstop at the current cursor posistion.
             void stb()
@@ -1743,7 +1709,7 @@ private:
                         mode_DECCKM = true;
                         break;
                     case 7:    // Enable auto-wrap.
-                        target->wrp(wrap::on);
+                        target->style.wrp(wrap::on);
                         break;
                     case 12:   // Enable cursor blinking.
                         cursor.blink_period();
@@ -1788,8 +1754,8 @@ private:
                         target->scp();
                         break;
                     case 1047: // Use alternate screen buffer.
-                    case 1049: // Save cursor pos and Use alternate screen buffer, clearing it first.  This control combines the effects of the 1047 and 1048  modes.
-                        altbuf.style_status(target->style);
+                    case 1049: // Save cursor pos and use alternate screen buffer, clearing it first.  This control combines the effects of the 1047 and 1048  modes.
+                        altbuf.style = target->style;
                         target = &altbuf;
                         altbuf.clear_all();
                         break;
@@ -1812,7 +1778,7 @@ private:
                         mode_DECCKM = faux;
                         break;
                     case 7:    // Disable auto-wrap.
-                        target->wrp(wrap::off);
+                        target->style.wrp(wrap::off);
                         break;
                     case 12:   // Disable cursor blinking.
                         cursor.blink_period(period::zero());
@@ -1858,7 +1824,7 @@ private:
                         break;
                     case 1047: // Use normal screen buffer.
                     case 1049: // Use normal screen buffer and restore cursor.
-                        normal.style_status(target->style);
+                        normal.style = target->style;
                         target = &normal;
                         break;
                     case 2004: // Disable bracketed paste mode.
@@ -1987,16 +1953,16 @@ private:
                 switch(cmd)
                 {
                     case term::commands::ui::left:
-                        target->jet(bias::left);
+                        target->style.jet(bias::left);
                         break;
                     case term::commands::ui::center:
-                        target->jet(bias::center);
+                        target->style.jet(bias::center);
                         break;
                     case term::commands::ui::right:
-                        target->jet(bias::right);
+                        target->style.jet(bias::right);
                         break;
                     case term::commands::ui::togglewrp:
-                        target->toggle_wrap();
+                        target->style.wrp(target->style.wrp() == wrap::on ? wrap::off : wrap::on);
                         break;
                     case term::commands::ui::reset:
                         decstr();

@@ -1848,7 +1848,6 @@ utility like ctags is used to locate the definitions.
                                             //todo unify, get boss base colors, don't use x3
                                             boss.color(align == bias::left ? 0xFF00ff00 : x3.fgc(), x3.bgc());
                                         };
-                                        boss.color(0xFF00ff00, x3.bgc());
                                     }},
                                     std::pair<text, std::function<void(ui::pads&)>>{ "─=─",
                                     [](ui::pads& boss)
@@ -1891,7 +1890,6 @@ utility like ctags is used to locate the definitions.
                                             //todo unify, get boss base colors, don't use x3
                                             boss.color(wrapln == wrap::on ? 0xFF00ff00 : x3.fgc(), x3.bgc());
                                         };
-                                        boss.color(WRAPPING == wrap::on ? 0xFF00ff00 : x3.fgc(), x3.bgc());
                                     }},
                                 }))
                                           ->plugin<pro::mover>(window);
