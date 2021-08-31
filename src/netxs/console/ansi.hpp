@@ -769,6 +769,15 @@ namespace netxs::ansi
     #pragma pack(push,1)
     union deco
     {
+        enum type : iota
+        {
+            leftside, // default
+            rghtside,
+            centered,
+            autowrap,
+            count,
+        };
+
         static constexpr iota maxtab = 255; // deco: Tab length limit.
         struct
         {
@@ -820,6 +829,13 @@ namespace netxs::ansi
         auto& mgn   (fifo& q) { v.margin.set(q);                          return *this; } // deco: fx_ccc_mgn.
         auto& rst   ()        { token = 0;                                return *this; } // deco: Reset.
         constexpr auto& glb() { operator=(deco(0));                       return *this; }  // deco: Reset to default.
+        auto get_kind()
+        {
+            return v.wrapln == wrap::on    ? type::autowrap :
+                   v.adjust == bias::left  ? type::leftside :
+                   v.adjust == bias::right ? type::rghtside :
+                                             type::centered ;
+        }
     };
     #pragma pack(pop)
 
