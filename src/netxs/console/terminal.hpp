@@ -319,11 +319,51 @@ namespace netxs::app
             index_rebuild();
         }
 
-        template<bool MAP_CURSOR = faux>
+        void resize_viewport()
+        {
+            batch.set_width(panel.x);
+            index.clear();
+
+          index.resize(panel.y);
+          auto& curln = batch.current();
+          auto curid = curln.index;
+          int i = 0;
+          int s = 0;
+
+            auto tail = batch.end();
+            auto head = tail - std::min(batch.length(), panel.y);
+            while(head != tail)
+            {
+                auto& curln = *head++;
+                auto length = curln.length();
+                auto offset = 0;
+                auto remain = length - offset;
+                while(remain > panel.x)
+                {
+                    if (s==0 && curln.index == curid) s = 1;
+                    else i += s;
+
+                    index.push_back(curln.index, offset, panel.x);
+                    offset += panel.x;
+                    remain -= panel.x;
+                }
+                if (s==0 && curln.index == curid) s = 1;
+                else i += s;
+
+                index.push_back(curln.index, offset, remain);
+            }
+            coord.y = index.size - 1 - i + batch.caret / panel.x;
+            coord.x = batch.caret % panel.x;
+            if (batch.caret && coord.x == 0 && curln.length() == batch.caret)
+            {
+                coord.x = panel.x;
+                coord.y--;
+            }
+        }
         void index_rebuild()
         {
             index.clear();
-            index.resize(panel.y);
+            //index.resize(panel.y);
             auto tail = batch.end();
             auto head = tail - std::min(batch.length(), panel.y);
             while(head != tail)
@@ -867,13 +907,6 @@ namespace netxs::app
             //    start -= panel.x;
             //}
             //while(upper++ != under);
-        }
-        // rods: Rebuild overlaps from bottom to the top visible line.
-        void rebuild_viewport(twod const& new_sz)
-        {
-            index.resize(new_sz.y);
-            batch.set_width(new_sz.x);
-            index_rebuild();
         }
         // rods: For bug testing purposes.
         auto get_content()
@@ -2075,22 +2108,33 @@ private:
             SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
             {
                 this->base::riseup<tier::request>(e2::form::prop::header, winprops.get(ansi::OSC_TITLE));
+
+
                 this->SUBMIT_T(tier::release, e2::size::set, oneshot_resize_token, new_sz)
                 {
                     if (new_sz.y > 0)
                     {
                         oneshot_resize_token.reset();
+
+                        new_sz = std::max(new_sz, dot_11);
+                        if (target == &altbuf) altbuf.trim_to_size(new_sz);
                         altbuf.resize<faux>(new_sz.y);
+
+                        screen.size = new_sz;
+                        target->resize_viewport();
 
                         this->SUBMIT(tier::preview, e2::size::set, new_sz)
                         {
                             new_sz = std::max(new_sz, dot_11);
                             if (target == &altbuf) altbuf.trim_to_size(new_sz);
-                            screen.size = new_sz;
                             altbuf.resize<faux>(new_sz.y);
-                            target->rebuild_viewport(new_sz);
-                            ptycon.resize(screen.size);
+
+                            screen.size = new_sz;
+                            target->resize_viewport();
+
+                            ptycon.resize(new_sz);
                         };
+
                         ptycon.start(cmdline, new_sz, [&](auto utf8_shadow) { input_hndl(utf8_shadow); },
                                                       [&](auto exit_code) { shutdown_hndl(exit_code); });
                     }
