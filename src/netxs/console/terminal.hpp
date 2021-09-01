@@ -161,6 +161,7 @@ namespace netxs::app
             iota vsize{};
             iota width{};
 
+            //todo optimize for large lines
             struct maxs : public std::vector<iota>
             {
                 iota max = 0;
@@ -173,22 +174,18 @@ namespace netxs::app
             {
                 if (size > width && kind == type::autowrap) vsize -= (size + width - 1) / width;
                 else                                        vsize -= 1;
-                log("dec h=", vsize, " kind=", kind, " linesize=", size);
-                if (kind == 0)
-                {
-                    int u = 0;
-                }
+                //log("dec h=", vsize, " kind=", kind, " linesize=", size);
             }
             void add_height(type kind, iota size)
             {
                 if (size > width && kind == type::autowrap) vsize += (size + width - 1) / width;
                 else                                        vsize += 1;
-                log("add h=", vsize, " kind=", kind, " linesize=", size);
+                //log("add h=", vsize, " kind=", kind, " linesize=", size);
             }
             // buff: Recalc the height for unlimited scrollback without using reflow.
-            void new_height(iota new_width)
+            void set_width(iota new_width)
             {
-                log("new_height new_width=", new_width);
+                //log("set_width new_width=", new_width);
                 vsize = 0;
                 width = std::max(1, new_width);
                 for (auto kind : { type::leftside,
@@ -200,14 +197,6 @@ namespace netxs::app
                     auto tail = head + cur_lens.max + 1;
                     do vsize += *head++;
                     while(head != tail);
-                        //auto i = 0;
-                        //do{
-                        //    auto count = *head++;
-                        //    vsize += count;
-                        //    if (count) log(" kind=", kind, " size=",i," count=",count);
-                        //    i++;
-                        //} 
-                        //while(head != tail);
                 }
                 auto kind = type::autowrap;
                 auto& cur_lens = lens[kind];
@@ -215,13 +204,9 @@ namespace netxs::app
                 auto tail = head + cur_lens.max + 1;
                 auto c = 0;
                 auto h = 1;
-            auto i = 0;
+                //auto i = 0;
                 do
                 {
-                        //auto cnt = *head;
-                        //if (cnt) log(" autowrap: kind=", kind, " size=",i," count=",cnt);
-                        //i++;
-
                     if (auto count = *head++) vsize += h * count;
                     if (++c > width)
                     {
@@ -230,12 +215,12 @@ namespace netxs::app
                     }
                 }
                 while(head != tail);
-                log(" new_height done ", " h=", vsize);
+                //log(" set_width done ", " h=", vsize);
             }
 
             void invite(type& kind, iota& size, type new_kind, iota new_size)
             {
-                log(" invite kind=", new_kind, " new_size=", new_size);
+                //log(" invite kind=", new_kind, " new_size=", new_size);
                 auto& new_lens = lens[new_kind];
                 if (new_lens.size() <= new_size) new_lens.resize(new_size * 2 + 1);
 
@@ -278,7 +263,13 @@ namespace netxs::app
                 }
                 dec_height(kind, size);
             }
-            void invite(line& l)          { invite(l._kind, l._size, l.style.get_kind(), l.length()); }
+            template<class ...Args>
+            auto& invite(Args&&... args)
+            {
+                auto& l = ring::push_back(std::forward<Args>(args)...);
+                invite(l._kind, l._size, l.style.get_kind(), l.length());
+                return l;
+            }
             void recalc(line& l)          { recalc(l._kind, l._size, l.style.get_kind(), l.length()); }
             void undock(line& l) override { undock(l._kind, l._size);                                 }
             template<auto N> auto max()   { return lens[N].max;                                       }
@@ -287,10 +278,6 @@ namespace netxs::app
                 //No need to disturb distant objects, it may already be in the swap.
                 //return static_cast<iota>(id - batch.front().index); // ring buffer size is never larger than max_int32.
                 return static_cast<iota>(length() - (back().index - id)); // ring buffer size is never larger than max_int32.
-            }
-            void add_one()
-            {
-                invite(push_back(0)); // At least one line must exist.
             }
         };
 
@@ -327,11 +314,12 @@ namespace netxs::app
               scend{ 0                      },
               index{ std::max(1,viewport.y) }
         {
-            batch.add_one();
-            batch.new_height(viewport.x);
+            batch.invite(0); // At least one line must exist.
+            batch.set_width(viewport.x);
             index_rebuild();
         }
 
+        template<bool MAP_CURSOR = faux>
         void index_rebuild()
         {
             index.clear();
@@ -353,20 +341,11 @@ namespace netxs::app
                 index.push_back(curln.index, offset, remain);
             }
         }
-
-        auto height() //todo temp solution
+        auto height()
         {
-            //todo return batch.length() - index.size + panel.y;
-            vsize = 0;
-            for (auto& l : batch)
-            {
-                vsize += l.height(panel.x);
-            }
-            if (vsize != batch.vsize)
-            {
-                log(" vsize=", vsize, " batch.vsize=", batch.vsize);
-                //throw;
-            }
+            auto test_vsize = 0; //sanity check
+            for (auto& l : batch) test_vsize += l.height(panel.x);
+            if (test_vsize != batch.vsize) log(" test_vsize=", test_vsize, " vsize=", batch.vsize);
             return batch.vsize;
         }
         auto recalc_pads(side& oversz)
@@ -429,15 +408,11 @@ namespace netxs::app
             assert(amount > 0);
             auto newid = batch.back().index;
             auto style = batch->style;
-            auto n = amount;
-            while(n-- > 0 )
+            while(amount-- > 0)
             {
-                //todo templatize batch.invite (=add_one)
-                auto& l = batch.push_back(++newid, style);
-                batch.invite(l);
+                auto& l = batch.invite(++newid, style);
                 index.push_back(l.index, 0, 0);
             }
-            //batch.add_height(style.get_kind(), amount);
         }
         void pop_lines(iota amount)
         {
@@ -732,8 +707,8 @@ namespace netxs::app
             saved = dot_00;
             coord = dot_00;
             batch.clear(); //todo optimize
-            batch.add_one();
-            batch.new_height(panel.x);
+            batch.invite(0); // At least one line must exist.
+            batch.set_width(panel.x);
             index_rebuild();
         }
         template<bool BOTTOM_ANCHORED = true>
@@ -897,7 +872,7 @@ namespace netxs::app
         void rebuild_viewport(twod const& new_sz)
         {
             index.resize(new_sz.y);
-            batch.new_height(new_sz.x);
+            batch.set_width(new_sz.x);
             index_rebuild();
         }
         // rods: For bug testing purposes.
@@ -2194,7 +2169,7 @@ private:
                 //scroll_size.y = std::max({ screen.size.y, cursor_coor.y + 1 - screen.coor.y, console.height() });
                 scroll_size.y = std::max({ screen.size.y, console.height() });
                 screen.coor.y = scroll_size.y - screen.size.y;
-                if (follow_view) reset_scroll_pos();
+                //if (follow_view) reset_scroll_pos();
                 //if (!screen.hittest(cursor_coor)) // compat: get cursor back to the viewport if it placed outside
                 //{
                 //    cursor_coor = std::clamp(cursor_coor, screen.coor, screen.coor + screen.size - dot_11);
