@@ -2216,8 +2216,23 @@ namespace netxs::console
                             point.coor += field.coor + boss.base::coor();
                             if (auto area = field.clip(point))
                             {
-                                if (form) canvas.fill(area, [](cell& c) { c.inv(!c.inv()); });
-                                else      canvas.fill(area, [](cell& c) { c.und(!c.und()); });
+                                if (form)
+                                {
+                                    canvas.fill(area, [](cell& c) {
+                                        auto b = c.bgc();
+                                        auto f = c.fgc();
+                                        if (c.inv()) c.bgc(f).fgc(cell::shaders::contrast.invert(f));
+                                        else         c.fgc(b).bgc(cell::shaders::contrast.invert(b));
+                                    });
+                                }
+                                else canvas.fill(area, [](cell& c) { c.und(!c.und()); });
+                            }
+                            else if (area.size.y)
+                            {
+                                auto chr = area.coor.x ? '>' : '<';
+                                area.coor.x -= area.coor.x ? 1 : 0;
+                                area.size.x = 1;
+                                canvas.fill(area, [&](auto& c){ c.txt(chr).fgc(cell::shaders::contrast.invert(c.bgc())); });
                             }
                         }
                     };

@@ -134,6 +134,7 @@ namespace netxs::app
                     && style.wrp() == wrap::on ? (len + width - 1) / width
                                                : 1;
             }
+            auto is_wrapped() { return _kind == type::autowrap; }
         };
         struct index_item
         {
@@ -161,7 +162,7 @@ namespace netxs::app
             iota vsize{};
             iota width{};
 
-            //todo optimize for large lines
+            //todo optimize for large lines, use std::unordered_map<iota, iota>
             struct maxs : public std::vector<iota>
             {
                 iota max = 0;
@@ -319,46 +320,59 @@ namespace netxs::app
             index_rebuild();
         }
 
-        void resize_viewport()
+        auto resize_viewport()
         {
             batch.set_width(panel.x);
             index.clear();
 
-          index.resize(panel.y);
-          auto& curln = batch.current();
-          auto curid = curln.index;
-          int i = 0;
-          int s = 0;
+            index.resize(panel.y);
+            auto& curln = batch.current();
+            auto curid = curln.index;
 
-            auto tail = batch.end();
-            auto head = tail - std::min(batch.length(), panel.y);
-            while(head != tail)
+            auto head = batch.end();
+            auto size = batch.length();
+            auto maxn = size - batch.index();
+            auto over = -panel.y;
+            auto tail = head - std::max(maxn, std::min(size, panel.y));
+            coord.y = -1;
+            while(head != tail && (coord.y == -1 || panel.y != index.size))
             {
-                auto& curln = *head++;
+                auto& curln = *--head;
                 auto length = curln.length();
-                auto offset = 0;
-                auto remain = length - offset;
-                while(remain > panel.x)
+                auto caret_index = curln.index == curid;
+                if (curln.is_wrapped())
                 {
-                    if (s==0 && curln.index == curid) s = 1;
-                    else i += s;
-
-                    index.push_back(curln.index, offset, panel.x);
-                    offset += panel.x;
-                    remain -= panel.x;
+                    auto remain = length ? (length - 1) % panel.x + 1 : 0;
+                    auto offset = length - remain;
+                    ++over;
+                    index.push_front(curln.index, offset, remain);
+                    if (coord.y == -1 && caret_index && offset <= batch.caret)
+                        coord.y = index.length();
+                    while(offset > 0 && (coord.y == -1 || panel.y != index.size))
+                    {
+                        offset -= panel.x;
+                        ++over;
+                        index.push_front(curln.index, offset, panel.x);
+                        if (coord.y == -1 && caret_index && offset <= batch.caret)
+                            coord.y = index.length();
+                    }
                 }
-                if (s==0 && curln.index == curid) s = 1;
-                else i += s;
-
-                index.push_back(curln.index, offset, remain);
+                else
+                {
+                    auto remain = length;
+                    auto offset = 0;
+                    ++over;
+                    index.push_front(curln.index, offset, remain);
+                    if (caret_index) coord.y = index.length();
+                }
             }
-            coord.y = index.size - 1 - i + batch.caret / panel.x;
+            coord.y = index.size - coord.y;
             coord.x = batch.caret % panel.x;
-            if (batch.caret && coord.x == 0 && curln.length() == batch.caret)
+            if (coord.x == 0 && batch.caret != 0 && curln.length() == batch.caret)
             {
                 coord.x = panel.x;
-                coord.y--;
             }
+            return std::max(0, over);
         }
         void index_rebuild()
         {
@@ -2060,6 +2074,7 @@ private:
               target  { &normal }
         {
             cursor.show();
+            cursor.style(true);
 
             #ifdef PROD
             form::keybd.accept(true); // Subscribe to keybd offers.
@@ -2121,7 +2136,7 @@ private:
                         altbuf.resize<faux>(new_sz.y);
 
                         screen.size = new_sz;
-                        target->resize_viewport();
+                        oversz.b = target->resize_viewport();
 
                         this->SUBMIT(tier::preview, e2::size::set, new_sz)
                         {
@@ -2130,8 +2145,8 @@ private:
                             altbuf.resize<faux>(new_sz.y);
 
                             screen.size = new_sz;
-                            target->resize_viewport();
-
+                            oversz.b = target->resize_viewport();
+                            log(" oversz.b=", oversz.b);
                             ptycon.resize(new_sz);
                         };
 
@@ -2203,7 +2218,7 @@ private:
                 }
                 //vsize = batch.size - ring::size + panel.y;
                 auto cursor_coor = console.get_coord();
-                cursor_coor.y += std::max(0, console.height() - screen.size.y);
+                cursor_coor.y += std::max(0, console.height() - screen.size.y) - oversz.b;
                 cursor.coor(cursor_coor);
                 auto adjust_pads = console.recalc_pads(oversz);
                 //auto scroll_size = recalc(cursor_coor);

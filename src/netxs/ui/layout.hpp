@@ -1148,18 +1148,19 @@ namespace netxs::ui::atoms
             };
             struct contrast_t : public brush_t<contrast_t>
             {
+                static constexpr auto threshold = rgba{ tint::whitedk }.luma() - 0xF;
                 template<class C> constexpr inline auto operator() (C brush) const { return func<C>(brush); }
+                static inline auto invert(rgba const& color)
+                {
+                    return color.luma() >= threshold ? 0xFF000000
+                                                     : 0xFFffffff;
+                }
                 template<class D, class S>
                 inline void operator() (D& dst, S& src) const
                 {
                     auto& fgc = src.fgc();
-                    if (fgc.chan.a == 0x00)
-                    {
-                        auto constexpr threshold = rgba{ tint::whitedk }.luma() - 0xF;
-                        if (dst.bgc().luma() >= threshold) dst.fgc(0xFF000000).fusefull(src);
-                        else                               dst.fgc(0xFFffffff).fusefull(src);
-                    }
-                    else dst.fusefull(src);
+                    if (fgc.chan.a == 0x00) dst.fgc(invert(dst.bgc())).fusefull(src);
+                    else                    dst.fusefull(src);
                 }
             };
             struct flat_t : public brush_t<flat_t>
