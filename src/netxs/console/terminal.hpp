@@ -326,14 +326,14 @@ namespace netxs::app
             index.clear();
 
             index.resize(panel.y);
-            auto& curln = batch.current();
-            auto curid = curln.index;
+            auto curid = batch.current().index;
 
             auto head = batch.end();
             auto size = batch.length();
             auto maxn = size - batch.index();
             auto over = -panel.y;
             auto tail = head - std::max(maxn, std::min(size, panel.y));
+            coord.x = batch.caret;
             coord.y = -1;
             while(head != tail && (coord.y == -1 || panel.y != index.size))
             {
@@ -343,19 +343,22 @@ namespace netxs::app
                 if (curln.is_wrapped())
                 {
                     auto remain = length ? (length - 1) % panel.x + 1 : 0;
-                    auto offset = length - remain;
-                    ++over;
-                    index.push_front(curln.index, offset, remain);
-                    if (coord.y == -1 && caret_index && offset <= batch.caret)
-                        coord.y = index.length();
-                    while(offset > 0 && (coord.y == -1 || panel.y != index.size))
+                    auto offset = length;
+                    do
                     {
-                        offset -= panel.x;
+                        offset -= remain;
                         ++over;
-                        index.push_front(curln.index, offset, panel.x);
+                        index.push_front(curln.index, offset, remain);
                         if (coord.y == -1 && caret_index && offset <= batch.caret)
+                        {
+                            auto full = batch.caret && curln.length() == batch.caret;
                             coord.y = index.length();
+                            coord.x = full ? (coord.x - 1) % panel.x + 1
+                                           :  coord.x      % panel.x;
+                        }
+                        remain = panel.x;
                     }
+                    while(offset > 0 && (coord.y == -1 || panel.y != index.size));
                 }
                 else
                 {
@@ -367,11 +370,6 @@ namespace netxs::app
                 }
             }
             coord.y = index.size - coord.y;
-            coord.x = batch.caret % panel.x;
-            if (coord.x == 0 && batch.caret != 0 && curln.length() == batch.caret)
-            {
-                coord.x = panel.x;
-            }
             return std::max(0, over);
         }
         void index_rebuild()
@@ -797,62 +795,39 @@ namespace netxs::app
                 maker.ac(coor);
                 maker.go(curln, canvas);
                 auto height = curln.height(panel.x);
+                auto align = curln.style.jet();
                 if (auto length = curln.length()) // Mark lines not shown in full.
                 {
-                    rght_rect.size.y = height;
-                    if (rght_rect.size.y == 1)
+                    rght_rect.size.y = left_rect.size.y = height;
+                    if (height == 1)
                     {
-                        auto left_dot = full.coor.x;
-                        if      (curln.style.jet() == bias::center) left_dot += half_size_x - length / 2;
-                        else if (curln.style.jet() == bias::right)  left_dot += full.size.x - length;
+                        auto lt_dot = full.coor.x;
+                        if      (align == bias::center) lt_dot += half_size_x - length / 2;
+                        else if (align == bias::right)  lt_dot += full.size.x - length;
 
-                        auto rght_dot = left_dot + length;
-                        if (left_dot < left_edge_x)
-                        {
-                            left_rect.coor.y = rght_rect.coor.y;
-                            left_rect.size.y = rght_rect.size.y;
-                            fill(left_rect, '<');
-                        }
-                        if (rght_dot > rght_edge_x)
-                        {
-                            fill(rght_rect, '>');
-                        }
+                        if (left_edge_x > lt_dot         ) fill(left_rect, '<');
+                        if (rght_edge_x < lt_dot + length) fill(rght_rect, '>');
                     }
                     else
                     {
-                        auto left_dot = full.coor.x;
-                        auto rght_dot = left_dot + view.size.x;
-                        if (left_dot < left_edge_x)
+                        auto lt_dot = full.coor.x;
+                        auto rt_dot = lt_dot + view.size.x;
+                        auto remain = (length - 1) % view.size.x + 1;
+                        if (left_edge_x > lt_dot)
                         {
-                            left_rect.coor.y = rght_rect.coor.y;
-                            left_rect.size.y = rght_rect.size.y;
-                            if (curln.style.jet() == bias::center)
+                            if (align == bias::right  && left_edge_x <= rt_dot - remain
+                             || align == bias::center && left_edge_x <= lt_dot + half_size_x - remain / 2)
                             {
-                                auto l = length % view.size.x;
-                                auto scnd_left_dot = left_dot + half_size_x - l / 2;
-                                if (scnd_left_dot >= left_edge_x) --left_rect.size.y;
-                            }
-                            else if (curln.style.jet() == bias::right)
-                            {
-                                auto l = length % view.size.x;
-                                auto scnd_left_dot = rght_dot - l;
-                                if (scnd_left_dot >= left_edge_x) --left_rect.size.y;
+                                --left_rect.size.y;
                             }
                             fill(left_rect, '<');
                         }
-                        if (rght_dot > rght_edge_x)
+                        if (rght_edge_x < rt_dot)
                         {
-                            if (curln.style.jet() == bias::center)
+                            if (align == bias::left   && rght_edge_x >= lt_dot + remain
+                             || align == bias::center && rght_edge_x >= lt_dot + remain + half_size_x - remain / 2)
                             {
-                                auto l = length % view.size.x;
-                                auto scnd_rght_dot = left_dot + half_size_x - l / 2 + l;
-                                if (scnd_rght_dot <= rght_edge_x) --rght_rect.size.y;
-                            }
-                            else if (curln.style.jet() == bias::left)
-                            {
-                                auto l = length % view.size.x;
-                                auto scnd_rght_dot = left_dot + l;
-                                if (scnd_rght_dot <= rght_edge_x) --rght_rect.size.y;
+                                --rght_rect.size.y;
                             }
                             fill(rght_rect, '>');
                         }
@@ -860,6 +835,7 @@ namespace netxs::app
                 }
                 coor.y           += height;
                 rght_rect.coor.y += height;
+                left_rect.coor.y = rght_rect.coor.y;
             }
         }
         //void test_basis(face& canvas)
