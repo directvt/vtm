@@ -134,7 +134,7 @@ namespace netxs::app
                     && style.wrp() == wrap::on ? (len + width - 1) / width
                                                : 1;
             }
-            auto is_wrapped() { return _kind == type::autowrap; }
+            auto wrapped() { return _kind == type::autowrap; }
         };
         struct index_item
         {
@@ -305,6 +305,7 @@ namespace netxs::app
         indx        index;
 
         iota vsize{ 1 }; // temp
+        iota view_coor{};
 
         rods(twod const& viewport, iota buffer_size, iota grow_step)
             : batch{ buffer_size, grow_step },
@@ -319,78 +320,88 @@ namespace netxs::app
             batch.set_width(viewport.x);
             index_rebuild();
         }
-
+        //rods: Return viewport vertical oversize.
         auto resize_viewport()
         {
             batch.set_width(panel.x);
             index.clear();
-
             index.resize(panel.y);
-            auto curid = batch.current().index;
-
+            view_coor = batch.vsize;
+            auto lnid = batch.current().index;
             auto head = batch.end();
             auto size = batch.length();
             auto maxn = size - batch.index();
-            auto over = -panel.y;
             auto tail = head - std::max(maxn, std::min(size, panel.y));
-            coord.x = batch.caret;
-            coord.y = -1;
-            while(head != tail && (coord.y == -1 || panel.y != index.size))
+            auto push = [&](auto i, auto o, auto r) { --view_coor; index.push_front(i, o, r); };
+            auto unknown = true;
+            while(head != tail && (index.size != panel.y || unknown))
             {
                 auto& curln = *--head;
                 auto length = curln.length();
-                auto caret_index = curln.index == curid;
-                if (curln.is_wrapped())
+                auto active = curln.index == lnid;
+                if (curln.wrapped())
                 {
                     auto remain = length ? (length - 1) % panel.x + 1 : 0;
                     auto offset = length;
                     do
                     {
                         offset -= remain;
-                        ++over;
-                        index.push_front(curln.index, offset, remain);
-                        if (coord.y == -1 && caret_index && offset <= batch.caret)
+                        push(curln.index, offset, remain);
+                        if (unknown && active && offset <= batch.caret)
                         {
-                            auto full = batch.caret && curln.length() == batch.caret;
+                            auto eq = batch.caret && length == batch.caret;
+                            unknown = faux;
                             coord.y = index.length();
-                            coord.x = full ? (coord.x - 1) % panel.x + 1
-                                           :  coord.x      % panel.x;
+                            coord.x = eq ? (batch.caret - 1) % panel.x + 1
+                                         :  batch.caret      % panel.x;
                         }
                         remain = panel.x;
                     }
-                    while(offset > 0 && (coord.y == -1 || panel.y != index.size));
+                    while(offset > 0 && (index.size != panel.y || unknown));
                 }
                 else
                 {
-                    auto remain = length;
-                    auto offset = 0;
-                    ++over;
-                    index.push_front(curln.index, offset, remain);
-                    if (caret_index) coord.y = index.length();
+                    push(curln.index, 0, length);
+                    if (active)
+                    {
+                        unknown = faux;
+                        coord.y = index.length();
+                        coord.x = batch.caret;
+                    }
                 }
             }
             coord.y = index.size - coord.y;
-            return std::max(0, over);
+            assert(view_coor >= 0);
+            log(" viewport_offset=", view_coor);
+            return std::max(0, batch.vsize - (view_coor + panel.y));
         }
         void index_rebuild()
         {
             index.clear();
-            //index.resize(panel.y);
-            auto tail = batch.end();
-            auto head = tail - std::min(batch.length(), panel.y);
-            while(head != tail)
+            auto coor = batch.vsize;
+            auto head = batch.end();
+            while(coor != view_coor)
             {
-                auto& curln = *head++;
+                auto& curln = *--head;
                 auto length = curln.length();
-                auto offset = 0;
-                auto remain = length - offset;
-                while(remain > panel.x)
+                if (curln.wrapped())
                 {
-                    index.push_back(curln.index, offset, panel.x);
-                    offset += panel.x;
-                    remain -= panel.x;
+                    auto remain = length ? (length - 1) % panel.x + 1 : 0;
+                    length -= remain;
+                    index.push_front(curln.index, length, remain);
+                    --coor;
+                    while(length > 0 && coor != view_coor)
+                    {
+                        length -= panel.x;
+                        index.push_front(curln.index, length, panel.x);
+                        --coor;
+                    }
                 }
-                index.push_back(curln.index, offset, remain);
+                else
+                {
+                    index.push_front(curln.index, 0, length);
+                    --coor;
+                }
             }
         }
         auto height()
@@ -420,11 +431,10 @@ namespace netxs::app
         auto get_coord()
         {
             auto& curln = batch.current();
-            auto& style = curln.style;
-            auto  align = style.jet();
+            auto  align = curln.style.jet();
             if (align == bias::left || align == bias::none) return coord;
             auto remain = index[coord.y].width;
-            if (remain == panel.x && style.wrp() == wrap::on) return coord;
+            if (remain == panel.x && curln.wrapped()) return coord;
             auto coor = coord;
             if    (align == bias::right )  coor.x += panel.x     - remain - 1;
             else /*align == bias::center*/ coor.x += panel.x / 2 - remain / 2;
@@ -497,9 +507,10 @@ namespace netxs::app
         void sync_coord()
         {
             auto& curln = batch.current();
-            auto& style = curln.style;
-            auto  wraps = style.wrp();
-            if (wraps == wrap::on || wraps == wrap::none)
+            //auto& style = curln.style;
+            //auto  wraps = style.wrp();
+            //if (wraps == wrap::on || wraps == wrap::none)
+            if (curln.wrapped())
             {
                 auto remain = index[coord.y].width;
                 auto h = height();
@@ -645,7 +656,7 @@ namespace netxs::app
             auto  caret = std::max(0, batch.caret); //todo why?
             auto& curln = batch.current();
             auto  width = curln.length();
-            auto  wraps = curln.style.wrp() == wrap::on;
+            auto  wraps = curln.wrapped();
             switch (n)
             {
                 default:
@@ -703,7 +714,7 @@ namespace netxs::app
         {
             auto& curln = batch.current();
             coord.x += shift;
-            if (coord.x > panel.x && curln.style.wrp() == wrap::on)
+            if (coord.x > panel.x && curln.wrapped())
             {
                 coord.y += coord.x / panel.x;
                 coord.x %= panel.x;
