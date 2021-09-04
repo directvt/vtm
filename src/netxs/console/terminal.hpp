@@ -2134,7 +2134,6 @@ private:
 
                             screen.size = new_sz;
                             oversz.b = target->resize_viewport();
-                            log(" oversz.b=", oversz.b);
                             ptycon.resize(new_sz);
                         };
 
@@ -2214,7 +2213,7 @@ private:
                 auto follow_view = screen.coor.y == -base::coor().y;
                 //scroll_size.y = std::max({ screen.size.y, cursor_coor.y + 1, console.height() });
                 //scroll_size.y = std::max({ screen.size.y, cursor_coor.y + 1 - screen.coor.y, console.height() });
-                scroll_size.y = std::max({ screen.size.y, console.height() });
+                scroll_size.y = std::max({ screen.size.y, console.height() - oversz.b });
                 screen.coor.y = scroll_size.y - screen.size.y;
                 //if (follow_view) reset_scroll_pos();
                 //if (!screen.hittest(cursor_coor)) // compat: get cursor back to the viewport if it placed outside
