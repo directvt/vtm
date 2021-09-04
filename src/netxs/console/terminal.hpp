@@ -772,6 +772,7 @@ namespace netxs::app
             batch.clear(); //todo optimize
             batch.invite(0); // At least one line must exist.
             batch.set_width(panel.x);
+            view_coor = 0;
             index_rebuild();
         }
         template<bool BOTTOM_ANCHORED = true>

@@ -251,7 +251,7 @@ namespace netxs::generics
                 std::swap(buff, temp);
                 peak = new_size;
                 head = 0;
-                tail = size - 1;
+                tail = peak - 1;
                 step = grow_by;
             }
             else step = grow_by;

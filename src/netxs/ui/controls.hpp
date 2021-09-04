@@ -1261,7 +1261,7 @@ namespace netxs::ui
                                                 : 0;
                 master_pos = (iota)std::round(master_center - master_box / 2.0);
 
-                // Reset to extreme positions
+                // Reset to extreme positions.
                 if (scroll_pos == 0 && master_pos > 0) master_pos = 0;
                 if (scroll_pos == s && master_pos < m) master_pos = m;
             }
@@ -1274,14 +1274,14 @@ namespace netxs::ui
                 scroll_box = std::max(1, (iota)(master_box * r));
                 scroll_pos = (iota)std::round(scroll_middle - scroll_box / 2.0);
 
-                // Don't place the grip behind the scrollbar
+                // Don't place the grip behind the scrollbar.
                 if (scroll_pos >= scroll_len) scroll_pos = scroll_len - 1;
 
-                // Extreme positions are always closed last
+                // Extreme positions are always closed last.
                 s = scroll_len - scroll_box;
                 m = master_len - master_box;
 
-                if (scroll_len > 2) // Two-row hight is not suitable for this type of aligning
+                if (scroll_len > 2) // Two-row hight is not suitable for this type of aligning.
                 {
                     if (scroll_pos == 0 && master_pos > 0) scroll_pos = 1;
                     if (scroll_pos == s && master_pos < m) scroll_pos = s - 1;
