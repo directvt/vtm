@@ -85,6 +85,7 @@ namespace netxs::app
         {
             using rich::rich;
             using type = deco::type;
+            using id_t = ui32;
 
             line(line&& l)
                 : rich { std::forward<rich>(l) },
@@ -101,15 +102,16 @@ namespace netxs::app
                   index{ l.index },
                   style{ l.style }
             { }
-            line(ui32 newid, deco const& style = {})
+            line(id_t newid, deco const& style = {})
                 : index{ newid },
                   style{ style }
             { }
             line& operator = (line&&)      = default;
             line& operator = (line const&) = default;
 
-            ui32 index;
-            deco style;
+            id_t index{};
+            ui64 accum{};
+            deco style{};
             iota _size{};
             type _kind{};
 
@@ -138,11 +140,12 @@ namespace netxs::app
         };
         struct index_item
         {
-            ui32 index;
+            using id_t = line::id_t;
+            id_t index;
             iota start;
             iota width;
             index_item() = default;
-            index_item(ui32 index, iota start, iota width)
+            index_item(id_t index, iota start, iota width)
                 : index{ index },
                   start{ start },
                   width{ width }
@@ -161,6 +164,11 @@ namespace netxs::app
             iota caret{};
             iota vsize{};
             iota width{};
+            id_t taken{};
+            ui64 accum{};
+            bool dirty{};
+
+            static constexpr id_t threshold = 1000;
 
             //todo optimize for large lines, use std::unordered_map<iota, iota>
             struct maxs : public std::vector<iota>
@@ -267,18 +275,76 @@ namespace netxs::app
             template<class ...Args>
             auto& invite(Args&&... args)
             {
+                dirty = true;
                 auto& l = ring::push_back(std::forward<Args>(args)...);
                 invite(l._kind, l._size, l.style.get_kind(), l.length());
                 return l;
             }
-            void recalc(line& l)          { recalc(l._kind, l._size, l.style.get_kind(), l.length()); }
-            void undock(line& l) override { undock(l._kind, l._size);                                 }
-            template<auto N> auto max()   { return lens[N].max;                                       }
+            void undock(line& l) override { undock(l._kind, l._size); }
+            template<auto N> auto max() { return lens[N].max; }
             auto index_by_id(ui32 id)
             {
                 //No need to disturb distant objects, it may already be in the swap.
                 //return static_cast<iota>(id - batch.front().index); // ring buffer size is never larger than max_int32.
-                return static_cast<iota>(length() - (back().index - id)); // ring buffer size is never larger than max_int32.
+                auto count = length();
+                return static_cast<iota>(count - 1 - (back().index - id)); // ring buffer size is never larger than max_int32.
+            }
+            void recalc_size(iota taken_index)
+            {
+                auto head = begin() + std::max(0, taken_index);
+                auto tail = end();
+                auto& curln = *head;
+                auto accum = curln.accum;
+                auto i = 0;
+                log("  i=", i++, " curln.accum=", accum);
+                accum += curln.length() + 1;
+                while(++head != tail)
+                {
+                    auto& curln = *head;
+                    curln.accum = accum;
+                    log("  i=", i++, " curln.accum=", accum);
+                    accum += curln.length() + 1;
+                }
+                dirty = faux;
+                log( " recalc_size taken_index=", taken_index);
+            }
+            auto get_size_in_cells()
+            {
+                auto& endln = back();
+                auto& endid = endln.index;
+                auto count = length();
+                auto taken_index = static_cast<iota>(count - 1 - (endid - taken));
+                if (taken != endid || dirty)
+                {
+                    auto& topln = front();
+                    recalc_size(taken_index);
+                    taken = endln.index;
+                    accum = endln.accum
+                          + endln.length() + 1
+                          - topln.accum;
+                    log(" topln.accum=", topln.accum,
+                        " endln.accum=", endln.accum,
+                        " vsize=", vsize,
+                        " accum=", accum);
+                }
+                return accum;
+            }
+            void recalc(line& l)
+            {
+                recalc(l._kind, l._size, l.style.get_kind(), l.length());
+                dirty = true;
+                auto taken_index = index_by_id(taken);
+                auto curln_index = index_by_id(l.index);
+                if (curln_index < taken_index)
+                {
+                    taken = l.index;
+                    taken_index = curln_index;
+                }
+                if (ring::size - taken_index > threshold)
+                {
+                    recalc_size(taken_index);
+                    taken = back().index;
+                }
             }
         };
 
@@ -764,6 +830,8 @@ namespace netxs::app
             }
             index_rebuild();
             batch.caret += shift;
+
+            log(" scrollbuff size in cells = ", batch.get_size_in_cells());
         }
         void clear_all()
         {
