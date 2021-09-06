@@ -169,6 +169,7 @@ namespace netxs::app
             bool dirty{};
 
             static constexpr id_t threshold = 1000;
+            static constexpr ui64 lnpadding = 40; // Padding to improve accuracy.
 
             //todo optimize for large lines, use std::unordered_map<iota, iota>
             struct maxs : public std::vector<iota>
@@ -295,18 +296,18 @@ namespace netxs::app
                 auto tail = end();
                 auto& curln = *head;
                 auto accum = curln.accum;
-                auto i = 0;
-                log("  i=", i++, " curln.accum=", accum);
-                accum += curln.length() + 1;
+                //auto i = 0;
+                //log("  i=", i++, " curln.accum=", accum);
+                accum += curln.length() + lnpadding;
                 while(++head != tail)
                 {
                     auto& curln = *head;
                     curln.accum = accum;
-                    log("  i=", i++, " curln.accum=", accum);
-                    accum += curln.length() + 1;
+                    //log("  i=", i++, " curln.accum=", accum);
+                    accum += curln.length() + lnpadding;
                 }
                 dirty = faux;
-                log( " recalc_size taken_index=", taken_index);
+                //log( " recalc_size taken_index=", taken_index);
             }
             auto get_size_in_cells()
             {
@@ -320,12 +321,12 @@ namespace netxs::app
                     recalc_size(taken_index);
                     taken = endln.index;
                     accum = endln.accum
-                          + endln.length() + 1
+                          + endln.length() + lnpadding
                           - topln.accum;
-                    log(" topln.accum=", topln.accum,
-                        " endln.accum=", endln.accum,
-                        " vsize=", vsize,
-                        " accum=", accum);
+                    //log(" topln.accum=", topln.accum,
+                    //    " endln.accum=", endln.accum,
+                    //    " vsize=", vsize,
+                    //    " accum=", accum);
                 }
                 return accum;
             }
@@ -474,7 +475,7 @@ namespace netxs::app
         {
             auto test_vsize = 0; //sanity check
             for (auto& l : batch) test_vsize += l.height(panel.x);
-            if (test_vsize != batch.vsize) log(" test_vsize=", test_vsize, " vsize=", batch.vsize);
+            if (test_vsize != batch.vsize) log(" ERROR! test_vsize=", test_vsize, " vsize=", batch.vsize);
             return batch.vsize;
         }
         auto recalc_pads(side& oversz)
@@ -750,6 +751,7 @@ namespace netxs::app
                 //todo check_autogrow
                 curln.splice<true>(start, count, blank);
                 //batch->shrink(blank);
+               batch.recalc(curln);
             }
         }
         void ins_imp(iota n, cell const& brush)
@@ -757,6 +759,7 @@ namespace netxs::app
             auto& curln = batch.current();
             //todo check_autogrow
             curln.insert(batch.caret, n, brush);
+            batch.recalc(curln);
         }
         template<bool AUTO_GROW = faux>
         void ech_imp(iota n, cell const& brush)
@@ -768,11 +771,14 @@ namespace netxs::app
                 curln.splice<true>(batch.caret, n, brush);
             }
             else curln.splice(batch.caret, n, brush);
+            batch.recalc(curln);
         }
         void dch_imp(iota n, cell const& brush)
         {
             auto& curln = batch.current();
             curln.cutoff(batch.caret, n, brush, panel.x);
+            batch.recalc(curln);
+
             //auto caret = index[coord.y].start + coord.x;
             //curln.cutoff(caret, n, brush, panel.x);
         }
@@ -831,7 +837,7 @@ namespace netxs::app
             index_rebuild();
             batch.caret += shift;
 
-            log(" scrollbuff size in cells = ", batch.get_size_in_cells());
+            //log(" scrollbuff size in cells = ", batch.get_size_in_cells());
         }
         void clear_all()
         {
@@ -2294,8 +2300,13 @@ private:
                     this->SIGNAL(tier::release, e2::size::set, scroll_size); // Update scrollbars.
                 }
                 console.output(parent_canvas);
-
-
+                if (oversz.b) // Shade the viewport bottom oversize.
+                {
+                    auto bottom_oversize = parent_canvas.full();
+                    bottom_oversize.coor.y += scroll_size.y;
+                    bottom_oversize.size.y  = oversz.b;
+                    parent_canvas.fill(bottom_oversize, cell::shaders::xlight);
+                }
                 //rods::viewport v{target->batch, screen.size, target->maker};
                 //v.rebuild();
                 //v.output(parent_canvas);

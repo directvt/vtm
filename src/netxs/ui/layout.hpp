@@ -1183,6 +1183,10 @@ namespace netxs::ui::atoms
                 template<class C> constexpr inline auto operator() (C brush) const { return func<C>(brush); }
                 template<class D, class S>  inline void operator() (D& dst, S& src) const { dst.fusefull(src); }
             };
+            struct xlight_t
+            {
+                template<class D>  inline void operator() (D& dst) const { dst.xlight(); }
+            };
 
         public:
             static constexpr auto contrast = contrast_t{};
@@ -1190,6 +1194,7 @@ namespace netxs::ui::atoms
             static constexpr auto     fuse =     fuse_t{};
             static constexpr auto     flat =     flat_t{};
             static constexpr auto     full =     full_t{};
+            static constexpr auto   xlight =   xlight_t{};
         };
     };
 
