@@ -796,9 +796,60 @@ namespace netxs::app
                     coord.x = panel.x;
                 }
 
-
                 curln.splice(batch.caret, proto, shift);
+
+                //case 1: cursor inside the current para
+                //        - update index[coord.y].width
+                //          if (linfo.width < coord.x) linfo.width == coord.x;
+                //case 2: cursor overlaps lines below but stays inside the viewport
+                //        - auto linfo = index[coord.y];
+                //        - auto& temp = batch[get_index_by_id(linfo.index)];
+                //        - curln.splice(curln.length(), linfo.start + coord.x);
+                //        - remove from batch (curln, curln + (linfo.index - curln.index)] lines
+                //          - reindex in batch all lines from curln + 1 to the end
+                //        - update index
+                //case 3: cursor overlaps lines below and outside the viewport
+                //        - pop_back from batch (curln, batch.end] lines
+                //        - update index
+
                 batch.recalc(curln);
+
+                auto curid = curln.index;
+                auto linfo = index.back();
+                auto newid = linfo.index;
+
+                auto delta = coord.y - index.size - 1;
+                if (delta > 0)
+                {
+
+                    // Remove overlapped lines from the viewport index.
+                    //if (auto count = newid - curid)
+                    //{
+                    //    while (count--) index.pop_back();
+                    //}
+
+                    auto length = curln.length();
+                    auto offset = linfo.start;
+                    auto limit = length - panel.x;
+                    while(offset < limit)
+                    {
+                        basis++;
+                        offset += panel.x;
+                        index.push_back(curln.index, offset, panel.x);
+                    }
+                    basis++;
+                    offset += panel.x;
+                    index.push_back(curln.index, offset, length - offset);
+                }
+                else
+                {
+                    if (newid == curid)
+                    {
+                        // Update viewport index.
+                        if (linfo.width < coord.x) linfo.width == coord.x;
+                    }
+
+                }
 
                 /*
                 auto old_height = curln.height(panel.x) - 1;
