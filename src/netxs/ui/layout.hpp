@@ -1185,7 +1185,7 @@ namespace netxs::ui::atoms
             };
             struct xlight_t
             {
-                template<class D>  inline void operator() (D& dst) const { dst.xlight(); }
+                template<class D> inline void operator() (D& dst) const { dst.xlight(); }
             };
 
         public:
@@ -1488,6 +1488,8 @@ namespace netxs::ui::atoms
         }
         auto topleft() const { return twod{ l, t };                       }
         auto summ   () const { return twod{ l + r, t + b };               }
+        auto vsumm  () const { return b + t;                              }
+        auto hsumm  () const { return r + l;                              }
         auto height () const { return b - t;                              }
         auto width  () const { return r - l;                              }
         auto area   () const { return rect{ { l, t }, { r - l, b - t } }; }

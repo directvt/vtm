@@ -367,20 +367,19 @@ namespace netxs::app
         twod        coord; // rods: Viewport cursor position; 0-based.
         iota        sctop; // rods: Scrolling region top;    1-based, "0" to use top of viewport.
         iota        scend; // rods: Scrolling region bottom; 1-based, "0" to use bottom of viewport.
-        iota        basis; // rods: Index of O(0, 0).
-        twod        saved; // rods: Saved cursor position;
+        twod        saved; // rods: Saved cursor position.
+        iota        basis; // rods: Viewport basis. Index of O(0, 0) in the scrollback.
         indx        index;
 
         iota vsize{ 1 }; // temp
-        iota view_coor{};
 
         rods(twod const& viewport, iota buffer_size, iota grow_step)
             : batch{ buffer_size, grow_step },
               maker{ batch.width, batch.vsize },
               panel{ viewport               },
-              basis{ 0                      },
               sctop{ 0                      },
               scend{ 0                      },
+              basis{ 0                      },
               index{ std::max(1,viewport.y) }
         {
             batch.invite(0); // At least one line must exist.
@@ -393,13 +392,13 @@ namespace netxs::app
             batch.set_width(panel.x);
             index.clear();
             index.resize(panel.y);
-            view_coor = batch.vsize;
+            basis = batch.vsize;
             auto lnid = batch.current().index;
             auto head = batch.end();
             auto size = batch.length();
             auto maxn = size - batch.index();
             auto tail = head - std::max(maxn, std::min(size, panel.y));
-            auto push = [&](auto i, auto o, auto r) { --view_coor; index.push_front(i, o, r); };
+            auto push = [&](auto i, auto o, auto r) { --basis; index.push_front(i, o, r); };
             auto unknown = true;
             while(head != tail && (index.size != panel.y || unknown))
             {
@@ -438,16 +437,16 @@ namespace netxs::app
                 }
             }
             coord.y = index.size - coord.y;
-            assert(view_coor >= 0);
-            log(" viewport_offset=", view_coor);
-            return std::max(0, batch.vsize - (view_coor + panel.y));
+            assert(basis >= 0);
+            //log(" viewport_offset=", basis);
+            return std::max(0, batch.vsize - (basis + panel.y));
         }
         void index_rebuild()
         {
             index.clear();
             auto coor = batch.vsize;
             auto head = batch.end();
-            while(coor != view_coor)
+            while(coor != basis)
             {
                 auto& curln = *--head;
                 auto length = curln.length();
@@ -457,7 +456,7 @@ namespace netxs::app
                     length -= remain;
                     index.push_front(curln.index, length, remain);
                     --coor;
-                    while(length > 0 && coor != view_coor)
+                    while(length > 0 && coor != basis)
                     {
                         length -= panel.x;
                         index.push_front(curln.index, length, panel.x);
@@ -497,12 +496,13 @@ namespace netxs::app
         // rods: Return current 0-based cursor position in the viewport.
         auto get_coord()
         {
+            auto coor = coord;
+            coor.y += basis;
             auto& curln = batch.current();
             auto  align = curln.style.jet();
-            if (align == bias::left || align == bias::none) return coord;
+            if (align == bias::left || align == bias::none) return coor;
             auto remain = index[coord.y].width;
-            if (remain == panel.x && curln.wrapped()) return coord;
-            auto coor = coord;
+            if (remain == panel.x && curln.wrapped()) return coor;
             if    (align == bias::right )  coor.x += panel.x     - remain - 1;
             else /*align == bias::center*/ coor.x += panel.x / 2 - remain / 2;
             return coor;
@@ -846,7 +846,7 @@ namespace netxs::app
             batch.clear(); //todo optimize
             batch.invite(0); // At least one line must exist.
             batch.set_width(panel.x);
-            view_coor = 0;
+            basis = 0;
             index_rebuild();
         }
         template<bool BOTTOM_ANCHORED = true>
@@ -2095,6 +2095,9 @@ private:
                 {
                     SIGNAL(tier::general, e2::debug::output, shadow); // Post for the Logs.
                     ansi::parse(shadow, target);
+
+                reset_scroll_pos();
+
                     base::deface();
                     break;
                 }
@@ -2121,8 +2124,17 @@ private:
         }
         void reset_scroll_pos()
         {
-            //todo cursor following
-            this->SIGNAL(tier::release, e2::coor::set, -screen.coor);
+            oversz.b = target->resize_viewport(); //todo update basis in place
+
+            auto scroll = screen;
+            auto adjust_pads = target->recalc_pads(oversz);
+            screen.coor.y = -target->basis;
+            scroll.size.y = std::max({ screen.size.y, target->height() - oversz.vsumm() });
+            if (scroll.size != base::size() || adjust_pads)
+            {
+                this->SIGNAL(tier::release, e2::size::set, scroll.size); // Update scrollbars.
+            }
+            this->SIGNAL(tier::release, e2::coor::set, scroll.coor);
         }
     public:
        ~term(){ alive = faux; }
@@ -2199,6 +2211,7 @@ private:
 
                         screen.size = new_sz;
                         oversz.b = target->resize_viewport();
+                        screen.coor.y = -target->basis;;
 
                         this->SUBMIT(tier::preview, e2::size::set, new_sz)
                         {
@@ -2208,7 +2221,13 @@ private:
 
                             screen.size = new_sz;
                             oversz.b = target->resize_viewport();
+                            screen.coor.y = -target->basis;;
+
+                reset_scroll_pos();
+
                             ptycon.resize(new_sz);
+
+                            new_sz.y = std::max({ screen.size.y, target->height() - oversz.vsumm() });
                         };
 
                         ptycon.start(cmdline, new_sz, [&](auto utf8_shadow) { input_hndl(utf8_shadow); },
@@ -2272,48 +2291,61 @@ private:
             };
             SUBMIT(tier::release, e2::render::any, parent_canvas)
             {
+                //log(" 1. screen=", screen, " basis=", target->basis, " this.coor=", this->coor());
                 auto& console = *target;
                 if (status.update(console))
                 {
                     this->base::riseup<tier::preview>(e2::form::prop::footer, status.data);
                 }
                 //vsize = batch.size - ring::size + panel.y;
-                auto cursor_coor = console.get_coord();
-                cursor_coor.y += std::max(0, console.height() - screen.size.y) - oversz.b;
-                cursor.coor(cursor_coor);
-                auto adjust_pads = console.recalc_pads(oversz);
+                //auto cursor_coor = console.get_coord();
+                //cursor_coor.y += console.basis;
+                //cursor_coor.y += std::max(0, console.height() - screen.size.y) - oversz.b;
+                //cursor.coor(cursor_coor);
+                cursor.coor(console.get_coord());
+                //auto adjust_pads = console.recalc_pads(oversz);
                 //auto scroll_size = recalc(cursor_coor);
-                auto scroll_size = screen.size;
-                auto follow_view = screen.coor.y == -base::coor().y;
+                //auto scroll_size = screen.size;
+                //auto follow_view = screen.coor.y == -base::coor().y;
                 //scroll_size.y = std::max({ screen.size.y, cursor_coor.y + 1, console.height() });
                 //scroll_size.y = std::max({ screen.size.y, cursor_coor.y + 1 - screen.coor.y, console.height() });
-                scroll_size.y = std::max({ screen.size.y, console.height() - oversz.b });
-                screen.coor.y = scroll_size.y - screen.size.y;
-                //if (follow_view) reset_scroll_pos();
+                //scroll_size.y = std::max({ screen.size.y, console.height() - oversz.b });
+                //screen.coor.y = scroll_size.y - screen.size.y;
+
+                //if (follow_view)
+                //{
+                //    log(" reset_scroll_pos();");
+                //    reset_scroll_pos();
+                //}
+                //reset_scroll_pos();
                 //if (!screen.hittest(cursor_coor)) // compat: get cursor back to the viewport if it placed outside
                 //{
                 //    cursor_coor = std::clamp(cursor_coor, screen.coor, screen.coor + screen.size - dot_11);
                 //    target->set_coord(cursor_coor - screen.coor);
                 //}
-                if (scroll_size != base::size() || adjust_pads)
-                {
-                    this->SIGNAL(tier::release, e2::size::set, scroll_size); // Update scrollbars.
-                }
+                //if (scroll_size != base::size() || adjust_pads)
+                //{
+                //    //log(" render - > resize");
+                //    this->SIGNAL(tier::release, e2::size::set, scroll_size); // Update scrollbars.
+                //}
+
                 console.output(parent_canvas);
-                if (oversz.b) // Shade the viewport bottom oversize.
+                if (oversz.b > 0) // Shade the viewport bottom oversize.
                 {
                     auto bottom_oversize = parent_canvas.full();
-                    bottom_oversize.coor.y += scroll_size.y;
+                    bottom_oversize.coor.y += console.basis + screen.size.y;//scroll_size.y;
                     bottom_oversize.size.y  = oversz.b;
+                    bottom_oversize = bottom_oversize.clip(parent_canvas.view());
                     parent_canvas.fill(bottom_oversize, cell::shaders::xlight);
                 }
-                //rods::viewport v{target->batch, screen.size, target->maker};
-                //v.rebuild();
-                //v.output(parent_canvas);
 
+                // Debug: Shade active viewport.
+                auto vp = rect{{ 0,console.basis }, screen.size};
+                vp.coor += parent_canvas.full().coor;
+                vp = vp.clip(parent_canvas.view());
+                parent_canvas.fill(vp, [](auto& c){ c.fuse(cell{}.bgc(greenlt).bga(80)); });
 
-
-                //target->test_basis(parent_canvas);
+                //log(" 2. screen=", screen, " basis=", target->basis, " this.coor=", this->coor());
             };
         }
     };
