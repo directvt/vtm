@@ -571,18 +571,18 @@ namespace netxs::app
                 }
             }
 
-            auto& mapln = index[coord.y];
-            batch.index(mapln.index);
-            batch.caret = mapln.start + coord.x;
+            auto& map_ln = index[coord.y];
+            batch.index(map_ln.index);
+            batch.caret = map_ln.start + coord.x;
             batch->style = style;
         }
         void sync_coord()
         {
-            auto& curln = batch.current();
+            auto& cur_ln = batch.current();
             //auto& style = curln.style;
             //auto  wraps = style.wrp();
             //if (wraps == wrap::on || wraps == wrap::none)
-            if (curln.wrapped())
+            if (cur_ln.wrapped())
             {
                 auto remain = index[coord.y].width;
                 auto h = height();
@@ -780,18 +780,18 @@ namespace netxs::app
         }
         void dch_imp(iota n, cell const& brush)
         {
-            auto& curln = batch.current();
-            curln.cutoff(batch.caret, n, brush, panel.x);
-            batch.recalc(curln);
+            auto& cur_ln = batch.current();
+            cur_ln.cutoff(batch.caret, n, brush, panel.x);
+            batch.recalc(cur_ln);
 
             //auto caret = index[coord.y].start + coord.x;
             //curln.cutoff(caret, n, brush, panel.x);
         }
         void proceed(grid& proto, iota shift)
         {
-            auto& curln = batch.current();
+            auto& cur_ln = batch.current();
             coord.x += shift;
-            if (coord.x > panel.x && curln.wrapped())
+            if (coord.x > panel.x && cur_ln.wrapped())
             {
                 auto old = coord.y;
                 coord.y += coord.x / panel.x;
@@ -802,48 +802,70 @@ namespace netxs::app
                     coord.x = panel.x;
                 }
 
-                curln.splice(batch.caret, proto, shift);
+                //todo scrolling regions
 
-                //case 1: cursor inside the current para
-                //        - update index[coord.y].width
-                //          if (linfo.width < coord.x) linfo.width == coord.x;
-                //case 2: cursor overlaps lines below but stays inside the viewport
-                //        - auto linfo = index[coord.y];
-                //        - auto& temp = batch[get_index_by_id(linfo.index)];
-                //        - curln.splice(curln.length(), linfo.start + coord.x);
-                //        - remove from batch (curln, curln + (linfo.index - curln.index)] lines
-                //          - reindex in batch all lines from curln + 1 to the end
-                //        - update index
-                //case 3: cursor overlaps lines below and outside the viewport
-                //        - pop_back from batch (curln, batch.end] lines
-                //        - update index
+//                auto maxy = panel.y - 1;
+//                if (auto over = coord.y - maxy; over > 0)
+//                {
+//                    auto oversize = batch.vsize - basis - panel.y;
+//                    basis += over;
+//
+//                    if (oversize > 0)
+//                    {
+//                        log(" case 0: viewport shifts down");
+//                        // push_back the over to the index
+//                        auto& map_last = index.back();
+//                        map_last.width = panel.x;
+//                        auto offset = map_last.start + map_last.width;
+//                        auto cur_it = batch.begin() + batch.index_by_id(map_last.index);
+//                        auto end_it = batch.end();
+//
+//
+//                        auto length = cur_it->length();
+//
+//                        auto bottom = length - panel.x;
+//
+//                        offset += panel.x;
+//                        while(offset < bottom) // Update for current line.
+//                        {
+//                            log(" 1. i.index=", map_last.index, " offset=", offset, " i.width=", panel.x);
+//                            index.push_back(cur_id, offset, panel.x);
+//                            offset += panel.x;
+//                        }
+//                        log(" 2. i.index=", cur_id, " offset=", offset, " i.width=", panel.x);
+//                        index.push_back(cur_id, offset, length - offset);
+//                    }
+//
+//                    coord.y = maxy;
+//                }
 
-                auto cur_id = curln.index;
+                cur_ln.splice(batch.caret, proto, shift);
+                auto cur_id = cur_ln.index;
                 auto delta = coord.y - (index.size - 1);
                 if (delta <= 0)
                 {
-                    auto& l_info = index[coord.y];
-                    if (cur_id == l_info.index) // case 1: plain
+                    auto& map_ln = index[coord.y];
+                    if (cur_id == map_ln.index) // case 1 - plain: cursor is inside the current paragraph
                     {
                         log(" case 1:");
-                        if (coord.x > l_info.width)
+                        if (coord.x > map_ln.width)
                         {
-                            l_info.width = std::min(panel.x - 1, coord.x);
-                            batch.recalc(curln);
+                            map_ln.width = std::min(panel.x - 1, coord.x);
+                            batch.recalc(cur_ln);
                         }
                     } // case 1 done
-                    else // case 2: fusion
+                    else // case 2 - fusion: cursor overlaps lines below but stays inside the viewport
                     {
                         log(" case 2:");
-                        auto& target = batch.item_by_id(l_info.index);
-                        auto  shadow = target.substr(l_info.start + coord.x);
-                        curln.splice(curln.length(), shadow);
-                        batch.recalc(curln);
-                        auto length = curln.length();
+                        auto& target = batch.item_by_id(map_ln.index);
+                        auto  shadow = target.substr(map_ln.start + coord.x);
+                        cur_ln.splice(cur_ln.length(), shadow);
+                        batch.recalc(cur_ln);
+                        auto length = cur_ln.length();
                         auto batch_index = batch.index();
                         batch.next();
-                        assert(l_info.index > cur_id);
-                        auto count = l_info.index - cur_id;
+                        assert(map_ln.index > cur_id);
+                        auto count = map_ln.index - cur_id;
                         batch.remove(count);
                         // Reindex batch.
                         {
@@ -888,25 +910,25 @@ namespace netxs::app
                         }
                     } // case 2 done
                 }
-                else // case 3: cursor overlaps some lines below and placed below the viewport
+                else // case 3 - complex: cursor overlaps some lines below and placed below the viewport
                 {
                     log(" case 3:");
-                    //        - pop_back from batch (curln, batch.end] lines
-                    batch.recalc(curln);
-                    auto length = curln.length();
+                    batch.recalc(cur_ln);
+                    auto length = cur_ln.length();
+                    // pop_back from batch all lines from (curln, batch.end].
+                    assert(batch.back().index >= cur_id);
+                    if (auto pop_count = batch.back().index - cur_id)
                     {
-                        assert(batch.back().index >= cur_id);
-                        auto pop_count = batch.back().index - cur_id;
-                        while (pop_count-- > 0) batch.pop_back();
+                        while (pop_count--) batch.pop_back();
                     }
-                    //        - update index
+                    // Update index.
+                    if (auto pop_count = index.size - 1 - old)
                     {
-                        auto pop_count = index.size - 1 - old;
-                        while (pop_count-- > 0) index.pop_back();
+                        while (pop_count--) index.pop_back();
                     }
-                    auto& last = index.back();
-                    auto offset = last.start;
-                    last.width = panel.x;
+                    auto& map_last = index.back();
+                    auto offset = map_last.start;
+                    map_last.width = panel.x;
                     auto bottom = length - panel.x;
                     log(" 1. i.index=", cur_id, " offset=", offset, " i.width=", panel.x);
                     offset += panel.x;
@@ -918,25 +940,26 @@ namespace netxs::app
                     }
                     index.push_back(cur_id, offset, length - offset);
                     log(" 3. i.index=", cur_id, " offset=", offset, " i.width=", length - offset);
-
-                    auto maxy = panel.y - 1;
-                    auto over = coord.y - maxy;
-                    if (over > 0)
-                    {
-                        coord.y = maxy;
-                        basis += over;
-                    }
                 } // case 3 done
+
+                //temp
+                auto maxy = panel.y - 1;
+                if (auto over = coord.y - maxy; over > 0)
+                {
+                    auto oversize = batch.vsize - basis - panel.y;
+                    basis += over;
+                    coord.y = maxy;
+                }
             }
             else
             {
-                curln.splice(batch.caret, proto, shift);
-                auto& l_info = index[coord.y];
-                auto  length = curln.length();
-                if (length > l_info.width)
+                cur_ln.splice(batch.caret, proto, shift);
+                auto& map_ln = index[coord.y];
+                auto  length = cur_ln.length();
+                if (length > map_ln.width)
                 {
-                    l_info.width = length;
-                    batch.recalc(curln);
+                    map_ln.width = length;
+                    batch.recalc(cur_ln);
                 }
             }
 
