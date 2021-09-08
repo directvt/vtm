@@ -290,6 +290,10 @@ namespace netxs::app
                 auto count = length();
                 return static_cast<iota>(count - 1 - (back().index - id)); // ring buffer size is never larger than max_int32.
             }
+            auto& item_by_id(ui32 id)
+            {
+                return ring::at(index_by_id(id));
+            }
             void recalc_size(iota taken_index)
             {
                 auto head = begin() + std::max(0, taken_index);
@@ -547,6 +551,7 @@ namespace netxs::app
         {
             assert(amount >= 0 && amount < batch.length());
             while(amount--) batch.pop_back();
+            //todo partial rebuild
             index_rebuild();
         }
         // rods: Map the current cursor position to the scrollback.
@@ -788,6 +793,7 @@ namespace netxs::app
             coord.x += shift;
             if (coord.x > panel.x && curln.wrapped())
             {
+                auto old = coord.y;
                 coord.y += coord.x / panel.x;
                 coord.x %= panel.x;
                 if (coord.x == 0)
@@ -812,80 +818,128 @@ namespace netxs::app
                 //        - pop_back from batch (curln, batch.end] lines
                 //        - update index
 
-                batch.recalc(curln);
-
-                auto curid = curln.index;
-                auto linfo = index.back();
-                auto newid = linfo.index;
-
-                auto delta = coord.y - index.size - 1;
-                if (delta > 0)
+                auto cur_id = curln.index;
+                auto delta = coord.y - (index.size - 1);
+                if (delta <= 0)
                 {
-
-                    // Remove overlapped lines from the viewport index.
-                    //if (auto count = newid - curid)
-                    //{
-                    //    while (count--) index.pop_back();
-                    //}
-
-                    auto length = curln.length();
-                    auto offset = linfo.start;
-                    auto limit = length - panel.x;
-                    while(offset < limit)
+                    auto& l_info = index[coord.y];
+                    if (cur_id == l_info.index) // case 1: plain
                     {
-                        basis++;
-                        offset += panel.x;
-                        index.push_back(curln.index, offset, panel.x);
-                    }
-                    basis++;
-                    offset += panel.x;
-                    index.push_back(curln.index, offset, length - offset);
-                }
-                else
-                {
-                    if (newid == curid)
-                    {
-                        // Update viewport index.
-                        if (linfo.width < coord.x) linfo.width == coord.x;
-                    }
-
-                }
-
-                /*
-                auto old_height = curln.height(panel.x) - 1;
-                auto new_height = curln.height(panel.x) - 1;
-                if (auto delta = new_height - old_height)
-                {
-                    auto old_pos = coord.y + old_height;
-                    auto new_pos = coord.y + new_height;
-                    coord.y = new_pos;
-                    auto [top, end] = get_scroll_region();
-                    if (old_pos <= end && new_pos > end)
-                    {
-                            auto n = end - new_pos;
-                            scroll_region(n, true);
-                            auto delta = coord.y - batch.length() - 1;
-                            if (delta > 0) coord.y -= delta; // Coz ring buffer.
-                    }
-                    else
-                    {
-                        auto n = new_pos - (panel.y - 1);
-                        if (n > 0)
+                        log(" case 1:");
+                        if (coord.x > l_info.width)
                         {
-                            //add_lines(n);
-                            auto delta = coord.y - (panel.y - 1);
-                            if (delta > 0) coord.y -= delta; // Coz ring buffer.
+                            l_info.width = std::min(panel.x - 1, coord.x);
+                            batch.recalc(curln);
                         }
-                    }
+                    } // case 1 done
+                    else // case 2: fusion
+                    {
+                        log(" case 2:");
+                        auto& target = batch.item_by_id(l_info.index);
+                        auto  shadow = target.substr(l_info.start + coord.x);
+                        curln.splice(curln.length(), shadow);
+                        batch.recalc(curln);
+                        auto length = curln.length();
+                        auto batch_index = batch.index();
+                        batch.next();
+                        assert(l_info.index > cur_id);
+                        auto count = l_info.index - cur_id;
+                        batch.remove(count);
+                        // Reindex batch.
+                        {
+                            auto cur_it = batch.current_it();
+                            auto end_it = batch.end();
+                            while(cur_it != end_it)
+                            {
+                                cur_it->index -= count;
+                                ++cur_it;
+                            }
+                            batch.index(batch_index);
+                        }
+                        // Update index.
+                        {
+                            auto ind_it = index.begin() + old;
+                            auto end_it = index.end();
+                            auto offset = ind_it->start;
+                            auto bottom = length - panel.x;
+                            while(offset < bottom) // Update for current line.
+                            {
+                                auto& i = *ind_it;
+                                i.index = cur_id;
+                                i.start = offset;
+                                i.width = panel.x;
+                                offset += panel.x;
+                                ++ind_it;
+                                log(" 1. i.index=", i.index, " i.start=", i.start, " i.width=", i.width);
+                            }
+                            auto& i = *ind_it;
+                            i.index = cur_id;
+                            i.start = offset;
+                            i.width = length - offset;
+                            ++ind_it;
+                            log(" 2. i.index=", i.index, " i.start=", i.start, " i.width=", i.width);
+                            while(ind_it != end_it) // Update the rest.
+                            {
+                                auto& i = *ind_it;
+                                i.index -= count;
+                                ++ind_it;
+                                log(" 3. i.index=", i.index, " i.start=", i.start, " i.width=", i.width);
+                            }
+                        }
+                    } // case 2 done
                 }
-                */
+                else // case 3: cursor overlaps some lines below and placed below the viewport
+                {
+                    log(" case 3:");
+                    //        - pop_back from batch (curln, batch.end] lines
+                    batch.recalc(curln);
+                    auto length = curln.length();
+                    {
+                        assert(batch.back().index >= cur_id);
+                        auto pop_count = batch.back().index - cur_id;
+                        while (pop_count-- > 0) batch.pop_back();
+                    }
+                    //        - update index
+                    {
+                        auto pop_count = index.size - 1 - old;
+                        while (pop_count-- > 0) index.pop_back();
+                    }
+                    auto& last = index.back();
+                    auto offset = last.start;
+                    last.width = panel.x;
+                    auto bottom = length - panel.x;
+                    log(" 1. i.index=", cur_id, " offset=", offset, " i.width=", panel.x);
+                    offset += panel.x;
+                    while(offset < bottom) // Update for current line.
+                    {
+                        index.push_back(cur_id, offset, panel.x);
+                        offset += panel.x;
+                        log(" 2. i.index=", cur_id, " offset=", offset, " i.width=", panel.x);
+                    }
+                    index.push_back(cur_id, offset, length - offset);
+                    log(" 3. i.index=", cur_id, " offset=", offset, " i.width=", length - offset);
+
+                    auto maxy = panel.y - 1;
+                    auto over = coord.y - maxy;
+                    if (over > 0)
+                    {
+                        coord.y = maxy;
+                        basis += over;
+                    }
+                } // case 3 done
             }
             else
             {
                 curln.splice(batch.caret, proto, shift);
-                batch.recalc(curln);
+                auto& l_info = index[coord.y];
+                auto  length = curln.length();
+                if (length > l_info.width)
+                {
+                    l_info.width = length;
+                    batch.recalc(curln);
+                }
             }
-            index_rebuild();
+
             batch.caret += shift;
 
             //log(" scrollbuff size in cells = ", batch.get_size_in_cells());
@@ -2175,7 +2229,7 @@ private:
         }
         void reset_scroll_pos()
         {
-            oversz.b = target->resize_viewport(); //todo update basis in place
+            //oversz.b = target->resize_viewport(); //todo update basis in place
 
             auto scroll = screen;
             auto adjust_pads = target->recalc_pads(oversz);

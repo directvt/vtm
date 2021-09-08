@@ -68,15 +68,18 @@ namespace netxs::generics
         auto  end()               { return iter{ *this, mod(tail + 1) }; }
         auto  begin() const       { return iter{ *this, head };          }
         auto  end()   const       { return iter{ *this, mod(tail + 1) }; }
-        auto& operator[] (iota i) { return buff[mod(head + i)];          }
+        auto&         at (iota i) { return buff[mod(head + i)];          }
+        auto& operator[] (iota i) { return at(i);                        }
         auto& back()              { return buff[tail];                   }
         auto& front()             { return buff[head];                   }
         auto& length() const      { return size;                         }
         auto& current     ()      { return buff[cart];                   }
         auto& operator  * ()      { return buff[cart];                   }
         auto  operator -> ()      { return buff.begin() + cart;          }
-        auto  index () const      { return dst(head, cart);              }
-        void  index (iota i)      { cart = mod(head + i);                }
+        auto  index() const       { return dst(head, cart);              }
+        void  index(iota i)       { cart = mod(head + i);                }
+        void  prev()              { dec(cart);                           }
+        void  next()              { inc(cart);                           }
 
     private:
         auto  full()
@@ -187,14 +190,14 @@ namespace netxs::generics
                 auto tail = begin() - 1;
                 auto head = tail + top_block;
                 swap_block<faux>(head, tail, head + n);
-                while (n--) pop_front();
+                while (n-- > 0) pop_front();
             }
             else
             {
                 auto tail = end();
                 auto head = tail - btm_block;
                 swap_block<true>(head, tail, head - n);
-                while (n--) pop_back();
+                while (n-- > 0) pop_back();
             }
             index(top_block);
         }
