@@ -472,9 +472,6 @@ namespace netxs::os
     {
         #if defined(_WIN32)
 
-            //auto binary_w = utf::to_utf(binary);
-            //auto params_w = utf::to_utf(params);
-
             SHELLEXECUTEINFO ShExecInfo = {};
             ShExecInfo.cbSize = sizeof(SHELLEXECUTEINFO);
             ShExecInfo.fMask = SEE_MASK_NOCLOSEPROCESS;
@@ -491,7 +488,7 @@ namespace netxs::os
         #else
 
             auto p_id = ::fork();
-            if (p_id == 0) // Child branch
+            if (p_id == 0) // Child branch.
             {
                 log("exec: executing '", binary, " ", params, "'");
                 char* argv[] = { binary.data(), params.data(), nullptr };
@@ -500,14 +497,14 @@ namespace netxs::os
                 os::exit(1, "exec: error ", errno);
             }
 
-            if (p_id > 0) // Parent branch
+            if (p_id > 0) // Parent branch.
             {
                 int stat;
-                ::waitpid(p_id, &stat, 0); // wait for the child to avoid zombies
+                ::waitpid(p_id, &stat, 0); // Wait for the child to avoid zombies.
 
                 if (WIFEXITED(stat) && (WEXITSTATUS(stat) == 0))
                 {
-                    return true; // child forked and exited successfully
+                    return true; // Child forked and exited successfully.
                 }
             }
 
@@ -520,7 +517,7 @@ namespace netxs::os
     {
         #if defined(_WIN32)
 
-            //todo inplement
+            //todo implement
 
         #else
 

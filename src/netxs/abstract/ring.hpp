@@ -86,7 +86,7 @@ namespace netxs::generics
         {
             if (size == peak - 1)
             {
-                if (step && peak < mxsz) resize(peak + step, step);
+                if (step && peak < mxsz) resize(size + step, step);
                 else                     return true;
             }
             return faux;
@@ -254,7 +254,7 @@ namespace netxs::generics
                 std::swap(buff, temp);
                 peak = new_size;
                 head = 0;
-                tail = peak - 1;
+                tail = size ? size - 1 : peak - 1;
                 step = grow_by;
             }
             else step = grow_by;
