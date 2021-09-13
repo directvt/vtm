@@ -549,7 +549,7 @@ namespace netxs::app
         }
         void add_lines(iota amount)
         {
-            assert(amount > 0);
+            assert(amount >= 0);
             auto newid = batch.back().index;
             auto style = batch->style;
             auto n = amount;
@@ -558,7 +558,6 @@ namespace netxs::app
                 auto& l = batch.invite(++newid, style);
                 index.push_back(l.index, 0, 0);
             }
-            //basis += amount;
         }
         void pop_lines(iota amount)
         {
@@ -646,7 +645,12 @@ namespace netxs::app
                 {
                     add_lines(add_count);
                     auto maxy = panel.y - 1;
-                    if (coord.y > maxy) coord.y = maxy;
+                    auto dy = coord.y - maxy;
+                    if (dy > 0)
+                    {
+                        basis += dy;
+                        coord.y = maxy;
+                    }
                 }
             }
 
@@ -2323,14 +2327,15 @@ private:
         {
             //oversz.b = target->resize_viewport(); //todo update basis in place
 
+            auto scroll_size = screen.size;
             auto adjust_pads = target->recalc_pads(oversz);
             screen.coor.y = -target->basis;
-            screen.size.y = std::max({ screen.size.y, target->height() - oversz.vsumm() });
-            if (screen.size != base::size() || adjust_pads)
-            {
-                this->SIGNAL(tier::release, e2::size::set, screen.size); // Update scrollbars.
-            }
+            scroll_size.y = std::max({ screen.size.y, target->height() - oversz.vsumm() });
             this->SIGNAL(tier::release, e2::coor::set, screen.coor);
+            if (scroll_size != base::size() || adjust_pads)
+            {
+                this->SIGNAL(tier::release, e2::size::set, scroll_size); // Update scrollbars.
+            }
         }
     public:
        ~term(){ alive = faux; }
