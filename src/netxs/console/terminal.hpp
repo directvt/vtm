@@ -390,12 +390,19 @@ namespace netxs::app
             batch.set_width(viewport.x);
             index_rebuild();
         }
+        void print_index(text msg)
+        {
+            log(" ", msg, " index.size=", index.size);
+            for (auto n = 0; auto l : index)
+                log("  ", n++,". id=", l.index," offset=", l.start, " width=", l.width);
+            log(" -----------------");
+        }
         //rods: Return viewport vertical oversize.
         auto resize_viewport()
         {
             batch.set_width(panel.x);
             index.clear();
-            index.resize(panel.y);
+            index.resize(panel.y); // Use a fixed ring because new lines are added much more often than a futures feed.
             basis = batch.vsize;
             auto lnid = batch.current().index;
             auto head = batch.end();
@@ -411,8 +418,9 @@ namespace netxs::app
                 auto active = curln.index == lnid;
                 if (curln.wrapped())
                 {
-                    auto remain = length ? (length - 1) % panel.x + 1 : 0;
                     auto offset = length;
+                    auto remain = length ? (length - 1) % panel.x + 1
+                                         : 0;
                     do
                     {
                         offset -= remain;
@@ -443,6 +451,7 @@ namespace netxs::app
             coord.y = index.length() - coord.y;
             assert(basis >= 0);
             //log(" viewport_offset=", basis);
+            print_index("full resize viewport");
             return std::max(0, batch.vsize - (basis + panel.y));
         }
         void index_rebuild()
@@ -473,6 +482,8 @@ namespace netxs::app
                     --coor;
                 }
             }
+
+            print_index("rebuild viewport");
         }
         auto height()
         {
@@ -548,17 +559,6 @@ namespace netxs::app
                 index.push_back(l.index, 0, 0);
             }
             //basis += amount;
-
-            //todo optimize
-            //amount = std::max(0, index.length() - panel.y);
-            //if (amount > 0)
-            //{
-            //    basis += amount;
-            //    while(amount-- > 0)
-            //    {
-            //        index.pop_front();
-            //    }
-            //}
         }
         void pop_lines(iota amount)
         {
@@ -567,45 +567,59 @@ namespace netxs::app
             //todo partial rebuild
             index_rebuild();
         }
-        auto sync_futures()
+        auto feed_futures()
         {
             auto future_length = batch.vsize - basis - index.size;
             assert(future_length >= 0);
             if (future_length)
             {
-                log(" futures:");
+                log(" futures: future_length=", future_length);
                 if (auto add_count = coord.y - (index.size - 1);
                          add_count > 0)
                 {
+                    log(" 1f. add_count=", add_count);
                     auto step = future_length - add_count;
                     if (step >= 0)
                     {
-                        auto& map_last = index.back();
-
-                        auto offset = map_last.start + map_last.width;
-                        auto cur_it = batch.begin() + batch.index_by_id(map_last.index);
-                        auto length = cur_it->length();
-                        //auto end_it = batch.end();
-
-                        while(add_count-- > 0)
-                        {
-                            auto& cur_ln = *cur_it++;
-
-                            auto bottom = length - panel.x;
-
-                            offset += panel.x;
-                            while(add_count-- > 0 && offset < bottom)
-                            {
-                                log(" 1. cur_ln.index=", cur_ln.index, " offset=", offset, " i.width=", panel.x);
-                                index.push_back(cur_ln.index, offset, panel.x);
-                                offset += panel.x;
-                            }
-                            log(" 2. cur_ln.index=", cur_ln.index, " offset=", offset, " i.width=", length - offset);
-                            index.push_back(cur_ln.index, offset, length - offset);
-                        }
+                        print_index("1. futures");
 
                         basis += add_count;
                         coord.y -= add_count;
+
+                        auto& map_last = index.back();
+                        auto  cur_it = batch.begin() + batch.index_by_id(map_last.index);
+                        auto& cur_ln = *cur_it;
+                        auto  length = cur_ln.length();
+                        auto  cindex = cur_ln.index;
+                        auto  offset = map_last.start + map_last.width;
+                        if (offset == length) // Go to the next line.
+                        {
+                            auto& cur_ln = *++cur_it;
+                            length = cur_ln.length();
+                            cindex = cur_ln.index;
+                            offset = 0;
+                        }
+                        while(true)
+                        {
+                            auto bottom = length - panel.x;
+                            while(offset < bottom && add_count-- > 0)
+                            {
+                                log(" 1f. cindex=", cindex, " offset=", offset, " width=", panel.x);
+                                index.push_back(cindex, offset, panel.x);
+                                offset += panel.x;
+                            }
+                            log(" 2f. add_count=", add_count);
+                            if (add_count-- <= 0) break;
+                            log(" 2f. cindex=", cindex, " offset=", offset, " width=", length - offset);
+                            index.push_back(cindex, offset, length - offset);
+
+                            auto& cur_ln = *++cur_it;
+                            length = cur_ln.length();
+                            cindex = cur_ln.index;
+                            offset = 0;
+                        }
+
+                        print_index("2. futures");
                         return 0;
                     }
                     else
@@ -627,7 +641,7 @@ namespace netxs::app
             }
             else
             {
-                if (auto add_count = sync_futures();
+                if (auto add_count = feed_futures();
                          add_count > 0)
                 {
                     add_lines(add_count);
@@ -856,7 +870,7 @@ namespace netxs::app
         {
             auto& cur_ln = batch.current();
             coord.x += shift;
-            if (coord.x > panel.x && cur_ln.wrapped())
+            if (cur_ln.wrapped())
             {
                 auto old = coord.y;
                 coord.y += coord.x / panel.x;
@@ -869,42 +883,7 @@ namespace netxs::app
 
                 //todo scrolling regions
 
-//                auto maxy = panel.y - 1;
-//                if (auto over = coord.y - maxy; over > 0)
-//                {
-//                    auto oversize = batch.vsize - basis - panel.y;
-//                    basis += over;
-//
-//                    if (oversize > 0)
-//                    {
-//                        log(" case 0: viewport shifts down");
-//                        // push_back the over to the index
-//                        auto& map_last = index.back();
-//                        map_last.width = panel.x;
-//                        auto offset = map_last.start + map_last.width;
-//                        auto cur_it = batch.begin() + batch.index_by_id(map_last.index);
-//                        auto end_it = batch.end();
-//
-//
-//                        auto length = cur_it->length();
-//
-//                        auto bottom = length - panel.x;
-//
-//                        offset += panel.x;
-//                        while(offset < bottom) // Update for current line.
-//                        {
-//                            log(" 1. i.index=", map_last.index, " offset=", offset, " i.width=", panel.x);
-//                            index.push_back(cur_id, offset, panel.x);
-//                            offset += panel.x;
-//                        }
-//                        log(" 2. i.index=", cur_id, " offset=", offset, " i.width=", panel.x);
-//                        index.push_back(cur_id, offset, length - offset);
-//                    }
-//
-//                    coord.y = maxy;
-//                }
-
-                auto add_count = sync_futures();
+                auto add_count = feed_futures();
 
                 cur_ln.splice(batch.caret, proto, shift);
                 auto cur_id = cur_ln.index;
@@ -939,20 +918,24 @@ namespace netxs::app
                         {
                             while (pop_count--) index.pop_back();
                         }
-                        auto& map_last = index.back();
-                        auto offset = map_last.start;
-                        map_last.width = panel.x;
+                        auto& map_ln = index.back();
+                        auto offset = map_ln.start;
+                    log("  case 3 old width=", map_ln.width);
+                        map_ln.width = panel.x;
+                    log("  case 3 new width=", map_ln.width);
                         auto bottom = length - panel.x;
-                        log(" 1. i.index=", cur_id, " offset=", offset, " i.width=", panel.x);
+                        log(" 1. cur_id=", cur_id, " offset=", offset, " width=", panel.x);
                         offset += panel.x;
                         while(offset < bottom) // Update for current line.
                         {
                             index.push_back(cur_id, offset, panel.x);
                             offset += panel.x;
-                            log(" 2. i.index=", cur_id, " offset=", offset, " i.width=", panel.x);
+                            log(" 2. cur_id=", cur_id, " offset=", offset, " width=", panel.x);
                         }
                         index.push_back(cur_id, offset, length - offset);
-                        log(" 3. i.index=", cur_id, " offset=", offset, " i.width=", length - offset);
+                        log(" 3. cur_id=", cur_id, " offset=", offset, " width=", length - offset);
+
+                        print_index("case 3.");
                     } // case 3 done
                 }
                 else
@@ -963,13 +946,18 @@ namespace netxs::app
                         log(" case 1:");
                         if (coord.x > map_ln.width)
                         {
-                            map_ln.width = std::min(panel.x - 1, coord.x);
+                            log("  old width=", map_ln.width);
+                            //map_ln.width = std::min(panel.x - 1, coord.x);
+                            map_ln.width = coord.x;
+                            log("  new width=", map_ln.width);
                             batch.recalc(cur_ln);
                         }
+                        print_index("case 1.");
                     } // case 1 done.
                     else // case 2 - fusion: cursor overlaps lines below but stays inside the viewport.
                     {
                         log(" case 2:");
+                        print_index(" case 2. start");
                         auto& target = batch.item_by_id(map_ln.index);
                         auto  shadow = target.substr(map_ln.start + coord.x);
                         cur_ln.splice(cur_ln.length(), shadow);
@@ -993,11 +981,12 @@ namespace netxs::app
                         }
                         // Update index.
                         {
+                            log(" case 2: old=", old, " coord.y=", coord.y);
                             auto ind_it = index.begin() + old;
                             auto end_it = index.end();
                             auto offset = ind_it->start;
                             auto bottom = length - panel.x;
-                            while(offset < bottom) // Update for current line.
+                            while(ind_it != end_it && offset < bottom) // Update for current line.
                             {
                                 auto& i = *ind_it;
                                 i.index = cur_id;
@@ -1007,20 +996,25 @@ namespace netxs::app
                                 ++ind_it;
                                 log(" 1. i.index=", i.index, " i.start=", i.start, " i.width=", i.width);
                             }
-                            auto& i = *ind_it;
-                            i.index = cur_id;
-                            i.start = offset;
-                            i.width = length - offset;
-                            ++ind_it;
-                            log(" 2. i.index=", i.index, " i.start=", i.start, " i.width=", i.width);
-                            while(ind_it != end_it) // Update the rest.
+                            if (ind_it != end_it)
                             {
                                 auto& i = *ind_it;
-                                i.index -= count;
+                                i.index = cur_id;
+                                i.start = offset;
+                                i.width = length - offset;
                                 ++ind_it;
-                                log(" 3. i.index=", i.index, " i.start=", i.start, " i.width=", i.width);
+                                log(" 2. i.index=", i.index, " i.start=", i.start, " i.width=", i.width);
+                                while(ind_it != end_it) // Update the rest.
+                                {
+                                    auto& i = *ind_it;
+                                    log(" 3.0 i.index=", i.index, " i.start=", i.start, " i.width=", i.width);
+                                    i.index -= count;
+                                    ++ind_it;
+                                    log(" 3.1 i.index=", i.index, " i.start=", i.start, " i.width=", i.width);
+                                }
                             }
                         }
+                        print_index("case 2. done");
                     } // case 2 done.
                 }
 
@@ -1039,7 +1033,9 @@ namespace netxs::app
                 auto  length = cur_ln.length();
                 if (length > map_ln.width)
                 {
+                    log("  nowrap old width=", map_ln.width);
                     map_ln.width = length;
+                    log("  nowrap new width=", map_ln.width);
                     batch.recalc(cur_ln);
                 }
             }
@@ -2335,15 +2331,14 @@ private:
         {
             //oversz.b = target->resize_viewport(); //todo update basis in place
 
-            auto scroll = screen;
             auto adjust_pads = target->recalc_pads(oversz);
             screen.coor.y = -target->basis;
-            scroll.size.y = std::max({ screen.size.y, target->height() - oversz.vsumm() });
-            if (scroll.size != base::size() || adjust_pads)
+            screen.size.y = std::max({ screen.size.y, target->height() - oversz.vsumm() });
+            if (screen.size != base::size() || adjust_pads)
             {
-                this->SIGNAL(tier::release, e2::size::set, scroll.size); // Update scrollbars.
+                this->SIGNAL(tier::release, e2::size::set, screen.size); // Update scrollbars.
             }
-            this->SIGNAL(tier::release, e2::coor::set, scroll.coor);
+            this->SIGNAL(tier::release, e2::coor::set, screen.coor);
         }
     public:
        ~term(){ alive = faux; }
