@@ -874,6 +874,7 @@ namespace netxs::app
         {
             auto& cur_ln = batch.current();
             coord.x += shift;
+            //if (coord.x > 0 && cur_ln.wrapped())
             if (cur_ln.wrapped())
             {
                 auto old = basis + coord.y;
@@ -2295,9 +2296,12 @@ private:
                 if (guard)
                 {
                     SIGNAL(tier::general, e2::debug::output, shadow); // Post for the Logs.
+
+                auto force_basis = screen.coor.y == -target->basis;
+
                     ansi::parse(shadow, target);
 
-                reset_scroll_pos();
+                reset_scroll_pos(force_basis);
 
                     base::deface();
                     break;
@@ -2323,15 +2327,18 @@ private:
                 };
             }
         }
-        void reset_scroll_pos()
+        void reset_scroll_pos(bool force_basis = true)
         {
             //oversz.b = target->resize_viewport(); //todo update basis in place
 
             auto scroll_size = screen.size;
             auto adjust_pads = target->recalc_pads(oversz);
-            screen.coor.y = -target->basis;
             scroll_size.y = std::max({ screen.size.y, target->height() - oversz.vsumm() });
-            this->SIGNAL(tier::release, e2::coor::set, screen.coor);
+            //if (force_basis)
+            {
+                screen.coor.y = -target->basis;
+                this->SIGNAL(tier::release, e2::coor::set, screen.coor);
+            }
             if (scroll_size != base::size() || adjust_pads)
             {
                 this->SIGNAL(tier::release, e2::size::set, scroll_size); // Update scrollbars.
@@ -2395,6 +2402,11 @@ private:
                 reset_scroll_pos();
                 ptycon.write(data);
             };
+            SUBMIT(tier::release, e2::coor::set, new_coor)
+            {
+                screen.coor.x = new_coor.x;
+                screen.coor.y = -new_coor.y;
+            };
             SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
             {
                 this->base::riseup<tier::request>(e2::form::prop::header, winprops.get(ansi::OSC_TITLE));
@@ -2412,19 +2424,22 @@ private:
 
                         screen.size = new_sz;
                         oversz.b = target->resize_viewport();
-                        screen.coor.y = -target->basis;;
+                        //screen.coor.y = -target->basis;;
 
                         this->SUBMIT(tier::preview, e2::size::set, new_sz)
                         {
+
+                auto force_basis = screen.coor.y == -target->basis;
+
                             new_sz = std::max(new_sz, dot_11);
                             if (target == &altbuf) altbuf.trim_to_size(new_sz);
                             altbuf.resize<faux>(new_sz.y);
 
                             screen.size = new_sz;
                             oversz.b = target->resize_viewport();
-                            screen.coor.y = -target->basis;;
+                            //screen.coor.y = -target->basis;;
 
-                reset_scroll_pos();
+                reset_scroll_pos(force_basis);
 
                             ptycon.resize(new_sz);
 
