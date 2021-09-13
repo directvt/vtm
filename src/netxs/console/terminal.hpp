@@ -571,10 +571,10 @@ namespace netxs::app
         {
             auto future_length = batch.vsize - basis - index.size;
             assert(future_length >= 0);
-            if (future_length)
+            if (future_length > 0)
             {
                 log(" futures: future_length=", future_length);
-                if (auto add_count = coord.y - (index.size - 1);
+                if (auto add_count = coord.y - (index.size - 1); //todo wrong
                          add_count > 0)
                 {
                     log(" 1f. add_count=", add_count);
@@ -872,7 +872,7 @@ namespace netxs::app
             coord.x += shift;
             if (cur_ln.wrapped())
             {
-                auto old = coord.y;
+                auto old = basis + coord.y;
                 coord.y += coord.x / panel.x;
                 coord.x %= panel.x;
                 if (coord.x == 0)
@@ -887,57 +887,50 @@ namespace netxs::app
 
                 cur_ln.splice(batch.caret, proto, shift);
                 auto cur_id = cur_ln.index;
-                //auto delta = coord.y - (index.size - 1);
-                //if (delta > 0) // Cursor is outside the viewport.
                 if (add_count > 0) // Cursor is outside the viewport.
-                {
-                    //auto& last_index = index.back();
-                    //auto& last_batch = batch.back();
-                    //if (last_batch.index    != last_index.index
-                    // || last_batch.length() != last_index.start + last_index.width) // case 4
-                    //auto oversize = batch.vsize - basis - panel.y;
-                    //if (oversize > 0) // case 4: Scrollbck contains "future lines".
-                    //{
-                    //    log(" case 4:");
-                    //    batch.recalc(cur_ln);
-                    //    auto length = cur_ln.length();
-                    //} // case 4 done
-                    //else
-                    { // case 3 - complex: cursor overlaps some lines below and placed below the viewport.
-                        log(" case 3:");
-                        batch.recalc(cur_ln);
-                        auto length = cur_ln.length();
-                        // pop_back from batch all lines from (curln, batch.end].
-                        assert(batch.back().index >= cur_id);
-                        if (auto pop_count = batch.back().index - cur_id)
-                        {
-                            while (pop_count--) batch.pop_back();
-                        }
-                        // Update index.
-                        if (auto pop_count = index.size - 1 - old)
-                        {
-                            while (pop_count--) index.pop_back();
-                        }
-                        auto& map_ln = index.back();
-                        auto offset = map_ln.start;
+                { // case 3 - complex: cursor overlaps some lines below and placed below the viewport.
+                    log(" case 3:");
+                    batch.recalc(cur_ln);
+                    auto length = cur_ln.length();
+                    // pop_back from batch all lines from (curln, batch.end].
+                    assert(batch.back().index >= cur_id);
+                    if (auto pop_count = batch.back().index - cur_id)
+                    {
+                        assert(pop_count > 0);
+                        log("  case 3 batch pop_count=", pop_count);
+                        while (pop_count-- > 0) batch.pop_back();
+                    }
+                    // Update index.
+                    //if (auto pop_count = index.size - 1 - (old - basis))
+                    //todo revise
+                    if (auto pop_count = index.size - (old - basis))
+                    {
+                        assert(pop_count > 0);
+                        log("  case 3 !!!!! index pop_count=", pop_count);
+                        while (pop_count-- > 0) index.pop_back();
+                    }
+                    auto& map_ln = index.back();
+                    auto offset = map_ln.start;
                     log("  case 3 old width=", map_ln.width);
-                        map_ln.width = panel.x;
+                    map_ln.width = panel.x;
                     log("  case 3 new width=", map_ln.width);
-                        auto bottom = length - panel.x;
-                        log(" 1. cur_id=", cur_id, " offset=", offset, " width=", panel.x);
+                    auto bottom = length - panel.x;
+                    log(" 1. cur_id=", cur_id, " offset=", offset, " width=", panel.x);
+                    offset += panel.x;
+                    while(offset < bottom) // Update for current line.
+                    {
+                        index.push_back(cur_id, offset, panel.x);
                         offset += panel.x;
-                        while(offset < bottom) // Update for current line.
-                        {
-                            index.push_back(cur_id, offset, panel.x);
-                            offset += panel.x;
-                            log(" 2. cur_id=", cur_id, " offset=", offset, " width=", panel.x);
-                        }
-                        index.push_back(cur_id, offset, length - offset);
-                        log(" 3. cur_id=", cur_id, " offset=", offset, " width=", length - offset);
-
-                        print_index("case 3.");
-                    } // case 3 done
-                }
+                        log(" 2. cur_id=", cur_id, " offset=", offset, " width=", panel.x);
+                    }
+                    index.push_back(cur_id, offset, length - offset);
+                    log(" 3. cur_id=", cur_id, " offset=", offset, " width=", length - offset);
+                        log("  case 3 old basis=", basis);
+                    basis += add_count;
+                    coord.y -= add_count;
+                        log("  case 3 new basis=", basis);
+                    print_index("case 3. done");
+                } // case 3 done
                 else
                 {
                     auto& map_ln = index[coord.y];
@@ -947,12 +940,11 @@ namespace netxs::app
                         if (coord.x > map_ln.width)
                         {
                             log("  old width=", map_ln.width);
-                            //map_ln.width = std::min(panel.x - 1, coord.x);
                             map_ln.width = coord.x;
                             log("  new width=", map_ln.width);
                             batch.recalc(cur_ln);
                         }
-                        print_index("case 1.");
+                        print_index("case 1. done");
                     } // case 1 done.
                     else // case 2 - fusion: cursor overlaps lines below but stays inside the viewport.
                     {
@@ -981,8 +973,8 @@ namespace netxs::app
                         }
                         // Update index.
                         {
-                            log(" case 2: old=", old, " coord.y=", coord.y);
-                            auto ind_it = index.begin() + old;
+                            log(" case 2: old=", (old - basis), " coord.y=", coord.y);
+                            auto ind_it = index.begin() + (old - basis);
                             auto end_it = index.end();
                             auto offset = ind_it->start;
                             auto bottom = length - panel.x;
