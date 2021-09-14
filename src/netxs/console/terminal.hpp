@@ -36,10 +36,8 @@ namespace netxs::app
 {
     using namespace netxs::console;
 
-    // terminal: Scrollback internals.
-    class rods
+    struct term_buffer
     {
-    public:    
         struct commands
         {
             struct erase
@@ -79,451 +77,53 @@ namespace netxs::app
                 };
             };
         };
-    private:
-        struct line
-            : public rich
+
+        twod panel{ dot_11 }; // term_buffer: Viewport size.
+        twod coord{ dot_00 }; // term_buffer: Viewport cursor position; 0-based.
+        twod saved{ dot_00 }; // term_buffer: Saved cursor position.
+        iota sctop{ 0      }; // term_buffer: Scrolling region top;    1-based, "0" to use top of viewport.
+        iota scend{ 0      }; // term_buffer: Scrolling region bottom; 1-based, "0" to use bottom of viewport.
+        iota basis{ 0      }; // term_buffer: Viewport basis. Index of O(0, 0) in the scrollback.
+
+        //todo magic numbers
+        static constexpr iota default_tabstop = 8;
+        iota tabstop = default_tabstop; // scrollbuff: Tabstop current value.
+
+        virtual void term_buffer__meta(deco const& parser_style)              = 0;
+        virtual void term_buffer__output(face& canvas)                        = 0;
+        virtual void term_buffer__proceed(grid& proto, iota shift)            = 0;
+        virtual void term_buffer__clear_all()                                 = 0;
+        virtual void term_buffer__scroll_region(iota n, bool use_scrollback)  = 0;
+        // term_buffer: Set the scrolling region using 1-based top and bottom. Use 0 to reset.
+        virtual void term_buffer__set_scroll_region(iota top, iota bottom)
         {
-            using rich::rich;
-            using type = deco::type;
-            using id_t = ui32;
-
-            line(line&& l)
-                : rich { std::forward<rich>(l) },
-                  index{ l.index }
-            {
-                style = l.style;
-                _size = l._size;
-                _kind = l._kind;
-                l._size = {};
-                l._kind = {};
-            }
-            line(line const& l)
-                : rich { l       },
-                  index{ l.index },
-                  style{ l.style }
-            { }
-            line(id_t newid, deco const& style = {})
-                : index{ newid },
-                  style{ style }
-            { }
-            line& operator = (line&&)      = default;
-            line& operator = (line const&) = default;
-
-            id_t index{};
-            ui64 accum{};
-            deco style{};
-            iota _size{};
-            type _kind{};
-
-            friend void swap(line& lhs, line& rhs)
-            {
-                std::swap<rich>(lhs, rhs);
-                std::swap(lhs.index, rhs.index);
-                std::swap(lhs.style, rhs.style);
-                std::swap(lhs._size, rhs._size);
-                std::swap(lhs._kind, rhs._kind);
-            }
-            void wipe()
-            {
-                rich::kill();
-                _size = {};
-                _kind = {};
-            }
-            iota height(iota width) const
-            {
-                auto len = length();
-                return len > width
-                    && style.wrp() == wrap::on ? (len + width - 1) / width
-                                               : 1;
-            }
-            auto wrapped() { return _kind == type::autowrap; }
-        };
-        struct index_item
-        {
-            using id_t = line::id_t;
-            id_t index;
-            iota start;
-            iota width;
-            index_item() = default;
-            index_item(id_t index, iota start, iota width)
-                : index{ index },
-                  start{ start },
-                  width{ width }
-            { }
-        };
-
-        using vect = std::vector<line>;
-        using ring = generics::ring<vect, true>;
-        using indx = generics::ring<std::vector<index_item>>;
-
-        struct buff : public ring
-        {
-            using ring::ring;
-            using type = line::type;
-
-            iota caret{};
-            iota vsize{};
-            iota width{};
-            id_t taken{};
-            ui64 accum{};
-            bool dirty{};
-
-            static constexpr id_t threshold = 1000;
-            static constexpr ui64 lnpadding = 40; // Padding to improve accuracy.
-
-            //todo optimize for large lines, use std::unordered_map<iota, iota>
-            struct maxs : public std::vector<iota>
-            {
-                iota max = 0;
-                maxs() : std::vector<iota>(1) { }
-                void prev_max() { while(max > 0 && !at(--max)); }
-            }
-            lens[type::count];
-
-            void dec_height(type kind, iota size)
-            {
-                if (size > width && kind == type::autowrap) vsize -= (size + width - 1) / width;
-                else                                        vsize -= 1;
-                //log("dec h=", vsize, " kind=", kind, " linesize=", size);
-            }
-            void add_height(type kind, iota size)
-            {
-                if (size > width && kind == type::autowrap) vsize += (size + width - 1) / width;
-                else                                        vsize += 1;
-                //log("add h=", vsize, " kind=", kind, " linesize=", size);
-            }
-            // buff: Recalc the height for unlimited scrollback without using reflow.
-            void set_width(iota new_width)
-            {
-                //log("set_width new_width=", new_width);
-                vsize = 0;
-                width = std::max(1, new_width);
-                for (auto kind : { type::leftside,
-                                   type::rghtside,
-                                   type::centered })
-                {
-                    auto& cur_lens = lens[kind];
-                    auto head = cur_lens.begin();
-                    auto tail = head + cur_lens.max + 1;
-                    do vsize += *head++;
-                    while(head != tail);
-                }
-                auto kind = type::autowrap;
-                auto& cur_lens = lens[kind];
-                auto head = cur_lens.begin();
-                auto tail = head + cur_lens.max + 1;
-                auto c = 0;
-                auto h = 1;
-                //auto i = 0;
-                do
-                {
-                    if (auto count = *head++) vsize += h * count;
-                    if (++c > width)
-                    {
-                        c = 1;
-                        ++h;
-                    }
-                }
-                while(head != tail);
-                //log(" set_width done ", " h=", vsize);
-            }
-
-            void invite(type& kind, iota& size, type new_kind, iota new_size)
-            {
-                //log(" invite kind=", new_kind, " new_size=", new_size);
-                auto& new_lens = lens[new_kind];
-                if (new_lens.size() <= new_size) new_lens.resize(new_size * 2 + 1);
-
-                ++new_lens[new_size];
-                add_height(new_kind, new_size);
-                if (new_lens.max < new_size) new_lens.max = new_size;
-
-                size = new_size;
-                kind = new_kind;
-            }
-            void recalc(type& kind, iota& size, type new_kind, iota new_size)
-            {
-                if (size != new_size || kind != new_kind)
-                {
-                    auto& new_lens = lens[new_kind];
-                    if (new_lens.size() <= new_size) new_lens.resize(new_size * 2 + 1);
-
-                    if (new_size < size) undock(kind, size);
-                    else
-                    {
-                        --lens[kind][size];
-                        dec_height(kind, size);
-                    }
-
-                    ++new_lens[new_size];
-                    add_height(new_kind, new_size);
-                    if (new_lens.max < new_size) new_lens.max = new_size;
-
-                    size = new_size;
-                    kind = new_kind;
-                }
-            }
-            void undock(type kind, iota size)
-            {
-                auto& cur_lens =       lens[kind];
-                auto cur_count = --cur_lens[size];
-                if (size == cur_lens.max && cur_count == 0)
-                {
-                    cur_lens.prev_max();
-                }
-                dec_height(kind, size);
-            }
-            template<class ...Args>
-            auto& invite(Args&&... args)
-            {
-                dirty = true;
-                auto& l = ring::push_back(std::forward<Args>(args)...);
-                invite(l._kind, l._size, l.style.get_kind(), l.length());
-                return l;
-            }
-            void undock(line& l) override { undock(l._kind, l._size); }
-            template<auto N> auto max() { return lens[N].max; }
-            auto index_by_id(ui32 id)
-            {
-                //No need to disturb distant objects, it may already be in the swap.
-                //return static_cast<iota>(id - batch.front().index); // ring buffer size is never larger than max_int32.
-                auto count = length();
-                return static_cast<iota>(count - 1 - (back().index - id)); // ring buffer size is never larger than max_int32.
-            }
-            auto& item_by_id(ui32 id)
-            {
-                return ring::at(index_by_id(id));
-            }
-            void recalc_size(iota taken_index)
-            {
-                auto head = begin() + std::max(0, taken_index);
-                auto tail = end();
-                auto& curln = *head;
-                auto accum = curln.accum;
-                //auto i = 0;
-                //log("  i=", i++, " curln.accum=", accum);
-                accum += curln.length() + lnpadding;
-                while(++head != tail)
-                {
-                    auto& curln = *head;
-                    curln.accum = accum;
-                    //log("  i=", i++, " curln.accum=", accum);
-                    accum += curln.length() + lnpadding;
-                }
-                dirty = faux;
-                //log( " recalc_size taken_index=", taken_index);
-            }
-            auto get_size_in_cells()
-            {
-                auto& endln = back();
-                auto& endid = endln.index;
-                auto count = length();
-                auto taken_index = static_cast<iota>(count - 1 - (endid - taken));
-                if (taken != endid || dirty)
-                {
-                    auto& topln = front();
-                    recalc_size(taken_index);
-                    taken = endln.index;
-                    accum = endln.accum
-                          + endln.length() + lnpadding
-                          - topln.accum;
-                    //log(" topln.accum=", topln.accum,
-                    //    " endln.accum=", endln.accum,
-                    //    " vsize=", vsize,
-                    //    " accum=", accum);
-                }
-                return accum;
-            }
-            void recalc(line& l)
-            {
-                recalc(l._kind, l._size, l.style.get_kind(), l.length());
-                dirty = true;
-                auto taken_index = index_by_id(taken);
-                auto curln_index = index_by_id(l.index);
-                if (curln_index < taken_index)
-                {
-                    taken = l.index;
-                    taken_index = curln_index;
-                }
-                if (ring::size - taken_index > threshold)
-                {
-                    recalc_size(taken_index);
-                    taken = back().index;
-                }
-            }
-        };
-
-        // For debug
-        friend auto& operator<< (std::ostream& s, rods& c)
-        {
-            return s << "{ " << c.batch.max<line::type::leftside>() << ","
-                             << c.batch.max<line::type::rghtside>() << ","
-                             << c.batch.max<line::type::centered>() << ","
-                             << c.batch.max<line::type::autowrap>() << " }";
+            sctop = top;
+            scend = bottom;
         }
+        virtual void term_buffer__set_coord()                                 = 0;
+        virtual twod term_buffer__get_coord()                                 = 0;
+        virtual iota term_buffer__resize_viewport(twod const& new_sz)         = 0;
+        virtual iota term_buffer__height()                                    = 0;
+        virtual void term_buffer__dissect()                                   = 0;
+        virtual bool term_buffer__recalc_pads(side& oversz)                   = 0;
+        virtual void term_buffer__el(iota n, cell const& brush)               = 0;
+        virtual void term_buffer__ins(iota n, cell const& brush)              = 0;
+        virtual void term_buffer__ech_autogrow(iota n, cell const& brush)     = 0;
+        virtual void term_buffer__ech_fixed(iota n, cell const& brush)        = 0;
+        virtual void term_buffer__dch(iota n, cell const& brush)              = 0;
+        virtual void term_buffer__del_below()                                 = 0;
+        virtual void term_buffer__clear_above(ansi::mark const& brush)        = 0;
+        virtual iota term_buffer__get_batch_size() const                      = 0;
+        virtual iota term_buffer__get_batch_peak() const                      = 0;
+        virtual iota term_buffer__get_batch_step() const                      = 0;
+                auto term_buffer__get_panel_size() const { return panel; }
 
-    //protected:
-    public:
-        buff batch; // rods: Rods inner container.
-        flow maker; // rods: . deprecated
-        vect cache; // rods: Temporary line container.
-        twod panel; // rods: Viewport size.
-        twod coord; // rods: Viewport cursor position; 0-based.
-        iota sctop; // rods: Scrolling region top;    1-based, "0" to use top of viewport.
-        iota scend; // rods: Scrolling region bottom; 1-based, "0" to use bottom of viewport.
-        twod saved; // rods: Saved cursor position.
-        iota basis; // rods: Viewport basis. Index of O(0, 0) in the scrollback.
-        indx index;
-
-        iota vsize{ 1 }; // temp
-
-        rods(iota buffer_size, iota grow_step)
-            : batch{ buffer_size, grow_step   },
-              maker{ batch.width, batch.vsize },
-              panel{ dot_11                   },
-              sctop{ 0                        },
-              scend{ 0                        },
-              basis{ 0                        },
-              index{ 1                        }
+        // term_buffer: Return true if the scrolling region is set.
+        auto scroll_region_used()
         {
-            batch.invite(0); // At least one line must exist.
-            batch.set_width(1);
-            index_rebuild();
+            return scend || sctop;
         }
-        void print_index(text msg)
-        {
-            log(" ", msg, " index.size=", index.size);
-            for (auto n = 0; auto l : index)
-                log("  ", n++,". id=", l.index," offset=", l.start, " width=", l.width);
-            log(" -----------------");
-        }
-        //rods: Return viewport vertical oversize.
-        auto resize_viewport(twod const& new_sz)
-        {
-            panel = new_sz;
-            batch.set_width(panel.x);
-            index.clear();
-            index.resize(panel.y); // Use a fixed ring because new lines are added much more often than a futures feed.
-            basis = batch.vsize;
-            auto lnid = batch.current().index;
-            auto head = batch.end();
-            auto size = batch.length();
-            auto maxn = size - batch.index();
-            auto tail = head - std::max(maxn, std::min(size, panel.y));
-            auto push = [&](auto i, auto o, auto r) { --basis; index.push_front(i, o, r); };
-            auto unknown = true;
-            while(head != tail && (index.size < panel.y || unknown))
-            {
-                auto& curln = *--head;
-                auto length = curln.length();
-                auto active = curln.index == lnid;
-                if (curln.wrapped())
-                {
-                    auto offset = length;
-                    auto remain = length ? (length - 1) % panel.x + 1
-                                         : 0;
-                    do
-                    {
-                        offset -= remain;
-                        push(curln.index, offset, remain);
-                        if (unknown && active && offset <= batch.caret)
-                        {
-                            auto eq = batch.caret && length == batch.caret;
-                            unknown = faux;
-                            coord.y = index.size;
-                            coord.x = eq ? (batch.caret - 1) % panel.x + 1
-                                         :  batch.caret      % panel.x;
-                        }
-                        remain = panel.x;
-                    }
-                    while(offset > 0 && (index.size < panel.y || unknown));
-                }
-                else
-                {
-                    push(curln.index, 0, length);
-                    if (active)
-                    {
-                        unknown = faux;
-                        coord.y = index.size;
-                        coord.x = batch.caret;
-                    }
-                }
-            }
-            coord.y = index.length() - coord.y;
-            assert(basis >= 0);
-            //log(" viewport_offset=", basis);
-            print_index("full resize viewport");
-            return std::max(0, batch.vsize - (basis + panel.y));
-        }
-        void index_rebuild()
-        {
-            index.clear();
-            auto coor = batch.vsize;
-            auto head = batch.end();
-            while(coor != basis)
-            {
-                auto& curln = *--head;
-                auto length = curln.length();
-                if (curln.wrapped())
-                {
-                    auto remain = length ? (length - 1) % panel.x + 1 : 0;
-                    length -= remain;
-                    index.push_front(curln.index, length, remain);
-                    --coor;
-                    while(length > 0 && coor != basis)
-                    {
-                        length -= panel.x;
-                        index.push_front(curln.index, length, panel.x);
-                        --coor;
-                    }
-                }
-                else
-                {
-                    index.push_front(curln.index, 0, length);
-                    --coor;
-                }
-            }
-
-            print_index("rebuild viewport");
-        }
-        auto height()
-        {
-            auto test_vsize = 0; //sanity check
-            for (auto& l : batch) test_vsize += l.height(panel.x);
-            if (test_vsize != batch.vsize) log(" ERROR! test_vsize=", test_vsize, " vsize=", batch.vsize);
-            return batch.vsize;
-        }
-        auto recalc_pads(side& oversz)
-        {
-            auto left = std::max(0, batch.max<line::type::rghtside>() - panel.x);
-            auto rght = std::max(0, batch.max<line::type::leftside>() - panel.x);
-            auto cntr = std::max(0, batch.max<line::type::centered>() - panel.x);
-            auto both = cntr >> 1;
-            left = std::max(left, both);
-            rght = std::max(rght, both + (cntr & 1));
-            if (oversz.r != rght || oversz.l != left)
-            {
-                oversz.r = rght;
-                oversz.l = left;
-                return true;
-            }
-            else return faux;
-        }
-        // rods: Return current 0-based cursor position in the viewport.
-        auto get_coord()
-        {
-            auto coor = coord;
-            coor.y += basis;
-            auto& curln = batch.current();
-            auto  align = curln.style.jet();
-            if (align == bias::left || align == bias::none) return coor;
-            auto remain = index[coord.y].width;
-            if (remain == panel.x && curln.wrapped()) return coor;
-            if    (align == bias::right )  coor.x += panel.x     - remain - 1;
-            else /*align == bias::center*/ coor.x += panel.x / 2 - remain / 2;
-            return coor;
-        }
-        // rods: Return 0-based scroll region pair, inclusive.
+        // term_buffer: Return 0-based scroll region pair, inclusive.
         auto get_scroll_region()
         {
             auto top = sctop ? sctop - 1 : 0;
@@ -532,810 +132,89 @@ namespace netxs::app
             top = std::clamp(top, 0, end);
             return std::pair{ top, end };
         }
-        // rods: Set the scrolling region using 1-based top and bottom. Use 0 to reset.
-        void set_scroll_region(iota top, iota bottom)
-        {
-            sctop = top;
-            scend = bottom;
-            //if (scend && batch.length() < panel.y)
-            //{
-            //    add_lines(panel.y - batch.length());
-            //}
-            cache.resize(std::max(0, top - 1));
-        }
-        // rods: Return true if the scrolling region is set.
-        auto scroll_region_used()
-        {
-            return scend || sctop;
-        }
-        void add_lines(iota amount)
-        {
-            assert(amount >= 0);
-            auto newid = batch.back().index;
-            auto style = batch->style;
-            auto n = amount;
-            while(n-- > 0)
-            {
-                auto& l = batch.invite(++newid, style);
-                index.push_back(l.index, 0, 0);
-            }
-        }
-        void pop_lines(iota amount)
-        {
-            assert(amount >= 0 && amount < batch.length());
-            while(amount--) batch.pop_back();
-            //todo partial rebuild
-            index_rebuild();
-        }
-        auto feed_futures()
-        {
-            auto future_length = batch.vsize - basis - index.size;
-            assert(future_length >= 0);
-            if (future_length > 0)
-            {
-                log(" futures: future_length=", future_length);
-                if (auto add_count = coord.y - (index.size - 1); //todo wrong
-                         add_count > 0)
-                {
-                    log(" 1f. add_count=", add_count);
-                    auto step = future_length - add_count;
-                    if (step >= 0)
-                    {
-                        print_index("1. futures");
-
-                        basis += add_count;
-                        coord.y -= add_count;
-
-                        auto& map_last = index.back();
-                        auto  cur_it = batch.begin() + batch.index_by_id(map_last.index);
-                        auto& cur_ln = *cur_it;
-                        auto  length = cur_ln.length();
-                        auto  cindex = cur_ln.index;
-                        auto  offset = map_last.start + map_last.width;
-                        if (offset == length) // Go to the next line.
-                        {
-                            auto& cur_ln = *++cur_it;
-                            length = cur_ln.length();
-                            cindex = cur_ln.index;
-                            offset = 0;
-                        }
-                        while(true)
-                        {
-                            auto bottom = length - panel.x;
-                            while(offset < bottom && add_count-- > 0)
-                            {
-                                log(" 1f. cindex=", cindex, " offset=", offset, " width=", panel.x);
-                                index.push_back(cindex, offset, panel.x);
-                                offset += panel.x;
-                            }
-                            log(" 2f. add_count=", add_count);
-                            if (add_count-- <= 0) break;
-                            log(" 2f. cindex=", cindex, " offset=", offset, " width=", length - offset);
-                            index.push_back(cindex, offset, length - offset);
-
-                            auto& cur_ln = *++cur_it;
-                            length = cur_ln.length();
-                            cindex = cur_ln.index;
-                            offset = 0;
-                        }
-
-                        print_index("2. futures");
-                        return 0;
-                    }
-                    else
-                    {
-
-                    }
-                }
-            }
-            return coord.y - (batch.vsize - basis - 1);
-        }
-        // rods: Map the current cursor position to the scrollback.
-        void set_coord()
-        {
-            auto style = batch->style;
-
-            if (coord.y <= 0)
-            {
-                coord.y = 0;
-            }
-            else
-            {
-                if (auto add_count = feed_futures();
-                         add_count > 0)
-                {
-                    add_lines(add_count);
-                    auto maxy = panel.y - 1;
-                    auto dy = coord.y - maxy;
-                    if (dy > 0)
-                    {
-                        basis += dy;
-                        coord.y = maxy;
-                    }
-                }
-            }
-
-            auto& map_ln = index[coord.y];
-            batch.index(batch.index_by_id(map_ln.index));
-            batch.caret = map_ln.start + coord.x;
-            batch->style = style;
-        }
-        void sync_coord()
-        {
-            auto& cur_ln = batch.current();
-            //auto& style = curln.style;
-            //auto  wraps = style.wrp();
-            //if (wraps == wrap::on || wraps == wrap::none)
-            if (cur_ln.wrapped())
-            {
-                auto remain = index[coord.y].width;
-                auto h = height();
-                auto basis = std::max(0, h - panel.y);
-                //...
-            }
-        }
-        // rods: Set viewport cursor position.
         void set_coord(twod const& new_coord)
         {
             coord = new_coord;
-            set_coord();
+            term_buffer__set_coord();
         }
-
-
-/*
-        struct item_t
+        void dn_imp(iota n)
         {
-            iota height;
-            iota offset;
-        };
-        struct viewport : public generics::ring<std::vector<item_t>, true>
-        {
-            using buff = rods::buff&;
-            buff batch;
-            flow& maker;
-            iota vsize;
-            twod panel;// panel.y = summ(lines)
-            iota basis;//=vertical pos in buff
-
-            iota vertical_offset{}; // vertical offset inside viewport (for double scroll position = { global_pos, viewport_pos })
-
-            viewport(rods::buff& batch, twod panel, flow& maker)
-                : ring { panel.y, 0 },
-                  batch{ batch },
-                  panel{ panel },
-                  basis{ 0     },
-                  maker{ maker },
-                  vsize{ 0 }
-            { }
-            //auto count() { return ring::size; }
-            void rebuild()
+            // Scroll regions up if coord.y == scend and scroll region are defined.
+            auto[top, end] = get_scroll_region();
+            if (n > 0 && scroll_region_used() && coord.y    <= end
+                                              && coord.y + n > end)
             {
-                panel.y = 0;
-                auto my_it = begin();
-                auto proc = [&](auto&& l)
-                {
-                    auto& item = *my_it++;
-                    item.offset = panel.y;
-                    item.height = l.height(panel.x);
-                    panel.y += item.height;
-                };
-                batch.for_each(basis, basis + ring::size, proc);
-                vsize = batch.size - ring::size + panel.y;
-            }
-            template<bool BOTTOM_ANCHORED>
-            void resize(twod const& new_size)
-            {
-                auto delta_y = new_size.y - ring::size;
-                auto delta_x = new_size.x - panel.x;
-                ring::resize<BOTTOM_ANCHORED>(new_size.y);
-                if (delta_x)
-                {
-                    panel.x = new_size.x;
-                }
-                if (delta_y > 0)
-                {
-                    if constexpr (BOTTOM_ANCHORED)
-                    {
-                        basis -= delta_y;
-                        //push_front(from basis, n = - delta.y)
-                        //panel.y += summ(height);
-                    }
-                    else
-                    {
-                        //push_back(from basis + panel.y, n = delta.y)
-                        //panel.y += summ(height);
-                    }
-                }
-                rebuild();
-            }
-            void output(face& canvas)
-            {
-                maker.reset(canvas);
-                auto view = canvas.view();
-                auto full = canvas.full();
-                auto head = view.coor.y - full.coor.y;
-                auto tail = head + panel.y;
-                auto maxy = batch.max<line::autowrap>() / panel.x;
-                head = std::clamp(head - maxy, 0, batch.size);
-                tail = std::clamp(tail,        0, batch.size);
-                auto coor = twod{ 0, tail };
-                auto line_it = batch.begin() + coor.y;
-                auto left_edge_x = view.coor.x;
-                auto half_size_x = full.size.x / 2;
-                auto left_rect = rect{{ left_edge_x, coor.y + full.coor.y }, dot_11 };
-                auto rght_rect = left_rect;
-                rght_rect.coor.x+= view.size.x - 1;
-                auto rght_edge_x = rght_rect.coor.x + 1;
-                //todo unify/optimize
-                auto fill = [&](auto& area, auto chr)
-                {
-                    if (auto r = view.clip(area))
-                        canvas.fill(r, [&](auto& c){ c.txt(chr).fgc(tint::greenlt); });
-                };
-                auto data_it = begin();
-                while(coor.y != tail)
-                {
-                    auto& curln = *line_it++;
-                    auto& curdt = *data_it++;
-                    coor.y += curdt.height;
-                    rght_rect.coor.y += curdt.height;
-                    maker.ac(coor);
-                    maker.go(curln, canvas);
-                }
-            }
-            void rebase(iota new_basis)
-            {
-                new_basis = std::max(0, new_basis);
-                auto n = new_basis - basis;
-                     if (n > 0) movedn( n);
-                else if (n < 0) moveup(-n);
-            }
-            void moveup(iota n)
-            {
-                if (n > basis ) n = basis;
-                basis -= n;
-                //push_front(n);
-            }
-            void movedn(iota n)
-            {
-                basis += n;
-                //push_back(n);
-            }
-            void enlist(item_t& line)          { panel.y += line.height; }
-            void undock(item_t& line) override { panel.y -= line.height; }
-        };
-*/
-        void el_imp(iota n, cell const& brush)
-        {
-            iota  start;
-            iota  count;
-            auto  caret = std::max(0, batch.caret); //todo why?
-            auto& curln = batch.current();
-            auto  width = curln.length();
-            auto  wraps = curln.wrapped();
-            switch (n)
-            {
-                default:
-                case commands::erase::line::right: // n = 0 (default)  Erase to Right.
-                    start = caret;
-                    count = wraps ? coord.x == panel.x ? 0 : panel.x - (caret + panel.x) % panel.x
-                                  : std::max(0, std::max(panel.x, width) - caret);
-                    break;
-                case commands::erase::line::left: // n = 1  Erase to Left.
-                    start = wraps ? caret - caret % panel.x
-                                  : 0;
-                    count = caret - start;
-                    break;
-                case commands::erase::line::all: // n = 2  Erase All.
-                    start = wraps ? caret - caret % panel.x
-                                  : 0;
-                    count = wraps ? panel.x
-                                  : std::max(panel.x, batch->length());
-                    break;
-            }
-            if (count)
-            {
-                //auto blank = cell{ brush }.txt(' ');
-                auto blank = cell{ brush }.bgc(greendk).bga(0x7f).txt(' ');
-                //todo check_autogrow
-                curln.splice<true>(start, count, blank);
-                //batch->shrink(blank);
-               batch.recalc(curln);
-            }
-        }
-        void ins_imp(iota n, cell const& brush)
-        {
-            auto& curln = batch.current();
-            //todo check_autogrow
-            curln.insert(batch.caret, n, brush);
-            batch.recalc(curln);
-        }
-        template<bool AUTO_GROW = faux>
-        void ech_imp(iota n, cell const& brush)
-        {
-            auto& curln = batch.current();
-            if constexpr (AUTO_GROW)
-            {
-                //todo check_autogrow
-                curln.splice<true>(batch.caret, n, brush);
-            }
-            else curln.splice(batch.caret, n, brush);
-            batch.recalc(curln);
-        }
-        void dch_imp(iota n, cell const& brush)
-        {
-            auto& cur_ln = batch.current();
-            cur_ln.cutoff(batch.caret, n, brush, panel.x);
-            batch.recalc(cur_ln);
-
-            //auto caret = index[coord.y].start + coord.x;
-            //curln.cutoff(caret, n, brush, panel.x);
-        }
-        void proceed(grid& proto, iota shift)
-        {
-            auto& cur_ln = batch.current();
-            coord.x += shift;
-            //if (coord.x > 0 && cur_ln.wrapped())
-            if (cur_ln.wrapped())
-            {
-                auto old = basis + coord.y;
-                coord.y += coord.x / panel.x;
-                coord.x %= panel.x;
-                if (coord.x == 0)
-                {
-                    coord.y--;
-                    coord.x = panel.x;
-                }
-
-                //todo scrolling regions
-
-                auto add_count = feed_futures();
-
-                cur_ln.splice(batch.caret, proto, shift);
-                auto cur_id = cur_ln.index;
-                if (add_count > 0) // Cursor is outside the viewport.
-                { // case 3 - complex: cursor overlaps some lines below and placed below the viewport.
-                    log(" case 3:");
-                    batch.recalc(cur_ln);
-                    auto length = cur_ln.length();
-                    // pop_back from batch all lines from (curln, batch.end].
-                    assert(batch.back().index >= cur_id);
-                    if (auto pop_count = batch.back().index - cur_id)
-                    {
-                        assert(pop_count > 0);
-                        log("  case 3 batch pop_count=", pop_count);
-                        while (pop_count-- > 0) batch.pop_back();
-                    }
-                    // Update index.
-                    //if (auto pop_count = index.size - 1 - (old - basis))
-                    //todo revise
-                    if (auto pop_count = index.size - (old - basis))
-                    {
-                        assert(pop_count > 0);
-                        log("  case 3 !!!!! index pop_count=", pop_count);
-                        while (pop_count-- > 0) index.pop_back();
-                    }
-                    auto& map_ln = index.back();
-                    auto offset = map_ln.start;
-                    log("  case 3 old width=", map_ln.width);
-                    map_ln.width = panel.x;
-                    log("  case 3 new width=", map_ln.width);
-                    auto bottom = length - panel.x;
-                    log(" 1. cur_id=", cur_id, " offset=", offset, " width=", panel.x);
-                    offset += panel.x;
-                    while(offset < bottom) // Update for current line.
-                    {
-                        index.push_back(cur_id, offset, panel.x);
-                        offset += panel.x;
-                        log(" 2. cur_id=", cur_id, " offset=", offset, " width=", panel.x);
-                    }
-                    index.push_back(cur_id, offset, length - offset);
-                    log(" 3. cur_id=", cur_id, " offset=", offset, " width=", length - offset);
-                        log("  case 3 old basis=", basis);
-                    basis += add_count;
-                    coord.y -= add_count;
-                        log("  case 3 new basis=", basis);
-                    print_index("case 3. done");
-                } // case 3 done
-                else
-                {
-                    auto& map_ln = index[coord.y];
-                    if (cur_id == map_ln.index) // case 1 - plain: cursor is inside the current paragraph.
-                    {
-                        log(" case 1:");
-                        if (coord.x > map_ln.width)
-                        {
-                            log("  old width=", map_ln.width);
-                            map_ln.width = coord.x;
-                            log("  new width=", map_ln.width);
-                            batch.recalc(cur_ln);
-                        }
-                        print_index("case 1. done");
-                    } // case 1 done.
-                    else // case 2 - fusion: cursor overlaps lines below but stays inside the viewport.
-                    {
-                        log(" case 2:");
-                        print_index(" case 2. start");
-                        auto& target = batch.item_by_id(map_ln.index);
-                        auto  shadow = target.substr(map_ln.start + coord.x);
-                        cur_ln.splice(cur_ln.length(), shadow);
-                        batch.recalc(cur_ln);
-                        auto length = cur_ln.length();
-                        auto batch_index = batch.index();
-                        batch.next();
-                        assert(map_ln.index > cur_id);
-                        auto count = map_ln.index - cur_id;
-                        batch.remove(count);
-                        // Reindex batch.
-                        {
-                            auto cur_it = batch.current_it();
-                            auto end_it = batch.end();
-                            while(cur_it != end_it)
-                            {
-                                cur_it->index -= count;
-                                ++cur_it;
-                            }
-                            batch.index(batch_index);
-                        }
-                        // Update index.
-                        {
-                            log(" case 2: old=", (old - basis), " coord.y=", coord.y);
-                            auto ind_it = index.begin() + (old - basis);
-                            auto end_it = index.end();
-                            auto offset = ind_it->start;
-                            auto bottom = length - panel.x;
-                            while(ind_it != end_it && offset < bottom) // Update for current line.
-                            {
-                                auto& i = *ind_it;
-                                i.index = cur_id;
-                                i.start = offset;
-                                i.width = panel.x;
-                                offset += panel.x;
-                                ++ind_it;
-                                log(" 1. i.index=", i.index, " i.start=", i.start, " i.width=", i.width);
-                            }
-                            if (ind_it != end_it)
-                            {
-                                auto& i = *ind_it;
-                                i.index = cur_id;
-                                i.start = offset;
-                                i.width = length - offset;
-                                ++ind_it;
-                                log(" 2. i.index=", i.index, " i.start=", i.start, " i.width=", i.width);
-                                while(ind_it != end_it) // Update the rest.
-                                {
-                                    auto& i = *ind_it;
-                                    log(" 3.0 i.index=", i.index, " i.start=", i.start, " i.width=", i.width);
-                                    i.index -= count;
-                                    ++ind_it;
-                                    log(" 3.1 i.index=", i.index, " i.start=", i.start, " i.width=", i.width);
-                                }
-                            }
-                        }
-                        print_index("case 2. done");
-                    } // case 2 done.
-                }
-
-                auto maxy = panel.y - 1;
-                if (auto over = coord.y - maxy; over > 0)
-                {
-                    auto oversize = batch.vsize - basis - panel.y;
-                    basis += over;
-                    coord.y = maxy;
-                }
+                n -= end - coord.y;
+                coord.y = end;
+                term_buffer__scroll_region(-n, true);
             }
             else
             {
-                cur_ln.splice(batch.caret, proto, shift);
-                auto& map_ln = index[coord.y];
-                auto  length = cur_ln.length();
-                if (length > map_ln.width)
-                {
-                    log("  nowrap old width=", map_ln.width);
-                    map_ln.width = length;
-                    log("  nowrap new width=", map_ln.width);
-                    batch.recalc(cur_ln);
-                }
+                coord.y += n;
             }
-
-            batch.caret += shift;
-
-            //log(" scrollbuff size in cells = ", batch.get_size_in_cells());
+            term_buffer__set_coord();
         }
-        void clear_all()
+        void il_imp(iota n)
         {
-            saved = dot_00;
-            coord = dot_00;
-            batch.clear(); //todo optimize
-            batch.invite(0); // At least one line must exist.
-            batch.set_width(panel.x);
-            basis = 0;
-            index_rebuild();
-        }
-        template<bool BOTTOM_ANCHORED = true>
-        void resize(iota new_size, iota grow_by = 0)
-        {
-            batch.resize<BOTTOM_ANCHORED>(new_size, grow_by);
-            set_scroll_region(0, 0);
-            index_rebuild();
-        }
-        void output(face& canvas) //todo temp solution, rough output, not optimized
-        {
-            maker.reset(canvas);
-            auto view = canvas.view();
-            auto full = canvas.full();
-            auto coor = dot_00;
-            auto head = batch.begin();
-            auto tail = batch.end();
-            auto left_edge_x = view.coor.x;
-            auto half_size_x = full.size.x / 2;
-            auto left_rect = rect{{ left_edge_x, coor.y + full.coor.y }, dot_11 };
-            auto rght_rect = left_rect;
-            rght_rect.coor.x+= view.size.x - 1;
-            auto rght_edge_x = rght_rect.coor.x + 1;
-            auto fill = [&](auto& area, auto chr)
+            /* Works only if cursor is in the scroll region.
+            * Inserts n lines at the current row and removes n lines at the scroll bottom.
+            */
+            auto[top, end] = get_scroll_region();
+            if (n > 0 && coord.y >= top && coord.y <= end)
             {
-                if (auto r = view.clip(area))
-                    canvas.fill(r, [&](auto& c){ c.txt(chr).fgc(tint::greenlt); });
-            };
-            while(head != tail)
-            {
-                auto& curln = *head++;
-                maker.ac(coor);
-                maker.go(curln, canvas);
-                auto height = curln.height(panel.x);
-                auto align = curln.style.jet();
-                if (auto length = curln.length()) // Mark lines not shown in full.
-                {
-                    rght_rect.size.y = left_rect.size.y = height;
-                    if (height == 1)
-                    {
-                        auto lt_dot = full.coor.x;
-                        if      (align == bias::center) lt_dot += half_size_x - length / 2;
-                        else if (align == bias::right)  lt_dot += full.size.x - length;
-
-                        if (left_edge_x > lt_dot         ) fill(left_rect, '<');
-                        if (rght_edge_x < lt_dot + length) fill(rght_rect, '>');
-                    }
-                    else
-                    {
-                        auto lt_dot = full.coor.x;
-                        auto rt_dot = lt_dot + view.size.x;
-                        auto remain = (length - 1) % view.size.x + 1;
-                        if (left_edge_x > lt_dot)
-                        {
-                            if (align == bias::right  && left_edge_x <= rt_dot - remain
-                             || align == bias::center && left_edge_x <= lt_dot + half_size_x - remain / 2)
-                            {
-                                --left_rect.size.y;
-                            }
-                            fill(left_rect, '<');
-                        }
-                        if (rght_edge_x < rt_dot)
-                        {
-                            if (align == bias::left   && rght_edge_x >= lt_dot + remain
-                             || align == bias::center && rght_edge_x >= lt_dot + remain + half_size_x - remain / 2)
-                            {
-                                --rght_rect.size.y;
-                            }
-                            fill(rght_rect, '>');
-                        }
-                    }
-                }
-                coor.y           += height;
-                rght_rect.coor.y += height;
-                left_rect.coor.y = rght_rect.coor.y;
+                auto old_top = sctop;
+                sctop = coord.y + 1;
+                term_buffer__scroll_region(n, faux);
+                term_buffer__set_coord();
+                sctop = old_top;
+                coord.x = 0;
             }
         }
-        //void test_basis(face& canvas)
-        //{
-        //    para p{ansi::bgc(redlt).add(" ").nil()};
-        //    auto coor = twod{ 0, basis };
-        //    maker.ac(coor);
-        //    maker.go(p, canvas);
-        //}
-        // rods: Remove all lines below except the current. "ED2 Erase viewport" keeps empty lines.
-        void del_below()
+        void dl_imp(iota n)
         {
-            //todo don't delete futures
-            pop_lines(batch.length() - 1 - batch.index());
-            add_lines(panel.y - 1 - coord.y);
-            auto& curln = batch.current();
-            curln.trimto(index[coord.y].start + coord.x);
-            index_rebuild();
-        }
-        void clear_above(ansi::mark const& brush)
-        {
-            // Clear all lines from the viewport top line to the current line.
-            dissect(0);
-            dissect(coord.y);
-            //move [coord.y, panel.y) to cache
-        //    auto back_index = batch.back().index;
-        //    auto block_size = back_index - index[coord.y].index + 1;
-        //    auto all_size = back_index - index[0].index + 1;
-        //    cache.reserve(block_size);
-        //    auto start = batch.end() - block_size;
-        //    netxs::move_block(start, batch.end(), cache.begin());
-        //    //pop upto index[0].index inclusive
-        //    pop_lines(all_size);
-        //    auto top_it = batch.end() - 1;
-        //    //push coord.y empty lines
-        //    //push cache.size lines
-        //    add_lines(coord.y + block_size);
-        //    //move back from cache [coord.y, panel.y)
-        //    netxs::move_block(cache.begin(), cache.end(), top_it + coord.y);
-        //    index_rebuild();
-            
-
-
-            //auto& topln = batch[get_line_index_by_id(index[0].index)];
-            //topln.trimto(index[0].start);
-
-            //auto begin = batch.begin();
-            //auto cur_index = batch.index();
-            ////auto top_index = get_line_index_by_id(batch[basis].bossid);
-            //auto under = begin + cur_index;
-            //auto top_index = std::max(0, cur_index - under->depth);
-            //auto upper = begin + top_index;
-            //auto count = (coord.y - basis) * panel.x + coord.x;
-            //auto start = (basis - top_index) * panel.x;
-            //do
-            //{
-            //    auto& lyric = *upper;
-            //    lyric.splice(start, count, brush.spare);
-            //    lyric.shrink(brush.spare);
-            //    start -= panel.x;
-            //}
-            //while(upper++ != under);
-        }
-        // rods: For bug testing purposes.
-        auto get_content()
-        {
-            text yield;
-            auto i = 0;
-            for(auto& l : batch)
+            /* Works only if cursor is in the scroll region.
+            * Deletes n lines at the current row and add n lines at the scroll bottom.
+            */
+            auto[top, end] = get_scroll_region();
+            if (n > 0 && coord.y >= top && coord.y <= end)
             {
-                yield += "\n =>" + std::to_string(i++) + "<= ";
-                l.each([&](cell& c) { yield += c.txt(); });
-            }
-            return yield;
-        }
-        // rods: Dissect auto-wrapped lines at the specified iterator.
-        void dissect(iota y_pos)
-        {
-            if (y_pos >= panel.y) throw;
-
-            auto& linid = index[y_pos];
-            if (linid.start == 0) return;
-
-            auto temp = std::move(batch.current());
-            batch.insert(temp.index, temp.style);
-            auto curit = batch.current_it();
-            auto head = curit;
-            auto tail = batch.end();
-            do ++head++->index;
-            while(head != tail);
-
-            auto& newln = *curit;
-            newln.splice(0, temp.substr(linid.start));
-            batch.recalc(newln);
-            if (curit != batch.begin())
-            {
-                --curit;
-                auto& curln = *curit;
-                curln = std::move(temp);
-                batch.undock(curln);
-                curln.trimto(linid.start);
-                batch.recalc(curln);
-            }
-            index_rebuild();
-        }
-        // rods: Dissect auto-wrapped line at the current coord.
-        void dissect()
-        {
-            dissect(coord.y);
-        }
-        template<class SRC>
-        void zeroise(SRC begin_it, SRC end_it)
-        {
-            while(begin_it != end_it)
-            {
-                auto& curln = *begin_it;
-                batch.undock(curln);
-                curln.wipe();
-                ++begin_it;
+                term_buffer__dissect();
+                auto old_top = sctop;
+                sctop = coord.y + 1;
+                term_buffer__scroll_region(-n, faux);
+                term_buffer__set_coord();
+                sctop = old_top;
             }
         }
-        // rods: Shift by n the scroll region.
-        void scroll_region(iota n, bool use_scrollback)
+        void ri_imp()
         {
             /*
-            if (n)
+                * Reverse index
+                * - move cursor one line up if it is outside of scrolling region or below the top line of scrolling region.
+                * - one line scroll down if cursor is on the top line of scroll region.
+                */
+            auto[top, end] = get_scroll_region();
+            if (coord.y != top)
             {
-                auto[top, end] = get_scroll_region();
-                auto nul_it = batch.begin();
-                auto all_it = nul_it + basis;
-                auto end_it = nul_it + end;
-                auto top_it = nul_it + top;
-                auto top_id = std::max(0, basis - all_it->depth);
-                auto height = end - top + 1;
-                auto footer = batch.end() - end_it - 1;
-                if (footer < 0)
-                {
-                    add_lines(-footer);
-                    footer = 0;
-                }
-                if (n > 0) // Scroll down (move text block down).
-                {
-                    n = std::min(n, height);
-                    auto a = top_it - 1;
-                    auto b = end_it - n;
-                    auto c = end_it + 1;
-                    dissect(b + 1);
-                    dissect(top_it);
-                    if (footer) dissect(c);
-                    zeroise(b + 1, c);
-                    netxs::move_block(b, a, end_it);
-                    zeroise(top_it, top_it + n);
-                }
-                else // Scroll up (move text block up).
-                {
-                    n = std::min(-n, height);
-                    auto a = top_it + n;
-                    if (use_scrollback)
-                    {
-                        if (top)
-                        {
-                            auto buffer = cache.begin();
-                            if (basis) dissect(all_it);
-                            dissect(top_it);
-                            dissect(a);
-                            netxs::move_block(all_it, top_it,       buffer    ); // Move fixed header block to the temporary cache.
-                            netxs::move_block(top_it, a,            all_it    ); // Move up by the "top" the first n lines of scrolling region.
-                            netxs::move_block(buffer, buffer + top, all_it + n); // Move back fixed header block from the temporary cache.
-                        }
-                        add_lines(n);
-                        auto c = batch.end() - 1;
-                        auto b = c - n;
-                        auto d = b - footer;
-                        dissect(d + 1);
-                        netxs::move_block(b, d, c); // Move down footer block by n.
-                    }
-                    else
-                    {
-                        auto b = end_it + 1;
-                        dissect(a);
-                        if (footer) dissect(b);
-                        zeroise(top_it, a);
-                        netxs::move_block(a, b, top_it);
-                    }
-                }
+                coord.y--;
             }
-            */
+            else term_buffer__scroll_region(1, true);
+            term_buffer__set_coord();
         }
-        // rods: Trim all autowrap lines by the specified size.
-        void trim_to_size(twod const& new_sz)
+        void tab_imp(iota n, cell const& brush)
         {
-            resize<faux>(new_sz.y);
-
-            /*
-            auto head = batch.begin() + basis;
-            auto tail = batch.end() - std::max(0, panel.y - new_size.y);
-            if (new_size.x < panel.x)
+            if (n > 0)
             {
-                while (tail != head)
-                {
-                    dissect(--tail);
-                    auto& curln = *tail;
-                    if (curln.style.wrp() == wrap::on)
-                    {
-                        curln.trimto(new_size.x);
-                        batch.recalc(curln);
-                    }
-                }
+                auto a = n * tabstop - coord.x % tabstop;
+                term_buffer__ech_autogrow(a, brush);
             }
-            else while (--tail != head) dissect(tail);
-            */
+            else if (n < 0)
+            {
+                n = -n - 1;
+                auto a = n * tabstop + coord.x % tabstop;
+                coord.x = std::max(0, coord.x - a);
+                term_buffer__set_coord();
+            }
         }
     };
 
@@ -1347,7 +226,7 @@ namespace netxs::app
 
 public:
         using events = netxs::events::userland::term;
-        using commands = rods::commands;
+        using commands = term_buffer::commands;
 
 private:
         // term: VT-mouse tracking functionality.
@@ -1634,8 +513,8 @@ private:
 
         // term: VT-behavior of the rods.
         struct scrollbuff
-            : public rods,
-              public ansi::parser
+            : public ansi::parser,
+              public term_buffer
         {
             template<class T>
             static void parser_config(T& vt)
@@ -1720,13 +599,9 @@ private:
             }
 
             term& boss;
-            //todo magic numbers
-            static constexpr iota default_tabstop = 8;
-            iota tabstop = default_tabstop; // scrollbuff: Tabstop current value.
 
-            scrollbuff(term& boss, iota max_scrollback_size, iota grow_step = 0)
-                : rods(max_scrollback_size, grow_step),
-                  boss{ boss }
+            scrollbuff(term& boss)
+                : boss{ boss }
             {
                 parser::style = ansi::def_style;
             }
@@ -1747,13 +622,7 @@ private:
             }
             void meta(deco const& old_style) override
             {
-                dissect();
-                auto& curln = batch.current();
-                if (curln.style != parser::style)
-                {
-                    curln.style = parser::style;
-                    batch.recalc(curln);
-                }
+                term_buffer__meta(parser::style);
                 if (parser::style.wrp() != old_style.wrp())
                 {
                     auto status = parser::style.wrp() == wrap::none ? WRAPPING
@@ -1769,7 +638,7 @@ private:
             }
             void data(grid& proto, iota width) override
             { 
-                proceed(proto, width);
+                term_buffer__proceed(proto, width);
             }
 
             template<class T>
@@ -1794,116 +663,71 @@ private:
             }
             void clear_all()
             {
-                rods::clear_all();
+                term_buffer__clear_all();
                 parser::state = {};
             }
             // scrollbuff: ESC H  Place tabstop at the current cursor posistion.
             void stb()
             {
                 parser::flush();
-                tabstop = std::max(1, coord.x + 1);
+                term_buffer::tabstop = std::max(1, term_buffer::coord.x + 1);
             }
             // scrollbuff: TAB  Horizontal tab.
             void tab(iota n)
             {
                 parser::flush();
-                if (n > 0)
-                {
-                    auto a = n * tabstop - coord.x % tabstop;
-                    ech_imp<true>(a, brush);
-                }
-                else if (n < 0)
-                {
-                    n = -n - 1;
-                    auto a = n * tabstop + coord.x % tabstop;
-                    coord.x = std::max(0, coord.x - a);
-                    set_coord();
-                }
+                term_buffer::tab_imp(n, brush);
             }
             // scrollbuff: CSI n g  Reset tabstop value.
             void tbc(iota n)
             {
-                tabstop = default_tabstop;
+                parser::flush();
+                term_buffer::tabstop = term_buffer::default_tabstop;
             }
             // scrollbuff: ESC 7 or CSU s  Save cursor position.
             void scp()
             {
                 parser::flush();
-                saved = coord;
+                term_buffer::saved = term_buffer::coord;
             }
             // scrollbuff: ESC 8 or CSU u  Restore cursor position.
             void rcp()
             {
                 parser::flush();
-                coord = saved;
-                set_coord();
+                term_buffer::coord = term_buffer::saved;
+                term_buffer__set_coord();
             }
             // scrollbuff: CSI n T/S  Scroll down/up, scrolled up lines are pushed to the scrollback buffer.
             void scl(iota n)
             {
                 parser::flush();
-                scroll_region(n, n > 0 ? faux : true);
-                set_coord();
+                term_buffer__scroll_region(n, n > 0 ? faux : true);
+                term_buffer__set_coord();
             }
             // scrollbuff: CSI n L  Insert n lines. Place cursor to the begining of the current.
             void il(iota n)
             {
-               /* Works only if cursor is in the scroll region.
-                * Inserts n lines at the current row and removes n lines at the scroll bottom.
-                */
                 parser::flush();
-                auto[top, end] = get_scroll_region();
-                if (n > 0 && coord.y >= top && coord.y <= end)
-                {
-                    auto old_top = sctop;
-                    sctop = coord.y + 1;
-                    scroll_region(n, faux);
-                    sctop = old_top;
-                    coord.x = 0;
-                    set_coord();
-                }
+                term_buffer::il_imp(n);
             }
             // scrollbuff: CSI n M Delete n lines. Place cursor to the begining of the current.
             void dl(iota n)
             {
-               /* Works only if cursor is in the scroll region.
-                * Deletes n lines at the current row and add n lines at the scroll bottom.
-                */
                 parser::flush();
-                auto[top, end] = get_scroll_region();
-                if (n > 0 && coord.y >= top && coord.y <= end)
-                {
-                    dissect();
-                    auto old_top = sctop;
-                    sctop = coord.y + 1;
-                    scroll_region(-n, faux);
-                    sctop = old_top;
-                    set_coord();
-                }
+                term_buffer::dl_imp(n);
             }
             // scrollbuff: ESC M  Reverse index.
             void ri()
             {
-                /*
-                 * Reverse index
-                 * - move cursor one line up if it is outside of scrolling region or below the top line of scrolling region.
-                 * - one line scroll down if cursor is on the top line of scroll region.
-                 */
                 parser::flush();
-                auto[top, end] = get_scroll_region();
-                if (coord.y != top)
-                {
-                    coord.y--;
-                }
-                else scroll_region(1, true);
-                set_coord();
+                term_buffer::ri_imp();
             }
             // scrollbuff: CSI t;b r - Set scrolling region (t/b: top+bottom).
             void scr(fifo& queue)
             {
                 auto top = queue(0);
                 auto end = queue(0);
-                set_scroll_region(top, end);
+                term_buffer__set_scroll_region(top, end);
             }
             // scrollbuff: CSI n @  Insert n blanks after cursor. Don't change cursor pos.
             void ich(iota n)
@@ -1914,7 +738,7 @@ private:
                 *   Existing chars after cursor shifts to the right.
                 */
                 parser::flush();
-                ins_imp(n, brush);
+                term_buffer__ins(n, brush);
             }
             // scrollbuff: Shift left n columns(s).
             void shl(iota n)
@@ -1924,13 +748,13 @@ private:
             void ech(iota n)
             {
                 parser::flush();
-                ech_imp(n, brush);
+                term_buffer__ech_fixed(n, brush);
             }
             // scrollbuff: CSI n P  Delete (not Erase) letters under the cursor.
             void dch(iota n)
             {
                 parser::flush();
-                dch_imp(n, brush);
+                term_buffer__dch(n, brush);
             }
             // scrollbuff: '\x7F'  Delete characters backwards.
             void del(iota n)
@@ -1941,22 +765,22 @@ private:
             void cuf(iota n)
             {
                 parser::flush();
-                coord.x += n;
-                set_coord();
+                term_buffer::coord.x += n;
+                term_buffer__set_coord();
             }
             // scrollbuff: CSI n G  Absolute horizontal cursor position (1-based).
             void chx(iota n)
             {
                 parser::flush();
-                coord.x = n - 1;
-                set_coord();
+                term_buffer::coord.x = n - 1;
+                term_buffer__set_coord();
             }
             // scrollbuff: CSI n d  Absolute vertical cursor position (1-based).
             void chy(iota n)
             {
                 parser::flush();
-                coord.y = n - 1;
-                set_coord();
+                term_buffer::coord.y = n - 1;
+                term_buffer__set_coord();
             }
             // scrollbuff: CSI y; x H/F  Caret position (1-based).
             void cup(fifo& queue)
@@ -1965,42 +789,28 @@ private:
                 auto y = queue(1);
                 auto x = queue(1);
                 auto p = twod{ x, y };
-                coord = std::clamp(p, dot_11, panel);
-                coord-= dot_11;
-                set_coord();
+                auto c = std::clamp(p, dot_11, term_buffer::panel) - dot_11;
+                term_buffer::set_coord(c);
             }
             // scrollbuff: Line reverse feed (move cursor up).
             void up(iota n)
             {
                 parser::flush();
-                coord.y -= n;
-                set_coord();
+                term_buffer::coord.y -= n;
+                term_buffer__set_coord();
             }
             // scrollbuff: Line feed (move cursor down).
             void dn(iota n)
             {
                 parser::flush();
-                // Scroll regions up if coord.y == scend and scroll region are defined.
-                auto[top, end] = get_scroll_region();
-                if (n > 0 && scroll_region_used() && coord.y    <= end
-                                                  && coord.y + n > end)
-                {
-                    n -= end - coord.y;
-                    coord.y = end;
-                    scroll_region(-n, true);
-                }
-                else
-                {
-                    coord.y += n;
-                }
-                set_coord();
+                term_buffer::dn_imp(n);
             }
             // scrollbuff: '\r'  Go to home of visible line instead of home of para.
             void home()
             {
                 parser::flush();
-                coord.x = 0;
-                set_coord();
+                term_buffer::coord.x = 0;
+                term_buffer__set_coord();
             }
             // scrollbuff: CSI n J  Erase display.
             void ed(iota n)
@@ -2009,17 +819,17 @@ private:
                 switch (n)
                 {
                     case commands::erase::display::below: // n = 0 (default)  Erase viewport after cursor.
-                        del_below();
+                        term_buffer__del_below();
                         break;
                     case commands::erase::display::above: // n = 1  Erase viewport before cursor.
-                        clear_above(brush);
+                        term_buffer__clear_above(brush);
                         break;
                     case commands::erase::display::viewport: // n = 2  Erase viewport.
-                        set_coord(dot_00);
+                        term_buffer::set_coord(dot_00);
                         ed(commands::erase::display::below);
                     break;
                     case commands::erase::display::scrollback: // n = 3  Erase scrollback.
-                        clear_all();
+                        term_buffer__clear_all();
                     break;
                     default:
                         break;
@@ -2029,7 +839,7 @@ private:
             void el(iota n)
             {
                 parser::flush();
-                el_imp(n, brush);
+                term_buffer__el(n, brush);
             }
 
             struct info
@@ -2059,16 +869,1427 @@ private:
             bool update_status(info& status) const
             {
                 bool changed = faux;
-                if (status.size != batch.size) { changed = true; status.size = batch.size; }
-                if (status.peak != batch.peak) { changed = true; status.peak = batch.peak; }
-                if (status.step != batch.step) { changed = true; status.step = batch.step; }
-                if (status.area != panel     ) { changed = true; status.area = panel;      }
+                if (status.size != term_buffer__get_batch_size()) { changed = true; status.size = term_buffer__get_batch_size(); }
+                if (status.peak != term_buffer__get_batch_peak()) { changed = true; status.peak = term_buffer__get_batch_peak(); }
+                if (status.step != term_buffer__get_batch_step()) { changed = true; status.step = term_buffer__get_batch_step(); }
+                if (status.area != term_buffer__get_panel_size()) { changed = true; status.area = term_buffer__get_panel_size(); }
                 return changed;
             }
-        }
-        normal, // term: Normal screen buffer.
-        altbuf, // term: Alternate screen buffer.
-       *target; // term: Current screen buffer pointer.
+        };
+
+        class alt_screen
+            : public scrollbuff
+        {
+            rich canvas;
+
+        public:
+            alt_screen(term& boss)
+                : scrollbuff{ boss }
+            { }
+
+            iota term_buffer__get_batch_size() const override { return panel.y; }
+            iota term_buffer__get_batch_peak() const override { return panel.y; }
+            iota term_buffer__get_batch_step() const override { return 0;       }
+
+            iota term_buffer__resize_viewport(twod const& new_sz) override
+            {
+                panel = std::max(new_sz, dot_11);
+                coord = std::clamp(coord, dot_00, panel - dot_11);
+                canvas.crop(panel);
+                return 0;
+            }
+            iota term_buffer__height() override
+            {
+                return panel.y;
+            }
+            void term_buffer__dissect() override
+            { }
+            bool term_buffer__recalc_pads(side& oversz) override
+            {
+                auto left = 0;
+                auto rght = 0;
+                if (oversz.r != rght || oversz.l != left)
+                {
+                    oversz.r = rght;
+                    oversz.l = left;
+                    return true;
+                }
+                else return faux;
+            }
+            // alt_screen: Return current 0-based cursor position in the viewport.
+            twod term_buffer__get_coord() override
+            {
+                return coord;
+            }
+            // alt_screen: Map the current cursor position to the scrollback.
+            void term_buffer__set_coord() override
+            {
+                //canvas.cup(coord);
+            }
+            void term_buffer__meta(deco const& parser_style) override
+            {
+                //canvas.set_style(parser_style);
+            }
+            void term_buffer__el(iota n, cell const& brush) override
+            {
+                //iota  start;
+                //iota  count;
+                //auto  caret = std::max(0, batch.caret); //todo why?
+                //auto& curln = batch.current();
+                //auto  width = curln.length();
+                //auto  wraps = curln.wrapped();
+                //switch (n)
+                //{
+                //    default:
+                //    case commands::erase::line::right: // n = 0 (default)  Erase to Right.
+                //        start = caret;
+                //        count = wraps ? coord.x == panel.x ? 0 : panel.x - (caret + panel.x) % panel.x
+                //                    : std::max(0, std::max(panel.x, width) - caret);
+                //        break;
+                //    case commands::erase::line::left: // n = 1  Erase to Left.
+                //        start = wraps ? caret - caret % panel.x
+                //                    : 0;
+                //        count = caret - start;
+                //        break;
+                //    case commands::erase::line::all: // n = 2  Erase All.
+                //        start = wraps ? caret - caret % panel.x
+                //                    : 0;
+                //        count = wraps ? panel.x
+                //                    : std::max(panel.x, batch->length());
+                //        break;
+                //}
+                //if (count)
+                //{
+                //    //auto blank = cell{ brush }.txt(' ');
+                //    auto blank = cell{ brush }.bgc(greendk).bga(0x7f).txt(' ');
+                //    //todo check_autogrow
+                //    curln.splice<true>(start, count, blank);
+                //    //batch->shrink(blank);
+                //batch.recalc(curln);
+                //}
+            }
+            void term_buffer__ins(iota n, cell const& brush) override
+            {
+                //auto& curln = batch.current();
+                ////todo check_autogrow
+                //curln.insert(batch.caret, n, brush);
+                //batch.recalc(curln);
+            }
+            template<bool AUTO_GROW = faux>
+            void _ech_imp(iota n, cell const& brush)
+            {
+                //auto& curln = batch.current();
+                //if constexpr (AUTO_GROW)
+                //{
+                //    //todo check_autogrow
+                //    curln.splice<true>(batch.caret, n, brush);
+                //}
+                //else curln.splice(batch.caret, n, brush);
+                //batch.recalc(curln);
+            }
+            void term_buffer__ech_autogrow(iota n, cell const& brush) override
+            {
+                //_ech_imp<true>(n, brush);
+            }
+            void term_buffer__ech_fixed(iota n, cell const& brush) override
+            {
+                //_ech_imp<faux>(n, brush);
+            }
+            void term_buffer__dch(iota n, cell const& brush) override
+            {
+                //auto& cur_ln = batch.current();
+                //cur_ln.cutoff(batch.caret, n, brush, panel.x);
+                //batch.recalc(cur_ln);
+            }
+            void term_buffer__proceed(grid& proto, iota shift) override
+            {
+                //todo output directly to the canvas
+                canvas.splice(coord.x, proto, shift);
+                coord.x += shift;
+                if (style.wrp() == wrap::on)
+                {
+                    auto old = coord.y;
+                    coord.y += coord.x / panel.x;
+                    coord.x %= panel.x;
+                    if (coord.x == 0)
+                    {
+                        coord.y--;
+                        coord.x = panel.x;
+                    }
+
+                    //todo scrolling regions
+
+                    //canvas.splice(coord, proto, shift);
+                }
+                else
+                {
+                    //canvas.splice(coord, proto, shift);
+                    //todo output directly to the canvas
+                }
+
+            }
+            void term_buffer__clear_all() override
+            {
+                saved = dot_00;
+                coord = dot_00;
+                basis = 0;
+                canvas.wipe();
+                //...
+            }
+            void term_buffer__output(face& parent_canvas) override
+            {
+                auto full = parent_canvas.full();
+                canvas.move(full.coor);
+                parent_canvas.plot(canvas, cell::shaders::fuse);
+            }
+            // alt_screen: Remove all lines below except the current. "ED2 Erase viewport" keeps empty lines.
+            void term_buffer__del_below() override
+            {
+                //todo don't delete futures
+            }
+            void term_buffer__clear_above(ansi::mark const& brush) override
+            {
+                // Clear all lines from the viewport top line to the current line.
+            }
+            // alt_screen: Shift by n the scroll region.
+            void term_buffer__scroll_region(iota n, bool use_scrollback) override
+            {
+                //...
+            }
+        };
+
+        // terminal: Scrollback buffer internals.
+        class scrollback
+            : public scrollbuff
+        {
+            struct line
+                : public rich
+            {
+                using rich::rich;
+                using type = deco::type;
+                using id_t = ui32;
+
+                line(line&& l)
+                    : rich { std::forward<rich>(l) },
+                      index{ l.index }
+                {
+                    style = l.style;
+                    _size = l._size;
+                    _kind = l._kind;
+                    l._size = {};
+                    l._kind = {};
+                }
+                line(line const& l)
+                    : rich { l       },
+                      index{ l.index },
+                      style{ l.style }
+                { }
+                line(id_t newid, deco const& style = {})
+                    : index{ newid },
+                      style{ style }
+                { }
+                line& operator = (line&&)      = default;
+                line& operator = (line const&) = default;
+
+                id_t index{};
+                ui64 accum{};
+                deco style{};
+                iota _size{};
+                type _kind{};
+
+                friend void swap(line& lhs, line& rhs)
+                {
+                    std::swap<rich>(lhs, rhs);
+                    std::swap(lhs.index, rhs.index);
+                    std::swap(lhs.style, rhs.style);
+                    std::swap(lhs._size, rhs._size);
+                    std::swap(lhs._kind, rhs._kind);
+                }
+                void wipe()
+                {
+                    rich::kill();
+                    _size = {};
+                    _kind = {};
+                }
+                iota height(iota width) const
+                {
+                    auto len = length();
+                    return len > width
+                        && style.wrp() == wrap::on ? (len + width - 1) / width
+                                                   : 1;
+                }
+                auto wrapped() { return _kind == type::autowrap; }
+            };
+            struct index_item
+            {
+                using id_t = line::id_t;
+                id_t index;
+                iota start;
+                iota width;
+                index_item() = default;
+                index_item(id_t index, iota start, iota width)
+                    : index{ index },
+                    start{ start },
+                    width{ width }
+                { }
+            };
+
+            using vect = std::vector<line>;
+            using ring = generics::ring<vect, true>;
+            using indx = generics::ring<std::vector<index_item>>;
+
+            struct buff : public ring
+            {
+                using ring::ring;
+                using type = line::type;
+
+                iota caret{};
+                iota vsize{};
+                iota width{};
+                id_t taken{};
+                ui64 accum{};
+                bool dirty{};
+
+                static constexpr id_t threshold = 1000;
+                static constexpr ui64 lnpadding = 40; // Padding to improve accuracy.
+
+                //todo optimize for large lines, use std::unordered_map<iota, iota>
+                struct maxs : public std::vector<iota>
+                {
+                    iota max = 0;
+                    maxs() : std::vector<iota>(1) { }
+                    void prev_max() { while(max > 0 && !at(--max)); }
+                }
+                lens[type::count];
+
+                void dec_height(type kind, iota size)
+                {
+                    if (size > width && kind == type::autowrap) vsize -= (size + width - 1) / width;
+                    else                                        vsize -= 1;
+                    //log("dec h=", vsize, " kind=", kind, " linesize=", size);
+                }
+                void add_height(type kind, iota size)
+                {
+                    if (size > width && kind == type::autowrap) vsize += (size + width - 1) / width;
+                    else                                        vsize += 1;
+                    //log("add h=", vsize, " kind=", kind, " linesize=", size);
+                }
+                // buff: Recalc the height for unlimited scrollback without using reflow.
+                void set_width(iota new_width)
+                {
+                    //log("set_width new_width=", new_width);
+                    vsize = 0;
+                    width = std::max(1, new_width);
+                    for (auto kind : { type::leftside,
+                                    type::rghtside,
+                                    type::centered })
+                    {
+                        auto& cur_lens = lens[kind];
+                        auto head = cur_lens.begin();
+                        auto tail = head + cur_lens.max + 1;
+                        do vsize += *head++;
+                        while(head != tail);
+                    }
+                    auto kind = type::autowrap;
+                    auto& cur_lens = lens[kind];
+                    auto head = cur_lens.begin();
+                    auto tail = head + cur_lens.max + 1;
+                    auto c = 0;
+                    auto h = 1;
+                    //auto i = 0;
+                    do
+                    {
+                        if (auto count = *head++) vsize += h * count;
+                        if (++c > width)
+                        {
+                            c = 1;
+                            ++h;
+                        }
+                    }
+                    while(head != tail);
+                    //log(" set_width done ", " h=", vsize);
+                }
+
+                void invite(type& kind, iota& size, type new_kind, iota new_size)
+                {
+                    //log(" invite kind=", new_kind, " new_size=", new_size);
+                    auto& new_lens = lens[new_kind];
+                    if (new_lens.size() <= new_size) new_lens.resize(new_size * 2 + 1);
+
+                    ++new_lens[new_size];
+                    add_height(new_kind, new_size);
+                    if (new_lens.max < new_size) new_lens.max = new_size;
+
+                    size = new_size;
+                    kind = new_kind;
+                }
+                void recalc(type& kind, iota& size, type new_kind, iota new_size)
+                {
+                    if (size != new_size || kind != new_kind)
+                    {
+                        auto& new_lens = lens[new_kind];
+                        if (new_lens.size() <= new_size) new_lens.resize(new_size * 2 + 1);
+
+                        if (new_size < size) undock(kind, size);
+                        else
+                        {
+                            --lens[kind][size];
+                            dec_height(kind, size);
+                        }
+
+                        ++new_lens[new_size];
+                        add_height(new_kind, new_size);
+                        if (new_lens.max < new_size) new_lens.max = new_size;
+
+                        size = new_size;
+                        kind = new_kind;
+                    }
+                }
+                void undock(type kind, iota size)
+                {
+                    auto& cur_lens =       lens[kind];
+                    auto cur_count = --cur_lens[size];
+                    if (size == cur_lens.max && cur_count == 0)
+                    {
+                        cur_lens.prev_max();
+                    }
+                    dec_height(kind, size);
+                }
+                template<class ...Args>
+                auto& invite(Args&&... args)
+                {
+                    dirty = true;
+                    auto& l = ring::push_back(std::forward<Args>(args)...);
+                    invite(l._kind, l._size, l.style.get_kind(), l.length());
+                    return l;
+                }
+                void undock(line& l) override { undock(l._kind, l._size); }
+                template<auto N> auto max() { return lens[N].max; }
+                auto index_by_id(ui32 id)
+                {
+                    //No need to disturb distant objects, it may already be in the swap.
+                    //return static_cast<iota>(id - batch.front().index); // ring buffer size is never larger than max_int32.
+                    auto count = length();
+                    return static_cast<iota>(count - 1 - (back().index - id)); // ring buffer size is never larger than max_int32.
+                }
+                auto& item_by_id(ui32 id)
+                {
+                    return ring::at(index_by_id(id));
+                }
+                void recalc_size(iota taken_index)
+                {
+                    auto head = begin() + std::max(0, taken_index);
+                    auto tail = end();
+                    auto& curln = *head;
+                    auto accum = curln.accum;
+                    //auto i = 0;
+                    //log("  i=", i++, " curln.accum=", accum);
+                    accum += curln.length() + lnpadding;
+                    while(++head != tail)
+                    {
+                        auto& curln = *head;
+                        curln.accum = accum;
+                        //log("  i=", i++, " curln.accum=", accum);
+                        accum += curln.length() + lnpadding;
+                    }
+                    dirty = faux;
+                    //log( " recalc_size taken_index=", taken_index);
+                }
+                auto get_size_in_cells()
+                {
+                    auto& endln = back();
+                    auto& endid = endln.index;
+                    auto count = length();
+                    auto taken_index = static_cast<iota>(count - 1 - (endid - taken));
+                    if (taken != endid || dirty)
+                    {
+                        auto& topln = front();
+                        recalc_size(taken_index);
+                        taken = endln.index;
+                        accum = endln.accum
+                            + endln.length() + lnpadding
+                            - topln.accum;
+                        //log(" topln.accum=", topln.accum,
+                        //    " endln.accum=", endln.accum,
+                        //    " vsize=", vsize,
+                        //    " accum=", accum);
+                    }
+                    return accum;
+                }
+                void recalc(line& l)
+                {
+                    recalc(l._kind, l._size, l.style.get_kind(), l.length());
+                    dirty = true;
+                    auto taken_index = index_by_id(taken);
+                    auto curln_index = index_by_id(l.index);
+                    if (curln_index < taken_index)
+                    {
+                        taken = l.index;
+                        taken_index = curln_index;
+                    }
+                    if (ring::size - taken_index > threshold)
+                    {
+                        recalc_size(taken_index);
+                        taken = back().index;
+                    }
+                }
+            };
+
+            // For debug
+            friend auto& operator<< (std::ostream& s, scrollback& c)
+            {
+                return s << "{ " << c.batch.max<line::type::leftside>() << ","
+                                << c.batch.max<line::type::rghtside>() << ","
+                                << c.batch.max<line::type::centered>() << ","
+                                << c.batch.max<line::type::autowrap>() << " }";
+            }
+
+        //protected:
+        public:
+            buff batch; // scrollback: Rods inner container.
+            flow maker; // scrollback: . deprecated
+            vect cache; // scrollback: Temporary line container.
+            indx index; // scrollback: Viewport line index.
+            iota vsize; // scrollback: Scrollback vertical size (height).
+
+            scrollback(term& boss, iota buffer_size, iota grow_step)
+                : scrollbuff{ boss },
+                  batch{ buffer_size, grow_step   },
+                  maker{ batch.width, batch.vsize },
+                  index{ 1                        },
+                  vsize{ 1                        }
+            {
+                batch.invite(0); // At least one line must exist.
+                batch.set_width(1);
+                index_rebuild();
+            }
+            iota term_buffer__get_batch_size() const override { return batch.size; }
+            iota term_buffer__get_batch_peak() const override { return batch.peak; }
+            iota term_buffer__get_batch_step() const override { return batch.step; }
+
+            void print_index(text msg)
+            {
+                log(" ", msg, " index.size=", index.size);
+                for (auto n = 0; auto l : index)
+                    log("  ", n++,". id=", l.index," offset=", l.start, " width=", l.width);
+                log(" -----------------");
+            }
+            //scrollback: Return viewport vertical oversize.
+            iota term_buffer__resize_viewport(twod const& new_sz) override
+            {
+                panel = new_sz;
+                batch.set_width(panel.x);
+                index.clear();
+                index.resize(panel.y); // Use a fixed ring because new lines are added much more often than a futures feed.
+                basis = batch.vsize;
+                auto lnid = batch.current().index;
+                auto head = batch.end();
+                auto size = batch.length();
+                auto maxn = size - batch.index();
+                auto tail = head - std::max(maxn, std::min(size, panel.y));
+                auto push = [&](auto i, auto o, auto r) { --basis; index.push_front(i, o, r); };
+                auto unknown = true;
+                while(head != tail && (index.size < panel.y || unknown))
+                {
+                    auto& curln = *--head;
+                    auto length = curln.length();
+                    auto active = curln.index == lnid;
+                    if (curln.wrapped())
+                    {
+                        auto offset = length;
+                        auto remain = length ? (length - 1) % panel.x + 1
+                                             : 0;
+                        do
+                        {
+                            offset -= remain;
+                            push(curln.index, offset, remain);
+                            if (unknown && active && offset <= batch.caret)
+                            {
+                                auto eq = batch.caret && length == batch.caret;
+                                unknown = faux;
+                                coord.y = index.size;
+                                coord.x = eq ? (batch.caret - 1) % panel.x + 1
+                                             :  batch.caret      % panel.x;
+                            }
+                            remain = panel.x;
+                        }
+                        while(offset > 0 && (index.size < panel.y || unknown));
+                    }
+                    else
+                    {
+                        push(curln.index, 0, length);
+                        if (active)
+                        {
+                            unknown = faux;
+                            coord.y = index.size;
+                            coord.x = batch.caret;
+                        }
+                    }
+                }
+                coord.y = index.length() - coord.y;
+                assert(basis >= 0);
+                //log(" viewport_offset=", basis);
+                print_index("full resize viewport");
+                return std::max(0, batch.vsize - (basis + panel.y));
+            }
+            void index_rebuild()
+            {
+                index.clear();
+                auto coor = batch.vsize;
+                auto head = batch.end();
+                while(coor != basis)
+                {
+                    auto& curln = *--head;
+                    auto length = curln.length();
+                    if (curln.wrapped())
+                    {
+                        auto remain = length ? (length - 1) % panel.x + 1 : 0;
+                        length -= remain;
+                        index.push_front(curln.index, length, remain);
+                        --coor;
+                        while(length > 0 && coor != basis)
+                        {
+                            length -= panel.x;
+                            index.push_front(curln.index, length, panel.x);
+                            --coor;
+                        }
+                    }
+                    else
+                    {
+                        index.push_front(curln.index, 0, length);
+                        --coor;
+                    }
+                }
+
+                print_index("rebuild viewport");
+            }
+            iota term_buffer__height() override
+            {
+                auto test_vsize = 0; //sanity check
+                for (auto& l : batch) test_vsize += l.height(panel.x);
+                if (test_vsize != batch.vsize) log(" ERROR! test_vsize=", test_vsize, " vsize=", batch.vsize);
+                return batch.vsize;
+            }
+            bool term_buffer__recalc_pads(side& oversz) override
+            {
+                auto left = std::max(0, batch.max<line::type::rghtside>() - panel.x);
+                auto rght = std::max(0, batch.max<line::type::leftside>() - panel.x);
+                auto cntr = std::max(0, batch.max<line::type::centered>() - panel.x);
+                auto both = cntr >> 1;
+                left = std::max(left, both);
+                rght = std::max(rght, both + (cntr & 1));
+                if (oversz.r != rght || oversz.l != left)
+                {
+                    oversz.r = rght;
+                    oversz.l = left;
+                    return true;
+                }
+                else return faux;
+            }
+            // scrollback: Return current 0-based cursor position in the viewport.
+            twod term_buffer__get_coord() override
+            {
+                auto coor = coord;
+                coor.y += basis;
+                auto& curln = batch.current();
+                auto  align = curln.style.jet();
+                if (align == bias::left || align == bias::none) return coor;
+                auto remain = index[coord.y].width;
+                if (remain == panel.x && curln.wrapped()) return coor;
+                if    (align == bias::right )  coor.x += panel.x     - remain - 1;
+                else /*align == bias::center*/ coor.x += panel.x / 2 - remain / 2;
+                return coor;
+            }
+
+            // scrollback: Set the scrolling region using 1-based top and bottom. Use 0 to reset.
+            void term_buffer__set_scroll_region(iota top, iota bottom) override
+            {
+                term_buffer::term_buffer__set_scroll_region(top, bottom);
+                cache.resize(std::max(0, top - 1));
+            }
+            void add_lines(iota amount)
+            {
+                assert(amount >= 0);
+                auto newid = batch.back().index;
+                auto style = batch->style;
+                auto n = amount;
+                while(n-- > 0)
+                {
+                    auto& l = batch.invite(++newid, style);
+                    index.push_back(l.index, 0, 0);
+                }
+            }
+            void pop_lines(iota amount)
+            {
+                assert(amount >= 0 && amount < batch.length());
+                while(amount--) batch.pop_back();
+                //todo partial rebuild
+                index_rebuild();
+            }
+            auto feed_futures()
+            {
+                auto future_length = batch.vsize - basis - index.size;
+                assert(future_length >= 0);
+                if (future_length > 0)
+                {
+                    log(" futures: future_length=", future_length);
+                    if (auto add_count = coord.y - (index.size - 1); //todo wrong
+                            add_count > 0)
+                    {
+                        log(" 1f. add_count=", add_count);
+                        auto step = future_length - add_count;
+                        if (step >= 0)
+                        {
+                            print_index("1. futures");
+
+                            basis += add_count;
+                            coord.y -= add_count;
+
+                            auto& map_last = index.back();
+                            auto  cur_it = batch.begin() + batch.index_by_id(map_last.index);
+                            auto& cur_ln = *cur_it;
+                            auto  length = cur_ln.length();
+                            auto  cindex = cur_ln.index;
+                            auto  offset = map_last.start + map_last.width;
+                            if (offset == length) // Go to the next line.
+                            {
+                                auto& cur_ln = *++cur_it;
+                                length = cur_ln.length();
+                                cindex = cur_ln.index;
+                                offset = 0;
+                            }
+                            while(true)
+                            {
+                                auto bottom = length - panel.x;
+                                while(offset < bottom && add_count-- > 0)
+                                {
+                                    log(" 1f. cindex=", cindex, " offset=", offset, " width=", panel.x);
+                                    index.push_back(cindex, offset, panel.x);
+                                    offset += panel.x;
+                                }
+                                log(" 2f. add_count=", add_count);
+                                if (add_count-- <= 0) break;
+                                log(" 2f. cindex=", cindex, " offset=", offset, " width=", length - offset);
+                                index.push_back(cindex, offset, length - offset);
+
+                                auto& cur_ln = *++cur_it;
+                                length = cur_ln.length();
+                                cindex = cur_ln.index;
+                                offset = 0;
+                            }
+
+                            print_index("2. futures");
+                            return 0;
+                        }
+                        else
+                        {
+
+                        }
+                    }
+                }
+                return coord.y - (batch.vsize - basis - 1);
+            }
+            // scrollback: Map the current cursor position to the scrollback.
+            void term_buffer__set_coord() override
+            {
+                auto style = batch->style;
+
+                if (coord.y <= 0)
+                {
+                    coord.y = 0;
+                }
+                else
+                {
+                    if (auto add_count = feed_futures();
+                            add_count > 0)
+                    {
+                        add_lines(add_count);
+                        auto maxy = panel.y - 1;
+                        auto dy = coord.y - maxy;
+                        if (dy > 0)
+                        {
+                            basis += dy;
+                            coord.y = maxy;
+                        }
+                    }
+                }
+
+                auto& map_ln = index[coord.y];
+                batch.index(batch.index_by_id(map_ln.index));
+                batch.caret = map_ln.start + coord.x;
+                batch->style = style;
+            }
+            void sync_coord()
+            {
+                auto& cur_ln = batch.current();
+                //auto& style = curln.style;
+                //auto  wraps = style.wrp();
+                //if (wraps == wrap::on || wraps == wrap::none)
+                if (cur_ln.wrapped())
+                {
+                    auto remain = index[coord.y].width;
+                    auto h = term_buffer__height();
+                    auto basis = std::max(0, h - panel.y);
+                    //...
+                }
+            }
+
+
+    /*
+            struct item_t
+            {
+                iota height;
+                iota offset;
+            };
+            struct viewport : public generics::ring<std::vector<item_t>, true>
+            {
+                using buff = rods::buff&;
+                buff batch;
+                flow& maker;
+                iota vsize;
+                twod panel;// panel.y = summ(lines)
+                iota basis;//=vertical pos in buff
+
+                iota vertical_offset{}; // vertical offset inside viewport (for double scroll position = { global_pos, viewport_pos })
+
+                viewport(rods::buff& batch, twod panel, flow& maker)
+                    : ring { panel.y, 0 },
+                    batch{ batch },
+                    panel{ panel },
+                    basis{ 0     },
+                    maker{ maker },
+                    vsize{ 0 }
+                { }
+                //auto count() { return ring::size; }
+                void rebuild()
+                {
+                    panel.y = 0;
+                    auto my_it = begin();
+                    auto proc = [&](auto&& l)
+                    {
+                        auto& item = *my_it++;
+                        item.offset = panel.y;
+                        item.height = l.height(panel.x);
+                        panel.y += item.height;
+                    };
+                    batch.for_each(basis, basis + ring::size, proc);
+                    vsize = batch.size - ring::size + panel.y;
+                }
+                template<bool BOTTOM_ANCHORED>
+                void resize(twod const& new_size)
+                {
+                    auto delta_y = new_size.y - ring::size;
+                    auto delta_x = new_size.x - panel.x;
+                    ring::resize<BOTTOM_ANCHORED>(new_size.y);
+                    if (delta_x)
+                    {
+                        panel.x = new_size.x;
+                    }
+                    if (delta_y > 0)
+                    {
+                        if constexpr (BOTTOM_ANCHORED)
+                        {
+                            basis -= delta_y;
+                            //push_front(from basis, n = - delta.y)
+                            //panel.y += summ(height);
+                        }
+                        else
+                        {
+                            //push_back(from basis + panel.y, n = delta.y)
+                            //panel.y += summ(height);
+                        }
+                    }
+                    rebuild();
+                }
+                void output(face& canvas)
+                {
+                    maker.reset(canvas);
+                    auto view = canvas.view();
+                    auto full = canvas.full();
+                    auto head = view.coor.y - full.coor.y;
+                    auto tail = head + panel.y;
+                    auto maxy = batch.max<line::autowrap>() / panel.x;
+                    head = std::clamp(head - maxy, 0, batch.size);
+                    tail = std::clamp(tail,        0, batch.size);
+                    auto coor = twod{ 0, tail };
+                    auto line_it = batch.begin() + coor.y;
+                    auto left_edge_x = view.coor.x;
+                    auto half_size_x = full.size.x / 2;
+                    auto left_rect = rect{{ left_edge_x, coor.y + full.coor.y }, dot_11 };
+                    auto rght_rect = left_rect;
+                    rght_rect.coor.x+= view.size.x - 1;
+                    auto rght_edge_x = rght_rect.coor.x + 1;
+                    //todo unify/optimize
+                    auto fill = [&](auto& area, auto chr)
+                    {
+                        if (auto r = view.clip(area))
+                            canvas.fill(r, [&](auto& c){ c.txt(chr).fgc(tint::greenlt); });
+                    };
+                    auto data_it = begin();
+                    while(coor.y != tail)
+                    {
+                        auto& curln = *line_it++;
+                        auto& curdt = *data_it++;
+                        coor.y += curdt.height;
+                        rght_rect.coor.y += curdt.height;
+                        maker.ac(coor);
+                        maker.go(curln, canvas);
+                    }
+                }
+                void rebase(iota new_basis)
+                {
+                    new_basis = std::max(0, new_basis);
+                    auto n = new_basis - basis;
+                        if (n > 0) movedn( n);
+                    else if (n < 0) moveup(-n);
+                }
+                void moveup(iota n)
+                {
+                    if (n > basis ) n = basis;
+                    basis -= n;
+                    //push_front(n);
+                }
+                void movedn(iota n)
+                {
+                    basis += n;
+                    //push_back(n);
+                }
+                void enlist(item_t& line)          { panel.y += line.height; }
+                void undock(item_t& line) override { panel.y -= line.height; }
+            };
+    */
+
+            void term_buffer__meta(deco const& parser_style) override
+            {
+                term_buffer__dissect();
+                auto& curln = batch.current();
+                if (curln.style != parser_style)
+                {
+                    curln.style = parser_style;
+                    batch.recalc(curln);
+                }  
+            }
+            void term_buffer__el(iota n, cell const& brush) override
+            {
+                iota  start;
+                iota  count;
+                auto  caret = std::max(0, batch.caret); //todo why?
+                auto& curln = batch.current();
+                auto  width = curln.length();
+                auto  wraps = curln.wrapped();
+                switch (n)
+                {
+                    default:
+                    case commands::erase::line::right: // n = 0 (default)  Erase to Right.
+                        start = caret;
+                        count = wraps ? coord.x == panel.x ? 0 : panel.x - (caret + panel.x) % panel.x
+                                    : std::max(0, std::max(panel.x, width) - caret);
+                        break;
+                    case commands::erase::line::left: // n = 1  Erase to Left.
+                        start = wraps ? caret - caret % panel.x
+                                    : 0;
+                        count = caret - start;
+                        break;
+                    case commands::erase::line::all: // n = 2  Erase All.
+                        start = wraps ? caret - caret % panel.x
+                                    : 0;
+                        count = wraps ? panel.x
+                                    : std::max(panel.x, batch->length());
+                        break;
+                }
+                if (count)
+                {
+                    //auto blank = cell{ brush }.txt(' ');
+                    auto blank = cell{ brush }.bgc(greendk).bga(0x7f).txt(' ');
+                    //todo check_autogrow
+                    curln.splice<true>(start, count, blank);
+                    //batch->shrink(blank);
+                batch.recalc(curln);
+                }
+            }
+            void term_buffer__ins(iota n, cell const& brush) override
+            {
+                auto& curln = batch.current();
+                //todo check_autogrow
+                curln.insert(batch.caret, n, brush);
+                batch.recalc(curln);
+            }
+            template<bool AUTO_GROW = faux>
+            void _ech_imp(iota n, cell const& brush)
+            {
+                auto& curln = batch.current();
+                if constexpr (AUTO_GROW)
+                {
+                    //todo check_autogrow
+                    curln.splice<true>(batch.caret, n, brush);
+                }
+                else curln.splice(batch.caret, n, brush);
+                batch.recalc(curln);
+            }
+            void term_buffer__ech_autogrow(iota n, cell const& brush) override
+            {
+                _ech_imp<true>(n, brush);
+            }
+            void term_buffer__ech_fixed(iota n, cell const& brush) override
+            {
+                _ech_imp<faux>(n, brush);
+            }
+            void term_buffer__dch(iota n, cell const& brush) override
+            {
+                auto& cur_ln = batch.current();
+                cur_ln.cutoff(batch.caret, n, brush, panel.x);
+                batch.recalc(cur_ln);
+
+                //auto caret = index[coord.y].start + coord.x;
+                //curln.cutoff(caret, n, brush, panel.x);
+            }
+            void term_buffer__proceed(grid& proto, iota shift) override
+            {
+                auto& cur_ln = batch.current();
+                coord.x += shift;
+                //if (coord.x > 0 && cur_ln.wrapped())
+                if (cur_ln.wrapped())
+                {
+                    auto old = basis + coord.y;
+                    coord.y += coord.x / panel.x;
+                    coord.x %= panel.x;
+                    if (coord.x == 0)
+                    {
+                        coord.y--;
+                        coord.x = panel.x;
+                    }
+
+                    //todo scrolling regions
+
+                    auto add_count = feed_futures();
+
+                    cur_ln.splice(batch.caret, proto, shift);
+                    auto cur_id = cur_ln.index;
+                    if (add_count > 0) // Cursor is outside the viewport.
+                    { // case 3 - complex: cursor overlaps some lines below and placed below the viewport.
+                        log(" case 3:");
+                        batch.recalc(cur_ln);
+                        auto length = cur_ln.length();
+                        // pop_back from batch all lines from (curln, batch.end].
+                        assert(batch.back().index >= cur_id);
+                        if (auto pop_count = batch.back().index - cur_id)
+                        {
+                            assert(pop_count > 0);
+                            log("  case 3 batch pop_count=", pop_count);
+                            while (pop_count-- > 0) batch.pop_back();
+                        }
+                        // Update index.
+                        //if (auto pop_count = index.size - 1 - (old - basis))
+                        //todo revise
+                        if (auto pop_count = index.size - (old - basis))
+                        {
+                            assert(pop_count > 0);
+                            log("  case 3 !!!!! index pop_count=", pop_count);
+                            while (pop_count-- > 0) index.pop_back();
+                        }
+                        auto& map_ln = index.back();
+                        auto offset = map_ln.start;
+                        log("  case 3 old width=", map_ln.width);
+                        map_ln.width = panel.x;
+                        log("  case 3 new width=", map_ln.width);
+                        auto bottom = length - panel.x;
+                        log(" 1. cur_id=", cur_id, " offset=", offset, " width=", panel.x);
+                        offset += panel.x;
+                        while(offset < bottom) // Update for current line.
+                        {
+                            index.push_back(cur_id, offset, panel.x);
+                            offset += panel.x;
+                            log(" 2. cur_id=", cur_id, " offset=", offset, " width=", panel.x);
+                        }
+                        index.push_back(cur_id, offset, length - offset);
+                        log(" 3. cur_id=", cur_id, " offset=", offset, " width=", length - offset);
+                            log("  case 3 old basis=", basis);
+                        basis += add_count;
+                        coord.y -= add_count;
+                            log("  case 3 new basis=", basis);
+                        print_index("case 3. done");
+                    } // case 3 done
+                    else
+                    {
+                        auto& map_ln = index[coord.y];
+                        if (cur_id == map_ln.index) // case 1 - plain: cursor is inside the current paragraph.
+                        {
+                            log(" case 1:");
+                            if (coord.x > map_ln.width)
+                            {
+                                log("  old width=", map_ln.width);
+                                map_ln.width = coord.x;
+                                log("  new width=", map_ln.width);
+                                batch.recalc(cur_ln);
+                            }
+                            print_index("case 1. done");
+                        } // case 1 done.
+                        else // case 2 - fusion: cursor overlaps lines below but stays inside the viewport.
+                        {
+                            log(" case 2:");
+                            print_index(" case 2. start");
+                            auto& target = batch.item_by_id(map_ln.index);
+                            auto  shadow = target.substr(map_ln.start + coord.x);
+                            cur_ln.splice(cur_ln.length(), shadow);
+                            batch.recalc(cur_ln);
+                            auto length = cur_ln.length();
+                            auto batch_index = batch.index();
+                            batch.next();
+                            assert(map_ln.index > cur_id);
+                            auto count = map_ln.index - cur_id;
+                            batch.remove(count);
+                            // Reindex batch.
+                            {
+                                auto cur_it = batch.current_it();
+                                auto end_it = batch.end();
+                                while(cur_it != end_it)
+                                {
+                                    cur_it->index -= count;
+                                    ++cur_it;
+                                }
+                                batch.index(batch_index);
+                            }
+                            // Update index.
+                            {
+                                log(" case 2: old=", (old - basis), " coord.y=", coord.y);
+                                auto ind_it = index.begin() + (old - basis);
+                                auto end_it = index.end();
+                                auto offset = ind_it->start;
+                                auto bottom = length - panel.x;
+                                while(ind_it != end_it && offset < bottom) // Update for current line.
+                                {
+                                    auto& i = *ind_it;
+                                    i.index = cur_id;
+                                    i.start = offset;
+                                    i.width = panel.x;
+                                    offset += panel.x;
+                                    ++ind_it;
+                                    log(" 1. i.index=", i.index, " i.start=", i.start, " i.width=", i.width);
+                                }
+                                if (ind_it != end_it)
+                                {
+                                    auto& i = *ind_it;
+                                    i.index = cur_id;
+                                    i.start = offset;
+                                    i.width = length - offset;
+                                    ++ind_it;
+                                    log(" 2. i.index=", i.index, " i.start=", i.start, " i.width=", i.width);
+                                    while(ind_it != end_it) // Update the rest.
+                                    {
+                                        auto& i = *ind_it;
+                                        log(" 3.0 i.index=", i.index, " i.start=", i.start, " i.width=", i.width);
+                                        i.index -= count;
+                                        ++ind_it;
+                                        log(" 3.1 i.index=", i.index, " i.start=", i.start, " i.width=", i.width);
+                                    }
+                                }
+                            }
+                            print_index("case 2. done");
+                        } // case 2 done.
+                    }
+
+                    auto maxy = panel.y - 1;
+                    if (auto over = coord.y - maxy; over > 0)
+                    {
+                        auto oversize = batch.vsize - basis - panel.y;
+                        basis += over;
+                        coord.y = maxy;
+                    }
+                }
+                else
+                {
+                    cur_ln.splice(batch.caret, proto, shift);
+                    auto& map_ln = index[coord.y];
+                    auto  length = cur_ln.length();
+                    if (length > map_ln.width)
+                    {
+                        log("  nowrap old width=", map_ln.width);
+                        map_ln.width = length;
+                        log("  nowrap new width=", map_ln.width);
+                        batch.recalc(cur_ln);
+                    }
+                }
+
+                batch.caret += shift;
+
+                //log(" scrollbuff size in cells = ", batch.get_size_in_cells());
+            }
+            void term_buffer__clear_all() override
+            {
+                saved = dot_00;
+                coord = dot_00;
+                batch.clear(); //todo optimize
+                batch.invite(0); // At least one line must exist.
+                batch.set_width(panel.x);
+                basis = 0;
+                index_rebuild();
+            }
+            template<bool BOTTOM_ANCHORED = true>
+            void resize(iota new_size, iota grow_by = 0)
+            {
+                batch.resize<BOTTOM_ANCHORED>(new_size, grow_by);
+                term_buffer__set_scroll_region(0, 0);
+                index_rebuild();
+            }
+            void term_buffer__output(face& canvas) override //todo temp solution, rough output, not optimized
+            {
+                maker.reset(canvas);
+                auto view = canvas.view();
+                auto full = canvas.full();
+                auto coor = dot_00;
+                auto head = batch.begin();
+                auto tail = batch.end();
+                auto left_edge_x = view.coor.x;
+                auto half_size_x = full.size.x / 2;
+                auto left_rect = rect{{ left_edge_x, coor.y + full.coor.y }, dot_11 };
+                auto rght_rect = left_rect;
+                rght_rect.coor.x+= view.size.x - 1;
+                auto rght_edge_x = rght_rect.coor.x + 1;
+                auto fill = [&](auto& area, auto chr)
+                {
+                    if (auto r = view.clip(area))
+                        canvas.fill(r, [&](auto& c){ c.txt(chr).fgc(tint::greenlt); });
+                };
+                while(head != tail)
+                {
+                    auto& curln = *head++;
+                    maker.ac(coor);
+                    maker.go(curln, canvas);
+                    auto height = curln.height(panel.x);
+                    auto align = curln.style.jet();
+                    if (auto length = curln.length()) // Mark lines not shown in full.
+                    {
+                        rght_rect.size.y = left_rect.size.y = height;
+                        if (height == 1)
+                        {
+                            auto lt_dot = full.coor.x;
+                            if      (align == bias::center) lt_dot += half_size_x - length / 2;
+                            else if (align == bias::right)  lt_dot += full.size.x - length;
+
+                            if (left_edge_x > lt_dot         ) fill(left_rect, '<');
+                            if (rght_edge_x < lt_dot + length) fill(rght_rect, '>');
+                        }
+                        else
+                        {
+                            auto lt_dot = full.coor.x;
+                            auto rt_dot = lt_dot + view.size.x;
+                            auto remain = (length - 1) % view.size.x + 1;
+                            if (left_edge_x > lt_dot)
+                            {
+                                if (align == bias::right  && left_edge_x <= rt_dot - remain
+                                || align == bias::center && left_edge_x <= lt_dot + half_size_x - remain / 2)
+                                {
+                                    --left_rect.size.y;
+                                }
+                                fill(left_rect, '<');
+                            }
+                            if (rght_edge_x < rt_dot)
+                            {
+                                if (align == bias::left   && rght_edge_x >= lt_dot + remain
+                                || align == bias::center && rght_edge_x >= lt_dot + remain + half_size_x - remain / 2)
+                                {
+                                    --rght_rect.size.y;
+                                }
+                                fill(rght_rect, '>');
+                            }
+                        }
+                    }
+                    coor.y           += height;
+                    rght_rect.coor.y += height;
+                    left_rect.coor.y = rght_rect.coor.y;
+                }
+            }
+            //void test_basis(face& canvas)
+            //{
+            //    para p{ansi::bgc(redlt).add(" ").nil()};
+            //    auto coor = twod{ 0, basis };
+            //    maker.ac(coor);
+            //    maker.go(p, canvas);
+            //}
+            // rods: Remove all lines below except the current. "ED2 Erase viewport" keeps empty lines.
+            void term_buffer__del_below() override
+            {
+                //todo don't delete futures
+                pop_lines(batch.length() - 1 - batch.index());
+                add_lines(panel.y - 1 - coord.y);
+                auto& curln = batch.current();
+                curln.trimto(index[coord.y].start + coord.x);
+                index_rebuild();
+            }
+            void term_buffer__clear_above(ansi::mark const& brush) override
+            {
+                // Clear all lines from the viewport top line to the current line.
+                dissect(0);
+                dissect(coord.y);
+                //move [coord.y, panel.y) to cache
+            //    auto back_index = batch.back().index;
+            //    auto block_size = back_index - index[coord.y].index + 1;
+            //    auto all_size = back_index - index[0].index + 1;
+            //    cache.reserve(block_size);
+            //    auto start = batch.end() - block_size;
+            //    netxs::move_block(start, batch.end(), cache.begin());
+            //    //pop upto index[0].index inclusive
+            //    pop_lines(all_size);
+            //    auto top_it = batch.end() - 1;
+            //    //push coord.y empty lines
+            //    //push cache.size lines
+            //    add_lines(coord.y + block_size);
+            //    //move back from cache [coord.y, panel.y)
+            //    netxs::move_block(cache.begin(), cache.end(), top_it + coord.y);
+            //    index_rebuild();
+                
+
+
+                //auto& topln = batch[get_line_index_by_id(index[0].index)];
+                //topln.trimto(index[0].start);
+
+                //auto begin = batch.begin();
+                //auto cur_index = batch.index();
+                ////auto top_index = get_line_index_by_id(batch[basis].bossid);
+                //auto under = begin + cur_index;
+                //auto top_index = std::max(0, cur_index - under->depth);
+                //auto upper = begin + top_index;
+                //auto count = (coord.y - basis) * panel.x + coord.x;
+                //auto start = (basis - top_index) * panel.x;
+                //do
+                //{
+                //    auto& lyric = *upper;
+                //    lyric.splice(start, count, brush.spare);
+                //    lyric.shrink(brush.spare);
+                //    start -= panel.x;
+                //}
+                //while(upper++ != under);
+            }
+            // scrollback: For bug testing purposes.
+            auto get_content()
+            {
+                text yield;
+                auto i = 0;
+                for(auto& l : batch)
+                {
+                    yield += "\n =>" + std::to_string(i++) + "<= ";
+                    l.each([&](cell& c) { yield += c.txt(); });
+                }
+                return yield;
+            }
+            // scrollback: Dissect auto-wrapped lines at the specified iterator.
+            void dissect(iota y_pos)
+            {
+                if (y_pos >= panel.y) throw;
+
+                auto& linid = index[y_pos];
+                if (linid.start == 0) return;
+
+                auto temp = std::move(batch.current());
+                batch.insert(temp.index, temp.style);
+                auto curit = batch.current_it();
+                auto head = curit;
+                auto tail = batch.end();
+                do ++head++->index;
+                while(head != tail);
+
+                auto& newln = *curit;
+                newln.splice(0, temp.substr(linid.start));
+                batch.recalc(newln);
+                if (curit != batch.begin())
+                {
+                    --curit;
+                    auto& curln = *curit;
+                    curln = std::move(temp);
+                    batch.undock(curln);
+                    curln.trimto(linid.start);
+                    batch.recalc(curln);
+                }
+                index_rebuild();
+            }
+            // scrollback: Dissect auto-wrapped line at the current coord.
+            void term_buffer__dissect() override
+            {
+                dissect(coord.y);
+            }
+            template<class SRC>
+            void zeroise(SRC begin_it, SRC end_it)
+            {
+                while(begin_it != end_it)
+                {
+                    auto& curln = *begin_it;
+                    batch.undock(curln);
+                    curln.wipe();
+                    ++begin_it;
+                }
+            }
+            // scrollback: Shift by n the scroll region.
+            void term_buffer__scroll_region(iota n, bool use_scrollback) override
+            {
+                /*
+                if (n)
+                {
+                    auto[top, end] = get_scroll_region();
+                    auto nul_it = batch.begin();
+                    auto all_it = nul_it + basis;
+                    auto end_it = nul_it + end;
+                    auto top_it = nul_it + top;
+                    auto top_id = std::max(0, basis - all_it->depth);
+                    auto height = end - top + 1;
+                    auto footer = batch.end() - end_it - 1;
+                    if (footer < 0)
+                    {
+                        add_lines(-footer);
+                        footer = 0;
+                    }
+                    if (n > 0) // Scroll down (move text block down).
+                    {
+                        n = std::min(n, height);
+                        auto a = top_it - 1;
+                        auto b = end_it - n;
+                        auto c = end_it + 1;
+                        dissect(b + 1);
+                        dissect(top_it);
+                        if (footer) dissect(c);
+                        zeroise(b + 1, c);
+                        netxs::move_block(b, a, end_it);
+                        zeroise(top_it, top_it + n);
+                    }
+                    else // Scroll up (move text block up).
+                    {
+                        n = std::min(-n, height);
+                        auto a = top_it + n;
+                        if (use_scrollback)
+                        {
+                            if (top)
+                            {
+                                auto buffer = cache.begin();
+                                if (basis) dissect(all_it);
+                                dissect(top_it);
+                                dissect(a);
+                                netxs::move_block(all_it, top_it,       buffer    ); // Move fixed header block to the temporary cache.
+                                netxs::move_block(top_it, a,            all_it    ); // Move up by the "top" the first n lines of scrolling region.
+                                netxs::move_block(buffer, buffer + top, all_it + n); // Move back fixed header block from the temporary cache.
+                            }
+                            add_lines(n);
+                            auto c = batch.end() - 1;
+                            auto b = c - n;
+                            auto d = b - footer;
+                            dissect(d + 1);
+                            netxs::move_block(b, d, c); // Move down footer block by n.
+                        }
+                        else
+                        {
+                            auto b = end_it + 1;
+                            dissect(a);
+                            if (footer) dissect(b);
+                            zeroise(top_it, a);
+                            netxs::move_block(a, b, top_it);
+                        }
+                    }
+                }
+                */
+            }
+        };
+
+        scrollback  normal; // term: Normal screen buffer.
+        alt_screen  altbuf; // term: Alternate screen buffer.
+        scrollbuff *target; // term: Current screen buffer pointer.
 
         //struct viewport_cntrl
         //    : public rect
@@ -2342,9 +2563,9 @@ private:
             //oversz.b = target->resize_viewport(); //todo update basis in place
 
             auto& console = *target;
-            auto adjust_pads = console.recalc_pads(oversz);
+            auto adjust_pads = console.term_buffer__recalc_pads(oversz);
             auto scroll_size = console.panel;
-            scroll_size.y = std::max(console.panel.y, console.height() - oversz.vsumm());
+            scroll_size.y = std::max(console.panel.y, console.term_buffer__height() - oversz.vsumm());
             //if (force_basis)
             {
                 screen_coor.y = -console.basis;
@@ -2363,7 +2584,7 @@ private:
               winprops{ *this                                 },
               cmd_line{ command_line                          },
               normal  { *this, max_scrollback_size, grow_step },
-              altbuf  { *this, 1                  , 0         },
+              altbuf  { *this                                 },
               target  { &normal                               }
         {
             cursor.show();
@@ -2394,7 +2615,7 @@ private:
                         decstr();
                         break;
                     case term::commands::ui::clear:
-                        target->ed(scrollbuff::commands::erase::display::viewport);
+                        target->ed(term_buffer::commands::erase::display::viewport);
                         break;
                     default:
                         break;
@@ -2431,9 +2652,7 @@ private:
                         oneshot_resize_token.reset();
 
                         new_sz = std::max(new_sz, dot_11);
-                        if (target == &altbuf) altbuf.trim_to_size(new_sz);
-
-                        oversz.b = console.resize_viewport(new_sz);
+                        oversz.b = console.term_buffer__resize_viewport(new_sz);
                         //screen.coor.y = -target->basis;;
 
                         this->SUBMIT(tier::preview, e2::size::set, new_sz)
@@ -2442,16 +2661,14 @@ private:
                 auto force_basis = screen_coor.y == -console.basis;
 
                             new_sz = std::max(new_sz, dot_11);
-                            if (target == &altbuf) altbuf.trim_to_size(new_sz);
-
-                            oversz.b = console.resize_viewport(new_sz);
+                            oversz.b = console.term_buffer__resize_viewport(new_sz);
                             //screen.coor.y = -target->basis;;
 
                 reset_scroll_pos(force_basis);
 
                             ptycon.resize(new_sz);
 
-                            new_sz.y = std::max({ new_sz.y, console.height() - oversz.vsumm() });
+                            new_sz.y = std::max(new_sz.y, console.term_buffer__height() - oversz.vsumm());
                         };
 
                         ptycon.start(cmd_line, new_sz, [&](auto utf8_shadow) { input_hndl(utf8_shadow);  },
@@ -2526,7 +2743,7 @@ private:
                 //cursor_coor.y += console.basis;
                 //cursor_coor.y += std::max(0, console.height() - screen.size.y) - oversz.b;
                 //cursor.coor(cursor_coor);
-                cursor.coor(console.get_coord());
+                cursor.coor(console.term_buffer__get_coord());
                 //auto adjust_pads = console.recalc_pads(oversz);
                 //auto scroll_size = recalc(cursor_coor);
                 //auto scroll_size = screen.size;
@@ -2553,7 +2770,7 @@ private:
                 //    this->SIGNAL(tier::release, e2::size::set, scroll_size); // Update scrollbars.
                 //}
 
-                console.output(parent_canvas);
+                console.term_buffer__output(parent_canvas);
                 if (oversz.b > 0) // Shade the viewport bottom oversize.
                 {
                     auto bottom_oversize = parent_canvas.full();

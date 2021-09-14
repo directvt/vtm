@@ -645,7 +645,7 @@ namespace netxs::console
             flow::reset();
         }
         // face: Change current context. Return old context.
-        auto  bump(dent const& delta)
+        auto bump(dent const& delta)
         {
             auto old_full = face::full();
             auto old_view = core::view();
@@ -656,7 +656,7 @@ namespace netxs::console
             return std::pair{ old_full, old_view };
         }
         // face: Restore previously saved context.
-        void  bump(std::pair<rect, rect> ctx)
+        void bump(std::pair<rect, rect> ctx)
         {
             face::full(ctx.first);
             core::view(ctx.second);

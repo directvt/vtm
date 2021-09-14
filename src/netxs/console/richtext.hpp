@@ -189,9 +189,19 @@ namespace netxs::console
             //flow::cursor
         }
         template<class P>
-        void fill(core const& block, P fuse) // core: Fill by the specified face using its coordinates.
+        void fill(core const& block, P fuse) // core: Fill canvas by the specified face using its coordinates.
         {
             netxs::onbody(*this, block, fuse);
+        }
+        template<class P>
+        void plot(core const& block, P fuse) // core: Fill view by the specified face using its coordinates.
+        {
+            auto joint = view().clip(block.area());
+            if (joint)
+            {
+                auto place = joint.coor - block.coor();
+                netxs::inbody<faux>(*this, block, joint, place, fuse);
+            }
         }
         template<class P>
         void fill(ui::rect block, P fuse) // core: Process the specified region by the specified proc.
@@ -674,6 +684,14 @@ namespace netxs::console
         {
             reset(canvas.pagerect.coor);
         }
+        void set_style(deco const& new_style)
+        {
+            runstyle = new_style;
+        }
+        auto get_style()
+        {
+            return runstyle;
+        }
     };
 
     // richtext: The shadow of the para.
@@ -841,6 +859,38 @@ namespace netxs::console
                     while (w--) *dst++ = c;
                 }
             }
+        }
+        void splice(twod at, grid& proto, iota width)
+        {
+            //todo print to the 2D canvas
+            //reserv(at + width);
+            //auto ptr = iter();
+            //auto dst = ptr + at;
+            //for (auto& c : proto)
+            //{
+            //    auto w = c.wdt();
+            //    if (w == 1)
+            //    {
+            //        *dst++ = c;
+            //    }
+            //    else if (w == 2)
+            //    {
+            //        *dst++ = c.wdt(2);
+            //        *dst++ = c.wdt(3);
+            //    }
+            //    else if (w == 0)
+            //    {
+            //        //todo implemet controls/commands
+            //        // winsrv2019's cmd.exe sets title with a zero at the end
+            //        //*dst++ = cell{ c, whitespace };
+            //    }
+            //    else if (w > 2)
+            //    {
+            //        // Forbid using super wide characters until terminal emulators support the fragmentation attribute.
+            //        c.txt(utf::REPLACEMENT_CHARACTER_UTF8_VIEW);
+            //        while (w--) *dst++ = c;
+            //    }
+            //}
         }
         void insert(iota at, iota count, cell blank)
         {
