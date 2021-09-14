@@ -364,30 +364,30 @@ namespace netxs::app
 
     //protected:
     public:
-        buff        batch; // rods: Rods inner container.
-        flow        maker; // rods: . deprecated
-        vect        cache; // rods: Temporary line container.
-        twod const& panel; // rods: Viewport size.
-        twod        coord; // rods: Viewport cursor position; 0-based.
-        iota        sctop; // rods: Scrolling region top;    1-based, "0" to use top of viewport.
-        iota        scend; // rods: Scrolling region bottom; 1-based, "0" to use bottom of viewport.
-        twod        saved; // rods: Saved cursor position.
-        iota        basis; // rods: Viewport basis. Index of O(0, 0) in the scrollback.
-        indx        index;
+        buff batch; // rods: Rods inner container.
+        flow maker; // rods: . deprecated
+        vect cache; // rods: Temporary line container.
+        twod panel; // rods: Viewport size.
+        twod coord; // rods: Viewport cursor position; 0-based.
+        iota sctop; // rods: Scrolling region top;    1-based, "0" to use top of viewport.
+        iota scend; // rods: Scrolling region bottom; 1-based, "0" to use bottom of viewport.
+        twod saved; // rods: Saved cursor position.
+        iota basis; // rods: Viewport basis. Index of O(0, 0) in the scrollback.
+        indx index;
 
         iota vsize{ 1 }; // temp
 
-        rods(twod const& viewport, iota buffer_size, iota grow_step)
+        rods(iota buffer_size, iota grow_step)
             : batch{ buffer_size, grow_step   },
               maker{ batch.width, batch.vsize },
-              panel{ viewport                 },
+              panel{ dot_11                   },
               sctop{ 0                        },
               scend{ 0                        },
               basis{ 0                        },
-              index{ std::max(1,viewport.y)   }
+              index{ 1                        }
         {
             batch.invite(0); // At least one line must exist.
-            batch.set_width(viewport.x);
+            batch.set_width(1);
             index_rebuild();
         }
         void print_index(text msg)
@@ -398,8 +398,9 @@ namespace netxs::app
             log(" -----------------");
         }
         //rods: Return viewport vertical oversize.
-        auto resize_viewport()
+        auto resize_viewport(twod const& new_sz)
         {
+            panel = new_sz;
             batch.set_width(panel.x);
             index.clear();
             index.resize(panel.y); // Use a fixed ring because new lines are added much more often than a futures feed.
@@ -1136,6 +1137,7 @@ namespace netxs::app
         // rods: Remove all lines below except the current. "ED2 Erase viewport" keeps empty lines.
         void del_below()
         {
+            //todo don't delete futures
             pop_lines(batch.length() - 1 - batch.index());
             add_lines(panel.y - 1 - coord.y);
             auto& curln = batch.current();
@@ -1312,8 +1314,10 @@ namespace netxs::app
             */
         }
         // rods: Trim all autowrap lines by the specified size.
-        void trim_to_size(twod const& new_size)
+        void trim_to_size(twod const& new_sz)
         {
+            resize<faux>(new_sz.y);
+
             /*
             auto head = batch.begin() + basis;
             auto tail = batch.end() - std::max(0, panel.y - new_size.y);
@@ -1382,9 +1386,11 @@ private:
                     };
                     owner.SUBMIT_T(tier::release, hids::events::mouse::any, token, gear)
                     {
-                        auto c = gear.coord - (owner.base::size() - owner.screen.size);
+                        auto& console = *owner.target;
+                        auto c = gear.coord;
+                        c.y -= console.basis;
                         moved = coord((state & mode::over) ? c
-                                                           : std::clamp(c, dot_00, owner.screen.size - dot_11));
+                                                           : std::clamp(c, dot_00, console.panel - dot_11));
                         auto cause = owner.bell::protos<tier::release>();
                         if (proto == sgr) serialize<sgr>(gear, cause);
                         else              serialize<x11>(gear, cause);
@@ -1719,7 +1725,7 @@ private:
             iota tabstop = default_tabstop; // scrollbuff: Tabstop current value.
 
             scrollbuff(term& boss, iota max_scrollback_size, iota grow_step = 0)
-                : rods(boss.screen.size, max_scrollback_size, grow_step),
+                : rods(max_scrollback_size, grow_step),
                   boss{ boss }
             {
                 parser::style = ansi::def_style;
@@ -2072,11 +2078,11 @@ private:
         //    { }
         //}
         //viewport; // term: Viewport controller.
-        rect screen = { dot_00, dot_11 }; // term: Viewport.
+        twod screen_coor = dot_00; // term: Viewport position.
         os::cons ptycon; // term: PTY device.
         scrollbuff::info status; // term: Status info.
         hook oneshot_resize_token; // term: First resize subscription token.
-        text cmdline;
+        text cmd_line;
         hook shut_down_token; // term: One shot shutdown token.
         bool alive = true;
 
@@ -2151,9 +2157,11 @@ private:
                         break;
                     case 1047: // Use alternate screen buffer.
                     case 1049: // Save cursor pos and use alternate screen buffer, clearing it first.  This control combines the effects of the 1047 and 1048  modes.
+                        altbuf.panel = target->panel;
                         altbuf.style = target->style;
                         target = &altbuf;
                         altbuf.clear_all();
+                        base::resize(altbuf.panel);
                         break;
                     case 2004: // Set bracketed paste mode.
                         bracketed_paste_mode = true;
@@ -2220,8 +2228,10 @@ private:
                         break;
                     case 1047: // Use normal screen buffer.
                     case 1049: // Use normal screen buffer and restore cursor.
+                        normal.panel = target->panel;
                         normal.style = target->style;
                         target = &normal;
+                        base::resize(normal.panel);
                         break;
                     case 2004: // Disable bracketed paste mode.
                         bracketed_paste_mode = faux;
@@ -2297,7 +2307,7 @@ private:
                 {
                     SIGNAL(tier::general, e2::debug::output, shadow); // Post for the Logs.
 
-                auto force_basis = screen.coor.y == -target->basis;
+                auto force_basis = screen_coor.y == -target->basis;
 
                     ansi::parse(shadow, target);
 
@@ -2331,13 +2341,14 @@ private:
         {
             //oversz.b = target->resize_viewport(); //todo update basis in place
 
-            auto scroll_size = screen.size;
-            auto adjust_pads = target->recalc_pads(oversz);
-            scroll_size.y = std::max({ screen.size.y, target->height() - oversz.vsumm() });
+            auto& console = *target;
+            auto adjust_pads = console.recalc_pads(oversz);
+            auto scroll_size = console.panel;
+            scroll_size.y = std::max(console.panel.y, console.height() - oversz.vsumm());
             //if (force_basis)
             {
-                screen.coor.y = -target->basis;
-                this->SIGNAL(tier::release, e2::coor::set, screen.coor);
+                screen_coor.y = -console.basis;
+                this->SIGNAL(tier::release, e2::coor::set, screen_coor);
             }
             if (scroll_size != base::size() || adjust_pads)
             {
@@ -2346,14 +2357,14 @@ private:
         }
     public:
        ~term(){ alive = faux; }
-        term(text cmd_line, iota max_scrollback_size = default_size, iota grow_step = default_step)
-            : mtracker{ *this },
-              ftracker{ *this },
-              winprops{ *this },
-              cmdline { cmd_line },
+        term(text command_line, iota max_scrollback_size = default_size, iota grow_step = default_step)
+            : mtracker{ *this                                 },
+              ftracker{ *this                                 },
+              winprops{ *this                                 },
+              cmd_line{ command_line                          },
               normal  { *this, max_scrollback_size, grow_step },
               altbuf  { *this, 1                  , 0         },
-              target  { &normal }
+              target  { &normal                               }
         {
             cursor.show();
             cursor.style(true);
@@ -2404,8 +2415,8 @@ private:
             };
             SUBMIT(tier::release, e2::coor::set, new_coor)
             {
-                screen.coor.x = new_coor.x;
-                screen.coor.y = -new_coor.y;
+                screen_coor.x = new_coor.x;
+                screen_coor.y =-new_coor.y;
             };
             SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
             {
@@ -2416,38 +2427,35 @@ private:
                 {
                     if (new_sz.y > 0)
                     {
+                        auto& console = *target;
                         oneshot_resize_token.reset();
 
                         new_sz = std::max(new_sz, dot_11);
                         if (target == &altbuf) altbuf.trim_to_size(new_sz);
-                        altbuf.resize<faux>(new_sz.y);
 
-                        screen.size = new_sz;
-                        oversz.b = target->resize_viewport();
+                        oversz.b = console.resize_viewport(new_sz);
                         //screen.coor.y = -target->basis;;
 
                         this->SUBMIT(tier::preview, e2::size::set, new_sz)
                         {
-
-                auto force_basis = screen.coor.y == -target->basis;
+                            auto& console = *target;
+                auto force_basis = screen_coor.y == -console.basis;
 
                             new_sz = std::max(new_sz, dot_11);
                             if (target == &altbuf) altbuf.trim_to_size(new_sz);
-                            altbuf.resize<faux>(new_sz.y);
 
-                            screen.size = new_sz;
-                            oversz.b = target->resize_viewport();
+                            oversz.b = console.resize_viewport(new_sz);
                             //screen.coor.y = -target->basis;;
 
                 reset_scroll_pos(force_basis);
 
                             ptycon.resize(new_sz);
 
-                            new_sz.y = std::max({ screen.size.y, target->height() - oversz.vsumm() });
+                            new_sz.y = std::max({ new_sz.y, console.height() - oversz.vsumm() });
                         };
 
-                        ptycon.start(cmdline, new_sz, [&](auto utf8_shadow) { input_hndl(utf8_shadow); },
-                                                      [&](auto exit_code) { shutdown_hndl(exit_code); });
+                        ptycon.start(cmd_line, new_sz, [&](auto utf8_shadow) { input_hndl(utf8_shadow);  },
+                                                       [&](auto exit_code)   { shutdown_hndl(exit_code); });
                     }
                 };
             };
@@ -2549,14 +2557,14 @@ private:
                 if (oversz.b > 0) // Shade the viewport bottom oversize.
                 {
                     auto bottom_oversize = parent_canvas.full();
-                    bottom_oversize.coor.y += console.basis + screen.size.y;//scroll_size.y;
+                    bottom_oversize.coor.y += console.basis + console.panel.y;//scroll_size.y;
                     bottom_oversize.size.y  = oversz.b;
                     bottom_oversize = bottom_oversize.clip(parent_canvas.view());
                     parent_canvas.fill(bottom_oversize, cell::shaders::xlight);
                 }
 
                 // Debug: Shade active viewport.
-                auto vp = rect{{ 0,console.basis }, screen.size};
+                auto vp = rect{ { 0,console.basis }, console.panel };
                 vp.coor += parent_canvas.full().coor;
                 vp = vp.clip(parent_canvas.view());
                 parent_canvas.fill(vp, [](auto& c){ c.fuse(cell{}.bgc(greenlt).bga(80)); });
