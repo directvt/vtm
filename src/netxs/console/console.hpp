@@ -2164,6 +2164,40 @@ namespace netxs::console
                     show();
                 }
             }
+            void style(iota mode)
+            {
+                switch (mode)
+                {
+                case 0: // n = 0  blinking box
+                case 1: // n = 1  blinking box (default)
+                    blink_period();
+                    style(true);
+                    break;
+                case 2: // n = 2  steady box
+                    blink_period(period::zero());
+                    style(true);
+                    break;
+                case 3: // n = 3  blinking underline
+                    blink_period();
+                    style(faux);
+                    break;
+                case 4: // n = 4  steady underline
+                    blink_period(period::zero());
+                    style(faux);
+                    break;
+                case 5: // n = 5  blinking I-bar
+                    blink_period();
+                    style(true);
+                    break;
+                case 6: // n = 6  steady I-bar
+                    blink_period(period::zero());
+                    style(true);
+                    break;
+                default:
+                    log("pro::caret: unsupported cursor style requested, ", mode);
+                    break;
+                }
+            }
             // pro::caret: Set caret position.
             void coor(twod const& coor)
             {

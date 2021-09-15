@@ -37,12 +37,9 @@ namespace netxs::app
     using namespace netxs::console;
 
     // terminal: Built-in terminal app.
-    class term
+    struct term
         : public ui::form<term>
     {
-        pro::caret cursor{ *this }; // term: Caret controller.
-
-public:
         using events = netxs::events::userland::term;
 
         struct commands
@@ -83,9 +80,56 @@ public:
                     clear,
                 };
             };
+            struct cursor // See pro::caret.
+            {
+                enum : iota
+                {
+                    def_style          = 0, // blinking box
+                    blinking_box       = 1, // blinking box (default)
+                    steady_box         = 2, // steady box
+                    blinking_underline = 3, // blinking underline
+                    steady_underline   = 4, // steady underline
+                    blinking_I_bar     = 5, // blinking I-bar
+                    steady_I_bar       = 6, // steady I-bar
+                };
+            };
         };
 
 private:
+        using cons = os::cons;
+
+        static constexpr iota def_length = 20000; // term: Default scrollback history length.
+        static constexpr iota def_growup = 0;     // term: Default scrollback history grow step.
+        static constexpr iota def_tablen = 8;     // term: Default tab length.
+
+        // term: VT-buffer status.
+        struct info_stat
+        {
+            using buff = ansi::esc;
+            iota size = 0;
+            iota peak = 0;
+            iota step = 0;
+            twod area;
+            buff data;
+            template<class vt_buffer>
+            auto update(vt_buffer const& scroll)
+            {
+                if (scroll.update_status(*this))
+                {
+                    data.clear();
+                    data.jet(bias::right)
+                        .add("size=", size,
+                            " peak=", peak - 1,
+                            " type=");
+                    if (step) data.add("unlimited, grow by ", step);
+                    else      data.add("fixed");
+                    data.add(" area=", area);
+                    return true;
+                }
+                else return faux;
+            }
+        };
+
         // term: VT-mouse tracking functionality.
         struct mtracking
         {
@@ -146,8 +190,8 @@ private:
             void setmode(prot p) { proto = p; }
 
         private:
-            term&       owner;
-            testy<twod> coord;
+            term&       owner; // mtracking: Terminal object reference.
+            testy<twod> coord; // mtracking: Last coord of mouse cursor.
             ansi::esc   queue; // mtracking: Buffer.
             subs        token; // mtracking: Subscription token.
             bool        moved = faux;
@@ -171,10 +215,9 @@ private:
                 meta |= gear.meta(hids::RCTRL) ? hids::CTRL : 0;
                 switch (PROT)
                 {
-                    case prot::x11: queue.mouse_x11(meta, coord); break;
+                    case prot::x11: queue.mouse_x11(meta, coord);            break;
                     case prot::sgr: queue.mouse_sgr(meta, coord, ispressed); break;
-                    default:
-                        break;
+                    default: break;
                 }
             }
             // mtracking: Serialize mouse state.
@@ -232,14 +275,14 @@ private:
                         break;
                 }
             }
-        }
-        mtracker; // term: VT-mouse tracking object.
+        };
 
         // term: Keyboard focus tracking functionality.
         struct ftracking
         {
             ftracking(term& owner)
-                : owner{ owner }
+                : owner{ owner },
+                  state{ faux  }
             { }
 
             operator bool () { return token.operator bool(); }
@@ -247,7 +290,7 @@ private:
             {
                 if (enable)
                 {
-                    if (!token) // Do not subscribe if it is already subscribed)
+                    if (!token) // Do not subscribe if it is already subscribed.
                     {
                         owner.SUBMIT_T(tier::release, hids::events::notify::keybd::any, token, gear)
                         {
@@ -264,23 +307,22 @@ private:
                 else token.reset();
             }
         private:
-            term&       owner;
+            term&       owner; // ftracking: Terminal object reference.
             hook        token; // ftracking: Subscription token.
             ansi::esc   queue; // ftracking: Buffer.
-            bool        state = faux;
-        }
-        ftracker; // term: Keyboard focus tracking object.
+            bool        state; // ftracking: Current focus state.
+        };
 
         // term: Terminal window options control.
         struct win_cntrl
         {
-            term&                             owner;
+            term&                             owner; // win_cntrl: Terminal object reference.
             std::map<text, text>              props;
             std::map<text, std::vector<text>> stack;
             ansi::esc                         queue;
 
-            win_cntrl(term& boss)
-                : owner{ boss }
+            win_cntrl(term& owner)
+                : owner{ owner }
             { }
             // win_cntrl: Get terminal window property.
             auto& get(text const& property)
@@ -365,10 +407,9 @@ private:
                         break;
                 }
             }
-        }
-        winprops; // term: Terminal window options repository.
+        };
 
-        // term: VT-behavior of the terminal buffer.
+        // term: Generic terminal buffer behavior.
         struct vt_buffer
             : public ansi::parser
         {
@@ -378,10 +419,10 @@ private:
                 using namespace netxs::ansi;
                 vt.csier.table_space[CSI_SPC_SRC] = VT_PROC{ p->na("CSI n SP A  Shift right n columns(s)."); }; // CSI n SP A  Shift right n columns(s).
                 vt.csier.table_space[CSI_SPC_SLC] = VT_PROC{ p->na("CSI n SP @  Shift left  n columns(s)."); }; // CSI n SP @  Shift left n columns(s).
-                vt.csier.table_space[CSI_SPC_CST] = VT_PROC{ p->boss.cursor_style(q(1)); }; // CSI n SP q  Set cursor style (DECSCUSR).
+                vt.csier.table_space[CSI_SPC_CST] = VT_PROC{ p->owner.cursor.style(q(1)); }; // CSI n SP q  Set cursor style (DECSCUSR).
                 vt.csier.table_hash [CSI_HSH_SCP] = VT_PROC{ p->na("CSI n # P  Push current palette colors onto stack. n default is 0."); }; // CSI n # P  Push current palette colors onto stack. n default is 0.
                 vt.csier.table_hash [CSI_HSH_RCP] = VT_PROC{ p->na("CSI n # Q  Pop  current palette colors onto stack. n default is 0."); }; // CSI n # Q  Pop  current palette colors onto stack. n default is 0.
-                vt.csier.table_excl [CSI_EXL_RST] = VT_PROC{ p->boss.decstr( ); }; // CSI ! p  Soft terminal reset (DECSTR)
+                vt.csier.table_excl [CSI_EXL_RST] = VT_PROC{ p->owner.decstr( ); }; // CSI ! p  Soft terminal reset (DECSTR)
 
                 vt.csier.table[CSI_CUU] = VT_PROC{ p->up ( q(1)); };  // CSI n A
                 vt.csier.table[CSI_CUD] = VT_PROC{ p->dn ( q(1)); };  // CSI n B
@@ -394,8 +435,8 @@ private:
 
                 vt.csier.table[CSI_CUD2]= VT_PROC{ p->dn ( q(1)); };  // CSI n e  Move cursor down. Same as CUD.
 
-                vt.csier.table[CSI_CNL] = vt.csier.table[CSI_CUD];   // CSI n E
-                vt.csier.table[CSI_CPL] = vt.csier.table[CSI_CUU];   // CSI n F
+                vt.csier.table[CSI_CNL] = vt.csier.table[CSI_CUD];    // CSI n E
+                vt.csier.table[CSI_CPL] = vt.csier.table[CSI_CUU];    // CSI n F
                 vt.csier.table[CSI_CHX] = VT_PROC{ p->chx( q(1)); };  // CSI n G  Move cursor hz absolute.
                 vt.csier.table[CSI_CHY] = VT_PROC{ p->chy( q(1)); };  // CSI n d  Move cursor vt absolute.
                 vt.csier.table[CSI_CUP] = VT_PROC{ p->cup( q   ); };  // CSI y ; x H (1-based)
@@ -416,18 +457,18 @@ private:
 
                 vt.csier.table[DECSTBM] = VT_PROC{ p->scr( q   ); };  // CSI r; b r  Set scrolling region (t/b: top+bottom).
 
-                vt.csier.table[CSI_WIN] = VT_PROC{ p->boss.winprops.manage(q); };  // CSI n;m;k t  Terminal window options (XTWINOPS).
+                vt.csier.table[CSI_WIN] = VT_PROC{ p->owner.winctl.manage(q); };  // CSI n;m;k t  Terminal window options (XTWINOPS).
 
-                vt.csier.table[CSI_CCC][CCC_SBS] = VT_PROC{ p->boss.scrollbuffer_size(q); };  // CCC_SBS: Set scrollback size.
-                vt.csier.table[CSI_CCC][CCC_EXT] = VT_PROC{ p->boss.native(q(1)); };  // CCC_EXT: Setup extended functionality.
+                vt.csier.table[CSI_CCC][CCC_SBS] = VT_PROC{ p->owner.scrollbuffer_size(q); };  // CCC_SBS: Set scrollback size.
+                vt.csier.table[CSI_CCC][CCC_EXT] = VT_PROC{ p->owner.native(q(1)); };          // CCC_EXT: Setup extended functionality.
                 vt.csier.table[CSI_CCC][CCC_RST] = VT_PROC{ p->style.glb(); p->style.wrp(WRAPPING); };  // fx_ccc_rst
 
-                vt.intro[ctrl::ESC][ESC_IND] = VT_PROC{ p->dn(1); }; // ESC D  Caret Down.
-                vt.intro[ctrl::ESC][ESC_IR ] = VT_PROC{ p->ri (); }; // ESC M  Reverse index.
-                vt.intro[ctrl::ESC][ESC_HTS] = VT_PROC{ p->stb(); }; // ESC H  Place tabstop at the current cursor posistion.
-                vt.intro[ctrl::ESC][ESC_RIS] = VT_PROC{ p->boss.decstr(); }; // ESC c Reset to initial state (same as DECSTR).
-                vt.intro[ctrl::ESC][ESC_SC ] = VT_PROC{ p->scp(); }; // ESC 7 (same as CSI s) Save cursor position.
-                vt.intro[ctrl::ESC][ESC_RC ] = VT_PROC{ p->rcp(); }; // ESC 8 (same as CSI u) Restore cursor position.
+                vt.intro[ctrl::ESC][ESC_IND] = VT_PROC{ p->dn(1); };          // ESC D  Caret Down.
+                vt.intro[ctrl::ESC][ESC_IR ] = VT_PROC{ p->ri (); };          // ESC M  Reverse index.
+                vt.intro[ctrl::ESC][ESC_HTS] = VT_PROC{ p->stb(); };          // ESC H  Place tabstop at the current cursor posistion.
+                vt.intro[ctrl::ESC][ESC_RIS] = VT_PROC{ p->owner.decstr(); }; // ESC c Reset to initial state (same as DECSTR).
+                vt.intro[ctrl::ESC][ESC_SC ] = VT_PROC{ p->scp(); };          // ESC 7 (same as CSI s) Save cursor position.
+                vt.intro[ctrl::ESC][ESC_RC ] = VT_PROC{ p->rcp(); };          // ESC 8 (same as CSI u) Restore cursor position.
 
                 vt.intro[ctrl::BS ] = VT_PROC{ p->cuf(-q.pop_all(ctrl::BS )); };
                 vt.intro[ctrl::DEL] = VT_PROC{ p->del( q.pop_all(ctrl::DEL)); };
@@ -435,13 +476,13 @@ private:
                 vt.intro[ctrl::CR ] = VT_PROC{ p->home(); };
                 vt.intro[ctrl::EOL] = VT_PROC{ p->dn ( q.pop_all(ctrl::EOL)); };
 
-                vt.csier.table_quest[DECSET] = VT_PROC{ p->boss.decset(q); };
-                vt.csier.table_quest[DECRST] = VT_PROC{ p->boss.decrst(q); };
+                vt.csier.table_quest[DECSET] = VT_PROC{ p->owner.decset(q); };
+                vt.csier.table_quest[DECRST] = VT_PROC{ p->owner.decrst(q); };
 
-                vt.oscer[OSC_LABEL_TITLE] = VT_PROC{ p->boss.winprops.set(OSC_LABEL_TITLE, q); };
-                vt.oscer[OSC_LABEL]       = VT_PROC{ p->boss.winprops.set(OSC_LABEL,       q); };
-                vt.oscer[OSC_TITLE]       = VT_PROC{ p->boss.winprops.set(OSC_TITLE,       q); };
-                vt.oscer[OSC_XPROP]       = VT_PROC{ p->boss.winprops.set(OSC_XPROP,       q); };
+                vt.oscer[OSC_LABEL_TITLE] = VT_PROC{ p->owner.winctl.set(OSC_LABEL_TITLE, q); };
+                vt.oscer[OSC_LABEL]       = VT_PROC{ p->owner.winctl.set(OSC_LABEL,       q); };
+                vt.oscer[OSC_TITLE]       = VT_PROC{ p->owner.winctl.set(OSC_TITLE,       q); };
+                vt.oscer[OSC_XPROP]       = VT_PROC{ p->owner.winctl.set(OSC_XPROP,       q); };
 
                 // Log all unimplemented CSI commands.
                 for (auto i = 0; i < 0x100; ++i)
@@ -454,21 +495,24 @@ private:
                 }
             }
 
-            twod panel{ dot_11 }; // vt_buffer: Viewport size.
-            twod coord{ dot_00 }; // vt_buffer: Viewport cursor position; 0-based.
-            twod saved{ dot_00 }; // vt_buffer: Saved cursor position.
-            iota sctop{ 0      }; // vt_buffer: Scrolling region top;    1-based, "0" to use top of viewport.
-            iota scend{ 0      }; // vt_buffer: Scrolling region bottom; 1-based, "0" to use bottom of viewport.
-            iota basis{ 0      }; // vt_buffer: Viewport basis. Index of O(0, 0) in the scrollback.
+            term& owner; // vt_buffer: Terminal object reference.
+            twod  panel; // vt_buffer: Viewport size.
+            twod  coord; // vt_buffer: Viewport cursor position; 0-based.
+            twod  saved; // vt_buffer: Saved cursor position.
+            iota  sctop; // vt_buffer: Scrolling region top;    1-based, "0" to use top of viewport.
+            iota  scend; // vt_buffer: Scrolling region bottom; 1-based, "0" to use bottom of viewport.
+            iota  basis; // vt_buffer: Viewport basis. Index of O(0, 0) in the scrollback.
+            iota  tabsz; // vt_buffer: Tabstop current value.
 
-            //todo magic numbers
-            static constexpr iota default_tabstop = 8;
-            iota tabstop = default_tabstop; // vt_buffer: Tabstop current value.
-
-            term& boss;
-
-            vt_buffer(term& boss)
-                : boss{ boss }
+            vt_buffer(term& master)
+                : owner{ master },
+                  panel{ dot_11 },
+                  coord{ dot_00 },
+                  saved{ dot_00 },
+                  sctop{ 0      },
+                  scend{ 0      },
+                  basis{ 0      },
+                  tabsz{ def_tablen }
             {
                 parser::style = ansi::def_style;
             }
@@ -514,7 +558,6 @@ private:
             {
                 return coord;
             }
-
             // vt_buffer: Base-CSI contract (see ansi::csi_t).
             //             task(...), meta(...), data(...)
             void task(ansi::rule const& property)
@@ -535,16 +578,15 @@ private:
                 {
                     auto status = parser::style.wrp() == wrap::none ? WRAPPING
                                                                     : parser::style.wrp();
-                    boss.base::broadcast->SIGNAL(tier::release, app::term::events::layout::wrapln, status);
+                    owner.base::broadcast->SIGNAL(tier::release, app::term::events::layout::wrapln, status);
                 }
                 if (parser::style.jet() != old_style.jet())
                 {
                     auto status = parser::style.jet() == bias::none ? bias::left
                                                                     : parser::style.jet();
-                    boss.base::broadcast->SIGNAL(tier::release, app::term::events::layout::align, status);
+                    owner.base::broadcast->SIGNAL(tier::release, app::term::events::layout::align, status);
                 }
             }
-
             template<class T>
             void na(T&& note)
             {
@@ -573,7 +615,7 @@ private:
             void stb()
             {
                 parser::flush();
-                tabstop = std::max(1, coord.x + 1);
+                tabsz = std::max(1, coord.x + 1);
             }
             // vt_buffer: TAB  Horizontal tab.
     virtual void tab(iota n)
@@ -581,13 +623,13 @@ private:
                 parser::flush();
                 if (n > 0)
                 {
-                    auto a = n * tabstop - coord.x % tabstop;
+                    auto a = n * tabsz - coord.x % tabsz;
                     ech_grow(a);
                 }
                 else if (n < 0)
                 {
                     n = -n - 1;
-                    auto a = n * tabstop + coord.x % tabstop;
+                    auto a = n * tabsz + coord.x % tabsz;
                     coord.x = std::max(0, coord.x - a);
                 }
             }
@@ -595,7 +637,7 @@ private:
             void tbc(iota n)
             {
                 parser::flush();
-                tabstop = default_tabstop;
+                tabsz = def_tablen;
             }
             // vt_buffer: ESC 7 or CSU s  Save cursor position.
             void scp()
@@ -623,7 +665,8 @@ private:
                 * Inserts n lines at the current row and removes n lines at the scroll bottom.
                 */
                 auto[top, end] = get_scroll_region();
-                if (n > 0 && coord.y >= top && coord.y <= end)
+                if (n > 0 && coord.y >= top
+                          && coord.y <= end)
                 {
                     auto old_top = sctop;
                     sctop = coord.y + 1;
@@ -640,7 +683,8 @@ private:
                 * Deletes n lines at the current row and add n lines at the scroll bottom.
                 */
                 auto[top, end] = get_scroll_region();
-                if (n > 0 && coord.y >= top && coord.y <= end)
+                if (n > 0 && coord.y >= top
+                          && coord.y <= end)
                 {
                     //todo revise for scrollbuff
                     //dissect();
@@ -729,7 +773,7 @@ private:
                 // Scroll regions up if coord.y == scend and scroll region are defined.
                 auto[top, end] = get_scroll_region();
                 if (n > 0 && scroll_region_used() && coord.y    <= end
-                                                && coord.y + n > end)
+                                                  && coord.y + n > end)
                 {
                     n -= end - coord.y;
                     coord.y = end;
@@ -772,31 +816,7 @@ private:
             // vt_buffer: CSI n K  Erase line (don't move cursor).
     virtual void el(iota n) = 0;
 
-            struct info
-            {
-                iota size = 0;
-                iota peak = 0;
-                iota step = 0;
-                twod area;
-                ansi::esc data;
-                auto update(vt_buffer const& scroll)
-                {
-                    if (scroll.update_status(*this))
-                    {
-                        data.clear();
-                        data.jet(bias::right)
-                            .add("size=", size,
-                                " peak=", peak - 1,
-                                " type=");
-                        if (step) data.add("unlimited, grow by ", step);
-                        else      data.add("fixed");
-                        data.add(" area=", area);
-                        return true;
-                    }
-                    else return faux;
-                }
-            };
-            bool update_status(info& status) const
+            bool update_status(info_stat& status) const
             {
                 bool changed = faux;
                 if (status.size != get_size()) { changed = true; status.size = get_size(); }
@@ -807,11 +827,11 @@ private:
             }
         };
 
-        // term: Alternate screen buffer internals.
+        // term: Alternate screen buffer implementation.
         struct altscreen
             : public vt_buffer
         {
-            rich canvas;
+            rich canvas; // altscreen: Terminal screen.
 
             altscreen(term& boss)
                 : vt_buffer{ boss }
@@ -836,7 +856,8 @@ private:
             {
                 auto left = 0;
                 auto rght = 0;
-                if (oversz.r != rght || oversz.l != left)
+                if (oversz.r != rght
+                 || oversz.l != left)
                 {
                     oversz.r = rght;
                     oversz.l = left;
@@ -985,7 +1006,7 @@ private:
             }
         };
 
-        // term: Scrollback buffer internals.
+        // term: Scrollback buffer implementation.
         struct scrollbuf
             : public vt_buffer
         {
@@ -1056,8 +1077,8 @@ private:
                 index_item() = default;
                 index_item(id_t index, iota start, iota width)
                     : index{ index },
-                    start{ start },
-                    width{ width }
+                      start{ start },
+                      width{ width }
                 { }
             };
 
@@ -1108,8 +1129,8 @@ private:
                     vsize = 0;
                     width = std::max(1, new_width);
                     for (auto kind : { type::leftside,
-                                    type::rghtside,
-                                    type::centered })
+                                       type::rghtside,
+                                       type::centered })
                     {
                         auto& cur_lens = lens[kind];
                         auto head = cur_lens.begin();
@@ -1152,7 +1173,8 @@ private:
                 }
                 void recalc(type& kind, iota& size, type new_kind, iota new_size)
                 {
-                    if (size != new_size || kind != new_kind)
+                    if (size != new_size
+                     || kind != new_kind)
                     {
                         auto& new_lens = lens[new_kind];
                         if (new_lens.size() <= new_size) new_lens.resize(new_size * 2 + 1);
@@ -1226,8 +1248,8 @@ private:
                 {
                     auto& endln = back();
                     auto& endid = endln.index;
-                    auto count = length();
-                    auto taken_index = static_cast<iota>(count - 1 - (endid - taken));
+                    auto  count = length();
+                    auto  taken_index = static_cast<iota>(count - 1 - (endid - taken));
                     if (taken != endid || dirty)
                     {
                         auto& topln = front();
@@ -1278,11 +1300,11 @@ private:
             iota vsize; // scrollbuf: Scrollback vertical size (height).
 
             scrollbuf(term& boss, iota buffer_size, iota grow_step)
-                : vt_buffer{ boss },
-                  batch{ buffer_size, grow_step   },
-                  maker{ batch.width, batch.vsize },
-                  index{ 1                        },
-                  vsize{ 1                        }
+                : vt_buffer{ boss                     },
+                      batch{ buffer_size, grow_step   },
+                      maker{ batch.width, batch.vsize },
+                      index{ 1                        },
+                      vsize{ 1                        }
             {
                 batch.invite(0); // At least one line must exist.
                 batch.set_width(1);
@@ -1481,11 +1503,16 @@ private:
                 coor.y += basis;
                 auto& curln = batch.current();
                 auto  align = curln.style.jet();
-                if (align == bias::left || align == bias::none) return coor;
+
+                if (align == bias::left
+                 || align == bias::none) return coor;
+
                 auto remain = index[coord.y].width;
                 if (remain == panel.x && curln.wrapped()) return coor;
+
                 if    (align == bias::right )  coor.x += panel.x     - remain - 1;
                 else /*align == bias::center*/ coor.x += panel.x / 2 - remain / 2;
+
                 return coor;
             }
             void set_coord(twod const& new_coord) override
@@ -2015,7 +2042,7 @@ private:
                             if (left_edge_x > lt_dot)
                             {
                                 if (align == bias::right  && left_edge_x <= rt_dot - remain
-                                || align == bias::center && left_edge_x <= lt_dot + half_size_x - remain / 2)
+                                 || align == bias::center && left_edge_x <= lt_dot + half_size_x - remain / 2)
                                 {
                                     --left_rect.size.y;
                                 }
@@ -2024,7 +2051,7 @@ private:
                             if (rght_edge_x < rt_dot)
                             {
                                 if (align == bias::left   && rght_edge_x >= lt_dot + remain
-                                || align == bias::center && rght_edge_x >= lt_dot + remain + half_size_x - remain / 2)
+                                 || align == bias::center && rght_edge_x >= lt_dot + remain + half_size_x - remain / 2)
                                 {
                                     --rght_rect.size.y;
                                 }
@@ -2121,9 +2148,9 @@ private:
                 auto temp = std::move(batch.current());
                 batch.insert(temp.index, temp.style);
                 auto curit = batch.current_it();
-                auto head = curit;
-                auto tail = batch.end();
-                do ++head++->index;
+                auto  head = curit;
+                auto  tail = batch.end();
+                do  ++head++->index;
                 while(head != tail);
 
                 auto& newln = *curit;
@@ -2225,23 +2252,21 @@ private:
             }
         };
 
-        scrollbuf       normal; // term: Normal screen buffer.
-        altscreen       altbuf; // term: Alternate screen buffer.
-        vt_buffer      *target; // term: Current screen buffer pointer.
-        os::cons        ptycon; // term: PTY device.
-        vt_buffer::info status; // term: Status info.
-
-        twod screen_coor = dot_00; // term: Viewport position.
-        hook oneshot_resize_token; // term: First resize subscription token.
-        text cmd_line;
-        hook shut_down_token; // term: One shot shutdown token.
-        bool alive = true;
-
-        static constexpr iota default_size = 20000;
-        static constexpr iota default_step = 0;
-
-        bool mode_DECCKM = faux; // term: Cursor keys Application(true)/ANSI(faux) mode.
-        bool bracketed_paste_mode = faux; // term: .
+        pro::caret cursor; // term: Text cursor controller.
+        win_cntrl  winctl; // term: Terminal window options repository.
+        ftracking  ftrack; // term: Keyboard focus tracking object.
+        mtracking  mtrack; // term: VT-mouse tracking object.
+        scrollbuf  normal; // term: Normal screen buffer.
+        altscreen  altbuf; // term: Alternate screen buffer.
+        vt_buffer *target; // term: Current screen buffer pointer.
+        info_stat  status; // term: VT-buffer status info.
+        cons       ptycon; // term: PTY device.
+        text       cmdarg; // term: Command line arguments.
+        hook       oneoff; // term: One-shot token for the first resize and shutdown events.
+        twod       origin; // term: Viewport position.
+        bool       active; // term: Terminal lifetime.
+        bool       decckm; // term: Cursor keys Application(true)/ANSI(faux) mode.
+        bool       bpmode; // term: Bracketed paste mode.
 
         // term: Soft terminal reset (DECSTR).
         void decstr()
@@ -2251,6 +2276,7 @@ private:
             altbuf.clear_all();
             target = &normal;
         }
+        // term: Set termnail parameters. (DECSET).
         void decset(fifo& queue)
         {
             target->flush();
@@ -2259,7 +2285,7 @@ private:
                 switch (q)
                 {
                     case 1:    // Cursor keys application mode.
-                        mode_DECCKM = true;
+                        decckm = true;
                         break;
                     case 7:    // Enable auto-wrap.
                         target->style.wrp(wrap::on);
@@ -2274,28 +2300,28 @@ private:
                         log("decset: CSI ? 9 h  X10 Mouse reporting protocol is not supported");
                         break;
                     case 1000: // Enable mouse buttons reporting mode.
-                        mtracker.enable(mtracking::buttons_press);
+                        mtrack.enable(mtracking::buttons_press);
                         break;
                     case 1001: // Use Hilite mouse tracking mode.
                         log("decset: CSI ? 1001 h  Hilite mouse tracking mode is not supported");
                         break;
                     case 1002: // Enable mouse buttons and drags reporting mode.
-                        mtracker.enable(mtracking::buttons_drags);
+                        mtrack.enable(mtracking::buttons_drags);
                         break;
                     case 1003: // Enable all mouse events reporting mode.
-                        mtracker.enable(mtracking::all_movements);
+                        mtrack.enable(mtracking::all_movements);
                         break;
                     case 1004: // Enable focus tracking.
-                        ftracker.set(true);
+                        ftrack.set(true);
                         break;
                     case 1005: // Enable UTF-8 mouse reporting protocol.
                         log("decset: CSI ? 1005 h  UTF-8 mouse reporting protocol is not supported");
                         break;
                     case 1006: // Enable SGR mouse reporting protocol.
-                        mtracker.setmode(mtracking::sgr);
+                        mtrack.setmode(mtracking::sgr);
                         break;
                     case 10060:// Enable mouse reporting outside the viewport (outside+negative coordinates).
-                        mtracker.enable(mtracking::negative_args);
+                        mtrack.enable(mtracking::negative_args);
                         break;
                     case 1015: // Enable URXVT mouse reporting protocol.
                         log("decset: CSI ? 1015 h  URXVT mouse reporting protocol is not supported");
@@ -2315,13 +2341,14 @@ private:
                         base::resize(altbuf.panel);
                         break;
                     case 2004: // Set bracketed paste mode.
-                        bracketed_paste_mode = true;
+                        bpmode = true;
                         break;
                     default:
                         break;
                 }
             }
         }
+        // term: Reset termnail parameters. (DECRST).
         void decrst(fifo& queue)
         {
             target->flush();
@@ -2330,7 +2357,7 @@ private:
                 switch (q)
                 {
                     case 1:    // Cursor keys ANSI mode.
-                        mode_DECCKM = faux;
+                        decckm = faux;
                         break;
                     case 7:    // Disable auto-wrap.
                         target->style.wrp(wrap::off);
@@ -2345,28 +2372,28 @@ private:
                         log("decset: CSI ? 9 l  X10 Mouse tracking protocol is not supported");
                         break;
                     case 1000: // Disable mouse buttons reporting mode.
-                        mtracker.disable(mtracking::buttons_press);
+                        mtrack.disable(mtracking::buttons_press);
                         break;
                     case 1001: // Don't use Hilite(c) mouse tracking mode.
                         log("decset: CSI ? 1001 l  Hilite mouse tracking mode is not supported");
                         break;
                     case 1002: // Disable mouse buttons and drags reporting mode.
-                        mtracker.disable(mtracking::buttons_drags);
+                        mtrack.disable(mtracking::buttons_drags);
                         break;
                     case 1003: // Disable all mouse events reporting mode.
-                        mtracker.disable(mtracking::all_movements);
+                        mtrack.disable(mtracking::all_movements);
                         break;
                     case 1004: // Disable focus tracking.
-                        ftracker.set(faux);
+                        ftrack.set(faux);
                         break;
                     case 1005: // Disable UTF-8 mouse reporting protocol.
                         log("decset: CSI ? 1005 l  UTF-8 mouse reporting protocol is not supported");
                         break;
                     case 1006: // Disable SGR mouse reporting protocol (set X11 mode).
-                        mtracker.setmode(mtracking::x11);
+                        mtrack.setmode(mtracking::x11);
                         break;
                     case 10060:// Disable mouse reporting outside the viewport (allow reporting inside the viewport only).
-                        mtracker.disable(mtracking::negative_args);
+                        mtrack.disable(mtracking::negative_args);
                         break;
                     case 1015: // Disable URXVT mouse reporting protocol.
                         log("decset: CSI ? 1015 l  URXVT mouse reporting protocol is not supported");
@@ -2385,53 +2412,18 @@ private:
                         base::resize(normal.panel);
                         break;
                     case 2004: // Disable bracketed paste mode.
-                        bracketed_paste_mode = faux;
+                        bpmode = faux;
                         break;
                     default:
                         break;
                 }
             }
         }
-        void cursor_style(iota style)
-        {
-            switch (style)
-            {
-            case 0: // n = 0  blinking box
-            case 1: // n = 1  blinking box (default)
-                cursor.blink_period();
-                cursor.style(true);
-                break;
-            case 2: // n = 2  steady box
-                cursor.blink_period(period::zero());
-                cursor.style(true);
-                break;
-            case 3: // n = 3  blinking underline
-                cursor.blink_period();
-                cursor.style(faux);
-                break;
-            case 4: // n = 4  steady underline
-                cursor.blink_period(period::zero());
-                cursor.style(faux);
-                break;
-            case 5: // n = 5  blinking I-bar
-                cursor.blink_period();
-                cursor.style(true);
-                break;
-            case 6: // n = 6  steady I-bar
-                cursor.blink_period(period::zero());
-                cursor.style(true);
-                break;
-            default:
-                log("term: unsupported cursor style requested, ", style);
-                break;
-            }
-        }
-
         // term: Set scrollback buffer size and grow_by step.
         void scrollbuffer_size(fifo& q)
         {
-            iota max_scrollback_size = q(default_size);
-            iota grow_step           = q(default_step);
+            iota max_scrollback_size = q(def_length);
+            iota grow_step           = q(def_growup);
             normal.resize_history(max_scrollback_size, grow_step);
         }
         // term: Extended functionality response.
@@ -2449,16 +2441,17 @@ private:
                 queue.clear();
             }
         }
+        // term: Proceed terminal input.
         void input_hndl(view shadow)
         {
-            while (alive)
+            while (active)
             {
                 netxs::events::try_sync guard;
                 if (guard)
                 {
                     SIGNAL(tier::general, e2::debug::output, shadow); // Post for the Logs.
 
-                auto force_basis = screen_coor.y == -target->basis;
+                auto force_basis = origin.y == -target->basis;
 
                     ansi::parse(shadow, target);
 
@@ -2470,6 +2463,7 @@ private:
                 else std::this_thread::yield();
             }
         }
+        // term: Shutdown callback handler.
         void shutdown_hndl(iota code)
         {
             log("term: exit code ", code);
@@ -2481,13 +2475,14 @@ private:
             else
             {
                 log("term: submit for destruction on next frame/tick");
-                SUBMIT_T(tier::general, e2::tick, shut_down_token, t)
+                SUBMIT_T(tier::general, e2::tick, oneoff, t)
                 {
-                    shut_down_token.reset();
+                    oneoff.reset();
                     base::destroy();
                 };
             }
         }
+        // term: Reset viewport position.
         void reset_scroll_pos(bool force_basis = true)
         {
             //oversz.b = target->resize_viewport(); //todo update basis in place
@@ -2498,27 +2493,31 @@ private:
             scroll_size.y = std::max(console.panel.y, console.height() - oversz.vsumm());
             //if (force_basis)
             {
-                screen_coor.y = -console.basis;
-                this->SIGNAL(tier::release, e2::coor::set, screen_coor);
+                origin.y = -console.basis;
+                this->SIGNAL(tier::release, e2::coor::set, origin);
             }
             if (scroll_size != base::size() || adjust_pads)
             {
                 this->SIGNAL(tier::release, e2::size::set, scroll_size); // Update scrollbars.
             }
         }
+
     public:
-       ~term(){ alive = faux; }
-        term(text command_line, iota max_scrollback_size = default_size, iota grow_step = default_step)
-            : mtracker{ *this                                 },
-              ftracker{ *this                                 },
-              winprops{ *this                                 },
-              cmd_line{ command_line                          },
-              normal  { *this, max_scrollback_size, grow_step },
-              altbuf  { *this                                 },
-              target  { &normal                               }
+       ~term(){ active = faux; }
+        term(text command_line, iota max_scrollback_size = def_length, iota grow_step = def_growup)
+            : cursor{ *this                                 },
+              mtrack{ *this                                 },
+              ftrack{ *this                                 },
+              winctl{ *this                                 },
+              normal{ *this, max_scrollback_size, grow_step },
+              altbuf{ *this                                 },
+              active{  true                                 },
+              decckm{  faux                                 },
+              bpmode{  faux                                 }
         {
-            cursor.show();
-            cursor.style(true);
+            cmdarg = command_line;
+            target = &normal;
+            cursor.style(commands::cursor::def_style);
 
             #ifdef PROD
             form::keybd.accept(true); // Subscribe to keybd offers.
@@ -2566,20 +2565,20 @@ private:
             };
             SUBMIT(tier::release, e2::coor::set, new_coor)
             {
-                screen_coor.x = new_coor.x;
-                screen_coor.y =-new_coor.y;
+                origin.x = new_coor.x;
+                origin.y =-new_coor.y;
             };
             SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
             {
-                this->base::riseup<tier::request>(e2::form::prop::header, winprops.get(ansi::OSC_TITLE));
+                this->base::riseup<tier::request>(e2::form::prop::header, winctl.get(ansi::OSC_TITLE));
 
 
-                this->SUBMIT_T(tier::release, e2::size::set, oneshot_resize_token, new_sz)
+                this->SUBMIT_T(tier::release, e2::size::set, oneoff, new_sz)
                 {
                     if (new_sz.y > 0)
                     {
                         auto& console = *target;
-                        oneshot_resize_token.reset();
+                        oneoff.reset();
 
                         new_sz = std::max(new_sz, dot_11);
                         oversz.b = console.resize_viewport(new_sz);
@@ -2588,7 +2587,7 @@ private:
                         this->SUBMIT(tier::preview, e2::size::set, new_sz)
                         {
                             auto& console = *target;
-                auto force_basis = screen_coor.y == -console.basis;
+                auto force_basis = origin.y == -console.basis;
 
                             new_sz = std::max(new_sz, dot_11);
                             oversz.b = console.resize_viewport(new_sz);
@@ -2601,7 +2600,7 @@ private:
                             new_sz.y = std::max(new_sz.y, console.height() - oversz.vsumm());
                         };
 
-                        ptycon.start(cmd_line, new_sz, [&](auto utf8_shadow) { input_hndl(utf8_shadow);  },
+                        ptycon.start(cmdarg, new_sz, [&](auto utf8_shadow) { input_hndl(utf8_shadow);  },
                                                        [&](auto exit_code)   { shutdown_hndl(exit_code); });
                     }
                 };
@@ -2611,12 +2610,12 @@ private:
                 reset_scroll_pos();
                 //todo optimize/unify
                 auto data = gear.keystrokes;
-                if (!bracketed_paste_mode)
+                if (!bpmode)
                 {
                     utf::change(data, "\033[200~", "");
                     utf::change(data, "\033[201~", "");
                 }
-                if (mode_DECCKM)
+                if (decckm)
                 {
                     utf::change(data, "\033[A", "\033OA");
                     utf::change(data, "\033[B", "\033OB");
