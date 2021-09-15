@@ -2339,7 +2339,7 @@ namespace netxs::os
     template<class V> conmode     tty::_globals<V>::state;
     template<class V> testy<twod> tty::_globals<V>::winsz;
 
-    class cons
+    class ptydev
     {
         #if defined(_WIN32)
 
@@ -2362,22 +2362,22 @@ namespace netxs::os
         std::function<void(iota)> shutdown;
 
     public:
-        ~cons()
+        ~ptydev()
         {
-            log("cons: dtor started");
+            log("ptydev: dtor started");
             if (termlink) wait_child();
             if (stdinput.joinable())
             {
-                log("cons: input thread joining");
+                log("ptydev: input thread joining");
                 stdinput.join();
             }
             #if defined(_WIN32)
                 if (client_exit_waiter.joinable())
                 {
-                    log("cons: client_exit_waiter thread joining");
+                    log("ptydev: client_exit_waiter thread joining");
                     client_exit_waiter.join();
                 }
-                log("cons: client_exit_waiter thread joined");
+                log("ptydev: client_exit_waiter thread joined");
             #endif
         }
         
@@ -2388,7 +2388,7 @@ namespace netxs::os
         {
             receiver = input_hndl;
             shutdown = shutdown_hndl;
-            log("cons: new process: ", cmdline);
+            log("ptydev: new process: ", cmdline);
 
             #if defined(_WIN32)
 
@@ -2467,21 +2467,21 @@ namespace netxs::os
                         HANDLE signals[] = { hProcess, gameover };
                         if (WAIT_OBJECT_0 != WaitForMultipleObjects(2, signals, FALSE, INFINITE))
                         {
-                            log("cons: client_exit_waiter error");
+                            log("ptydev: client_exit_waiter error");
                         }
-                        log("cons: client_exit_waiter finished");
+                        log("ptydev: client_exit_waiter finished");
                         CloseHandle(gameover);
                         if (termlink)
                         {
                             auto exit_code = wait_child();
                             shutdown(exit_code);
                         }
-                        log("cons: client_exit_waiter exit");
+                        log("ptydev: client_exit_waiter exit");
                     });
                     termlink.set({ m_pipe_r, m_pipe_w }, true);
-                    log("cons: conpty created: ", winsz);
+                    log("ptydev: conpty created: ", winsz);
                 }
-                else log("cons: process creation error ", GetLastError());
+                else log("ptydev: process creation error ", GetLastError());
 
                 //todo workaround for GH#10400 (resolved) https://github.com/microsoft/terminal/issues/10400
                 std::this_thread::sleep_for(250ms);
@@ -2507,7 +2507,7 @@ namespace netxs::os
                     // Current process must be a session leader (::setsid()) and not have
                     // a controlling terminal already.
                     // arg = 0: 1 - to stole fds from another process, it doesn't matter here.
-                    ok(::ioctl(fds, TIOCSCTTY, 0), "cons: assign controlling terminal error");
+                    ok(::ioctl(fds, TIOCSCTTY, 0), "ptydev: assign controlling terminal error");
 
                     ::signal(SIGINT,  SIG_DFL); // Reset control signals to default values.
                     ::signal(SIGQUIT, SIG_DFL); //
@@ -2531,7 +2531,7 @@ namespace netxs::os
 
                     ::setenv("TERM", "xterm-256color", 1); //todo too hacky
                     ok(::execvp(argv.front(), argv.data()), "execvp error");
-                    os::exit(1, "cons: exec error ", errno);
+                    os::exit(1, "ptydev: exec error ", errno);
                 }
 
                 // Parent branch.
@@ -2546,16 +2546,16 @@ namespace netxs::os
         {
             iota exit_code;
             termlink.reset();
-            log("cons: wait child process");
+            log("ptydev: wait child process");
 
             #if defined(_WIN32)
 
                 ClosePseudoConsole(hPC);
                 termlink.shut();
                 DWORD code = 0;
-                if (GetExitCodeProcess(hProcess, &code) == FALSE) log("cons: child GetExitCodeProcess() error: ", GetLastError());
-                else if (code == STILL_ACTIVE)                    log("cons: child process still running");
-                else                                              log("cons: child process exit code ", code);
+                if (GetExitCodeProcess(hProcess, &code) == FALSE) log("ptydev: child GetExitCodeProcess() error: ", GetLastError());
+                else if (code == STILL_ACTIVE)                    log("ptydev: child process still running");
+                else                                              log("ptydev: child process exit code ", code);
                 exit_code = code;
                 SetEvent(gameover);
                 CloseHandle(hProcess);
@@ -2569,16 +2569,16 @@ namespace netxs::os
                 if (WIFEXITED(status))
                 {
                     exit_code = WEXITSTATUS(status);
-                    log("cons: child process exit code ", exit_code);
+                    log("ptydev: child process exit code ", exit_code);
                 }
                 else
                 {
                     exit_code = 0;
-                    log("cons: error: child process exit code not detected");
+                    log("ptydev: error: child process exit code not detected");
                 }
 
             #endif
-            log("cons: wait_child() exit");
+            log("ptydev: wait_child() exit");
             return exit_code;
         }
         void read_socket_thread()
@@ -2597,7 +2597,7 @@ namespace netxs::os
             }
             if (termlink)
             {
-                log("cons: read_socket_thread ended");
+                log("ptydev: read_socket_thread ended");
                 auto exit_code = wait_child();
                 shutdown(exit_code);
             }
@@ -2612,7 +2612,7 @@ namespace netxs::os
                     winsz.X = newsize.x;
                     winsz.Y = newsize.y;
                     auto hr = ResizePseudoConsole(hPC, winsz);
-                    if (hr != S_OK) log("cons: ResizePseudoConsole error, ", hr);
+                    if (hr != S_OK) log("ptydev: ResizePseudoConsole error, ", hr);
 
                 #else
 

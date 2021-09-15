@@ -96,14 +96,12 @@ namespace netxs::app
         };
 
 private:
-        using cons = os::cons;
-
         static constexpr iota def_length = 20000; // term: Default scrollback history length.
         static constexpr iota def_growup = 0;     // term: Default scrollback history grow step.
         static constexpr iota def_tablen = 8;     // term: Default tab length.
 
         // term: VT-buffer status.
-        struct info_stat
+        struct term_state
         {
             using buff = ansi::esc;
             iota size = 0;
@@ -111,8 +109,8 @@ private:
             iota step = 0;
             twod area;
             buff data;
-            template<class vt_buffer>
-            auto update(vt_buffer const& scroll)
+            template<class bufferbase>
+            auto update(bufferbase const& scroll)
             {
                 if (scroll.update_status(*this))
                 {
@@ -130,8 +128,8 @@ private:
             }
         };
 
-        // term: VT-mouse tracking functionality.
-        struct mtracking
+        // term: VT-style mouse tracking functionality.
+        struct m_tracking
         {
             enum mode
             {
@@ -151,7 +149,7 @@ private:
                 sgr,
             };
 
-            mtracking(term& owner)
+            m_tracking(term& owner)
                 : owner{ owner }
             { }
 
@@ -174,7 +172,7 @@ private:
                         auto cause = owner.bell::protos<tier::release>();
                         if (proto == sgr) serialize<sgr>(gear, cause);
                         else              serialize<x11>(gear, cause);
-                        owner.write(queue);
+                        owner.answer(queue);
                     };
                     owner.SUBMIT_T(tier::general, hids::events::die, token, gear)
                     {
@@ -182,7 +180,7 @@ private:
                         auto cause = hids::events::die.id;
                         if (proto == sgr) serialize<sgr>(gear, cause);
                         else              serialize<x11>(gear, cause);
-                        owner.write(queue);
+                        owner.answer(queue);
                     };
                 }
             }
@@ -190,10 +188,10 @@ private:
             void setmode(prot p) { proto = p; }
 
         private:
-            term&       owner; // mtracking: Terminal object reference.
-            testy<twod> coord; // mtracking: Last coord of mouse cursor.
-            ansi::esc   queue; // mtracking: Buffer.
-            subs        token; // mtracking: Subscription token.
+            term&       owner; // m_tracking: Terminal object reference.
+            testy<twod> coord; // m_tracking: Last coord of mouse cursor.
+            ansi::esc   queue; // m_tracking: Buffer.
+            subs        token; // m_tracking: Subscription token.
             bool        moved = faux;
             iota        proto = prot::x11;
             iota        state = mode::none;
@@ -220,7 +218,7 @@ private:
                     default: break;
                 }
             }
-            // mtracking: Serialize mouse state.
+            // m_tracking: Serialize mouse state.
             template<prot PROT>
             void serialize(hids& gear, id_t cause)
             {
@@ -278,9 +276,9 @@ private:
         };
 
         // term: Keyboard focus tracking functionality.
-        struct ftracking
+        struct f_tracking
         {
-            ftracking(term& owner)
+            f_tracking(term& owner)
                 : owner{ owner },
                   state{ faux  }
             { }
@@ -300,36 +298,36 @@ private:
                                 case hids::events::notify::keybd::lost.id: queue.fcs(faux); break;
                                 default: break;
                             }
-                            owner.write(queue);
+                            owner.answer(queue);
                         };
                     }
                 }
                 else token.reset();
             }
         private:
-            term&       owner; // ftracking: Terminal object reference.
-            hook        token; // ftracking: Subscription token.
-            ansi::esc   queue; // ftracking: Buffer.
-            bool        state; // ftracking: Current focus state.
+            term&       owner; // f_tracking: Terminal object reference.
+            hook        token; // f_tracking: Subscription token.
+            ansi::esc   queue; // f_tracking: Buffer.
+            bool        state; // f_tracking: Current focus state.
         };
 
         // term: Terminal window options control.
-        struct win_cntrl
+        struct t_tracking
         {
-            term&                             owner; // win_cntrl: Terminal object reference.
+            term&                             owner; // t_tracking: Terminal object reference.
             std::map<text, text>              props;
             std::map<text, std::vector<text>> stack;
             ansi::esc                         queue;
 
-            win_cntrl(term& owner)
+            t_tracking(term& owner)
                 : owner{ owner }
             { }
-            // win_cntrl: Get terminal window property.
+            // t_tracking: Get terminal window property.
             auto& get(text const& property)
             {
                 return props[property];
             }
-            // win_cntrl: Set terminal window property.
+            // t_tracking: Set terminal window property.
             void set(text const& property, view txt)
             {
                 static auto jet_left = ansi::jet(bias::left);
@@ -351,7 +349,7 @@ private:
                     }
                 }
             }
-            // win_cntrl: Manage terminal window props (XTWINOPS).
+            // t_tracking: Manage terminal window props (XTWINOPS).
             void manage(fifo& q)
             {
                 owner.target->flush();
@@ -365,8 +363,8 @@ private:
                 switch(auto option = q(0))
                 {
                     // Return an empty string for security reasons
-                    case get_label: owner.write(queue.osc(ansi::OSC_LABEL_REPORT, "")); break;
-                    case get_title: owner.write(queue.osc(ansi::OSC_TITLE_REPORT, "")); break;
+                    case get_label: owner.answer(queue.osc(ansi::OSC_LABEL_REPORT, "")); break;
+                    case get_title: owner.answer(queue.osc(ansi::OSC_TITLE_REPORT, "")); break;
                     case put_stack:
                     {
                         auto push = [&](auto const& property){
@@ -410,7 +408,7 @@ private:
         };
 
         // term: Generic terminal buffer behavior.
-        struct vt_buffer
+        struct bufferbase
             : public ansi::parser
         {
             template<class T>
@@ -459,7 +457,7 @@ private:
 
                 vt.csier.table[CSI_WIN] = VT_PROC{ p->owner.winctl.manage(q); };  // CSI n;m;k t  Terminal window options (XTWINOPS).
 
-                vt.csier.table[CSI_CCC][CCC_SBS] = VT_PROC{ p->owner.scrollbuffer_size(q); };  // CCC_SBS: Set scrollback size.
+                vt.csier.table[CSI_CCC][CCC_SBS] = VT_PROC{ p->owner.sbsize(q); };  // CCC_SBS: Set scrollback size.
                 vt.csier.table[CSI_CCC][CCC_EXT] = VT_PROC{ p->owner.native(q(1)); };          // CCC_EXT: Setup extended functionality.
                 vt.csier.table[CSI_CCC][CCC_RST] = VT_PROC{ p->style.glb(); p->style.wrp(WRAPPING); };  // fx_ccc_rst
 
@@ -495,16 +493,16 @@ private:
                 }
             }
 
-            term& owner; // vt_buffer: Terminal object reference.
-            twod  panel; // vt_buffer: Viewport size.
-            twod  coord; // vt_buffer: Viewport cursor position; 0-based.
-            twod  saved; // vt_buffer: Saved cursor position.
-            iota  sctop; // vt_buffer: Scrolling region top;    1-based, "0" to use top of viewport.
-            iota  scend; // vt_buffer: Scrolling region bottom; 1-based, "0" to use bottom of viewport.
-            iota  basis; // vt_buffer: Viewport basis. Index of O(0, 0) in the scrollback.
-            iota  tabsz; // vt_buffer: Tabstop current value.
+            term& owner; // bufferbase: Terminal object reference.
+            twod  panel; // bufferbase: Viewport size.
+            twod  coord; // bufferbase: Viewport cursor position; 0-based.
+            twod  saved; // bufferbase: Saved cursor position.
+            iota  sctop; // bufferbase: Scrolling region top;    1-based, "0" to use top of viewport.
+            iota  scend; // bufferbase: Scrolling region bottom; 1-based, "0" to use bottom of viewport.
+            iota  basis; // bufferbase: Viewport basis. Index of O(0, 0) in the scrollback.
+            iota  tabsz; // bufferbase: Tabstop current value.
 
-            vt_buffer(term& master)
+            bufferbase(term& master)
                 : owner{ master },
                   panel{ dot_11 },
                   coord{ dot_00 },
@@ -529,18 +527,18 @@ private:
             virtual iota get_step() const                            = 0;
                     auto get_view() const { return panel; }
 
-            // vt_buffer: Set the scrolling region using 1-based top and bottom. Use 0 to reset.
+            // bufferbase: Set the scrolling region using 1-based top and bottom. Use 0 to reset.
     virtual void set_scroll_region(iota top, iota bottom)
             {
                 sctop = top;
                 scend = bottom;
             }
-            // vt_buffer: Return true if the scrolling region is set.
+            // bufferbase: Return true if the scrolling region is set.
             auto scroll_region_used()
             {
                 return scend || sctop;
             }
-            // vt_buffer: Return 0-based scroll region pair, inclusive.
+            // bufferbase: Return 0-based scroll region pair, inclusive.
             auto get_scroll_region()
             {
                 auto top = sctop ? sctop - 1 : 0;
@@ -553,17 +551,17 @@ private:
             {
                 coord = new_coord;
             }
-            // vt_buffer: Return current 0-based cursor position in the viewport.
+            // bufferbase: Return current 0-based cursor position in the viewport.
     virtual twod get_coord()
             {
                 return coord;
             }
-            // vt_buffer: Base-CSI contract (see ansi::csi_t).
+            // bufferbase: Base-CSI contract (see ansi::csi_t).
             //             task(...), meta(...), data(...)
             void task(ansi::rule const& property)
             {
                 parser::flush();
-                log("vt_buffer: locus extensions are not supported");
+                log("bufferbase: locus extensions are not supported");
                 //auto& cur_line = batch.current();
                 //if (cur_line.busy())
                 //{
@@ -611,13 +609,13 @@ private:
             {
                 parser::state = {};
             }
-            // vt_buffer: ESC H  Place tabstop at the current cursor posistion.
+            // bufferbase: ESC H  Place tabstop at the current cursor posistion.
             void stb()
             {
                 parser::flush();
                 tabsz = std::max(1, coord.x + 1);
             }
-            // vt_buffer: TAB  Horizontal tab.
+            // bufferbase: TAB  Horizontal tab.
     virtual void tab(iota n)
             {
                 parser::flush();
@@ -633,31 +631,31 @@ private:
                     coord.x = std::max(0, coord.x - a);
                 }
             }
-            // vt_buffer: CSI n g  Reset tabstop value.
+            // bufferbase: CSI n g  Reset tabstop value.
             void tbc(iota n)
             {
                 parser::flush();
                 tabsz = def_tablen;
             }
-            // vt_buffer: ESC 7 or CSU s  Save cursor position.
+            // bufferbase: ESC 7 or CSU s  Save cursor position.
             void scp()
             {
                 parser::flush();
                 saved = coord;
             }
-            // vt_buffer: ESC 8 or CSU u  Restore cursor position.
+            // bufferbase: ESC 8 or CSU u  Restore cursor position.
     virtual void rcp()
             {
                 parser::flush();
                 coord = saved;
             }
-            // vt_buffer: CSI n T/S  Scroll down/up, scrolled up lines are pushed to the scrollback buffer.
+            // bufferbase: CSI n T/S  Scroll down/up, scrolled up lines are pushed to the scrollback buffer.
     virtual void scl(iota n)
             {
                 parser::flush();
                 scroll_region(n, n > 0 ? faux : true);
             }
-            // vt_buffer: CSI n L  Insert n lines. Place cursor to the begining of the current.
+            // bufferbase: CSI n L  Insert n lines. Place cursor to the begining of the current.
     virtual void il(iota n)
             {
                 parser::flush();
@@ -675,7 +673,7 @@ private:
                     coord.x = 0;
                 }
             }
-            // vt_buffer: CSI n M Delete n lines. Place cursor to the begining of the current.
+            // bufferbase: CSI n M Delete n lines. Place cursor to the begining of the current.
     virtual void dl(iota n)
             {
                 parser::flush();
@@ -694,7 +692,7 @@ private:
                     sctop = old_top;
                 }
             }
-            // vt_buffer: ESC M  Reverse index.
+            // bufferbase: ESC M  Reverse index.
     virtual void ri()
             {
                 parser::flush();
@@ -710,48 +708,48 @@ private:
                 }
                 else scroll_region(1, true);
             }
-            // vt_buffer: CSI t;b r - Set scrolling region (t/b: top+bottom).
+            // bufferbase: CSI t;b r - Set scrolling region (t/b: top+bottom).
             void scr(fifo& queue)
             {
                 auto top = queue(0);
                 auto end = queue(0);
                 set_scroll_region(top, end);
             }
-            // vt_buffer: CSI n @  ICH. Insert n blanks after cursor. Don't change cursor pos.
+            // bufferbase: CSI n @  ICH. Insert n blanks after cursor. Don't change cursor pos.
     virtual void ins(iota n) = 0;
-            // vt_buffer: Shift left n columns(s).
+            // bufferbase: Shift left n columns(s).
             void shl(iota n)
             {
             }
-            // vt_buffer: CSI n X  Erase/put n chars after cursor. Don't change cursor pos.
+            // bufferbase: CSI n X  Erase/put n chars after cursor. Don't change cursor pos.
     virtual void ech(iota n) = 0;
     virtual void ech_grow(iota n) = 0;
-            // vt_buffer: CSI n P  Delete (not Erase) letters under the cursor.
+            // bufferbase: CSI n P  Delete (not Erase) letters under the cursor.
     virtual void dch(iota n) = 0;
-            // vt_buffer: '\x7F'  Delete characters backwards.
+            // bufferbase: '\x7F'  Delete characters backwards.
             void del(iota n)
             {
                 log("not implemented: '\\x7F' Delete characters backwards.");
             }
-            // vt_buffer: Move cursor forward by n.
+            // bufferbase: Move cursor forward by n.
     virtual void cuf(iota n)
             {
                 parser::flush();
                 coord.x += n;
             }
-            // vt_buffer: CSI n G  Absolute horizontal cursor position (1-based).
+            // bufferbase: CSI n G  Absolute horizontal cursor position (1-based).
     virtual void chx(iota n)
             {
                 parser::flush();
                 coord.x = n - 1;
             }
-            // vt_buffer: CSI n d  Absolute vertical cursor position (1-based).
+            // bufferbase: CSI n d  Absolute vertical cursor position (1-based).
     virtual void chy(iota n)
             {
                 parser::flush();
                 coord.y = n - 1;
             }
-            // vt_buffer: CSI y; x H/F  Caret position (1-based).
+            // bufferbase: CSI y; x H/F  Caret position (1-based).
     virtual void cup(fifo& queue)
             {
                 parser::flush();
@@ -760,13 +758,13 @@ private:
                 auto p = twod{ x, y };
                 auto c = std::clamp(p, dot_11, panel) - dot_11;
             }
-            // vt_buffer: Line reverse feed (move cursor up).
+            // bufferbase: Line reverse feed (move cursor up).
     virtual void up(iota n)
             {
                 parser::flush();
                 coord.y -= n;
             }
-            // vt_buffer: Line feed (move cursor down).
+            // bufferbase: Line feed (move cursor down).
     virtual void dn(iota n)
             {
                 parser::flush();
@@ -784,13 +782,13 @@ private:
                     coord.y += n;
                 }
             }
-            // vt_buffer: '\r'  Go to home of visible line instead of home of para.
+            // bufferbase: '\r'  Go to home of visible line instead of home of para.
     virtual void home()
             {
                 parser::flush();
                 coord.x = 0;
             }
-            // vt_buffer: CSI n J  Erase display.
+            // bufferbase: CSI n J  Erase display.
             void ed(iota n)
             {
                 parser::flush();
@@ -813,10 +811,10 @@ private:
                         break;
                 }
             }
-            // vt_buffer: CSI n K  Erase line (don't move cursor).
+            // bufferbase: CSI n K  Erase line (don't move cursor).
     virtual void el(iota n) = 0;
 
-            bool update_status(info_stat& status) const
+            bool update_status(term_state& status) const
             {
                 bool changed = faux;
                 if (status.size != get_size()) { changed = true; status.size = get_size(); }
@@ -828,13 +826,13 @@ private:
         };
 
         // term: Alternate screen buffer implementation.
-        struct altscreen
-            : public vt_buffer
+        struct alt_screen
+            : public bufferbase
         {
-            rich canvas; // altscreen: Terminal screen.
+            rich canvas; // alt_screen: Terminal screen.
 
-            altscreen(term& boss)
-                : vt_buffer{ boss }
+            alt_screen(term& boss)
+                : bufferbase{ boss }
             { }
 
             iota get_size() const override { return panel.y; }
@@ -866,11 +864,11 @@ private:
                 else return faux;
             }
 
-            // altscreen: CSI n K  Erase line (don't move cursor).
+            // alt_screen: CSI n K  Erase line (don't move cursor).
             void el(iota n) override
             {
                 
-                vt_buffer::flush();
+                bufferbase::flush();
 
                 //iota  start;
                 //iota  count;
@@ -908,7 +906,7 @@ private:
                 //batch.recalc(curln);
                 //}
             }
-            // altscreen: CSI n @  ICH. Insert n blanks after cursor. Don't change cursor pos.
+            // alt_screen: CSI n @  ICH. Insert n blanks after cursor. Don't change cursor pos.
             void ins(iota n) override
             {
                /*
@@ -917,14 +915,14 @@ private:
                 *   Existing chars after cursor shifts to the right.
                 */
 
-                vt_buffer::flush();
+                bufferbase::flush();
 
                 //auto& curln = batch.current();
                 ////todo check_autogrow
                 //curln.insert(batch.caret, n, brush);
                 //batch.recalc(curln);
             }
-            // altscreen: CSI n X  Erase/put n chars after cursor. Don't change cursor pos.
+            // alt_screen: CSI n X  Erase/put n chars after cursor. Don't change cursor pos.
             void ech(iota n) override
             {
                 parser::flush();
@@ -940,10 +938,10 @@ private:
                 //    curln.splice<true>(batch.caret, n, brush);
                 //batch.recalc(curln);
             }
-            // altscreen: CSI n P  Delete (not Erase) letters under the cursor.
+            // alt_screen: CSI n P  Delete (not Erase) letters under the cursor.
             void dch(iota n) override
             {
-                vt_buffer::flush();
+                bufferbase::flush();
 
                 //auto& cur_ln = batch.current();
                 //cur_ln.cutoff(batch.caret, n, brush, panel.x);
@@ -982,7 +980,7 @@ private:
                 coord = dot_00;
                 basis = 0;
                 canvas.wipe();
-                vt_buffer::clear_all();
+                bufferbase::clear_all();
             }
             void output(face& parent_canvas) override
             {
@@ -990,7 +988,7 @@ private:
                 canvas.move(full.coor);
                 parent_canvas.plot(canvas, cell::shaders::fuse);
             }
-            // altscreen: Remove all lines below except the current. "ED2 Erase viewport" keeps empty lines.
+            // alt_screen: Remove all lines below except the current. "ED2 Erase viewport" keeps empty lines.
             void del_below() override
             {
                 //todo don't delete futures
@@ -999,7 +997,7 @@ private:
             {
                 // Clear all lines from the viewport top line to the current line.
             }
-            // altscreen: Shift by n the scroll region.
+            // alt_screen: Shift by n the scroll region.
             void scroll_region(iota n, bool use_scrollback) override
             {
                 //...
@@ -1007,8 +1005,8 @@ private:
         };
 
         // term: Scrollback buffer implementation.
-        struct scrollbuf
-            : public vt_buffer
+        struct scroll_buf
+            : public bufferbase
         {
             struct line
                 : public rich
@@ -1285,7 +1283,7 @@ private:
             };
 
             // For debug
-            friend auto& operator<< (std::ostream& s, scrollbuf& c)
+            friend auto& operator<< (std::ostream& s, scroll_buf& c)
             {
                 return s << "{ " << c.batch.max<line::type::leftside>() << ","
                                  << c.batch.max<line::type::rghtside>() << ","
@@ -1293,14 +1291,14 @@ private:
                                  << c.batch.max<line::type::autowrap>() << " }";
             }
 
-            buff batch; // scrollbuf: Rods inner container.
-            flow maker; // scrollbuf: . deprecated
-            vect cache; // scrollbuf: Temporary line container.
-            indx index; // scrollbuf: Viewport line index.
-            iota vsize; // scrollbuf: Scrollback vertical size (height).
+            buff batch; // scroll_buf: Rods inner container.
+            flow maker; // scroll_buf: . deprecated
+            vect cache; // scroll_buf: Temporary line container.
+            indx index; // scroll_buf: Viewport line index.
+            iota vsize; // scroll_buf: Scrollback vertical size (height).
 
-            scrollbuf(term& boss, iota buffer_size, iota grow_step)
-                : vt_buffer{ boss                     },
+            scroll_buf(term& boss, iota buffer_size, iota grow_step)
+                : bufferbase{ boss                     },
                       batch{ buffer_size, grow_step   },
                       maker{ batch.width, batch.vsize },
                       index{ 1                        },
@@ -1321,7 +1319,7 @@ private:
                     log("  ", n++,". id=", l.index," offset=", l.start, " width=", l.width);
                 log(" -----------------");
             }
-            //scrollbuf: Return viewport vertical oversize.
+            //scroll_buf: Return viewport vertical oversize.
             iota resize_viewport(twod const& new_sz) override
             {
                 panel = new_sz;
@@ -1496,7 +1494,7 @@ private:
                 }
                 return coord.y - (batch.vsize - basis - 1);
             }
-            // scrollbuf: Return current 0-based cursor position in the viewport.
+            // scroll_buf: Return current 0-based cursor position in the viewport.
             twod get_coord() override
             {
                 auto coor = coord;
@@ -1517,10 +1515,10 @@ private:
             }
             void set_coord(twod const& new_coord) override
             {
-                vt_buffer::set_coord(new_coord);
+                bufferbase::set_coord(new_coord);
                 sync_coord();
             }
-            // scrollbuf: Map the current cursor position to the scrollback.
+            // scroll_buf: Map the current cursor position to the scrollback.
             void sync_coord()
             {
                 auto style = batch->style;
@@ -1550,24 +1548,24 @@ private:
                 batch.caret = map_ln.start + coord.x;
                 batch->style = style;
             }
-            void cup (fifo& q) override { vt_buffer::cup (q); sync_coord(); }
-            void tab (iota  n) override { vt_buffer::tab (n); sync_coord(); }
-            void scl (iota  n) override { vt_buffer::scl (n); sync_coord(); }
-            void cuf (iota  n) override { vt_buffer::cuf (n); sync_coord(); }
-            void chx (iota  n) override { vt_buffer::chx (n); sync_coord(); }
-            void chy (iota  n) override { vt_buffer::chy (n); sync_coord(); }
-            void il  (iota  n) override { vt_buffer::il  (n); sync_coord(); }
-            void dl  (iota  n) override { vt_buffer::dl  (n); sync_coord(); }
-            void up  (iota  n) override { vt_buffer::up  (n); sync_coord(); }
-            void dn  (iota  n) override { vt_buffer::dn  (n); sync_coord(); }
-            void ri  ()        override { vt_buffer::ri  ( ); sync_coord(); }
-            void rcp ()        override { vt_buffer::rcp ( ); sync_coord(); }
-            void home()        override { vt_buffer::home( ); sync_coord(); }
+            void cup (fifo& q) override { bufferbase::cup (q); sync_coord(); }
+            void tab (iota  n) override { bufferbase::tab (n); sync_coord(); }
+            void scl (iota  n) override { bufferbase::scl (n); sync_coord(); }
+            void cuf (iota  n) override { bufferbase::cuf (n); sync_coord(); }
+            void chx (iota  n) override { bufferbase::chx (n); sync_coord(); }
+            void chy (iota  n) override { bufferbase::chy (n); sync_coord(); }
+            void il  (iota  n) override { bufferbase::il  (n); sync_coord(); }
+            void dl  (iota  n) override { bufferbase::dl  (n); sync_coord(); }
+            void up  (iota  n) override { bufferbase::up  (n); sync_coord(); }
+            void dn  (iota  n) override { bufferbase::dn  (n); sync_coord(); }
+            void ri  ()        override { bufferbase::ri  ( ); sync_coord(); }
+            void rcp ()        override { bufferbase::rcp ( ); sync_coord(); }
+            void home()        override { bufferbase::home( ); sync_coord(); }
 
-            // scrollbuf: Set the scrolling region using 1-based top and bottom. Use 0 to reset.
+            // scroll_buf: Set the scrolling region using 1-based top and bottom. Use 0 to reset.
             void set_scroll_region(iota top, iota bottom) override
             {
-                vt_buffer::set_scroll_region(top, bottom);
+                bufferbase::set_scroll_region(top, bottom);
                 cache.resize(std::max(0, top - 1));
             }
             void add_lines(iota amount)
@@ -1723,12 +1721,12 @@ private:
                     curln.style = parser::style;
                     batch.recalc(curln);
                 }  
-                vt_buffer::meta(old_style);
+                bufferbase::meta(old_style);
             }
-            // scrollbuf: CSI n K  Erase line (don't move cursor).
+            // scroll_buf: CSI n K  Erase line (don't move cursor).
             void el(iota n) override
             {
-                vt_buffer::flush();
+                bufferbase::flush();
 
                 iota  start;
                 iota  count;
@@ -1766,7 +1764,7 @@ private:
                 batch.recalc(curln);
                 }
             }
-            // scrollbuf: CSI n @  ICH. Insert n blanks after cursor. Don't change cursor pos.
+            // scroll_buf: CSI n @  ICH. Insert n blanks after cursor. Don't change cursor pos.
             void ins(iota n) override
             {
                /*
@@ -1774,13 +1772,13 @@ private:
                 *   Don't change cursor pos.
                 *   Existing chars after cursor shifts to the right.
                 */
-                vt_buffer::flush();
+                bufferbase::flush();
                 auto& curln = batch.current();
                 //todo check_autogrow
                 curln.insert(batch.caret, n, brush);
                 batch.recalc(curln);
             }
-            // scrollbuf: CSI n X  Erase/put n chars after cursor. Don't change cursor pos.
+            // scroll_buf: CSI n X  Erase/put n chars after cursor. Don't change cursor pos.
             void ech(iota n) override
             {
                 parser::flush();
@@ -1796,10 +1794,10 @@ private:
                 curln.splice<true>(batch.caret, n, brush);
                 batch.recalc(curln);
             }
-            // scrollbuf: CSI n P  Delete (not Erase) letters under the cursor.
+            // scroll_buf: CSI n P  Delete (not Erase) letters under the cursor.
             void dch(iota n) override
             {
-                vt_buffer::flush();
+                bufferbase::flush();
                 auto& cur_ln = batch.current();
                 cur_ln.cutoff(batch.caret, n, brush, panel.x);
                 batch.recalc(cur_ln);
@@ -1976,7 +1974,7 @@ private:
 
                 batch.caret += shift;
 
-                //log(" vt_buffer size in cells = ", batch.get_size_in_cells());
+                //log(" bufferbase size in cells = ", batch.get_size_in_cells());
             }
             void clear_all() override
             {
@@ -1987,7 +1985,7 @@ private:
                 batch.set_width(panel.x);
                 basis = 0;
                 index_rebuild();
-                vt_buffer::clear_all();
+                bufferbase::clear_all();
             }
             void resize_history(iota new_size, iota grow_by = 0)
             {
@@ -2125,7 +2123,7 @@ private:
                 //}
                 //while(upper++ != under);
             }
-            // scrollbuf: For bug testing purposes.
+            // scroll_buf: For bug testing purposes.
             auto get_content()
             {
                 text yield;
@@ -2137,7 +2135,7 @@ private:
                 }
                 return yield;
             }
-            // scrollbuf: Dissect auto-wrapped lines at the specified iterator.
+            // scroll_buf: Dissect auto-wrapped lines at the specified iterator.
             void dissect(iota y_pos)
             {
                 if (y_pos >= panel.y) throw;
@@ -2167,7 +2165,7 @@ private:
                 }
                 index_rebuild();
             }
-            // scrollbuf: Dissect auto-wrapped line at the current coord.
+            // scroll_buf: Dissect auto-wrapped line at the current coord.
             void dissect()
             {
                 dissect(coord.y);
@@ -2183,7 +2181,7 @@ private:
                     ++begin_it;
                 }
             }
-            // scrollbuf: Shift by n the scroll region.
+            // scroll_buf: Shift by n the scroll region.
             void scroll_region(iota n, bool use_scrollback) override
             {
                 /*
@@ -2252,16 +2250,18 @@ private:
             }
         };
 
+        using buffer_ptr = bufferbase*;
+
         pro::caret cursor; // term: Text cursor controller.
-        win_cntrl  winctl; // term: Terminal window options repository.
-        ftracking  ftrack; // term: Keyboard focus tracking object.
-        mtracking  mtrack; // term: VT-mouse tracking object.
-        scrollbuf  normal; // term: Normal screen buffer.
-        altscreen  altbuf; // term: Alternate screen buffer.
-        vt_buffer *target; // term: Current screen buffer pointer.
-        info_stat  status; // term: VT-buffer status info.
-        cons       ptycon; // term: PTY device.
-        text       cmdarg; // term: Command line arguments.
+        term_state status; // term: Screen buffer status info.
+        t_tracking winctl; // term: Terminal title tracking object.
+        f_tracking ftrack; // term: Keyboard focus tracking object.
+        m_tracking mtrack; // term: VT-style mouse tracking object.
+        scroll_buf normal; // term: Normal    screen buffer.
+        alt_screen altbuf; // term: Alternate screen buffer.
+        buffer_ptr target; // term: Current   screen buffer pointer.
+        os::ptydev ptycon; // term: PTY device.
+        text       cmdarg; // term: Startup command line arguments.
         hook       oneoff; // term: One-shot token for the first resize and shutdown events.
         twod       origin; // term: Viewport position.
         bool       active; // term: Terminal lifetime.
@@ -2300,16 +2300,16 @@ private:
                         log("decset: CSI ? 9 h  X10 Mouse reporting protocol is not supported");
                         break;
                     case 1000: // Enable mouse buttons reporting mode.
-                        mtrack.enable(mtracking::buttons_press);
+                        mtrack.enable(m_tracking::buttons_press);
                         break;
                     case 1001: // Use Hilite mouse tracking mode.
                         log("decset: CSI ? 1001 h  Hilite mouse tracking mode is not supported");
                         break;
                     case 1002: // Enable mouse buttons and drags reporting mode.
-                        mtrack.enable(mtracking::buttons_drags);
+                        mtrack.enable(m_tracking::buttons_drags);
                         break;
                     case 1003: // Enable all mouse events reporting mode.
-                        mtrack.enable(mtracking::all_movements);
+                        mtrack.enable(m_tracking::all_movements);
                         break;
                     case 1004: // Enable focus tracking.
                         ftrack.set(true);
@@ -2318,10 +2318,10 @@ private:
                         log("decset: CSI ? 1005 h  UTF-8 mouse reporting protocol is not supported");
                         break;
                     case 1006: // Enable SGR mouse reporting protocol.
-                        mtrack.setmode(mtracking::sgr);
+                        mtrack.setmode(m_tracking::sgr);
                         break;
                     case 10060:// Enable mouse reporting outside the viewport (outside+negative coordinates).
-                        mtrack.enable(mtracking::negative_args);
+                        mtrack.enable(m_tracking::negative_args);
                         break;
                     case 1015: // Enable URXVT mouse reporting protocol.
                         log("decset: CSI ? 1015 h  URXVT mouse reporting protocol is not supported");
@@ -2372,16 +2372,16 @@ private:
                         log("decset: CSI ? 9 l  X10 Mouse tracking protocol is not supported");
                         break;
                     case 1000: // Disable mouse buttons reporting mode.
-                        mtrack.disable(mtracking::buttons_press);
+                        mtrack.disable(m_tracking::buttons_press);
                         break;
                     case 1001: // Don't use Hilite(c) mouse tracking mode.
                         log("decset: CSI ? 1001 l  Hilite mouse tracking mode is not supported");
                         break;
                     case 1002: // Disable mouse buttons and drags reporting mode.
-                        mtrack.disable(mtracking::buttons_drags);
+                        mtrack.disable(m_tracking::buttons_drags);
                         break;
                     case 1003: // Disable all mouse events reporting mode.
-                        mtrack.disable(mtracking::all_movements);
+                        mtrack.disable(m_tracking::all_movements);
                         break;
                     case 1004: // Disable focus tracking.
                         ftrack.set(faux);
@@ -2390,10 +2390,10 @@ private:
                         log("decset: CSI ? 1005 l  UTF-8 mouse reporting protocol is not supported");
                         break;
                     case 1006: // Disable SGR mouse reporting protocol (set X11 mode).
-                        mtrack.setmode(mtracking::x11);
+                        mtrack.setmode(m_tracking::x11);
                         break;
                     case 10060:// Disable mouse reporting outside the viewport (allow reporting inside the viewport only).
-                        mtrack.disable(mtracking::negative_args);
+                        mtrack.disable(m_tracking::negative_args);
                         break;
                     case 1015: // Disable URXVT mouse reporting protocol.
                         log("decset: CSI ? 1015 l  URXVT mouse reporting protocol is not supported");
@@ -2419,21 +2419,22 @@ private:
                 }
             }
         }
-        // term: Set scrollback buffer size and grow_by step.
-        void scrollbuffer_size(fifo& q)
+        // term: Set scrollback buffer size and grow step.
+        void sbsize(fifo& queue)
         {
-            iota max_scrollback_size = q(def_length);
-            iota grow_step           = q(def_growup);
-            normal.resize_history(max_scrollback_size, grow_step);
+            target->flush();
+            auto ring_size = queue(def_length);
+            auto grow_step = queue(def_growup);
+            normal.resize_history(ring_size, grow_step);
         }
         // term: Extended functionality response.
-        void native(bool b)
+        void native(bool  are_u)
         {
-            auto response = ansi::ext(b);
-            write(response);
+            auto response = ansi::ext(are_u);
+            answer(response);
         }
         // term: Write tty data and flush the queue.
-        void write(ansi::esc& queue)
+        void answer(ansi::esc& queue)
         {
             if (queue.length())
             {
@@ -2442,20 +2443,20 @@ private:
             }
         }
         // term: Proceed terminal input.
-        void input_hndl(view shadow)
+        void ondata(view data)
         {
             while (active)
             {
                 netxs::events::try_sync guard;
                 if (guard)
                 {
-                    SIGNAL(tier::general, e2::debug::output, shadow); // Post for the Logs.
+                    SIGNAL(tier::general, e2::debug::output, data); // Post for the Logs.
 
                 auto force_basis = origin.y == -target->basis;
 
-                    ansi::parse(shadow, target);
+                    ansi::parse(data, target);
 
-                reset_scroll_pos(force_basis);
+                scroll(force_basis);
 
                     base::deface();
                     break;
@@ -2464,13 +2465,13 @@ private:
             }
         }
         // term: Shutdown callback handler.
-        void shutdown_hndl(iota code)
+        void onexit(iota code)
         {
             log("term: exit code ", code);
             if (code)
             {
                 text error = ansi::bgc(reddk).fgc(whitelt).add("\nterm: exit code ", code, " ");
-                input_hndl(error);
+                ondata(error);
             }
             else
             {
@@ -2483,7 +2484,7 @@ private:
             }
         }
         // term: Reset viewport position.
-        void reset_scroll_pos(bool force_basis = true)
+        void scroll(bool force_basis = true)
         {
             //oversz.b = target->resize_viewport(); //todo update basis in place
 
@@ -2505,15 +2506,15 @@ private:
     public:
        ~term(){ active = faux; }
         term(text command_line, iota max_scrollback_size = def_length, iota grow_step = def_growup)
-            : cursor{ *this                                 },
-              mtrack{ *this                                 },
-              ftrack{ *this                                 },
-              winctl{ *this                                 },
-              normal{ *this, max_scrollback_size, grow_step },
-              altbuf{ *this                                 },
-              active{  true                                 },
-              decckm{  faux                                 },
-              bpmode{  faux                                 }
+            : normal{ *this, max_scrollback_size, grow_step },
+              altbuf{ *this },
+              cursor{ *this },
+              mtrack{ *this },
+              ftrack{ *this },
+              winctl{ *this },
+              active{  true },
+              decckm{  faux },
+              bpmode{  faux }
         {
             cmdarg = command_line;
             target = &normal;
@@ -2525,7 +2526,7 @@ private:
             base::broadcast->SUBMIT_T(tier::preview, app::term::events::cmd, bell::tracker, cmd)
             {
                 log("term: tier::preview, app::term::cmd, ", cmd);
-                reset_scroll_pos();
+                scroll();
                 switch(cmd)
                 {
                     case term::commands::ui::left:
@@ -2549,18 +2550,18 @@ private:
                     default:
                         break;
                 }
-                input_hndl("");
+                ondata("");
             };
             base::broadcast->SUBMIT_T(tier::preview, app::term::events::data::in, bell::tracker, data)
             {
                 log("term: app::term::data::in, ", utf::debase(data));
-                reset_scroll_pos();
-                input_hndl(data);
+                scroll();
+                ondata(data);
             };
             base::broadcast->SUBMIT_T(tier::preview, app::term::events::data::out, bell::tracker, data)
             {
                 log("term: app::term::data::out, ", utf::debase(data));
-                reset_scroll_pos();
+                scroll();
                 ptycon.write(data);
             };
             SUBMIT(tier::release, e2::coor::set, new_coor)
@@ -2593,21 +2594,21 @@ private:
                             oversz.b = console.resize_viewport(new_sz);
                             //screen.coor.y = -target->basis;;
 
-                reset_scroll_pos(force_basis);
+                scroll(force_basis);
 
                             ptycon.resize(new_sz);
 
                             new_sz.y = std::max(new_sz.y, console.height() - oversz.vsumm());
                         };
 
-                        ptycon.start(cmdarg, new_sz, [&](auto utf8_shadow) { input_hndl(utf8_shadow);  },
-                                                       [&](auto exit_code)   { shutdown_hndl(exit_code); });
+                        ptycon.start(cmdarg, new_sz, [&](auto utf8_shadow) { ondata(utf8_shadow);  },
+                                                     [&](auto exit_reason) { onexit(exit_reason); });
                     }
                 };
             };
             SUBMIT(tier::release, hids::events::keybd::any, gear)
             {
-                reset_scroll_pos();
+                scroll();
                 //todo optimize/unify
                 auto data = gear.keystrokes;
                 if (!bpmode)
@@ -2684,10 +2685,10 @@ private:
 
                 //if (follow_view)
                 //{
-                //    log(" reset_scroll_pos();");
-                //    reset_scroll_pos();
+                //    log(" scroll();");
+                //    scroll();
                 //}
-                //reset_scroll_pos();
+                //scroll();
                 //if (!screen.hittest(cursor_coor)) // compat: get cursor back to the viewport if it placed outside
                 //{
                 //    cursor_coor = std::clamp(cursor_coor, screen.coor, screen.coor + screen.size - dot_11);
