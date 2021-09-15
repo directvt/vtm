@@ -311,23 +311,23 @@ private:
             bool        state; // f_tracking: Current focus state.
         };
 
-        // term: Terminal window options control.
-        struct t_tracking
+        // term: Terminal title tracking functionality.
+        struct w_tracking
         {
-            term&                             owner; // t_tracking: Terminal object reference.
+            term&                             owner; // w_tracking: Terminal object reference.
             std::map<text, text>              props;
             std::map<text, std::vector<text>> stack;
             ansi::esc                         queue;
 
-            t_tracking(term& owner)
+            w_tracking(term& owner)
                 : owner{ owner }
             { }
-            // t_tracking: Get terminal window property.
+            // w_tracking: Get terminal window property.
             auto& get(text const& property)
             {
                 return props[property];
             }
-            // t_tracking: Set terminal window property.
+            // w_tracking: Set terminal window property.
             void set(text const& property, view txt)
             {
                 static auto jet_left = ansi::jet(bias::left);
@@ -349,7 +349,7 @@ private:
                     }
                 }
             }
-            // t_tracking: Manage terminal window props (XTWINOPS).
+            // w_tracking: Manage terminal window props (XTWINOPS).
             void manage(fifo& q)
             {
                 owner.target->flush();
@@ -407,7 +407,7 @@ private:
             }
         };
 
-        // term: Generic terminal buffer behavior.
+        // term: Generic terminal buffer.
         struct bufferbase
             : public ansi::parser
         {
@@ -455,7 +455,7 @@ private:
 
                 vt.csier.table[DECSTBM] = VT_PROC{ p->scr( q   ); };  // CSI r; b r  Set scrolling region (t/b: top+bottom).
 
-                vt.csier.table[CSI_WIN] = VT_PROC{ p->owner.winctl.manage(q); };  // CSI n;m;k t  Terminal window options (XTWINOPS).
+                vt.csier.table[CSI_WIN] = VT_PROC{ p->owner.wtrack.manage(q); };  // CSI n;m;k t  Terminal window options (XTWINOPS).
 
                 vt.csier.table[CSI_CCC][CCC_SBS] = VT_PROC{ p->owner.sbsize(q); };  // CCC_SBS: Set scrollback size.
                 vt.csier.table[CSI_CCC][CCC_EXT] = VT_PROC{ p->owner.native(q(1)); };          // CCC_EXT: Setup extended functionality.
@@ -477,10 +477,10 @@ private:
                 vt.csier.table_quest[DECSET] = VT_PROC{ p->owner.decset(q); };
                 vt.csier.table_quest[DECRST] = VT_PROC{ p->owner.decrst(q); };
 
-                vt.oscer[OSC_LABEL_TITLE] = VT_PROC{ p->owner.winctl.set(OSC_LABEL_TITLE, q); };
-                vt.oscer[OSC_LABEL]       = VT_PROC{ p->owner.winctl.set(OSC_LABEL,       q); };
-                vt.oscer[OSC_TITLE]       = VT_PROC{ p->owner.winctl.set(OSC_TITLE,       q); };
-                vt.oscer[OSC_XPROP]       = VT_PROC{ p->owner.winctl.set(OSC_XPROP,       q); };
+                vt.oscer[OSC_LABEL_TITLE] = VT_PROC{ p->owner.wtrack.set(OSC_LABEL_TITLE, q); };
+                vt.oscer[OSC_LABEL]       = VT_PROC{ p->owner.wtrack.set(OSC_LABEL,       q); };
+                vt.oscer[OSC_TITLE]       = VT_PROC{ p->owner.wtrack.set(OSC_TITLE,       q); };
+                vt.oscer[OSC_XPROP]       = VT_PROC{ p->owner.wtrack.set(OSC_XPROP,       q); };
 
                 // Log all unimplemented CSI commands.
                 for (auto i = 0; i < 0x100; ++i)
@@ -972,7 +972,6 @@ private:
                     //canvas.splice(coord, proto, shift);
                     //todo output directly to the canvas
                 }
-
             }
             void clear_all() override
             {
@@ -1000,7 +999,8 @@ private:
             // alt_screen: Shift by n the scroll region.
             void scroll_region(iota n, bool use_scrollback) override
             {
-                //...
+                auto[top, end] = get_scroll_region();
+                canvas.scroll(top, end + 1, n);
             }
         };
 
@@ -2254,7 +2254,7 @@ private:
 
         pro::caret cursor; // term: Text cursor controller.
         term_state status; // term: Screen buffer status info.
-        t_tracking winctl; // term: Terminal title tracking object.
+        w_tracking wtrack; // term: Terminal title tracking object.
         f_tracking ftrack; // term: Keyboard focus tracking object.
         m_tracking mtrack; // term: VT-style mouse tracking object.
         scroll_buf normal; // term: Normal    screen buffer.
@@ -2486,8 +2486,6 @@ private:
         // term: Reset viewport position.
         void scroll(bool force_basis = true)
         {
-            //oversz.b = target->resize_viewport(); //todo update basis in place
-
             auto& console = *target;
             auto adjust_pads = console.recalc_pads(oversz);
             auto scroll_size = console.panel;
@@ -2511,7 +2509,7 @@ private:
               cursor{ *this },
               mtrack{ *this },
               ftrack{ *this },
-              winctl{ *this },
+              wtrack{ *this },
               active{  true },
               decckm{  faux },
               bpmode{  faux }
@@ -2566,12 +2564,11 @@ private:
             };
             SUBMIT(tier::release, e2::coor::set, new_coor)
             {
-                origin.x = new_coor.x;
-                origin.y =-new_coor.y;
+                origin = new_coor;
             };
             SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
             {
-                this->base::riseup<tier::request>(e2::form::prop::header, winctl.get(ansi::OSC_TITLE));
+                this->base::riseup<tier::request>(e2::form::prop::header, wtrack.get(ansi::OSC_TITLE));
 
 
                 this->SUBMIT_T(tier::release, e2::size::set, oneoff, new_sz)

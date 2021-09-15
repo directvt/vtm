@@ -8,6 +8,8 @@
 #include "../text/logger.hpp"
 #include "../abstract/ring.hpp"
 
+#include <cassert>
+
 namespace netxs::console
 {
     using namespace netxs::ui::atoms;
@@ -891,6 +893,30 @@ namespace netxs::console
             //        while (w--) *dst++ = c;
             //    }
             //}
+        }
+        // rich: Shift by gap the 2D-block of lines between top and end (exclusive); down: delta > 0; up: delta < 0.
+        void scroll(iota top, iota end, iota gap)
+        {
+            auto size = core::size();
+            auto data = core::data();
+            assert(top >=0 && top < end);
+            assert(gap != 0);
+            if (gap > 0)
+            {
+                assert(end + gap <= size.y);
+                auto head = data + end * size.x - 1;
+                auto tail = data + top * size.x - 1;
+                auto dest = head + gap * size.x;
+                netxs::move_block<faux>(head, tail, dest);
+            }
+            else
+            {
+                assert(top + gap >= 0);
+                auto head = data + top * size.x;
+                auto tail = data + end * size.x;
+                auto dest = head + gap * size.x;
+                netxs::move_block<true>(head, tail, dest);
+            }
         }
         void insert(iota at, iota count, cell blank)
         {

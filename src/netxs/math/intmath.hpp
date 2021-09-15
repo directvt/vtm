@@ -704,7 +704,7 @@ namespace netxs
                 d_ptr += d_dty;
             }
         }
-        // intmath: Move block to the specified destination. If begin_it > end_it decrement is used.
+        // intmath: Move block to the specified destination. If begin_it > end_it (exclusive) decrement is used.
         template<bool FWD, class SRC, class DST, class P>
         void proc_block(SRC begin_it, SRC end_it, DST dest_it, P proc)
         {
