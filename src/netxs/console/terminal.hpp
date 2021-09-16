@@ -972,6 +972,15 @@ private:
                     //canvas.splice(coord, proto, shift);
                     //todo output directly to the canvas
                 }
+                //scroll test
+                static iota i = 6;
+                static iota n = 1;
+                i -= n;
+                if (i == 0 || i == 6) n = -n;
+                auto o = brush.spare;
+                brush.spare.bgc(redlt);
+                scroll_region(n * 2);
+                brush.spare = o;
             }
             void clear_all() override
             {
@@ -997,10 +1006,10 @@ private:
                 // Clear all lines from the viewport top line to the current line.
             }
             // alt_screen: Shift by n the scroll region.
-            void scroll_region(iota n, bool use_scrollback) override
+            void scroll_region(iota n, bool use_scrollback = faux) override
             {
                 auto[top, end] = get_scroll_region();
-                canvas.scroll(top, end + 1, n);
+                canvas.scroll(top, end + 1, n, brush);
             }
         };
 
@@ -1299,10 +1308,10 @@ private:
 
             scroll_buf(term& boss, iota buffer_size, iota grow_step)
                 : bufferbase{ boss                     },
-                      batch{ buffer_size, grow_step   },
-                      maker{ batch.width, batch.vsize },
-                      index{ 1                        },
-                      vsize{ 1                        }
+                       batch{ buffer_size, grow_step   },
+                       maker{ batch.width, batch.vsize },
+                       index{ 1                        },
+                       vsize{ 1                        }
             {
                 batch.invite(0); // At least one line must exist.
                 batch.set_width(1);

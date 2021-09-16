@@ -894,28 +894,41 @@ namespace netxs::console
             //    }
             //}
         }
-        // rich: Shift by gap the 2D-block of lines between top and end (exclusive); down: delta > 0; up: delta < 0.
-        void scroll(iota top, iota end, iota gap)
+        // rich: Scroll by gap the 2D-block of lines between top and end (exclusive); down: delta > 0; up: delta < 0.
+        void scroll(iota top, iota end, iota gap, ansi::mark const& brush)
         {
             auto size = core::size();
             auto data = core::data();
-            assert(top >=0 && top < end);
+            auto step = gap * size.x;
+            assert(top >= 0 && top < end && end <= size.y);
             assert(gap != 0);
             if (gap > 0)
             {
-                assert(end + gap <= size.y);
-                auto head = data + end * size.x - 1;
-                auto tail = data + top * size.x - 1;
-                auto dest = head + gap * size.x;
-                netxs::move_block<faux>(head, tail, dest);
+                auto src = top * size.x + data;
+                auto cut = end - gap;
+                if  (cut > top)
+                {
+                    auto head = data + size.x * cut  - 1;
+                    auto dest = head + step;
+                    auto tail = src - 1;
+                    netxs::move_block<faux>(head, tail, dest);
+                }
+                auto  dst  = src + step;
+                while(dst != src) { *src++ = brush.spare; }
             }
             else
             {
-                assert(top + gap >= 0);
-                auto head = data + top * size.x;
-                auto tail = data + end * size.x;
-                auto dest = head + gap * size.x;
-                netxs::move_block<true>(head, tail, dest);
+                auto src = end * size.x + data;
+                auto cut = top - gap;
+                if  (cut < end)
+                {
+                    auto head = data + size.x * cut;
+                    auto dest = head + step;
+                    auto tail = src;
+                    netxs::move_block<true>(head, tail, dest);
+                }
+                auto  dst  = src + step;
+                while(dst != src) { *--src = brush.spare; }
             }
         }
         void insert(iota at, iota count, cell blank)
