@@ -756,7 +756,7 @@ private:
                 auto y = queue(1);
                 auto x = queue(1);
                 auto p = twod{ x, y };
-                auto c = std::clamp(p, dot_11, panel) - dot_11;
+                coord  = std::clamp(p, dot_11, panel) - dot_11;
             }
             // bufferbase: Line reverse feed (move cursor up).
     virtual void up(iota n)
