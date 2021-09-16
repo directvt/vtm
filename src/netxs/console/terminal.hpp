@@ -770,8 +770,10 @@ private:
                 parser::flush();
                 // Scroll regions up if coord.y == scend and scroll region are defined.
                 auto[top, end] = get_scroll_region();
-                if (n > 0 && scroll_region_used() && coord.y    <= end
-                                                  && coord.y + n > end)
+                //if (n > 0 && scroll_region_used() && coord.y    <= end
+                //                                  && coord.y + n > end)
+                if (n > 0 && coord.y    <= end
+                          && coord.y + n > end)
                 {
                     n -= end - coord.y;
                     coord.y = end;
@@ -949,38 +951,101 @@ private:
             }
             void data(grid& proto, iota shift) override
             {
-                //todo output directly to the canvas
-                canvas.splice(coord.x, proto, shift);
+                auto old_coord = coord;
                 coord.x += shift;
-                if (style.wrp() == wrap::on)
+                if (coord.x <= panel.x )
                 {
-                    auto old = coord.y;
-                    coord.y += coord.x / panel.x;
-                    coord.x %= panel.x;
-                    if (coord.x == 0)
-                    {
-                        coord.y--;
-                        coord.x = panel.x;
-                    }
-
-                    //todo scrolling regions
-
-                    //canvas.splice(coord, proto, shift);
+                    canvas.splice(old_coord, proto, shift);
                 }
                 else
                 {
-                    //canvas.splice(coord, proto, shift);
-                    //todo output directly to the canvas
+                    coord.y += (coord.x + panel.x - 1) / panel.x - 1;
+                    coord.x  = (coord.x           - 1) % panel.x + 1;
+
+                    //auto dy = (coord.x + panel.x - 1) / panel.x - 1;
+                    //coord.x = (coord.x           - 1) % panel.x + 1;
+                    //coord.y+= dy;
+
+                    //auto dx = coord.x % panel.x;
+                    //coord.y+= dy;
+                    //coord.x = dx == 0 ? panel.x
+                    //                  : dx;
+                    auto[top, end] = get_scroll_region();
+                    //auto my = end - top;
+                    //if (dy > my) dy = my;
+
+                    if (old_coord.y <= end
+                         && coord.y >  end)
+                    {
+                        auto n = end - coord.y;
+                        canvas.scroll(top, end + 1, n, brush.spare);
+                        coord.y = end;
+                    }
+                    else if (coord.y >= panel.y)
+                    {
+                        auto m = panel.y - 1;
+                        auto n = m - coord.y;
+                        canvas.scroll(0, panel.y, n, brush.spare);
+                        coord.y = m;
+                    }
+                    auto size = canvas.size();
+                    auto data = canvas.data();
+                    auto seek = coord.x + coord.y * size.x;
+                    if (old_coord.y >= top)
+                    {
+                        auto miny = top * size.x;
+                        if (shift > seek - miny) shift = seek - miny;
+                    }
+                    else
+                    {
+                        if (shift > seek) shift = seek;
+                    }
+                    auto head = proto.data() + proto.size();
+                    auto dest = data + seek;
+                    auto tail = dest - (shift - 1) /* -1: half of the wide char */;
+                    while (dest != tail)
+                    {
+                        auto c = *--head;
+                        auto w = c.wdt();
+                        if (w == 1)
+                        {
+                            *--dest = c;
+                        }
+                        else if (w == 2)
+                        {
+                            *--dest = c.wdt(3);
+                            *--dest = c.wdt(2);
+                        }
+                        else if (w == 0)
+                        {
+                            //todo implemet controls/commands
+                            // winsrv2019's cmd.exe sets title with a zero at the end
+                            //*dst++ = cell{ c, whitespace };
+                        }
+                        else if (w > 2)
+                        {
+                            // Forbid using super wide characters until terminal emulators support the fragmentation attribute.
+                            c.txt(utf::REPLACEMENT_CHARACTER_UTF8_VIEW);
+                            do *--dest = c;
+                            while (--w && dest != tail - 1);
+                        }
+                    }
+                    if (dest == tail) // Last cell; shift - 1.
+                    {
+                        auto c = *--head;
+                        *--dest = c.wdt(c.wdt());
+                    }
                 }
-                //scroll test
-                static iota i = 6;
-                static iota n = 1;
-                i -= n;
-                if (i == 0 || i == 6) n = -n;
-                auto o = brush.spare;
-                brush.spare.bgc(redlt);
-                scroll_region(n * 2);
-                brush.spare = o;
+
+                ////scroll test
+                //static iota i = 6;
+                //static iota n = 1;
+                //i -= n;
+                //if (i == 0 || i == 6) n = -n;
+                //auto o = brush.spare;
+                //brush.spare.bgc(redlt);
+                //scroll_region(n * 2);
+                //brush.spare = o;
             }
             void clear_all() override
             {
@@ -1009,7 +1074,7 @@ private:
             void scroll_region(iota n, bool use_scrollback = faux) override
             {
                 auto[top, end] = get_scroll_region();
-                canvas.scroll(top, end + 1, n, brush);
+                canvas.scroll(top, end + 1, n, brush.spare);
             }
         };
 
@@ -1539,14 +1604,13 @@ private:
                 else
                 {
                     if (auto add_count = feed_futures();
-                            add_count > 0)
+                             add_count > 0)
                     {
                         add_lines(add_count);
                         auto maxy = panel.y - 1;
-                        auto dy = coord.y - maxy;
-                        if (dy > 0)
+                        if (coord.y > maxy)
                         {
-                            basis += dy;
+                            basis += coord.y - maxy;
                             coord.y = maxy;
                         }
                     }
@@ -2193,6 +2257,8 @@ private:
             // scroll_buf: Shift by n the scroll region.
             void scroll_region(iota n, bool use_scrollback) override
             {
+                //todo don't dissect if top==0 on moving text block up, see dn(iota n).
+
                 /*
                 if (n)
                 {

@@ -858,44 +858,46 @@ namespace netxs::console
                 {
                     // Forbid using super wide characters until terminal emulators support the fragmentation attribute.
                     c.txt(utf::REPLACEMENT_CHARACTER_UTF8_VIEW);
-                    while (w--) *dst++ = c;
+                    do *dst++ = c;
+                    while (--w);
                 }
             }
         }
         void splice(twod at, grid& proto, iota width)
         {
-            //todo print to the 2D canvas
-            //reserv(at + width);
-            //auto ptr = iter();
-            //auto dst = ptr + at;
-            //for (auto& c : proto)
-            //{
-            //    auto w = c.wdt();
-            //    if (w == 1)
-            //    {
-            //        *dst++ = c;
-            //    }
-            //    else if (w == 2)
-            //    {
-            //        *dst++ = c.wdt(2);
-            //        *dst++ = c.wdt(3);
-            //    }
-            //    else if (w == 0)
-            //    {
-            //        //todo implemet controls/commands
-            //        // winsrv2019's cmd.exe sets title with a zero at the end
-            //        //*dst++ = cell{ c, whitespace };
-            //    }
-            //    else if (w > 2)
-            //    {
-            //        // Forbid using super wide characters until terminal emulators support the fragmentation attribute.
-            //        c.txt(utf::REPLACEMENT_CHARACTER_UTF8_VIEW);
-            //        while (w--) *dst++ = c;
-            //    }
-            //}
+            //todo reserv(at + width);
+            auto len = size();
+            auto ptr = iter();
+            auto dst = ptr + at.x + at.y * len.x;
+            for (auto& c : proto)
+            {
+                auto w = c.wdt();
+                if (w == 1)
+                {
+                    *dst++ = c;
+                }
+                else if (w == 2)
+                {
+                    *dst++ = c.wdt(2);
+                    *dst++ = c.wdt(3);
+                }
+                else if (w == 0)
+                {
+                    //todo implemet controls/commands
+                    // winsrv2019's cmd.exe sets title with a zero at the end
+                    //*dst++ = cell{ c, whitespace };
+                }
+                else if (w > 2)
+                {
+                    // Forbid using super wide characters until terminal emulators support the fragmentation attribute.
+                    c.txt(utf::REPLACEMENT_CHARACTER_UTF8_VIEW);
+                    do *dst++ = c;
+                    while (--w);
+                }
+            }
         }
         // rich: Scroll by gap the 2D-block of lines between top and end (exclusive); down: delta > 0; up: delta < 0.
-        void scroll(iota top, iota end, iota gap, ansi::mark const& brush)
+        void scroll(iota top, iota end, iota gap, cell const& clr)
         {
             auto size = core::size();
             auto data = core::data();
@@ -914,7 +916,7 @@ namespace netxs::console
                     netxs::move_block<faux>(head, tail, dest);
                 }
                 auto  dst  = src + step;
-                while(dst != src) { *src++ = brush.spare; }
+                while(dst != src) { *src++ = clr; }
             }
             else
             {
@@ -928,7 +930,7 @@ namespace netxs::console
                     netxs::move_block<true>(head, tail, dest);
                 }
                 auto  dst  = src + step;
-                while(dst != src) { *--src = brush.spare; }
+                while(dst != src) { *--src = clr; }
             }
         }
         void insert(iota at, iota count, cell blank)
