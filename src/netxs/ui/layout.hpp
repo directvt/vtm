@@ -1049,13 +1049,17 @@ namespace netxs::ui::atoms
             uv.fg = rgba::transit(c1.uv.fg, c2.uv.fg, level);
             uv.bg = rgba::transit(c1.uv.bg, c2.uv.bg, level);
         }
+        // cell: Return whitespace.
+        cell spc () const
+        {
+            return cell{ *this }.txt(whitespace);
+        }
         // cell: Set Grapheme cluster and its width.
         void set_gc (view c, size_t w) { gc.set(c, w); }
         // cell: Set Grapheme cluster.
         void set_gc (cell const& c) { gc = c.gc; }
         // cell: Reset Grapheme cluster.
         void set_gc () { gc.wipe(); }
-
         // cell: Copy view of the cell (Preserve ID).
         cell& set (cell const& c) { uv = c.uv;
                                     st = c.st;
@@ -1108,6 +1112,7 @@ namespace netxs::ui::atoms
         bool        inv () const { return st.inv();      } // cell: Return Negative attribute.
         bool        stk () const { return st.stk();      } // cell: Return Strikethrough attribute.
         id_t       link () const { return id;            } // cell: Return link object ID.
+
         //id_t       para () const { return pg;            } // cell: Return paragraph ID.
         view        txt () const { return gc.get();      } // cell: Return Grapheme cluster.
         size_t      len () const { return gc.state.count;} // cell: Return Grapheme cluster utf-8 length.

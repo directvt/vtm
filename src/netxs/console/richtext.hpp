@@ -866,7 +866,6 @@ namespace netxs::console
         }
         void splice(twod at, grid& proto, iota width)
         {
-            //todo reserv(at + width);
             auto len = size();
             auto ptr = iter();
             auto dst = ptr + at.x + at.y * len.x;
@@ -940,29 +939,38 @@ namespace netxs::console
                 while(dst != src) { *--src = clr; }
             }
         }
-        void insert(iota at, iota count, cell blank)
+        void insert(iota at, iota count, cell const& blank)
         {
             auto len = length();
-            blank.txt(whitespace);
-            //blank.txt(whitespace).bgc(magentadk).bga(0x7f);
             crop(std::max(at, len) + count);
             auto ptr = iter();
-            auto end = ptr + count + at;
+            auto pos = ptr + at;
+            auto end = pos + count;
             auto src = ptr + len;
             if (at < len)
             {
                 auto dst = src + count;
                 while (dst != end) *--dst = *--src;
-                src = ptr + at;
+                src = pos;
             }
             while (src != end) *src++ = blank;
         }
+        void insert(twod const& at, iota count, cell const& blank)
+        {
+            assert(at.x + at.y * size().x + count <= size().y * size().x);
+            auto len = size();
+            auto ptr = iter();
+            auto pos = ptr + at.y * len.x;
+            auto end = pos + at.x + count;
+            auto dst = pos + len.x;
+            auto src = dst - count;
+            while (dst != end) *--dst = *--src;
+            while (pos != end) *pos++ = blank;
+        }
         // rich: Delete n chars and add blanks at the right margin.
-        void cutoff(iota at, iota count, cell blank, iota margin)
+        void cutoff(iota at, iota count, cell const& blank, iota margin)
         {
             auto len = length();
-            blank.txt(whitespace);
-            //blank.txt(whitespace).bgc(reddk).bga(0x7f);
             if (count > 0 && at < len)
             {
                 margin -= at % margin;

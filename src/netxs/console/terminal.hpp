@@ -898,8 +898,7 @@ private:
                         tail += panel.x;
                         break;
                 }
-                auto blank = cell{ brush }.txt(whitespace);
-                //auto blank = cell{ brush }.bgc(cyandk).bga(0x7f).txt(' ');
+                auto blank = brush.spc(); //.bgc(cyandk).bga(0x7f).txt(' ');
                 while(head != tail) { *head++ = blank; }
             }
             // alt_screen: CSI n @  ICH. Insert n blanks after cursor. Don't change cursor pos.
@@ -912,11 +911,11 @@ private:
                 */
 
                 bufferbase::flush();
-
-                //auto& curln = batch.current();
-                ////todo check_autogrow
-                //curln.insert(batch.caret, n, brush);
-                //batch.recalc(curln);
+                assert(coord.y < panel.y);
+                assert(coord.x >= 0);
+                auto blank = brush.spc(); //.bgc(cyandk).bga(0x7f).txt(' ');
+                n = std::clamp(n, 0, panel.x - coord.x);
+                canvas.insert(coord, n, blank);
             }
             // alt_screen: CSI n X  Erase/put n chars after cursor. Don't change cursor pos.
             void ech(iota n) override
@@ -1036,11 +1035,11 @@ private:
                 canvas.wipe();
                 bufferbase::clear_all();
             }
-            void output(face& parent_canvas) override
+            void output(face& target) override
             {
-                auto full = parent_canvas.full();
+                auto full = target.full();
                 canvas.move(full.coor);
-                parent_canvas.plot(canvas, cell::shaders::fuse);
+                target.plot(canvas, cell::shaders::fuse);
             }
             // alt_screen: Remove all lines below except the current. "ED2 Erase viewport" keeps empty lines.
             void del_below() override
@@ -1823,9 +1822,8 @@ private:
                 }
                 if (count)
                 {
-                    auto blank = cell{ brush }.txt(whitespace);
-                    //auto blank = cell{ brush }.bgc(greendk).bga(0x7f).txt(whitespace);
                     //todo check_autogrow
+                    auto blank = brush.spc(); //.bgc(greendk).bga(0x7f).txt(whitespace);
                     curln.splice<true>(start, count, blank);
                     //batch->shrink(blank);
                     batch.recalc(curln);
@@ -1840,9 +1838,10 @@ private:
                 *   Existing chars after cursor shifts to the right.
                 */
                 bufferbase::flush();
-                auto& curln = batch.current();
                 //todo check_autogrow
-                curln.insert(batch.caret, n, brush);
+                auto& curln = batch.current();
+                auto  blank = brush.spc(); //.bgc(magentadk).bga(0x7f);
+                curln.insert(batch.caret, n, blank);
                 batch.recalc(curln);
             }
             // scroll_buf: CSI n X  Erase/put n chars after cursor. Don't change cursor pos.
@@ -1850,16 +1849,16 @@ private:
             {
                 parser::flush();
                 auto& curln = batch.current();
-                auto  blank = cell{ brush }.txt(whitespace);
+                auto  blank = brush.spc(); //.bgc(magentadk).bga(0x7f);
                 curln.splice(batch.caret, n, blank);
                 batch.recalc(curln);
             }
             void ech_grow(iota n) override
             {
                 parser::flush();
-                auto& curln = batch.current();
                 //todo check_autogrow
-                auto  blank = cell{ brush }.txt(whitespace);
+                auto& curln = batch.current();
+                auto  blank = brush.spc(); //.bgc(magentadk).bga(0x7f);
                 curln.splice<true>(batch.caret, n, blank);
                 batch.recalc(curln);
             }
@@ -1868,7 +1867,7 @@ private:
             {
                 bufferbase::flush();
                 auto& curln = batch.current();
-                auto  blank = cell{ brush }.txt(whitespace);
+                auto  blank = brush.spc(); //.bgc(magentadk).bga(0x7f);
                 curln.cutoff(batch.caret, n, blank, panel.x);
                 batch.recalc(curln);
 
