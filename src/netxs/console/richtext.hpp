@@ -810,6 +810,14 @@ namespace netxs::console
             auto end = dst + count;
             while(dst != end) *dst++ = blank;
         }
+        void splice(twod const& at, iota count, cell const& blank)
+        {
+            auto len = size();
+            auto ptr = iter();
+            auto dst = ptr + at.x + at.y * len.x;
+            auto end = dst + count;
+            while(dst != end) *dst++ = blank;
+        }
         void splice(iota at, shot const& fragment)
         {
             auto len = fragment.length();
@@ -993,6 +1001,34 @@ namespace netxs::console
                     end += count; //end = ptr + right_margin;
                     while (dst != end) *dst++ = blank;
                 }
+            }
+        }
+        // rich: Delete n chars and add blanks at the right margin.
+        void cutoff(twod const& at, iota count, cell const& blank)
+        {
+            auto len = size();
+            if (count > 0)
+            {
+                //margin -= at % margin;
+                //count = std::min(count, margin);
+                //if (count >= len - at)
+                //{
+                //    auto ptr = iter();
+                //    auto dst = ptr + at;
+                //    auto end = ptr + len;
+                //    while (dst != end) *dst++ = blank;
+                //}
+                //else
+                //{
+                //    reserv(margin + at);
+                //    auto ptr = iter();
+                //    auto dst = ptr + at;
+                //    auto src = dst + count;
+                //    auto end = dst - count + margin;
+                //    while (dst != end) *dst++ = *src++;
+                //    end += count; //end = ptr + right_margin;
+                //    while (dst != end) *dst++ = blank;
+                //}
             }
         }
     };

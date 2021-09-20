@@ -909,52 +909,97 @@ private:
                 *   Don't change cursor pos.
                 *   Existing chars after cursor shifts to the right.
                 */
-
                 bufferbase::flush();
                 assert(coord.y < panel.y);
                 assert(coord.x >= 0);
                 auto blank = brush.spc(); //.bgc(cyandk).bga(0x7f).txt(' ');
-                n = std::clamp(n, 0, panel.x - coord.x);
-                canvas.insert(coord, n, blank);
+                auto count = std::clamp(n, 0, panel.x - coord.x);
+                canvas.insert(coord, count, blank);
             }
             // alt_screen: CSI n X  Erase/put n chars after cursor. Don't change cursor pos.
             void ech(iota n) override
             {
                 parser::flush();
-                //auto& curln = batch.current();
-                //curln.splice(batch.caret, n, brush);
-                //batch.recalc(curln);
+                auto blank = brush.spc(); //.bgc(cyandk).bga(0x7f).txt(' ');
+                auto count = std::clamp(n, 0, panel.x - coord.x);
+                canvas.splice(coord, count, blank);
             }
             void ech_grow(iota n) override
             {
                 parser::flush();
-                //auto& curln = batch.current();
-                //    //todo check_autogrow
-                //    curln.splice<true>(batch.caret, n, brush);
-                //batch.recalc(curln);
+                auto size = canvas.size();
+                auto blank = brush.spc(); //.bgc(cyandk).bga(0x7f).txt(' ');
+                auto xy = coord;
+                xy.x += n;
+                if (xy.x <= size.x )
+                {
+                    canvas.splice(coord, n, blank);
+                }
+                else
+                {
+                    xy.y += (xy.x + size.x - 1) / size.x - 1;
+                    xy.x  = (xy.x          - 1) % size.x + 1;
+
+                    auto[top, end] = get_scroll_region();
+                    if (xy.y > end)
+                    {
+                        if (coord.y <= end)
+                        {
+                            auto n = end - xy.y;
+                            canvas.scroll(top, end + 1, n, brush.spare);
+                            xy.y = end;
+                        }
+                        else if (xy.y >= size.y)
+                        {
+                            auto m = size.y - 1;
+                            auto n = m - xy.y;
+                            canvas.scroll(0, size.y, n, brush.spare);
+                            xy.y = m;
+                        }
+                    }
+
+                    auto data = canvas.iter();
+                    auto seek = xy.x + xy.y * size.x;
+                    if (coord.y >= top)
+                    {
+                        auto miny = top * size.x;
+                        if (n > seek - miny) n = seek - miny;
+                    }
+                    else
+                    {
+                        if (n > seek) n = seek;
+                    }
+
+                    auto head = proto.end();
+                    auto dest = data + seek;
+                    auto tail = dest - n;
+                    while (dest != tail)
+                    {
+                        *--head = blank;
+                    }
+                }
             }
             // alt_screen: CSI n P  Delete (not Erase) letters under the cursor.
             void dch(iota n) override
             {
                 bufferbase::flush();
-
-                //auto& cur_ln = batch.current();
-                //cur_ln.cutoff(batch.caret, n, brush, panel.x);
-                //batch.recalc(cur_ln);
+                auto blank = brush.spc(); //.bgc(cyandk).bga(0x7f).txt(' ');
+                canvas.cutoff(coord, n, blank);
             }
             void data(grid& proto, iota shift) override
             {
-                assert(coord.y < panel.y);
+                auto size = canvas.size();
+                assert(coord.y < size.y);
                 auto old_coord = coord;
                 coord.x += shift;
-                if (coord.x <= panel.x )
+                if (coord.x <= size.x)
                 {
                     canvas.splice(old_coord, proto, shift);
                 }
                 else
                 {
-                    coord.y += (coord.x + panel.x - 1) / panel.x - 1;
-                    coord.x  = (coord.x           - 1) % panel.x + 1;
+                    coord.y += (coord.x + size.x - 1) / size.x - 1;
+                    coord.x  = (coord.x          - 1) % size.x + 1;
 
                     auto[top, end] = get_scroll_region();
 
@@ -966,15 +1011,14 @@ private:
                             canvas.scroll(top, end + 1, n, brush.spare);
                             coord.y = end;
                         }
-                        else if (coord.y >= panel.y)
+                        else if (coord.y >= size.y)
                         {
-                            auto m = panel.y - 1;
+                            auto m = size.y - 1;
                             auto n = m - coord.y;
-                            canvas.scroll(0, panel.y, n, brush.spare);
+                            canvas.scroll(0, size.y, n, brush.spare);
                             coord.y = m;
                         }
                     }
-                    auto size = canvas.size();
                     auto data = canvas.iter();
                     auto seek = coord.x + coord.y * size.x;
                     if (old_coord.y >= top)
