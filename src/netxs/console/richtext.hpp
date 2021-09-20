@@ -97,6 +97,7 @@ namespace netxs::console
         auto  data()                        { return canvas.data();      }
         auto& pick()                        { return canvas;             }
         auto  iter()                        { return canvas.begin();     }
+        auto  iend()                        { return canvas.end();       }
         auto  test(twod const& coord) const { return region.size.inside(coord); } // core: Check the coor inside the canvas.
         auto  data(twod const& coord)       { return  data() + coord.x + coord.y * region.size.x; } // core: Return the offset of the cell corresponding to the specified coordinates.
         auto  data(twod const& coord) const { return  data() + coord.x + coord.y * region.size.x; } // core: Return the const offset value of the cell.
@@ -896,12 +897,12 @@ namespace netxs::console
                 }
             }
         }
-        // rich: Scroll by gap the 2D-block of lines between top and end (exclusive); down: delta > 0; up: delta < 0.
+        // rich: Scroll by gap the 2D-block of lines between top and end (exclusive); down: gap > 0; up: gap < 0.
         void scroll(iota top, iota end, iota gap, cell const& clr)
         {
-            auto size = core::size();
             auto data = core::data();
-            auto step = gap * size.x;
+            auto size = core::size();
+            auto step = size.x;
             assert(top >= 0 && top < end && end <= size.y);
             assert(gap != 0);
             if (gap > 0)
@@ -910,11 +911,14 @@ namespace netxs::console
                 auto cut = end - gap;
                 if  (cut > top)
                 {
+                    step *= gap;
                     auto head = data + size.x * cut  - 1;
                     auto dest = head + step;
                     auto tail = src - 1;
                     netxs::move_block<faux>(head, tail, dest);
                 }
+                else step *= end - top;
+
                 auto  dst  = src + step;
                 while(dst != src) { *src++ = clr; }
             }
@@ -924,11 +928,14 @@ namespace netxs::console
                 auto cut = top - gap;
                 if  (cut < end)
                 {
+                    step *= gap;
                     auto head = data + size.x * cut;
                     auto dest = head + step;
                     auto tail = src;
                     netxs::move_block<true>(head, tail, dest);
                 }
+                else step *= top - end;
+
                 auto  dst  = src + step;
                 while(dst != src) { *--src = clr; }
             }
@@ -936,8 +943,8 @@ namespace netxs::console
         void insert(iota at, iota count, cell blank)
         {
             auto len = length();
-            //blank.txt(whitespace);
-            blank.txt(whitespace).bgc(magentadk).bga(0x7f);
+            blank.txt(whitespace);
+            //blank.txt(whitespace).bgc(magentadk).bga(0x7f);
             crop(std::max(at, len) + count);
             auto ptr = iter();
             auto end = ptr + count + at;
@@ -954,8 +961,8 @@ namespace netxs::console
         void cutoff(iota at, iota count, cell blank, iota margin)
         {
             auto len = length();
-            //blank.txt(whitespace);
-            blank.txt(whitespace).bgc(reddk).bga(0x7f);
+            blank.txt(whitespace);
+            //blank.txt(whitespace).bgc(reddk).bga(0x7f);
             if (count > 0 && at < len)
             {
                 margin -= at % margin;
