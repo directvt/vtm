@@ -100,7 +100,7 @@ namespace netxs::ui::atoms
             auto mode = queue.rawarg(mode_RGB);
             if (fifo::issub(mode))
             {
-                switch(fifo::desub(mode))
+                switch (fifo::desub(mode))
                 {
                     case mode_RGB:
                         chan.r = queue.subarg(0);
@@ -117,7 +117,7 @@ namespace netxs::ui::atoms
             }
             else
             {
-                switch(mode)
+                switch (mode)
                 {
                     case mode_RGB:
                         chan.r = queue(0);

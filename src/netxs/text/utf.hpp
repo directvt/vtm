@@ -637,12 +637,9 @@ namespace netxs::utf
     {
         switch (cp)
         {
-            case codepage::cp866:
-                return cp_convert<utf8_cp866>(utf8, invalid_char);
-            case codepage::cp1251:
-                return cp_convert<utf8_cp1251>(utf8, invalid_char);
-            default:
-                return utf8;
+            case codepage::cp866:  return cp_convert<utf8_cp866>(utf8, invalid_char);
+            case codepage::cp1251: return cp_convert<utf8_cp1251>(utf8, invalid_char);
+            default:               return utf8;
         }
     }
 
@@ -1191,7 +1188,7 @@ namespace netxs::utf
     auto maxlen(Container const& set)
     {
         auto len = 0_sz;
-        for(auto& obj : set)
+        for (auto& obj : set)
         {
             auto val = utf::length(obj);
             if (val > len) len = val;

@@ -119,7 +119,7 @@ namespace netxs::ui
         auto depend_on_collection(S data_collection_src)
         {
             auto backup = This<T>();
-            for(auto& data_src : data_collection_src)
+            for (auto& data_src : data_collection_src)
             {
                 depend(data_src);
             }
@@ -158,7 +158,7 @@ namespace netxs::ui
         auto attach_collection(PROPERTY, S& data_collection_src, P item_template)
         {
             auto backup = This<T>();
-            for(auto& data_src_sptr : data_collection_src)
+            for (auto& data_src_sptr : data_collection_src)
             {
                 attach_element(PROPERTY{}, data_src_sptr, item_template);
             }

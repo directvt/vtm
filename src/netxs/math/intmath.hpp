@@ -293,8 +293,8 @@ namespace netxs
 
         if constexpr (RtoL) lyric += width;
 
-        auto  limit = frame + width;
-        while(limit!= frame)
+        auto limit = frame + width;
+        while (limit != frame)
         {
             if constexpr (RtoL) handle(*frame++, *--lyric);
             else                handle(*frame++, *lyric++);
@@ -316,8 +316,8 @@ namespace netxs
             auto data1 = bitmap1.data();
             auto data2 = bitmap2.data();
 
-            auto  limit = data1 + size1.y * size2.x;
-            while(limit!= data1)
+            auto limit = data1 + size1.y * size2.x;
+            while (limit != data1)
             {
                 handle(*data1++, *data2++);
             }
@@ -350,11 +350,11 @@ namespace netxs
             skip2 -= region.size.x;
         }
 
-        auto  limit = data1 + region.size.y * size1.x;
-        while(limit!= data1)
+        auto limit = data1 + region.size.y * size1.x;
+        while (limit != data1)
         {
-            auto  limit = data1 + region.size.x;
-            while(limit!= data1)
+            auto limit = data1 + region.size.x;
+            while (limit != data1)
             {
                 if constexpr (RtoL) handle(*data1++, *--data2);
                 else                handle(*data1++, *data2++);
@@ -396,11 +396,11 @@ namespace netxs
             auto frame = place.size.x * basis.y + basis.x + canvas.data();
             auto notch = place.size.x - joint.size.x;
 
-            auto  limit = place.size.x * joint.size.y + frame;
-            while(limit!= frame)
+            auto limit = place.size.x * joint.size.y + frame;
+            while (limit != frame)
             {
-                auto  limit = frame + joint.size.x;
-                while(limit!= frame)
+                auto limit = frame + joint.size.x;
+                while (limit != frame)
                 {
                     handle(*frame++);
                 }
@@ -708,7 +708,7 @@ namespace netxs
         template<bool FWD, class SRC, class DST, class P>
         void proc_block(SRC begin_it, SRC end_it, DST dest_it, P proc)
         {
-                while(begin_it != end_it)
+                while (begin_it != end_it)
                 {
                     if constexpr (FWD)
                     {

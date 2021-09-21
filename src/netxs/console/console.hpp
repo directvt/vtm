@@ -2168,34 +2168,34 @@ namespace netxs::console
             {
                 switch (mode)
                 {
-                case 0: // n = 0  blinking box
-                case 1: // n = 1  blinking box (default)
-                    blink_period();
-                    style(true);
-                    break;
-                case 2: // n = 2  steady box
-                    blink_period(period::zero());
-                    style(true);
-                    break;
-                case 3: // n = 3  blinking underline
-                    blink_period();
-                    style(faux);
-                    break;
-                case 4: // n = 4  steady underline
-                    blink_period(period::zero());
-                    style(faux);
-                    break;
-                case 5: // n = 5  blinking I-bar
-                    blink_period();
-                    style(true);
-                    break;
-                case 6: // n = 6  steady I-bar
-                    blink_period(period::zero());
-                    style(true);
-                    break;
-                default:
-                    log("pro::caret: unsupported cursor style requested, ", mode);
-                    break;
+                    case 0: // n = 0  blinking box
+                    case 1: // n = 1  blinking box (default)
+                        blink_period();
+                        style(true);
+                        break;
+                    case 2: // n = 2  steady box
+                        blink_period(period::zero());
+                        style(true);
+                        break;
+                    case 3: // n = 3  blinking underline
+                        blink_period();
+                        style(faux);
+                        break;
+                    case 4: // n = 4  steady underline
+                        blink_period(period::zero());
+                        style(faux);
+                        break;
+                    case 5: // n = 5  blinking I-bar
+                        blink_period();
+                        style(true);
+                        break;
+                    case 6: // n = 6  steady I-bar
+                        blink_period(period::zero());
+                        style(true);
+                        break;
+                    default:
+                        log("pro::caret: unsupported cursor style requested, ", mode);
+                        break;
                 }
             }
             // pro::caret: Set caret position.
@@ -2898,8 +2898,7 @@ namespace netxs::console
 
                             while (--item != head
                                 && !area.clip((**std::prev(item)).region))
-                            {
-                            }
+                            { }
 
                             items.insert(item.base(), shadow);
                             return area;
@@ -3347,7 +3346,7 @@ namespace netxs::console
                 };
                 boss.SUBMIT_T(tier::release, e2::form::draggable::any, memo, enabled)
                 {
-                    switch(auto deed = boss.bell::protos<tier::release>())
+                    switch (auto deed = boss.bell::protos<tier::release>())
                     {
                         default:
                         case e2::form::draggable::left     .id: draggable<sysmouse::left     >(); break;
@@ -4654,7 +4653,7 @@ again:
                                     && tmp.at(0) == ':')
                                 {
                                     tmp.remove_prefix(1); // pop ':'
-                                    if(auto v = utf::to_int(tmp))
+                                    if (auto v = utf::to_int(tmp))
                                     {
                                         if (tmp.size() && tmp.at(0) == 'p')
                                         {
@@ -5141,7 +5140,7 @@ again:
             log("diff: ctor start");
             paint = work([&]
                 { 
-                    switch(video)
+                    switch (video)
                     {
                         case svga::truecolor: render<svga::truecolor>(); break;
                         case svga::vga16:     render<svga::vga16    >(); break;

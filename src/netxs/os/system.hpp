@@ -189,7 +189,7 @@ namespace netxs::os
     template<class T>
     bool ok(T error_condition, text msg = {})
     {
-        if(
+        if (
             #if defined(_WIN32)
                 error_condition == 0
             #else
@@ -872,8 +872,7 @@ namespace netxs::os
         uint8_t i = 0;
 
         while (i < 100 && netxs::os::test_path(tmp_dir = file_guid + "\\$temp_" + utf::adjust(std::to_string(i++), 3, "0", true)))
-        {
-        }
+        { }
 
         if (i == 100) tmp_dir.clear();
 
@@ -1395,7 +1394,7 @@ namespace netxs::os
         public:
             operator fd_t () { return h[0]; }
             flash_t()        { ok(::pipe(h), "pipe(2) error"); }
-           ~flash_t()        { for(auto f : h) if (f != INVALID_FD) ::close(f); }
+           ~flash_t()        { for (auto f : h) if (f != INVALID_FD) ::close(f); }
             void reset()     { send(h[1], &x, sizeof(x)); }
             void flush()     { recv(h[0], &x, sizeof(x)); }
         };
@@ -1639,18 +1638,12 @@ namespace netxs::os
                 {
                     switch (errno)
                     {
-                    case EBADF:
-                        return fail("EBADF: The socket argument is not a valid file descriptor.");
-                    case EINVAL:
-                        return fail("EINVAL: The how argument is invalid.");
-                    case ENOTCONN:
-                        return fail("ENOTCONN: The socket is not connected.");
-                    case ENOTSOCK:
-                        return fail("ENOTSOCK: The socket argument does not refer to a socket.");
-                    case ENOBUFS:
-                        return fail("ENOBUFS: Insufficient resources were available in the system to perform the operation.");
-                    default:
-                        return fail("unknown reason");
+                        case EBADF:    return fail("EBADF: The socket argument is not a valid file descriptor.");
+                        case EINVAL:   return fail("EINVAL: The how argument is invalid.");
+                        case ENOTCONN: return fail("ENOTCONN: The socket is not connected.");
+                        case ENOTSOCK: return fail("ENOTSOCK: The socket argument does not refer to a socket.");
+                        case ENOBUFS:  return fail("ENOBUFS: Insufficient resources were available in the system to perform the operation.");
+                        default:       return fail("unknown reason");
                     }
                 }
                 else return true;
@@ -1847,7 +1840,7 @@ namespace netxs::os
                 #if defined(_WIN32)
 
                     CONSOLE_SCREEN_BUFFER_INFO cinfo;
-                    if(ok(GetConsoleScreenBufferInfo(STDOUT_FD, &cinfo)))
+                    if (ok(GetConsoleScreenBufferInfo(STDOUT_FD, &cinfo)))
                     {
                         winsz({ cinfo.srWindow.Right - cinfo.srWindow.Left + 1,
                                 cinfo.srWindow.Bottom - cinfo.srWindow.Top + 1 });
@@ -1856,7 +1849,7 @@ namespace netxs::os
                 #else
 
                     winsize size;
-                    if(ok(::ioctl(STDOUT_FD, TIOCGWINSZ, &size)))
+                    if (ok(::ioctl(STDOUT_FD, TIOCGWINSZ, &size)))
                     {
                         winsz({ size.ws_col, size.ws_row });
                     }
@@ -2137,7 +2130,7 @@ namespace netxs::os
                     auto imps2_init_string = "\xf3\xc8\xf3\x64\xf3\x50";
                     auto mouse_device = "/dev/input/mice";
                     auto fd = ::open(mouse_device, O_RDWR);
-                    if(fd == -1) log(" tty: error opening ", mouse_device, ", error ", errno, errno == 13 ? " - permission denied" : "");
+                    if (fd == -1) log(" tty: error opening ", mouse_device, ", error ", errno, errno == 13 ? " - permission denied" : "");
                     else if (os::send(fd, imps2_init_string, sizeof(imps2_init_string)))
                     {
                         char ack;
@@ -2321,7 +2314,7 @@ namespace netxs::os
             os::set_palette(mode);
             os::vgafont_update(mode);
 
-            auto  input = std::thread{ [&]() { reader(mode); } };
+            auto input = std::thread{ [&]() { reader(mode); } };
 
             while (output(ipcio.recv()))
             { }

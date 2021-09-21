@@ -292,7 +292,7 @@ private:
                     {
                         owner.SUBMIT_T(tier::release, hids::events::notify::keybd::any, token, gear)
                         {
-                            switch(owner.bell::protos<tier::release>())
+                            switch (owner.bell::protos<tier::release>())
                             {
                                 case hids::events::notify::keybd::got .id: queue.fcs(true); break;
                                 case hids::events::notify::keybd::lost.id: queue.fcs(faux); break;
@@ -360,7 +360,7 @@ private:
                 static constexpr iota all_title = 0;  // Sub commands.
                 static constexpr iota label     = 1;  // Sub commands.
                 static constexpr iota title     = 2;  // Sub commands.
-                switch(auto option = q(0))
+                switch (auto option = q(0))
                 {
                     // Return an empty string for security reasons
                     case get_label: owner.answer(queue.osc(ansi::OSC_LABEL_REPORT, "")); break;
@@ -370,7 +370,7 @@ private:
                         auto push = [&](auto const& property){
                             stack[property].push_back(props[property]);
                         };
-                        switch(q(all_title))
+                        switch (q(all_title))
                         {
                             case title:     push(ansi::OSC_TITLE); break;
                             case label:     push(ansi::OSC_LABEL); break;
@@ -390,7 +390,7 @@ private:
                                 s.pop_back();
                             }
                         };
-                        switch(q(all_title))
+                        switch (q(all_title))
                         {
                             case title:     pop(ansi::OSC_TITLE); break;
                             case label:     pop(ansi::OSC_LABEL); break;
@@ -593,7 +593,7 @@ private:
             void not_implemented_CSI(iota i, fifo& q)
             {
                 text params;
-                while(q)
+                while (q)
                 {
                     params += std::to_string(q(0));
                     if (q)
@@ -812,10 +812,10 @@ private:
                     case commands::erase::display::viewport: // n = 2  Erase viewport.
                         set_coord(dot_00);
                         ed(commands::erase::display::below);
-                    break;
+                        break;
                     case commands::erase::display::scrollback: // n = 3  Erase scrollback.
                         clear_all();
-                    break;
+                        break;
                     default:
                         break;
                 }
@@ -899,7 +899,7 @@ private:
                         break;
                 }
                 auto blank = brush.spc(); //.bgc(cyandk).bga(0x7f).txt(' ');
-                while(head != tail) { *head++ = blank; }
+                while (head != tail) { *head++ = blank; }
             }
             // alt_screen: CSI n @  ICH. Insert n blanks after cursor. Don't change cursor pos.
             void ins(iota n) override
@@ -912,14 +912,14 @@ private:
                 bufferbase::flush();
                 assert(coord.y < panel.y);
                 assert(coord.x >= 0);
-                auto blank = brush.spc().bgc(reddk).bga(0x7f).txt(' ');
+                auto blank = brush.spc();//.bgc(reddk).bga(0x7f).txt(' ');
                 canvas.insert(coord, n, blank);
             }
             // alt_screen: CSI n X  Erase/put n chars after cursor. Don't change cursor pos.
             void ech(iota n) override
             {
                 parser::flush();
-                auto blank = brush.spc().bgc(greendk).bga(0x7f).txt(' ');
+                auto blank = brush.spc();//.bgc(greendk).bga(0x7f).txt(' ');
                 canvas.splice(coord, n, blank);
             }
             void ech_grow(iota n) override
@@ -981,7 +981,7 @@ private:
             void dch(iota n) override
             {
                 bufferbase::flush();
-                auto blank = brush.spc().bgc(cyandk).bga(0x7f).txt(' ');
+                auto blank = brush.spc();//.bgc(cyandk).bga(0x7f).txt(' ');
                 canvas.cutoff(coord, n, blank);
             }
             void data(grid& proto, iota shift) override
@@ -1091,10 +1091,10 @@ private:
                 auto head = data + std::min<iota>(coord.x + coord.y * size.x,
                                                   panel.x + panel.y * size.x);
                 auto tail = canvas.iend();
-                while(head != tail) { *head++ = brush.spare; }
+                while (head != tail) { *head++ = brush.spare; }
 
                 //auto blank = cell{ brush }.bgc(magentadk).bga(0x7f).txt(' ');
-                //while(head != tail) { *head++ = blank; }
+                //while (head != tail) { *head++ = blank; }
             }
             void del_above() override
             {
@@ -1103,7 +1103,7 @@ private:
                 auto head = canvas.iter();
                 auto tail = head + std::min<iota>(coord.x + coord.y * size.x,
                                                   panel.x + panel.y * size.x);
-                while(head != tail) { *head++ = brush.spare; }
+                while (head != tail) { *head++ = brush.spare; }
             }
             // alt_screen: Shift by n the scroll region.
             void scroll_region(iota n, bool use_scrollback = faux) override
@@ -1213,7 +1213,7 @@ private:
                 {
                     iota max = 0;
                     maxs() : std::vector<iota>(1) { }
-                    void prev_max() { while(max > 0 && !at(--max)); }
+                    void prev_max() { while (max > 0 && !at(--max)); }
                 }
                 lens[type::count];
 
@@ -1243,7 +1243,7 @@ private:
                         auto head = cur_lens.begin();
                         auto tail = head + cur_lens.max + 1;
                         do vsize += *head++;
-                        while(head != tail);
+                        while (head != tail);
                     }
                     auto kind = type::autowrap;
                     auto& cur_lens = lens[kind];
@@ -1261,7 +1261,7 @@ private:
                             ++h;
                         }
                     }
-                    while(head != tail);
+                    while (head != tail);
                     //log(" set_width done ", " h=", vsize);
                 }
 
@@ -1341,7 +1341,7 @@ private:
                     //auto i = 0;
                     //log("  i=", i++, " curln.accum=", accum);
                     accum += curln.length() + lnpadding;
-                    while(++head != tail)
+                    while (++head != tail)
                     {
                         auto& curln = *head;
                         curln.accum = accum;
@@ -1443,7 +1443,7 @@ private:
                 auto tail = head - std::max(maxn, std::min(size, panel.y));
                 auto push = [&](auto i, auto o, auto r) { --basis; index.push_front(i, o, r); };
                 auto unknown = true;
-                while(head != tail && (index.size < panel.y || unknown))
+                while (head != tail && (index.size < panel.y || unknown))
                 {
                     auto& curln = *--head;
                     auto length = curln.length();
@@ -1467,7 +1467,7 @@ private:
                             }
                             remain = panel.x;
                         }
-                        while(offset > 0 && (index.size < panel.y || unknown));
+                        while (offset > 0 && (index.size < panel.y || unknown));
                     }
                     else
                     {
@@ -1491,7 +1491,7 @@ private:
                 index.clear();
                 auto coor = batch.vsize;
                 auto head = batch.end();
-                while(coor != basis)
+                while (coor != basis)
                 {
                     auto& curln = *--head;
                     auto length = curln.length();
@@ -1501,7 +1501,7 @@ private:
                         length -= remain;
                         index.push_front(curln.index, length, remain);
                         --coor;
-                        while(length > 0 && coor != basis)
+                        while (length > 0 && coor != basis)
                         {
                             length -= panel.x;
                             index.push_front(curln.index, length, panel.x);
@@ -1572,10 +1572,10 @@ private:
                                 cindex = cur_ln.index;
                                 offset = 0;
                             }
-                            while(true)
+                            while (true)
                             {
                                 auto bottom = length - panel.x;
-                                while(offset < bottom && add_count-- > 0)
+                                while (offset < bottom && add_count-- > 0)
                                 {
                                     log(" 1f. cindex=", cindex, " offset=", offset, " width=", panel.x);
                                     index.push_back(cindex, offset, panel.x);
@@ -1682,7 +1682,7 @@ private:
                 auto newid = batch.back().index;
                 auto style = batch->style;
                 auto n = amount;
-                while(n-- > 0)
+                while (n-- > 0)
                 {
                     auto& l = batch.invite(++newid, style);
                     index.push_back(l.index, 0, 0);
@@ -1691,7 +1691,7 @@ private:
             void pop_lines(iota amount)
             {
                 assert(amount >= 0 && amount < batch.length());
-                while(amount--) batch.pop_back();
+                while (amount--) batch.pop_back();
                 //todo partial rebuild
                 index_rebuild();
             }
@@ -1787,7 +1787,7 @@ private:
                             canvas.fill(r, [&](auto& c){ c.txt(chr).fgc(tint::greenlt); });
                     };
                     auto data_it = begin();
-                    while(coor.y != tail)
+                    while (coor.y != tail)
                     {
                         auto& curln = *line_it++;
                         auto& curdt = *data_it++;
@@ -1968,7 +1968,7 @@ private:
                         auto bottom = length - panel.x;
                         log(" 1. cur_id=", cur_id, " offset=", offset, " width=", panel.x);
                         offset += panel.x;
-                        while(offset < bottom) // Update for current line.
+                        while (offset < bottom) // Update for current line.
                         {
                             index.push_back(cur_id, offset, panel.x);
                             offset += panel.x;
@@ -2015,7 +2015,7 @@ private:
                             {
                                 auto cur_it = batch.current_it();
                                 auto end_it = batch.end();
-                                while(cur_it != end_it)
+                                while (cur_it != end_it)
                                 {
                                     cur_it->index -= count;
                                     ++cur_it;
@@ -2029,7 +2029,7 @@ private:
                                 auto end_it = index.end();
                                 auto offset = ind_it->start;
                                 auto bottom = length - panel.x;
-                                while(ind_it != end_it && offset < bottom) // Update for current line.
+                                while (ind_it != end_it && offset < bottom) // Update for current line.
                                 {
                                     auto& i = *ind_it;
                                     i.index = cur_id;
@@ -2047,7 +2047,7 @@ private:
                                     i.width = length - offset;
                                     ++ind_it;
                                     log(" 2. i.index=", i.index, " i.start=", i.start, " i.width=", i.width);
-                                    while(ind_it != end_it) // Update the rest.
+                                    while (ind_it != end_it) // Update the rest.
                                     {
                                         auto& i = *ind_it;
                                         log(" 3.0 i.index=", i.index, " i.start=", i.start, " i.width=", i.width);
@@ -2124,7 +2124,7 @@ private:
                     if (auto r = view.clip(area))
                         canvas.fill(r, [&](auto& c){ c.txt(chr).fgc(tint::greenlt); });
                 };
-                while(head != tail)
+                while (head != tail)
                 {
                     auto& curln = *head++;
                     maker.ac(coor);
@@ -2232,14 +2232,14 @@ private:
                 //    lyric.shrink(brush.spare);
                 //    start -= panel.x;
                 //}
-                //while(upper++ != under);
+                //while (upper++ != under);
             }
             // scroll_buf: For bug testing purposes.
             auto get_content()
             {
                 text yield;
                 auto i = 0;
-                for(auto& l : batch)
+                for (auto& l : batch)
                 {
                     yield += "\n =>" + std::to_string(i++) + "<= ";
                     l.each([&](cell& c) { yield += c.txt(); });
@@ -2259,8 +2259,8 @@ private:
                 auto curit = batch.current_it();
                 auto  head = curit;
                 auto  tail = batch.end();
-                do  ++head++->index;
-                while(head != tail);
+                do ++head++->index;
+                while (head != tail);
 
                 auto& newln = *curit;
                 newln.splice(0, temp.substr(linid.start));
@@ -2284,7 +2284,7 @@ private:
             template<class SRC>
             void zeroise(SRC begin_it, SRC end_it)
             {
-                while(begin_it != end_it)
+                while (begin_it != end_it)
                 {
                     auto& curln = *begin_it;
                     batch.undock(curln);
@@ -2640,7 +2640,7 @@ private:
             {
                 log("term: tier::preview, app::term::cmd, ", cmd);
                 scroll();
-                switch(cmd)
+                switch (cmd)
                 {
                     case term::commands::ui::left:
                         target->style.jet(bias::left);

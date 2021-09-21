@@ -233,7 +233,7 @@ namespace netxs::ansi
             auto bake = [&](auto bits)
             {
                 do *--cptr = static_cast<char>('0' + bits % 10);
-                while(bits /= 10);
+                while (bits /= 10);
             };
             if constexpr (std::is_signed_v<T>)
             {
@@ -448,7 +448,7 @@ namespace netxs::ansi
         esc& fgc16(rgba const& c)
         {
             iota clr = 30;
-            switch(c.token)
+            switch (c.token)
             {
                 case 0xFF000000: clr += 0;
                     return add("\033[22;", clr, 'm');
@@ -492,7 +492,7 @@ namespace netxs::ansi
         esc& bgc16(rgba const& c)
         {
             iota clr = 40;
-            switch(c.token)
+            switch (c.token)
             {
                 case 0xFF000000: clr += 0; break;
                 case 0xFFffffff: clr += 5; break;
@@ -524,36 +524,30 @@ namespace netxs::ansi
         template<svga VGAMODE = svga::truecolor>
         esc& fgc(rgba const& c)
         {
-            switch(VGAMODE)
+            switch (VGAMODE)
             {
                 case svga::truecolor:
                     return add("\033[38;2;", c.chan.r, ';',
                                              c.chan.g, ';',
                                              c.chan.b, 'm');
-                case svga::vga16:
-                    return fgc16(c);
-                case svga::vga256:
-                    return fgc256(c);
-                default:
-                    return *this;
+                case svga::vga16:  return fgc16 (c);
+                case svga::vga256: return fgc256(c);
+                default:           return *this;
             }
         }
         // esc: SGR Background color. RGB: red, green, blue.
         template<svga VGAMODE = svga::truecolor>
         esc& bgc(rgba const& c)
         {
-            switch(VGAMODE)
+            switch (VGAMODE)
             {
                 case svga::truecolor:
                     return add("\033[48;2;", c.chan.r, ';',
                                              c.chan.g, ';',
                                              c.chan.b, 'm');
-                case svga::vga16:
-                    return bgc16(c);
-                case svga::vga256:
-                    return bgc256(c);
-                default:
-                    return *this;
+                case svga::vga16:  return bgc16 (c);
+                case svga::vga256: return bgc256(c);
+                default:           return *this;
             }
         }
         esc& sav ()              { return add("\033[10m"              ); } // esc: Save SGR attributes.

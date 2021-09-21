@@ -791,11 +791,10 @@ namespace netxs::console
         void reserv(iota oversize)                       { if (oversize > length()) crop(oversize); }
         void shrink(cell const& blank, iota max_size = 0)
         {
-            auto& data = pick();
-            auto  tail = data.rbegin();
-            auto  head = data.rend();
-            while(head != tail && *tail != blank) ++tail;
-            auto new_size = static_cast<iota>(head - tail);
+            auto head = iter();
+            auto tail = iend();
+            while (head != tail-- && *tail == blank) { }
+            auto new_size = static_cast<iota>(tail - head + 1);
             if (max_size && max_size < new_size) new_size = max_size;
             if (new_size != length()) crop(new_size);
         }
@@ -808,7 +807,7 @@ namespace netxs::console
             auto ptr = iter();
             auto dst = ptr + at;
             auto end = dst + count;
-            while(dst != end) *dst++ = blank;
+            while (dst != end) *dst++ = blank;
         }
         void splice(iota at, shot const& fragment)
         {
@@ -818,7 +817,7 @@ namespace netxs::console
             auto dst = ptr + at;
             auto end = dst + len;
             auto src = fragment.data();
-            while(dst != end) *dst++ = *src++;
+            while (dst != end) *dst++ = *src++;
         }
         void splice(iota at, grid& proto, iota width)
         {
@@ -908,35 +907,35 @@ namespace netxs::console
             {
                 auto src = top * size.x + data;
                 auto cut = end - gap;
-                if  (cut > top)
-                {
-                    step *= gap;
-                    auto head = data + size.x * cut  - 1;
-                    auto dest = head + step;
-                    auto tail = src - 1;
-                    netxs::move_block<faux>(head, tail, dest);
-                }
-                else step *= end - top;
-
-                auto  dst  = src + step;
-                while(dst != src) { *src++ = clr; }
-            }
-            else
-            {
-                auto src = end * size.x + data;
-                auto cut = top - gap;
-                if  (cut < end)
+                if (cut > top)
                 {
                     step *= gap;
                     auto head = data + size.x * cut;
                     auto dest = head + step;
                     auto tail = src;
-                    netxs::move_block<true>(head, tail, dest);
+                    while (head != tail) *--dest = *--head;
+                }
+                else step *= end - top;
+
+                auto dst = src + step;
+                while (dst != src) *src++ = clr;
+            }
+            else
+            {
+                auto src = end * size.x + data;
+                auto cut = top - gap;
+                if (cut < end)
+                {
+                    step *= gap;
+                    auto head = data + size.x * cut;
+                    auto dest = head + step;
+                    auto tail = src;
+                    while (head != tail) *dest++ = *head++;
                 }
                 else step *= top - end;
 
-                auto  dst  = src + step;
-                while(dst != src) { *--src = clr; }
+                auto dst = src + step;
+                while (dst != src) *--src = clr;
             }
         }
         void insert(iota at, iota count, cell const& blank)
@@ -983,20 +982,23 @@ namespace netxs::console
                 }
             }
         }
+        // rich: Put n blanks on top of the chars and cut them off with the right edge.
         void splice(twod const& at, iota count, cell const& blank)
         {
             auto len = size();
             auto vol = std::clamp(count, 0, len.x - at.x);
+            assert(at.x + at.y * len.x + vol <= len.y * len.x);
             auto ptr = iter();
             auto dst = ptr + at.x + at.y * len.x;
             auto end = dst + vol;
-            while(dst != end) *dst++ = blank;
+            while (dst != end) *dst++ = blank;
         }
+        // rich: Insert n blanks by shifting chars to the right. Same as delete(twod), but shifts from left to right.
         void insert(twod const& at, iota count, cell const& blank)
         {
-            assert(at.x + at.y * size().x + count <= size().y * size().x);
             auto len = size();
             auto vol = std::clamp(count, 0, len.x - at.x);
+            assert(at.x + at.y * len.x + vol <= len.y * len.x);
             auto ptr = iter();
             auto pos = ptr + at.y * len.x;
             auto dst = pos + len.x;
@@ -1005,12 +1007,12 @@ namespace netxs::console
             while (src != end) *--dst = *--src;
             while (dst != end) *--dst = blank;
         }
-        // rich: Delete n chars and add blanks at the right margin. Same as insert(twod), but shifts from right to left.
+        // rich: Delete n chars and add blanks at the right. Same as insert(twod), but shifts from right to left.
         void cutoff(twod const& at, iota count, cell const& blank)
         {
-            assert(at.x + at.y * size().x + count <= size().y * size().x);
             auto len = size();
             auto vol = std::clamp(count, 0, len.x - at.x);
+            assert(at.x + at.y * len.x + vol <= len.y * len.x);
             auto ptr = iter();
             auto pos = ptr + at.y * len.x;
             auto dst = pos + at.x;

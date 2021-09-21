@@ -203,7 +203,7 @@ namespace netxs::generics
         }
         void clear()
         {
-            if constexpr (USE_UNDOCK) while(size) pop_back(); //todo undock?
+            if constexpr (USE_UNDOCK) while (size) pop_back(); //todo undock?
             else                      size = 0;
             cart = 0;
             head = 0;
@@ -224,7 +224,7 @@ namespace netxs::generics
                             if constexpr (USE_UNDOCK) undock(front());
                             inc(head);
                         }
-                        while(--size != new_size);
+                        while (--size != new_size);
                     }
                     cart = std::max(0, size - 1 - dst(cart, tail));
                 }
@@ -238,14 +238,14 @@ namespace netxs::generics
                             if constexpr (USE_UNDOCK) undock(back());
                             dec(tail);
                         }
-                        while(--size != new_size);
+                        while (--size != new_size);
                     }
                     cart = std::min(size - 1, dst(head, cart));
                 }
                 vect temp;
                 temp.reserve(++new_size);
                 auto i = size;
-                while(i--)
+                while (i--)
                 {
                     temp.emplace_back(std::move(front()));
                     inc(head);
@@ -266,13 +266,13 @@ namespace netxs::generics
             auto tail = begin() + upto;
             if constexpr (std::is_same_v< decltype(proc(*head)), bool >)
             {
-                     if (from < upto) while(proc(*head) && ++head != tail);
-                else if (from > upto) while(proc(*head) && --head != tail);
+                     if (from < upto) while (proc(*head) && ++head != tail);
+                else if (from > upto) while (proc(*head) && --head != tail);
             }
             else
             {
-                     if (from < upto) do { proc(*head); } while(++head != tail);
-                else if (from > upto) do { proc(*head); } while(--head != tail);
+                     if (from < upto) do { proc(*head); } while (++head != tail);
+                else if (from > upto) do { proc(*head); } while (--head != tail);
             }
         }
     };
