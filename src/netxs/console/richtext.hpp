@@ -819,7 +819,7 @@ namespace netxs::console
             auto src = fragment.data();
             while (dst != end) *dst++ = *src++;
         }
-        void splice(iota at, grid& proto, iota width)
+        void splice(iota at, iota count, grid const& proto)
         {
             //if (front)
             //{
@@ -833,10 +833,10 @@ namespace netxs::console
             //	//	}
             //	//+ convert front into the screen-like sequence (unfold, remmove zerospace chars)
             //
-            reserv(at + width);
+            reserv(at + count);
             auto ptr = iter();
             auto dst = ptr + at;
-            for (auto& c : proto)
+            for (auto c : proto)
             {
                 auto w = c.wdt();
                 if (w == 1)
@@ -863,12 +863,12 @@ namespace netxs::console
                 }
             }
         }
-        void splice(twod at, grid& proto, iota width)
+        void splice(twod at, iota count, grid const& proto)
         {
             auto len = size();
             auto ptr = iter();
             auto dst = ptr + at.x + at.y * len.x;
-            for (auto& c : proto)
+            for (auto c : proto)
             {
                 auto w = c.wdt();
                 if (w == 1)
@@ -1060,7 +1060,7 @@ namespace netxs::console
         }
         bool   bare() const { return locus.bare();    } // para: Does the paragraph have no locator.
         auto length() const { return lyric->size().x; } // para: Return printable length.
-        auto   step() const { return width;           } // para: The next caret step.
+        auto   step() const { return count;           } // para: The next caret step.
         auto   size() const { return lyric->size();   } // para: Return 2D volume size.
         auto&  back() const { return brush;           } // para: Return current brush.
         bool   busy() const { return length() || !proto.empty() || brush.busy(); } // para: Is it filled.
@@ -1068,7 +1068,7 @@ namespace netxs::console
         void   link(id_t id)         { lyric->each([&](auto& c) { c.link(id);   });  } // para: Set object ID for each cell.
         void   wipe(cell c = cell{}) // para: Clear the text and locus, and reset SGR attributes.
         {
-            width = 0;
+            count = 0;
             caret = 0;
             brush.reset(c);
             //todo revise
@@ -1079,10 +1079,10 @@ namespace netxs::console
         }
         void task(ansi::rule const& cmd) { if (!busy()) locus.push(cmd); } // para: Add locus command. In case of text presence try to change current target otherwise abort content building.
         // para: Convert into the screen-adapted sequence (unfold, remove zerospace chars, etc.).
-        void data(grid& proto, iota width) override
+        void data(iota count, grid const& proto) override
         {
-            lyric->splice(caret, proto, width);
-            caret += width;
+            lyric->splice(caret, count, proto);
+            caret += count;
         }
         void id(ui32 newid) { index = newid; }
         auto id() const     { return index;  }
@@ -1382,11 +1382,11 @@ namespace netxs::console
             auto& item = **layer;
             item.style = parser::style;
         }
-        void data(grid& proto, iota width) override
+        void data(iota count, grid const& proto) override
         {
             auto& item = **layer;
-            item.lyric->splice(item.caret, proto, width);
-            item.caret+= width;
+            item.lyric->splice(item.caret, count, proto);
+            item.caret += count;
         }
         auto& current()       { return **layer; } // page: Access to the current paragraph.
         auto& current() const { return **layer; } // page: RO access to the current paragraph.

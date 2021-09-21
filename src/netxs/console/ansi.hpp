@@ -917,9 +917,9 @@ namespace netxs::ansi
         {
            /* Contract for client p
             * Unicode
-            * - void task(ansi::rule const& cmd);    // Proceed curses command.
-            * - void meta(deco& old, deco& new);     // Proceed new style.
-            * - void data(grid& proto, iota width);  // Proceed new cells.
+            * - void task(ansi::rule const& cmd);          // Proceed curses command.
+            * - void meta(deco& old, deco& new);           // Proceed new style.
+            * - void data(iota count, grid const& proto);  // Proceed new cells.
             * SGR:
             * - void nil();                          // Reset all SGR to default.
             * - void sav();                          // Set current SGR as default.
@@ -1354,7 +1354,7 @@ namespace netxs::ansi
         deco style{}; // parser: Parser style.
         deco state{}; // parser: Parser style last state.
         grid proto{}; // parser: Proto lyric.
-        iota width{}; // parser: Proto lyric length.
+        iota count{}; // parser: Proto lyric length.
         mark brush{}; // parser: Parser brush.
         //text debug{};
 
@@ -1382,7 +1382,7 @@ namespace netxs::ansi
             auto& attr = cluster.attr;
             if (auto w = attr.ucwidth)
             {
-                width += w;
+                count += w;
                 brush.set_gc(utf8, w);
                 proto.push_back(brush);
                 //debug += (debug.size() ? "_"s : ""s) + text(utf8);
@@ -1419,15 +1419,15 @@ namespace netxs::ansi
                 meta(state);
                 state = style;
             }
-            if (width)
+            if (count)
             {
-                data(proto, width);
+                data(count, proto);
                 proto.clear();
-                width = 0;
+                count = 0;
             }
         }
-        virtual void meta(deco const& old_style)   { };
-        virtual void data(grid& proto, iota width) { };
+        virtual void meta(deco const& old_style)         { };
+        virtual void data(iota count, grid const& proto) { };
     };
 
     // ansi: Caret manipulation command list.

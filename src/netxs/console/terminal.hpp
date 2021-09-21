@@ -621,14 +621,14 @@ private:
                 parser::flush();
                 if (n > 0)
                 {
-                    auto a = n * tabsz - coord.x % tabsz;
-                    ech_grow(a);
+                    auto new_pos = coord.x + n * tabsz - coord.x % tabsz;
+                    if (new_pos < panel.x) coord.x = new_pos;
                 }
                 else if (n < 0)
                 {
                     n = -n - 1;
-                    auto a = n * tabsz + coord.x % tabsz;
-                    coord.x = std::max(0, coord.x - a);
+                    auto count = n * tabsz + coord.x % tabsz;
+                    coord.x = std::max(0, coord.x - count);
                 }
             }
             // bufferbase: CSI n g  Reset tabstop value.
@@ -898,123 +898,62 @@ private:
                         tail += panel.x;
                         break;
                 }
-                auto blank = brush.spc(); //.bgc(cyandk).bga(0x7f).txt(' ');
-                while (head != tail) { *head++ = blank; }
+                auto blank = brush.spc(); //.bgc(cyandk).bga(0x7f);
+                while (head != tail) *head++ = blank;
             }
-            // alt_screen: CSI n @  ICH. Insert n blanks after cursor. Don't change cursor pos.
+            // alt_screen: CSI n @  ICH. Insert n blanks after cursor. No wrap. Existing chars after cursor shifts to the right. Don't change cursor pos.
             void ins(iota n) override
             {
-               /*
-                *   Inserts n blanks.
-                *   Don't change cursor pos.
-                *   Existing chars after cursor shifts to the right.
-                */
                 bufferbase::flush();
                 assert(coord.y < panel.y);
                 assert(coord.x >= 0);
-                auto blank = brush.spc();//.bgc(reddk).bga(0x7f).txt(' ');
+                auto blank = brush.spc();//.bgc(reddk).bga(0x7f);
                 canvas.insert(coord, n, blank);
-            }
-            // alt_screen: CSI n X  Erase/put n chars after cursor. Don't change cursor pos.
-            void ech(iota n) override
-            {
-                parser::flush();
-                auto blank = brush.spc();//.bgc(greendk).bga(0x7f).txt(' ');
-                canvas.splice(coord, n, blank);
-            }
-            void ech_grow(iota n) override
-            {
-                parser::flush();
-                auto size = canvas.size();
-                auto blank = brush.spc(); //.bgc(cyandk).bga(0x7f).txt(' ');
-                auto xy = coord;
-                xy.x += n;
-                if (xy.x <= size.x )
-                {
-                    canvas.splice(coord, n, blank);
-                }
-                else
-                {
-                    xy.y += (xy.x + size.x - 1) / size.x - 1;
-                    xy.x  = (xy.x          - 1) % size.x + 1;
-
-                    auto[top, end] = get_scroll_region();
-                    if (xy.y > end)
-                    {
-                        if (coord.y <= end)
-                        {
-                            auto n = end - xy.y;
-                            canvas.scroll(top, end + 1, n, brush.spare);
-                            xy.y = end;
-                        }
-                        else if (xy.y >= size.y)
-                        {
-                            auto m = size.y - 1;
-                            auto n = m - xy.y;
-                            canvas.scroll(0, size.y, n, brush.spare);
-                            xy.y = m;
-                        }
-                    }
-
-                    auto data = canvas.iter();
-                    auto seek = xy.x + xy.y * size.x;
-                    if (coord.y >= top)
-                    {
-                        auto miny = top * size.x;
-                        if (n > seek - miny) n = seek - miny;
-                    }
-                    else
-                    {
-                        if (n > seek) n = seek;
-                    }
-
-                    auto head = proto.end();
-                    auto dest = data + seek;
-                    auto tail = dest - n;
-                    while (dest != tail)
-                    {
-                        *--head = blank;
-                    }
-                }
             }
             // alt_screen: CSI n P  Delete (not Erase) letters under the cursor.
             void dch(iota n) override
             {
                 bufferbase::flush();
-                auto blank = brush.spc();//.bgc(cyandk).bga(0x7f).txt(' ');
+                auto blank = brush.spc();//.bgc(cyandk).bga(0x7f);
                 canvas.cutoff(coord, n, blank);
             }
-            void data(grid& proto, iota shift) override
+            // alt_screen: CSI n X  Erase/put n chars after cursor. Don't change cursor pos.
+            void ech(iota n) override
+            {
+                parser::flush();
+                auto blank = brush.spc();//.bgc(greendk).bga(0x7f);
+                canvas.splice(coord, n, blank);
+            }
+            template<class T, class P>
+            void fill_with_scroll(iota count, T const& data_source, P fill_proc)
             {
                 auto size = canvas.size();
                 assert(coord.y < size.y);
                 auto old_coord = coord;
-                coord.x += shift;
-                if (coord.x <= size.x)
+                coord.x += count;
+                if (coord.x <= size.x )
                 {
-                    canvas.splice(old_coord, proto, shift);
+                    canvas.splice(old_coord, count, data_source);
                 }
                 else
                 {
                     coord.y += (coord.x + size.x - 1) / size.x - 1;
                     coord.x  = (coord.x          - 1) % size.x + 1;
-
                     auto[top, end] = get_scroll_region();
-
                     if (coord.y > end)
                     {
-                        if (old_coord.y <= end)
+                        if (coord.y <= end)
                         {
-                            auto n = end - coord.y;
-                            canvas.scroll(top, end + 1, n, brush.spare);
+                            auto dy = end - coord.y;
                             coord.y = end;
+                            canvas.scroll(top, end + 1, dy, brush.spare);
                         }
-                        else if (coord.y >= size.y)
+                        else if (old_coord.y >= size.y)
                         {
-                            auto m = size.y - 1;
-                            auto n = m - coord.y;
-                            canvas.scroll(0, size.y, n, brush.spare);
-                            coord.y = m;
+                            auto my = size.y - 1;
+                            auto dy = my - coord.y;
+                            coord.y = my;
+                            canvas.scroll(0, size.y, dy, brush.spare);
                         }
                     }
                     auto data = canvas.iter();
@@ -1022,20 +961,39 @@ private:
                     if (old_coord.y >= top)
                     {
                         auto miny = top * size.x;
-                        if (shift > seek - miny) shift = seek - miny;
+                        if (count > seek - miny) count = seek - miny;
                     }
                     else
                     {
-                        if (shift > seek) shift = seek;
+                        if (count > seek) count = seek;
                     }
-
-                    auto head = proto.end();
                     auto dest = data + seek;
-                    auto tail = dest - (shift - 1) /* -1: half of the wide char */;
+                    auto tail = dest - count;
+                    fill_proc(dest, tail, data_source);
+                }
+            }
+            // alt_screen: .
+            void ech_grow(iota count) override
+            {
+                log("ech_grow count=", count);
+                parser::flush();
+                auto fill_proc = [](auto dest, auto tail, auto const& blank)
+                {
+                    while (dest != tail) *--dest = blank;
+                };
+                fill_with_scroll(count, brush.spc().bgc(greendk).bga(0x7f), fill_proc);
+            }
+            // alt_screen: .
+            void data(iota count, grid const& proto) override
+            {
+                auto fill_proc = [](auto dest, auto tail, auto const& proto)
+                {
+                    auto head = proto.end();
+                    ++tail; /* tail + 1: half of the wide char */;
                     while (dest > tail)
                     {
-                        auto& c = *--head;
-                        auto  w = c.wdt();
+                        auto c = *--head;
+                        auto w = c.wdt();
                         if (w == 1)
                         {
                             *--dest = c;
@@ -1059,15 +1017,16 @@ private:
                             while (--w && dest != tail - 1);
                         }
                     }
-                    if (dest == tail) // Last cell; shift - 1.
+                    if (dest == tail) // Last cell; tail + 1.
                     {
-                        auto& c = *--head;
-                        auto  w = c.wdt();
+                        auto c = *--head;
+                        auto w = c.wdt();
                              if (w == 1) *--dest = c;
                         else if (w == 2) *--dest = c.wdt(3);
                         else if (w >  2) *--dest = c.txt(utf::REPLACEMENT_CHARACTER_UTF8_VIEW);
                     }
-                }
+                };
+                fill_with_scroll(count, proto, fill_proc);
             }
             void clear_all() override
             {
@@ -1091,19 +1050,16 @@ private:
                 auto head = data + std::min<iota>(coord.x + coord.y * size.x,
                                                   panel.x + panel.y * size.x);
                 auto tail = canvas.iend();
-                while (head != tail) { *head++ = brush.spare; }
-
-                //auto blank = cell{ brush }.bgc(magentadk).bga(0x7f).txt(' ');
-                //while (head != tail) { *head++ = blank; }
+                while (head != tail) *head++ = brush.spare;
             }
+            // alt_screen: Clear all lines from the viewport top line to the current line.
             void del_above() override
             {
-                // Clear all lines from the viewport top line to the current line.
                 auto size = canvas.size();
                 auto head = canvas.iter();
                 auto tail = head + std::min<iota>(coord.x + coord.y * size.x,
                                                   panel.x + panel.y * size.x);
-                while (head != tail) { *head++ = brush.spare; }
+                while (head != tail) *head++ = brush.spare;
             }
             // alt_screen: Shift by n the scroll region.
             void scroll_region(iota n, bool use_scrollback = faux) override
@@ -1865,20 +1821,15 @@ private:
                 if (count)
                 {
                     //todo check_autogrow
-                    auto blank = brush.spc(); //.bgc(greendk).bga(0x7f).txt(whitespace);
+                    auto blank = brush.spc(); //.bgc(greendk).bga(0x7f);
                     curln.splice<true>(start, count, blank);
                     //batch->shrink(blank);
                     batch.recalc(curln);
                 }
             }
-            // scroll_buf: CSI n @  ICH. Insert n blanks after cursor. Don't change cursor pos.
+            // scroll_buf: CSI n @  ICH. Insert n blanks after cursor. Existing chars after cursor shifts to the right. Don't change cursor pos.
             void ins(iota n) override
             {
-               /*
-                *   Inserts n blanks.
-                *   Don't change cursor pos.
-                *   Existing chars after cursor shifts to the right.
-                */
                 bufferbase::flush();
                 //todo check_autogrow
                 auto& curln = batch.current();
@@ -1901,6 +1852,7 @@ private:
                 //todo check_autogrow
                 auto& curln = batch.current();
                 auto  blank = brush.spc(); //.bgc(magentadk).bga(0x7f);
+                //todo move cursor and auto scroll (same as data())
                 curln.splice<true>(batch.caret, n, blank);
                 batch.recalc(curln);
             }
@@ -1916,10 +1868,10 @@ private:
                 //auto caret = index[coord.y].start + coord.x;
                 //curln.cutoff(caret, n, brush, panel.x);
             }
-            void data(grid& proto, iota shift) override
+            void data(iota count, grid const& proto) override
             {
                 auto& cur_ln = batch.current();
-                coord.x += shift;
+                coord.x += count;
                 //if (coord.x > 0 && cur_ln.wrapped())
                 if (cur_ln.wrapped())
                 {
@@ -1936,7 +1888,7 @@ private:
 
                     auto add_count = feed_futures();
 
-                    cur_ln.splice(batch.caret, proto, shift);
+                    cur_ln.splice(batch.caret, count, proto);
                     auto cur_id = cur_ln.index;
                     if (add_count > 0) // Cursor is outside the viewport.
                     { // case 3 - complex: cursor overlaps some lines below and placed below the viewport.
@@ -2009,15 +1961,15 @@ private:
                             auto batch_index = batch.index();
                             batch.next();
                             assert(map_ln.index > cur_id);
-                            auto count = map_ln.index - cur_id;
-                            batch.remove(count);
+                            auto remove_count = map_ln.index - cur_id;
+                            batch.remove(remove_count);
                             // Reindex batch.
                             {
                                 auto cur_it = batch.current_it();
                                 auto end_it = batch.end();
                                 while (cur_it != end_it)
                                 {
-                                    cur_it->index -= count;
+                                    cur_it->index -= remove_count;
                                     ++cur_it;
                                 }
                                 batch.index(batch_index);
@@ -2051,7 +2003,7 @@ private:
                                     {
                                         auto& i = *ind_it;
                                         log(" 3.0 i.index=", i.index, " i.start=", i.start, " i.width=", i.width);
-                                        i.index -= count;
+                                        i.index -= remove_count;
                                         ++ind_it;
                                         log(" 3.1 i.index=", i.index, " i.start=", i.start, " i.width=", i.width);
                                     }
@@ -2071,7 +2023,7 @@ private:
                 }
                 else
                 {
-                    cur_ln.splice(batch.caret, proto, shift);
+                    cur_ln.splice(batch.caret, count, proto);
                     auto& map_ln = index[coord.y];
                     auto  length = cur_ln.length();
                     if (length > map_ln.width)
@@ -2083,7 +2035,7 @@ private:
                     }
                 }
 
-                batch.caret += shift;
+                batch.caret += count;
 
                 //log(" bufferbase size in cells = ", batch.get_size_in_cells());
             }
