@@ -950,7 +950,7 @@ private:
                             coord.y = end;
                             canvas.scroll(top, end + 1, dy, brush.spare);
                         }
-                        else if (old_coord.y >= size.y)
+                        else if (coord.y >= size.y)
                         {
                             auto my = size.y - 1;
                             auto dy = my - coord.y;
