@@ -848,18 +848,20 @@ private:
             iota get_peak() const override { return panel.y; }
             iota get_step() const override { return 0;       }
 
+            // alt_screen: Resize viewport.
             iota resize_viewport(twod const& new_sz) override
             {
                 panel = std::max(new_sz, dot_11);
                 coord = std::clamp(coord, dot_00, panel - dot_11);
-                //log(" new size=", panel, " coord=", coord);
                 canvas.crop(panel);
                 return 0;
             }
+            // alt_screen: Return viewport height.
             iota height() override
             {
                 return panel.y;
             }
+            // alt_screen: Recalc left and right oversize.
             bool recalc_pads(side& oversz) override
             {
                 auto left = 0;
@@ -883,7 +885,6 @@ private:
                 auto size = canvas.size();
                 auto head = canvas.iter() + coord.y * size.x;
                 auto tail = head;
-
                 switch (n)
                 {
                     default:
@@ -924,6 +925,7 @@ private:
                 auto blank = brush.spc();//.bgc(greendk).bga(0x7f);
                 canvas.splice(coord, n, blank);
             }
+            // alt_screen: Helper. Put the count of chars from data_source and scroll viewport on overflow.
             template<class T, class P>
             void fill_with_scroll(iota count, T const& data_source, P fill_proc)
             {
@@ -942,7 +944,7 @@ private:
                     auto[top, end] = get_scroll_region();
                     if (coord.y > end)
                     {
-                        if (coord.y <= end)
+                        if (old_coord.y <= end)
                         {
                             auto dy = end - coord.y;
                             coord.y = end;
@@ -972,62 +974,27 @@ private:
                     fill_proc(dest, tail, data_source);
                 }
             }
-            // alt_screen: .
+            // alt_screen: Insert count blanks with scroll.
             void ech_grow(iota count) override
             {
-                log("ech_grow count=", count);
                 parser::flush();
-                auto fill_proc = [](auto dest, auto tail, auto const& blank)
+                auto fill_proc = [](auto dst, auto end, auto const& blank)
                 {
-                    while (dest != tail) *--dest = blank;
+                    while (dst != end) *--dst = blank;
                 };
-                fill_with_scroll(count, brush.spc().bgc(greendk).bga(0x7f), fill_proc);
+                fill_with_scroll(count, brush.spc(), fill_proc);
             }
-            // alt_screen: .
+            // alt_screen: Parser callback.
             void data(iota count, grid const& proto) override
             {
-                auto fill_proc = [](auto dest, auto tail, auto const& proto)
+                auto fill_proc = [](auto dst, auto end, auto const& proto)
                 {
-                    auto head = proto.end();
-                    ++tail; /* tail + 1: half of the wide char */;
-                    while (dest > tail)
-                    {
-                        auto c = *--head;
-                        auto w = c.wdt();
-                        if (w == 1)
-                        {
-                            *--dest = c;
-                        }
-                        else if (w == 2)
-                        {
-                            *--dest = c.wdt(3);
-                            *--dest = c.wdt(2);
-                        }
-                        else if (w == 0)
-                        {
-                            //todo implemet controls/commands
-                            // winsrv2019's cmd.exe sets title with a zero at the end
-                            //*dst++ = cell{ c, whitespace };
-                        }
-                        else if (w > 2)
-                        {
-                            // Forbid using super wide characters until terminal emulators support the fragmentation attribute.
-                            c.txt(utf::REPLACEMENT_CHARACTER_UTF8_VIEW);
-                            do *--dest = c;
-                            while (--w && dest != tail - 1);
-                        }
-                    }
-                    if (dest == tail) // Last cell; tail + 1.
-                    {
-                        auto c = *--head;
-                        auto w = c.wdt();
-                             if (w == 1) *--dest = c;
-                        else if (w == 2) *--dest = c.wdt(3);
-                        else if (w >  2) *--dest = c.txt(utf::REPLACEMENT_CHARACTER_UTF8_VIEW);
-                    }
+                    auto src = proto.end();
+                    rich::reverse_fill_proc(src, dst, end);
                 };
                 fill_with_scroll(count, proto, fill_proc);
             }
+            // alt_screen: Clear viewport.
             void clear_all() override
             {
                 saved = dot_00;
@@ -1036,6 +1003,7 @@ private:
                 canvas.wipe();
                 bufferbase::clear_all();
             }
+            // alt_screen: Render to the target.
             void output(face& target) override
             {
                 auto full = target.full();

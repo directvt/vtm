@@ -819,7 +819,8 @@ namespace netxs::console
             auto src = fragment.data();
             while (dst != end) *dst++ = *src++;
         }
-        void splice(iota at, iota count, grid const& proto)
+        template<class SRC_IT, class DST_IT>
+        static void reverse_fill_proc(SRC_IT data, DST_IT dest, DST_IT tail)
         {
             //if (front)
             //{
@@ -833,20 +834,19 @@ namespace netxs::console
             //	//	}
             //	//+ convert front into the screen-like sequence (unfold, remmove zerospace chars)
             //
-            reserv(at + count);
-            auto ptr = iter();
-            auto dst = ptr + at;
-            for (auto c : proto)
+            ++tail; /* tail + 1: half of the wide char */;
+            while (dest > tail)
             {
+                auto c = *--data;
                 auto w = c.wdt();
                 if (w == 1)
                 {
-                    *dst++ = c;
+                    *--dest = c;
                 }
                 else if (w == 2)
                 {
-                    *dst++ = c.wdt(2);
-                    *dst++ = c.wdt(3);
+                    *--dest = c.wdt(3);
+                    *--dest = c.wdt(2);
                 }
                 else if (w == 0)
                 {
@@ -858,42 +858,33 @@ namespace netxs::console
                 {
                     // Forbid using super wide characters until terminal emulators support the fragmentation attribute.
                     c.txt(utf::REPLACEMENT_CHARACTER_UTF8_VIEW);
-                    do *dst++ = c;
-                    while (--w);
+                    do *--dest = c;
+                    while (--w && dest != tail - 1);
                 }
             }
+            if (dest == tail) // Last cell; tail + 1.
+            {
+                auto c = *--data;
+                auto w = c.wdt();
+                     if (w == 1) *--dest = c;
+                else if (w == 2) *--dest = c.wdt(3);
+                else if (w >  2) *--dest = c.txt(utf::REPLACEMENT_CHARACTER_UTF8_VIEW);
+            }
+        };
+        void splice(iota at, iota count, grid const& proto)
+        {
+            reserv(at + count);
+            auto end = iter() + at;
+            auto dst = end + count;
+            auto src = proto.end();
+            reverse_fill_proc(src, dst, end);
         }
         void splice(twod at, iota count, grid const& proto)
         {
-            auto len = size();
-            auto ptr = iter();
-            auto dst = ptr + at.x + at.y * len.x;
-            for (auto c : proto)
-            {
-                auto w = c.wdt();
-                if (w == 1)
-                {
-                    *dst++ = c;
-                }
-                else if (w == 2)
-                {
-                    *dst++ = c.wdt(2);
-                    *dst++ = c.wdt(3);
-                }
-                else if (w == 0)
-                {
-                    //todo implemet controls/commands
-                    // winsrv2019's cmd.exe sets title with a zero at the end
-                    //*dst++ = cell{ c, whitespace };
-                }
-                else if (w > 2)
-                {
-                    // Forbid using super wide characters until terminal emulators support the fragmentation attribute.
-                    c.txt(utf::REPLACEMENT_CHARACTER_UTF8_VIEW);
-                    do *dst++ = c;
-                    while (--w);
-                }
-            }
+            auto end = iter() + at.x + at.y * size().x;
+            auto dst = end + count;
+            auto src = proto.end();
+            reverse_fill_proc(src, dst, end);
         }
         // rich: Scroll by gap the 2D-block of lines between top and end (exclusive); down: gap > 0; up: gap < 0.
         void scroll(iota top, iota end, iota gap, cell const& clr)
