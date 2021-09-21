@@ -912,17 +912,15 @@ private:
                 bufferbase::flush();
                 assert(coord.y < panel.y);
                 assert(coord.x >= 0);
-                auto blank = brush.spc(); //.bgc(cyandk).bga(0x7f).txt(' ');
-                auto count = std::clamp(n, 0, panel.x - coord.x);
-                canvas.insert(coord, count, blank);
+                auto blank = brush.spc().bgc(reddk).bga(0x7f).txt(' ');
+                canvas.insert(coord, n, blank);
             }
             // alt_screen: CSI n X  Erase/put n chars after cursor. Don't change cursor pos.
             void ech(iota n) override
             {
                 parser::flush();
-                auto blank = brush.spc(); //.bgc(cyandk).bga(0x7f).txt(' ');
-                auto count = std::clamp(n, 0, panel.x - coord.x);
-                canvas.splice(coord, count, blank);
+                auto blank = brush.spc().bgc(greendk).bga(0x7f).txt(' ');
+                canvas.splice(coord, n, blank);
             }
             void ech_grow(iota n) override
             {
@@ -983,7 +981,7 @@ private:
             void dch(iota n) override
             {
                 bufferbase::flush();
-                auto blank = brush.spc(); //.bgc(cyandk).bga(0x7f).txt(' ');
+                auto blank = brush.spc().bgc(cyandk).bga(0x7f).txt(' ');
                 canvas.cutoff(coord, n, blank);
             }
             void data(grid& proto, iota shift) override
