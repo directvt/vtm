@@ -661,7 +661,7 @@ private:
     virtual void il(iota n)
             {
                 parser::flush();
-                /* Works only if cursor is in the scroll region.
+               /* Works only if cursor is in the scroll region.
                 * Inserts n lines at the current row and removes n lines at the scroll bottom.
                 */
                 auto[top, end] = get_scroll_region();
@@ -679,7 +679,7 @@ private:
     virtual void dl(iota n)
             {
                 parser::flush();
-                /* Works only if cursor is in the scroll region.
+               /* Works only if cursor is in the scroll region.
                 * Deletes n lines at the current row and add n lines at the scroll bottom.
                 */
                 auto[top, end] = get_scroll_region();
@@ -698,11 +698,11 @@ private:
     virtual void ri()
             {
                 parser::flush();
-                /*
-                    * Reverse index
-                    * - move cursor one line up if it is outside of scrolling region or below the top line of scrolling region.
-                    * - one line scroll down if cursor is on the top line of scroll region.
-                    */
+               /*
+                * Reverse index
+                * - move cursor one line up if it is outside of scrolling region or below the top line of scrolling region.
+                * - one line scroll down if cursor is on the top line of scroll region.
+                */
                 auto[top, end] = get_scroll_region();
                 if (coord.y != top)
                 {
@@ -1410,6 +1410,7 @@ private:
                 print_index("full resize viewport");
                 return std::max(0, batch.vsize - (basis + panel.y));
             }
+            // scroll_buf: .
             void index_rebuild()
             {
                 index.clear();
@@ -1441,6 +1442,7 @@ private:
 
                 print_index("rebuild viewport");
             }
+            // scroll_buf: .
             iota height() override
             {
                 auto test_vsize = 0; //sanity check
@@ -1448,6 +1450,7 @@ private:
                 if (test_vsize != batch.vsize) log(" ERROR! test_vsize=", test_vsize, " vsize=", batch.vsize);
                 return batch.vsize;
             }
+            // scroll_buf: .
             bool recalc_pads(side& oversz) override
             {
                 auto left = std::max(0, batch.max<line::type::rghtside>() - panel.x);
@@ -1464,6 +1467,7 @@ private:
                 }
                 else return faux;
             }
+            // scroll_buf: .
             auto feed_futures()
             {
                 auto future_length = batch.vsize - basis - index.size;
@@ -1546,6 +1550,7 @@ private:
 
                 return coor;
             }
+            // scroll_buf: .
             void set_coord(twod const& new_coord) override
             {
                 bufferbase::set_coord(new_coord);
@@ -1580,6 +1585,7 @@ private:
                 batch.caret = map_ln.start + coord.x;
                 batch->style = style;
             }
+
             void cup (fifo& q) override { bufferbase::cup (q); sync_coord(); }
             void tab (iota  n) override { bufferbase::tab (n); sync_coord(); }
             void scl (iota  n) override { bufferbase::scl (n); sync_coord(); }
@@ -1600,6 +1606,7 @@ private:
                 bufferbase::set_scroll_region(top, bottom);
                 cache.resize(std::max(0, top - 1));
             }
+            // scroll_buf: .
             void add_lines(iota amount)
             {
                 assert(amount >= 0);
@@ -1612,6 +1619,7 @@ private:
                     index.push_back(l.index, 0, 0);
                 }
             }
+            // scroll_buf: .
             void pop_lines(iota amount)
             {
                 assert(amount >= 0 && amount < batch.length());
@@ -1619,131 +1627,7 @@ private:
                 //todo partial rebuild
                 index_rebuild();
             }
-
-    /*
-            struct item_t
-            {
-                iota height;
-                iota offset;
-            };
-            struct viewport : public generics::ring<std::vector<item_t>, true>
-            {
-                using buff = rods::buff&;
-                buff batch;
-                flow& maker;
-                iota vsize;
-                twod panel;// panel.y = summ(lines)
-                iota basis;//=vertical pos in buff
-
-                iota vertical_offset{}; // vertical offset inside viewport (for double scroll position = { global_pos, viewport_pos })
-
-                viewport(rods::buff& batch, twod panel, flow& maker)
-                    : ring { panel.y, 0 },
-                    batch{ batch },
-                    panel{ panel },
-                    basis{ 0     },
-                    maker{ maker },
-                    vsize{ 0 }
-                { }
-                //auto count() { return ring::size; }
-                void rebuild()
-                {
-                    panel.y = 0;
-                    auto my_it = begin();
-                    auto proc = [&](auto&& l)
-                    {
-                        auto& item = *my_it++;
-                        item.offset = panel.y;
-                        item.height = l.height(panel.x);
-                        panel.y += item.height;
-                    };
-                    batch.for_each(basis, basis + ring::size, proc);
-                    vsize = batch.size - ring::size + panel.y;
-                }
-                template<bool BOTTOM_ANCHORED>
-                void resize(twod const& new_size)
-                {
-                    auto delta_y = new_size.y - ring::size;
-                    auto delta_x = new_size.x - panel.x;
-                    ring::resize<BOTTOM_ANCHORED>(new_size.y);
-                    if (delta_x)
-                    {
-                        panel.x = new_size.x;
-                    }
-                    if (delta_y > 0)
-                    {
-                        if constexpr (BOTTOM_ANCHORED)
-                        {
-                            basis -= delta_y;
-                            //push_front(from basis, n = - delta.y)
-                            //panel.y += summ(height);
-                        }
-                        else
-                        {
-                            //push_back(from basis + panel.y, n = delta.y)
-                            //panel.y += summ(height);
-                        }
-                    }
-                    rebuild();
-                }
-                void output(face& canvas)
-                {
-                    maker.reset(canvas);
-                    auto view = canvas.view();
-                    auto full = canvas.full();
-                    auto head = view.coor.y - full.coor.y;
-                    auto tail = head + panel.y;
-                    auto maxy = batch.max<line::autowrap>() / panel.x;
-                    head = std::clamp(head - maxy, 0, batch.size);
-                    tail = std::clamp(tail,        0, batch.size);
-                    auto coor = twod{ 0, tail };
-                    auto line_it = batch.begin() + coor.y;
-                    auto left_edge_x = view.coor.x;
-                    auto half_size_x = full.size.x / 2;
-                    auto left_rect = rect{{ left_edge_x, coor.y + full.coor.y }, dot_11 };
-                    auto rght_rect = left_rect;
-                    rght_rect.coor.x+= view.size.x - 1;
-                    auto rght_edge_x = rght_rect.coor.x + 1;
-                    //todo unify/optimize
-                    auto fill = [&](auto& area, auto chr)
-                    {
-                        if (auto r = view.clip(area))
-                            canvas.fill(r, [&](auto& c){ c.txt(chr).fgc(tint::greenlt); });
-                    };
-                    auto data_it = begin();
-                    while (coor.y != tail)
-                    {
-                        auto& curln = *line_it++;
-                        auto& curdt = *data_it++;
-                        coor.y += curdt.height;
-                        rght_rect.coor.y += curdt.height;
-                        maker.ac(coor);
-                        maker.go(curln, canvas);
-                    }
-                }
-                void rebase(iota new_basis)
-                {
-                    new_basis = std::max(0, new_basis);
-                    auto n = new_basis - basis;
-                        if (n > 0) movedn( n);
-                    else if (n < 0) moveup(-n);
-                }
-                void moveup(iota n)
-                {
-                    if (n > basis ) n = basis;
-                    basis -= n;
-                    //push_front(n);
-                }
-                void movedn(iota n)
-                {
-                    basis += n;
-                    //push_back(n);
-                }
-                void enlist(item_t& line)          { panel.y += line.height; }
-                void undock(item_t& line) override { panel.y -= line.height; }
-            };
-    */
-
+            // scroll_buf: .
             void meta(deco const& old_style) override
             {
                 dissect();
@@ -1814,6 +1698,7 @@ private:
                 curln.splice(batch.caret, n, blank);
                 batch.recalc(curln);
             }
+            // scroll_buf: .
             void ech_grow(iota n) override
             {
                 parser::flush();
@@ -1836,6 +1721,7 @@ private:
                 //auto caret = index[coord.y].start + coord.x;
                 //curln.cutoff(caret, n, brush, panel.x);
             }
+            // scroll_buf: .
             void data(iota count, grid const& proto) override
             {
                 auto& cur_ln = batch.current();
@@ -2007,6 +1893,7 @@ private:
 
                 //log(" bufferbase size in cells = ", batch.get_size_in_cells());
             }
+            // scroll_buf: .
             void clear_all() override
             {
                 saved = dot_00;
@@ -2018,6 +1905,7 @@ private:
                 index_rebuild();
                 bufferbase::clear_all();
             }
+            // scroll_buf: .
             void resize_history(iota new_size, iota grow_by = 0)
             {
                 static constexpr auto BOTTOM_ANCHORED = true;
@@ -2025,6 +1913,7 @@ private:
                 set_scroll_region(0, 0);
                 index_rebuild();
             }
+            // scroll_buf: .
             void output(face& canvas) override //todo temp solution, rough output, not optimized
             {
                 maker.reset(canvas);
@@ -2093,14 +1982,7 @@ private:
                     left_rect.coor.y = rght_rect.coor.y;
                 }
             }
-            //void test_basis(face& canvas)
-            //{
-            //    para p{ansi::bgc(redlt).add(" ").nil()};
-            //    auto coor = twod{ 0, basis };
-            //    maker.ac(coor);
-            //    maker.go(p, canvas);
-            //}
-            // rods: Remove all lines below except the current. "ED2 Erase viewport" keeps empty lines.
+            // scroll_buf: Remove all lines below except the current. "ED2 Erase viewport" keeps empty lines.
             void del_below() override
             {
                 //todo don't delete futures
@@ -2110,6 +1992,7 @@ private:
                 curln.trimto(index[coord.y].start + coord.x);
                 index_rebuild();
             }
+            // scroll_buf: .
             void del_above() override
             {
                 // Clear all lines from the viewport top line to the current line.
@@ -2201,6 +2084,7 @@ private:
             {
                 dissect(coord.y);
             }
+            // scroll_buf: .
             template<class SRC>
             void zeroise(SRC begin_it, SRC end_it)
             {
