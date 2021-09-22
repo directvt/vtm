@@ -822,18 +822,16 @@ namespace netxs::console
         template<class SRC_IT, class DST_IT>
         static void reverse_fill_proc(SRC_IT data, DST_IT dest, DST_IT tail)
         {
-            //if (front)
-            //{
-            //	//+ evaluate TAB etc
-            //	//+ bidi
-            //	//+ eliminate non-printable and with cwidth == 0 (\0, \t, \b, etc...)
-            //	//+ while (--wide)
-            //	//	{
-            //	//		/* IT IS UNSAFE IF REALLOCATION OCCURS. BOOK ALWAYS */
-            //	//		lyric.emplace_back(cluster, console::whitespace);
-            //	//	}
-            //	//+ convert front into the screen-like sequence (unfold, remmove zerospace chars)
-            //
+            //  + evaluate TAB etc
+            //  + bidi
+            //  + eliminate non-printable and with cwidth == 0 (\0, \t, \b, etc...)
+            //  + while (--wide)
+            //    {
+            //        /* IT IS UNSAFE IF REALLOCATION OCCURS. BOOK ALWAYS */
+            //        lyric.emplace_back(cluster, console::whitespace);
+            //    }
+            //  + convert front into the screen-like sequence (unfold, remmove zerospace chars)
+
             ++tail; /* tail + 1: half of the wide char */;
             while (dest > tail)
             {

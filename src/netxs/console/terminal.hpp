@@ -861,7 +861,7 @@ private:
             {
                 return panel.y;
             }
-            // alt_screen: Recalc left and right oversize.
+            // alt_screen: Recalc left and right oversize (Always 0 for altbuf).
             bool recalc_pads(side& oversz) override
             {
                 auto left = 0;
@@ -875,7 +875,6 @@ private:
                 }
                 else return faux;
             }
-
             // alt_screen: CSI n K  Erase line (don't move cursor).
             void el(iota n) override
             {
@@ -1442,7 +1441,7 @@ private:
 
                 print_index("rebuild viewport");
             }
-            // scroll_buf: .
+            // scroll_buf: Return scrollback height.
             iota height() override
             {
                 auto test_vsize = 0; //sanity check
@@ -1450,7 +1449,7 @@ private:
                 if (test_vsize != batch.vsize) log(" ERROR! test_vsize=", test_vsize, " vsize=", batch.vsize);
                 return batch.vsize;
             }
-            // scroll_buf: .
+            // scroll_buf: Recalc left and right oversize.
             bool recalc_pads(side& oversz) override
             {
                 auto left = std::max(0, batch.max<line::type::rghtside>() - panel.x);
@@ -1467,7 +1466,7 @@ private:
                 }
                 else return faux;
             }
-            // scroll_buf: .
+            // scroll_buf: Check if there are futures, use them when scrolling regions.
             auto feed_futures()
             {
                 auto future_length = batch.vsize - basis - index.size;
@@ -1550,7 +1549,7 @@ private:
 
                 return coor;
             }
-            // scroll_buf: .
+            // scroll_buf: Set cursor position and sync it with buffer.
             void set_coord(twod const& new_coord) override
             {
                 bufferbase::set_coord(new_coord);
@@ -1606,7 +1605,7 @@ private:
                 bufferbase::set_scroll_region(top, bottom);
                 cache.resize(std::max(0, top - 1));
             }
-            // scroll_buf: .
+            // scroll_buf: Push lines to the scrollback bottom.
             void add_lines(iota amount)
             {
                 assert(amount >= 0);
@@ -1619,7 +1618,7 @@ private:
                     index.push_back(l.index, 0, 0);
                 }
             }
-            // scroll_buf: .
+            // scroll_buf: Pop lines from the scrollback bottom.
             void pop_lines(iota amount)
             {
                 assert(amount >= 0 && amount < batch.length());
@@ -1627,7 +1626,7 @@ private:
                 //todo partial rebuild
                 index_rebuild();
             }
-            // scroll_buf: .
+            // scroll_buf: Proceed style update (parser callback).
             void meta(deco const& old_style) override
             {
                 dissect();
@@ -1698,7 +1697,7 @@ private:
                 curln.splice(batch.caret, n, blank);
                 batch.recalc(curln);
             }
-            // scroll_buf: .
+            // scroll_buf: Insert count blanks with scroll.
             void ech_grow(iota n) override
             {
                 parser::flush();
@@ -1721,7 +1720,7 @@ private:
                 //auto caret = index[coord.y].start + coord.x;
                 //curln.cutoff(caret, n, brush, panel.x);
             }
-            // scroll_buf: .
+            // scroll_buf: Proceed new text (parser callback).
             void data(iota count, grid const& proto) override
             {
                 auto& cur_ln = batch.current();
@@ -1893,7 +1892,7 @@ private:
 
                 //log(" bufferbase size in cells = ", batch.get_size_in_cells());
             }
-            // scroll_buf: .
+            // scroll_buf: Clear scrollback.
             void clear_all() override
             {
                 saved = dot_00;
@@ -1905,7 +1904,7 @@ private:
                 index_rebuild();
                 bufferbase::clear_all();
             }
-            // scroll_buf: .
+            // scroll_buf: Set scrollback limits.
             void resize_history(iota new_size, iota grow_by = 0)
             {
                 static constexpr auto BOTTOM_ANCHORED = true;
@@ -1913,7 +1912,7 @@ private:
                 set_scroll_region(0, 0);
                 index_rebuild();
             }
-            // scroll_buf: .
+            // scroll_buf: Render to the canvas.
             void output(face& canvas) override //todo temp solution, rough output, not optimized
             {
                 maker.reset(canvas);
@@ -1992,7 +1991,7 @@ private:
                 curln.trimto(index[coord.y].start + coord.x);
                 index_rebuild();
             }
-            // scroll_buf: .
+            // scroll_buf: Clear all lines from the viewport top line to the current line.
             void del_above() override
             {
                 // Clear all lines from the viewport top line to the current line.
@@ -2084,7 +2083,7 @@ private:
             {
                 dissect(coord.y);
             }
-            // scroll_buf: .
+            // scroll_buf: Zeroize block of lines.
             template<class SRC>
             void zeroise(SRC begin_it, SRC end_it)
             {
