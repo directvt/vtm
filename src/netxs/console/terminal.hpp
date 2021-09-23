@@ -770,12 +770,10 @@ private:
                 parser::flush();
                 coord.y = std::clamp(coord.y - n, 0, panel.y - 1);
             }
-            // bufferbase: Line feed (move cursor down).
+            // bufferbase: Line feed (move cursor down). Scroll region up if new_coord_y > end.
     virtual void dn(iota n)
             {
                 parser::flush();
-                //auto old_coord = coord;
-                // Scroll regions up if coord.y > end.
                 auto[top, end] = get_scroll_region();
                 auto new_coord_y = coord.y + n;
                 if (new_coord_y >  end
@@ -789,7 +787,6 @@ private:
                 {
                     coord.y = std::clamp(new_coord_y, 0, panel.y - 1);
                 }
-                //log(" dn(): old coord=", old_coord, " new coord=", coord);
             }
             // bufferbase: '\r'  Go to home of visible line instead of home of para.
     virtual void home()
@@ -928,18 +925,17 @@ private:
             template<class T, class P>
             void fill_with_scroll(iota count, T const& data_source, P fill_proc)
             {
-                auto size = canvas.size();
-                assert(coord.y < size.y);
+                assert(coord.y < panel.y);
                 auto old_coord = coord;
                 coord.x += count;
-                if (coord.x <= size.x )
+                if (coord.x <= panel.x)
                 {
                     canvas.splice(old_coord, count, data_source);
                 }
                 else
                 {
-                    coord.y += (coord.x + size.x - 1) / size.x - 1;
-                    coord.x  = (coord.x          - 1) % size.x + 1;
+                    coord.y += (coord.x + panel.x - 1) / panel.x - 1;
+                    coord.x  = (coord.x           - 1) % panel.x + 1;
                     auto[top, end] = get_scroll_region();
                     if (coord.y > end)
                     {
@@ -949,19 +945,19 @@ private:
                             coord.y = end;
                             canvas.scroll(top, end + 1, dy, brush.spare);
                         }
-                        else if (coord.y >= size.y)
+                        else if (coord.y >= panel.y)
                         {
-                            auto my = size.y - 1;
+                            auto my = panel.y - 1;
                             auto dy = my - coord.y;
                             coord.y = my;
-                            canvas.scroll(0, size.y, dy, brush.spare);
+                            canvas.scroll(0, panel.y, dy, brush.spare);
                         }
                     }
                     auto data = canvas.iter();
-                    auto seek = coord.x + coord.y * size.x;
+                    auto seek = coord.x + coord.y * panel.x;
                     if (old_coord.y >= top)
                     {
-                        auto miny = top * size.x;
+                        auto miny = top * panel.x;
                         if (count > seek - miny) count = seek - miny;
                     }
                     else
@@ -1467,70 +1463,63 @@ private:
                 else return faux;
             }
             // scroll_buf: Check if there are futures, use them when scrolling regions.
-            auto feed_futures()
+            auto feed_futures(iota required_lines)
             {
                 auto future_length = batch.vsize - basis - index.size;
                 assert(future_length >= 0);
+                assert(required_lines > 0);
                 if (future_length > 0)
                 {
-                    log(" futures: future_length=", future_length);
-                    if (auto add_count = coord.y - (index.size - 1); //todo wrong
-                            add_count > 0)
+                    log(" futures: future_length=", future_length, " required_lines=", required_lines);
+                    auto add_count = std::min(future_length, required_lines);
+                    log(" 1f. add_count=", add_count);
+
+                    print_index("1. futures");
+
+                    basis += add_count;
+                    coord.y -= add_count;
+
+                    auto& map_last = index.back();
+                    auto  cur_it = batch.begin() + batch.index_by_id(map_last.index);
+                    auto& cur_ln = *cur_it;
+                    auto  length = cur_ln.length();
+                    auto  cindex = cur_ln.index;
+                    auto  offset = map_last.start + map_last.width;
+                    if (offset == length) // Go to the next line.
                     {
-                        log(" 1f. add_count=", add_count);
-                        auto step = future_length - add_count;
-                        if (step >= 0)
-                        {
-                            print_index("1. futures");
-
-                            basis += add_count;
-                            coord.y -= add_count;
-
-                            auto& map_last = index.back();
-                            auto  cur_it = batch.begin() + batch.index_by_id(map_last.index);
-                            auto& cur_ln = *cur_it;
-                            auto  length = cur_ln.length();
-                            auto  cindex = cur_ln.index;
-                            auto  offset = map_last.start + map_last.width;
-                            if (offset == length) // Go to the next line.
-                            {
-                                auto& cur_ln = *++cur_it;
-                                length = cur_ln.length();
-                                cindex = cur_ln.index;
-                                offset = 0;
-                            }
-                            while (true)
-                            {
-                                auto bottom = length - panel.x;
-                                while (offset < bottom && add_count-- > 0)
-                                {
-                                    log(" 1f. cindex=", cindex, " offset=", offset, " width=", panel.x);
-                                    index.push_back(cindex, offset, panel.x);
-                                    offset += panel.x;
-                                }
-                                log(" 2f. add_count=", add_count);
-                                if (add_count-- <= 0) break;
-                                log(" 2f. cindex=", cindex, " offset=", offset, " width=", length - offset);
-                                index.push_back(cindex, offset, length - offset);
-
-                                auto& cur_ln = *++cur_it;
-                                length = cur_ln.length();
-                                cindex = cur_ln.index;
-                                offset = 0;
-                            }
-
-                            print_index("2. futures");
-                            return 0;
-                        }
-                        else
-                        {
-
-                        }
+                        auto& cur_ln = *++cur_it;
+                        length = cur_ln.length();
+                        cindex = cur_ln.index;
+                        offset = 0;
                     }
+                    while (true)
+                    {
+                        auto bottom = length - panel.x;
+                        while (offset < bottom && add_count-- > 0)
+                        {
+                            log(" 1f. cindex=", cindex, " offset=", offset, " width=", panel.x);
+                            index.push_back(cindex, offset, panel.x);
+                            offset += panel.x;
+                        }
+                        log(" 2f. add_count=", add_count);
+                        if (add_count-- <= 0) break;
+                        log(" 2f. cindex=", cindex, " offset=", offset, " width=", length - offset);
+                        index.push_back(cindex, offset, length - offset);
+
+                        auto& cur_ln = *++cur_it;
+                        length = cur_ln.length();
+                        cindex = cur_ln.index;
+                        offset = 0;
+                    }
+
+                    print_index("2. futures");
+
+                    required_lines -= add_count;
                 }
-                return coord.y - (batch.vsize - basis - 1);
+                return required_lines;
+                //return coord.y - (batch.vsize - basis - 1);
             }
-            // scroll_buf: Return current 0-based cursor position in the viewport.
+            // scroll_buf: Return current 0-based cursor position in the scrollback.
             twod get_coord() override
             {
                 auto coor = coord;
@@ -1566,15 +1555,19 @@ private:
                 }
                 else
                 {
-                    if (auto add_count = feed_futures();
-                             add_count > 0)
+                    auto required_lines = coord.y - (index.size - 1);
+                    if (required_lines > 0)
                     {
-                        add_lines(add_count);
-                        auto maxy = panel.y - 1;
-                        if (coord.y > maxy)
+                        if (auto add_count = feed_futures(required_lines);
+                                 add_count > 0)
                         {
-                            basis += coord.y - maxy;
-                            coord.y = maxy;
+                            add_lines(add_count);
+                            auto maxy = panel.y - 1;
+                            if (coord.y > maxy)
+                            {
+                                basis += coord.y - maxy;
+                                coord.y = maxy;
+                            }
                         }
                     }
                 }
@@ -1723,31 +1716,42 @@ private:
             // scroll_buf: Proceed new text (parser callback).
             void data(iota count, grid const& proto) override
             {
-                auto& cur_ln = batch.current();
-                coord.x += count;
-                //if (coord.x > 0 && cur_ln.wrapped())
-                if (cur_ln.wrapped())
+                auto& curln = batch.current();
+                auto  start = batch.caret;
+                batch.caret += count;
+                coord.x     += count;
+                if (batch.caret <= panel.x || ! curln.wrapped()) // case 0.
                 {
-                    auto old = basis + coord.y;
-                    coord.y += coord.x / panel.x;
-                    coord.x %= panel.x;
-                    if (coord.x == 0)
+                    log("  case 0: batch.caret=", batch.caret);
+                    curln.splice(start, count, proto);
+                    auto& mapln = index[coord.y];
+                    auto  width = curln.length();
+                    if (width > mapln.width)
                     {
-                        coord.y--;
-                        coord.x = panel.x;
+                        log("  case 0: old width=", mapln.width, " new width=", width);
+                        mapln.width = width;
+                        batch.recalc(curln);
                     }
+                } // case 0 - done.
+                else
+                {
+                    auto old =  coord.y + basis;
+                    coord.y += (coord.x + panel.x - 1) / panel.x - 1;
+                    coord.x  = (coord.x           - 1) % panel.x + 1;
 
                     //todo scrolling regions
 
-                    auto add_count = feed_futures();
+                    auto required_lines = coord.y - (index.size - 1);
+                    auto add_count = required_lines > 0 ? feed_futures(required_lines)
+                                                        : 0;
 
-                    cur_ln.splice(batch.caret, count, proto);
-                    auto cur_id = cur_ln.index;
-                    if (add_count > 0) // Cursor is outside the viewport.
-                    { // case 3 - complex: cursor overlaps some lines below and placed below the viewport.
+                    curln.splice(start, count, proto);
+                    auto cur_id = curln.index;
+                    if (add_count > 0) // case 3 - complex: Cursor is outside the viewport. 
+                    {                  // cursor overlaps some lines below and placed below the viewport.
                         log(" case 3:");
-                        batch.recalc(cur_ln);
-                        auto length = cur_ln.length();
+                        batch.recalc(curln);
+                        auto length = curln.length();
                         // pop_back from batch all lines from (curln, batch.end].
                         assert(batch.back().index >= cur_id);
                         if (auto pop_count = batch.back().index - cur_id)
@@ -1782,6 +1786,7 @@ private:
                         index.push_back(cur_id, offset, length - offset);
                         log(" 3. cur_id=", cur_id, " offset=", offset, " width=", length - offset);
                             log("  case 3 old basis=", basis);
+                        //todo error!
                         basis += add_count;
                         coord.y -= add_count;
                             log("  case 3 new basis=", basis);
@@ -1798,7 +1803,7 @@ private:
                                 log("  old width=", map_ln.width);
                                 map_ln.width = coord.x;
                                 log("  new width=", map_ln.width);
-                                batch.recalc(cur_ln);
+                                batch.recalc(curln);
                             }
                             print_index("case 1. done");
                         } // case 1 done.
@@ -1808,9 +1813,9 @@ private:
                             print_index(" case 2. start");
                             auto& target = batch.item_by_id(map_ln.index);
                             auto  shadow = target.substr(map_ln.start + coord.x);
-                            cur_ln.splice(cur_ln.length(), shadow);
-                            batch.recalc(cur_ln);
-                            auto length = cur_ln.length();
+                            curln.splice(curln.length(), shadow);
+                            batch.recalc(curln);
+                            auto length = curln.length();
                             auto batch_index = batch.index();
                             batch.next();
                             assert(map_ln.index > cur_id);
@@ -1874,21 +1879,6 @@ private:
                         coord.y = maxy;
                     }
                 }
-                else
-                {
-                    cur_ln.splice(batch.caret, count, proto);
-                    auto& map_ln = index[coord.y];
-                    auto  length = cur_ln.length();
-                    if (length > map_ln.width)
-                    {
-                        log("  nowrap old width=", map_ln.width);
-                        map_ln.width = length;
-                        log("  nowrap new width=", map_ln.width);
-                        batch.recalc(cur_ln);
-                    }
-                }
-
-                batch.caret += count;
 
                 //log(" bufferbase size in cells = ", batch.get_size_in_cells());
             }
@@ -2099,6 +2089,19 @@ private:
             void scroll_region(iota n, bool use_scrollback) override
             {
                 //todo don't dissect if top==0 on moving text block up, see dn(iota n).
+
+                //temp solution
+                auto[top, end] = get_scroll_region();
+                if (n < 0 && top ==0 && end == panel.y - 1)
+                {
+                    auto required_lines = -n;
+                    log(" scroll_region n=", n, " required_lines=", required_lines);
+                    auto add_count = required_lines > 0 ? feed_futures(required_lines)
+                                                        : 0;
+                    add_lines(add_count);
+                    basis   += add_count;
+                    coord.y -= std::min(coord.y, add_count);
+                }
 
                 /*
                 if (n)
