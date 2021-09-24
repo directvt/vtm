@@ -1402,7 +1402,7 @@ private:
                 coord.y = index.length() - coord.y;
                 assert(basis >= 0);
                 //log(" viewport_offset=", basis);
-                print_index("full resize viewport");
+                //print_index("full resize viewport");
                 return std::max(0, batch.vsize - (basis + panel.y));
             }
             // scroll_buf: .
@@ -1435,7 +1435,7 @@ private:
                     }
                 }
 
-                print_index("rebuild viewport");
+                //print_index("rebuild viewport");
             }
             // scroll_buf: Return scrollback height.
             iota height() override
@@ -1466,15 +1466,17 @@ private:
             auto feed_futures(iota query)
             {
                 auto stash = batch.vsize - basis - index.size;
-                assert(stash >= 0);
+                //assert(stash >= 0);
+                if (stash < 0)
+                    log(" feed_futures query=", query, " !!!!!!!!! stash=", stash);
                 assert(query >  0);
                 if (stash > 0)
                 {
-                    log(" futures: stash=", stash, " query=", query);
+                    //log(" futures: stash=", stash, " query=", query);
                     auto avail = std::min(stash, query);
-                    log(" 1f. avail=", avail);
+                    //log(" 1f. avail=", avail);
 
-                    print_index("1. futures");
+                    //print_index("1. futures");
 
                     basis   += avail;
                     query   -= avail;
@@ -1498,13 +1500,13 @@ private:
                         auto trail = width - panel.x;
                         while (start < trail && avail-- > 0)
                         {
-                            log(" 1f. curid=", curid, " start=", start, " width=", panel.x);
+                            //log(" 1f. curid=", curid, " start=", start, " width=", panel.x);
                             index.push_back(curid, start, panel.x);
                             start += panel.x;
                         }
-                        log(" 2f. avail=", avail);
+                        //log(" 2f. avail=", avail);
                         if (avail-- <= 0) break;
-                        log(" 2f. curid=", curid, " start=", start, " width=", width - start);
+                        //log(" 2f. curid=", curid, " start=", start, " width=", width - start);
                         index.push_back(curid, start, width - start);
 
                         auto& curln = *++curit;
@@ -1513,7 +1515,7 @@ private:
                         start = 0;
                     }
 
-                    print_index("2. futures");
+                    //print_index("2. futures");
                 }
 
                 return query;
@@ -1705,13 +1707,13 @@ private:
                 coord.x     += count;
                 if (batch.caret <= panel.x || ! curln.wrapped()) // case 0.
                 {
-                    log("  case 0: batch.caret=", batch.caret);
+                    //log("  case 0: batch.caret=", batch.caret);
                     curln.splice(start, count, proto);
                     auto& mapln = index[coord.y];
                     auto  width = curln.length();
                     if (width > mapln.width)
                     {
-                        log("  case 0: old width=", mapln.width, " new width=", width);
+                        //log("  case 0: old width=", mapln.width, " new width=", width);
                         mapln.width = width;
                         batch.recalc(curln);
                     }
@@ -1732,7 +1734,7 @@ private:
                     auto curid = curln.index;
                     if (add_count > 0) // case 3 - complex: Cursor is outside the viewport. 
                     {                  // cursor overlaps some lines below and placed below the viewport.
-                        log(" case 3:");
+                        //log(" case 3:");
                         batch.recalc(curln);
                         auto width = curln.length();
                         // pop_back from batch all lines from (curln, batch.end].
@@ -1740,53 +1742,53 @@ private:
                         if (auto pop_count = batch.back().index - curid)
                         {
                             assert(pop_count > 0);
-                            log("  case 3 batch pop_count=", pop_count);
+                            //log("  case 3 batch pop_count=", pop_count);
                             while (pop_count-- > 0) batch.pop_back();
                         }
                         // Update index.
                         if (auto pop_count = index.size - 1 - (old - basis))
                         {
                             assert(pop_count > 0);
-                            log("  case 3 index pop_count=", pop_count);
+                            //log("  case 3 index pop_count=", pop_count);
                             while (pop_count-- > 0) index.pop_back();
                         }
                         auto& mapln = index.back();
                         auto  start = mapln.start;
-                        log("  case 3 old width=", mapln.width);
+                        //log("  case 3 old width=", mapln.width);
                         mapln.width = panel.x;
-                        log("  case 3 new width=", mapln.width);
+                        //log("  case 3 new width=", mapln.width);
                         auto  trail = width - panel.x;
-                        log(" 1. curid=", curid, " start=", start, " width=", panel.x);
+                        //log(" 1. curid=", curid, " start=", start, " width=", panel.x);
                         start += panel.x;
                         while (start < trail) // Update for current line.
                         {
                             index.push_back(curid, start, panel.x);
                             start += panel.x;
-                            log(" 2. curid=", curid, " start=", start, " width=", panel.x);
+                            //log(" 2. curid=", curid, " start=", start, " width=", panel.x);
                         }
                         index.push_back(curid, start, width - start);
-                        log(" 3. curid=", curid, " start=", start, " width=", width - start);
-                        print_index("case 3. done");
+                        //log(" 3. curid=", curid, " start=", start, " width=", width - start);
+                        //print_index("case 3. done");
                     } // case 3 done
                     else
                     {
                         auto& mapln = index[coord.y];
                         if (curid == mapln.index) // case 1 - plain: cursor is inside the current paragraph.
                         {
-                            log(" case 1:");
+                            //log(" case 1:");
                             if (coord.x > mapln.width)
                             {
-                                log("  old width=", mapln.width);
+                                //log("  old width=", mapln.width);
                                 mapln.width = coord.x;
-                                log("  new width=", mapln.width);
+                                //log("  new width=", mapln.width);
                                 batch.recalc(curln);
                             }
-                            print_index("case 1. done");
+                            //print_index("case 1. done");
                         } // case 1 done.
                         else // case 2 - fusion: cursor overlaps lines below but stays inside the viewport.
                         {
-                            log(" case 2:");
-                            print_index(" case 2. start");
+                            //log(" case 2:");
+                            //print_index(" case 2. start");
                             auto& target = batch.item_by_id(mapln.index);
                             auto  shadow = target.substr(mapln.start + coord.x);
                             curln.splice(curln.length(), shadow);
@@ -1810,7 +1812,7 @@ private:
                             }
                             // Update index.
                             {
-                                log(" case 2: old=", (old - basis), " coord.y=", coord.y);
+                                //log(" case 2: old=", (old - basis), " coord.y=", coord.y);
                                 auto indit = index.begin() + (old - basis);
                                 auto endit = index.end();
                                 auto start = indit->start;
@@ -1823,7 +1825,7 @@ private:
                                     i.width = panel.x;
                                     start  += panel.x;
                                     ++indit;
-                                    log(" 1. i.index=", i.index, " i.start=", i.start, " i.width=", i.width);
+                                    //log(" 1. i.index=", i.index, " i.start=", i.start, " i.width=", i.width);
                                 }
                                 if (indit != endit)
                                 {
@@ -1832,18 +1834,18 @@ private:
                                     i.start = start;
                                     i.width = width - start;
                                     ++indit;
-                                    log(" 2. i.index=", i.index, " i.start=", i.start, " i.width=", i.width);
+                                    //log(" 2. i.index=", i.index, " i.start=", i.start, " i.width=", i.width);
                                     while (indit != endit) // Update the rest.
                                     {
                                         auto& i = *indit;
-                                        log(" 3.0 i.index=", i.index, " i.start=", i.start, " i.width=", i.width);
+                                        //log(" 3.0 i.index=", i.index, " i.start=", i.start, " i.width=", i.width);
                                         i.index -= spoil;
                                         ++indit;
-                                        log(" 3.1 i.index=", i.index, " i.start=", i.start, " i.width=", i.width);
+                                        //log(" 3.1 i.index=", i.index, " i.start=", i.start, " i.width=", i.width);
                                     }
                                 }
                             }
-                            print_index("case 2. done");
+                            //print_index("case 2. done");
                         } // case 2 done.
                     }
 
@@ -1851,7 +1853,7 @@ private:
                     if (auto over = coord.y - maxy;
                              over > 0)
                     {
-                        log(" correct basis by=", over, " basis=", basis);
+                        //log(" correct basis by=", over, " basis=", basis);
                         basis  += over;
                         coord.y = maxy;
                     }
@@ -2072,7 +2074,7 @@ private:
                 if (n < 0 && top ==0 && end == panel.y - 1)
                 {
                     auto required_lines = -n;
-                    log(" scroll_region n=", n, " required_lines=", required_lines);
+                    //log(" scroll_region n=", n, " required_lines=", required_lines);
                     auto add_count = required_lines > 0 ? feed_futures(required_lines)
                                                         : 0;
                     add_lines(add_count);
