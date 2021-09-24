@@ -1744,12 +1744,10 @@ private:
                             while (pop_count-- > 0) batch.pop_back();
                         }
                         // Update index.
-                        //if (auto pop_count = index.size - 1 - (old - basis))
-                        //todo revise
-                        if (auto pop_count = index.size - (old - basis))
+                        if (auto pop_count = index.size - 1 - (old - basis))
                         {
                             assert(pop_count > 0);
-                            log("  case 3 !!!!! index pop_count=", pop_count);
+                            log("  case 3 index pop_count=", pop_count);
                             while (pop_count-- > 0) index.pop_back();
                         }
                         auto& mapln = index.back();
@@ -1768,11 +1766,6 @@ private:
                         }
                         index.push_back(curid, start, width - start);
                         log(" 3. curid=", curid, " start=", start, " width=", width - start);
-                            log("  case 3 old basis=", basis);
-                        //todo error!
-                        basis   += add_count;
-                        coord.y -= add_count;
-                            log("  case 3 new basis=", basis);
                         print_index("case 3. done");
                     } // case 3 done
                     else
@@ -1858,7 +1851,7 @@ private:
                     if (auto over = coord.y - maxy;
                              over > 0)
                     {
-                        auto oversize = batch.vsize - basis - panel.y;
+                        log(" correct basis by=", over, " basis=", basis);
                         basis  += over;
                         coord.y = maxy;
                     }
