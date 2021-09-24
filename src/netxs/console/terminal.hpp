@@ -1463,61 +1463,60 @@ private:
                 else return faux;
             }
             // scroll_buf: Check if there are futures, use them when scrolling regions.
-            auto feed_futures(iota required_lines)
+            auto feed_futures(iota query)
             {
-                auto future_length = batch.vsize - basis - index.size;
-                assert(future_length >= 0);
-                assert(required_lines > 0);
-                if (future_length > 0)
+                auto stash = batch.vsize - basis - index.size;
+                assert(stash >= 0);
+                assert(query >  0);
+                if (stash > 0)
                 {
-                    log(" futures: future_length=", future_length, " required_lines=", required_lines);
-                    auto add_count = std::min(future_length, required_lines);
-                    log(" 1f. add_count=", add_count);
+                    log(" futures: stash=", stash, " query=", query);
+                    auto avail = std::min(stash, query);
+                    log(" 1f. avail=", avail);
 
                     print_index("1. futures");
 
-                    basis += add_count;
-                    coord.y -= add_count;
+                    basis   += avail;
+                    query   -= avail;
+                    coord.y -= avail;
 
-                    auto& map_last = index.back();
-                    auto  cur_it = batch.begin() + batch.index_by_id(map_last.index);
-                    auto& cur_ln = *cur_it;
-                    auto  length = cur_ln.length();
-                    auto  cindex = cur_ln.index;
-                    auto  offset = map_last.start + map_last.width;
-                    if (offset == length) // Go to the next line.
+                    auto& mapbk = index.back();
+                    auto  curit = batch.begin() + batch.index_by_id(mapbk.index);
+                    auto& curln =*curit;
+                    auto  width = curln.length();
+                    auto  curid = curln.index;
+                    auto  start = mapbk.start + mapbk.width;
+                    if (start == width) // Go to the next line.
                     {
-                        auto& cur_ln = *++cur_it;
-                        length = cur_ln.length();
-                        cindex = cur_ln.index;
-                        offset = 0;
+                        auto& curln = *++curit;
+                        width = curln.length();
+                        curid = curln.index;
+                        start = 0;
                     }
                     while (true)
                     {
-                        auto bottom = length - panel.x;
-                        while (offset < bottom && add_count-- > 0)
+                        auto trail = width - panel.x;
+                        while (start < trail && avail-- > 0)
                         {
-                            log(" 1f. cindex=", cindex, " offset=", offset, " width=", panel.x);
-                            index.push_back(cindex, offset, panel.x);
-                            offset += panel.x;
+                            log(" 1f. curid=", curid, " start=", start, " width=", panel.x);
+                            index.push_back(curid, start, panel.x);
+                            start += panel.x;
                         }
-                        log(" 2f. add_count=", add_count);
-                        if (add_count-- <= 0) break;
-                        log(" 2f. cindex=", cindex, " offset=", offset, " width=", length - offset);
-                        index.push_back(cindex, offset, length - offset);
+                        log(" 2f. avail=", avail);
+                        if (avail-- <= 0) break;
+                        log(" 2f. curid=", curid, " start=", start, " width=", width - start);
+                        index.push_back(curid, start, width - start);
 
-                        auto& cur_ln = *++cur_it;
-                        length = cur_ln.length();
-                        cindex = cur_ln.index;
-                        offset = 0;
+                        auto& curln = *++curit;
+                        width = curln.length();
+                        curid = curln.index;
+                        start = 0;
                     }
 
                     print_index("2. futures");
-
-                    required_lines -= add_count;
                 }
-                return required_lines;
-                //return coord.y - (batch.vsize - basis - 1);
+
+                return query;
             }
             // scroll_buf: Return current 0-based cursor position in the scrollback.
             twod get_coord() override
@@ -1548,33 +1547,18 @@ private:
             void sync_coord()
             {
                 auto style = batch->style;
+                coord.y = std::clamp(coord.y, 0, panel.y - 1);
 
-                if (coord.y <= 0)
+                if (index.size != panel.y)
+                if (auto add_count = coord.y - (index.size - 1);
+                         add_count > 0)
                 {
-                    coord.y = 0;
-                }
-                else
-                {
-                    auto required_lines = coord.y - (index.size - 1);
-                    if (required_lines > 0)
-                    {
-                        if (auto add_count = feed_futures(required_lines);
-                                 add_count > 0)
-                        {
-                            add_lines(add_count);
-                            auto maxy = panel.y - 1;
-                            if (coord.y > maxy)
-                            {
-                                basis += coord.y - maxy;
-                                coord.y = maxy;
-                            }
-                        }
-                    }
+                    add_lines(add_count);
                 }
 
-                auto& map_ln = index[coord.y];
-                batch.index(batch.index_by_id(map_ln.index));
-                batch.caret = map_ln.start + coord.x;
+                auto& mapln = index[coord.y];
+                batch.index(batch.index_by_id(mapln.index));
+                batch.caret = mapln.start + coord.x;
                 batch->style = style;
             }
 
@@ -1604,8 +1588,7 @@ private:
                 assert(amount >= 0);
                 auto newid = batch.back().index;
                 auto style = batch->style;
-                auto n = amount;
-                while (n-- > 0)
+                while (amount-- > 0)
                 {
                     auto& l = batch.invite(++newid, style);
                     index.push_back(l.index, 0, 0);
@@ -1746,15 +1729,15 @@ private:
                                                         : 0;
 
                     curln.splice(start, count, proto);
-                    auto cur_id = curln.index;
+                    auto curid = curln.index;
                     if (add_count > 0) // case 3 - complex: Cursor is outside the viewport. 
                     {                  // cursor overlaps some lines below and placed below the viewport.
                         log(" case 3:");
                         batch.recalc(curln);
-                        auto length = curln.length();
+                        auto width = curln.length();
                         // pop_back from batch all lines from (curln, batch.end].
-                        assert(batch.back().index >= cur_id);
-                        if (auto pop_count = batch.back().index - cur_id)
+                        assert(batch.back().index >= curid);
+                        if (auto pop_count = batch.back().index - curid)
                         {
                             assert(pop_count > 0);
                             log("  case 3 batch pop_count=", pop_count);
@@ -1769,40 +1752,40 @@ private:
                             log("  case 3 !!!!! index pop_count=", pop_count);
                             while (pop_count-- > 0) index.pop_back();
                         }
-                        auto& map_ln = index.back();
-                        auto offset = map_ln.start;
-                        log("  case 3 old width=", map_ln.width);
-                        map_ln.width = panel.x;
-                        log("  case 3 new width=", map_ln.width);
-                        auto bottom = length - panel.x;
-                        log(" 1. cur_id=", cur_id, " offset=", offset, " width=", panel.x);
-                        offset += panel.x;
-                        while (offset < bottom) // Update for current line.
+                        auto& mapln = index.back();
+                        auto  start = mapln.start;
+                        log("  case 3 old width=", mapln.width);
+                        mapln.width = panel.x;
+                        log("  case 3 new width=", mapln.width);
+                        auto  trail = width - panel.x;
+                        log(" 1. curid=", curid, " start=", start, " width=", panel.x);
+                        start += panel.x;
+                        while (start < trail) // Update for current line.
                         {
-                            index.push_back(cur_id, offset, panel.x);
-                            offset += panel.x;
-                            log(" 2. cur_id=", cur_id, " offset=", offset, " width=", panel.x);
+                            index.push_back(curid, start, panel.x);
+                            start += panel.x;
+                            log(" 2. curid=", curid, " start=", start, " width=", panel.x);
                         }
-                        index.push_back(cur_id, offset, length - offset);
-                        log(" 3. cur_id=", cur_id, " offset=", offset, " width=", length - offset);
+                        index.push_back(curid, start, width - start);
+                        log(" 3. curid=", curid, " start=", start, " width=", width - start);
                             log("  case 3 old basis=", basis);
                         //todo error!
-                        basis += add_count;
+                        basis   += add_count;
                         coord.y -= add_count;
                             log("  case 3 new basis=", basis);
                         print_index("case 3. done");
                     } // case 3 done
                     else
                     {
-                        auto& map_ln = index[coord.y];
-                        if (cur_id == map_ln.index) // case 1 - plain: cursor is inside the current paragraph.
+                        auto& mapln = index[coord.y];
+                        if (curid == mapln.index) // case 1 - plain: cursor is inside the current paragraph.
                         {
                             log(" case 1:");
-                            if (coord.x > map_ln.width)
+                            if (coord.x > mapln.width)
                             {
-                                log("  old width=", map_ln.width);
-                                map_ln.width = coord.x;
-                                log("  new width=", map_ln.width);
+                                log("  old width=", mapln.width);
+                                mapln.width = coord.x;
+                                log("  new width=", mapln.width);
                                 batch.recalc(curln);
                             }
                             print_index("case 1. done");
@@ -1811,58 +1794,58 @@ private:
                         {
                             log(" case 2:");
                             print_index(" case 2. start");
-                            auto& target = batch.item_by_id(map_ln.index);
-                            auto  shadow = target.substr(map_ln.start + coord.x);
+                            auto& target = batch.item_by_id(mapln.index);
+                            auto  shadow = target.substr(mapln.start + coord.x);
                             curln.splice(curln.length(), shadow);
                             batch.recalc(curln);
-                            auto length = curln.length();
-                            auto batch_index = batch.index();
-                            batch.next();
-                            assert(map_ln.index > cur_id);
-                            auto remove_count = map_ln.index - cur_id;
-                            batch.remove(remove_count);
+                            assert(mapln.index > curid);
+                            auto width = curln.length();
+                            auto spoil = mapln.index - curid;
                             // Reindex batch.
                             {
-                                auto cur_it = batch.current_it();
-                                auto end_it = batch.end();
-                                while (cur_it != end_it)
+                                auto batch_index = batch.index();
+                                batch.next();
+                                batch.remove(spoil);
+                                auto curit = batch.current_it();
+                                auto endit = batch.end();
+                                while (curit != endit)
                                 {
-                                    cur_it->index -= remove_count;
-                                    ++cur_it;
+                                    curit->index -= spoil;
+                                    ++curit;
                                 }
                                 batch.index(batch_index);
                             }
                             // Update index.
                             {
                                 log(" case 2: old=", (old - basis), " coord.y=", coord.y);
-                                auto ind_it = index.begin() + (old - basis);
-                                auto end_it = index.end();
-                                auto offset = ind_it->start;
-                                auto bottom = length - panel.x;
-                                while (ind_it != end_it && offset < bottom) // Update for current line.
+                                auto indit = index.begin() + (old - basis);
+                                auto endit = index.end();
+                                auto start = indit->start;
+                                auto trail = width - panel.x;
+                                while (indit != endit && start < trail) // Update for current line.
                                 {
-                                    auto& i = *ind_it;
-                                    i.index = cur_id;
-                                    i.start = offset;
+                                    auto& i =*indit;
+                                    i.index = curid;
+                                    i.start = start;
                                     i.width = panel.x;
-                                    offset += panel.x;
-                                    ++ind_it;
+                                    start  += panel.x;
+                                    ++indit;
                                     log(" 1. i.index=", i.index, " i.start=", i.start, " i.width=", i.width);
                                 }
-                                if (ind_it != end_it)
+                                if (indit != endit)
                                 {
-                                    auto& i = *ind_it;
-                                    i.index = cur_id;
-                                    i.start = offset;
-                                    i.width = length - offset;
-                                    ++ind_it;
+                                    auto& i =*indit;
+                                    i.index = curid;
+                                    i.start = start;
+                                    i.width = width - start;
+                                    ++indit;
                                     log(" 2. i.index=", i.index, " i.start=", i.start, " i.width=", i.width);
-                                    while (ind_it != end_it) // Update the rest.
+                                    while (indit != endit) // Update the rest.
                                     {
-                                        auto& i = *ind_it;
+                                        auto& i = *indit;
                                         log(" 3.0 i.index=", i.index, " i.start=", i.start, " i.width=", i.width);
-                                        i.index -= remove_count;
-                                        ++ind_it;
+                                        i.index -= spoil;
+                                        ++indit;
                                         log(" 3.1 i.index=", i.index, " i.start=", i.start, " i.width=", i.width);
                                     }
                                 }
@@ -1872,10 +1855,11 @@ private:
                     }
 
                     auto maxy = panel.y - 1;
-                    if (auto over = coord.y - maxy; over > 0)
+                    if (auto over = coord.y - maxy;
+                             over > 0)
                     {
                         auto oversize = batch.vsize - basis - panel.y;
-                        basis += over;
+                        basis  += over;
                         coord.y = maxy;
                     }
                 }
