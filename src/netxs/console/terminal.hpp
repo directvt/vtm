@@ -1803,7 +1803,7 @@ private:
                             auto spoil = mapln.index - curid;
                             // Reindex batch.
                             {
-                                auto batch_index = batch.index();
+                                auto caret = batch.index();
                                 batch.next();
                                 batch.remove(spoil);
                                 auto curit = batch.current_it();
@@ -1813,7 +1813,7 @@ private:
                                     curit->index -= spoil;
                                     ++curit;
                                 }
-                                batch.index(batch_index);
+                                batch.index(caret);
                             }
                             // Update index.
                             {
