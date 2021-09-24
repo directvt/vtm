@@ -1469,7 +1469,7 @@ private:
                 //assert(stash >= 0);
                 if (stash < 0)
                     log(" feed_futures query=", query, " !!!!!!!!! stash=", stash);
-                assert(query >  0);
+                assert(query > 0);
                 if (stash > 0)
                 {
                     //log(" futures: stash=", stash, " query=", query);
@@ -1705,7 +1705,8 @@ private:
                 auto  start = batch.caret;
                 batch.caret += count;
                 coord.x     += count;
-                if (batch.caret <= panel.x || ! curln.wrapped()) // case 0.
+                //if (batch.caret <= panel.x || ! curln.wrapped()) // case 0.
+                if (!curln.wrapped()) // case 0.
                 {
                     //log("  case 0: batch.caret=", batch.caret);
                     curln.splice(start, count, proto);
