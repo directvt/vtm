@@ -1705,19 +1705,19 @@ private:
                 auto  start = batch.caret;
                 batch.caret += count;
                 coord.x     += count;
-                //if (batch.caret <= panel.x || ! curln.wrapped()) // case 0.
-                if (!curln.wrapped()) // case 0.
+                if (batch.caret <= panel.x || ! curln.wrapped()) // case 0.
                 {
                     //log("  case 0: batch.caret=", batch.caret);
                     curln.splice(start, count, proto);
                     auto& mapln = index[coord.y];
-                    auto  width = curln.length();
-                    if (width > mapln.width)
+                    assert(coord.x == batch.caret && mapln.index == curln.index);
+                    if (coord.x > mapln.width)
                     {
                         //log("  case 0: old width=", mapln.width, " new width=", width);
-                        mapln.width = width;
+                        mapln.width = coord.x;
                         batch.recalc(curln);
                     }
+                    else assert(curln._size == curln.length());
                 } // case 0 - done.
                 else
                 {
@@ -1784,6 +1784,7 @@ private:
                                 //log("  new width=", mapln.width);
                                 batch.recalc(curln);
                             }
+                            else assert(curln._size == curln.length());
                             //print_index("case 1. done");
                         } // case 1 done.
                         else // case 2 - fusion: cursor overlaps lines below but stays inside the viewport.
@@ -1849,7 +1850,9 @@ private:
                             //print_index("case 2. done");
                         } // case 2 done.
                     }
+                    assert(curln._size == curln.length());
 
+                    //todo revise
                     auto maxy = panel.y - 1;
                     if (auto over = coord.y - maxy;
                              over > 0)
@@ -1959,6 +1962,7 @@ private:
                 add_lines(panel.y - 1 - coord.y);
                 auto& curln = batch.current();
                 curln.trimto(index[coord.y].start + coord.x);
+                batch.recalc(curln);
                 index_rebuild();
             }
             // scroll_buf: Clear all lines from the viewport top line to the current line.
@@ -2060,8 +2064,10 @@ private:
                 while (begin_it != end_it)
                 {
                     auto& curln = *begin_it;
-                    batch.undock(curln);
-                    curln.wipe();
+                    curln.core::crop(0);
+                    batch.recalc(curln);
+                    //batch.undock(curln);
+                    //curln.core::wipe(); // Fill using background.
                     ++begin_it;
                 }
             }
