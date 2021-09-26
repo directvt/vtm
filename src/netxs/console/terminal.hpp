@@ -1363,9 +1363,8 @@ private:
                 basis = batch.vsize;
                 auto lnid = batch.current().index;
                 auto head = batch.end();
-                auto size = batch.length();
-                auto maxn = size - batch.index();
-                auto tail = head - std::max(maxn, std::min(size, panel.y));
+                auto maxn = batch.size - batch.index();
+                auto tail = head - std::max(maxn, std::min(batch.size, panel.y));
                 auto push = [&](auto i, auto o, auto r) { --basis; index.push_front(i, o, r); };
                 auto unknown = true;
                 while (head != tail && (index.size < panel.y || unknown))
@@ -1405,14 +1404,11 @@ private:
                         }
                     }
                 }
-                coord.y = index.length() - coord.y;
+                coord.y = index.size - coord.y;
                 assert(basis >= 0);
 
-                auto stash = batch.vsize - basis - index.size;
-                assert(stash >= 0);
-
-                //log(" new size=", panel);
-                //print_index(" RESIZE");
+                iota stash;
+                assert((stash = batch.vsize - basis - index.size, stash >= 0));
 
                 auto c = batch.caret;
                 sync_coord();
@@ -1420,7 +1416,7 @@ private:
 
                 assert(basis == 0 || index.size == panel.y);
 
-                //log(" viewport_offset=", basis);
+                //log(" viewport_offset=", basis, " new panel=", panel);
                 //print_index("full resize viewport");
                 return std::max(0, batch.vsize - (basis + panel.y));
             }
@@ -1486,18 +1482,15 @@ private:
             auto feed_futures(iota query)
             {
                 auto stash = batch.vsize - basis - index.size;
-
                 assert(stash >= 0);
-                //if (stash < 0)
-                //    log(" feed_futures query=", query, " !!!!!!!!! stash=", stash);
                 assert(query > 0);
+
                 if (stash > 0)
                 {
                     //log(" futures: stash=", stash, " query=", query);
-                    auto avail = std::min(stash, query);
-
                     //print_index("1. futures");
 
+                    auto avail = std::min(stash, query);
                     basis   += avail;
                     query   -= avail;
                     coord.y -= avail;
@@ -1518,10 +1511,9 @@ private:
                         curid = curln.index;
                         start = 0;
                     }
-                    else
-                    {
-                        mapbk.width = panel.x;
-                    }
+                    else assert(mapbk.width == panel.x);
+
+                    assert(start % panel.x == 0);
                     while (true)
                     {
                         auto trail = width - panel.x;
@@ -1542,8 +1534,9 @@ private:
                         start = 0;
                     }
 
-                    auto s = batch.vsize - basis - index.size;
-                    assert(s >= 0);
+                    iota stash;
+                    assert((stash = batch.vsize - basis - index.size, stash >= 0));
+
                     //print_index("2. futures");
                 }
 
@@ -1640,6 +1633,8 @@ private:
                 {
                     curln.style = parser::style;
                     batch.recalc(curln);
+
+                    //todo reindex
                 }  
                 bufferbase::meta(old_style);
             }
@@ -1696,6 +1691,8 @@ private:
                 auto  blank = brush.spc(); //.bgc(magentadk).bga(0x7f);
                 curln.insert(batch.caret, n, blank);
                 batch.recalc(curln);
+
+                //todo reindex
             }
             // scroll_buf: CSI n X  Erase/put n chars after cursor. Don't change cursor pos.
             void ech(iota n) override
@@ -1705,6 +1702,8 @@ private:
                 auto  blank = brush.spc(); //.bgc(magentadk).bga(0x7f);
                 curln.splice(batch.caret, n, blank);
                 batch.recalc(curln);
+
+                //todo reindex
             }
             // scroll_buf: Insert count blanks with scroll.
             void ech_grow(iota n) override
@@ -1716,6 +1715,8 @@ private:
                 //todo move cursor and auto scroll (same as data())
                 curln.splice<true>(batch.caret, n, blank);
                 batch.recalc(curln);
+
+                //todo reindex
             }
             // scroll_buf: CSI n P  Delete (not Erase) letters under the cursor.
             void dch(iota n) override
@@ -1726,28 +1727,27 @@ private:
                 curln.cutoff(batch.caret, n, blank, panel.x);
                 batch.recalc(curln);
 
-                //auto caret = index[coord.y].start + coord.x;
-                //curln.cutoff(caret, n, brush, panel.x);
+                //todo reindex
             }
             // scroll_buf: Proceed new text (parser callback).
             void data(iota count, grid const& proto) override
             {
                 sync_coord();
                 assert(coord.y >= 0 && coord.y < panel.y);
-                auto t_coord = coord;
-                auto t_basis = basis;
-                auto t_count = count;
-                auto t_caret = batch.caret;
-                auto t_stash = batch.vsize - basis - index.size;
-                auto t_isize = index.size;
-                auto t_vsize = batch.vsize;
-                auto t_index = index[coord.y].index;
+                //auto t_coord = coord;
+                //auto t_basis = basis;
+                //auto t_count = count;
+                //auto t_caret = batch.caret;
+                //auto t_isize = index.size;
+                //auto t_vsize = batch.vsize;
+                //auto t_index = index[coord.y].index;
 
                 auto test_vsize = 0; //sanity check
                 for (auto& l : batch) test_vsize += l.height(panel.x);
                 assert(test_vsize == batch.vsize);
 
-                assert(t_stash >= 0);
+                iota stash;
+                assert((stash = batch.vsize - basis - index.size, stash >= 0));
 
                 auto& curln = batch.current();
                 auto  start = batch.caret;
@@ -1790,29 +1790,25 @@ private:
                         batch.recalc(curln);
                         auto width = curln.length();
                         // pop_back from batch all lines from (curln, batch.end].
-                        assert(batch.back().index >= curid);
-                        //if (auto pop_count = batch.back().index - curid)
-                        auto pop_count = batch.back().index - curid;
-                        if (pop_count)
+                        if (auto pop_count = static_cast<iota>(batch.back().index - curid))
                         {
                             //log("  case 3 batch pop_count=", pop_count);
-                            auto n = pop_count;
-                            while (n-- > 0) batch.pop_back();
+                            assert(pop_count > 0);
+                            while (pop_count-- > 0) batch.pop_back();
                         }
 
                         // Update index.
                         if (auto pop_count = std::min(index.size - 1, index.size - 1 - (old - basis))) // -1: Exclude current.
                         {
-                            assert(pop_count > 0);
                             //log("  case 3 index pop_count=", pop_count);
+                            assert(pop_count > 0);
                             while (pop_count-- > 0) index.pop_back();
                         }
                         auto& mapln = index.back();
                         assert(mapln.index == curid);
                         auto  start = mapln.start;
-                        //log("  case 3 old width=", mapln.width);
+                        //log("  case 3 old width=", mapln.width, " new width=", panel.x);
                         mapln.width = panel.x;
-                        //log("  case 3 new width=", mapln.width);
                         auto  trail = width - panel.x;
                         //log(" case 3 1. curid=", curid, " start=", start, " width=", panel.x);
                         start += panel.x;
@@ -1827,21 +1823,14 @@ private:
                         //log(" case 3 3. curid=", curid, " start=", start, " width=", width - start);
                         //print_index("case 3. done");
 
-
-                        //todo revise
                         auto maxy = panel.y - 1;
-                        if (auto over = coord.y - maxy;
-                                 over > 0)
+                        if (coord.y > maxy)
                         {
-                            basis  += over;
+                            basis  += coord.y - maxy;
                             coord.y = maxy;
 
-                            auto test_vsize = 0; //sanity check
-                            for (auto& l : batch) test_vsize += l.height(panel.x);
-                            assert(test_vsize == batch.vsize);
-
-                            auto stash = batch.vsize - basis - index.size;
-                            assert(stash >= 0);
+                            iota stash;
+                            assert((stash = batch.vsize - basis - index.size, stash >= 0));
                         }
 
                     } // case 3 done
@@ -1857,10 +1846,9 @@ private:
                             if (coord.x > mapln.width)
                             {
                                 mapln.width = coord.x;
-                                //mapln.width = std::min(panel.x, curln.length() - mapln.start);
                                 batch.recalc(curln);
                             }
-                            //else assert(curln._size == curln.length());
+                            else assert(curln._size == curln.length());
                             //print_index("case 1. done");
                         } // case 1 done.
                         else // case 2 - fusion: cursor overlaps lines below but stays inside the viewport.
@@ -2024,32 +2012,30 @@ private:
                     left_rect.coor.y = rght_rect.coor.y;
                 }
             }
-            // scroll_buf: Remove all lines below except the current. "ED2 Erase viewport" keeps empty lines.
+            // scroll_buf: Remove all lines below (including futures) except the current. "ED2 Erase viewport" keeps empty lines.
             void del_below() override
             {
-                //todo don't delete futures
-                auto n = batch.length() - 1 - batch.index();
-                assert(n >= 0 && n < batch.length());
+                auto n = batch.size - 1 - batch.index();
+                auto m = index.size - 1 - coord.y;
+                auto p = panel.y    - 1 - coord.y;
+
+                assert(n >= 0 && n < batch.size);
+                assert(m >= 0 && m < index.size);
+
                 while (n--) batch.pop_back();
-                
-                auto m = index.length() - 1 - coord.y;
-                assert(m >= 0 && m < index.length());
                 while (m--) index.pop_back();
 
-                auto& mapln = index[coord.y];
-                auto  start = mapln.start;
-                mapln.width = coord.x;
-
-                add_lines(panel.y - 1 - coord.y);
+                add_lines(p);
 
                 auto& curln = batch.current();
-                curln.trimto(start + coord.x);
+                auto& mapln = index[coord.y];
+                auto  width = mapln.start + coord.x;
+                mapln.width = coord.x;
+                curln.trimto(width);
                 batch.recalc(curln);
 
-                auto s = batch.vsize - basis - index.size;
-                assert(s >= 0);
-
-                //log(" del_below coord=", coord);
+                iota stash;
+                assert((stash = batch.vsize - basis - index.size, stash >= 0));
                 //print_index("del_below");
             }
             // scroll_buf: Clear all lines from the viewport top line to the current line.
@@ -2097,25 +2083,13 @@ private:
                 //}
                 //while (upper++ != under);
             }
-            // scroll_buf: For bug testing purposes.
-            auto get_content()
-            {
-                text yield;
-                auto i = 0;
-                for (auto& l : batch)
-                {
-                    yield += "\n =>" + std::to_string(i++) + "<= ";
-                    l.each([&](cell& c) { yield += c.txt(); });
-                }
-                return yield;
-            }
             // scroll_buf: Dissect auto-wrapped lines at the specified iterator.
             void dissect(iota y_pos)
             {
-                if (y_pos >= panel.y) throw;
+                assert(y_pos < index.size);
 
-                auto& linid = index[y_pos];
-                if (linid.start == 0) return;
+                auto& mapln = index[y_pos];
+                if (mapln.start == 0) return;
 
                 auto temp = std::move(batch.current());
                 batch.insert(temp.index, temp.style);
@@ -2126,7 +2100,7 @@ private:
                 while (head != tail);
 
                 auto& newln = *curit;
-                newln.splice(0, temp.substr(linid.start));
+                newln.splice(0, temp.substr(mapln.start));
                 batch.recalc(newln);
                 if (curit != batch.begin())
                 {
@@ -2134,9 +2108,10 @@ private:
                     auto& curln = *curit;
                     curln = std::move(temp);
                     batch.undock(curln);
-                    curln.trimto(linid.start);
+                    curln.trimto(mapln.start);
                     batch.recalc(curln);
                 }
+                //todo optimize
                 index_rebuild();
             }
             // scroll_buf: Dissect auto-wrapped line at the current coord.
@@ -2178,8 +2153,8 @@ private:
                         coord.y -= std::min(coord.y, add_count);
                     }
 
-                    auto stash = batch.vsize - basis - index.size;
-                    assert(stash >= 0);
+                    iota stash;
+                    assert((stash = batch.vsize - basis - index.size, stash >= 0));
                 }
 
                 /*
