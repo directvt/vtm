@@ -460,6 +460,7 @@ private:
                 vt.csier.table[CSI_CCC][CCC_SBS] = VT_PROC{ p->owner.sbsize(q); };  // CCC_SBS: Set scrollback size.
                 vt.csier.table[CSI_CCC][CCC_EXT] = VT_PROC{ p->owner.native(q(1)); };          // CCC_EXT: Setup extended functionality.
                 vt.csier.table[CSI_CCC][CCC_RST] = VT_PROC{ p->style.glb(); p->style.wrp(WRAPPING); };  // fx_ccc_rst
+                vt.csier.table[CSI_CCC][CCC_CUT] = VT_PROC{ p->cut(q(0)); };  // fx_ccc_cut
 
                 vt.intro[ctrl::ESC][ESC_IND] = VT_PROC{ p->dn(1); };          // ESC D  Caret Down.
                 vt.intro[ctrl::ESC][ESC_IR ] = VT_PROC{ p->ri (); };          // ESC M  Reverse index.
@@ -522,6 +523,7 @@ private:
             virtual iota height()                                    = 0;
             virtual void del_above()                                 = 0;
             virtual void del_below()                                 = 0;
+            virtual void cut(iota n) { }
             virtual iota get_size() const                            = 0;
             virtual iota get_peak() const                            = 0;
             virtual iota get_step() const                            = 0;
@@ -1232,6 +1234,11 @@ private:
                     }
                     dec_height(kind, size);
                 }
+                void invite(line& l)
+                {
+                    dirty = true;
+                    invite(l._kind, l._size, l.style.get_kind(), l.length());
+                }
                 template<class ...Args>
                 auto& invite(Args&&... args)
                 {
@@ -1355,6 +1362,15 @@ private:
                 log(" last ln id=", curln.index, " curln.length()=", curln.length());
                 log(" -----------------");
             }
+            void print_batch(text msg)
+            {
+                log(" ", msg, " batch.size=", batch.size);
+                for (auto n = 0; auto l : batch)
+                {
+                    log("  ", n++,". id=", l.index, " length()=", l.length());
+                }
+                log(" -----------------");
+            }
             auto test_futures()
             {
                 auto stash = batch.vsize - basis - index.size;
@@ -1426,6 +1442,61 @@ private:
                 //log(" viewport_offset=", basis, " new panel=", panel);
                 //print_index("full resize viewport");
                 return std::max(0, batch.vsize - (basis + panel.y));
+            }
+            // scroll_buf: Rebuild the next avail indexes from the known index (mapln).
+            template<class ITER, class INDEX_T, class P>
+            void reindex(iota avail, ITER curit, INDEX_T const& mapln, P mapfn)
+            {
+                auto& curln =*curit;
+                auto  width = curln.length();
+                auto  curid = curln.index;
+                auto  start = mapln.start + mapln.width;
+
+                assert(curid == mapln.index);
+                if (start == width) // Go to the next line.
+                {
+                    auto& curln = *++curit;
+                    width = curln.length();
+                    curid = curln.index;
+                    start = 0;
+                }
+                else assert(mapln.width == panel.x);
+
+                assert(start % panel.x == 0);
+                while (true)
+                {
+                    auto trail = width - panel.x;
+                    while (start < trail && avail-- > 0)
+                    {
+                        mapfn(curid, start, panel.x);
+                        start += panel.x;
+                    }
+                    if (avail-- <= 0) break;
+                    mapfn(curid, start, width - start);
+
+                    auto& curln = *++curit;
+                    width = curln.length();
+                    curid = curln.index;
+                    start = 0;
+                }
+            }
+            // scroll_buf: Rebuild index from the known index at y_pos.
+            void index_rebuild_from(iota y_pos)
+            {
+                assert(y_pos >= 0 && y_pos < index.size);
+                auto  avail = index.size - y_pos;
+                auto  mapit = index.begin() + y_pos;
+                auto& mapln =*mapit;
+                auto  curit = batch.begin() + batch.index_by_id(mapln.index);
+                auto  mapfn = [&](auto curid, auto start, auto width)
+                {
+                    ++mapit;
+                    auto& mapln =*mapit;
+                    mapln.index = curid;
+                    mapln.start = start;
+                    mapln.width = width;
+                };
+                reindex(avail, curit, mapln, mapfn);
             }
             // scroll_buf: .
             void index_rebuild()
@@ -1502,45 +1573,13 @@ private:
                     query   -= avail;
                     coord.y -= avail;
 
-                    auto& mapbk = index.back();
-                    auto  curit = batch.begin() + batch.index_by_id(mapbk.index);
-                    auto& curln =*curit;
-                    auto  width = curln.length();
-                    auto  curid = curln.index;
-                    auto  start = mapbk.start + mapbk.width;
-                    //log(" 1f. avail=", avail, " curln.length()=", curln.length(), " curln.index=", curln.index, " start=",start);
-                    //log(" 1f. mapbk.start=", mapbk.start, " mapbk.width=", mapbk.width);
-                    assert(curid == mapbk.index);
-                    if (start == width) // Go to the next line.
+                    auto& mapln = index.back();
+                    auto  curit = batch.begin() + batch.index_by_id(mapln.index);
+                    auto  mapfn = [&](auto curid, auto start, auto width)
                     {
-                        auto& curln = *++curit;
-                        width = curln.length();
-                        curid = curln.index;
-                        start = 0;
-                    }
-                    else assert(mapbk.width == panel.x);
-
-                    assert(start % panel.x == 0);
-                    while (true)
-                    {
-                        auto trail = width - panel.x;
-                        while (start < trail && avail-- > 0)
-                        {
-                            //log(" 1f. curid=", curid, " start=", start, " width=", panel.x);
-                            index.push_back(curid, start, panel.x);
-                            start += panel.x;
-                        }
-                        //log(" 2f. avail=", avail);
-                        if (avail-- <= 0) break;
-                        //log(" 2f. curid=", curid, " start=", start, " width=", width - start);
-                        index.push_back(curid, start, width - start);
-
-                        auto& curln = *++curit;
-                        width = curln.length();
-                        curid = curln.index;
-                        start = 0;
-                    }
-
+                        index.push_back(curid, start, width);
+                    };
+                    reindex(avail, curit, mapln, mapfn);
                     assert(test_futures());
                     //print_index("2. futures");
                 }
@@ -2031,8 +2070,9 @@ private:
                     ++p;
                 }
 
-                assert(n >= 0 && n < batch.size);
-                assert(m >= 0 && m < index.size);
+                assert(n >= 0 && n <  batch.size);
+                assert(m >= 0 && m <= index.size);
+                assert(p >= 0 && p <= panel.y   );
 
                 while (n--) batch.pop_back();
                 while (m--) index.pop_back();
@@ -2093,36 +2133,58 @@ private:
                 //}
                 //while (upper++ != under);
             }
-            // scroll_buf: Dissect auto-wrapped lines at the specified iterator.
+            void cut(iota n)
+            {
+                dissect(n);
+            }
+            // scroll_buf: Dissect auto-wrapped lines at the specified row.
             void dissect(iota y_pos)
             {
                 assert(y_pos < index.size);
 
+                //log("disscet at y=", y_pos);
+                //print_batch("1. dissect");
+                //print_index("1. dissect");
+
                 auto& mapln = index[y_pos];
                 if (mapln.start == 0) return;
 
-                auto temp = std::move(batch.current());
-                batch.insert(temp.index, temp.style);
+                auto caret = batch.index();
+                batch.index(batch.index_by_id(mapln.index));
+
+                auto tmpln = std::move(batch.current());
+                batch.insert(tmpln.index, tmpln.style);
                 auto curit = batch.current_it();
                 auto  head = curit;
                 auto  tail = batch.end();
-                do ++head++->index;
+                do ++(head++->index);
                 while (head != tail);
 
                 auto& newln = *curit;
-                newln.splice(0, temp.substr(mapln.start));
-                batch.recalc(newln);
+                newln.splice(0, tmpln.substr(mapln.start));
+                batch.undock(tmpln);
+                batch.invite(newln);
                 if (curit != batch.begin())
                 {
-                    --curit;
-                    auto& curln = *curit;
-                    curln = std::move(temp);
-                    batch.undock(curln);
+                    auto& curln = *--curit;
+                    curln = std::move(tmpln);
                     curln.trimto(mapln.start);
-                    batch.recalc(curln);
+                    batch.invite(curln);
                 }
-                //todo optimize
-                index_rebuild();
+
+                mapln.index++;
+                mapln.start = 0;
+                mapln.width = std::min(panel.x, newln.length());
+                batch.index(caret);
+
+                //print_batch("2. dissect");
+                //print_index("2. dissect");
+
+                index_rebuild_from(y_pos);
+
+                //print_batch("3. dissect");
+                //print_index("3. dissect");
+                assert(test_futures());
             }
             // scroll_buf: Dissect auto-wrapped line at the current coord.
             void dissect()

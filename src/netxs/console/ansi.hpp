@@ -219,6 +219,8 @@ namespace netxs::ansi
     static const iota CCC_SMS    = 26 ; // CSI 26: b       p  - Should the mouse poiner to be drawn.
     static const iota CCC_KBD    = 27 ; // CSI 27: n       p  - Set keyboard modifiers.
 
+    static const iota CCC_CUT    = 28 ; // CSI 28: n       p  - Split wrapped line on n-th line.
+
     // ansi: Escaped sequences accumulator.
     class esc
         : public text
@@ -1015,6 +1017,7 @@ namespace netxs::ansi
                     csi_ccc[CCC_EXT] = nullptr;
                     csi_ccc[CCC_SMS] = nullptr;
                     csi_ccc[CCC_KBD] = nullptr;
+                    csi_ccc[CCC_CUT] = nullptr;
 
                 auto& csi_sgr = table[CSI_SGR].resize(0x100);
                 csi_sgr.enable_multi_arg();
