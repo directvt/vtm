@@ -927,7 +927,21 @@ namespace netxs::console
                 while (dst != src) *--src = clr;
             }
         }
-        void insert(iota at, iota count, cell const& blank)
+        // rich: (current segment) Insert n blanks at the specified position. Autogrow within segment only.
+        void insert(iota at, iota count, cell const& blank, iota margin)
+        {
+            auto pos = at % margin;
+            auto vol = std::clamp(count, 0, margin - pos);
+            auto max = at + vol;
+            reserv(max);
+            auto dst = iter() + max;
+            auto end = dst - vol;
+            auto src = end;
+            while (src != end) *--dst = *--src;
+            while (dst != end) *--dst = blank;
+        }
+        // rich: (whole line) Insert n blanks at the specified position. Autogrow.
+        void insert_full(iota at, iota count, cell const& blank)
         {
             auto len = length();
             crop(std::max(at, len) + count);
@@ -943,8 +957,24 @@ namespace netxs::console
             }
             while (src != end) *src++ = blank;
         }
-        // rich: Delete n chars and add blanks at the right margin.
+        // rich: (current segment) Delete n chars and add blanks at the right margin.
         void cutoff(iota at, iota count, cell const& blank, iota margin)
+        {
+            auto len = length();
+            if (at < len)
+            {
+                auto pos = at % margin;
+                auto rem = std::min(margin - pos, len - at);
+                auto vol = std::clamp(count, 0, rem);
+                auto dst = iter() + at;
+                auto end = dst + rem;
+                auto src = dst + vol;
+                while (src != end) *dst++ = *src++;
+                while (dst != end) *dst++ = blank;
+            }
+        }
+        // rich: (whole line) Delete n chars and add blanks at the right margin.
+        void cutoff_full(iota at, iota count, cell const& blank, iota margin)
         {
             auto len = length();
             if (count > 0 && at < len)

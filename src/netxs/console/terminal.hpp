@@ -725,7 +725,8 @@ private:
             }
             // bufferbase: CSI n X  Erase/put n chars after cursor. Don't change cursor pos.
     virtual void ech(iota n) = 0;
-    virtual void ech_grow(iota n) = 0;
+    // Reserved for future use.
+    //virtual void ech_grow(iota n) = 0;
             // bufferbase: CSI n P  Delete (not Erase) letters under the cursor.
     virtual void dch(iota n) = 0;
             // bufferbase: '\x7F'  Delete characters backwards.
@@ -969,16 +970,17 @@ private:
                     fill_proc(dest, tail, data_source);
                 }
             }
+            // Reserved for future use.
             // alt_screen: Insert count blanks with scroll.
-            void ech_grow(iota count) override
-            {
-                parser::flush();
-                auto fill_proc = [](auto dst, auto end, auto const& blank)
-                {
-                    while (dst != end) *--dst = blank;
-                };
-                fill_with_scroll(count, brush.spc(), fill_proc);
-            }
+            //void ech_grow(iota count) override
+            //{
+            //    parser::flush();
+            //    auto fill_proc = [](auto dst, auto end, auto const& blank)
+            //    {
+            //        while (dst != end) *--dst = blank;
+            //    };
+            //    fill_with_scroll(count, brush.spc(), fill_proc);
+            //}
             // alt_screen: Parser callback.
             void data(iota count, grid const& proto) override
             {
@@ -1353,6 +1355,12 @@ private:
                 log(" last ln id=", curln.index, " curln.length()=", curln.length());
                 log(" -----------------");
             }
+            auto test_futures()
+            {
+                auto stash = batch.vsize - basis - index.size;
+                assert(stash >= 0);
+                return true;
+            }
             //scroll_buf: Return viewport vertical oversize.
             iota resize_viewport(twod const& new_sz) override
             {
@@ -1407,8 +1415,7 @@ private:
                 coord.y = index.size - coord.y;
                 assert(basis >= 0);
 
-                iota stash;
-                assert((stash = batch.vsize - basis - index.size, stash >= 0));
+                assert(test_futures());
 
                 auto c = batch.caret;
                 sync_coord();
@@ -1481,10 +1488,10 @@ private:
             // scroll_buf: Check if there are futures, use them when scrolling regions.
             auto feed_futures(iota query)
             {
-                auto stash = batch.vsize - basis - index.size;
-                assert(stash >= 0);
+                assert(test_futures());
                 assert(query > 0);
 
+                auto stash = batch.vsize - basis - index.size;
                 if (stash > 0)
                 {
                     //log(" futures: stash=", stash, " query=", query);
@@ -1534,9 +1541,7 @@ private:
                         start = 0;
                     }
 
-                    iota stash;
-                    assert((stash = batch.vsize - basis - index.size, stash >= 0));
-
+                    assert(test_futures());
                     //print_index("2. futures");
                 }
 
@@ -1635,6 +1640,7 @@ private:
                     batch.recalc(curln);
 
                     //todo reindex
+                    index_rebuild();
                 }  
                 bufferbase::meta(old_style);
             }
@@ -1671,69 +1677,73 @@ private:
                 }
                 if (count)
                 {
-                    //todo check_autogrow
                     auto blank = brush.spc(); //.bgc(greendk).bga(0x7f);
                     curln.splice<true>(start, count, blank);
 
-                    auto& mapln = index[coord.y];
-                    mapln.width = std::min(panel.x, curln.length() - mapln.start);
-
                     //batch->shrink(blank);
                     batch.recalc(curln);
+
+                    auto& mapln = index[coord.y];
+                    mapln.width = std::min(panel.x, curln.length() - mapln.start);
                 }
             }
             // scroll_buf: CSI n @  ICH. Insert n blanks after cursor. Existing chars after cursor shifts to the right. Don't change cursor pos.
             void ins(iota n) override
             {
                 bufferbase::flush();
-                //todo check_autogrow
-                auto& curln = batch.current();
-                auto  blank = brush.spc(); //.bgc(magentadk).bga(0x7f);
-                curln.insert(batch.caret, n, blank);
-                batch.recalc(curln);
-
-                //todo reindex
+                n = std::min(n, panel.x - coord.x);
+                if (n > 0)
+                {
+                    auto& curln = batch.current();
+                    auto  blank = brush.spc(); //.bgc(magentadk).bga(0x7f);
+                    curln.insert(batch.caret, n, blank, panel.x);
+                    batch.recalc(curln); // Line front is filled by blanks. No wrapping.
+                    auto& mapln = index[coord.y];
+                    mapln.width = std::min(panel.x, curln.length() - mapln.start);
+                }
             }
             // scroll_buf: CSI n X  Erase/put n chars after cursor. Don't change cursor pos.
             void ech(iota n) override
             {
                 parser::flush();
-                auto& curln = batch.current();
-                auto  blank = brush.spc(); //.bgc(magentadk).bga(0x7f);
-                curln.splice(batch.caret, n, blank);
-                batch.recalc(curln);
-
-                //todo reindex
+                n = std::min(n, panel.x - coord.x);
+                if (n > 0)
+                {
+                    auto& curln = batch.current();
+                    auto  blank = brush.spc(); //.bgc(magentadk).bga(0x7f);
+                    curln.splice(batch.caret, n, blank);
+                    batch.recalc(curln);
+                    auto& mapln = index[coord.y];
+                    mapln.width = std::min(panel.x, curln.length() - mapln.start);
+                }
             }
+            // Reserved for future use.
             // scroll_buf: Insert count blanks with scroll.
-            void ech_grow(iota n) override
-            {
-                parser::flush();
-                //todo check_autogrow
-                auto& curln = batch.current();
-                auto  blank = brush.spc(); //.bgc(magentadk).bga(0x7f);
-                //todo move cursor and auto scroll (same as data())
-                curln.splice<true>(batch.caret, n, blank);
-                batch.recalc(curln);
-
-                //todo reindex
-            }
-            // scroll_buf: CSI n P  Delete (not Erase) letters under the cursor.
+            //void ech_grow(iota n) override
+            //{
+            //    parser::flush();
+            //    auto& curln = batch.current();
+            //    auto  blank = brush.spc(); //.bgc(magentadk).bga(0x7f);
+            //    curln.splice<true>(batch.caret, n, blank);
+            //    batch.recalc(curln);
+            //    //todo check_autogrow
+            //    //todo move cursor and auto scroll (same as data())
+            //    //todo reindex
+            //}
+            // scroll_buf: CSI n P  Delete (not Erase) letters under the cursor. Line end is filled by blanks. Length is preserved. No wrapping.
             void dch(iota n) override
             {
                 bufferbase::flush();
                 auto& curln = batch.current();
                 auto  blank = brush.spc(); //.bgc(magentadk).bga(0x7f);
                 curln.cutoff(batch.caret, n, blank, panel.x);
-                batch.recalc(curln);
-
-                //todo reindex
             }
             // scroll_buf: Proceed new text (parser callback).
             void data(iota count, grid const& proto) override
             {
                 sync_coord();
                 assert(coord.y >= 0 && coord.y < panel.y);
+                assert(test_futures());
                 //auto t_coord = coord;
                 //auto t_basis = basis;
                 //auto t_count = count;
@@ -1742,12 +1752,9 @@ private:
                 //auto t_vsize = batch.vsize;
                 //auto t_index = index[coord.y].index;
 
-                auto test_vsize = 0; //sanity check
-                for (auto& l : batch) test_vsize += l.height(panel.x);
-                assert(test_vsize == batch.vsize);
-
-                iota stash;
-                assert((stash = batch.vsize - basis - index.size, stash >= 0));
+                //auto test_vsize = 0; //sanity check
+                //for (auto& l : batch) test_vsize += l.height(panel.x);
+                //assert(test_vsize == batch.vsize);
 
                 auto& curln = batch.current();
                 auto  start = batch.caret;
@@ -1829,8 +1836,7 @@ private:
                             basis  += coord.y - maxy;
                             coord.y = maxy;
 
-                            iota stash;
-                            assert((stash = batch.vsize - basis - index.size, stash >= 0));
+                            assert(test_futures());
                         }
 
                     } // case 3 done
@@ -2019,6 +2025,12 @@ private:
                 auto m = index.size - 1 - coord.y;
                 auto p = panel.y    - 1 - coord.y;
 
+                if (coord.x == 0 && batch.caret != 0) // Remove the index of the current line if the entire visible line is to be removed.
+                {
+                    ++m;
+                    ++p;
+                }
+
                 assert(n >= 0 && n < batch.size);
                 assert(m >= 0 && m < index.size);
 
@@ -2029,13 +2041,11 @@ private:
 
                 auto& curln = batch.current();
                 auto& mapln = index[coord.y];
-                auto  width = mapln.start + coord.x;
                 mapln.width = coord.x;
-                curln.trimto(width);
+                curln.trimto(batch.caret);
                 batch.recalc(curln);
 
-                iota stash;
-                assert((stash = batch.vsize - basis - index.size, stash >= 0));
+                assert(test_futures());
                 //print_index("del_below");
             }
             // scroll_buf: Clear all lines from the viewport top line to the current line.
@@ -2153,8 +2163,7 @@ private:
                         coord.y -= std::min(coord.y, add_count);
                     }
 
-                    iota stash;
-                    assert((stash = batch.vsize - basis - index.size, stash >= 0));
+                    assert(test_futures());
                 }
 
                 /*
