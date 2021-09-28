@@ -1209,7 +1209,8 @@ private:
                         auto& new_lens = lens[new_kind];
                         if (new_lens.size() <= new_size) new_lens.resize(new_size * 2 + 1);
 
-                        if (new_size < size) undock(kind, size);
+                        if (new_size <  size
+                         || new_kind != kind) undock(kind, size);
                         else
                         {
                             --lens[kind][size];
@@ -1255,6 +1256,10 @@ private:
                     //return static_cast<iota>(id - batch.front().index); // ring buffer size is never larger than max_int32.
                     auto count = length();
                     return static_cast<iota>(count - 1 - (back().index - id)); // ring buffer size is never larger than max_int32.
+                }
+                auto iter_by_id(ui32 id)
+                {
+                    return begin() + index_by_id(id);
                 }
                 auto& item_by_id(ui32 id)
                 {
@@ -1308,7 +1313,7 @@ private:
                     auto curln_index = index_by_id(l.index);
                     if (curln_index < taken_index)
                     {
-                        taken = l.index;
+                        taken       =     l.index;
                         taken_index = curln_index;
                     }
                     if (ring::size - taken_index > threshold)
@@ -1377,6 +1382,13 @@ private:
                 assert(stash >= 0);
                 return true;
             }
+            auto test_resize()
+            {
+                auto c = batch.caret;
+                sync_coord();
+                assert(c == batch.caret);
+                return true;
+            }
             //scroll_buf: Return viewport vertical oversize.
             iota resize_viewport(twod const& new_sz) override
             {
@@ -1429,18 +1441,12 @@ private:
                     }
                 }
                 coord.y = index.size - coord.y;
+
                 assert(basis >= 0);
-
                 assert(test_futures());
-
-                auto c = batch.caret;
-                sync_coord();
-                assert(c == batch.caret);
-
+                assert(test_resize());
                 assert(basis == 0 || index.size == panel.y);
 
-                //log(" viewport_offset=", basis, " new panel=", panel);
-                //print_index("full resize viewport");
                 return std::max(0, batch.vsize - (basis + panel.y));
             }
             // scroll_buf: Rebuild the next avail indexes from the known index (mapln).
@@ -1449,6 +1455,7 @@ private:
             {
                 auto& curln =*curit;
                 auto  width = curln.length();
+                auto  wraps = curln.wrapped();
                 auto  curid = curln.index;
                 auto  start = mapln.start + mapln.width;
 
@@ -1457,6 +1464,7 @@ private:
                 {
                     auto& curln = *++curit;
                     width = curln.length();
+                    wraps = curln.wrapped();
                     curid = curln.index;
                     start = 0;
                 }
@@ -1465,17 +1473,21 @@ private:
                 assert(start % panel.x == 0);
                 while (true)
                 {
-                    auto trail = width - panel.x;
-                    while (start < trail && avail-- > 0)
+                    if (wraps)
                     {
-                        mapfn(curid, start, panel.x);
-                        start += panel.x;
+                        auto trail = width - panel.x;
+                        while (start < trail && avail-- > 0)
+                        {
+                            mapfn(curid, start, panel.x);
+                            start += panel.x;
+                        }
                     }
                     if (avail-- <= 0) break;
                     mapfn(curid, start, width - start);
 
                     auto& curln = *++curit;
                     width = curln.length();
+                    wraps = curln.wrapped();
                     curid = curln.index;
                     start = 0;
                 }
@@ -1487,7 +1499,7 @@ private:
                 auto  avail = index.size - y_pos;
                 auto  mapit = index.begin() + y_pos;
                 auto& mapln =*mapit;
-                auto  curit = batch.begin() + batch.index_by_id(mapln.index);
+                auto  curit = batch.iter_by_id(mapln.index);
                 auto  mapfn = [&](auto curid, auto start, auto width)
                 {
                     ++mapit;
@@ -1528,8 +1540,6 @@ private:
                     }
                 }
                 assert(basis == 0 || index.size == panel.y);
-
-                //print_index("rebuild viewport");
             }
             // scroll_buf: Return scrollback height.
             iota height() override
@@ -1565,23 +1575,19 @@ private:
                 auto stash = batch.vsize - basis - index.size;
                 if (stash > 0)
                 {
-                    //log(" futures: stash=", stash, " query=", query);
-                    //print_index("1. futures");
-
                     auto avail = std::min(stash, query);
                     basis   += avail;
                     query   -= avail;
                     coord.y -= avail;
 
                     auto& mapln = index.back();
-                    auto  curit = batch.begin() + batch.index_by_id(mapln.index);
+                    auto  curit = batch.iter_by_id(mapln.index);
                     auto  mapfn = [&](auto curid, auto start, auto width)
                     {
                         index.push_back(curid, start, width);
                     };
                     reindex(avail, curit, mapln, mapfn);
                     assert(test_futures());
-                    //print_index("2. futures");
                 }
 
                 return query;
@@ -1617,22 +1623,18 @@ private:
                 auto style = batch->style;
                 coord.y = std::clamp(coord.y, 0, panel.y - 1);
 
-                if (index.size != panel.y)
-                if (auto add_count = coord.y - (index.size - 1);
-                         add_count > 0)
+                if (index.size != panel.y
+                 && index.size <= coord.y)
                 {
+                    auto add_count = coord.y - (index.size - 1);
                     add_lines(add_count);
                 }
-
                 auto& mapln = index[coord.y];
                 batch.index(batch.index_by_id(mapln.index));
                 batch.caret = mapln.start + coord.x;
-                if (mapln.start % panel.x != 0)
-                {
-                    print_index("sync");
-                    throw;
-                }
                 batch->style = style;
+
+                assert(mapln.start % panel.x == 0);
             }
 
             void cup (fifo& q) override { bufferbase::cup (q); sync_coord(); }
@@ -1665,21 +1667,20 @@ private:
                 {
                     auto& l = batch.invite(++newid, style);
                     index.push_back(l.index, 0, 0);
-                    assert(index.back().start == 0 && index.back().width == 0);
                 }
             }
             // scroll_buf: Proceed style update (parser callback).
             void meta(deco const& old_style) override
             {
-                dissect();
-                auto& curln = batch.current();
-                if (curln.style != parser::style)
+                if (batch->style != parser::style)
                 {
+                    dissect();
+                    auto& curln = batch.current();
+                    auto  wraps = curln.wrapped();
+                    auto  width = curln.length();
                     curln.style = parser::style;
                     batch.recalc(curln);
-
-                    //todo reindex
-                    index_rebuild();
+                    if (wraps != curln.wrapped()) resize_viewport(panel);
                 }  
                 bufferbase::meta(old_style);
             }
@@ -1719,7 +1720,7 @@ private:
                     auto blank = brush.spc(); //.bgc(greendk).bga(0x7f);
                     curln.splice<true>(start, count, blank);
 
-                    //batch->shrink(blank);
+                    //batch->shrink(blank); // It kills wrapped lines and as a result requires the viewport to be rebuilt.
                     batch.recalc(curln);
 
                     auto& mapln = index[coord.y];
@@ -2094,8 +2095,8 @@ private:
                 // The dirtiest and fastest solution. Just fill existing lines by blank cell.
                 auto& curln = batch.current();
                 auto& topln = index.front();
-                auto  curit = batch.begin() + batch.index_by_id(topln.index);
-                auto  endit = batch.begin() + batch.index_by_id(curln.index);
+                auto  curit = batch.iter_by_id(topln.index);
+                auto  endit = batch.iter_by_id(curln.index);
                 auto  start = topln.start;
                 auto  blank = brush.spc();
                 if (curit == endit)
@@ -2135,10 +2136,6 @@ private:
             {
                 assert(y_pos < index.size);
 
-                //log("disscet at y=", y_pos);
-                //print_batch("1. dissect");
-                //print_index("1. dissect");
-
                 auto& mapln = index[y_pos];
                 if (mapln.start == 0) return;
 
@@ -2168,15 +2165,11 @@ private:
                 mapln.index++;
                 mapln.start = 0;
                 mapln.width = std::min(panel.x, newln.length());
-                batch.index(caret);
-
-                //print_batch("2. dissect");
-                //print_index("2. dissect");
+                batch.caret = coord.x;
+                batch.index(caret + 1);
 
                 index_rebuild_from(y_pos);
 
-                //print_batch("3. dissect");
-                //print_index("3. dissect");
                 assert(test_futures());
             }
             // scroll_buf: Dissect auto-wrapped line at the current coord.
