@@ -2091,47 +2091,40 @@ private:
             // scroll_buf: Clear all lines from the viewport top line to the current line.
             void del_above() override
             {
-                // Clear all lines from the viewport top line to the current line.
-                dissect(0);
-                dissect(coord.y);
-                //move [coord.y, panel.y) to cache
-            //    auto back_index = batch.back().index;
-            //    auto block_size = back_index - index[coord.y].index + 1;
-            //    auto all_size = back_index - index[0].index + 1;
-            //    cache.reserve(block_size);
-            //    auto start = batch.end() - block_size;
-            //    netxs::move_block(start, batch.end(), cache.begin());
-            //    //pop upto index[0].index inclusive
-            //    pop_lines(all_size);
-            //    auto top_it = batch.end() - 1;
-            //    //push coord.y empty lines
-            //    //push cache.size lines
-            //    add_lines(coord.y + block_size);
-            //    //move back from cache [coord.y, panel.y)
-            //    netxs::move_block(cache.begin(), cache.end(), top_it + coord.y);
-            //    index_rebuild();
-                
+                // The dirtiest and fastest solution. Just fill existing lines by blank cell.
+                auto& curln = batch.current();
+                auto& topln = index.front();
+                auto  curit = batch.begin() + batch.index_by_id(topln.index);
+                auto  endit = batch.begin() + batch.index_by_id(curln.index);
+                auto  start = topln.start;
+                auto  blank = brush.spc();
+                if (curit == endit)
+                {
+                    auto width = std::min(curln.length(), batch.caret);
+                    curln.splice(start, width - start, blank);
+                }
+                else
+                {
+                    auto& curln =*curit;
+                    auto  width = curln.length();
+                    curln.splice(start, width - start, blank);
 
+                    while(++curit != endit) curit->core::wipe(blank);
 
-                //auto& topln = batch[get_line_index_by_id(index[0].index)];
-                //topln.trimto(index[0].start);
-
-                //auto begin = batch.begin();
-                //auto cur_index = batch.index();
-                ////auto top_index = get_line_index_by_id(batch[basis].bossid);
-                //auto under = begin + cur_index;
-                //auto top_index = std::max(0, cur_index - under->depth);
-                //auto upper = begin + top_index;
-                //auto count = (coord.y - basis) * panel.x + coord.x;
-                //auto start = (basis - top_index) * panel.x;
-                //do
-                //{
-                //    auto& lyric = *upper;
-                //    lyric.splice(start, count, brush.spare);
-                //    lyric.shrink(brush.spare);
-                //    start -= panel.x;
-                //}
-                //while (upper++ != under);
+                    if (coord.x > 0)
+                    {
+                        auto& curln =*curit;
+                        auto  max_x = std::min(curln.length(), batch.caret);
+                        if (max_x > 0)
+                        {
+                            auto max_w = curln.wrapped() ? (max_x - 1) % panel.x + 1
+                                                         :  max_x;
+                            auto width = std::min(max_w, coord.x);
+                            auto start = batch.caret - coord.x;
+                            curln.splice(start, width, blank);
+                        }
+                    }
+                }
             }
             void cut(iota n)
             {
