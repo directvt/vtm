@@ -460,7 +460,6 @@ private:
                 vt.csier.table[CSI_CCC][CCC_SBS] = VT_PROC{ p->owner.sbsize(q); };  // CCC_SBS: Set scrollback size.
                 vt.csier.table[CSI_CCC][CCC_EXT] = VT_PROC{ p->owner.native(q(1)); };          // CCC_EXT: Setup extended functionality.
                 vt.csier.table[CSI_CCC][CCC_RST] = VT_PROC{ p->style.glb(); p->style.wrp(WRAPPING); };  // fx_ccc_rst
-                vt.csier.table[CSI_CCC][CCC_CUT] = VT_PROC{ p->cut(q(0)); };  // fx_ccc_cut
 
                 vt.intro[ctrl::ESC][ESC_IND] = VT_PROC{ p->dn(1); };          // ESC D  Caret Down.
                 vt.intro[ctrl::ESC][ESC_IR ] = VT_PROC{ p->ri (); };          // ESC M  Reverse index.
@@ -523,7 +522,6 @@ private:
             virtual iota height()                                    = 0;
             virtual void del_above()                                 = 0;
             virtual void del_below()                                 = 0;
-            virtual void cut(iota n) { }
             virtual iota get_size() const                            = 0;
             virtual iota get_peak() const                            = 0;
             virtual iota get_step() const                            = 0;
@@ -1356,7 +1354,7 @@ private:
 
             void print_index(text msg)
             {
-                log(" ", msg, " index.size=", index.size);
+                log(" ", msg, " index.size=", index.size, " basis=", basis);
                 for (auto n = 0; auto l : index)
                 {
                     log("  ", n++,". id=", l.index," offset=", l.start, " width=", l.width);
@@ -1445,13 +1443,12 @@ private:
                 assert(basis >= 0);
                 assert(test_futures());
                 assert(test_resize());
-                assert(basis == 0 || index.size == panel.y);
 
                 return std::max(0, batch.vsize - (basis + panel.y));
             }
             // scroll_buf: Rebuild the next avail indexes from the known index (mapln).
-            template<class ITER, class INDEX_T, class P>
-            void reindex(iota avail, ITER curit, INDEX_T const& mapln, P mapfn)
+            template<class ITER, class INDEX_T>
+            void reindex(iota avail, ITER curit, INDEX_T const& mapln)
             {
                 auto& curln =*curit;
                 auto  width = curln.length();
@@ -1478,12 +1475,12 @@ private:
                         auto trail = width - panel.x;
                         while (start < trail && avail-- > 0)
                         {
-                            mapfn(curid, start, panel.x);
+                            index.push_back(curid, start, panel.x);
                             start += panel.x;
                         }
                     }
                     if (avail-- <= 0) break;
-                    mapfn(curid, start, width - start);
+                    index.push_back(curid, start, width - start);
 
                     auto& curln = *++curit;
                     width = curln.length();
@@ -1491,26 +1488,22 @@ private:
                     curid = curln.index;
                     start = 0;
                 }
+                assert(test_futures());
             }
             // scroll_buf: Rebuild index from the known index at y_pos.
             void index_rebuild_from(iota y_pos)
             {
                 assert(y_pos >= 0 && y_pos < index.size);
-                auto  avail = index.size - y_pos;
-                auto  mapit = index.begin() + y_pos;
+                auto  mapit = index.begin() + y_pos++;
                 auto& mapln =*mapit;
                 auto  curit = batch.iter_by_id(mapln.index);
-                auto  mapfn = [&](auto curid, auto start, auto width)
-                {
-                    ++mapit;
-                    auto& mapln =*mapit;
-                    mapln.index = curid;
-                    mapln.start = start;
-                    mapln.width = width;
-                };
-                reindex(avail, curit, mapln, mapfn);
+                auto  avail = std::min(batch.vsize - basis - y_pos, panel.y - y_pos);
+                auto  count = index.size - y_pos;
+                while (count-- > 0) index.pop_back();
+
+                reindex(avail, curit, mapln);
             }
-            // scroll_buf: .
+            // scroll_buf: Rebuild index up to basis.
             void index_rebuild()
             {
                 index.clear();
@@ -1539,7 +1532,7 @@ private:
                         --coor;
                     }
                 }
-                assert(basis == 0 || index.size == panel.y);
+                assert(test_futures());
             }
             // scroll_buf: Return scrollback height.
             iota height() override
@@ -1582,12 +1575,8 @@ private:
 
                     auto& mapln = index.back();
                     auto  curit = batch.iter_by_id(mapln.index);
-                    auto  mapfn = [&](auto curid, auto start, auto width)
-                    {
-                        index.push_back(curid, start, width);
-                    };
-                    reindex(avail, curit, mapln, mapfn);
-                    assert(test_futures());
+
+                    reindex(avail, curit, mapln);
                 }
 
                 return query;
@@ -1623,8 +1612,7 @@ private:
                 auto style = batch->style;
                 coord.y = std::clamp(coord.y, 0, panel.y - 1);
 
-                if (index.size != panel.y
-                 && index.size <= coord.y)
+                if (index.size <= coord.y)
                 {
                     auto add_count = coord.y - (index.size - 1);
                     add_lines(add_count);
@@ -1680,7 +1668,16 @@ private:
                     auto  width = curln.length();
                     curln.style = parser::style;
                     batch.recalc(curln);
-                    if (wraps != curln.wrapped()) resize_viewport(panel);
+
+                    if (wraps != curln.wrapped())
+                    {
+                        auto& mapln = index[coord.y];
+                        auto  width = curln.length();
+                        mapln.start = 0;
+                        mapln.width = curln.wrapped() ? std::min(panel.x, width)
+                                                      : width;
+                        index_rebuild_from(coord.y);
+                    }
                 }  
                 bufferbase::meta(old_style);
             }
@@ -1822,8 +1819,6 @@ private:
 
                     //todo scrolling regions
 
-                    assert(basis == 0 || index.size == panel.y);
-
                     auto required_lines = coord.y - (index.size - 1);
                     auto add_count = required_lines > 0 ? feed_futures(required_lines)
                                                         : 0;
@@ -1902,7 +1897,7 @@ private:
                             //log(" case 2:");
                             //print_index(" case 2. start");
                             auto& target = batch.item_by_id(mapln.index);
-                            //todo TIA target style (arighted and centered)
+                            //todo TIA target style (non-wrapped: arighted and centered)
                             auto  shadow = target.substr(mapln.start + coord.x);
                             curln.splice(curln.length(), shadow);
                             batch.recalc(curln);
@@ -2126,10 +2121,6 @@ private:
                         }
                     }
                 }
-            }
-            void cut(iota n)
-            {
-                dissect(n);
             }
             // scroll_buf: Dissect auto-wrapped lines at the specified row.
             void dissect(iota y_pos)
@@ -2521,7 +2512,7 @@ private:
             auto& console = *target;
             auto adjust_pads = console.recalc_pads(oversz);
             auto scroll_size = console.panel;
-            scroll_size.y = std::max(console.panel.y, console.height() - oversz.vsumm());
+            scroll_size.y += console.basis;
             //if (force_basis)
             {
                 origin.y = -console.basis;
@@ -2627,7 +2618,7 @@ private:
 
                             ptycon.resize(new_sz);
 
-                            new_sz.y = std::max(new_sz.y, console.height() - oversz.vsumm());
+                            new_sz.y = console.basis + new_sz.y;
                         };
 
                         ptycon.start(cmdarg, new_sz, [&](auto utf8_shadow) { ondata(utf8_shadow);  },
