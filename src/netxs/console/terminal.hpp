@@ -527,6 +527,11 @@ private:
             virtual iota get_step() const                            = 0;
                     auto get_view() const { return panel; }
 
+            // bufferbase: Get vertival oversize.
+    virtual iota get_oversize()
+            {
+                return 0;
+            }
             // bufferbase: Set the scrolling region using 1-based top and bottom. Use 0 to reset.
     virtual void set_scroll_region(iota top, iota bottom)
             {
@@ -686,8 +691,6 @@ private:
                 if (n > 0 && coord.y >= top
                           && coord.y <= end)
                 {
-                    //todo revise for scrollbuff
-                    //dissect();
                     auto old_top = sctop;
                     sctop = coord.y + 1;
                     scroll_region(-n, faux);
@@ -852,7 +855,7 @@ private:
                 panel = std::max(new_sz, dot_11);
                 coord = std::clamp(coord, dot_00, panel - dot_11);
                 canvas.crop(panel);
-                return 0;
+                return get_oversize();
             }
             // alt_screen: Return viewport height.
             iota height() override
@@ -1142,18 +1145,15 @@ private:
                 {
                     if (size > width && kind == type::autowrap) vsize -= (size + width - 1) / width;
                     else                                        vsize -= 1;
-                    //log("dec h=", vsize, " kind=", kind, " linesize=", size);
                 }
                 void add_height(type kind, iota size)
                 {
                     if (size > width && kind == type::autowrap) vsize += (size + width - 1) / width;
                     else                                        vsize += 1;
-                    //log("add h=", vsize, " kind=", kind, " linesize=", size);
                 }
                 // buff: Recalc the height for unlimited scrollback without using reflow.
                 void set_width(iota new_width)
                 {
-                    //log("set_width new_width=", new_width);
                     vsize = 0;
                     width = std::max(1, new_width);
                     for (auto kind : { type::leftside,
@@ -1172,7 +1172,6 @@ private:
                     auto tail = head + cur_lens.max + 1;
                     auto c = 0;
                     auto h = 1;
-                    //auto i = 0;
                     do
                     {
                         if (auto count = *head++) vsize += h * count;
@@ -1183,12 +1182,10 @@ private:
                         }
                     }
                     while (head != tail);
-                    //log(" set_width done ", " h=", vsize);
                 }
 
                 void invite(type& kind, iota& size, type new_kind, iota new_size)
                 {
-                    //log(" invite kind=", new_kind, " new_size=", new_size);
                     auto& new_lens = lens[new_kind];
                     if (new_lens.size() <= new_size) new_lens.resize(new_size * 2 + 1);
 
@@ -1251,7 +1248,6 @@ private:
                 auto index_by_id(ui32 id)
                 {
                     //No need to disturb distant objects, it may already be in the swap.
-                    //return static_cast<iota>(id - batch.front().index); // ring buffer size is never larger than max_int32.
                     auto count = length();
                     return static_cast<iota>(count - 1 - (back().index - id)); // ring buffer size is never larger than max_int32.
                 }
@@ -1387,6 +1383,10 @@ private:
                 assert(c == batch.caret);
                 return true;
             }
+            iota get_oversize() override
+            {
+                return std::max(0, batch.vsize - (basis + panel.y));
+            }
             //scroll_buf: Return viewport vertical oversize.
             iota resize_viewport(twod const& new_sz) override
             {
@@ -1444,7 +1444,7 @@ private:
                 assert(test_futures());
                 assert(test_resize());
 
-                return std::max(0, batch.vsize - (basis + panel.y));
+                return get_oversize();
             }
             // scroll_buf: Rebuild the next avail indexes from the known index (mapln).
             template<class ITER, class INDEX_T>
@@ -1609,20 +1609,27 @@ private:
             // scroll_buf: Map the current cursor position to the scrollback.
             void sync_coord()
             {
-                auto style = batch->style;
                 coord.y = std::clamp(coord.y, 0, panel.y - 1);
+
+                auto& curln = batch.current();
+                auto  style = curln.style;
+                auto  curid = curln.index;
 
                 if (index.size <= coord.y)
                 {
                     auto add_count = coord.y - (index.size - 1);
                     add_lines(add_count);
                 }
-                auto& mapln = index[coord.y];
-                batch.index(batch.index_by_id(mapln.index));
-                batch.caret = mapln.start + coord.x;
-                batch->style = style;
 
-                assert(mapln.start % panel.x == 0);
+                auto& mapln = index[coord.y];
+                batch.caret = mapln.start + coord.x;
+
+                if (curid != mapln.index)
+                {
+                    auto newix = batch.index_by_id(mapln.index);
+                    batch.index(newix);
+                    if (batch->style != style) set_style(style);
+                }
             }
 
             void cup (fifo& q) override { bufferbase::cup (q); sync_coord(); }
@@ -1657,19 +1664,53 @@ private:
                     index.push_back(l.index, 0, 0);
                 }
             }
-            // scroll_buf: Proceed style update (parser callback).
-            void meta(deco const& old_style) override
-            {
-                if (batch->style != parser::style)
-                {
-                    dissect();
-                    auto& curln = batch.current();
-                    auto  wraps = curln.wrapped();
-                    auto  width = curln.length();
-                    curln.style = parser::style;
-                    batch.recalc(curln);
 
-                    if (wraps != curln.wrapped())
+            void set_style(deco const& new_style)
+            {
+                auto& curln = batch.current();
+                auto  wraps = curln.wrapped();
+                auto  width = curln.length();
+                curln.style = new_style;
+                batch.recalc(curln);
+
+                if (wraps != curln.wrapped())
+                {
+                    auto saved = coord.y;
+                    if (batch.caret >= panel.x)
+                    {
+                        if (wraps)
+                        {
+                            coord.x  =  batch.caret;
+                            coord.y -= (batch.caret - 1) / panel.x + 1;
+                            if (coord.y < 0)
+                            {
+                                basis -= std::abs(coord.y);
+                                coord.y = 0;
+                            }
+                        }
+                        else
+                        {
+                            if (batch.caret == width)
+                            {
+                                coord.x  = (batch.caret - 1) % panel.x + 1;
+                                coord.y += (batch.caret - 1) / panel.x;
+                            }
+                            else
+                            {
+                                coord.x  = batch.caret % panel.x;
+                                coord.y += batch.caret / panel.x;
+                            }
+                            if (coord.y >= panel.y)
+                            {
+                                auto limit = panel.y - 1;
+                                auto delta = coord.y - limit;
+                                basis  += delta;
+                                coord.y = limit;
+                            }
+                        }
+                        index_rebuild();
+                    }
+                    else
                     {
                         auto& mapln = index[coord.y];
                         auto  width = curln.length();
@@ -1678,7 +1719,15 @@ private:
                                                       : width;
                         index_rebuild_from(coord.y);
                     }
-                }  
+                }
+            }
+            // scroll_buf: Proceed style update (parser callback).
+            void meta(deco const& old_style) override
+            {
+                if (batch->style != parser::style)
+                {
+                    set_style(parser::style);
+                }
                 bufferbase::meta(old_style);
             }
             // scroll_buf: CSI n K  Erase line (don't move cursor).
@@ -1858,28 +1907,23 @@ private:
                         auto& mapln = index[coord.y];
                         if (curid == mapln.index) // case 1 - plain: cursor is inside the current paragraph.
                         {
-                            //log(" case 1:");
-                            //log("  case 1: old width=", mapln.width, " curln.length()=", curln.length(), " count=", count, " panel=", panel, " batch.back().index=", batch.back().index);
-                            //log("  case 1: new width=", mapln.width, " coord.x=", coord.x, " mapln.index=", mapln.index, " old_coord=", t_coord, " new_coord=", coord);
-                            //log("  case 1: old_batch.caret=", t_caret, " batch.caret=", batch.caret, " required_lines=", required_lines, " add_count=", add_count);
                             if (coord.x > mapln.width)
                             {
                                 mapln.width = coord.x;
                                 batch.recalc(curln);
                             }
                             else assert(curln._size == curln.length());
-                            //print_index("case 1. done");
+
+                            assert(test_futures());
                         } // case 1 done.
                         else // case 2 - fusion: cursor overlaps lines below but stays inside the viewport.
                         {
-                            //log(" case 2:");
-                            //print_index(" case 2. start");
+                            assert(mapln.index > curid);
                             auto& target = batch.item_by_id(mapln.index);
-                            //todo TIA target style (non-wrapped: arighted and centered)
-                            auto  shadow = target.substr(mapln.start + coord.x);
+                            auto  shadow = target.wrapped() ? target.substr(mapln.start + coord.x)
+                                                            : target.substr(mapln.start + coord.x, mapln.width - coord.x);
                             curln.splice(curln.length(), shadow);
                             batch.recalc(curln);
-                            assert(mapln.index > curid);
                             auto width = curln.length();
                             auto spoil = mapln.index - curid;
                             // Reindex batch.
@@ -1896,12 +1940,8 @@ private:
                                 }
                                 batch.index(caret);
                             }
-
-                            //todo TIA non wrapped lines
-
                             // Update index.
                             {
-                                //log(" case 2: old=", (old - basis), " coord.y=", coord.y);
                                 saved -= basis;
                                 auto indit = index.begin() + saved;
                                 auto endit = index.end();
@@ -1915,7 +1955,6 @@ private:
                                     i.width = panel.x;
                                     start  += panel.x;
                                     ++indit;
-                                    //log(" case 2 1. i.index=", i.index, " i.start=", i.start, " i.width=", i.width);
                                 }
                                 if (indit != endit)
                                 {
@@ -1924,21 +1963,18 @@ private:
                                     i.start = start;
                                     i.width = width - start;
                                     ++indit;
-                                    //log(" case 2 2. i.index=", i.index, " i.start=", i.start, " i.width=", i.width);
                                     while (indit != endit) // Update the rest.
                                     {
                                         auto& i = *indit;
-                                        //log(" case 2 3.0 i.index=", i.index, " i.start=", i.start, " i.width=", i.width);
                                         i.index -= spoil;
                                         ++indit;
-                                        //log(" case 2 3.1 i.index=", i.index, " i.start=", i.start, " i.width=", i.width);
                                     }
                                 }
                             }
-                            //print_index("case 2. done");
+
+                            assert(test_futures());
                         } // case 2 done.
                     }
-                    assert(curln._size == curln.length());
                 }
                 assert(coord.y >= 0 && coord.y < panel.y);
                 //log(" bufferbase size in cells = ", batch.get_size_in_cells());
@@ -1948,7 +1984,7 @@ private:
             {
                 saved = dot_00;
                 coord = dot_00;
-                batch.clear(); //todo optimize
+                batch.clear();
                 batch.invite(0); // At least one line must exist.
                 batch.set_width(panel.x);
                 basis = 0;
@@ -2141,11 +2177,6 @@ private:
                 index_rebuild_from(y_pos);
 
                 assert(test_futures());
-            }
-            // scroll_buf: Dissect auto-wrapped line at the current coord.
-            void dissect()
-            {
-                dissect(coord.y);
             }
             // scroll_buf: Zeroize block of lines.
             template<class SRC>
@@ -2492,6 +2523,7 @@ private:
             auto adjust_pads = console.recalc_pads(oversz);
             auto scroll_size = console.panel;
             scroll_size.y += console.basis;
+            oversz.b = console.get_oversize();
             //if (force_basis)
             {
                 origin.y = -console.basis;
