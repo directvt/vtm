@@ -1778,20 +1778,8 @@ private:
             // scroll_buf: Proceed new text (parser callback).
             void data(iota count, grid const& proto) override
             {
-                sync_coord();
                 assert(coord.y >= 0 && coord.y < panel.y);
                 assert(test_futures());
-                //auto t_coord = coord;
-                //auto t_basis = basis;
-                //auto t_count = count;
-                //auto t_caret = batch.caret;
-                //auto t_isize = index.size;
-                //auto t_vsize = batch.vsize;
-                //auto t_index = index[coord.y].index;
-
-                //auto test_vsize = 0; //sanity check
-                //for (auto& l : batch) test_vsize += l.height(panel.x);
-                //assert(test_vsize == batch.vsize);
 
                 auto& curln = batch.current();
                 auto  start = batch.caret;
@@ -1799,13 +1787,11 @@ private:
                 coord.x     += count;
                 if (batch.caret <= panel.x || ! curln.wrapped()) // case 0.
                 {
-                    //log("  case 0: batch.caret=", batch.caret);
                     curln.splice(start, count, proto);
                     auto& mapln = index[coord.y];
                     assert(coord.x == batch.caret && mapln.index == curln.index);
                     if (coord.x > mapln.width)
                     {
-                        //log("  case 0: old width=", mapln.width, " new width=", coord.x);
                         mapln.width = coord.x;
                         batch.recalc(curln);
                     }
@@ -1813,67 +1799,59 @@ private:
                 } // case 0 - done.
                 else
                 {
-                    auto old =  coord.y + basis;
+                    auto max_y = panel.y - 1;
+                    auto saved = coord.y + basis;
                     coord.y += (coord.x + panel.x - 1) / panel.x - 1;
                     coord.x  = (coord.x           - 1) % panel.x + 1;
 
                     //todo scrolling regions
 
-                    auto required_lines = coord.y - (index.size - 1);
-                    auto add_count = required_lines > 0 ? feed_futures(required_lines)
-                                                        : 0;
+                    auto query = coord.y - (index.size - 1);
+                    auto addln = query > 0 ? feed_futures(query)
+                                           : 0;
                     curln.splice(start, count, proto);
                     auto curid = curln.index;
-                    if (add_count > 0) // case 3 - complex: Cursor is outside the viewport. 
-                    {                  // cursor overlaps some lines below and placed below the viewport.
-                        //log(" case 3:");
-                        //print_index("case 3.");
-
+                    if (addln > 0) // case 3 - complex: Cursor is outside the viewport. 
+                    {              // cursor overlaps some lines below and placed below the viewport.
                         batch.recalc(curln);
-                        auto width = curln.length();
-                        // pop_back from batch all lines from (curln, batch.end].
-                        if (auto pop_count = static_cast<iota>(batch.back().index - curid))
+                        if (auto count = static_cast<iota>(batch.back().index - curid))
                         {
-                            //log("  case 3 batch pop_count=", pop_count);
-                            assert(pop_count > 0);
-                            while (pop_count-- > 0) batch.pop_back();
+                            assert(count > 0);
+                            while (count-- > 0) batch.pop_back();
                         }
 
-                        // Update index.
-                        if (auto pop_count = std::min(index.size - 1, index.size - 1 - (old - basis))) // -1: Exclude current.
+                        auto width = curln.length();
+                        auto trail = width - panel.x;
+
+                        saved -= basis;
+                        if (saved > 0)
                         {
-                            //log("  case 3 index pop_count=", pop_count);
-                            assert(pop_count > 0);
-                            while (pop_count-- > 0) index.pop_back();
+                            auto count = index.size - saved - 1;
+                            while (count-- > 0) index.pop_back();
+                            auto& mapln = index.back();
+                            mapln.width = panel.x;
+                            start = mapln.start + panel.x;
                         }
-                        auto& mapln = index.back();
-                        assert(mapln.index == curid);
-                        auto  start = mapln.start;
-                        //log("  case 3 old width=", mapln.width, " new width=", panel.x);
-                        mapln.width = panel.x;
-                        auto  trail = width - panel.x;
-                        //log(" case 3 1. curid=", curid, " start=", start, " width=", panel.x);
-                        start += panel.x;
-                        while (start < trail) // Update for current line.
+                        else // saved has scrolled out.
+                        {
+                            index.clear();
+                            start = std::abs(saved) * panel.x;
+                        }
+
+                        while (start < trail)
                         {
                             index.push_back(curid, start, panel.x);
                             start += panel.x;
-                            //log(" case 3 2. curid=", curid, " start=", start, " width=", panel.x);
                         }
-                        assert(width > start);
                         index.push_back(curid, start, width - start);
-                        //log(" case 3 3. curid=", curid, " start=", start, " width=", width - start);
-                        //print_index("case 3. done");
-
-                        auto maxy = panel.y - 1;
-                        if (coord.y > maxy)
+                        
+                        if (coord.y > max_y)
                         {
-                            basis  += coord.y - maxy;
-                            coord.y = maxy;
-
-                            assert(test_futures());
+                            basis  += coord.y - max_y;
+                            coord.y = max_y;
                         }
 
+                        assert(test_futures());
                     } // case 3 done
                     else
                     {
@@ -1924,7 +1902,8 @@ private:
                             // Update index.
                             {
                                 //log(" case 2: old=", (old - basis), " coord.y=", coord.y);
-                                auto indit = index.begin() + (old - basis);
+                                saved -= basis;
+                                auto indit = index.begin() + saved;
                                 auto endit = index.end();
                                 auto start = indit->start;
                                 auto trail = width - panel.x;
