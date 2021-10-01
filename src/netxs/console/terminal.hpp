@@ -497,8 +497,8 @@ private:
             twod  panel; // bufferbase: Viewport size.
             twod  coord; // bufferbase: Viewport cursor position; 0-based.
             twod  saved; // bufferbase: Saved cursor position.
-            iota  sctop; // bufferbase: Scrolling region top;    1-based, "0" to use top of viewport.
-            iota  scend; // bufferbase: Scrolling region bottom; 1-based, "0" to use bottom of viewport.
+            iota  sctop; // bufferbase: Scrolling region top.    0-based, relative to top.
+            iota  scend; // bufferbase: Scrolling region bottom. 0-based, relative to bottom.
             iota  basis; // bufferbase: Viewport basis. Index of O(0, 0) in the scrollback.
             iota  tabsz; // bufferbase: Tabstop current value.
 
@@ -516,7 +516,7 @@ private:
             }
 
             virtual void output(face& canvas)                        = 0;
-            virtual void scroll_region(iota n, bool use_scrollback)  = 0;
+            virtual void scroll_region(iota top, iota end, iota n, bool use_scrollback)  = 0;
             virtual iota resize_viewport(twod const& new_sz)         = 0;
             virtual bool recalc_pads(side& oversz)                   = 0;
             virtual iota height()                                    = 0;
@@ -535,21 +535,16 @@ private:
             // bufferbase: Set the scrolling region using 1-based top and bottom. Use 0 to reset.
     virtual void set_scroll_region(iota top, iota bottom)
             {
-                sctop = top;
-                scend = bottom;
-            }
-            // bufferbase: Return true if the scrolling region is set.
-            auto scroll_region_used()
-            {
-                return scend || sctop;
+                sctop = std::max(0, top - 1);
+                scend = bottom != 0 ? std::max(0, panel.y - bottom)
+                                    : 0;
             }
             // bufferbase: Return 0-based scroll region pair, inclusive.
             auto get_scroll_region()
             {
-                auto top = sctop ? sctop - 1 : 0;
-                auto end = scend ? scend - 1 : panel.y - 1;
-                end = std::clamp(end, 0, panel.y - 1);
-                top = std::clamp(top, 0, end);
+                auto max = panel.y - 1;
+                auto end = std::clamp(max - scend, 0, max);
+                auto top = std::clamp(sctop, 0, end);
                 return std::pair{ top, end };
             }
     virtual void set_coord(twod const& new_coord)
@@ -660,7 +655,8 @@ private:
     virtual void scl(iota n)
             {
                 parser::flush();
-                scroll_region(n, n > 0 ? faux : true);
+                auto[top, end] = get_scroll_region();
+                scroll_region(top, end, n, n > 0 ? faux : true);
             }
             // bufferbase: CSI n L  Insert n lines. Place cursor to the begining of the current.
     virtual void il(iota n)
@@ -673,10 +669,7 @@ private:
                 if (n > 0 && coord.y >= top
                           && coord.y <= end)
                 {
-                    auto old_top = sctop;
-                    sctop = coord.y + 1;
-                    scroll_region(n, faux);
-                    sctop = old_top;
+                    scroll_region(coord.y, end, n, faux);
                     coord.x = 0;
                 }
             }
@@ -691,10 +684,7 @@ private:
                 if (n > 0 && coord.y >= top
                           && coord.y <= end)
                 {
-                    auto old_top = sctop;
-                    sctop = coord.y + 1;
-                    scroll_region(-n, faux);
-                    sctop = old_top;
+                    scroll_region(coord.y, end, -n, faux);
                 }
             }
             // bufferbase: ESC M  Reverse index.
@@ -711,7 +701,7 @@ private:
                 {
                     coord.y--;
                 }
-                else scroll_region(1, true);
+                else scroll_region(top, end, 1, true);
             }
             // bufferbase: CSI t;b r - Set scrolling region (t/b: top+bottom).
             void scr(fifo& queue)
@@ -725,6 +715,7 @@ private:
             // bufferbase: Shift left n columns(s).
             void shl(iota n)
             {
+                log("bufferbase: SHL(n=", n, ") is not implemented.");
             }
             // bufferbase: CSI n X  Erase/put n chars after cursor. Don't change cursor pos.
     virtual void ech(iota n) = 0;
@@ -784,7 +775,7 @@ private:
                      && coord.y <= end)
                 {
                     auto n = end - new_coord_y;
-                    scroll_region(n, true);
+                    scroll_region(top, end, n, true);
                     coord.y = end;
                 }
                 else
@@ -1030,9 +1021,8 @@ private:
                 while (head != tail) *head++ = brush.spare;
             }
             // alt_screen: Shift by n the scroll region.
-            void scroll_region(iota n, bool use_scrollback = faux) override
+            void scroll_region(iota top, iota end, iota n, bool use_scrollback = faux) override
             {
-                auto[top, end] = get_scroll_region();
                 canvas.scroll(top, end + 1, n, brush.spare);
             }
         };
@@ -1113,8 +1103,7 @@ private:
                 { }
             };
 
-            using vect = std::vector<line>;
-            using ring = generics::ring<vect, true>;
+            using ring = generics::ring<std::vector<line>, true>;
             using indx = generics::ring<std::vector<index_item>>;
 
             struct buff : public ring
@@ -1329,9 +1318,10 @@ private:
 
             buff batch; // scroll_buf: Rods inner container.
             flow maker; // scroll_buf: . deprecated
-            vect cache; // scroll_buf: Temporary line container.
             indx index; // scroll_buf: Viewport line index.
             iota vsize; // scroll_buf: Scrollback vertical size (height).
+            rich sctop_panel;
+            rich scend_panel;
 
             scroll_buf(term& boss, iota buffer_size, iota grow_step)
                 : bufferbase{ boss                     },
@@ -1650,7 +1640,10 @@ private:
             void set_scroll_region(iota top, iota bottom) override
             {
                 bufferbase::set_scroll_region(top, bottom);
-                cache.resize(std::max(0, top - 1));
+                auto top_area = twod{ panel.x, sctop };
+                auto btm_area = twod{ panel.x, scend };
+                sctop_panel.crop(top_area);
+                scend_panel.crop(btm_area);
             }
             // scroll_buf: Push lines to the scrollback bottom.
             void add_lines(iota amount)
@@ -1830,6 +1823,9 @@ private:
                 assert(coord.y >= 0 && coord.y < panel.y);
                 assert(test_futures());
 
+                auto[top, end] = get_scroll_region();
+                //if (top != 0 || end != max_y)
+
                 auto& curln = batch.current();
                 auto  start = batch.caret;
                 batch.caret += count;
@@ -1853,11 +1849,9 @@ private:
                     coord.y += (coord.x + panel.x - 1) / panel.x - 1;
                     coord.x  = (coord.x           - 1) % panel.x + 1;
 
-                    //todo scrolling regions
-
                     auto query = coord.y - (index.size - 1);
                     auto addln = query > 0 ? feed_futures(query)
-                                           : 0;
+                                            : 0;
                     curln.splice(start, count, proto);
                     auto curid = curln.index;
                     if (addln > 0) // case 3 - complex: Cursor is outside the viewport. 
@@ -2125,12 +2119,12 @@ private:
                     if (coord.x > 0)
                     {
                         auto& curln =*curit;
-                        auto  max_x = std::min(curln.length(), batch.caret);
+                        auto  max_x = std::min<iota>(curln.length(), batch.caret);
                         if (max_x > 0)
                         {
                             auto max_w = curln.wrapped() ? (max_x - 1) % panel.x + 1
                                                          :  max_x;
-                            auto width = std::min(max_w, coord.x);
+                            auto width = std::min<iota>(max_w, coord.x);
                             auto start = batch.caret - coord.x;
                             curln.splice(start, width, blank);
                         }
@@ -2170,7 +2164,7 @@ private:
 
                 mapln.index++;
                 mapln.start = 0;
-                mapln.width = std::min(panel.x, newln.length());
+                mapln.width = std::min<iota>(panel.x, newln.length());
                 batch.caret = coord.x;
                 batch.index(caret + 1);
 
@@ -2193,12 +2187,11 @@ private:
                 }
             }
             // scroll_buf: Shift by n the scroll region.
-            void scroll_region(iota n, bool use_scrollback) override
+            void scroll_region(iota top, iota end, iota n, bool use_scrollback) override
             {
                 //todo don't dissect if top==0 on moving text block up, see dn(iota n).
 
                 //temp solution
-                auto[top, end] = get_scroll_region();
                 if (n < 0 && top ==0 && end == panel.y - 1)
                 {
                     auto required_lines = -n;
@@ -2213,6 +2206,10 @@ private:
                     }
 
                     assert(test_futures());
+                }
+                else
+                {
+
                 }
 
                 /*
