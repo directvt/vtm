@@ -497,8 +497,8 @@ private:
             twod  panel; // bufferbase: Viewport size.
             twod  coord; // bufferbase: Viewport cursor position; 0-based.
             twod  saved; // bufferbase: Saved cursor position.
-            iota  sctop; // bufferbase: Scrolling region top.    0-based, relative to top.
-            iota  scend; // bufferbase: Scrolling region bottom. 0-based, relative to bottom.
+            iota  sctop; // bufferbase: Scrolling region top.    Top    static region height.
+            iota  scend; // bufferbase: Scrolling region bottom. Bottom static region height.
             iota  basis; // bufferbase: Viewport basis. Index of O(0, 0) in the scrollback.
             iota  tabsz; // bufferbase: Tabstop current value.
 
@@ -1644,6 +1644,22 @@ private:
                 auto btm_area = twod{ panel.x, scend };
                 sctop_panel.crop(top_area);
                 scend_panel.crop(btm_area);
+                if (sctop)
+                {
+                    //dissect(0);
+                    dissect(sctop);
+                    // Fill panel and wipe scroll.
+                    // ...
+
+                }
+                if (scend)
+                {
+                    dissect(panel.y - scend);
+                    dissect(panel.y);
+                    // Fill panel and wipe scroll.
+                    // ...
+
+                }
             }
             // scroll_buf: Push lines to the scrollback bottom.
             void add_lines(iota amount)
@@ -1809,6 +1825,7 @@ private:
             //    //todo move cursor and auto scroll (same as data())
             //    //todo reindex
             //}
+
             // scroll_buf: CSI n P  Delete (not Erase) letters under the cursor. Line end is filled by blanks. Length is preserved. No wrapping.
             void dch(iota n) override
             {
@@ -2065,6 +2082,8 @@ private:
             // scroll_buf: Remove all lines below (including futures) except the current. "ED2 Erase viewport" keeps empty lines.
             void del_below() override
             {
+                //todo TIA scrolling region
+
                 auto n = batch.size - 1 - batch.index();
                 auto m = index.size - 1 - coord.y;
                 auto p = panel.y    - 1 - coord.y;
@@ -2096,6 +2115,8 @@ private:
             // scroll_buf: Clear all lines from the viewport top line to the current line.
             void del_above() override
             {
+                //todo TIA scrolling region
+
                 // The dirtiest and fastest solution. Just fill existing lines by blank cell.
                 auto& curln = batch.current();
                 auto& topln = index.front();
@@ -2134,42 +2155,61 @@ private:
             // scroll_buf: Dissect auto-wrapped lines at the specified row.
             void dissect(iota y_pos)
             {
-                assert(y_pos < index.size);
+                log(" dissect y_pos=", y_pos);
+                assert(y_pos >= 0);
 
-                auto& mapln = index[y_pos];
-                if (mapln.start == 0) return;
-
-                auto caret = batch.index();
-                batch.index(batch.index_by_id(mapln.index));
-
-                auto tmpln = std::move(batch.current());
-                batch.insert(tmpln.index, tmpln.style);
-                auto curit = batch.current_it();
-                auto  head = curit;
-                auto  tail = batch.end();
-                do ++(head++->index);
-                while (head != tail);
-
-                auto& newln = *curit;
-                newln.splice(0, tmpln.substr(mapln.start));
-                batch.undock(tmpln);
-                batch.invite(newln);
-                if (curit != batch.begin())
+                auto split = [&](id_t curid, iota start)
                 {
-                    auto& curln = *--curit;
-                    curln = std::move(tmpln);
-                    curln.trimto(mapln.start);
-                    batch.invite(curln);
+                    auto after = batch.index_by_id(curid);
+                    auto tmpln = std::move(batch[after]);
+                    auto curit = batch.insert(after, tmpln.index, tmpln.style);
+                    auto endit = batch.end();
+
+                    auto& newln = *curit;
+                    newln.splice(0, tmpln.substr(start));
+                    batch.undock(tmpln);
+                    batch.invite(newln);
+
+                    if (curit != batch.begin())
+                    {
+                        auto& curln = *(curit - 1);
+                        curln = std::move(tmpln);
+                        curln.trimto(start);
+                        batch.invite(curln);
+                    }
+
+                    do  ++(curit++->index);
+                    while (curit != endit);
+                };
+
+                if (y_pos < index.size)
+                {
+                    auto& mapln = index[y_pos];
+                    auto  start = mapln.start;
+                    auto  curid = mapln.index;
+                    if (start == 0) return;
+
+                    split(curid, start);
+                    mapln.index++;
+                    mapln.start = 0;
+                    index_rebuild_from(y_pos);
+
+                    sync_coord();
+                }
+                else
+                {
+                    auto stash = batch.vsize - basis - index.size;
+                    if (stash == 0) return;
+
+                    auto curid = 0;
+                    auto start = 0;
+                    if (start == 0) return;
+
+                    split(curid, start);
                 }
 
-                mapln.index++;
-                mapln.start = 0;
-                mapln.width = std::min<iota>(panel.x, newln.length());
-                batch.caret = coord.x;
-                batch.index(caret + 1);
-
-                index_rebuild_from(y_pos);
-
+                print_batch("dissect");
+                print_index("dissect");
                 assert(test_futures());
             }
             // scroll_buf: Zeroize block of lines.

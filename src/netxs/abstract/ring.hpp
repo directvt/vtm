@@ -6,6 +6,8 @@
 
 #include "../math/intmath.hpp"
 
+#include <cassert>
+
 namespace netxs::generics
 {
     template<class vect, bool USE_UNDOCK = faux>
@@ -131,9 +133,11 @@ namespace netxs::generics
         void pop_back () { undock_back();  --size; }
         void pop_front() { undock_front(); --size; }
         template<class ...Args>
-        auto& insert(Args&&... args)
+        auto insert(iota at, Args&&... args) // Pop front always if ring is full.
         {
-            auto d = dst(head, cart) + 1;
+            assert(at >= 0 && at < size);
+
+            auto d = at + 1;
             if (size >> 1 > d)
             {
                 auto it_1 = begin();
@@ -154,7 +158,7 @@ namespace netxs::generics
                 }
                 swap_block<true>(it_1, it_2, begin());
                 --it_2;
-                cart = it_2.addr;
+                return it_2;
             }
             else
             {
@@ -175,9 +179,8 @@ namespace netxs::generics
                 back() = type(std::forward<Args>(args)...);
                 swap_block<faux>(it_1, it_2, end() - 1);
                 ++it_2;
-                cart = it_2.addr;
+                return it_2;
             }
-            return buff[cart];
         }
         void remove(iota n)
         {
