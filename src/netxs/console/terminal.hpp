@@ -532,9 +532,10 @@ private:
             {
                 return 0;
             }
-            // bufferbase: Set the scrolling region using 1-based top and bottom. Use 0 to reset.
+            // bufferbase: Reset coord and set the scrolling region using 1-based top and bottom. Use 0 to reset.
     virtual void set_scroll_region(iota top, iota bottom)
             {
+                coord = dot_00;
                 sctop = std::max(0, top - 1);
                 scend = bottom != 0 ? std::max(0, panel.y - bottom)
                                     : 0;
@@ -1088,6 +1089,12 @@ private:
                                                    : 1;
                 }
                 auto wrapped() { return _kind == type::autowrap; }
+                auto to_txt() // for debug
+                {
+                    utf::text utf8;
+                    each([&](cell& c){ utf8 += c.txt(); });
+                    return utf8;
+                }
             };
             struct index_item
             {
@@ -1320,8 +1327,8 @@ private:
             flow maker; // scroll_buf: . deprecated
             indx index; // scroll_buf: Viewport line index.
             iota vsize; // scroll_buf: Scrollback vertical size (height).
-            rich sctop_panel;
-            rich scend_panel;
+            face sctop_panel;
+            face scend_panel;
 
             scroll_buf(term& boss, iota buffer_size, iota grow_step)
                 : bufferbase{ boss                     },
@@ -1380,6 +1387,8 @@ private:
             //scroll_buf: Return viewport vertical oversize.
             iota resize_viewport(twod const& new_sz) override
             {
+                //todo TIA scroll region
+
                 panel = new_sz;
                 batch.set_width(panel.x);
                 index.clear();
@@ -1440,6 +1449,8 @@ private:
             template<class ITER, class INDEX_T>
             void reindex(iota avail, ITER curit, INDEX_T const& mapln)
             {
+                //todo TIA scroll region
+
                 auto& curln =*curit;
                 auto  width = curln.length();
                 auto  wraps = curln.wrapped();
@@ -1483,6 +1494,8 @@ private:
             // scroll_buf: Rebuild index from the known index at y_pos.
             void index_rebuild_from(iota y_pos)
             {
+                //todo TIA scroll region
+
                 assert(y_pos >= 0 && y_pos < index.size);
                 auto  mapit = index.begin() + y_pos++;
                 auto& mapln =*mapit;
@@ -1496,6 +1509,8 @@ private:
             // scroll_buf: Rebuild index up to basis.
             void index_rebuild()
             {
+                //todo TIA scroll region
+
                 index.clear();
                 auto coor = batch.vsize;
                 auto head = batch.end();
@@ -1639,27 +1654,83 @@ private:
             // scroll_buf: Set the scrolling region using 1-based top and bottom. Use 0 to reset.
             void set_scroll_region(iota top, iota bottom) override
             {
+                auto old_sctop = sctop;
+                auto old_scend = scend;
+
                 bufferbase::set_scroll_region(top, bottom);
-                auto top_area = twod{ panel.x, sctop };
-                auto btm_area = twod{ panel.x, scend };
-                sctop_panel.crop(top_area);
-                scend_panel.crop(btm_area);
-                if (sctop)
+                log(" top=", top, " bottom=", bottom, " panel=", panel);
+                log(" old_sctop=", old_sctop, " old_scend=", old_scend);
+                log(" sctop=", sctop, " scend=", scend);
+                auto top_size = twod{ panel.x, sctop };
+                auto btm_size = twod{ panel.x, scend };
+
+                auto delta_top = sctop - old_sctop;
+                auto delta_end = scend - old_scend;
+
+                auto print = [&](face& canvas, twod coor, auto head, auto tail)
                 {
-                    dissect(0);
-                    dissect(sctop);
-                    // Fill panel and wipe scroll.
+                    assert(head != tail);
+                    maker.reset(canvas);
+                    maker.ac(coor);
+                    do
+                    {
+                        auto& curln = *head;
+                        maker.go(curln, canvas);
+                        log(" curln.id=", curln.index, " text=", curln.to_txt());
+                        maker.nl(1);
+                    }
+                    while (++head != tail);
+                };
+
+                auto fill = [&](face& canvas, iota begin, iota limit)
+                {
+                    dissect(begin);
+                    dissect(limit);
+                    auto from = index[begin    ].index;
+                    auto upto = index[limit - 1].index + 1;
+                    auto head = batch.iter_by_id(from);
+                    auto tail = head + (upto - from);
+                    auto view = rect{{ 0, begin }, { panel.x, limit }};
+                    auto coor = dot_00;
+                    auto full = canvas.area();
+                    canvas.full(full);
+                    canvas.view(view);
+                    coor.y += begin;
+                    log(" view=", canvas.view(), " full=", canvas.full(), " coor=", coor);
+                    print(canvas, coor, head, tail);
+                };
+
+                if (delta_top > 0)
+                {
+                    sctop_panel.crop(top_size, brush.spare);
+                    fill(sctop_panel, old_sctop, old_sctop + delta_top);
+                    // Wipe scroll.
                     // ...
 
                 }
-                if (scend)
+                else
                 {
-                    dissect(panel.y - scend);
-                    dissect(panel.y);
-                    // Fill panel and wipe scroll.
+                    // return delta to scroll
+                    // ...
+                    sctop_panel.crop(top_size);
+                }
+                if (delta_end > 0)
+                {
+                    scend_panel.crop(btm_size, brush.spare);
+                    auto coor = twod{ 0, panel.y - scend };
+                    //fill(scend_panel, coor.y, coor.y + delta_end);
+                    // Wipe scroll.
                     // ...
 
                 }
+                else
+                {
+                    // return delta to scroll
+                    // ...
+                    scend_panel.crop(btm_size);
+                }
+
+                sync_coord();
             }
             // scroll_buf: Push lines to the scrollback bottom.
             void add_lines(iota amount)
@@ -2006,8 +2077,8 @@ private:
             void resize_history(iota new_size, iota grow_by = 0)
             {
                 static constexpr auto BOTTOM_ANCHORED = true;
+                //set_scroll_region(0, 0);
                 batch.resize<BOTTOM_ANCHORED>(new_size, grow_by);
-                set_scroll_region(0, 0);
                 index_rebuild();
             }
             // scroll_buf: Render to the canvas.
@@ -2032,7 +2103,7 @@ private:
                 };
                 while (head != tail)
                 {
-                    auto& curln = *head++;
+                    auto& curln = *head;
                     maker.ac(coor);
                     maker.go(curln, canvas);
                     auto height = curln.height(panel.x);
@@ -2077,7 +2148,18 @@ private:
                     coor.y           += height;
                     rght_rect.coor.y += height;
                     left_rect.coor.y = rght_rect.coor.y;
+                    ++head;
                 }
+
+                sctop_panel.step(view.coor);
+                scend_panel.step(view.coor);
+                canvas.plot(sctop_panel, [](auto& dst, auto& src){ dst.fuse(src); dst.bga(0x80); });
+                //canvas.plot(scend_panel, [](auto& dst, auto& src){ dst.fuse(src); dst.bga(0x80); });
+                sctop_panel.back(view.coor);
+                scend_panel.back(view.coor);
+
+                //canvas.plot(sctop_panel, cell::shaders::flat);
+                //canvas.plot(scend_panel, cell::shaders::flat);
             }
             // scroll_buf: Remove all lines below (including futures) except the current. "ED2 Erase viewport" keeps empty lines.
             void del_below() override
@@ -2155,7 +2237,6 @@ private:
             // scroll_buf: Dissect auto-wrapped lines at the specified row.
             void dissect(iota y_pos)
             {
-                log(" dissect y_pos=", y_pos);
                 assert(y_pos >= 0);
 
                 auto split = [&](id_t curid, iota start)
@@ -2214,8 +2295,6 @@ private:
                     }
                 }
 
-                print_batch("dissect");
-                print_index("dissect");
                 assert(test_futures());
             }
             // scroll_buf: Zeroize block of lines.
