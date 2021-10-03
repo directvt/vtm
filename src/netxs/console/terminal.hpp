@@ -1387,7 +1387,13 @@ private:
             //scroll_buf: Return viewport vertical oversize.
             iota resize_viewport(twod const& new_sz) override
             {
-                //todo TIA scroll region
+                //todo TIA scrolling region
+                auto core_size = sctop_panel.core::size().x;
+                if (core_size < new_sz.x)
+                {
+                    sctop_panel.crop(twod{ new_sz.x, sctop_panel.core::size().y }, sctop_panel.mark());
+                    scend_panel.crop(twod{ new_sz.x, scend_panel.core::size().y }, scend_panel.mark());
+                }
 
                 panel = new_sz;
                 batch.set_width(panel.x);
@@ -1449,7 +1455,7 @@ private:
             template<class ITER, class INDEX_T>
             void reindex(iota avail, ITER curit, INDEX_T const& mapln)
             {
-                //todo TIA scroll region
+                //todo TIA scrolling region
 
                 auto& curln =*curit;
                 auto  width = curln.length();
@@ -1494,7 +1500,7 @@ private:
             // scroll_buf: Rebuild index from the known index at y_pos.
             void index_rebuild_from(iota y_pos)
             {
-                //todo TIA scroll region
+                //todo TIA scrolling region
 
                 assert(y_pos >= 0 && y_pos < index.size);
                 auto  mapit = index.begin() + y_pos++;
@@ -1509,7 +1515,7 @@ private:
             // scroll_buf: Rebuild index up to basis.
             void index_rebuild()
             {
-                //todo TIA scroll region
+                //todo TIA scrolling region
 
                 index.clear();
                 auto coor = batch.vsize;
@@ -1589,6 +1595,8 @@ private:
             // scroll_buf: Return current 0-based cursor position in the scrollback.
             twod get_coord() override
             {
+                //todo TIA scrolling region
+
                 auto coor = coord;
                 coor.y += basis;
                 auto& curln = batch.current();
@@ -1614,6 +1622,8 @@ private:
             // scroll_buf: Map the current cursor position to the scrollback.
             void sync_coord()
             {
+                //todo TIA scrolling region
+
                 coord.y = std::clamp(coord.y, 0, panel.y - 1);
 
                 auto& curln = batch.current();
@@ -1670,14 +1680,13 @@ private:
                 auto print = [&](face& canvas, twod coor, auto head, auto tail)
                 {
                     assert(head != tail);
-                    maker.reset(canvas);
-                    maker.ac(coor);
+                    canvas.ac(coor);
                     do
                     {
                         auto& curln = *head;
-                        maker.go(curln, canvas);
+                        canvas.go(curln, canvas);
                         log(" curln.id=", curln.index, " text=", curln.to_txt());
-                        maker.nl(1);
+                        canvas.nl(1);
                     }
                     while (++head != tail);
                 };
@@ -1690,19 +1699,21 @@ private:
                     auto upto = index[limit - 1].index + 1;
                     auto head = batch.iter_by_id(from);
                     auto tail = head + (upto - from);
-                    auto view = rect{{ 0, begin }, { panel.x, limit }};
-                    auto coor = dot_00;
+                    //auto coor = twod{ 0, begin };
+                    auto coor = twod{ 0, 0 };
+                    auto view = rect{ coor, twod{ panel.x, limit }};
                     auto full = canvas.area();
+                    full.coor = dot_00;
                     canvas.full(full);
                     canvas.view(view);
-                    coor.y += begin;
                     log(" view=", canvas.view(), " full=", canvas.full(), " coor=", coor);
                     print(canvas, coor, head, tail);
                 };
 
                 if (delta_top > 0)
                 {
-                    sctop_panel.crop(top_size, brush.spare);
+                    if (old_sctop == 0) sctop_panel.mark(brush.spare);
+                    sctop_panel.crop(top_size, sctop_panel.mark());
                     fill(sctop_panel, old_sctop, old_sctop + delta_top);
                     // Wipe scroll.
                     // ...
@@ -1710,22 +1721,23 @@ private:
                 }
                 else
                 {
-                    // return delta to scroll
+                    // return delta to the scroll
                     // ...
                     sctop_panel.crop(top_size);
                 }
                 if (delta_end > 0)
                 {
-                    scend_panel.crop(btm_size, brush.spare);
+                    if (old_scend == 0) scend_panel.mark(brush.spare);
+                    scend_panel.crop(btm_size, scend_panel.mark());
                     auto coor = twod{ 0, panel.y - scend };
-                    //fill(scend_panel, coor.y, coor.y + delta_end);
+                    fill(scend_panel, coor.y, coor.y + delta_end);
                     // Wipe scroll.
                     // ...
 
                 }
                 else
                 {
-                    // return delta to scroll
+                    // return delta to the scroll
                     // ...
                     scend_panel.crop(btm_size);
                 }
@@ -2151,12 +2163,15 @@ private:
                     ++head;
                 }
 
-                sctop_panel.step(view.coor);
-                scend_panel.step(view.coor);
-                canvas.plot(sctop_panel, [](auto& dst, auto& src){ dst.fuse(src); dst.bga(0x80); });
-                //canvas.plot(scend_panel, [](auto& dst, auto& src){ dst.fuse(src); dst.bga(0x80); });
-                sctop_panel.back(view.coor);
-                scend_panel.back(view.coor);
+                auto[top, end] = get_scroll_region();
+                top -= sctop;
+                end += 1;
+                auto top_coor = twod{ view.coor.x, view.coor.y + top };
+                auto end_coor = twod{ view.coor.x, view.coor.y + end };
+                sctop_panel.move(top_coor);
+                scend_panel.move(end_coor);
+                canvas.plot(sctop_panel, [](auto& dst, auto& src){ dst.fuse(src); dst.bgc(greendk).bga(0x80); });
+                canvas.plot(scend_panel, [](auto& dst, auto& src){ dst.fuse(src); dst.bgc(reddk).bga(0x80); });
 
                 //canvas.plot(sctop_panel, cell::shaders::flat);
                 //canvas.plot(scend_panel, cell::shaders::flat);
