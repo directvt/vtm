@@ -1646,7 +1646,7 @@ private:
                 scend_panel.crop(btm_area);
                 if (sctop)
                 {
-                    //dissect(0);
+                    dissect(0);
                     dissect(sctop);
                     // Fill panel and wipe scroll.
                     // ...
@@ -2190,22 +2190,28 @@ private:
                     if (start == 0) return;
 
                     split(curid, start);
+
                     mapln.index++;
                     mapln.start = 0;
                     index_rebuild_from(y_pos);
 
                     sync_coord();
                 }
-                else
+                else if (y_pos == panel.y 
+                      && y_pos <  batch.vsize - basis)
                 {
                     auto stash = batch.vsize - basis - index.size;
+                    assert(stash >= 0);
                     if (stash == 0) return;
 
-                    auto curid = 0;
-                    auto start = 0;
-                    if (start == 0) return;
-
-                    split(curid, start);
+                    auto& mapln = index.back();
+                    auto  curid = mapln.index;
+                    auto& curln = batch.item_by_id(curid);
+                    auto  start = mapln.start + mapln.width;
+                    if (start < curln.length())
+                    {
+                        split(curid, start);
+                    }
                 }
 
                 print_batch("dissect");
