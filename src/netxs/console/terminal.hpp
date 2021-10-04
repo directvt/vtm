@@ -1312,6 +1312,18 @@ private:
                         taken = back().index;
                     }
                 }
+                auto remove(iota at, iota count)
+                {
+                    count = ring::remove(at, count);
+                    auto head = begin() + at;
+                    auto tail = end();
+                    while (head != tail)
+                    {
+                        head->index -= count;
+                        ++head;
+                    }
+                    return count;
+                }
             };
 
             // For debug
@@ -1398,6 +1410,7 @@ private:
                 panel = new_sz;
                 batch.set_width(panel.x);
                 index.clear();
+                //todo TIA scrolling region
                 index.resize(panel.y); // Use a fixed ring because new lines are added much more often than a futures feed.
                 basis = batch.vsize;
                 auto lnid = batch.current().index;
@@ -1693,6 +1706,8 @@ private:
 
                 auto fill = [&](face& block, iota base, iota begin, iota limit)
                 {
+                    //todo check bounds
+
                     dissect(begin);
                     dissect(limit);
                     auto from = index[begin    ].index;
@@ -1710,32 +1725,13 @@ private:
                     batch.remove(from, size);
                 };
 
-                if (delta_top > 0)
-                {
-                    if (old_sctop == 0) sctop_panel.mark(brush.spare);
-                    sctop_panel.crop<faux>(top_size, sctop_panel.mark());
-                    auto coor_y = 0;
-                    fill(sctop_panel, coor_y, old_sctop, sctop);
-                    index.resize<true>(index.size - delta_top);
-                    print_index("delta_top");
-                }
-                else if (delta_top < 0)
-                {
-                    // return delta to the scroll
-                    // ...
-                    sctop_panel.crop<faux>(top_size);
-                    index.resize<true>(index.size - delta_top);
-                    // refill index
-                    //while (delta_top++ < 0) index.push_front();
-                }
-                if (delta_end > 0)
+                if (delta_end > 0) // Bottom margin processed first.
                 {
                     if (old_scend == 0) scend_panel.mark(brush.spare);
                     scend_panel.crop<true>(btm_size, scend_panel.mark());
                     auto coor_y = panel.y - scend;
                     fill(scend_panel, coor_y, coor_y, coor_y + delta_end);
                     index.resize<faux>(index.size - delta_end);
-                    print_index("delta_end");
                 }
                 else if (delta_end < 0)
                 {
@@ -1743,10 +1739,25 @@ private:
                     // ...
                     scend_panel.crop<true>(btm_size);
                     index.resize<faux>(index.size - delta_end);
-                    // refill index
-                    //while (delta_end++ < 0) index.push_front();
                 }
 
+                if (delta_top > 0)
+                {
+                    if (old_sctop == 0) sctop_panel.mark(brush.spare);
+                    sctop_panel.crop<faux>(top_size, sctop_panel.mark());
+                    auto coor_y = 0;
+                    fill(sctop_panel, coor_y, old_sctop, sctop);
+                    index.resize<true>(index.size - delta_top);
+                }
+                else if (delta_top < 0)
+                {
+                    // return delta to the scroll
+                    // ...
+                    sctop_panel.crop<faux>(top_size);
+                    index.resize<true>(index.size - delta_top);
+                }
+
+                index_rebuild();
                 sync_coord();
             }
             // scroll_buf: Push lines to the scrollback bottom.
@@ -2025,18 +2036,8 @@ private:
                             auto width = curln.length();
                             auto spoil = static_cast<iota>(mapln.index - curid);
                             assert(spoil > 0);
-                            // Reindex batch.
-                            {
-                                auto after = batch.index() + 1;
-                                batch.remove(after, spoil);
-                                auto curit = batch.begin() + after;
-                                auto endit = batch.end();
-                                while (curit != endit)
-                                {
-                                    curit->index -= spoil;
-                                    ++curit;
-                                }
-                            }
+                            auto after = batch.index() + 1;
+                                 spoil = batch.remove(after, spoil);
                             // Update index.
                             {
                                 saved -= basis;

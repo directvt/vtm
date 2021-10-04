@@ -182,12 +182,13 @@ namespace netxs::generics
                 return it_2;
             }
         }
-        void remove(iota at, iota n)
+        auto remove(iota at, iota n)
         {
             assert(at >= 0 && at < size);
             auto tmp = index();
             auto max = size - at;
             if (n > max) n = max;
+            auto vol = n;
             auto top_block = size - max;
             auto btm_block = max - n;
             if (btm_block > top_block)
@@ -205,6 +206,7 @@ namespace netxs::generics
                 while (n-- > 0) pop_back();
             }
             index(tmp); // Restore current item selector.
+            return vol;
         }
         void clear()
         {
