@@ -525,6 +525,12 @@ namespace netxs::console
         bool moved = faux; // face: Is reflow required.
         bool decoy = true; // face: Is the cursor inside the viewport.
 
+        // face: Print something else.
+        template<bool USE_FWD = faux, class T, class P = noop>
+        void output(T const& block, P printfx = P())
+        {
+            flow::print<USE_FWD>(block, *this, printfx);
+        }
         // face: Print paragraph.
         void output(para const& block)
         {

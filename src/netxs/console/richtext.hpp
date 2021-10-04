@@ -131,18 +131,24 @@ namespace netxs::console
             digest++;
         }
         //todo unify
+        template<bool BOTTOM_ANCHORED = faux>
         void crop(twod const& newsize) // core: Resize while saving the bitmap.
         {
             core block{ region.coor, newsize };
+            if constexpr (BOTTOM_ANCHORED) block.step({ 0, region.size.y - newsize.y });
+
             netxs::onbody(block, *this, cell::shaders::full);
             region.size = newsize;
             client.size = region.size;
             swap(block);
             digest++;
         }
+        template<bool BOTTOM_ANCHORED = faux>
         void crop(twod const& newsize, cell const& c) // core: Resize while saving the bitmap.
         {
             core block{ region.coor, newsize, c };
+            if constexpr (BOTTOM_ANCHORED) block.step({ 0, region.size.y - newsize.y });
+                
             netxs::onbody(block, *this, cell::shaders::full);
             region.size = newsize;
             client.size = region.size;
@@ -600,18 +606,26 @@ namespace netxs::console
         template<bool USE_LOCUS = true, class T, class P = noop>
         auto print(T const& block, core& canvas, P printfx = P())
         {
-            auto cp = USE_LOCUS ? forward(block)
-                                : flow::cp();
+            using type = std::invoke_result_t<decltype(&flow::cp), flow>;
+            type coor;
+
+            if constexpr (USE_LOCUS) coor = forward(block);
+            else                     coor = flow::cp();
+
             go(block, canvas, printfx);
-            return cp;
+            return coor;
         }
         template<bool USE_LOCUS = true, class T>
         auto print(T const& block)
         {
-            auto cp = USE_LOCUS ? forward(block)
-                                : flow::cp();
+            using type = std::invoke_result_t<decltype(&flow::cp), flow>;
+            type coor;
+
+            if constexpr (USE_LOCUS) coor = forward(block);
+            else                     coor = flow::cp();
+
             go(block);
-            return cp;
+            return coor;
         }
 
         void ax	(iota x)        { caretpos.x  = x;                 }

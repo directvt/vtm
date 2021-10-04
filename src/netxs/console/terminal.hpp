@@ -1677,21 +1677,21 @@ private:
                 auto delta_top = sctop - old_sctop;
                 auto delta_end = scend - old_scend;
 
-                auto print = [&](face& canvas, twod coor, auto head, auto tail)
+                auto print = [&](face& block, twod coor, auto head, auto tail)
                 {
                     assert(head != tail);
-                    canvas.ac(coor);
+                    block.ac(coor);
                     do
                     {
                         auto& curln = *head;
-                        canvas.go(curln, canvas);
+                        block.output(curln);
+                        block.nl(1);
                         log(" curln.id=", curln.index, " text=", curln.to_txt());
-                        canvas.nl(1);
                     }
                     while (++head != tail);
                 };
 
-                auto fill = [&](face& canvas, iota begin, iota limit)
+                auto fill = [&](face& block, twod base, iota begin, iota limit)
                 {
                     dissect(begin);
                     dissect(limit);
@@ -1699,22 +1699,22 @@ private:
                     auto upto = index[limit - 1].index + 1;
                     auto head = batch.iter_by_id(from);
                     auto tail = head + (upto - from);
-                    //auto coor = twod{ 0, begin };
-                    auto coor = twod{ 0, 0 };
+                    auto coor = twod{ 0, begin } - base;
                     auto view = rect{ coor, twod{ panel.x, limit }};
-                    auto full = canvas.area();
+                    auto full = block.area();
                     full.coor = dot_00;
-                    canvas.full(full);
-                    canvas.view(view);
-                    log(" view=", canvas.view(), " full=", canvas.full(), " coor=", coor);
-                    print(canvas, coor, head, tail);
+                    block.full(full);
+                    block.view(view);
+                    log(" view=", block.view(), " full=", block.full(), " coor=", coor);
+                    print(block, coor, head, tail);
                 };
 
                 if (delta_top > 0)
                 {
                     if (old_sctop == 0) sctop_panel.mark(brush.spare);
-                    sctop_panel.crop(top_size, sctop_panel.mark());
-                    fill(sctop_panel, old_sctop, old_sctop + delta_top);
+                    sctop_panel.crop<faux>(top_size, sctop_panel.mark());
+                    fill(sctop_panel, dot_00, old_sctop, old_sctop + delta_top);
+
                     // Wipe scroll.
                     // ...
 
@@ -1723,14 +1723,15 @@ private:
                 {
                     // return delta to the scroll
                     // ...
-                    sctop_panel.crop(top_size);
+                    sctop_panel.crop<faux>(top_size);
                 }
                 if (delta_end > 0)
                 {
                     if (old_scend == 0) scend_panel.mark(brush.spare);
-                    scend_panel.crop(btm_size, scend_panel.mark());
+                    scend_panel.crop<true>(btm_size, scend_panel.mark());
                     auto coor = twod{ 0, panel.y - scend };
-                    fill(scend_panel, coor.y, coor.y + delta_end);
+                    fill(scend_panel, coor, coor.y, coor.y + delta_end);
+
                     // Wipe scroll.
                     // ...
 
@@ -1739,7 +1740,7 @@ private:
                 {
                     // return delta to the scroll
                     // ...
-                    scend_panel.crop(btm_size);
+                    scend_panel.crop<true>(btm_size);
                 }
 
                 sync_coord();
