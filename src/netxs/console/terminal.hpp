@@ -1691,56 +1691,60 @@ private:
                     while (++head != tail);
                 };
 
-                auto fill = [&](face& block, twod base, iota begin, iota limit)
+                auto fill = [&](face& block, iota base, iota begin, iota limit)
                 {
                     dissect(begin);
                     dissect(limit);
                     auto from = index[begin    ].index;
                     auto upto = index[limit - 1].index + 1;
                     auto head = batch.iter_by_id(from);
-                    auto tail = head + (upto - from);
-                    auto coor = twod{ 0, begin } - base;
-                    auto view = rect{ coor, twod{ panel.x, limit }};
+                    auto size = upto - from;
+                    auto tail = head + size;
+                    auto view = rect{{ 0, begin - base }, { panel.x, limit }};
                     auto full = block.area();
                     full.coor = dot_00;
                     block.full(full);
                     block.view(view);
-                    log(" view=", block.view(), " full=", block.full(), " coor=", coor);
-                    print(block, coor, head, tail);
+                    log(" view=", block.view(), " full=", block.full());
+                    print(block, view.coor, head, tail);
+                    batch.remove(from, size);
                 };
 
                 if (delta_top > 0)
                 {
                     if (old_sctop == 0) sctop_panel.mark(brush.spare);
                     sctop_panel.crop<faux>(top_size, sctop_panel.mark());
-                    fill(sctop_panel, dot_00, old_sctop, old_sctop + delta_top);
-
-                    // Wipe scroll.
-                    // ...
-
+                    auto coor_y = 0;
+                    fill(sctop_panel, coor_y, old_sctop, sctop);
+                    index.resize<true>(index.size - delta_top);
+                    print_index("delta_top");
                 }
-                else
+                else if (delta_top < 0)
                 {
                     // return delta to the scroll
                     // ...
                     sctop_panel.crop<faux>(top_size);
+                    index.resize<true>(index.size - delta_top);
+                    // refill index
+                    //while (delta_top++ < 0) index.push_front();
                 }
                 if (delta_end > 0)
                 {
                     if (old_scend == 0) scend_panel.mark(brush.spare);
                     scend_panel.crop<true>(btm_size, scend_panel.mark());
-                    auto coor = twod{ 0, panel.y - scend };
-                    fill(scend_panel, coor, coor.y, coor.y + delta_end);
-
-                    // Wipe scroll.
-                    // ...
-
+                    auto coor_y = panel.y - scend;
+                    fill(scend_panel, coor_y, coor_y, coor_y + delta_end);
+                    index.resize<faux>(index.size - delta_end);
+                    print_index("delta_end");
                 }
-                else
+                else if (delta_end < 0)
                 {
                     // return delta to the scroll
                     // ...
                     scend_panel.crop<true>(btm_size);
+                    index.resize<faux>(index.size - delta_end);
+                    // refill index
+                    //while (delta_end++ < 0) index.push_front();
                 }
 
                 sync_coord();
@@ -2013,27 +2017,25 @@ private:
                         } // case 1 done.
                         else // case 2 - fusion: cursor overlaps lines below but stays inside the viewport.
                         {
-                            assert(mapln.index > curid);
                             auto& target = batch.item_by_id(mapln.index);
                             auto  shadow = target.wrapped() ? target.substr(mapln.start + coord.x)
                                                             : target.substr(mapln.start + coord.x, mapln.width - coord.x);
                             curln.splice(curln.length(), shadow);
                             batch.recalc(curln);
                             auto width = curln.length();
-                            auto spoil = mapln.index - curid;
+                            auto spoil = static_cast<iota>(mapln.index - curid);
+                            assert(spoil > 0);
                             // Reindex batch.
                             {
-                                auto caret = batch.index();
-                                batch.next();
-                                batch.remove(spoil);
-                                auto curit = batch.current_it();
+                                auto after = batch.index() + 1;
+                                batch.remove(after, spoil);
+                                auto curit = batch.begin() + after;
                                 auto endit = batch.end();
                                 while (curit != endit)
                                 {
                                     curit->index -= spoil;
                                     ++curit;
                                 }
-                                batch.index(caret);
                             }
                             // Update index.
                             {
@@ -2098,6 +2100,11 @@ private:
             void output(face& canvas) override //todo temp solution, rough output, not optimized
             {
                 maker.reset(canvas);
+                //temp solution
+                auto maker_full = maker.full();
+                maker_full.coor.y += sctop;
+                maker.full(maker_full);
+
                 auto view = canvas.view();
                 auto full = canvas.full();
                 auto coor = dot_00;
@@ -2164,18 +2171,19 @@ private:
                     ++head;
                 }
 
-                auto[top, end] = get_scroll_region();
-                top -= sctop;
-                end += 1;
-                auto top_coor = twod{ view.coor.x, view.coor.y + top };
-                auto end_coor = twod{ view.coor.x, view.coor.y + end };
-                sctop_panel.move(top_coor);
-                scend_panel.move(end_coor);
-                canvas.plot(sctop_panel, [](auto& dst, auto& src){ dst.fuse(src); dst.bgc(greendk).bga(0x80); });
-                canvas.plot(scend_panel, [](auto& dst, auto& src){ dst.fuse(src); dst.bgc(reddk).bga(0x80); });
+                {
+                    auto view = canvas.view();
+                    auto[top, end] = get_scroll_region();
+                    auto top_coor = twod{ view.coor.x, view.coor.y + top - sctop };
+                    auto end_coor = twod{ view.coor.x, view.coor.y + end + 1     };
+                    sctop_panel.move(top_coor);
+                    scend_panel.move(end_coor);
+                    canvas.plot(sctop_panel, [](auto& dst, auto& src){ dst.fuse(src); dst.bgc(greendk).bga(0x80); });
+                    canvas.plot(scend_panel, [](auto& dst, auto& src){ dst.fuse(src); dst.bgc(reddk).bga(0x80); });
 
-                //canvas.plot(sctop_panel, cell::shaders::flat);
-                //canvas.plot(scend_panel, cell::shaders::flat);
+                    //canvas.plot(sctop_panel, cell::shaders::flat);
+                    //canvas.plot(scend_panel, cell::shaders::flat);
+                }
             }
             // scroll_buf: Remove all lines below (including futures) except the current. "ED2 Erase viewport" keeps empty lines.
             void del_below() override
