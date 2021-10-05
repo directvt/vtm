@@ -1073,15 +1073,15 @@ private:
                     _size = {};
                     _kind = {};
                 }
+                auto wrapped() const { return _kind == type::autowrap; }
                 iota height(iota width) const
                 {
                     auto len = length();
                     return len > width
-                        && style.wrp() == wrap::on ? (len + width - 1) / width
-                                                   : 1;
+                        && wrapped() ? (len + width - 1) / width
+                                     : 1;
                 }
-                auto wrapped() { return _kind == type::autowrap; }
-                auto to_txt() // for debug
+                auto to_txt() const // for debug
                 {
                     utf::text utf8;
                     each([&](cell& c){ utf8 += c.txt(); });
@@ -1708,9 +1708,6 @@ private:
                 auto delta_top = sctop - old_sctop;
                 auto delta_end = scend - old_scend;
 
-                auto old_region_size = region_size;
-                region_size = panel.y - (scend + sctop);
-
                 auto pull = [&](face& block, twod origin, iota begin, iota limit)
                 {
                     //todo check bounds
@@ -1750,11 +1747,11 @@ private:
                 {
                     if (scend_panel.core::size().y == 0) scend_panel.mark(brush.spare);
                     scend_panel.crop<true>(btm_size, scend_panel.mark());
-                    pull(scend_panel, dot_00, old_region_size - delta_end, old_region_size);
+                    pull(scend_panel, dot_00, region_size - delta_end, region_size);
                 }
                 else if (delta_end < 0)
                 {
-                    push(scend_panel, 0, delta_end, old_region_size - 1);
+                    push(scend_panel, 0, delta_end, region_size - 1);
                     scend_panel.crop<true>(btm_size);
                 }
 
@@ -1770,6 +1767,7 @@ private:
                     sctop_panel.crop<faux>(top_size);
                 }
 
+                region_size = panel.y - (scend + sctop);
                 index.clear();
                 index.resize(region_size);
                 index_rebuild();
@@ -2838,6 +2836,7 @@ private:
             };
             SUBMIT(tier::release, hids::events::keybd::any, gear)
             {
+                //todo stop/finalize scrolling animations
                 scroll();
                 //todo optimize/unify
                 auto data = gear.keystrokes;
