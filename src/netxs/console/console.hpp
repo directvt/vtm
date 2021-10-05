@@ -529,6 +529,7 @@ namespace netxs::console
         template<bool USE_FWD = faux, class T, class P = noop>
         void output(T const& block, P printfx = P())
         {
+            //todo unify
             flow::print<USE_FWD>(block, *this, printfx);
         }
         // face: Print paragraph.

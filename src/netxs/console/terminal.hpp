@@ -1725,20 +1725,18 @@ private:
                     batch.remove(from, size);
                 };
 
-                if (delta_end > 0) // Bottom margin processed first.
+                if (delta_end > 0) // Bottom margin processed first (don't touch top indices).
                 {
                     if (old_scend == 0) scend_panel.mark(brush.spare);
                     scend_panel.crop<true>(btm_size, scend_panel.mark());
                     auto coor_y = panel.y - scend;
                     fill(scend_panel, coor_y, coor_y, coor_y + delta_end);
-                    index.resize<faux>(index.size - delta_end);
                 }
                 else if (delta_end < 0)
                 {
                     // return delta to the scroll
                     // ...
                     scend_panel.crop<true>(btm_size);
-                    index.resize<faux>(index.size - delta_end);
                 }
 
                 if (delta_top > 0)
@@ -1747,16 +1745,15 @@ private:
                     sctop_panel.crop<faux>(top_size, sctop_panel.mark());
                     auto coor_y = 0;
                     fill(sctop_panel, coor_y, old_sctop, sctop);
-                    index.resize<true>(index.size - delta_top);
                 }
                 else if (delta_top < 0)
                 {
                     // return delta to the scroll
                     // ...
                     sctop_panel.crop<faux>(top_size);
-                    index.resize<true>(index.size - delta_top);
                 }
 
+                index.resize(panel.y - (sctop + scend));
                 index_rebuild();
                 sync_coord();
             }
