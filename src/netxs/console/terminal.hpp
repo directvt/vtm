@@ -560,7 +560,7 @@ private:
                 coord = new_coord;
             }
             // bufferbase: Return current 0-based cursor position in the viewport.
-    virtual twod get_coord()
+    virtual twod get_coord(twod const& origin)
             {
                 return coord;
             }
@@ -1081,7 +1081,7 @@ private:
                         && wrapped() ? (len + width - 1) / width
                                      : 1;
                 }
-                auto to_txt() const // for debug
+                auto to_txt() // for debug
                 {
                     utf::text utf8;
                     each([&](cell& c){ utf8 += c.txt(); });
@@ -1611,27 +1611,31 @@ private:
                 return q{ y_pos, inside ? y_top : 0, inside };
             }
             // scroll_buf: Return current 0-based cursor position in the scrollback.
-            twod get_coord() override
+            twod get_coord(twod const& origin) override
             {
                 auto coor = coord;
-                //todo revise
-                coor.y += basis;
-
                 if (auto ctx = inside_scroll(coord.y))
                 {
+                    coor.y += basis;
+
                     auto& curln = batch.current();
                     auto  align = curln.style.jet();
 
                     if (align == bias::left
-                     || align == bias::none) return coor;
+                    || align == bias::none) return coor;
 
                     auto remain = index[coord.y].width;
                     if (remain == panel.x && curln.wrapped()) return coor;
 
                     if    (align == bias::right )  coor.x += panel.x     - remain - 1;
                     else /*align == bias::center*/ coor.x += panel.x / 2 - remain / 2;
-                }
 
+                }
+                else
+                {
+                    coor -= origin;
+                    coor.y -= y_top;
+                }
                 return coor;
             }
             // scroll_buf: Set cursor position and sync it with buffer.
@@ -1666,10 +1670,6 @@ private:
                         batch.index(newix);
                         if (batch->style != style) _set_style(style);
                     }
-                }
-                else
-                {
-                    //todo imp for fields
                 }
             }
 
@@ -2902,7 +2902,9 @@ private:
                 //cursor_coor.y += console.basis;
                 //cursor_coor.y += std::max(0, console.height() - screen.size.y) - oversz.b;
                 //cursor.coor(cursor_coor);
-                cursor.coor(console.get_coord());
+                auto view = parent_canvas.view();
+                auto origin = this->coor() - view.coor;
+                cursor.coor(console.get_coord(origin));
                 //auto adjust_pads = console.recalc_pads(oversz);
                 //auto scroll_size = recalc(cursor_coor);
                 //auto scroll_size = screen.size;
