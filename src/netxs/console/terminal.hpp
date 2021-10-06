@@ -861,10 +861,8 @@ private:
                 }
                 else return faux;
             }
-            // alt_screen: CSI n K  Erase line (don't move cursor).
-            void el(iota n) override
+            static void _el(iota n, core& canvas, twod const& coord, twod const& panel, cell const& blank)
             {
-                bufferbase::flush();
                 assert(coord.y < panel.y);
                 assert(coord.x >= 0);
                 auto size = canvas.size();
@@ -884,8 +882,13 @@ private:
                         tail += panel.x;
                         break;
                 }
-                auto blank = brush.spc(); //.bgc(cyandk).bga(0x7f);
                 while (head != tail) *head++ = blank;
+            }
+            // alt_screen: CSI n K  Erase line (don't move cursor).
+            void el(iota n) override
+            {
+                bufferbase::flush();
+                _el(n, canvas, coord, panel, brush.spc());
             }
             // alt_screen: CSI n @  ICH. Insert n blanks after cursor. No wrap. Existing chars after cursor shifts to the right. Don't change cursor pos.
             void ins(iota n) override
@@ -1857,6 +1860,7 @@ private:
             void el(iota n) override
             {
                 bufferbase::flush();
+                auto blank = brush.spc(); //.bgc(greendk).bga(0x7f);
                 if (auto ctx = inside_scroll(coord.y))
                 {
                     iota  start;
@@ -1887,7 +1891,6 @@ private:
                     }
                     if (count)
                     {
-                        auto blank = brush.spc(); //.bgc(greendk).bga(0x7f);
                         curln.splice<true>(start, count, blank);
 
                         //batch->shrink(blank); // It kills wrapped lines and as a result requires the viewport to be rebuilt.
@@ -1899,51 +1902,78 @@ private:
                 }
                 else
                 {
-                    //todo implement fields
+                    auto coor = coord;
+                    auto& canvas = coord.y > y_end ? coor.y -= y_end, scend_panel
+                                                   :                  sctop_panel;
+                    alt_screen::_el(n, canvas, coor, panel, blank);
                 }
             }
             // scroll_buf: CSI n @  ICH. Insert n blanks after cursor. Existing chars after cursor shifts to the right. Don't change cursor pos.
             void ins(iota n) override
             {
                 bufferbase::flush();
+                auto blank = brush.spc(); //.bgc(magentadk).bga(0x7f);
                 if (auto ctx = inside_scroll(coord.y))
                 {
                     n = std::min(n, panel.x - coord.x);
-                    if (n > 0)
-                    {
-                        auto& curln = batch.current();
-                        auto  blank = brush.spc(); //.bgc(magentadk).bga(0x7f);
-                        curln.insert(batch.caret, n, blank, panel.x);
-                        batch.recalc(curln); // Line front is filled by blanks. No wrapping.
-                        auto& mapln = index[coord.y];
-                        mapln.width = std::min(panel.x, curln.length() - mapln.start);
-                    }
+                    auto& curln = batch.current();
+                    curln.insert(batch.caret, n, blank, panel.x);
+                    batch.recalc(curln); // Line front is filled by blanks. No wrapping.
+                    auto& mapln = index[coord.y];
+                    mapln.width = std::min(panel.x, curln.length() - mapln.start);
                 }
                 else
                 {
-                    //todo implement fields
+                    auto coor = coord;
+                    auto& canvas = coord.y > y_end ? coor.y -= y_end, scend_panel
+                                                :                  sctop_panel;
+                    assert(coord.y < panel.y);
+                    assert(coord.x >= 0);
+                    canvas.insert(coor, n, blank);
+                }
+            }
+            // scroll_buf: CSI n P  Delete (not Erase) letters under the cursor. Line end is filled by blanks. Length is preserved. No wrapping.
+            void dch(iota n) override
+            {
+                bufferbase::flush();
+                auto blank = brush.spc(); //.bgc(magentadk).bga(0x7f);
+                if (auto ctx = inside_scroll(coord.y))
+                {
+                    auto& curln = batch.current();
+                    curln.cutoff(batch.caret, n, blank, panel.x);
+                }
+                else
+                {
+                    auto coor = coord;
+                    auto& canvas = coord.y > y_end ? coor.y -= y_end, scend_panel
+                                                   :                  sctop_panel;
+                    assert(coord.y < panel.y);
+                    assert(coord.x >= 0);
+                    canvas.cutoff(coor, n, blank);
                 }
             }
             // scroll_buf: CSI n X  Erase/put n chars after cursor. Don't change cursor pos.
             void ech(iota n) override
             {
                 parser::flush();
+                auto blank = brush.spc(); //.bgc(magentadk).bga(0x7f);
                 if (auto ctx = inside_scroll(coord.y))
                 {
                     n = std::min(n, panel.x - coord.x);
-                    if (n > 0)
-                    {
-                        auto& curln = batch.current();
-                        auto  blank = brush.spc(); //.bgc(magentadk).bga(0x7f);
-                        curln.splice(batch.caret, n, blank);
-                        batch.recalc(curln);
-                        auto& mapln = index[coord.y];
-                        mapln.width = std::min(panel.x, curln.length() - mapln.start);
-                    }
+                    auto& curln = batch.current();
+                    curln.splice(batch.caret, n, blank);
+                    batch.recalc(curln);
+                    auto& mapln = index[coord.y];
+                    mapln.width = std::min(panel.x, curln.length() - mapln.start);
                 }
                 else
                 {
-                    //todo implement for fields
+                    auto coor = coord;
+                    auto& canvas = coord.y > y_end ? coor.y -= y_end, scend_panel
+                                                   :                  sctop_panel;
+                    assert(coord.y < panel.y);
+                    assert(coord.x >= 0);
+                    canvas.splice(coor, n, blank);
                 }
             }
             // Reserved for future use.
@@ -1963,21 +1993,6 @@ private:
             //    }
             //}
 
-            // scroll_buf: CSI n P  Delete (not Erase) letters under the cursor. Line end is filled by blanks. Length is preserved. No wrapping.
-            void dch(iota n) override
-            {
-                bufferbase::flush();
-                if (auto ctx = inside_scroll(coord.y))
-                {
-                    auto& curln = batch.current();
-                    auto  blank = brush.spc(); //.bgc(magentadk).bga(0x7f);
-                    curln.cutoff(batch.caret, n, blank, panel.x);
-                }
-                else
-                {
-                    //todo ...
-                }
-            }
             // scroll_buf: Proceed new text (parser callback).
             void data(iota count, grid const& proto) override
             {

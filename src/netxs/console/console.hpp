@@ -503,7 +503,7 @@ namespace netxs::console
 
     // console: Textographical canvas.
     class face
-        : public core, public flow, public std::enable_shared_from_this<face>
+        : public rich, public flow, public std::enable_shared_from_this<face>
     {
         using vrgb = std::vector<irgb>;
 

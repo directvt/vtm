@@ -815,9 +815,10 @@ namespace netxs::console
         template<bool AUTOGROW = faux>
         void splice(iota at, iota count, cell const& blank)
         {
+            if (count <= 0) return;
             auto len = length();
             if constexpr (AUTOGROW) reserv(at + count);
-            else                    count = std::clamp(count, 0, len - at);
+            else                    count = std::min(count, len - at);
             auto ptr = iter();
             auto dst = ptr + at;
             auto end = dst + count;
@@ -885,6 +886,7 @@ namespace netxs::console
         };
         void splice(iota at, iota count, grid const& proto)
         {
+            if (count <= 0) return;
             reserv(at + count);
             auto end = iter() + at;
             auto dst = end + count;
@@ -893,6 +895,7 @@ namespace netxs::console
         }
         void splice(twod at, iota count, grid const& proto)
         {
+            if (count <= 0) return;
             auto end = iter() + at.x + at.y * size().x;
             auto dst = end + count;
             auto src = proto.end();
@@ -944,8 +947,9 @@ namespace netxs::console
         // rich: (current segment) Insert n blanks at the specified position. Autogrow within segment only.
         void insert(iota at, iota count, cell const& blank, iota margin)
         {
+            if (count <= 0) return;
             auto pos = at % margin;
-            auto vol = std::clamp(count, 0, margin - pos);
+            auto vol = std::min(count, margin - pos);
             auto max = at + vol;
             reserv(max);
             auto dst = iter() + max;
@@ -957,6 +961,7 @@ namespace netxs::console
         // rich: (whole line) Insert n blanks at the specified position. Autogrow.
         void insert_full(iota at, iota count, cell const& blank)
         {
+            if (count <= 0) return;
             auto len = length();
             crop(std::max(at, len) + count);
             auto ptr = iter();
@@ -974,12 +979,13 @@ namespace netxs::console
         // rich: (current segment) Delete n chars and add blanks at the right margin.
         void cutoff(iota at, iota count, cell const& blank, iota margin)
         {
+            if (count <= 0) return;
             auto len = length();
             if (at < len)
             {
                 auto pos = at % margin;
                 auto rem = std::min(margin - pos, len - at);
-                auto vol = std::clamp(count, 0, rem);
+                auto vol = std::min(count, rem);
                 auto dst = iter() + at;
                 auto end = dst + rem;
                 auto src = dst + vol;
@@ -990,8 +996,9 @@ namespace netxs::console
         // rich: (whole line) Delete n chars and add blanks at the right margin.
         void cutoff_full(iota at, iota count, cell const& blank, iota margin)
         {
+            if (count <= 0) return;
             auto len = length();
-            if (count > 0 && at < len)
+            if (at < len)
             {
                 margin -= at % margin;
                 count = std::min(count, margin);
@@ -1018,8 +1025,9 @@ namespace netxs::console
         // rich: Put n blanks on top of the chars and cut them off with the right edge.
         void splice(twod const& at, iota count, cell const& blank)
         {
+            if (count <= 0) return;
             auto len = size();
-            auto vol = std::clamp(count, 0, len.x - at.x);
+            auto vol = std::min(count, len.x - at.x);
             assert(at.x + at.y * len.x + vol <= len.y * len.x);
             auto ptr = iter();
             auto dst = ptr + at.x + at.y * len.x;
@@ -1029,8 +1037,9 @@ namespace netxs::console
         // rich: Insert n blanks by shifting chars to the right. Same as delete(twod), but shifts from left to right.
         void insert(twod const& at, iota count, cell const& blank)
         {
+            if (count <= 0) return;
             auto len = size();
-            auto vol = std::clamp(count, 0, len.x - at.x);
+            auto vol = std::min(count, len.x - at.x);
             assert(at.x + at.y * len.x + vol <= len.y * len.x);
             auto ptr = iter();
             auto pos = ptr + at.y * len.x;
@@ -1043,8 +1052,9 @@ namespace netxs::console
         // rich: Delete n chars and add blanks at the right. Same as insert(twod), but shifts from right to left.
         void cutoff(twod const& at, iota count, cell const& blank)
         {
+            if (count <= 0) return;
             auto len = size();
-            auto vol = std::clamp(count, 0, len.x - at.x);
+            auto vol = std::min(count, len.x - at.x);
             assert(at.x + at.y * len.x + vol <= len.y * len.x);
             auto ptr = iter();
             auto pos = ptr + at.y * len.x;
