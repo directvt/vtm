@@ -2391,13 +2391,12 @@ private:
             // scroll_buf: Shift by n the scroll region.
             void scroll_region(iota top, iota end, iota n, bool use_scrollback) override
             {
-                //todo don't dissect if top==0 on moving text block up, see dn(iota n).
+                //todo don't dissect if top==y_top on moving text block up, see dn(iota n).
 
                 //temp solution
-                if (n < 0 && top ==0 && end == region_size - 1)
+                if (n < 0 && top == y_top && end == y_end)
                 {
                     auto required_lines = -n;
-                    //log(" scroll_region n=", n, " required_lines=", required_lines);
                     auto add_count = required_lines > 0 ? feed_futures(required_lines)
                                                         : 0;
                     if (add_count > 0)
