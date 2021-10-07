@@ -835,6 +835,56 @@ namespace netxs::console
             while (dst != end) *dst++ = *src++;
         }
         template<class SRC_IT, class DST_IT>
+        static void forward_fill_proc(SRC_IT data, DST_IT dest, DST_IT tail)
+        {
+            //  + evaluate TAB etc
+            //  + bidi
+            //  + eliminate non-printable and with cwidth == 0 (\0, \t, \b, etc...)
+            //  + while (--wide)
+            //    {
+            //        /* IT IS UNSAFE IF REALLOCATION OCCURS. BOOK ALWAYS */
+            //        lyric.emplace_back(cluster, console::whitespace);
+            //    }
+            //  + convert front into the screen-like sequence (unfold, remmove zerospace chars)
+
+            --tail; /* tail - 1: half of the wide char */;
+            while (dest < tail)
+            {
+                auto c = *data++;
+                auto w = c.wdt();
+                if (w == 1)
+                {
+                    *dest++ = c;
+                }
+                else if (w == 2)
+                {
+                    *dest++ = c.wdt(2);
+                    *dest++ = c.wdt(3);
+                }
+                else if (w == 0)
+                {
+                    //todo implemet controls/commands
+                    // winsrv2019's cmd.exe sets title with a zero at the end
+                    //*dst++ = cell{ c, whitespace };
+                }
+                else if (w > 2)
+                {
+                    // Forbid using super wide characters until terminal emulators support the fragmentation attribute.
+                    c.txt(utf::REPLACEMENT_CHARACTER_UTF8_VIEW);
+                    do *dest++ = c;
+                    while (--w && dest != tail + 1);
+                }
+            }
+            if (dest == tail) // Last cell; tail - 1.
+            {
+                auto c = *data;
+                auto w = c.wdt();
+                     if (w == 1) *dest = c;
+                else if (w == 2) *dest = c.wdt(3);
+                else if (w >  2) *dest = c.txt(utf::REPLACEMENT_CHARACTER_UTF8_VIEW);
+            }
+        };
+        template<class SRC_IT, class DST_IT>
         static void reverse_fill_proc(SRC_IT data, DST_IT dest, DST_IT tail)
         {
             //  + evaluate TAB etc

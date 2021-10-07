@@ -938,6 +938,7 @@ private:
                         }
                         else if (coord.y >= panel.y)
                         {
+                            //todo disable scroll here if y_end != panel.y - 1
                             auto my = panel.y - 1;
                             auto dy = my - coord.y;
                             coord.y = my;
@@ -1620,7 +1621,7 @@ private:
                 else
                 {
                     coor -= origin;
-                    coor.y -= y_top;
+                    coor.y -= y_top - 1;
                 }
                 return coor;
             }
@@ -1981,10 +1982,39 @@ private:
                 assert(coord.y >= 0 && coord.y < panel.y);
                 assert(test_futures());
 
-                auto coor = coord;
                 if (coord.y < y_top)
                 {
+                    auto old_coord = coord;
+                    coord.x += count;
+                    //todo apply line adjusting
+                    if (coord.x <= panel.x)//todo styles! || ! curln.wrapped())
+                    {
+                        auto n = std::min(count, panel.x - std::max(0, old_coord.x));
+                        sctop_panel.splice(old_coord, n, proto);
+                    }
+                    else
+                    {
+                        coord.y += (coord.x + panel.x - 1) / panel.x - 1;
+                        coord.x  = (coord.x           - 1) % panel.x + 1;
 
+                        if (coord.y >= y_top)
+                        {
+                            auto n = coord.x + (coord.y - y_top) * panel.x;
+                            count -= n;
+                            //todo optimize
+                            auto saved = coord;
+                            set_coord({ 0, y_top });
+                            //todo use ranges
+                            grid proto2{ proto.begin() + count, proto.end()};
+                            data(n, proto2);
+                            set_coord(saved);
+                        }
+                        auto data = proto.begin();
+                        auto seek = old_coord.x + old_coord.y * panel.x;
+                        auto dest = sctop_panel.iter() + seek;
+                        auto tail = dest + count;
+                        rich::forward_fill_proc(data, dest, tail);
+                    }
                 }
                 else if (coord.y <= y_end)
                 {
