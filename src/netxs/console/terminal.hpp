@@ -1595,29 +1595,12 @@ private:
 
                 return query;
             }
-            [[ nodiscard ]]
-            auto inside_scroll(iota& y_pos)
-            {
-                struct q
-                {
-                    iota& y;
-                    iota  t;
-                    bool  b;
-                    q(iota& cy, iota ct, bool cb)
-                        : y{ cy }, t{ ct }, b{ cb }
-                        { y -= t; }
-                   ~q() { y += t; }
-                   operator bool () { return b; }
-                };
-                auto inside = coord.y >= y_top
-                           && coord.y <= y_end;
-                return q{ y_pos, inside ? y_top : 0, inside };
-            }
             // scroll_buf: Return current 0-based cursor position in the scrollback.
             twod get_coord(twod const& origin) override
             {
                 auto coor = coord;
-                if (auto ctx = inside_scroll(coord.y))
+                if (coord.y >= y_top
+                 && coord.y <= y_end)
                 {
                     coor.y += basis;
 
@@ -1627,12 +1610,12 @@ private:
                     if (align == bias::left
                     || align == bias::none) return coor;
 
-                    auto remain = index[coord.y].width;
+                    auto curidx = coord.y - y_top;
+                    auto remain = index[curidx].width;
                     if (remain == panel.x && curln.wrapped()) return coor;
 
                     if    (align == bias::right )  coor.x += panel.x     - remain - 1;
                     else /*align == bias::center*/ coor.x += panel.x / 2 - remain / 2;
-
                 }
                 else
                 {
@@ -1652,11 +1635,13 @@ private:
             {
                 coord.y = std::clamp(coord.y, 0, panel.y - 1);
 
-                if (auto ctx = inside_scroll(coord.y))
+                if (coord.y >= y_top
+                 && coord.y <= y_end)
                 {
                     auto& curln = batch.current();
                     auto  style = curln.style;
                     auto  curid = curln.index;
+                    coord.y -= y_top;
 
                     if (index.size <= coord.y)
                     {
@@ -1673,6 +1658,7 @@ private:
                         batch.index(newix);
                         if (batch->style != style) _set_style(style);
                     }
+                    coord.y += y_top;
                 }
             }
 
@@ -1849,19 +1835,45 @@ private:
             {
                 if (batch->style != parser::style)
                 {
-                    if (auto ctx = inside_scroll(coord.y))
+                    if (coord.y >= y_top
+                     && coord.y <= y_end)
                     {
+                        coord.y -= y_top;
                         _set_style(parser::style);
+                        coord.y += y_top;
                     }
                 }
                 bufferbase::meta(old_style);
+            }
+            [[ nodiscard ]]
+            auto get_context(twod& pos)
+            {
+                struct q //todo revise
+                {
+                    twod& c;
+                    iota  t;
+                    bool  b;
+                    rich& block;
+                    q(twod& cy, iota ct, bool cb, scroll_buf& cs)
+                        : c{ cy },
+                          t{ ct },
+                          b{ cb },
+                          block{ cy > cs.y_end ? t = cs.y_end + 1, cs.scend_panel
+                                               :                   cs.sctop_panel }
+                        { c.y -= t; }
+                   ~q() { c.y += t; }
+                   operator bool () { return b; }
+                };
+                auto inside = coord.y >= y_top
+                           && coord.y <= y_end;
+                return q{ pos, inside ? y_top : 0, inside, *this };
             }
             // scroll_buf: CSI n K  Erase line (don't move cursor).
             void el(iota n) override
             {
                 bufferbase::flush();
                 auto blank = brush.spc(); //.bgc(greendk).bga(0x7f);
-                if (auto ctx = inside_scroll(coord.y))
+                if (auto ctx = get_context(coord))
                 {
                     iota  start;
                     iota  count;
@@ -1900,20 +1912,14 @@ private:
                         mapln.width = std::min(panel.x, curln.length() - mapln.start);
                     }
                 }
-                else
-                {
-                    auto coor = coord;
-                    auto& canvas = coord.y > y_end ? coor.y -= y_end, scend_panel
-                                                   :                  sctop_panel;
-                    alt_screen::_el(n, canvas, coor, panel, blank);
-                }
+                else alt_screen::_el(n, ctx.block, coord, panel, blank);
             }
             // scroll_buf: CSI n @  ICH. Insert n blanks after cursor. Existing chars after cursor shifts to the right. Don't change cursor pos.
             void ins(iota n) override
             {
                 bufferbase::flush();
                 auto blank = brush.spc(); //.bgc(magentadk).bga(0x7f);
-                if (auto ctx = inside_scroll(coord.y))
+                if (auto ctx = get_context(coord))
                 {
                     n = std::min(n, panel.x - coord.x);
                     auto& curln = batch.current();
@@ -1922,42 +1928,26 @@ private:
                     auto& mapln = index[coord.y];
                     mapln.width = std::min(panel.x, curln.length() - mapln.start);
                 }
-                else
-                {
-                    auto coor = coord;
-                    auto& canvas = coord.y > y_end ? coor.y -= y_end, scend_panel
-                                                :                  sctop_panel;
-                    assert(coord.y < panel.y);
-                    assert(coord.x >= 0);
-                    canvas.insert(coor, n, blank);
-                }
+                else ctx.block.insert(coord, n, blank);
             }
             // scroll_buf: CSI n P  Delete (not Erase) letters under the cursor. Line end is filled by blanks. Length is preserved. No wrapping.
             void dch(iota n) override
             {
                 bufferbase::flush();
                 auto blank = brush.spc(); //.bgc(magentadk).bga(0x7f);
-                if (auto ctx = inside_scroll(coord.y))
+                if (auto ctx = get_context(coord))
                 {
                     auto& curln = batch.current();
                     curln.cutoff(batch.caret, n, blank, panel.x);
                 }
-                else
-                {
-                    auto coor = coord;
-                    auto& canvas = coord.y > y_end ? coor.y -= y_end, scend_panel
-                                                   :                  sctop_panel;
-                    assert(coord.y < panel.y);
-                    assert(coord.x >= 0);
-                    canvas.cutoff(coor, n, blank);
-                }
+                else ctx.block.cutoff(coord, n, blank);
             }
             // scroll_buf: CSI n X  Erase/put n chars after cursor. Don't change cursor pos.
             void ech(iota n) override
             {
                 parser::flush();
                 auto blank = brush.spc(); //.bgc(magentadk).bga(0x7f);
-                if (auto ctx = inside_scroll(coord.y))
+                if (auto ctx = get_context(coord))
                 {
                     n = std::min(n, panel.x - coord.x);
                     auto& curln = batch.current();
@@ -1966,15 +1956,7 @@ private:
                     auto& mapln = index[coord.y];
                     mapln.width = std::min(panel.x, curln.length() - mapln.start);
                 }
-                else
-                {
-                    auto coor = coord;
-                    auto& canvas = coord.y > y_end ? coor.y -= y_end, scend_panel
-                                                   :                  sctop_panel;
-                    assert(coord.y < panel.y);
-                    assert(coord.x >= 0);
-                    canvas.splice(coor, n, blank);
-                }
+                else ctx.block.splice(coord, n, blank);
             }
             // Reserved for future use.
             // scroll_buf: Insert count blanks with scroll.
@@ -1999,8 +1981,14 @@ private:
                 assert(coord.y >= 0 && coord.y < panel.y);
                 assert(test_futures());
 
-                if (auto ctx = inside_scroll(coord.y))
+                auto coor = coord;
+                if (coord.y < y_top)
                 {
+
+                }
+                else if (coord.y <= y_end)
+                {
+                    coord.y -= y_top;
                     auto& curln = batch.current();
                     auto  start = batch.caret;
                     batch.caret += count;
@@ -2135,6 +2123,7 @@ private:
                     }
                     assert(coord.y >= 0 && coord.y < region_size);
                     //log(" bufferbase size in cells = ", batch.get_size_in_cells());
+                    coord.y += y_top;
                 }
                 else
                 {
