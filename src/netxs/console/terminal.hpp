@@ -1403,12 +1403,15 @@ private:
 
                 bufferbase::resize_viewport(new_sz);
 
-                sctop_panel.crop(twod{ panel.x, sctop_panel.core::size().y }, sctop_panel.mark());
-                scend_panel.crop(twod{ panel.x, scend_panel.core::size().y }, scend_panel.mark());
-
                 batch.set_width(panel.x);
                 index.clear();
 
+                if (sctop_panel.core::size().x != panel.x)
+                {
+                    //todo check cursor position
+                    sctop_panel.crop(twod{ panel.x, sctop }, sctop_panel.mark());
+                    scend_panel.crop(twod{ panel.x, scend }, scend_panel.mark());
+                }
                 region_size = y_end - y_top + 1;
                 index.resize(region_size); // Use a fixed ring because new lines are added much more often than a futures feed.
 
@@ -2014,9 +2017,7 @@ private:
                             count -= n;
                             //todo optimize
                             auto saved = coord;
-                            print_index("1. y_top");
                             set_coord({ 0, y_top });
-                            print_index("2. y_top");
                             //todo use ranges
                             grid proto2{ proto.begin() + count, proto.end()};
                             data(n, proto2);
@@ -2169,7 +2170,31 @@ private:
                 }
                 else
                 {
-                    //todo imp for fields
+                    coord.y -= y_end + 1;
+                    auto old_coord = coord;
+                    coord.x += count;
+                    //todo apply line adjusting
+                    if (coord.x <= panel.x)//todo styles! || ! curln.wrapped())
+                    {
+                        auto n = std::min(count, panel.x - std::max(0, old_coord.x));
+                        scend_panel.splice(old_coord, n, proto);
+                    }
+                    else
+                    {
+                        coord.y += (coord.x + panel.x - 1) / panel.x - 1;
+                        coord.x  = (coord.x           - 1) % panel.x + 1;
+
+                        if (coord.y >= panel.y) coord.y = panel.y - 1;
+
+                        auto data = proto.begin();
+                        auto size = count;
+                        auto seek = old_coord.x + old_coord.y * panel.x;
+                        auto dest = scend_panel.iter() + seek;
+                        auto tail = scend_panel.iend();
+                        auto back = panel.x;
+                        rich::unlimit_fill_proc(data, size, dest, tail, back);
+                    }
+                    coord.y = std::min(coord.y + y_end + 1, panel.y - 1);
                 }
             }
             // scroll_buf: Clear scrollback.
@@ -2198,7 +2223,7 @@ private:
                 maker.reset(canvas);
                 //temp solution
                 auto maker_full = maker.full();
-                maker_full.coor.y += sctop;
+                maker_full.coor.y += y_top;
                 maker.full(maker_full);
 
                 auto view = canvas.view();

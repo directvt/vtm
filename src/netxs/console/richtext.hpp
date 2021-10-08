@@ -885,6 +885,53 @@ namespace netxs::console
             }
         };
         template<class SRC_IT, class DST_IT>
+        static void unlimit_fill_proc(SRC_IT data, iota size, DST_IT dest, DST_IT tail, iota back)
+        {
+            //  + evaluate TAB etc
+            //  + bidi
+            //  + eliminate non-printable and with cwidth == 0 (\0, \t, \b, etc...)
+            //  + while (--wide)
+            //    {
+            //        /* IT IS UNSAFE IF REALLOCATION OCCURS. BOOK ALWAYS */
+            //        lyric.emplace_back(cluster, console::whitespace);
+            //    }
+            //  + convert front into the screen-like sequence (unfold, remmove zerospace chars)
+
+            auto set = [&](auto const& c)
+            {
+                if (dest == tail) dest -= back;
+                *dest++ = c;
+                --size;
+            };
+            while (size > 0)
+            {
+                auto c = *data++;
+                auto w = c.wdt();
+                if (w == 1)
+                {
+                    set(c);
+                }
+                else if (w == 2)
+                {
+                    set(c.wdt(2));
+                    set(c.wdt(3));
+                }
+                else if (w == 0)
+                {
+                    //todo implemet controls/commands
+                    // winsrv2019's cmd.exe sets title with a zero at the end
+                    //*dst++ = cell{ c, whitespace };
+                }
+                else if (w > 2)
+                {
+                    // Forbid using super wide characters until terminal emulators support the fragmentation attribute.
+                    c.txt(utf::REPLACEMENT_CHARACTER_UTF8_VIEW);
+                    do set(c);
+                    while (--w && size > 0);
+                }
+            }
+        };
+        template<class SRC_IT, class DST_IT>
         static void reverse_fill_proc(SRC_IT data, DST_IT dest, DST_IT tail)
         {
             //  + evaluate TAB etc
