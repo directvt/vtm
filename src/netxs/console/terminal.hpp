@@ -1103,7 +1103,9 @@ private:
                     : index{ index },
                       start{ start },
                       width{ width }
-                { }
+                {
+                    assert(index < 20000);
+                }
             };
 
             using ring = generics::ring<std::vector<line>, true>;
@@ -1396,20 +1398,27 @@ private:
             //scroll_buf: Return viewport vertical oversize.
             void resize_viewport(twod const& new_sz) override
             {
+                auto in_top = y_top - coord.y;
+                auto in_end = coord.y - y_end;
+
                 bufferbase::resize_viewport(new_sz);
 
-                auto core_size = sctop_panel.core::size().x;
-                if (core_size < new_sz.x)
-                {
-                    sctop_panel.crop(twod{ new_sz.x, sctop_panel.core::size().y }, sctop_panel.mark());
-                    scend_panel.crop(twod{ new_sz.x, scend_panel.core::size().y }, scend_panel.mark());
-                }
+                sctop_panel.crop(twod{ panel.x, sctop_panel.core::size().y }, sctop_panel.mark());
+                scend_panel.crop(twod{ panel.x, scend_panel.core::size().y }, scend_panel.mark());
 
                 batch.set_width(panel.x);
                 index.clear();
 
                 region_size = y_end - y_top + 1;
                 index.resize(region_size); // Use a fixed ring because new lines are added much more often than a futures feed.
+
+                if (in_top > 0 || in_end > 0) // The cursor is outside the scrolling region.
+                {
+                    if (in_top > 0) coord.y = std::max(0          , y_top - in_top);
+                    else            coord.y = std::min(panel.y - 1, y_end + in_end);
+                    index_rebuild();
+                    return;
+                }
 
                 basis = batch.vsize;
                 auto lnid = batch.current().index;
@@ -1455,7 +1464,7 @@ private:
                         }
                     }
                 }
-                coord.y = index.size - coord.y;
+                coord.y = index.size - coord.y + y_top;
 
                 assert(basis >= 0);
                 assert(test_futures());
@@ -1605,11 +1614,15 @@ private:
                 {
                     coor.y += basis;
 
+                    auto visible = coor.y + origin.y;
+                    if (visible < y_top // Do not show cursor behind margins.
+                     || visible > y_end) return dot_mx;
+
                     auto& curln = batch.current();
                     auto  align = curln.style.jet();
 
                     if (align == bias::left
-                    || align == bias::none) return coor;
+                     || align == bias::none) return coor;
 
                     auto curidx = coord.y - y_top;
                     auto remain = index[curidx].width;
@@ -1621,7 +1634,6 @@ private:
                 else
                 {
                     coor -= origin;
-                    coor.y -= y_top - 1;
                 }
                 return coor;
             }
@@ -1640,7 +1652,6 @@ private:
                  && coord.y <= y_end)
                 {
                     auto& curln = batch.current();
-                    auto  style = curln.style;
                     auto  curid = curln.index;
                     coord.y -= y_top;
 
@@ -1657,7 +1668,7 @@ private:
                     {
                         auto newix = batch.index_by_id(mapln.index);
                         batch.index(newix);
-                        if (batch->style != style) _set_style(style);
+                        if (batch->style != parser::style) _set_style(parser::style);
                     }
                     coord.y += y_top;
                 }
@@ -2003,11 +2014,12 @@ private:
                             count -= n;
                             //todo optimize
                             auto saved = coord;
+                            print_index("1. y_top");
                             set_coord({ 0, y_top });
+                            print_index("2. y_top");
                             //todo use ranges
                             grid proto2{ proto.begin() + count, proto.end()};
                             data(n, proto2);
-                            set_coord(saved);
                         }
                         auto data = proto.begin();
                         auto seek = old_coord.x + old_coord.y * panel.x;
@@ -2936,7 +2948,8 @@ private:
                 //cursor_coor.y += std::max(0, console.height() - screen.size.y) - oversz.b;
                 //cursor.coor(cursor_coor);
                 auto view = parent_canvas.view();
-                auto origin = this->coor() - view.coor;
+                auto full = parent_canvas.full();
+                auto origin = full.coor - view.coor;
                 cursor.coor(console.get_coord(origin));
                 //auto adjust_pads = console.recalc_pads(oversz);
                 //auto scroll_size = recalc(cursor_coor);
