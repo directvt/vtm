@@ -913,74 +913,74 @@ private:
                 auto blank = brush.spc();//.bgc(greendk).bga(0x7f);
                 canvas.splice(coord, n, blank);
             }
-            // alt_screen: Helper. Put the count of chars from data_source and scroll viewport on overflow.
-            template<class T, class P>
-            void fill_with_scroll(iota count, T const& data_source, P fill_proc)
+            // alt_screen: Parser callback.
+            void data(iota count, grid const& proto) override
             {
-                assert(coord.y < panel.y);
+                assert(coord.y >= 0 && coord.y < panel.y);
+
                 auto old_coord = coord;
                 coord.x += count;
-                if (coord.x <= panel.x)
+                //todo apply line adjusting
+                if (coord.x <= panel.x)//todo styles! || ! curln.wrapped())
                 {
-                    canvas.splice(old_coord, count, data_source);
+                    auto n = std::min(count, panel.x - std::max(0, old_coord.x));
+                    canvas.splice(old_coord, n, proto);
                 }
                 else
                 {
                     coord.y += (coord.x + panel.x - 1) / panel.x - 1;
                     coord.x  = (coord.x           - 1) % panel.x + 1;
-                    if (coord.y > y_end)
+
+                    if (old_coord.y < y_top)
                     {
-                        if (old_coord.y <= y_end)
+                        if (coord.y >= y_top)
+                        {
+                            auto n = coord.x + (coord.y - y_top) * panel.x;
+                            count -= n;
+                            //todo optimize
+                            auto saved = coord;
+                            set_coord({ 0, y_top });
+                            //todo use ranges
+                            grid proto2{ proto.begin() + count, proto.end()};
+                            data(n, proto2);
+                        }
+                        auto data = proto.begin();
+                        auto seek = old_coord.x + old_coord.y * panel.x;
+                        auto dest = canvas.iter() + seek;
+                        auto tail = dest + count;
+                        rich::forward_fill_proc(data, dest, tail);
+                    }
+                    else if (old_coord.y <= y_end)
+                    {
+                        if (coord.y > y_end)
                         {
                             auto dy = y_end - coord.y;
                             coord.y = y_end;
                             canvas.scroll(y_top, y_end + 1, dy, brush.spare);
                         }
-                        else if (coord.y >= panel.y)
-                        {
-                            //todo disable scroll here if y_end != panel.y - 1
-                            auto my = panel.y - 1;
-                            auto dy = my - coord.y;
-                            coord.y = my;
-                            canvas.scroll(0, panel.y, dy, brush.spare);
-                        }
-                    }
-                    auto data = canvas.iter();
-                    auto seek = coord.x + coord.y * panel.x;
-                    if (old_coord.y >= y_top)
-                    {
-                        auto miny = y_top * panel.x;
-                        if (count > seek - miny) count = seek - miny;
+
+                        auto seek = coord.x + coord.y * panel.x;
+                        auto miny = seek - y_top * panel.x;
+                        if (count > miny) count = miny;
+
+                        auto dest = canvas.iter() + seek;
+                        auto tail = dest - count;
+                        auto data = proto.end();
+                        rich::reverse_fill_proc(data, dest, tail);
                     }
                     else
                     {
-                        if (count > seek) count = seek;
+                        if (coord.y >= panel.y) coord.y = panel.y - 1;
+
+                        auto data = proto.begin();
+                        auto size = count;
+                        auto seek = old_coord.x + old_coord.y * panel.x;
+                        auto dest = canvas.iter() + seek;
+                        auto tail = canvas.iend();
+                        auto back = panel.x;
+                        rich::unlimit_fill_proc(data, size, dest, tail, back);
                     }
-                    auto dest = data + seek;
-                    auto tail = dest - count;
-                    fill_proc(dest, tail, data_source);
                 }
-            }
-            // Reserved for future use.
-            // alt_screen: Insert count blanks with scroll.
-            //void ech_grow(iota count) override
-            //{
-            //    parser::flush();
-            //    auto fill_proc = [](auto dst, auto end, auto const& blank)
-            //    {
-            //        while (dst != end) *--dst = blank;
-            //    };
-            //    fill_with_scroll(count, brush.spc(), fill_proc);
-            //}
-            // alt_screen: Parser callback.
-            void data(iota count, grid const& proto) override
-            {
-                auto fill_proc = [](auto dst, auto end, auto const& proto)
-                {
-                    auto src = proto.end();
-                    rich::reverse_fill_proc(src, dst, end);
-                };
-                fill_with_scroll(count, proto, fill_proc);
             }
             // alt_screen: Clear viewport.
             void clear_all() override
@@ -2184,8 +2184,6 @@ private:
                         coord.y += (coord.x + panel.x - 1) / panel.x - 1;
                         coord.x  = (coord.x           - 1) % panel.x + 1;
 
-                        if (coord.y >= panel.y) coord.y = panel.y - 1;
-
                         auto data = proto.begin();
                         auto size = count;
                         auto seek = old_coord.x + old_coord.y * panel.x;
@@ -2570,6 +2568,7 @@ private:
             target->flush();
             normal.clear_all();
             altbuf.clear_all();
+            set_scroll_region(0, 0);
             target = &normal;
         }
         // term: Set termnail parameters. (DECSET).
