@@ -699,7 +699,22 @@ namespace netxs::console
             core::size(newsize);
             flow::size(newsize);
         }
-
+        auto size () // face: Return size of the face/core.
+        {
+            return core::size();
+        }
+        template<bool BOTTOM_ANCHORED = faux>
+        void crop(twod const& newsize, cell const& c) // face: Resize while saving the bitmap.
+        {
+            core::crop<BOTTOM_ANCHORED>(newsize, c);
+            flow::size(newsize);
+        }
+        template<bool BOTTOM_ANCHORED = faux>
+        void crop(twod const& newsize) // face: Resize while saving the bitmap.
+        {
+            core::crop<BOTTOM_ANCHORED>(newsize, core::mark());
+            flow::size(newsize);
+        }
         template<class P = noop>
         void blur(iota r, P shade = P())
         {

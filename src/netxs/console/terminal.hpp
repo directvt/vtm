@@ -497,10 +497,12 @@ private:
             twod  panel; // bufferbase: Viewport size.
             twod  coord; // bufferbase: Viewport cursor position; 0-based.
             twod  saved; // bufferbase: Saved cursor position.
-            iota  sctop; // bufferbase: Scrolling region top    height.
-            iota  scend; // bufferbase: Scrolling region bottom height.
-            iota  y_top; // bufferbase: 0-based actual scrolling region top    vertical pos.
-            iota  y_end; // bufferbase: 0-based actual scrolling region bottom vertical pos.
+            iota  sctop; // bufferbase: Precalculated scrolling region top    height.
+            iota  scend; // bufferbase: Precalculated scrolling region bottom height.
+            iota  y_top; // bufferbase: Precalculated 0-based scrolling region top    vertical pos.
+            iota  y_end; // bufferbase: Precalculated 0-based scrolling region bottom vertical pos.
+            iota  n_top; // bufferbase: Original      1-based scrolling region top    vertical pos (use 0 if it is not set).
+            iota  n_end; // bufferbase: Original      1-based scrolling region bottom vertical pos (use 0 if it is not set).
             iota  basis; // bufferbase: Viewport basis. Index of O(0, 0) in the scrollback.
             iota  tabsz; // bufferbase: Tabstop current value.
 
@@ -513,6 +515,8 @@ private:
                   scend{ 0      },
                   y_top{ 0      },
                   y_end{ 0      },
+                  n_top{ 0      },
+                  n_end{ 0      },
                   basis{ 0      },
                   tabsz{ def_tablen }
             {
@@ -537,9 +541,13 @@ private:
             }
             void update_region()
             {
-                auto max = panel.y - 1;
-                y_end = std::clamp(max - scend, 0, max);
-                y_top = std::clamp(sctop, 0, y_end);
+                sctop = std::max(0, n_top - 1);
+                scend = n_end != 0 ? std::max(1, panel.y - n_end)
+                                   : 0;
+
+                auto y_max = panel.y - 1;
+                y_end = std::clamp(y_max - scend, 0, y_max);
+                y_top = std::clamp(sctop,         0, y_end);
             }
     virtual void resize_viewport(twod const& new_sz)
             {
@@ -549,10 +557,9 @@ private:
             // bufferbase: Reset coord and set the scrolling region using 1-based top and bottom. Use 0 to reset.
     virtual void set_scroll_region(iota top, iota bottom)
             {
-                coord = dot_00;
-                sctop = std::max(0, top - 1);
-                scend = bottom != 0 ? std::max(0, panel.y - bottom)
-                                    : 0;
+                // New experimental concept. coord = dot_00;
+                n_top = top    == 1       ? 0 : top;
+                n_end = bottom == panel.y ? 0 : bottom;
                 update_region();
             }
     virtual void set_coord(twod const& new_coord)
@@ -616,6 +623,7 @@ private:
     virtual void clear_all()
             {
                 parser::state = {};
+                set_scroll_region(0, 0);
             }
             // bufferbase: ESC H  Place tabstop at the current cursor posistion.
             void stb()
@@ -1406,12 +1414,12 @@ private:
                 batch.set_width(panel.x);
                 index.clear();
 
-                if (sctop_panel.core::size().x != panel.x)
-                {
-                    //todo check cursor position
-                    sctop_panel.crop(twod{ panel.x, sctop }, sctop_panel.mark());
-                    scend_panel.crop(twod{ panel.x, scend }, scend_panel.mark());
-                }
+                //todo check cursor position
+                auto new_top = twod{ panel.x, sctop };
+                auto new_end = twod{ panel.x, scend };
+                if (new_top != sctop_panel.size()) sctop_panel.crop(new_top);
+                if (new_end != scend_panel.size()) scend_panel.crop(new_end);
+
                 region_size = y_end - y_top + 1;
                 index.resize(region_size); // Use a fixed ring because new lines are added much more often than a futures feed.
 
@@ -1693,16 +1701,37 @@ private:
             // scroll_buf: Set the scrolling region using 1-based top and bottom. Use 0 to reset.
             void set_scroll_region(iota top, iota bottom) override
             {
-                auto old_sctop = y_top;
-                auto old_scend = panel.y - 1 - y_end;
+                auto old_sctop = sctop;
+                auto old_scend = scend;
 
                 bufferbase::set_scroll_region(top, bottom);
+                {
+                    // New expreimental concept for top and bottom margins.
+                    //todo check cursor position
+                    auto new_top = twod{ panel.x, sctop };
+                    auto new_end = twod{ panel.x, scend };
+                    if (sctop_panel.size().y == 0) sctop_panel.mark(brush.spare);
+                    if (scend_panel.size().y == 0) scend_panel.mark(brush.spare);
+                    if (new_top != sctop_panel.size()) sctop_panel.crop(new_top);
+                    if (new_end != scend_panel.size()) scend_panel.crop(new_end);
+
+                    region_size = panel.y - (scend + sctop);
+                    basis += index.size - region_size;
+                    basis = std::clamp(basis, 0, batch.vsize - 1);
+                    log(" basis=", basis);
+
+                    index.clear();
+                    index.resize(region_size);
+                    index_rebuild();
+                    sync_coord();
+                    return;
+                }
+                /*
+                auto old_sctop = y_top;
+                auto old_scend = panel.y - 1 - y_end;
                 log(" top=", top, " bottom=", bottom, " panel=", panel);
                 log(" old_sctop=", old_sctop, " old_scend=", old_scend);
                 log(" sctop=", sctop, " scend=", scend);
-
-                //todo if top    == 0 || 1         push sctop_panel to scroll buffer
-                //todo if bottom == 0 || panel.y-1 push scend_panel to scroll buffer
 
                 auto top_dy = sctop_panel.core::size().y - old_sctop;
                 auto end_dy = scend_panel.core::size().y - old_scend;
@@ -1776,6 +1805,7 @@ private:
                 index.resize(region_size);
                 index_rebuild();
                 sync_coord();
+                */
             }
             // scroll_buf: Push lines to the scrollback bottom.
             void add_lines(iota amount)
@@ -2292,10 +2322,9 @@ private:
 
                 {
                     auto view = canvas.view();
-                    auto top_coor = twod{ view.coor.x, view.coor.y + y_top - sctop };
-                    auto end_coor = twod{ view.coor.x, view.coor.y + y_end + 1     };
-                    sctop_panel.move(top_coor);
-                    scend_panel.move(end_coor);
+                    sctop_panel.move(view.coor);
+                    view.coor.y += y_end + 1;
+                    scend_panel.move(view.coor);
                     canvas.plot(sctop_panel, [](auto& dst, auto& src){ dst.fuse(src); dst.bgc(greendk).bga(0x80); });
                     canvas.plot(scend_panel, [](auto& dst, auto& src){ dst.fuse(src); dst.bgc(reddk).bga(0x80); });
 
@@ -2568,7 +2597,6 @@ private:
             target->flush();
             normal.clear_all();
             altbuf.clear_all();
-            set_scroll_region(0, 0);
             target = &normal;
         }
         // term: Set termnail parameters. (DECSET).
@@ -3005,18 +3033,21 @@ private:
                 if (oversz.b > 0) // Shade the viewport bottom oversize.
                 {
                     auto bottom_oversize = parent_canvas.full();
-                    bottom_oversize.coor.y += console.basis + console.panel.y;//scroll_size.y;
+                    bottom_oversize.coor.y += console.basis + console.panel.y - console.scend;//scroll_size.y;
                     bottom_oversize.size.y  = oversz.b;
                     bottom_oversize = bottom_oversize.clip(parent_canvas.view());
                     parent_canvas.fill(bottom_oversize, cell::shaders::xlight);
                 }
 
                 // Debug: Shade active viewport.
-                //auto vp = rect{ { 0,console.basis }, console.panel };
-                //vp.coor += parent_canvas.full().coor;
-                //vp = vp.clip(parent_canvas.view());
-                //parent_canvas.fill(vp, [](auto& c){ c.fuse(cell{}.bgc(greenlt).bga(80)); });
-
+                {
+                    auto size = console.panel;
+                    size.y -= console.sctop + console.scend;
+                    auto vp = rect{ { 0,console.basis + console.sctop }, size };
+                    vp.coor += parent_canvas.full().coor;
+                    vp = vp.clip(parent_canvas.view());
+                    parent_canvas.fill(vp, [](auto& c){ c.fuse(cell{}.bgc(magentalt).bga(50)); });
+                }
                 //log(" 2. screen=", screen, " basis=", target->basis, " this.coor=", this->coor());
             };
         }
