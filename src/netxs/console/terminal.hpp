@@ -557,7 +557,7 @@ private:
             // bufferbase: Reset coord and set the scrolling region using 1-based top and bottom. Use 0 to reset.
     virtual void set_scroll_region(iota top, iota bottom)
             {
-                // New experimental concept. coord = dot_00;
+                coord = dot_00;
                 n_top = top    == 1       ? 0 : top;
                 n_end = bottom == panel.y ? 0 : bottom;
                 update_region();
@@ -1705,43 +1705,17 @@ private:
                 auto old_scend = scend;
 
                 bufferbase::set_scroll_region(top, bottom);
-                {
-                    // New expreimental concept for top and bottom margins.
-                    //todo check cursor position
-                    auto new_top = twod{ panel.x, sctop };
-                    auto new_end = twod{ panel.x, scend };
-                    if (sctop_panel.size().y == 0) sctop_panel.mark(brush.spare);
-                    if (scend_panel.size().y == 0) scend_panel.mark(brush.spare);
-                    if (new_top != sctop_panel.size()) sctop_panel.crop(new_top);
-                    if (new_end != scend_panel.size()) scend_panel.crop(new_end);
 
-                    region_size = panel.y - (scend + sctop);
-                    basis += index.size - region_size;
-                    basis = std::clamp(basis, 0, batch.vsize - 1);
-                    log(" basis=", basis);
-
-                    index.clear();
-                    index.resize(region_size);
-                    index_rebuild();
-                    sync_coord();
-                    return;
-                }
-                /*
-                auto old_sctop = y_top;
-                auto old_scend = panel.y - 1 - y_end;
                 log(" top=", top, " bottom=", bottom, " panel=", panel);
                 log(" old_sctop=", old_sctop, " old_scend=", old_scend);
                 log(" sctop=", sctop, " scend=", scend);
 
-                auto top_dy = sctop_panel.core::size().y - old_sctop;
-                auto end_dy = scend_panel.core::size().y - old_scend;
-                auto top_size = twod{ panel.x, sctop + top_dy };
-                auto btm_size = twod{ panel.x, scend + end_dy };
-
+                auto top_size = twod{ panel.x, sctop };
+                auto btm_size = twod{ panel.x, scend };
                 auto delta_top = sctop - old_sctop;
                 auto delta_end = scend - old_scend;
 
-                auto pull = [&](face& block, twod origin, iota begin, iota limit)
+                auto pull = [&](face& block, twod origin, iota begin, iota limit, bool clear)
                 {
                     //todo check bounds
 
@@ -1766,7 +1740,7 @@ private:
                         log(" curln.id=", curln.index, " text=", curln.to_txt());
                     }
                     while (++head != tail);
-                    batch.remove(from, size);
+                    if (clear) batch.remove(from, size);
                 };
 
                 auto push = [&](face& block, iota start, iota count, iota where)
@@ -1776,28 +1750,28 @@ private:
 
                 };
 
-                if (delta_end > 0) // Bottom margin processed first (don't touch top indices).
+                if (delta_top > 0)
                 {
-                    if (scend_panel.core::size().y == 0) scend_panel.mark(brush.spare);
-                    scend_panel.crop<true>(btm_size, scend_panel.mark());
-                    pull(scend_panel, dot_00, region_size - delta_end, region_size);
+                    if (old_sctop == 0) sctop_panel.mark(brush.spare);
+                    sctop_panel.crop<faux>(top_size);
+                    pull(sctop_panel, { 0, old_sctop }, 0, delta_top, faux);
+                    basis = std::min(basis + delta_top, batch.vsize - 1);
                 }
-                else if (delta_end < 0)
+                else
+                {
+                    sctop_panel.crop<faux>(top_size);
+                }
+
+                if (delta_end > 0)
+                {
+                    if (old_scend == 0) scend_panel.mark(brush.spare);
+                    scend_panel.crop<true>(btm_size);
+                    pull(scend_panel, dot_00, region_size - delta_end, region_size, true);
+                }
+                else
                 {
                     push(scend_panel, 0, delta_end, region_size - 1);
                     scend_panel.crop<true>(btm_size);
-                }
-
-                if (delta_top > 0)
-                {
-                    if (sctop_panel.core::size().y == 0) sctop_panel.mark(brush.spare);
-                    sctop_panel.crop<faux>(top_size, sctop_panel.mark());
-                    pull(sctop_panel, { 0, top_dy + old_sctop }, 0, delta_top);
-                }
-                else if (delta_top < 0)
-                {
-                    push(scend_panel, sctop, delta_top, 0);
-                    sctop_panel.crop<faux>(top_size);
                 }
 
                 region_size = panel.y - (scend + sctop);
@@ -1805,7 +1779,6 @@ private:
                 index.resize(region_size);
                 index_rebuild();
                 sync_coord();
-                */
             }
             // scroll_buf: Push lines to the scrollback bottom.
             void add_lines(iota amount)
@@ -2003,23 +1976,6 @@ private:
                 }
                 else ctx.block.splice(coord, n, blank);
             }
-            // Reserved for future use.
-            // scroll_buf: Insert count blanks with scroll.
-            //void ech_grow(iota n) override
-            //{
-            //    parser::flush();
-            //    if (auto ctx = inside_scroll(coord.y))
-            //    {
-            //      auto& curln = batch.current();
-            //      auto  blank = brush.spc(); //.bgc(magentadk).bga(0x7f);
-            //      curln.splice<true>(batch.caret, n, blank);
-            //      batch.recalc(curln);
-            //      //todo check_autogrow
-            //      //todo move cursor and auto scroll (same as data())
-            //      //todo reindex
-            //    }
-            //}
-
             // scroll_buf: Proceed new text (parser callback).
             void data(iota count, grid const& proto) override
             {
@@ -2241,7 +2197,6 @@ private:
             void resize_history(iota new_size, iota grow_by = 0)
             {
                 static constexpr auto BOTTOM_ANCHORED = true;
-                //set_scroll_region(0, 0);
                 batch.resize<BOTTOM_ANCHORED>(new_size, grow_by);
                 index_rebuild();
             }
