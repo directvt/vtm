@@ -1347,6 +1347,8 @@ private:
             iota vsize; // scroll_buf: Scrollback vertical size (height).
             face sctop_panel;
             face scend_panel;
+            twod sctop_original_size;
+            twod scend_original_size;
             iota region_size{ 1 };
 
             scroll_buf(term& boss, iota buffer_size, iota grow_step)
@@ -1415,10 +1417,12 @@ private:
                 index.clear();
 
                 //todo check cursor position
-                auto new_top = twod{ panel.x, sctop };
-                auto new_end = twod{ panel.x, scend };
-                if (new_top != sctop_panel.size()) sctop_panel.crop(new_top);
-                if (new_end != scend_panel.size()) scend_panel.crop(new_end);
+
+                // Preserve original content. The app that changed the margins is responsible for updating the content.
+                auto new_top = std::max(sctop_original_size, twod{ panel.x, sctop });
+                auto new_end = std::max(scend_original_size, twod{ panel.x, scend });
+                sctop_panel.crop(new_top);
+                scend_panel.crop(new_end);
 
                 region_size = y_end - y_top + 1;
                 index.resize(region_size); // Use a fixed ring because new lines are added much more often than a futures feed.
@@ -1710,12 +1714,13 @@ private:
                 log(" old_sctop=", old_sctop, " old_scend=", old_scend);
                 log(" sctop=", sctop, " scend=", scend);
 
-                auto top_size = twod{ panel.x, sctop };
-                auto btm_size = twod{ panel.x, scend };
+                // Crop existing content. The app that changed the margins is responsible for updating the content.
+                sctop_original_size = { panel.x, sctop };
+                scend_original_size = { panel.x, scend };
                 auto delta_top = sctop - old_sctop;
                 auto delta_end = scend - old_scend;
 
-                auto pull = [&](face& block, twod origin, iota begin, iota limit, bool clear)
+                auto pull = [&](face& block, twod origin, iota begin, iota limit)
                 {
                     //todo check bounds
 
@@ -1740,7 +1745,7 @@ private:
                         log(" curln.id=", curln.index, " text=", curln.to_txt());
                     }
                     while (++head != tail);
-                    if (clear) batch.remove(from, size);
+                    batch.remove(from, size);
                 };
 
                 auto push = [&](face& block, iota start, iota count, iota where)
@@ -1750,28 +1755,34 @@ private:
 
                 };
 
-                if (delta_top > 0)
-                {
-                    if (old_sctop == 0) sctop_panel.mark(brush.spare);
-                    sctop_panel.crop<faux>(top_size);
-                    pull(sctop_panel, { 0, old_sctop }, 0, delta_top, faux);
-                    basis = std::min(basis + delta_top, batch.vsize - 1);
-                }
-                else
-                {
-                    sctop_panel.crop<faux>(top_size);
-                }
-
                 if (delta_end > 0)
                 {
                     if (old_scend == 0) scend_panel.mark(brush.spare);
-                    scend_panel.crop<true>(btm_size);
-                    pull(scend_panel, dot_00, region_size - delta_end, region_size, true);
+                    scend_panel.crop<true>(scend_original_size);
+                    pull(scend_panel, dot_00, region_size - delta_end, region_size);
                 }
                 else
                 {
-                    push(scend_panel, 0, delta_end, region_size - 1);
-                    scend_panel.crop<true>(btm_size);
+                    if (scend == 0) // Return lines to the scrollback iif margin is disabled.
+                    {
+                        push(scend_panel, 0, delta_end, region_size - 1);
+                    }
+                    scend_panel.crop<true>(scend_original_size);
+                }
+
+                if (delta_top > 0)
+                {
+                    if (old_sctop == 0) sctop_panel.mark(brush.spare);
+                    sctop_panel.crop<faux>(sctop_original_size);
+                    pull(sctop_panel, { 0, old_sctop }, 0, delta_top);
+                }
+                else
+                {
+                    if (sctop == 0) // Return lines to the scrollback iif margin is disabled.
+                    {
+                        push(sctop_panel, 0, delta_top, 0);
+                    }
+                    sctop_panel.crop<faux>(sctop_original_size);
                 }
 
                 region_size = panel.y - (scend + sctop);
@@ -2277,9 +2288,11 @@ private:
 
                 {
                     auto view = canvas.view();
-                    sctop_panel.move(view.coor);
-                    view.coor.y += y_end + 1;
-                    scend_panel.move(view.coor);
+                    auto top_coor = twod{ view.coor.x, view.coor.y + y_top - sctop };
+                    auto end_coor = twod{ view.coor.x, view.coor.y + y_end + 1     };
+                    sctop_panel.move(top_coor);
+                    scend_panel.move(end_coor);
+
                     canvas.plot(sctop_panel, [](auto& dst, auto& src){ dst.fuse(src); dst.bgc(greendk).bga(0x80); });
                     canvas.plot(scend_panel, [](auto& dst, auto& src){ dst.fuse(src); dst.bgc(reddk).bga(0x80); });
 
