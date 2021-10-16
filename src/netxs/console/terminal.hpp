@@ -1947,7 +1947,7 @@ private:
             void ins(iota n) override
             {
                 bufferbase::flush();
-                auto blank = brush.spc(); //.bgc(magentadk).bga(0x7f);
+                auto blank = brush.spc();//.bgc(yellowdk).bga(0x7f);
                 if (auto ctx = get_context(coord))
                 {
                     n = std::min(n, panel.x - coord.x);

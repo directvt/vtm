@@ -1045,13 +1045,15 @@ namespace netxs::console
         void insert(iota at, iota count, cell const& blank, iota margin)
         {
             if (count <= 0) return;
+            auto len = length();
             auto pos = at % margin;
             auto vol = std::min(count, margin - pos);
-            auto max = at + vol;
+            auto max = std::min(len + vol, at + margin - pos);
             reserv(max);
-            auto dst = iter() + max;
-            auto end = dst - vol;
-            auto src = end;
+            auto ptr = iter();
+            auto dst = ptr + max;
+            auto src = dst - vol;
+            auto end = ptr + at;
             while (src != end) *--dst = *--src;
             while (dst != end) *--dst = blank;
         }
