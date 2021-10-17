@@ -1318,9 +1318,22 @@ private:
                         taken = back().index;
                     }
                 }
+                void reindex(iota from)
+                {
+                    auto head = begin() + from;
+                    auto tail = end();
+                    auto indx = from == 0 ? 0
+                                          : (head - 1)->index;
+                    while (head != tail)
+                    {
+                        head->index = ++indx;
+                        ++head;
+                    }
+                }
                 auto remove(iota at, iota count)
                 {
                     count = ring::remove(at, count);
+                    //reindex(at);
                     auto head = begin() + at;
                     auto tail = end();
                     while (head != tail)
@@ -1714,7 +1727,7 @@ private:
                 log(" old_sctop=", old_sctop, " old_scend=", old_scend);
                 log(" sctop=", sctop, " scend=", scend);
 
-                // Crop existing content. The app that changed the margins is responsible for updating the content.
+                // Trim the existing margin content if any. The app that changed the margins is responsible for updating the content.
                 sctop_original_size = { panel.x, sctop };
                 scend_original_size = { panel.x, scend };
                 auto delta_top = sctop - old_sctop;
@@ -1749,11 +1762,48 @@ private:
                     batch.remove(from, size);
                 };
 
-                auto push = [&](face& block, iota start, iota count, iota where)
+                auto push = [&](face& block, bool at_bottom)
                 {
-                    auto curid = index[where].index;
-                    // ...
+                    auto height  = block.size().y;
+                    if (at_bottom)
+                    {
+                        auto start = basis + region_size;
+                        // add new lines if needed
+                        auto& mapln = index.back();
+                        //auto  start = mapln.start;
+                        auto  curid = mapln.index;
+                        // ...
+                        auto begin = 0;
+                        while(height-- > 0)
+                        {
+                            auto newln = line{};
+                            newln.style.glb().wrp(wrap::off);
 
+                            //auto after = batch.index_by_id(curid);
+                            //auto tmpln = std::move(batch[after]);
+                            //auto curit = batch.insert(after, tmpln.index, tmpln.style);
+                            //auto endit = batch.end();
+
+
+                            // dissect(begin);
+                            // batch.insert(start, newln);
+                            // //start++;
+                        }
+                        //batch.reindex(start);
+                    }
+                    else
+                    {
+                        auto start = basis;
+
+                        while(height-- > 0)
+                        {
+                            auto newln = line{};
+                            newln.style.glb().wrp(wrap::off);
+
+                            // batch.insert(start, newln);
+                        }
+                        //batch.reindex(start);
+                    }
                 };
 
                 if (delta_end > 0)
@@ -1764,9 +1814,9 @@ private:
                 }
                 else
                 {
-                    if (scend == 0) // Return lines to the scrollback iif margin is disabled.
+                    if (scend == 0 && old_scend > 0) // Return lines to the scrollback iif margin is disabled.
                     {
-                        push(scend_panel, 0, delta_end, region_size - 1);
+                        push(scend_panel, true);
                     }
                     scend_panel.crop<true>(scend_original_size);
                 }
@@ -1779,9 +1829,9 @@ private:
                 }
                 else
                 {
-                    if (sctop == 0) // Return lines to the scrollback iif margin is disabled.
+                    if (sctop == 0 && old_sctop > 0) // Return lines to the scrollback iif margin is disabled.
                     {
-                        push(sctop_panel, 0, delta_top, 0);
+                        push(sctop_panel, faux);
                     }
                     sctop_panel.crop<faux>(sctop_original_size);
                 }

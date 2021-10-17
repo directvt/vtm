@@ -133,9 +133,15 @@ namespace netxs::generics
         void pop_back () { undock_back();  --size; }
         void pop_front() { undock_front(); --size; }
         template<class ...Args>
-        auto insert(iota at, Args&&... args) // Pop front always if ring is full.
+        auto insert(iota at, Args&&... args) // Pop front always if ring is full. Return an iterator pointing to the new item.
         {
-            assert(at >= 0 && at < size);
+            assert(at >= 0 && at <= size);
+
+            if (at == size)
+            {
+                push_back(std::forward<Args>(args)...);
+                return begin() + size;
+            }
 
             auto d = at + 1;
             if (size >> 1 > d)
