@@ -9,6 +9,7 @@
 #include "../abstract/ring.hpp"
 
 #include <cassert>
+#include <span>
 
 namespace netxs::console
 {
@@ -75,11 +76,20 @@ namespace netxs::console
         rect client;
 
     public:
+        using span = std::span<cell>;
+
         core()                         = default;
         core(core&&)                   = default;
         core(core const&)              = default;
         core& operator = (core&&)      = default;
         core& operator = (core const&) = default;
+        core(span const& body, twod const& size)
+            : region{ dot_00, size },
+              client{ dot_00, size },
+              canvas( body.begin(), body.end() )
+        {
+            assert(size.x * size.y == std::distance(body.begin(), body.end()));
+        }
 
         friend void swap(core& lhs, core& rhs)
         {
@@ -798,6 +808,8 @@ namespace netxs::console
         : public core
     {
     public:
+        using core::core;
+
         auto length() const                              { return size().x;                         }
         auto shadow() const                              { return shot{ *this };                    }
         auto substr(iota at, iota width = maxiota) const { return shadow().substr(at, width);       }

@@ -1062,6 +1062,12 @@ private:
                     : index{ newid },
                       style{ style }
                 { }
+                line(id_t newid, deco const& style, span const& dt, twod const& sz)
+                    : rich { dt,sz },
+                      index{ newid },
+                      style{ style }
+                { }
+
                 line& operator = (line&&)      = default;
                 line& operator = (line const&) = default;
 
@@ -1245,6 +1251,15 @@ private:
                     invite(l._kind, l._size, l.style.get_kind(), l.length());
                     return l;
                 }
+                template<class ...Args>
+                auto& insert(iota at, Args&&... args)
+                {
+                    dirty = true;
+                    //todo revise (iter vs item)
+                    auto& l = *ring::insert(at, std::forward<Args>(args)...);
+                    invite(l._kind, l._size, l.style.get_kind(), l.length());
+                    return l;
+                }
                 void undock(line& l) override { undock(l._kind, l._size); }
                 template<auto N> auto max() { return lens[N].max; }
                 auto index_by_id(ui32 id)
@@ -1323,10 +1338,10 @@ private:
                     auto head = begin() + from;
                     auto tail = end();
                     auto indx = from == 0 ? 0
-                                          : (head - 1)->index;
+                                          : (head - 1)->index + 1;
                     while (head != tail)
                     {
-                        head->index = ++indx;
+                        head->index = indx++;
                         ++head;
                     }
                 }
@@ -1368,7 +1383,7 @@ private:
                 : bufferbase{ boss                     },
                        batch{ buffer_size, grow_step   },
                        maker{ batch.width, batch.vsize },
-                       index{ 1                        },
+                       index{ 0                        },
                        vsize{ 1                        }
             {
                 batch.invite(0); // At least one line must exist.
@@ -1401,7 +1416,7 @@ private:
                 }
                 log(" -----------------");
             }
-            auto test_futures()
+            bool test_futures()
             {
                 auto stash = batch.vsize - basis - index.size;
                 assert(stash >= 0);
@@ -1723,10 +1738,6 @@ private:
 
                 bufferbase::set_scroll_region(top, bottom);
 
-                log(" top=", top, " bottom=", bottom, " panel=", panel);
-                log(" old_sctop=", old_sctop, " old_scend=", old_scend);
-                log(" sctop=", sctop, " scend=", scend);
-
                 // Trim the existing margin content if any. The app that changed the margins is responsible for updating the content.
                 sctop_original_size = { panel.x, sctop };
                 scend_original_size = { panel.x, scend };
@@ -1750,13 +1761,11 @@ private:
                     block.full(full);
                     block.view(view);
                     block.ac(view.coor);
-                    log(" view=", view, " full=", full);
                     do
                     {
                         auto& curln = *head;
                         block.output(curln);
                         block.nl(1);
-                        log(" curln.id=", curln.index, " text=", curln.to_txt());
                     }
                     while (++head != tail);
                     batch.remove(from, size);
@@ -1793,16 +1802,22 @@ private:
                     }
                     else
                     {
-                        auto start = basis;
-
+                        if (height <= 0) return;
+                        dissect(0);
+                        auto& mapln = index.front();
+                        auto  start = batch.index_by_id(mapln.index);
+                        auto  width = twod{ sctop_panel.size().x, 1 };
+                        auto  curit = sctop_panel.iter() + height * width.x;
+                        //todo ? left + wrap + trim : or restore original style
+                        auto  style = ansi::def_style;
+                        style.wrp(wrap::off);
                         while(height-- > 0)
                         {
-                            auto newln = line{};
-                            newln.style.glb().wrp(wrap::off);
-
-                            // batch.insert(start, newln);
+                            curit -= width.x;
+                            auto shadow = core::span{ curit, static_cast<size_t>(width.x) };
+                            batch.insert(start, id_t{}, style, shadow, width);
                         }
-                        //batch.reindex(start);
+                        batch.reindex(start);
                     }
                 };
 
@@ -1826,6 +1841,7 @@ private:
                     if (old_sctop == 0) sctop_panel.mark(brush.spare);
                     sctop_panel.crop<faux>(sctop_original_size);
                     pull(sctop_panel, { 0, old_sctop }, 0, delta_top);
+                    if (batch.size == 0) batch.invite(0, parser::style);
                 }
                 else
                 {
@@ -1841,6 +1857,8 @@ private:
                 index.resize(region_size);
                 index_rebuild();
                 sync_coord();
+
+                //print_index("2. add top");
             }
             // scroll_buf: Push lines to the scrollback bottom.
             void add_lines(iota amount)
@@ -2433,7 +2451,7 @@ private:
                 {
                     auto after = batch.index_by_id(curid);
                     auto tmpln = std::move(batch[after]);
-                    auto curit = batch.insert(after, tmpln.index, tmpln.style);
+                    auto curit = batch.ring::insert(after + 1, tmpln.index, tmpln.style);
                     auto endit = batch.end();
 
                     auto& newln = *curit;

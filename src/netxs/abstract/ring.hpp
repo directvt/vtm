@@ -132,18 +132,25 @@ namespace netxs::generics
         }
         void pop_back () { undock_back();  --size; }
         void pop_front() { undock_front(); --size; }
+        // ring: Insert an item before the specified position. Return an iterator pointing to the new item.
         template<class ...Args>
-        auto insert(iota at, Args&&... args) // Pop front always if ring is full. Return an iterator pointing to the new item.
+        auto insert(iota at, Args&&... args) // Pop front always if ring is full.
         {
             assert(at >= 0 && at <= size);
 
+            if (at == 0)
+            {
+                push_front(std::forward<Args>(args)...);
+                return begin();
+            }
+            else
             if (at == size)
             {
                 push_back(std::forward<Args>(args)...);
-                return begin() + size;
+                return begin() + size - 1;
             }
 
-            auto d = at + 1;
+            auto d = at;
             if (size >> 1 > d)
             {
                 auto it_1 = begin();
