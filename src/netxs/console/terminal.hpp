@@ -1722,7 +1722,8 @@ private:
 
                 auto pull = [&](face& block, twod origin, iota begin, iota limit)
                 {
-                    //todo check bounds
+                    if (begin >= index.size) return;
+                    limit = std::min(limit, index.size);
 
                     dissect(begin);
                     dissect(limit);
