@@ -695,6 +695,7 @@ private:
                           && coord.y <= y_end)
                 {
                     scroll_region(coord.y, y_end, -n, faux);
+                    coord.x = 0;
                 }
             }
             // bufferbase: ESC M  Reverse index.
@@ -1595,9 +1596,11 @@ private:
             // scroll_buf: Return scrollback height.
             iota height() override
             {
-                auto test_vsize = 0; //sanity check
-                for (auto& l : batch) test_vsize += l.height(panel.x);
-                if (test_vsize != batch.vsize) log(" ERROR! test_vsize=", test_vsize, " vsize=", batch.vsize);
+                #ifdef DEBUG
+                    auto test_vsize = 0; //sanity check
+                    for (auto& l : batch) test_vsize += l.height(panel.x);
+                    if (test_vsize != batch.vsize) log(" ERROR! test_vsize=", test_vsize, " vsize=", batch.vsize);
+                #endif
                 return batch.vsize;
             }
             // scroll_buf: Recalc left and right oversize.
@@ -1624,20 +1627,20 @@ private:
                 assert(query > 0);
 
                 auto stash = batch.vsize - basis - index.size;
+                iota avail;
                 if (stash > 0)
                 {
-                    auto avail = std::min(stash, query);
-                    basis   += avail;
-                    query   -= avail;
-                    coord.y -= avail;
+                    avail = std::min(stash, query);
+                    basis += avail;
 
                     auto& mapln = index.back();
                     auto  curit = batch.iter_by_id(mapln.index);
 
                     reindex(avail, curit, mapln);
                 }
+                else avail = 0;
 
-                return query;
+                return avail;
             }
             // scroll_buf: Return current 0-based cursor position in the scrollback.
             twod get_coord(twod const& origin) override
@@ -1960,7 +1963,7 @@ private:
             void el(iota n) override
             {
                 bufferbase::flush();
-                auto blank = brush.spc(); //.bgc(greendk).bga(0x7f);
+                auto blank = brush.spc();
                 if (auto ctx = get_context(coord))
                 {
                     iota  start;
@@ -2006,7 +2009,7 @@ private:
             void ins(iota n) override
             {
                 bufferbase::flush();
-                auto blank = brush.spc();//.bgc(yellowdk).bga(0x7f);
+                auto blank = brush.spc();
                 if (auto ctx = get_context(coord))
                 {
                     n = std::min(n, panel.x - coord.x);
@@ -2022,7 +2025,7 @@ private:
             void dch(iota n) override
             {
                 bufferbase::flush();
-                auto blank = brush.spc(); //.bgc(magentadk).bga(0x7f);
+                auto blank = brush.spc();
                 if (auto ctx = get_context(coord))
                 {
                     auto& curln = batch.current();
@@ -2034,7 +2037,7 @@ private:
             void ech(iota n) override
             {
                 parser::flush();
-                auto blank = brush.spc(); //.bgc(magentadk).bga(0x7f);
+                auto blank = brush.spc();
                 if (auto ctx = get_context(coord))
                 {
                     n = std::min(n, panel.x - coord.x);
@@ -2074,7 +2077,7 @@ private:
                             //todo optimize
                             auto saved = coord;
                             set_coord({ 0, y_top });
-                            //todo use ranges
+                            //todo use core::span
                             grid proto2{ proto.begin() + count, proto.end()};
                             data(n, proto2);
                         }
@@ -2112,11 +2115,15 @@ private:
                         coord.x  = (coord.x           - 1) % panel.x + 1;
 
                         auto query = coord.y - (index.size - 1);
-                        auto addln = query > 0 ? feed_futures(query)
-                                               : 0;
+                        if (query > 0)
+                        {
+                            auto avail = feed_futures(query);
+                            query   -= avail;
+                            coord.y -= avail;
+                        }
                         curln.splice(start, count, proto);
                         auto curid = curln.index;
-                        if (addln > 0) // case 3 - complex: Cursor is outside the viewport. 
+                        if (query > 0) // case 3 - complex: Cursor is outside the viewport. 
                         {              // cursor overlaps some lines below and placed below the viewport.
                             batch.recalc(curln);
                             if (auto count = static_cast<iota>(batch.back().index - curid))
@@ -2362,8 +2369,7 @@ private:
             // scroll_buf: Remove all lines below (including futures) except the current. "ED2 Erase viewport" keeps empty lines.
             void del_below() override
             {
-                auto blank = brush.spc();//.bgc(yellowdk).bga(0x7f);
-
+                auto blank = brush.spc();
                 auto clear = [&](twod const& coor)
                 {
                     auto i = batch.index_by_id(index[coor.y].index);
@@ -2420,8 +2426,7 @@ private:
             // scroll_buf: Clear all lines from the viewport top line to the current line.
             void del_above() override
             {
-                auto blank = brush.spc();//.bgc(yellowdk).bga(0x7f);
-
+                auto blank = brush.spc();
                 auto clear = [&](twod const& coor)
                 {
                     // The dirtiest and fastest solution. Just fill existing lines by blank cell.
@@ -2548,108 +2553,62 @@ private:
 
                 assert(test_futures());
             }
-            // scroll_buf: Zeroize block of lines.
-            template<class SRC>
-            void zeroise(SRC begin_it, SRC end_it)
-            {
-                while (begin_it != end_it)
-                {
-                    auto& curln = *begin_it;
-                    curln.core::crop(0);
-                    batch.recalc(curln);
-                    //batch.undock(curln);
-                    //curln.core::wipe(); // Fill using background.
-                    ++begin_it;
-                }
-            }
-            // scroll_buf: Shift by n the scroll region.
+            // scroll_buf: Scroll the specified region by n lines.
             void scroll_region(iota top, iota end, iota n, bool use_scrollback) override
             {
-                //todo don't dissect if top==y_top on moving text block up, see dn(iota n).
+                assert(top >= y_top && ent <= y_end);
 
-                //temp solution
-                if (n < 0 && top == y_top && end == y_end)
+                if (n == 0) return;
+
+                if (n < 0) // Scroll text up.
                 {
-                    auto required_lines = -n;
-                    auto add_count = required_lines > 0 ? feed_futures(required_lines)
-                                                        : 0;
-                    if (add_count > 0)
+                    auto count = -n;
+                    if (top == y_top &&
+                        end == y_end && use_scrollback)
                     {
-                        add_lines(add_count);
-                        basis += add_count;
-                        coord.y -= std::min(coord.y, add_count);
-                    }
+                        auto stash = basis + arena - batch.vsize;
+                             if (stash < 0) count -= feed_futures(count);
+                        else if (stash > 0) add_lines(stash);
 
-                    assert(test_futures());
-                }
-                else
-                {
-
-                }
-
-                /*
-                if (n)
-                {
-                    auto[top, end] = get_scroll_region();
-                    auto nul_it = batch.begin();
-                    auto all_it = nul_it + basis;
-                    auto end_it = nul_it + end;
-                    auto top_it = nul_it + top;
-                    auto top_id = std::max(0, basis - all_it->depth);
-                    auto height = end - top + 1;
-                    auto footer = batch.end() - end_it - 1;
-                    if (footer < 0)
-                    {
-                        add_lines(-footer);
-                        footer = 0;
-                    }
-                    if (n > 0) // Scroll down (move text block down).
-                    {
-                        n = std::min(n, height);
-                        auto a = top_it - 1;
-                        auto b = end_it - n;
-                        auto c = end_it + 1;
-                        dissect(b + 1);
-                        dissect(top_it);
-                        if (footer) dissect(c);
-                        zeroise(b + 1, c);
-                        netxs::move_block(b, a, end_it);
-                        zeroise(top_it, top_it + n);
-                    }
-                    else // Scroll up (move text block up).
-                    {
-                        n = std::min(-n, height);
-                        auto a = top_it + n;
-                        if (use_scrollback)
+                        if (count > 0)
                         {
-                            if (top)
-                            {
-                                auto buffer = cache.begin();
-                                if (basis) dissect(all_it);
-                                dissect(top_it);
-                                dissect(a);
-                                netxs::move_block(all_it, top_it,       buffer    ); // Move fixed header block to the temporary cache.
-                                netxs::move_block(top_it, a,            all_it    ); // Move up by the "top" the first n lines of scrolling region.
-                                netxs::move_block(buffer, buffer + top, all_it + n); // Move back fixed header block from the temporary cache.
-                            }
-                            add_lines(n);
-                            auto c = batch.end() - 1;
-                            auto b = c - n;
-                            auto d = b - footer;
-                            dissect(d + 1);
-                            netxs::move_block(b, d, c); // Move down footer block by n.
-                        }
-                        else
-                        {
-                            auto b = end_it + 1;
-                            dissect(a);
-                            if (footer) dissect(b);
-                            zeroise(top_it, a);
-                            netxs::move_block(a, b, top_it);
+                            add_lines(count);
+                            basis += count;
                         }
                     }
+                    else
+                    {
+                        top -= y_top;
+                        end -= y_top;
+                        dissect(top);
+                        dissect(end);
+                        dissect(top + count);
+                        auto start = batch.index_by_id(index[top].index);
+                        // Delete block.
+                        // ...
+                        // Insert block.
+                        // ...
+                        batch.reindex(start);
+                        index_rebuild();
+                    }
                 }
-                */
+                else // Scroll text down.
+                {
+                    top -= y_top;
+                    end -= y_top;
+                    dissect(top);
+                    dissect(end);
+                    dissect(end - count);
+                    auto start = batch.index_by_id(index[top].index);
+                    // Delete block.
+                    // ...
+                    // Insert block.
+                    // ...
+                    batch.reindex(start);
+                    index_rebuild();
+                }
+
+                assert(test_futures());
             }
         };
 
