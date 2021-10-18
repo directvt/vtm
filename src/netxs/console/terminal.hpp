@@ -718,7 +718,6 @@ private:
             {
                 auto top = queue(0);
                 auto end = queue(0);
-                log("decstbm");
                 set_scroll_region(top, end);
             }
             // bufferbase: CSI n @  ICH. Insert n blanks after cursor. Don't change cursor pos.

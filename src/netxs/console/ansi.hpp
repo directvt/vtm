@@ -1160,7 +1160,7 @@ namespace netxs::ansi
             {
                 auto b = '\0';
                 auto ints = []  (unsigned char cmd) { return cmd >= 0x20 && cmd <= 0x2f; }; // "intermediate bytes" in the range 0x20–0x2F
-                auto pars = []  (unsigned char cmd) { return cmd >= 0x3A && cmd <= 0x3f; }; // "parameter bytes" in the range 0x30–0x3F
+                auto pars = []  (unsigned char cmd) { return cmd >= 0x3C && cmd <= 0x3f; }; // "parameter bytes" in the range 0x30–0x3F
                 auto cmds = []  (unsigned char cmd) { return cmd >= 0x40 && cmd <= 0x7E; };
                 auto fill = [&] (auto& queue)
                 {
