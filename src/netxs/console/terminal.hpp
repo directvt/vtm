@@ -718,6 +718,7 @@ private:
             {
                 auto top = queue(0);
                 auto end = queue(0);
+                log("decstbm");
                 set_scroll_region(top, end);
             }
             // bufferbase: CSI n @  ICH. Insert n blanks after cursor. Don't change cursor pos.
@@ -1773,52 +1774,45 @@ private:
 
                 auto push = [&](face& block, bool at_bottom)
                 {
-                    auto height  = block.size().y;
+                    auto size = block.size();
+                    if (size.y <= 0) return;
+
+                    iota start;
                     if (at_bottom)
                     {
-                        auto start = basis + region_size;
-                        // add new lines if needed
-                        auto& mapln = index.back();
-                        //auto  start = mapln.start;
-                        auto  curid = mapln.index;
-                        // ...
-                        auto begin = 0;
-                        while(height-- > 0)
+                        auto stash = batch.vsize - basis - region_size;
+                        if (stash > 0)
                         {
-                            auto newln = line{};
-                            newln.style.glb().wrp(wrap::off);
-
-                            //auto after = batch.index_by_id(curid);
-                            //auto tmpln = std::move(batch[after]);
-                            //auto curit = batch.insert(after, tmpln.index, tmpln.style);
-                            //auto endit = batch.end();
-
-
-                            // dissect(begin);
-                            // batch.insert(start, newln);
-                            // //start++;
+                            dissect(region_size);
+                            start = batch.index_by_id(index.back().index) + 1;
                         }
-                        //batch.reindex(start);
+                        else // Add new lines if needed.
+                        {
+                            auto count = region_size - index.size;
+                            auto curid = batch.back().index;
+                            while (count-- > 0) batch.invite(++curid, parser::style);
+                            start = batch.size;
+                        }
                     }
                     else
                     {
-                        if (height <= 0) return;
                         dissect(0);
-                        auto& mapln = index.front();
-                        auto  start = batch.index_by_id(mapln.index);
-                        auto  width = twod{ sctop_panel.size().x, 1 };
-                        auto  curit = sctop_panel.iter() + height * width.x;
-                        //todo ? left + wrap + trim : or restore original style
-                        auto  style = ansi::def_style;
-                        style.wrp(wrap::off);
-                        while(height-- > 0)
-                        {
-                            curit -= width.x;
-                            auto shadow = core::span{ curit, static_cast<size_t>(width.x) };
-                            batch.insert(start, id_t{}, style, shadow, width);
-                        }
-                        batch.reindex(start);
+                        start = batch.index_by_id(index.front().index);
                     }
+
+                    auto curit = block.iter() + size.y * size.x;
+                    auto width = twod{ size.x, 1 };
+                    auto style = ansi::def_style;
+                    style.wrp(wrap::off); //todo ? left + wrap + trim : or restore original style
+                    while(size.y-- > 0)
+                    {
+                        curit -= size.x;
+                        auto proto = core::span{ curit, static_cast<size_t>(size.x) };
+                        auto curln = line{ id_t{}, style, proto, width };
+                        curln.shrink(block.mark());
+                        batch.insert(start, std::move(curln));
+                    }
+                    batch.reindex(start);
                 };
 
                 if (delta_end > 0)
@@ -1857,8 +1851,6 @@ private:
                 index.resize(region_size);
                 index_rebuild();
                 sync_coord();
-
-                //print_index("2. add top");
             }
             // scroll_buf: Push lines to the scrollback bottom.
             void add_lines(iota amount)
