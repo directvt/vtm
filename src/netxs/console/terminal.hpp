@@ -1433,7 +1433,7 @@ private:
             {
                 return std::max(0, batch.vsize - (basis + region_size));
             }
-            //scroll_buf: Return viewport vertical oversize.
+            // scroll_buf: Resize viewport.
             void resize_viewport(twod const& new_sz) override
             {
                 auto in_top = y_top - coord.y;
@@ -1443,8 +1443,6 @@ private:
 
                 batch.set_width(panel.x);
                 index.clear();
-
-                //todo check cursor position
 
                 // Preserve original content. The app that changed the margins is responsible for updating the content.
                 auto new_top = std::max(sctop_original_size, twod{ panel.x, sctop });
@@ -1459,6 +1457,7 @@ private:
                 {
                     if (in_top > 0) coord.y = std::max(0          , y_top - in_top);
                     else            coord.y = std::min(panel.y - 1, y_end + in_end);
+                    basis = batch.vsize - region_size;
                     index_rebuild();
                     return;
                 }
@@ -1744,6 +1743,7 @@ private:
                 auto delta_top = sctop - old_sctop;
                 auto delta_end = scend - old_scend;
 
+                // Take lines from the scrollback.
                 auto pull = [&](face& block, twod origin, iota begin, iota limit)
                 {
                     if (begin >= index.size) return;
@@ -1770,7 +1770,7 @@ private:
                     while (++head != tail);
                     batch.remove(from, size);
                 };
-
+                // Return lines to the scrollback iif margin is disabled.
                 auto push = [&](face& block, bool at_bottom)
                 {
                     auto size = block.size();
@@ -1802,7 +1802,7 @@ private:
                     auto curit = block.iter() + size.y * size.x;
                     auto width = twod{ size.x, 1 };
                     auto style = ansi::def_style;
-                    style.wrp(wrap::off); //todo ? left + wrap + trim : or restore original style
+                    style.wrp(wrap::off);
                     while(size.y-- > 0)
                     {
                         curit -= size.x;
@@ -1822,10 +1822,7 @@ private:
                 }
                 else
                 {
-                    if (scend == 0 && old_scend > 0) // Return lines to the scrollback iif margin is disabled.
-                    {
-                        push(scend_panel, true);
-                    }
+                    if (scend == 0 && old_scend > 0) push(scend_panel, true);
                     scend_panel.crop<true>(scend_original_size);
                 }
 
@@ -1838,10 +1835,7 @@ private:
                 }
                 else
                 {
-                    if (sctop == 0 && old_sctop > 0) // Return lines to the scrollback iif margin is disabled.
-                    {
-                        push(sctop_panel, faux);
-                    }
+                    if (sctop == 0 && old_sctop > 0) push(sctop_panel, faux);
                     sctop_panel.crop<faux>(sctop_original_size);
                 }
 
