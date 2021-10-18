@@ -895,7 +895,7 @@ namespace netxs::console
                 else if (w == 2) *dest = c.wdt(3);
                 else if (w >  2) *dest = c.txt(utf::REPLACEMENT_CHARACTER_UTF8_VIEW);
             }
-        };
+        }
         template<class SRC_IT, class DST_IT>
         static void unlimit_fill_proc(SRC_IT data, iota size, DST_IT dest, DST_IT tail, iota back)
         {
@@ -942,7 +942,7 @@ namespace netxs::console
                     while (--w && size > 0);
                 }
             }
-        };
+        }
         template<class SRC_IT, class DST_IT>
         static void reverse_fill_proc(SRC_IT data, DST_IT dest, DST_IT tail)
         {
@@ -992,7 +992,7 @@ namespace netxs::console
                 else if (w == 2) *--dest = c.wdt(3);
                 else if (w >  2) *--dest = c.txt(utf::REPLACEMENT_CHARACTER_UTF8_VIEW);
             }
-        };
+        }
         void splice(iota at, iota count, grid const& proto)
         {
             if (count <= 0) return;
@@ -1173,6 +1173,25 @@ namespace netxs::console
             auto end = pos + len.x;
             auto src = dst + vol;
             while (src != end) *dst++ = *src++;
+            while (dst != end) *dst++ = blank;
+        }
+        // rich: Clear from the specified coor to the bottom.
+        void del_below(twod const& pos, cell const& blank)
+        {
+            auto len = size();
+            auto ptr = iter();
+            auto dst = ptr + std::min<iota>(pos.x + pos.y * len.x,
+                                                    len.y * len.x);
+            auto end = iend();
+            while (dst != end) *dst++ = blank;
+        }
+        // rich: Clear from the top to the specified coor.
+        void del_above(twod const& pos, cell const& blank)
+        {
+            auto len = size();
+            auto dst = iter();
+            auto end = dst + std::min<iota>(pos.x + pos.y * len.x,
+                                                    len.y * len.x);
             while (dst != end) *dst++ = blank;
         }
     };

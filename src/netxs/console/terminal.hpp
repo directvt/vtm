@@ -623,7 +623,6 @@ private:
     virtual void clear_all()
             {
                 parser::state = {};
-                set_scroll_region(0, 0);
             }
             // bufferbase: ESC H  Place tabstop at the current cursor posistion.
             void stb()
@@ -997,6 +996,7 @@ private:
                 coord = dot_00;
                 basis = 0;
                 canvas.wipe();
+                set_scroll_region(0, 0);
                 bufferbase::clear_all();
             }
             // alt_screen: Render to the target.
@@ -1009,21 +1009,12 @@ private:
             // alt_screen: Remove all lines below except the current. "ED2 Erase viewport" keeps empty lines.
             void del_below() override
             {
-                auto size = canvas.size();
-                auto data = canvas.iter();
-                auto head = data + std::min<iota>(coord.x + coord.y * size.x,
-                                                  panel.x + panel.y * size.x);
-                auto tail = canvas.iend();
-                while (head != tail) *head++ = brush.spare;
+                canvas.del_below(coord, brush.spare);
             }
             // alt_screen: Clear all lines from the viewport top line to the current line.
             void del_above() override
             {
-                auto size = canvas.size();
-                auto head = canvas.iter();
-                auto tail = head + std::min<iota>(coord.x + coord.y * size.x,
-                                                  panel.x + panel.y * size.x);
-                while (head != tail) *head++ = brush.spare;
+                canvas.del_above(coord, brush.spare);
             }
             // alt_screen: Shift by n the scroll region.
             void scroll_region(iota top, iota end, iota n, bool use_scrollback = faux) override
@@ -1373,18 +1364,19 @@ private:
             flow maker; // scroll_buf: . deprecated
             indx index; // scroll_buf: Viewport line index.
             iota vsize; // scroll_buf: Scrollback vertical size (height).
+            iota arena; // scroll_buf: Scrollable region height.
             face sctop_panel;
             face scend_panel;
             twod sctop_original_size;
             twod scend_original_size;
-            iota region_size{ 1 };
 
             scroll_buf(term& boss, iota buffer_size, iota grow_step)
                 : bufferbase{ boss                     },
                        batch{ buffer_size, grow_step   },
                        maker{ batch.width, batch.vsize },
                        index{ 0                        },
-                       vsize{ 1                        }
+                       vsize{ 1                        },
+                       arena{ 1                        }
             {
                 batch.invite(0); // At least one line must exist.
                 batch.set_width(1);
@@ -1431,7 +1423,7 @@ private:
             }
             iota get_oversize() override
             {
-                return std::max(0, batch.vsize - (basis + region_size));
+                return std::max(0, batch.vsize - (basis + arena));
             }
             // scroll_buf: Resize viewport.
             void resize_viewport(twod const& new_sz) override
@@ -1450,14 +1442,14 @@ private:
                 sctop_panel.crop(new_top);
                 scend_panel.crop(new_end);
 
-                region_size = y_end - y_top + 1;
-                index.resize(region_size); // Use a fixed ring because new lines are added much more often than a futures feed.
+                arena = y_end - y_top + 1;
+                index.resize(arena); // Use a fixed ring because new lines are added much more often than a futures feed.
 
                 if (in_top > 0 || in_end > 0) // The cursor is outside the scrolling region.
                 {
                     if (in_top > 0) coord.y = std::max(0          , y_top - in_top);
                     else            coord.y = std::min(panel.y - 1, y_end + in_end);
-                    basis = batch.vsize - region_size;
+                    basis = batch.vsize - arena;
                     index_rebuild();
                     return;
                 }
@@ -1466,10 +1458,10 @@ private:
                 auto lnid = batch.current().index;
                 auto head = batch.end();
                 auto maxn = batch.size - batch.index();
-                auto tail = head - std::max(maxn, std::min(batch.size, region_size));
+                auto tail = head - std::max(maxn, std::min(batch.size, arena));
                 auto push = [&](auto i, auto o, auto r) { --basis; index.push_front(i, o, r); };
                 auto unknown = true;
-                while (head != tail && (index.size < region_size || unknown))
+                while (head != tail && (index.size < arena || unknown))
                 {
                     auto& curln = *--head;
                     auto length = curln.length();
@@ -1493,7 +1485,7 @@ private:
                             }
                             remain = panel.x;
                         }
-                        while (offset > 0 && (index.size < region_size || unknown));
+                        while (offset > 0 && (index.size < arena || unknown));
                     }
                     else
                     {
@@ -1563,7 +1555,7 @@ private:
                 auto  mapit = index.begin() + y_pos++;
                 auto& mapln =*mapit;
                 auto  curit = batch.iter_by_id(mapln.index);
-                auto  avail = std::min(batch.vsize - basis - y_pos, region_size - y_pos);
+                auto  avail = std::min(batch.vsize - basis - y_pos, arena - y_pos);
                 auto  count = index.size - y_pos;
                 while (count-- > 0) index.pop_back();
 
@@ -1729,6 +1721,18 @@ private:
             void ri  ()        override { bufferbase::ri  ( ); sync_coord(); }
             void home()        override { bufferbase::home( ); sync_coord(); }
 
+            // scroll_buf: Reset the scrolling region.
+            void reset_scroll_region()
+            {
+                sctop_original_size = dot_00;
+                scend_original_size = dot_00;
+                sctop_panel.crop(sctop_original_size);
+                scend_panel.crop(scend_original_size);
+                arena = panel.y;
+                index.resize(arena);
+                index_rebuild();
+                bufferbase::set_scroll_region(0, 0);
+            }
             // scroll_buf: Set the scrolling region using 1-based top and bottom. Use 0 to reset.
             void set_scroll_region(iota top, iota bottom) override
             {
@@ -1736,6 +1740,7 @@ private:
                 auto old_scend = scend;
 
                 bufferbase::set_scroll_region(top, bottom);
+                if (old_sctop == sctop && old_scend == scend) return;
 
                 // Trim the existing margin content if any. The app that changed the margins is responsible for updating the content.
                 sctop_original_size = { panel.x, sctop };
@@ -1779,15 +1784,15 @@ private:
                     iota start;
                     if (at_bottom)
                     {
-                        auto stash = batch.vsize - basis - region_size;
+                        auto stash = batch.vsize - basis - arena;
                         if (stash > 0)
                         {
-                            dissect(region_size);
+                            dissect(arena);
                             start = batch.index_by_id(index.back().index) + 1;
                         }
                         else // Add new lines if needed.
                         {
-                            auto count = region_size - index.size;
+                            auto count = arena - index.size;
                             auto curid = batch.back().index;
                             while (count-- > 0) batch.invite(++curid, parser::style);
                             start = batch.size;
@@ -1818,7 +1823,7 @@ private:
                 {
                     if (old_scend == 0) scend_panel.mark(brush.spare);
                     scend_panel.crop<true>(scend_original_size);
-                    pull(scend_panel, dot_00, region_size - delta_end, region_size);
+                    pull(scend_panel, dot_00, arena - delta_end, arena);
                 }
                 else
                 {
@@ -1839,9 +1844,9 @@ private:
                     sctop_panel.crop<faux>(sctop_original_size);
                 }
 
-                region_size = panel.y - (scend + sctop);
+                arena = panel.y - (scend + sctop);
                 index.clear();
-                index.resize(region_size);
+                index.resize(arena);
                 index_rebuild();
                 sync_coord();
             }
@@ -1892,9 +1897,9 @@ private:
                                 coord.x  = batch.caret % panel.x;
                                 coord.y += batch.caret / panel.x;
                             }
-                            if (coord.y >= region_size)
+                            if (coord.y >= arena)
                             {
-                                auto limit = region_size - 1;
+                                auto limit = arena - 1;
                                 auto delta = coord.y - limit;
                                 basis  += delta;
                                 coord.y = limit;
@@ -2101,7 +2106,7 @@ private:
                     } // case 0 - done.
                     else
                     {
-                        auto max_y = region_size - 1;
+                        auto max_y = arena - 1;
                         auto saved = coord.y + basis;
                         coord.y += (coord.x + panel.x - 1) / panel.x - 1;
                         coord.x  = (coord.x           - 1) % panel.x + 1;
@@ -2215,7 +2220,7 @@ private:
                             } // case 2 done.
                         }
                     }
-                    assert(coord.y >= 0 && coord.y < region_size);
+                    assert(coord.y >= 0 && coord.y < arena);
                     //log(" bufferbase size in cells = ", batch.get_size_in_cells());
                     coord.y += y_top;
                 }
@@ -2255,7 +2260,7 @@ private:
                 batch.invite(0); // At least one line must exist.
                 batch.set_width(panel.x);
                 basis = 0;
-                index_rebuild();
+                reset_scroll_region();
                 bufferbase::clear_all();
             }
             // scroll_buf: Set scrollback limits.
@@ -2357,35 +2362,60 @@ private:
             // scroll_buf: Remove all lines below (including futures) except the current. "ED2 Erase viewport" keeps empty lines.
             void del_below() override
             {
-                //todo TIA scrolling region
+                auto blank = brush.spc();//.bgc(yellowdk).bga(0x7f);
 
-                auto n = batch.size - 1 - batch.index();
-                auto m = index.size - 1 - coord.y;
-                auto p = panel.y    - 1 - coord.y;
-
-                if (coord.x == 0 && batch.caret != 0) // Remove the index of the current line if the entire visible line is to be removed.
+                auto clear = [&](twod const& coor)
                 {
-                    ++m;
-                    ++p;
+                    auto i = batch.index_by_id(index[coor.y].index);
+                    auto n = batch.size - 1 - i;
+                    auto m = index.size - 1 - coor.y;
+                    auto p = arena      - 1 - coor.y;
+
+                    if (coor.x == 0 && batch.caret != 0) // Remove the index of the current line if the entire visible line is to be removed.
+                    {
+                        ++m;
+                        ++p;
+                    }
+
+                    assert(n >= 0 && n <  batch.size);
+                    assert(m >= 0 && m <= index.size);
+                    assert(p >= 0 && p <= arena);
+
+                    while (n--) batch.pop_back();
+                    while (m--) index.pop_back();
+
+                    add_lines(p);
+
+                    auto& curln = batch[i];
+                    auto& mapln = index[coor.y];
+                    auto  start = mapln.start;
+                    mapln.width = coor.x;
+                    curln.trimto(start + coor.x);
+                    batch.recalc(curln);
+
+                    scend_panel.wipe(blank);
+                };
+
+                auto coor = coord;
+                if (coor.y < y_top)
+                {
+                    assert(coor.x + coor.y * sctop_panel.size().x < sctop * sctop_panel.size().x);
+                    sctop_panel.del_below(coor, blank);
+                    clear(dot_00);
+                }
+                else if (coor.y <= y_end)
+                {
+                    coor.y -= y_top;
+                    clear(coor);
+                }
+                else
+                {
+                    coor.y -= y_end + 1;
+                    assert(coor.x + coor.y * scend_panel.size().x < scend * scend_panel.size().x);
+                    scend_panel.del_below(coor, blank);
                 }
 
-                assert(n >= 0 && n <  batch.size);
-                assert(m >= 0 && m <= index.size);
-                assert(p >= 0 && p <= panel.y   );
-
-                while (n--) batch.pop_back();
-                while (m--) index.pop_back();
-
-                add_lines(p);
-
-                auto& curln = batch.current();
-                auto& mapln = index[coord.y];
-                mapln.width = coord.x;
-                curln.trimto(batch.caret);
-                batch.recalc(curln);
-
                 assert(test_futures());
-                //print_index("del_below");
             }
             // scroll_buf: Clear all lines from the viewport top line to the current line.
             void del_above() override
@@ -2430,7 +2460,7 @@ private:
             // scroll_buf: Dissect auto-wrapped lines at the specified row in scroll region (incl last line+1).
             void dissect(iota y_pos)
             {
-                assert(y_pos >= 0 && y_pos <= region_size);
+                assert(y_pos >= 0 && y_pos <= arena);
 
                 auto split = [&](id_t curid, iota start)
                 {
@@ -2471,7 +2501,7 @@ private:
 
                     sync_coord();
                 }
-                else if (y_pos == region_size
+                else if (y_pos == arena
                       && y_pos <  batch.vsize - basis)
                 {
                     auto stash = batch.vsize - basis - index.size;
