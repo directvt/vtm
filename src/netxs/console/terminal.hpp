@@ -2420,41 +2420,69 @@ private:
             // scroll_buf: Clear all lines from the viewport top line to the current line.
             void del_above() override
             {
-                //todo TIA scrolling region
+                auto blank = brush.spc();//.bgc(yellowdk).bga(0x7f);
 
-                // The dirtiest and fastest solution. Just fill existing lines by blank cell.
-                auto& curln = batch.current();
-                auto& topln = index.front();
-                auto  curit = batch.iter_by_id(topln.index);
-                auto  endit = batch.iter_by_id(curln.index);
-                auto  start = topln.start;
-                auto  blank = brush.spc();
-                if (curit == endit)
+                auto clear = [&](twod const& coor)
                 {
-                    auto width = std::min(curln.length(), batch.caret);
-                    curln.splice(start, width - start, blank);
+                    // The dirtiest and fastest solution. Just fill existing lines by blank cell.
+                    auto i = batch.index_by_id(index[coor.y].index);
+                    auto& mapln = index[coor.y];
+                    auto  caret = mapln.start + coor.x;
+
+                    auto& curln = batch[i];
+                    auto& topln = index.front();
+                    auto  curit = batch.iter_by_id(topln.index);
+                    auto  endit = batch.iter_by_id(curln.index);
+                    auto  start = topln.start;
+                    auto  blank = brush.spc();
+                    if (curit == endit)
+                    {
+                        auto width = std::min(curln.length(), caret);
+                        curln.splice(start, width - start, blank);
+                    }
+                    else
+                    {
+                        auto& curln =*curit;
+                        auto  width = curln.length();
+                        curln.splice(start, width - start, blank);
+
+                        while(++curit != endit) curit->core::wipe(blank);
+
+                        if (coord.x > 0)
+                        {
+                            auto& curln =*curit;
+                            auto  max_x = std::min<iota>(curln.length(), caret);
+                            if (max_x > 0)
+                            {
+                                auto max_w = curln.wrapped() ? (max_x - 1) % panel.x + 1
+                                                            :  max_x;
+                                auto width = std::min<iota>(max_w, coord.x);
+                                auto start = caret - coord.x;
+                                curln.splice(start, width, blank);
+                            }
+                        }
+                    }
+
+                    sctop_panel.wipe(blank);
+                };
+
+                auto coor = coord;
+                if (coor.y < y_top)
+                {
+                    assert(coor.x + coor.y * sctop_panel.size().x < sctop * sctop_panel.size().x);
+                    sctop_panel.del_above(coor, blank);
+                }
+                else if (coor.y <= y_end)
+                {
+                    coor.y -= y_top;
+                    clear(coor);
                 }
                 else
                 {
-                    auto& curln =*curit;
-                    auto  width = curln.length();
-                    curln.splice(start, width - start, blank);
-
-                    while(++curit != endit) curit->core::wipe(blank);
-
-                    if (coord.x > 0)
-                    {
-                        auto& curln =*curit;
-                        auto  max_x = std::min<iota>(curln.length(), batch.caret);
-                        if (max_x > 0)
-                        {
-                            auto max_w = curln.wrapped() ? (max_x - 1) % panel.x + 1
-                                                         :  max_x;
-                            auto width = std::min<iota>(max_w, coord.x);
-                            auto start = batch.caret - coord.x;
-                            curln.splice(start, width, blank);
-                        }
-                    }
+                    coor.y -= y_end + 1;
+                    assert(coor.x + coor.y * scend_panel.size().x < scend * scend_panel.size().x);
+                    scend_panel.del_above(coor, blank);
+                    clear(twod{ panel.x , arena - 1 });
                 }
             }
             // scroll_buf: Dissect auto-wrapped lines at the specified row in scroll region (incl last line+1).
