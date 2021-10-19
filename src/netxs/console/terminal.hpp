@@ -2082,11 +2082,8 @@ private:
                         {
                             auto n = coord.x + (coord.y - y_top) * panel.x;
                             count -= n;
-                            //todo optimize
                             set_coord(twod{ 0, y_top });
-                            //todo use core::span
-                            grid proto2{ proto.begin() + count, proto.end()};
-                            data(n, proto2);
+                            data(n, proto);
                         }
                         auto data = proto.begin();
                         auto seek = saved.x + saved.y * panel.x;
