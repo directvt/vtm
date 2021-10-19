@@ -782,8 +782,15 @@ private:
     virtual void up(iota n)
             {
                 parser::flush();
-                coord.y = std::clamp(coord.y - n, 0, panel.y - 1);
+                auto new_coord_y = coord.y - n;
+                if (new_coord_y <  y_top
+                     && coord.y >= y_top)
+                {
+                    coord.y = y_top;
+                }
+                else coord.y = std::clamp(new_coord_y, 0, panel.y - 1);
             }
+            //todo LF != CUD
             // bufferbase: Line feed (move cursor down). Scroll region up if new_coord_y > end.
     virtual void dn(iota n)
             {
@@ -938,36 +945,35 @@ private:
             {
                 assert(coord.y >= 0 && coord.y < panel.y);
 
-                auto old_coord = coord;
+                auto saved = coord;
                 coord.x += count;
                 //todo apply line adjusting (necessity is not clear)
                 if (coord.x <= panel.x)//todo styles! || ! curln.wrapped())
                 {
-                    auto n = std::min(count, panel.x - std::max(0, old_coord.x));
-                    canvas.splice(old_coord, n, proto);
+                    auto n = std::min(count, panel.x - std::max(0, saved.x));
+                    canvas.splice(saved, n, proto);
                 }
                 else
                 {
                     coord.y += (coord.x + panel.x - 1) / panel.x - 1;
                     coord.x  = (coord.x           - 1) % panel.x + 1;
 
-                    if (old_coord.y < y_top)
+                    if (saved.y < y_top)
                     {
                         if (coord.y >= y_top)
                         {
                             auto n = coord.x + (coord.y - y_top) * panel.x;
                             count -= n;
-                            auto saved = coord;
                             set_coord({ 0, y_top });
                             data(n, proto); // Reversed fill using the last part of the proto.
                         }
                         auto data = proto.begin();
-                        auto seek = old_coord.x + old_coord.y * panel.x;
+                        auto seek = saved.x + saved.y * panel.x;
                         auto dest = canvas.iter() + seek;
                         auto tail = dest + count;
                         rich::forward_fill_proc(data, dest, tail);
                     }
-                    else if (old_coord.y <= y_end)
+                    else if (saved.y <= y_end)
                     {
                         if (coord.y > y_end)
                         {
@@ -991,7 +997,7 @@ private:
 
                         auto data = proto.begin();
                         auto size = count;
-                        auto seek = old_coord.x + old_coord.y * panel.x;
+                        auto seek = saved.x + saved.y * panel.x;
                         auto dest = canvas.iter() + seek;
                         auto tail = canvas.iend();
                         auto back = panel.x;
@@ -2067,7 +2073,7 @@ private:
                 {
                     auto saved = coord;
                     coord.x += count;
-                    //todo apply line adjusting
+                    //todo apply line adjusting (necessity is not clear)
                     if (coord.x <= panel.x)//todo styles! || ! curln.wrapped())
                     {
                         auto n = std::min(count, panel.x - std::max(0, saved.x));
@@ -2083,7 +2089,7 @@ private:
                             auto n = coord.x + (coord.y - y_top) * panel.x;
                             count -= n;
                             set_coord(twod{ 0, y_top });
-                            data(n, proto);
+                            data(n, proto); // Reversed fill using the last part of the proto.
                         }
                         auto data = proto.begin();
                         auto seek = saved.x + saved.y * panel.x;
