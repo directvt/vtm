@@ -138,6 +138,10 @@ namespace netxs::generics
         {
             assert(at >= 0 && at <= size);
 
+            auto tmp = index();
+            if (tmp >= at) tmp++;
+            index(tmp);
+
             if (at == 0)
             {
                 push_front(std::forward<Args>(args)...);

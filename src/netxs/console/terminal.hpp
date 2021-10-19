@@ -940,7 +940,7 @@ private:
 
                 auto old_coord = coord;
                 coord.x += count;
-                //todo apply line adjusting
+                //todo apply line adjusting (necessity is not clear)
                 if (coord.x <= panel.x)//todo styles! || ! curln.wrapped())
                 {
                     auto n = std::min(count, panel.x - std::max(0, old_coord.x));
@@ -1378,10 +1378,10 @@ private:
             indx index; // scroll_buf: Viewport line index.
             iota vsize; // scroll_buf: Scrollback vertical size (height).
             iota arena; // scroll_buf: Scrollable region height.
-            face upbox; // scroll_buf: Top    margin canvas.
+            face upbox; // scroll_buf:    Top margin canvas.
             face dnbox; // scroll_buf: Bottom margin canvas.
-            twod sctop_original_size;
-            twod scend_original_size;
+            twod upmin; // scroll_buf:    Top margin minimal size.
+            twod dnmin; // scroll_buf: Bottom margin minimal size.
 
             scroll_buf(term& boss, iota buffer_size, iota grow_step)
                 : bufferbase{ boss                     },
@@ -1450,10 +1450,10 @@ private:
                 index.clear();
 
                 // Preserve original content. The app that changed the margins is responsible for updating the content.
-                auto new_top = std::max(sctop_original_size, twod{ panel.x, sctop });
-                auto new_end = std::max(scend_original_size, twod{ panel.x, scend });
-                upbox.crop(new_top);
-                dnbox.crop(new_end);
+                auto upnew = std::max(upmin, twod{ panel.x, sctop });
+                auto dnnew = std::max(dnmin, twod{ panel.x, scend });
+                upbox.crop(upnew);
+                dnbox.crop(dnnew);
 
                 arena = y_end - y_top + 1;
                 index.resize(arena); // Use a fixed ring because new lines are added much more often than a futures feed.
@@ -1739,10 +1739,10 @@ private:
             // scroll_buf: Reset the scrolling region.
             void reset_scroll_region()
             {
-                sctop_original_size = dot_00;
-                scend_original_size = dot_00;
-                upbox.crop(sctop_original_size);
-                dnbox.crop(scend_original_size);
+                upmin = dot_00;
+                dnmin = dot_00;
+                upbox.crop(upmin);
+                dnbox.crop(dnmin);
                 arena = panel.y;
                 index.resize(arena);
                 index_rebuild();
@@ -1758,8 +1758,8 @@ private:
                 if (old_sctop == sctop && old_scend == scend) return;
 
                 // Trim the existing margin content if any. The app that changed the margins is responsible for updating the content.
-                sctop_original_size = { panel.x, sctop };
-                scend_original_size = { panel.x, scend };
+                upmin = { panel.x, sctop };
+                dnmin = { panel.x, scend };
                 auto delta_top = sctop - old_sctop;
                 auto delta_end = scend - old_scend;
 
@@ -1837,26 +1837,26 @@ private:
                 if (delta_end > 0)
                 {
                     if (old_scend == 0) dnbox.mark(brush.spare);
-                    dnbox.crop<true>(scend_original_size);
+                    dnbox.crop<true>(dnmin);
                     pull(dnbox, dot_00, arena - delta_end, arena);
                 }
                 else
                 {
                     if (scend == 0 && old_scend > 0) push(dnbox, true);
-                    dnbox.crop<true>(scend_original_size);
+                    dnbox.crop<true>(dnmin);
                 }
 
                 if (delta_top > 0)
                 {
                     if (old_sctop == 0) upbox.mark(brush.spare);
-                    upbox.crop<faux>(sctop_original_size);
+                    upbox.crop<faux>(upmin);
                     pull(upbox, { 0, old_sctop }, 0, delta_top);
                     if (batch.size == 0) batch.invite(0, parser::style);
                 }
                 else
                 {
                     if (sctop == 0 && old_sctop > 0) push(upbox, faux);
-                    upbox.crop<faux>(sctop_original_size);
+                    upbox.crop<faux>(upmin);
                 }
 
                 arena = panel.y - (scend + sctop);
@@ -1870,11 +1870,10 @@ private:
             {
                 assert(amount >= 0);
                 auto newid = batch.back().index;
-                auto style = batch->style;
                 while (amount-- > 0)
                 {
-                    auto& l = batch.invite(++newid, style);
-                    index.push_back(l.index, 0, 0);
+                    auto& l = batch.invite(++newid, parser::style);
+                    index.push_back(newid, 0, 0);
                 }
             }
             // scroll_buf: . (! Check coord.y context)
@@ -1951,25 +1950,25 @@ private:
             [[ nodiscard ]]
             auto get_context(twod& pos)
             {
-                struct q //todo revise
+                struct qt
                 {
                     twod& c;
                     iota  t;
                     bool  b;
                     rich& block;
-                    q(twod& cy, iota ct, bool cb, scroll_buf& cs)
+                    qt(twod& cy, iota ct, bool cb, scroll_buf& cs)
                         : c{ cy },
                           t{ ct },
                           b{ cb },
                           block{ cy > cs.y_end ? t = cs.y_end + 1, cs.dnbox
                                                :                   cs.upbox }
-                        { c.y -= t; }
-                   ~q() { c.y += t; }
+                         { c.y -= t; }
+                   ~qt() { c.y += t; }
                    operator bool () { return b; }
                 };
                 auto inside = coord.y >= y_top
                            && coord.y <= y_end;
-                return q{ pos, inside ? y_top : 0, inside, *this };
+                return qt{ pos, inside ? y_top : 0, inside, *this };
             }
             // scroll_buf: CSI n K  Erase line (don't move cursor).
             void el(iota n) override
@@ -1980,7 +1979,7 @@ private:
                 {
                     iota  start;
                     iota  count;
-                    auto  caret = std::max(0, batch.caret); //todo why?
+                    auto  caret = std::max(0, batch.caret);
                     auto& curln = batch.current();
                     auto  width = curln.length();
                     auto  wraps = curln.wrapped();
@@ -2502,7 +2501,7 @@ private:
                     clear(twod{ panel.x , arena - 1 });
                 }
             }
-            // scroll_buf: Dissect auto-wrapped lines at the specified row in scroll region (incl last line+1).
+            // scroll_buf: Dissect auto-wrapped lines above the specified row in scroll region (incl last line+1).
             void dissect(iota y_pos)
             {
                 assert(y_pos >= 0 && y_pos <= arena);
@@ -2575,9 +2574,9 @@ private:
                 auto stash = basis + arena - batch.vsize;
                 if (stash > 0) add_lines(stash); // Fill-up the scrolling region in order to simplify implementation (dissect() requirement).
 
+                auto count = std::abs(n);
                 if (n < 0) // Scroll text up.
                 {
-                    auto count = -n;
                     if (top == y_top &&
                         end == y_end && use_scrollback)
                     {
@@ -2591,15 +2590,28 @@ private:
                     else
                     {
                         top -= y_top;
-                        end -= y_top;
+                        end -= y_top - 1;
+
+                        auto max = end - top;
+                        if (count > max) count = max;
+
+                        auto mdl = top + count;
                         dissect(top);
+                        dissect(mdl);
                         dissect(end);
-                        dissect(top + count);
-                        auto start = batch.index_by_id(index[top].index);
+
                         // Delete block.
-                        // ...
+                        auto topid = index[top    ].index;
+                        auto mdlid = index[mdl - 1].index + 1;
+                        auto endid = index[end - 1].index + 1;
+                        auto start = batch.index_by_id(topid);
+                        auto range = static_cast<iota>(mdlid - topid);
+                        auto floor = batch.index_by_id(endid) - range;
+                        batch.remove(start, range);
+
                         // Insert block.
-                        // ...
+                        while (count-- > 0) batch.insert(floor, id_t{}, parser::style);
+
                         batch.reindex(start);
                         index_rebuild();
                     }
@@ -2607,15 +2619,28 @@ private:
                 else // Scroll text down.
                 {
                     top -= y_top;
-                    end -= y_top;
+                    end -= y_top - 1;
+
+                    auto max = end - top;
+                    if (count > max) count = max;
+
+                    auto mdl = end - count;
                     dissect(top);
+                    dissect(mdl);
                     dissect(end);
-                    dissect(end - count);
-                    auto start = batch.index_by_id(index[top].index);
+
                     // Delete block.
-                    // ...
+                    auto topid = index[top    ].index;
+                    auto mdlid = index[mdl - 1].index + 1;
+                    auto endid = index[end - 1].index + 1;
+                    auto start = batch.index_by_id(topid);
+                    auto range = static_cast<iota>(endid - mdlid);
+                    auto floor = batch.index_by_id(endid) - range;
+                    batch.remove(floor, range);
+
                     // Insert block.
-                    // ...
+                    while (count-- > 0) batch.insert(start, id_t{}, parser::style);
+
                     batch.reindex(start);
                     index_rebuild();
                 }
