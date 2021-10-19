@@ -2515,9 +2515,11 @@ namespace netxs::console
                 {
                     shadow();
                     auto& k = gear;
+
                     #ifdef KEYLOG
-                    log("debug fired ", k.character);
+                        log("debug fired ", utf::to_utf(&k.character, 1));
                     #endif
+
                     status[prop::last_event   ].set(stress) = "key";
                     status[prop::key_pressed  ].set(stress) = k.down ? "pressed" : "idle";
                     status[prop::ctrl_state   ].set(stress) = "0x" + utf::to_hex(k.ctlstate );
@@ -4191,7 +4193,6 @@ namespace netxs::console
         sysmouse  mouse; // link: Mouse state.
         syskeybd  keybd; // link: Keyboard state.
         bool      close; // link: Pre closing condition.
-        text      chunk; // link: The next received chunk of data input.
         text      total; // link: Accumulated unparsed input.
 
         void reader()
@@ -4199,12 +4200,11 @@ namespace netxs::console
             log("link: std_input thread started");
             while (auto yield = canal->recv())
             {
-                std::lock_guard guard{ mutex };
-
-                chunk.resize(yield.length());
-                std::copy(yield.begin(), yield.end(), chunk.data());
-
-                ready = true;
+                {
+                    std::lock_guard guard{ mutex };
+                    total += yield;
+                    ready = true;
+                }
                 synch.notify_one();
             }
 
@@ -4255,7 +4255,6 @@ namespace netxs::console
             {
                 ready = faux;
 
-                total += chunk;
                 //todo why?
                 //todo separate commands and keypress
                 //
@@ -4272,7 +4271,7 @@ namespace netxs::console
                 view strv = total;
 
                 #ifdef KEYLOG
-                log("link: input data (", chunk.size(), " bytes):\n", utf::debase(chunk));
+                    log("link: input data (", total.size(), " bytes):\n", utf::debase(total));
                 #endif
 
                 #ifndef PROD
@@ -4280,7 +4279,7 @@ namespace netxs::console
                 {
                     close = faux;
                     owner.SIGNAL(tier::release, e2::conio::preclose, close);
-                    if (chunk.front() == '\x1b') // two consecutive escapes
+                    if (total.front() == '\x1b') // two consecutive escapes
                     {
                         log("\t - two consecutive escapes: \n\tstrv:        ", strv);
                         owner.SIGNAL(tier::release, e2::conio::quit, "pipe two consecutive escapes");

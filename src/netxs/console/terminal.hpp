@@ -349,6 +349,17 @@ private:
                     }
                 }
             }
+            // w_tracking: CSI n n  Device status report (DSR).
+            void report(iota n)
+            {
+                switch(n)
+                {
+                    default:
+                    case 6: queue.report(owner.target->coord); break;
+                    case 5: queue.add("OK");                   break;
+                }
+                owner.answer(queue);
+            }
             // w_tracking: Manage terminal window props (XTWINOPS).
             void manage(fifo& q)
             {
@@ -455,7 +466,8 @@ private:
 
                 vt.csier.table[DECSTBM] = VT_PROC{ p->scr( q   ); };  // CSI r; b r  Set scrolling region (t/b: top+bottom).
 
-                vt.csier.table[CSI_WIN] = VT_PROC{ p->owner.wtrack.manage(q); };  // CSI n;m;k t  Terminal window options (XTWINOPS).
+                vt.csier.table[CSI_WIN] = VT_PROC{ p->owner.wtrack.manage(q   ); };  // CSI n;m;k t  Terminal window options (XTWINOPS).
+                vt.csier.table[CSI_DSR] = VT_PROC{ p->owner.wtrack.report(q(6)); };  // CSI n n  Device status report (DSR).
 
                 vt.csier.table[CSI_CCC][CCC_SBS] = VT_PROC{ p->owner.sbsize(q); };  // CCC_SBS: Set scrollback size.
                 vt.csier.table[CSI_CCC][CCC_EXT] = VT_PROC{ p->owner.native(q(1)); };          // CCC_EXT: Setup extended functionality.
@@ -1366,8 +1378,8 @@ private:
             indx index; // scroll_buf: Viewport line index.
             iota vsize; // scroll_buf: Scrollback vertical size (height).
             iota arena; // scroll_buf: Scrollable region height.
-            face sctop_panel;
-            face scend_panel;
+            face upbox; // scroll_buf: Top    margin canvas.
+            face dnbox; // scroll_buf: Bottom margin canvas.
             twod sctop_original_size;
             twod scend_original_size;
 
@@ -1440,8 +1452,8 @@ private:
                 // Preserve original content. The app that changed the margins is responsible for updating the content.
                 auto new_top = std::max(sctop_original_size, twod{ panel.x, sctop });
                 auto new_end = std::max(scend_original_size, twod{ panel.x, scend });
-                sctop_panel.crop(new_top);
-                scend_panel.crop(new_end);
+                upbox.crop(new_top);
+                dnbox.crop(new_end);
 
                 arena = y_end - y_top + 1;
                 index.resize(arena); // Use a fixed ring because new lines are added much more often than a futures feed.
@@ -1729,8 +1741,8 @@ private:
             {
                 sctop_original_size = dot_00;
                 scend_original_size = dot_00;
-                sctop_panel.crop(sctop_original_size);
-                scend_panel.crop(scend_original_size);
+                upbox.crop(sctop_original_size);
+                dnbox.crop(scend_original_size);
                 arena = panel.y;
                 index.resize(arena);
                 index_rebuild();
@@ -1824,27 +1836,27 @@ private:
 
                 if (delta_end > 0)
                 {
-                    if (old_scend == 0) scend_panel.mark(brush.spare);
-                    scend_panel.crop<true>(scend_original_size);
-                    pull(scend_panel, dot_00, arena - delta_end, arena);
+                    if (old_scend == 0) dnbox.mark(brush.spare);
+                    dnbox.crop<true>(scend_original_size);
+                    pull(dnbox, dot_00, arena - delta_end, arena);
                 }
                 else
                 {
-                    if (scend == 0 && old_scend > 0) push(scend_panel, true);
-                    scend_panel.crop<true>(scend_original_size);
+                    if (scend == 0 && old_scend > 0) push(dnbox, true);
+                    dnbox.crop<true>(scend_original_size);
                 }
 
                 if (delta_top > 0)
                 {
-                    if (old_sctop == 0) sctop_panel.mark(brush.spare);
-                    sctop_panel.crop<faux>(sctop_original_size);
-                    pull(sctop_panel, { 0, old_sctop }, 0, delta_top);
+                    if (old_sctop == 0) upbox.mark(brush.spare);
+                    upbox.crop<faux>(sctop_original_size);
+                    pull(upbox, { 0, old_sctop }, 0, delta_top);
                     if (batch.size == 0) batch.invite(0, parser::style);
                 }
                 else
                 {
-                    if (sctop == 0 && old_sctop > 0) push(sctop_panel, faux);
-                    sctop_panel.crop<faux>(sctop_original_size);
+                    if (sctop == 0 && old_sctop > 0) push(upbox, faux);
+                    upbox.crop<faux>(sctop_original_size);
                 }
 
                 arena = panel.y - (scend + sctop);
@@ -1949,8 +1961,8 @@ private:
                         : c{ cy },
                           t{ ct },
                           b{ cb },
-                          block{ cy > cs.y_end ? t = cs.y_end + 1, cs.scend_panel
-                                               :                   cs.sctop_panel }
+                          block{ cy > cs.y_end ? t = cs.y_end + 1, cs.dnbox
+                                               :                   cs.upbox }
                         { c.y -= t; }
                    ~q() { c.y += t; }
                    operator bool () { return b; }
@@ -2057,13 +2069,13 @@ private:
 
                 if (coord.y < y_top)
                 {
-                    auto old_coord = coord;
+                    auto saved = coord;
                     coord.x += count;
                     //todo apply line adjusting
                     if (coord.x <= panel.x)//todo styles! || ! curln.wrapped())
                     {
-                        auto n = std::min(count, panel.x - std::max(0, old_coord.x));
-                        sctop_panel.splice(old_coord, n, proto);
+                        auto n = std::min(count, panel.x - std::max(0, saved.x));
+                        upbox.splice(saved, n, proto);
                     }
                     else
                     {
@@ -2075,15 +2087,14 @@ private:
                             auto n = coord.x + (coord.y - y_top) * panel.x;
                             count -= n;
                             //todo optimize
-                            auto saved = coord;
-                            set_coord({ 0, y_top });
+                            set_coord(twod{ 0, y_top });
                             //todo use core::span
                             grid proto2{ proto.begin() + count, proto.end()};
                             data(n, proto2);
                         }
                         auto data = proto.begin();
-                        auto seek = old_coord.x + old_coord.y * panel.x;
-                        auto dest = sctop_panel.iter() + seek;
+                        auto seek = saved.x + saved.y * panel.x;
+                        auto dest = upbox.iter() + seek;
                         auto tail = dest + count;
                         rich::forward_fill_proc(data, dest, tail);
                     }
@@ -2234,13 +2245,13 @@ private:
                 else
                 {
                     coord.y -= y_end + 1;
-                    auto old_coord = coord;
+                    auto saved = coord;
                     coord.x += count;
                     //todo apply line adjusting
                     if (coord.x <= panel.x)//todo styles! || ! curln.wrapped())
                     {
-                        auto n = std::min(count, panel.x - std::max(0, old_coord.x));
-                        scend_panel.splice(old_coord, n, proto);
+                        auto n = std::min(count, panel.x - std::max(0, saved.x));
+                        dnbox.splice(saved, n, proto);
                     }
                     else
                     {
@@ -2249,9 +2260,9 @@ private:
 
                         auto data = proto.begin();
                         auto size = count;
-                        auto seek = old_coord.x + old_coord.y * panel.x;
-                        auto dest = scend_panel.iter() + seek;
-                        auto tail = scend_panel.iend();
+                        auto seek = saved.x + saved.y * panel.x;
+                        auto dest = dnbox.iter() + seek;
+                        auto tail = dnbox.iend();
                         auto back = panel.x;
                         rich::unlimit_fill_proc(data, size, dest, tail, back);
                     }
@@ -2264,6 +2275,7 @@ private:
                 saved = dot_00;
                 coord = dot_00;
                 batch.clear();
+                batch.caret = 0;
                 batch.invite(0); // At least one line must exist.
                 batch.set_width(panel.x);
                 basis = 0;
@@ -2356,14 +2368,14 @@ private:
                     auto view = canvas.view();
                     auto top_coor = twod{ view.coor.x, view.coor.y + y_top - sctop };
                     auto end_coor = twod{ view.coor.x, view.coor.y + y_end + 1     };
-                    sctop_panel.move(top_coor);
-                    scend_panel.move(end_coor);
+                    upbox.move(top_coor);
+                    dnbox.move(end_coor);
 
-                    canvas.plot(sctop_panel, [](auto& dst, auto& src){ dst.fuse(src); dst.bgc(greendk).bga(0x80); });
-                    canvas.plot(scend_panel, [](auto& dst, auto& src){ dst.fuse(src); dst.bgc(reddk).bga(0x80); });
+                    canvas.plot(upbox, [](auto& dst, auto& src){ dst.fuse(src); dst.bgc(greendk).bga(0x80); });
+                    canvas.plot(dnbox, [](auto& dst, auto& src){ dst.fuse(src); dst.bgc(reddk).bga(0x80); });
 
-                    //canvas.plot(sctop_panel, cell::shaders::flat);
-                    //canvas.plot(scend_panel, cell::shaders::flat);
+                    //canvas.plot(upbox, cell::shaders::flat);
+                    //canvas.plot(dnbox, cell::shaders::flat);
                 }
             }
             // scroll_buf: Remove all lines below (including futures) except the current. "ED2 Erase viewport" keeps empty lines.
@@ -2399,14 +2411,14 @@ private:
                     curln.trimto(start + coor.x);
                     batch.recalc(curln);
 
-                    scend_panel.wipe(blank);
+                    dnbox.wipe(blank);
                 };
 
                 auto coor = coord;
                 if (coor.y < y_top)
                 {
-                    assert(coor.x + coor.y * sctop_panel.size().x < sctop * sctop_panel.size().x);
-                    sctop_panel.del_below(coor, blank);
+                    assert(coor.x + coor.y * upbox.size().x < sctop * upbox.size().x);
+                    upbox.del_below(coor, blank);
                     clear(dot_00);
                 }
                 else if (coor.y <= y_end)
@@ -2417,8 +2429,8 @@ private:
                 else
                 {
                     coor.y -= y_end + 1;
-                    assert(coor.x + coor.y * scend_panel.size().x < scend * scend_panel.size().x);
-                    scend_panel.del_below(coor, blank);
+                    assert(coor.x + coor.y * dnbox.size().x < scend * dnbox.size().x);
+                    dnbox.del_below(coor, blank);
                 }
 
                 assert(test_futures());
@@ -2468,14 +2480,14 @@ private:
                         }
                     }
 
-                    sctop_panel.wipe(blank);
+                    upbox.wipe(blank);
                 };
 
                 auto coor = coord;
                 if (coor.y < y_top)
                 {
-                    assert(coor.x + coor.y * sctop_panel.size().x < sctop * sctop_panel.size().x);
-                    sctop_panel.del_above(coor, blank);
+                    assert(coor.x + coor.y * upbox.size().x < sctop * upbox.size().x);
+                    upbox.del_above(coor, blank);
                 }
                 else if (coor.y <= y_end)
                 {
@@ -2485,8 +2497,8 @@ private:
                 else
                 {
                     coor.y -= y_end + 1;
-                    assert(coor.x + coor.y * scend_panel.size().x < scend * scend_panel.size().x);
-                    scend_panel.del_above(coor, blank);
+                    assert(coor.x + coor.y * dnbox.size().x < scend * dnbox.size().x);
+                    dnbox.del_above(coor, blank);
                     clear(twod{ panel.x , arena - 1 });
                 }
             }
@@ -2553,12 +2565,15 @@ private:
 
                 assert(test_futures());
             }
-            // scroll_buf: Scroll the specified region by n lines.
+            // scroll_buf: Scroll the specified region by n lines. The scrollback can only be used with the whole scrolling region.
             void scroll_region(iota top, iota end, iota n, bool use_scrollback) override
             {
-                assert(top >= y_top && ent <= y_end);
+                assert(top >= y_top && end <= y_end);
 
                 if (n == 0) return;
+
+                auto stash = basis + arena - batch.vsize;
+                if (stash > 0) add_lines(stash); // Fill-up the scrolling region in order to simplify implementation (dissect() requirement).
 
                 if (n < 0) // Scroll text up.
                 {
@@ -2566,10 +2581,7 @@ private:
                     if (top == y_top &&
                         end == y_end && use_scrollback)
                     {
-                        auto stash = basis + arena - batch.vsize;
-                             if (stash < 0) count -= feed_futures(count);
-                        else if (stash > 0) add_lines(stash);
-
+                        count -= feed_futures(count);
                         if (count > 0)
                         {
                             add_lines(count);

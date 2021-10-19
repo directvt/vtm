@@ -202,23 +202,23 @@ namespace netxs::generics
             auto max = size - at;
             if (n > max) n = max;
             auto vol = n;
-            auto top_block = size - max;
+            auto top_block = at;
             auto btm_block = max - n;
             if (btm_block > top_block)
             {
                 auto tail = begin() - 1;
                 auto head = tail + top_block;
-                swap_block<faux>(head, tail, head + n);
+                netxs::swap_block<faux>(head, tail, head + n);
                 while (n-- > 0) pop_front();
             }
             else
             {
                 auto tail = end();
                 auto head = tail - btm_block;
-                swap_block<true>(head, tail, head - n);
+                netxs::swap_block<true>(head, tail, head - n);
                 while (n-- > 0) pop_back();
             }
-            index(tmp); // Restore current item selector.
+            index(tmp >= size ? size - 1 : tmp); // Restore current item selector.
             return vol;
         }
         void clear()

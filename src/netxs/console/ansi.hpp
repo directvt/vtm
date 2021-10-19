@@ -66,6 +66,7 @@ namespace netxs::ansi
     static const char CSI_CBT = 'Z';     // CSI n      Z  — Caret backward n tab stops (default = 1).
     static const char CSI_TBC = 'g';     // CSI n      g  — Reset tabstop value.
     static const char CSI_SGR = 'm';     // CSI n [;k] m  — Select Graphic Rendition.
+    static const char CSI_DSR = 'n';     // CSI n      n  — Device Status Report (DSR). n==5 -> "OK"; n==6 -> CSI r ; c R
     static const char DECSTBM = 'r';     // CSI t ; b  r  — Set scrolling region (t/b: top + bottom).
     static const char CSI_SCP = 's';     // CSI        s  — Save caret Position.
     static const char CSI_RCP = 'u';     // CSI        u  — Restore caret Position.
@@ -306,6 +307,7 @@ namespace netxs::ansi
                                                    : "\033[?1002;1003;1004;1006;10060l"); } // esc: Focus and Mouse position reporting/tracking.
         esc& locate(iota x, iota y) { return add("\033[", y,     ';', x,     'H'       ); } // esc: 1-Based caret position.
         esc& locate(twod const& p)  { return add("\033[", p.y+1, ';', p.x+1, 'H'       ); } // esc: 0-Based caret position.
+        esc& report(twod const& p)  { return add("\033[", p.y+1, ";", p.x+1, "R"       ); } // esc: Report 1-Based caret position (CPR).
         esc& locate_wipe ()         { return add("\033[r"                              ); } // esc: Enable scrolling for entire display (clear screen).
         esc& locate_call ()         { return add("\033[6n"                             ); } // esc: Report caret position.
         esc& scroll_wipe ()         { return add("\033[2J"                             ); } // esc: Erase scrollback.
@@ -982,6 +984,7 @@ namespace netxs::ansi
                 table[CSI__SD] = nullptr;
                 table[CSI__SU] = nullptr;
                 table[CSI_WIN] = nullptr;
+                table[CSI_DSR] = nullptr;
 
                 auto& csi_ccc = table[CSI_CCC].resize(0x100);
                 csi_ccc.enable_multi_arg();
