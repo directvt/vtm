@@ -957,12 +957,9 @@ private:
                         {
                             auto n = coord.x + (coord.y - y_top) * panel.x;
                             count -= n;
-                            //todo optimize
                             auto saved = coord;
                             set_coord({ 0, y_top });
-                            //todo use ranges
-                            grid proto2{ proto.begin() + count, proto.end()};
-                            data(n, proto2);
+                            data(n, proto); // Reversed fill using the last part of the proto.
                         }
                         auto data = proto.begin();
                         auto seek = old_coord.x + old_coord.y * panel.x;
