@@ -198,10 +198,15 @@ namespace netxs::generics
         auto remove(iota at, iota n)
         {
             assert(at >= 0 && at < size);
-            auto tmp = index();
+
             auto max = size - at;
             if (n > max) n = max;
+
             auto vol = n;
+            auto tmp = index();
+                 if (tmp >= at + n) tmp -= n;
+            else if (tmp >= at    ) tmp  = at - 1;
+
             auto top_block = at;
             auto btm_block = max - n;
             if (btm_block > top_block)
@@ -218,7 +223,7 @@ namespace netxs::generics
                 netxs::swap_block<true>(head, tail, head - n);
                 while (n-- > 0) pop_back();
             }
-            index(tmp >= size ? size - 1 : tmp); // Restore current item selector.
+            index(tmp); // Restore current item selector.
             return vol;
         }
         void clear()
