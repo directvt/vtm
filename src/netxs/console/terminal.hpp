@@ -433,16 +433,16 @@ private:
                 vt.csier.table_hash [CSI_HSH_RCP] = VT_PROC{ p->na("CSI n # Q  Pop  current palette colors onto stack. n default is 0."); }; // CSI n # Q  Pop  current palette colors onto stack. n default is 0.
                 vt.csier.table_excl [CSI_EXL_RST] = VT_PROC{ p->owner.decstr( ); }; // CSI ! p  Soft terminal reset (DECSTR)
 
-                vt.csier.table[CSI_CUU] = VT_PROC{ p->up ( q(1)); };  // CSI n A
-                vt.csier.table[CSI_CUD] = VT_PROC{ p->dn ( q(1)); };  // CSI n B
-                vt.csier.table[CSI_CUF] = VT_PROC{ p->cuf( q(1)); };  // CSI n C
-                vt.csier.table[CSI_CUB] = VT_PROC{ p->cuf(-q(1)); };  // CSI n D
+                vt.csier.table[CSI_CUU] = VT_PROC{ p->up ( q(1)); };  // CSI n A  (CUU)
+                vt.csier.table[CSI_CUD] = VT_PROC{ p->dn ( q(1)); };  // CSI n B  (CUD)
+                vt.csier.table[CSI_CUF] = VT_PROC{ p->cuf( q(1)); };  // CSI n C  (CUF)
+                vt.csier.table[CSI_CUB] = VT_PROC{ p->cuf(-q(1)); };  // CSI n D  (CUB)
 
                 vt.csier.table[CSI_CHT] = VT_PROC{ p->tab( q(1)); };  // CSI n I  Caret forward  n tabs, default n=1.
                 vt.csier.table[CSI_CBT] = VT_PROC{ p->tab(-q(1)); };  // CSI n Z  Caret backward n tabs, default n=1.
                 vt.csier.table[CSI_TBC] = VT_PROC{ p->tbc( q(1)); };  // CSI n g  Reset tabstop value.
 
-                vt.csier.table[CSI_CUD2]= VT_PROC{ p->dn ( q(1)); };  // CSI n e  Move cursor down. Same as CUD.
+                vt.csier.table[CSI_CUD2]= VT_PROC{ p->dn ( q(1)); };  // CSI n e  Vertical position relative. Move cursor down (VPR).
 
                 vt.csier.table[CSI_CNL] = vt.csier.table[CSI_CUD];    // CSI n E
                 vt.csier.table[CSI_CPL] = vt.csier.table[CSI_CUU];    // CSI n F
@@ -451,14 +451,14 @@ private:
                 vt.csier.table[CSI_CUP] = VT_PROC{ p->cup( q   ); };  // CSI y ; x H (1-based)
                 vt.csier.table[CSI_HVP] = VT_PROC{ p->cup( q   ); };  // CSI y ; x f (1-based)
 
-                vt.csier.table[CSI_DCH] = VT_PROC{ p->dch( q(1)); };  // CSI n P  Delete n chars.
-                vt.csier.table[CSI_ECH] = VT_PROC{ p->ech( q(1)); };  // CSI n X  Erase n chars.
-                vt.csier.table[CSI_ICH] = VT_PROC{ p->ins( q(1)); };  // CSI n @  Insert n chars. ICH
+                vt.csier.table[CSI_DCH] = VT_PROC{ p->dch( q(1)); };  // CSI n P  Delete n chars (DCH).
+                vt.csier.table[CSI_ECH] = VT_PROC{ p->ech( q(1)); };  // CSI n X  Erase n chars (ECH).
+                vt.csier.table[CSI_ICH] = VT_PROC{ p->ins( q(1)); };  // CSI n @  Insert n chars (ICH).
 
                 vt.csier.table[CSI__ED] = VT_PROC{ p->ed ( q(0)); };  // CSI n J
                 vt.csier.table[CSI__EL] = VT_PROC{ p->el ( q(0)); };  // CSI n K
-                vt.csier.table[CSI__IL] = VT_PROC{ p->il ( q(1)); };  // CSI n L  Insert n lines.
-                vt.csier.table[CSI__DL] = VT_PROC{ p->dl ( q(1)); };  // CSI n M  Delete n lines.
+                vt.csier.table[CSI__IL] = VT_PROC{ p->il ( q(1)); };  // CSI n L  Insert n lines (IL).
+                vt.csier.table[CSI__DL] = VT_PROC{ p->dl ( q(1)); };  // CSI n M  Delete n lines (DL).
                 vt.csier.table[CSI__SD] = VT_PROC{ p->scl( q(1)); };  // CSI n T  Scroll down by n lines, scrolled out lines are lost.
                 vt.csier.table[CSI__SU] = VT_PROC{ p->scl(-q(1)); };  // CSI n S  Scroll   up by n lines, scrolled out lines are pushed to the scrollback.
                 vt.csier.table[CSI_SCP] = VT_PROC{ p->scp(     ); };  // CSI   s  Save cursor position.
@@ -473,18 +473,18 @@ private:
                 vt.csier.table[CSI_CCC][CCC_EXT] = VT_PROC{ p->owner.native(q(1)); };          // CCC_EXT: Setup extended functionality.
                 vt.csier.table[CSI_CCC][CCC_RST] = VT_PROC{ p->style.glb(); p->style.wrp(WRAPPING); };  // fx_ccc_rst
 
-                vt.intro[ctrl::ESC][ESC_IND] = VT_PROC{ p->dn(1); };          // ESC D  Caret Down.
-                vt.intro[ctrl::ESC][ESC_IR ] = VT_PROC{ p->ri (); };          // ESC M  Reverse index.
+                vt.intro[ctrl::ESC][ESC_IND] = VT_PROC{ p->lf(1); };          // ESC D  Index. Caret down and scroll if needed (IND).
+                vt.intro[ctrl::ESC][ESC_IR ] = VT_PROC{ p->ri (); };          // ESC M  Reverse index (RI).
                 vt.intro[ctrl::ESC][ESC_HTS] = VT_PROC{ p->stb(); };          // ESC H  Place tabstop at the current cursor posistion.
-                vt.intro[ctrl::ESC][ESC_RIS] = VT_PROC{ p->owner.decstr(); }; // ESC c Reset to initial state (same as DECSTR).
-                vt.intro[ctrl::ESC][ESC_SC ] = VT_PROC{ p->scp(); };          // ESC 7 (same as CSI s) Save cursor position.
-                vt.intro[ctrl::ESC][ESC_RC ] = VT_PROC{ p->rcp(); };          // ESC 8 (same as CSI u) Restore cursor position.
+                vt.intro[ctrl::ESC][ESC_SC ] = VT_PROC{ p->scp(); };          // ESC 7  (same as CSI s) Save cursor position.
+                vt.intro[ctrl::ESC][ESC_RC ] = VT_PROC{ p->rcp(); };          // ESC 8  (same as CSI u) Restore cursor position.
+                vt.intro[ctrl::ESC][ESC_RIS] = VT_PROC{ p->owner.decstr(); }; // ESC c  Reset to initial state (same as DECSTR).
 
                 vt.intro[ctrl::BS ] = VT_PROC{ p->cuf(-q.pop_all(ctrl::BS )); };
                 vt.intro[ctrl::DEL] = VT_PROC{ p->del( q.pop_all(ctrl::DEL)); };
                 vt.intro[ctrl::TAB] = VT_PROC{ p->tab( q.pop_all(ctrl::TAB)); };
-                vt.intro[ctrl::CR ] = VT_PROC{ p->home(); };
-                vt.intro[ctrl::EOL] = VT_PROC{ p->dn ( q.pop_all(ctrl::EOL)); };
+                vt.intro[ctrl::EOL] = VT_PROC{ p->lf ( q.pop_all(ctrl::EOL)); }; // LF.
+                vt.intro[ctrl::CR ] = VT_PROC{ p->cr ();                      }; // CR.
 
                 vt.csier.table_quest[DECSET] = VT_PROC{ p->owner.decset(q); };
                 vt.csier.table_quest[DECRST] = VT_PROC{ p->owner.decrst(q); };
@@ -741,8 +741,6 @@ private:
             }
             // bufferbase: CSI n X  Erase/put n chars after cursor. Don't change cursor pos.
     virtual void ech(iota n) = 0;
-    // Reserved for future use.
-    //virtual void ech_grow(iota n) = 0;
             // bufferbase: CSI n P  Delete (not Erase) letters under the cursor.
     virtual void dch(iota n) = 0;
             // bufferbase: '\x7F'  Delete characters backwards.
@@ -778,7 +776,7 @@ private:
                 auto p = twod{ x, y };
                 coord  = std::clamp(p, dot_11, panel) - dot_11;
             }
-            // bufferbase: Line reverse feed (move cursor up).
+            // bufferbase: Move cursor up.
     virtual void up(iota n)
             {
                 parser::flush();
@@ -790,9 +788,20 @@ private:
                 }
                 else coord.y = std::clamp(new_coord_y, 0, panel.y - 1);
             }
-            //todo LF != CUD
-            // bufferbase: Line feed (move cursor down). Scroll region up if new_coord_y > end.
+            // bufferbase: Move cursor down.
     virtual void dn(iota n)
+            {
+                parser::flush();
+                auto new_coord_y = coord.y + n;
+                if (new_coord_y >  y_end
+                     && coord.y <= y_end)
+                {
+                    coord.y = y_end;
+                }
+                else coord.y = std::clamp(new_coord_y, 0, panel.y - 1);
+            }
+            // bufferbase: Line feed. Index. Scroll region up if new_coord_y > end.
+    virtual void lf(iota n)
             {
                 parser::flush();
                 auto new_coord_y = coord.y + n;
@@ -805,8 +814,8 @@ private:
                 }
                 else coord.y = std::clamp(new_coord_y, 0, panel.y - 1);
             }
-            // bufferbase: '\r'  Go to home of visible line instead of home of para.
-    virtual void home()
+            // bufferbase: '\r'  CR Cursor return. Go to home of visible line instead of home of paragraph.
+    virtual void cr()
             {
                 parser::flush();
                 coord.x = 0;
@@ -1736,8 +1745,9 @@ private:
             void dl  (iota  n) override { bufferbase::dl  (n); sync_coord(); }
             void up  (iota  n) override { bufferbase::up  (n); sync_coord(); }
             void dn  (iota  n) override { bufferbase::dn  (n); sync_coord(); }
+            void lf  (iota  n) override { bufferbase::lf  (n); sync_coord(); }
             void ri  ()        override { bufferbase::ri  ( ); sync_coord(); }
-            void home()        override { bufferbase::home( ); sync_coord(); }
+            void cr  ()        override { bufferbase::cr  ( ); sync_coord(); }
 
             // scroll_buf: Reset the scrolling region.
             void reset_scroll_region()
