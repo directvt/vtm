@@ -1166,6 +1166,7 @@ private:
                 static constexpr ui64 lnpadding = 40; // Padding to improve accuracy.
 
                 //todo optimize for large lines, use std::unordered_map<iota, iota>
+                // buff: Line length accounting database.
                 struct maxs : public std::vector<iota>
                 {
                     iota max = 0;
@@ -1174,11 +1175,13 @@ private:
                 }
                 lens[type::count];
 
+                // buff: Decrease the height.
                 void dec_height(iota& vsize, type kind, iota size)
                 {
                     if (size > width && kind == type::autowrap) vsize -= (size + width - 1) / width;
                     else                                        vsize -= 1;
                 }
+                // buff: Increase the height.
                 void add_height(iota& vsize, type kind, iota size)
                 {
                     if (size > width && kind == type::autowrap) vsize += (size + width - 1) / width;
@@ -1216,7 +1219,7 @@ private:
                     }
                     while (head != tail);
                 }
-
+                // buff: Register new line.
                 void invite(type& kind, iota& size, type new_kind, iota new_size)
                 {
                     auto& new_lens = lens[new_kind];
@@ -1229,6 +1232,7 @@ private:
                     size = new_size;
                     kind = new_kind;
                 }
+                // buff: Refresh scrollback height.
                 void recalc(type& kind, iota& size, type new_kind, iota new_size)
                 {
                     if (size != new_size
@@ -1253,6 +1257,7 @@ private:
                         kind = new_kind;
                     }
                 }
+                // buff: Discard the specified metrics.
                 void undock(type& kind, iota& size)
                 {
                     auto& cur_lens =       lens[kind];
@@ -1263,6 +1268,7 @@ private:
                     }
                     dec_height(vsize, kind, size);
                 }
+                // buff: Discard the specified metrics and update the metrics based on the scrollback height.
                 void undock_front(type& kind, iota& size)
                 {
                     undock(kind, size);
@@ -1271,11 +1277,13 @@ private:
                     if (basis < 0) basis = 0;
                     if (slide < 0) slide = 0;
                 }
+                // buff: Push back the specified line.
                 void invite(line& l)
                 {
                     dirty = true;
                     invite(l._kind, l._size, l.style.get_kind(), l.length());
                 }
+                // buff: Push back the new line.
                 template<class ...Args>
                 auto& invite(Args&&... args)
                 {
@@ -1284,17 +1292,20 @@ private:
                     invite(l._kind, l._size, l.style.get_kind(), l.length());
                     return l;
                 }
+                // buff: Insert the new line at the specified position.
                 template<class ...Args>
                 auto& insert(iota at, Args&&... args)
                 {
                     dirty = true;
-                    //todo revise (iter vs item)
                     auto& l = *ring::insert(at, std::forward<Args>(args)...);
                     invite(l._kind, l._size, l.style.get_kind(), l.length());
                     return l;
                 }
+                // buff: Remove the specified line info from accounting and update the metrics based on the scrollback height.
                 void undock_base_front(line& l) override { undock_front(l._kind, l._size); }
+                // buff: Remove information about the specified line from accounting.
                 void undock_base_back (line& l) override { undock      (l._kind, l._size); }
+                // buff: Return an item position in the scrollback using its id.
                 template<auto N> auto max() { return lens[N].max; }
                 auto index_by_id(ui32 id)
                 {
@@ -1302,14 +1313,17 @@ private:
                     auto count = length();
                     return static_cast<iota>(count - 1 - (back().index - id)); // ring buffer size is never larger than max_int32.
                 }
+                // buff: Return an iterator pointing to the item with the specified id.
                 auto iter_by_id(ui32 id)
                 {
                     return begin() + index_by_id(id);
                 }
+                // buff: Return an item reference using its id.
                 auto& item_by_id(ui32 id)
                 {
                     return ring::at(index_by_id(id));
                 }
+                // buff: Refresh the scrollback size in cells, starting at the specified index.
                 void recalc_size(iota taken_index)
                 {
                     auto head = begin() + std::max(0, taken_index);
@@ -1329,6 +1343,7 @@ private:
                     dirty = faux;
                     //log( " recalc_size taken_index=", taken_index);
                 }
+                // buff: Return the scrollback size in cells.
                 auto get_size_in_cells()
                 {
                     auto& endln = back();
@@ -1350,6 +1365,7 @@ private:
                     }
                     return accum;
                 }
+                // buff: Refresh metrics due to the specified modified line.
                 void recalc(line& l)
                 {
                     recalc(l._kind, l._size, l.style.get_kind(), l.length());
@@ -1367,6 +1383,7 @@ private:
                         taken = back().index;
                     }
                 }
+                // buff: Rewrite the indices from the specified position to the end.
                 void reindex(iota from)
                 {
                     auto head = begin() + from;
@@ -1379,11 +1396,25 @@ private:
                         ++head;
                     }
                 }
+                // buff: Remove the specified number of lines at the specified position (inclusive).
                 auto remove(iota at, iota count)
                 {
                     count = ring::remove(at, count);
                     reindex(at);
                     return count;
+                }
+                // buff: Clear scrollback, add one empty line, and reset all metrics.
+                void clear()
+                {
+                    ring::clear();
+                    caret = 0;
+                    basis = 0;
+                    accum = 0;
+                    slide = 0;
+                    dirty = 0;
+                    taken = 0;
+                    invite(0); // At least one line must exist.
+                    set_width(width);
                 }
             };
 
@@ -2303,14 +2334,6 @@ private:
                 saved = dot_00;
                 coord = dot_00;
                 batch.clear();
-                batch.caret = 0;
-                batch.basis = 0;
-                batch.accum = 0;
-                batch.slide = 0;
-                batch.dirty = 0;
-                batch.taken = 0;
-                batch.invite(0); // At least one line must exist.
-                batch.set_width(panel.x);
                 reset_scroll_region();
                 bufferbase::clear_all();
             }
