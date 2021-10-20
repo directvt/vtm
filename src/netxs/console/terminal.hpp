@@ -548,6 +548,13 @@ private:
             {
                 return 0;
             }
+    virtual iota get_slide()
+            {
+                return 0;
+            }
+    virtual void set_slide(iota)
+            {
+            }
             // bufferbase: Get vertival oversize.
     virtual iota get_oversize()
             {
@@ -1494,6 +1501,14 @@ private:
             {
                 return batch.basis;
             }
+            iota get_slide() override
+            {
+                return batch.slide;
+            }
+            void set_slide(iota new_slide) override
+            {
+                batch.slide = new_slide;
+            }
             // scroll_buf: Resize viewport.
             void resize_viewport(twod const& new_sz) override
             {
@@ -2426,11 +2441,11 @@ private:
                     upbox.move(top_coor);
                     dnbox.move(end_coor);
 
-                    canvas.plot(upbox, [](auto& dst, auto& src){ dst.fuse(src); dst.bgc(greendk).bga(0x80); });
-                    canvas.plot(dnbox, [](auto& dst, auto& src){ dst.fuse(src); dst.bgc(reddk).bga(0x80); });
+                    //canvas.plot(upbox, [](auto& dst, auto& src){ dst.fuse(src); dst.bgc(greendk).bga(0x80); });
+                    //canvas.plot(dnbox, [](auto& dst, auto& src){ dst.fuse(src); dst.bgc(reddk).bga(0x80); });
 
-                    //canvas.plot(upbox, cell::shaders::flat);
-                    //canvas.plot(dnbox, cell::shaders::flat);
+                    canvas.plot(upbox, cell::shaders::flat);
+                    canvas.plot(dnbox, cell::shaders::flat);
                 }
             }
             // scroll_buf: Remove all lines below (including futures) except the current. "ED2 Erase viewport" keeps empty lines.
@@ -2897,6 +2912,34 @@ private:
                 queue.clear();
             }
         }
+        // term: Reset viewport position.
+        void scroll(bool force_basis = true)
+        {
+            auto& console = *target;
+            auto basis = console.get_basis();
+            auto adjust_pads = console.recalc_pads(oversz);
+            auto scroll_size = console.panel;
+            scroll_size.y += basis;
+            oversz.b = console.get_oversize();
+            if (force_basis)
+            {
+                origin.y = -basis;
+                console.set_slide(basis);
+                this->SIGNAL(tier::release, e2::coor::set, origin);
+            }
+            else if (auto slide = -console.get_slide(); origin.y != slide)
+            {
+                origin.y = slide;
+                this->SIGNAL(tier::release, e2::coor::set, origin);
+                this->SIGNAL(tier::release, e2::size::set, scroll_size); // Update scrollbars.
+                return;
+            }
+
+            if (scroll_size != base::size() || adjust_pads)
+            {
+                this->SIGNAL(tier::release, e2::size::set, scroll_size); // Update scrollbars.
+            }
+        }
         // term: Proceed terminal input.
         void ondata(view data)
         {
@@ -2938,24 +2981,6 @@ private:
                     oneoff.reset();
                     base::destroy();
                 };
-            }
-        }
-        // term: Reset viewport position.
-        void scroll(bool force_basis = true)
-        {
-            auto& console = *target;
-            auto adjust_pads = console.recalc_pads(oversz);
-            auto scroll_size = console.panel;
-            scroll_size.y += console.get_basis();
-            oversz.b = console.get_oversize();
-            //if (force_basis)
-            {
-                origin.y = -console.get_basis();
-                this->SIGNAL(tier::release, e2::coor::set, origin);
-            }
-            if (scroll_size != base::size() || adjust_pads)
-            {
-                this->SIGNAL(tier::release, e2::size::set, scroll_size); // Update scrollbars.
             }
         }
 
@@ -3023,6 +3048,7 @@ private:
             SUBMIT(tier::release, e2::coor::set, new_coor)
             {
                 origin = new_coor;
+                target->set_slide(-origin.y);
             };
             SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
             {
@@ -3172,14 +3198,14 @@ private:
                 }
 
                 // Debug: Shade active viewport.
-                {
-                    auto size = console.panel;
-                    size.y -= console.sctop + console.scend;
-                    auto vp = rect{ { 0,console.get_basis() + console.sctop }, size };
-                    vp.coor += parent_canvas.full().coor;
-                    vp = vp.clip(parent_canvas.view());
-                    parent_canvas.fill(vp, [](auto& c){ c.fuse(cell{}.bgc(magentalt).bga(50)); });
-                }
+                //{
+                //    auto size = console.panel;
+                //    size.y -= console.sctop + console.scend;
+                //    auto vp = rect{ { 0,console.get_basis() + console.sctop }, size };
+                //    vp.coor += parent_canvas.full().coor;
+                //    vp = vp.clip(parent_canvas.view());
+                //    parent_canvas.fill(vp, [](auto& c){ c.fuse(cell{}.bgc(magentalt).bga(50)); });
+                //}
             };
         }
     };
