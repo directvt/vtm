@@ -63,7 +63,8 @@ namespace netxs::generics
               mxsz{ maxiota - step               }
         { }
 
-        virtual void undock(type&) { };
+        virtual void undock_base_front(type&) { };
+        virtual void undock_base_back (type&) { };
 
         auto  current_it()        { return iter{ *this, cart };          }
         auto  begin()             { return iter{ *this, head };          }
@@ -96,7 +97,7 @@ namespace netxs::generics
         inline void undock_front()
         {
             auto& item = front();
-            if constexpr (USE_UNDOCK) undock(item);
+            if constexpr (USE_UNDOCK) undock_base_front(item);
             item = type{};
             if (cart == head) inc(head), cart = head;
             else              inc(head);
@@ -104,7 +105,7 @@ namespace netxs::generics
         inline void undock_back()
         {
             auto& item = back();
-            if constexpr (USE_UNDOCK) undock(item);
+            if constexpr (USE_UNDOCK) undock_base_back(item);
             item = type{};
             if (cart == tail) dec(tail), cart = tail;
             else              dec(tail);
@@ -132,7 +133,7 @@ namespace netxs::generics
         }
         void pop_back () { undock_back();  --size; }
         void pop_front() { undock_front(); --size; }
-        // ring: Insert an item before the specified position. Return an iterator pointing to the new item.
+        // ring: Insert an item before the specified position. Pop front when full. Return an iterator pointing to the new item.
         template<class ...Args>
         auto insert(iota at, Args&&... args) // Pop front always if ring is full.
         {
@@ -169,7 +170,7 @@ namespace netxs::generics
                 else
                 {
                     auto& item = front();
-                    if constexpr (USE_UNDOCK) undock(item);
+                    if constexpr (USE_UNDOCK) undock_base_front(item);
                     item = type(std::forward<Args>(args)...);
                     ++it_1;
                 }
@@ -186,7 +187,7 @@ namespace netxs::generics
                 if (full())
                 {
                     auto& item = front();
-                    if constexpr (USE_UNDOCK) undock(item);
+                    if constexpr (USE_UNDOCK) undock_base_front(item);
                     item = type{};
                     if (cart == head) inc(head), cart = head;
                     else              inc(head);
@@ -250,7 +251,7 @@ namespace netxs::generics
                         //todo optimize for !USE_UNDOCK
                         do
                         {
-                            if constexpr (USE_UNDOCK) undock(front());
+                            if constexpr (USE_UNDOCK) undock_base_front(front());
                             inc(head);
                         }
                         while (--size != new_size);
@@ -264,7 +265,7 @@ namespace netxs::generics
                         //todo optimize for !USE_UNDOCK
                         do
                         {
-                            if constexpr (USE_UNDOCK) undock(back());
+                            if constexpr (USE_UNDOCK) undock_base_back(back());
                             dec(tail);
                         }
                         while (--size != new_size);

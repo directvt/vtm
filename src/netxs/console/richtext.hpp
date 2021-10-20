@@ -1424,7 +1424,8 @@ namespace netxs::console
         struct buff : public ring
         {
             using ring::ring;
-            void undock(para& p) override { }
+            //void undock_base_front(para& p) override { }
+            //void undock_base_back (para& p) override { }
         };
 
         template<class T>
