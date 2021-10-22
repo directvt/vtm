@@ -544,22 +544,32 @@ private:
             virtual iota get_step() const                            = 0;
                     auto get_view() const { return panel; }
 
+            // bufferbase: .
     virtual iota get_basis()
             {
                 return 0;
             }
+            // bufferbase: .
     virtual iota get_slide()
             {
                 return 0;
             }
-    virtual void set_slide(iota)
+            // bufferbase: .
+    virtual bool force_basis()
             {
+                return true;
+            }
+            // bufferbase: .
+    virtual iota set_slide(iota)
+            {
+                return 0;
             }
             // bufferbase: Get vertival oversize.
     virtual iota get_oversize()
             {
                 return 0;
             }
+            // bufferbase: .
             void update_region()
             {
                 sctop = std::max(0, n_top - 1);
@@ -570,6 +580,7 @@ private:
                 y_end = std::clamp(y_max - scend, 0, y_max);
                 y_top = std::clamp(sctop        , 0, y_end);
             }
+            // bufferbase: .
     virtual void resize_viewport(twod const& new_sz)
             {
                 panel = std::max(new_sz, dot_11);
@@ -589,6 +600,7 @@ private:
                 n_end = bottom == panel.y ? 0 : bottom;
                 update_region();
             }
+            // bufferbase: .
     virtual void set_coord(twod const& new_coord)
             {
                 coord = new_coord;
@@ -612,6 +624,7 @@ private:
                 //} 
                 //batch->locus.push(property);
             }
+            // bufferbase: .
     virtual void meta(deco const& old_style) override
             {
                 if (parser::style.wrp() != old_style.wrp())
@@ -627,6 +640,7 @@ private:
                     owner.base::broadcast->SIGNAL(tier::release, app::term::events::layout::align, status);
                 }
             }
+            // bufferbase: .
             template<class T>
             void na(T&& note)
             {
@@ -647,6 +661,7 @@ private:
                 }
                 log("CSI ", params, " ", (unsigned char)i, "(", std::to_string(i), ") is not implemented.");
             }
+            // bufferbase: .
     virtual void clear_all()
             {
                 parser::state = {};
@@ -1443,6 +1458,12 @@ private:
             twod upmin; // scroll_buf:    Top margin minimal size.
             twod dnmin; // scroll_buf: Bottom margin minimal size.
 
+            id_t anchor_id{}; // the nearest id to the slide
+            iota anchor_dy{}; // distance to the slide.
+            //bool exact = true;
+            bool round{};
+            iota recalc_threshold = 1000;
+
             scroll_buf(term& boss, iota buffer_size, iota grow_step)
                 : bufferbase{ boss                     },
                        batch{ buffer_size, grow_step   },
@@ -1458,6 +1479,11 @@ private:
             iota get_peak() const override { return batch.peak; }
             iota get_step() const override { return batch.step; }
 
+            void print_slide(text msg)
+            {
+                log(msg, ": ", " batch.basis=", batch.basis, " batch.slide=", batch.slide, 
+                    " anchor_id=", anchor_id, " anchor_dy=", anchor_dy, " round=", round ? 1:0);
+            }
             void print_index(text msg)
             {
                 log(" ", msg, " index.size=", index.size, " basis=", batch.basis);
@@ -1493,25 +1519,202 @@ private:
                 assert(c == batch.caret);
                 return true;
             }
+            // scroll_buf: .
             iota get_oversize() override
             {
                 return std::max(0, batch.vsize - (batch.basis + arena));
             }
+            // scroll_buf: .
             iota get_basis() override
             {
                 return batch.basis;
             }
+            // scroll_buf: .
             iota get_slide() override
             {
                 return batch.slide;
             }
-            void set_slide(iota new_slide) override
+            // scroll_buf: .
+            bool force_basis()
             {
+                return batch.slide == batch.basis;
+            }
+            // scroll_buf: .
+            iota set_slide(iota new_slide) override
+            {
+                log(" new_slide=", new_slide);
+                if (batch.slide == new_slide)
+                {
+                    log("delta == 0");
+                    return new_slide;
+                }
+
+                if (batch.basis == new_slide)
+                {
+                    round = faux;
+                    auto& mapln = index.front();
+                    anchor_id = mapln.index;
+                    anchor_dy = mapln.start / panel.x;
+                }
+                else
+                {
+                    auto delta = new_slide - batch.slide;
+                    //if (std::abs(delta) > recalc_threshold) // calc approx
+                    //{
+                        //auto a = new_slide < recalc_threshold;
+                        //auto b = new_slide < std::abs(batch.vsize - new_slide);
+                        //if (!round && (a || b))
+                        //{
+                        //    // Calculate the slide accurately.
+                        //    // ...
+                        //}
+                        //else
+                        //{
+                        //    round = true;
+                        // ...
+                        //auto bytesz = batch.get_size_in_cells();
+                        //auto curpos = batch.slide;
+                        //auto height = batch.vsize;
+                        //auto length = batch.size;
+                        //auto approx_index = (ui64)length * curpos / height;
+                        //auto approx_bytes = (ui64)bytesz * curpos / height;
+                        //auto exactly = curpos; 
+                        //auto& curln = batch[approx_index];
+                        //auto  accum = curln.accum;
+                    //}
+                    //else // calc exactly
+                    {
+                        auto vtpos = batch.slide - anchor_dy; // current pos of anchor_id
+                        auto idpos = batch.index_by_id(anchor_id);
+                        auto start = batch.begin() + idpos;
+                        auto found = faux;
+                        if (delta < 0) // Move viewport up.
+                        {
+                            log(" delta < 0 new_slide=", new_slide);
+                            delta = std::abs(delta);
+                            auto limit = start - std::min(delta, idpos);
+                            while(start != limit)
+                            {
+                                auto& curln = *--start;
+                                auto height = curln.height(panel.x);
+                                vtpos -= height;
+                                if (vtpos <= new_slide)
+                                {
+                                    anchor_id = curln.index;
+                                    anchor_dy = new_slide - vtpos;
+                                    found = true;
+                                    break;
+                                }
+                            }
+
+                            if (!found)
+                            {
+                                anchor_id = batch.back().index - (batch.size - 1);
+                                anchor_dy = 0;
+                                new_slide = 0;
+                                assert(anchor_id == batch.front().index);
+                            }
+                        }
+                        else // Move viewport dn.
+                        {
+                            log(" delta > 0 new_slide=", new_slide);
+                            auto limit = start + std::min(delta, batch.size - idpos);
+                            do
+                            {
+                                auto& curln = *start;
+                                auto height = curln.height(panel.x);
+                                vtpos += height;
+                                if (vtpos > new_slide)
+                                {
+                                    anchor_id = curln.index;
+                                    anchor_dy = vtpos - new_slide - height;
+                                    found = true;
+                                    break;
+                                }
+                            }
+                            while(start++ != limit);
+
+                            if (!found)
+                            {
+                                auto& mapln = index.front();
+                                anchor_id = mapln.index;
+                                anchor_dy = mapln.start / panel.x;
+                                new_slide = batch.basis;
+                            }
+                        }
+
+                        if (round)
+                        {
+                            auto a = new_slide < recalc_threshold;
+                            auto b = new_slide < std::abs(batch.vsize - new_slide);
+                            if (a || b)
+                            {
+                                round = faux;
+                                // Calculate the slide accurately.
+                                // ...
+                            }
+                        }
+                    }
+
+                }
+
                 batch.slide = new_slide;
+                print_slide("  set_slide");
+                return batch.slide;
+            }
+            void recalc_slide(bool away)
+            {
+                if (away)
+                {
+                    log(" away");
+                    // Recalc batch.slide using anchoring by para_id + para_offset
+                    // PoC: (para_id + para_offset) => (batch.slide)
+                    //      naive imp, bruteforce (within threshold)
+                    //todo calculate it approximately
+                    auto endid = batch.back().index;
+                    auto count = static_cast<iota>(endid - anchor_id) + 1;
+                    if (count <= batch.size)
+                    {
+                        batch.slide = batch.vsize - anchor_dy;
+                        auto head = batch.end();
+                        auto tail = head - count;
+                        while(head != tail)
+                        {
+                            auto& curln = *--head;
+                            //auto  curid = curln.index;
+                            auto height = curln.height(panel.x);
+                            batch.slide -= height;
+                        }
+
+                             if (batch.slide > batch.basis) batch.slide = batch.basis;
+                        else if (batch.slide <= 0) // Overflow.
+                        {
+                            log(" Overflow on resize. batch.slide=", batch.slide);
+                            batch.slide = 0;
+                            anchor_dy = 0;
+                            anchor_id = endid - (batch.size - 1);
+                            assert(anchor_id == batch.front().index);
+                        }
+                    }
+                    else // Overflow.
+                    {
+                        log(" Overflow on resize. Anchor id is outside. batch.slide=", batch.slide,
+                        " anchor_id=", anchor_id, " batch.front().index=", batch.front().index);
+                        batch.slide = 0;
+                        anchor_dy = 0;
+                        anchor_id = endid - (batch.size - 1);
+                        assert(anchor_id == batch.front().index);
+                    }
+                }
+                else batch.slide = batch.basis;
+
+                print_slide(" resize");
             }
             // scroll_buf: Resize viewport.
             void resize_viewport(twod const& new_sz) override
             {
+                if (new_sz == panel) return;
+
                 auto in_top = y_top - coord.y;
                 auto in_end = coord.y - y_end;
 
@@ -1528,12 +1731,14 @@ private:
 
                 arena = y_end - y_top + 1;
                 index.resize(arena); // Use a fixed ring because new lines are added much more often than a futures feed.
+                auto away = batch.basis != batch.slide;
 
                 if (in_top > 0 || in_end > 0) // The cursor is outside the scrolling region.
                 {
                     if (in_top > 0) coord.y = std::max(0          , y_top - in_top);
                     else            coord.y = std::min(panel.y - 1, y_end + in_end);
                     batch.basis = batch.vsize - arena;
+                    recalc_slide(away);
                     index_rebuild();
                     return;
                 }
@@ -1583,6 +1788,7 @@ private:
                     }
                 }
                 coord.y = index.size - coord.y + y_top;
+                recalc_slide(away);
 
                 assert(batch.basis >= 0);
                 assert(test_futures());
@@ -2924,18 +3130,21 @@ private:
             if (force_basis)
             {
                 origin.y = -basis;
-                console.set_slide(basis);
+                //console.set_slide(basis);
                 this->SIGNAL(tier::release, e2::coor::set, origin);
             }
             else if (auto slide = -console.get_slide(); origin.y != slide)
             {
+                //todo optimize
+                //todo separate the viewport position from the slide
                 origin.y = slide;
                 this->SIGNAL(tier::release, e2::coor::set, origin);
                 this->SIGNAL(tier::release, e2::size::set, scroll_size); // Update scrollbars.
                 return;
             }
 
-            if (scroll_size != base::size() || adjust_pads)
+            //todo scrollbars is not updated on keypress
+            //if (scroll_size != base::size() || adjust_pads)
             {
                 this->SIGNAL(tier::release, e2::size::set, scroll_size); // Update scrollbars.
             }
@@ -2950,13 +3159,10 @@ private:
                 {
                     SIGNAL(tier::general, e2::debug::output, data); // Post for the Logs.
 
-                auto force_basis = origin.y == -target->get_basis();
-
-                //log(" coord=", target->coord, " data: ", utf::debase(data));
-
+                    auto force_basis = target->force_basis();
+                    //auto force_basis = origin.y == -target->get_basis();
                     ansi::parse(data, target);
-
-                scroll(force_basis);
+                    scroll(force_basis);
 
                     base::deface();
                     break;
@@ -2987,6 +3193,7 @@ private:
     public:
        ~term(){ active = faux; }
         term(text command_line, iota max_scrollback_size = def_length, iota grow_step = def_growup)
+        //term(text command_line, iota max_scrollback_size = 50, iota grow_step = 0)
             : normal{ *this, max_scrollback_size, grow_step },
               altbuf{ *this },
               cursor{ *this },
@@ -3047,8 +3254,10 @@ private:
             };
             SUBMIT(tier::release, e2::coor::set, new_coor)
             {
+                //todo use tier::preview bcz approx viewport position can be corrected
                 origin = new_coor;
-                target->set_slide(-origin.y);
+                origin.y = -target->set_slide(-origin.y);
+                //preview: new_coor = origin;
             };
             SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
             {
@@ -3059,25 +3268,22 @@ private:
                 {
                     if (new_sz.y > 0)
                     {
-                        auto& console = *target;
                         oneoff.reset();
 
+                        auto& console = *target;
                         new_sz = std::max(new_sz, dot_11);
                         console.resize_viewport(new_sz);
                         oversz.b = console.get_oversize();
-                        //screen.coor.y = -target->basis;;
 
                         this->SUBMIT(tier::preview, e2::size::set, new_sz)
                         {
                             auto& console = *target;
-                auto force_basis = origin.y == -console.get_basis();
-
                             new_sz = std::max(new_sz, dot_11);
-                            console.resize_viewport(new_sz);
-                            oversz.b = console.get_oversize();
-                            //screen.coor.y = -target->basis;;
 
-                scroll(force_basis);
+                            auto force_basis = console.force_basis();
+                            console.resize_viewport(new_sz);
+                            //scroll(faux);
+                            scroll(force_basis);
 
                             ptycon.resize(new_sz);
 
@@ -3146,49 +3352,19 @@ private:
             };
             SUBMIT(tier::release, e2::render::any, parent_canvas)
             {
-                //log(" 1. screen=", screen, " basis=", target->get_basis(), " this.coor=", this->coor());
                 auto& console = *target;
                 if (status.update(console))
                 {
                     this->base::riseup<tier::preview>(e2::form::prop::footer, status.data);
                 }
-                //vsize = batch.size - ring::size + panel.y;
-                //auto cursor_coor = console.get_coord();
-                //cursor_coor.y += console.get_basis();
-                //cursor_coor.y += std::max(0, console.height() - screen.size.y) - oversz.b;
-                //cursor.coor(cursor_coor);
+
                 auto view = parent_canvas.view();
                 auto full = parent_canvas.full();
-                auto origin = full.coor - view.coor;
-                cursor.coor(console.get_coord(origin));
-                //auto adjust_pads = console.recalc_pads(oversz);
-                //auto scroll_size = recalc(cursor_coor);
-                //auto scroll_size = screen.size;
-                //auto follow_view = screen.coor.y == -base::coor().y;
-                //scroll_size.y = std::max({ screen.size.y, cursor_coor.y + 1, console.height() });
-                //scroll_size.y = std::max({ screen.size.y, cursor_coor.y + 1 - screen.coor.y, console.height() });
-                //scroll_size.y = std::max({ screen.size.y, console.height() - oversz.b });
-                //screen.coor.y = scroll_size.y - screen.size.y;
-
-                //if (follow_view)
-                //{
-                //    log(" scroll();");
-                //    scroll();
-                //}
-                //scroll();
-                //if (!screen.hittest(cursor_coor)) // compat: get cursor back to the viewport if it placed outside
-                //{
-                //    cursor_coor = std::clamp(cursor_coor, screen.coor, screen.coor + screen.size - dot_11);
-                //    target->set_coord(cursor_coor - screen.coor);
-                //}
-                //if (scroll_size != base::size() || adjust_pads)
-                //{
-                //    //log(" render - > resize");
-                //    this->SIGNAL(tier::release, e2::size::set, scroll_size); // Update scrollbars.
-                //}
+                auto base = full.coor - view.coor;
+                cursor.coor(console.get_coord(base));
 
                 console.output(parent_canvas);
-                if (oversz.b > 0) // Shade the viewport bottom oversize.
+                if (oversz.b > 0) // Shade the viewport bottom oversize (futures).
                 {
                     auto bottom_oversize = parent_canvas.full();
                     bottom_oversize.coor.y += console.get_basis() + console.panel.y - console.scend;//scroll_size.y;

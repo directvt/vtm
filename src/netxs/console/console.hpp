@@ -11,10 +11,10 @@
 #include <iostream>
 #include <typeindex>
 
-#define SPD            10   // console: Auto-scroll initial speed component ΔR.
+#define SPD            1   // console: Auto-scroll initial speed component ΔR.
 #define PLS            167  // console: Auto-scroll initial speed component ΔT.
 #define CCL            120  // console: Auto-scroll duration in ms.
-#define SPD_ACCEL      3    // console: Auto-scroll speed accelation.
+#define SPD_ACCEL      4    // console: Auto-scroll speed accelation.
 #define CCL_ACCEL      30   // console: Auto-scroll additional duration in ms.
 #define SPD_MAX        100  // console: Auto-scroll max speed.
 #define CCL_MAX        1000 // console: Auto-scroll max duration in ms.
