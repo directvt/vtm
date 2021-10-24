@@ -1594,7 +1594,7 @@ private:
                             //log(" delta < 0 new_slide=", new_slide);
                             delta = std::abs(delta);
                             auto limit = start - std::min(delta, idpos);
-                            while(start != limit)
+                            while (start != limit)
                             {
                                 auto& curln = *--start;
                                 auto height = curln.height(panel.x);
@@ -1634,7 +1634,7 @@ private:
                                     break;
                                 }
                             }
-                            while(start++ != limit);
+                            while (start++ != limit);
 
                             if (!found)
                             {
@@ -1680,7 +1680,7 @@ private:
                         batch.slide = batch.vsize + anchor_dy;
                         auto head = batch.end();
                         auto tail = head - count;
-                        while(head != tail)
+                        while (head != tail)
                         {
                             auto& curln = *--head;
                             auto height = curln.height(panel.x);
@@ -1706,7 +1706,14 @@ private:
                         assert(anchor_id == batch.front().index);
                     }
                 }
-                else batch.slide = batch.basis;
+                else
+                {
+                    round = faux;
+                    batch.slide = batch.basis;
+                    auto& mapln = index.front();
+                    anchor_id = mapln.index;
+                    anchor_dy = mapln.start / panel.x;
+                }
 
                 //print_slide(" resize");
             }
@@ -1738,8 +1745,8 @@ private:
                     if (in_top > 0) coord.y = std::max(0          , y_top - in_top);
                     else            coord.y = std::min(panel.y - 1, y_end + in_end);
                     batch.basis = batch.vsize - arena;
-                    recalc_slide(away);
                     index_rebuild();
+                    recalc_slide(away);
                     return;
                 }
 
@@ -2104,7 +2111,7 @@ private:
                                             : batch[start - 1].index + 1;
                     auto style = ansi::def_style;
                     style.wrp(wrap::off);
-                    while(size.y-- > 0)
+                    while (size.y-- > 0)
                     {
                         auto oldsz = batch.size;
                         auto proto = core::span{ curit, static_cast<size_t>(size.x) };
@@ -2566,18 +2573,18 @@ private:
                 index_rebuild();
             }
             // scroll_buf: Render to the canvas.
-            void output(face& canvas) override //todo temp solution, rough output, not optimized
+            void output(face& canvas) override
             {
                 maker.reset(canvas);
-                //temp solution
                 auto maker_full = maker.full();
                 maker_full.coor.y += y_top;
                 maker.full(maker_full);
 
                 auto view = canvas.view();
                 auto full = canvas.full();
-                auto coor = dot_00;
-                auto head = batch.begin();
+                auto coor = twod{ 0, batch.slide - anchor_dy };
+                auto stop = batch.slide + arena;
+                auto head = batch.iter_by_id(anchor_id);
                 auto tail = batch.end();
                 auto left_edge_x = view.coor.x;
                 auto half_size_x = full.size.x / 2;
@@ -2634,7 +2641,8 @@ private:
                             }
                         }
                     }
-                    coor.y           += height;
+                    coor.y += height;
+                    if (coor.y >= stop) break;
                     rght_rect.coor.y += height;
                     left_rect.coor.y = rght_rect.coor.y;
                     ++head;
