@@ -1450,7 +1450,6 @@ private:
             }
 
             buff batch; // scroll_buf: Rods inner container.
-            //flow maker; // scroll_buf: . deprecated
             indx index; // scroll_buf: Viewport line index.
             iota arena; // scroll_buf: Scrollable region height.
             face upbox; // scroll_buf:    Top margin canvas.
@@ -1460,14 +1459,12 @@ private:
 
             id_t anchor_id{}; // the nearest id to the slide
             iota anchor_dy{}; // distance to the slide.
-            //bool exact = true;
             bool round{};
             iota recalc_threshold = 1000;
 
             scroll_buf(term& boss, iota buffer_size, iota grow_step)
                 : bufferbase{ boss                     },
                        batch{ buffer_size, grow_step   },
-                       //maker{ batch.width, batch.vsize },
                        index{ 0                        },
                        arena{ 1                        }
             {
