@@ -1542,10 +1542,10 @@ private:
             // scroll_buf: .
             iota set_slide(iota new_slide) override
             {
-                log(" new_slide=", new_slide);
+                //log(" new_slide=", new_slide);
                 if (batch.slide == new_slide)
                 {
-                    log("delta == 0");
+                    //log("delta == 0");
                     return new_slide;
                 }
 
@@ -1558,7 +1558,9 @@ private:
                 }
                 else
                 {
-                    auto delta = new_slide - batch.slide;
+                    auto vtpos = batch.slide - anchor_dy; // current pos of anchor_id
+                    auto delta = new_slide - vtpos;
+
                     //if (std::abs(delta) > recalc_threshold) // calc approx
                     //{
                         //auto a = new_slide < recalc_threshold;
@@ -1584,13 +1586,12 @@ private:
                     //}
                     //else // calc exactly
                     {
-                        auto vtpos = batch.slide - anchor_dy; // current pos of anchor_id
                         auto idpos = batch.index_by_id(anchor_id);
                         auto start = batch.begin() + idpos;
                         auto found = faux;
-                        if (delta < 0) // Move viewport up.
+                        if (delta < 0) // Look up.
                         {
-                            log(" delta < 0 new_slide=", new_slide);
+                            //log(" delta < 0 new_slide=", new_slide);
                             delta = std::abs(delta);
                             auto limit = start - std::min(delta, idpos);
                             while(start != limit)
@@ -1615,19 +1616,20 @@ private:
                                 assert(anchor_id == batch.front().index);
                             }
                         }
-                        else // Move viewport dn.
+                        else // delta >= 0  Look down.
                         {
-                            log(" delta > 0 new_slide=", new_slide);
+                            //log(" delta > 0 new_slide=", new_slide);
                             auto limit = start + std::min(delta, batch.size - idpos);
                             do
                             {
                                 auto& curln = *start;
+                                auto curpos = vtpos;
                                 auto height = curln.height(panel.x);
                                 vtpos += height;
                                 if (vtpos > new_slide)
                                 {
                                     anchor_id = curln.index;
-                                    anchor_dy = vtpos - new_slide - height;
+                                    anchor_dy = new_slide - curpos;
                                     found = true;
                                     break;
                                 }
@@ -1659,14 +1661,14 @@ private:
                 }
 
                 batch.slide = new_slide;
-                print_slide("  set_slide");
+                //print_slide("  set_slide");
                 return batch.slide;
             }
             void recalc_slide(bool away)
             {
                 if (away)
                 {
-                    log(" away");
+                    //log(" away");
                     // Recalc batch.slide using anchoring by para_id + para_offset
                     // PoC: (para_id + para_offset) => (batch.slide)
                     //      naive imp, bruteforce (within threshold)
@@ -1675,21 +1677,19 @@ private:
                     auto count = static_cast<iota>(endid - anchor_id) + 1;
                     if (count <= batch.size)
                     {
-                        batch.slide = batch.vsize - anchor_dy;
+                        batch.slide = batch.vsize + anchor_dy;
                         auto head = batch.end();
                         auto tail = head - count;
                         while(head != tail)
                         {
                             auto& curln = *--head;
-                            //auto  curid = curln.index;
                             auto height = curln.height(panel.x);
                             batch.slide -= height;
                         }
-
                              if (batch.slide > batch.basis) batch.slide = batch.basis;
                         else if (batch.slide <= 0) // Overflow.
                         {
-                            log(" Overflow on resize. batch.slide=", batch.slide);
+                            //log(" Overflow on resize. batch.slide=", batch.slide);
                             batch.slide = 0;
                             anchor_dy = 0;
                             anchor_id = endid - (batch.size - 1);
@@ -1698,8 +1698,8 @@ private:
                     }
                     else // Overflow.
                     {
-                        log(" Overflow on resize. Anchor id is outside. batch.slide=", batch.slide,
-                        " anchor_id=", anchor_id, " batch.front().index=", batch.front().index);
+                        //log(" Overflow on resize. Anchor id is outside. batch.slide=", batch.slide,
+                        //" anchor_id=", anchor_id, " batch.front().index=", batch.front().index);
                         batch.slide = 0;
                         anchor_dy = 0;
                         anchor_id = endid - (batch.size - 1);
@@ -1708,7 +1708,7 @@ private:
                 }
                 else batch.slide = batch.basis;
 
-                print_slide(" resize");
+                //print_slide(" resize");
             }
             // scroll_buf: Resize viewport.
             void resize_viewport(twod const& new_sz) override

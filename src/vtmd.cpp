@@ -1,7 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#define MONOTTY_VER "Monotty Desktopio v0.5.17"
+#define MONOTTY_VER "Monotty Desktopio v0.5.999"
 // Autostart demo apps.
 //#define DEMO
 // Enable keyboard input and disable exit by single Esc.
@@ -2238,9 +2238,9 @@ utility like ctags is used to locate the definitions.
             creator(objs::Calc, { twod{ 15     , 15 } + sub_pos, { 65, 23 } });
             creator(objs::Text, { twod{ 30     , 22 } + sub_pos, { 59, 26 } });
             creator(objs::MC,   { twod{ 49     , 28 } + sub_pos, { 63, 22 } });
-            creator(objs::Term, { twod{ 34     , 38 } + sub_pos, { 57, 16 } });
-            creator(objs::Term, { twod{ 44 + 85, 35 } + sub_pos, { 57, 15 } });
-            creator(objs::Term, { twod{ 40 + 85, 42 } + sub_pos, { 57, 15 } });
+            creator(objs::Term, { twod{ 34     , 38 } + sub_pos, { 64, 16 } });
+            creator(objs::Term, { twod{ 44 + 85, 35 } + sub_pos, { 64, 15 } });
+            creator(objs::Term, { twod{ 40 + 85, 42 } + sub_pos, { 64, 15 } });
 
             creator(objs::View, { twod{ 0, 7 } + twod{ -120, 60 }, { 120, 52 } });
             creator(objs::View, { twod{ 0,-1 } + sub_pos, { 120, 52 } });
