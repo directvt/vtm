@@ -1450,7 +1450,7 @@ private:
             }
 
             buff batch; // scroll_buf: Rods inner container.
-            flow maker; // scroll_buf: . deprecated
+            //flow maker; // scroll_buf: . deprecated
             indx index; // scroll_buf: Viewport line index.
             iota arena; // scroll_buf: Scrollable region height.
             face upbox; // scroll_buf:    Top margin canvas.
@@ -1467,7 +1467,7 @@ private:
             scroll_buf(term& boss, iota buffer_size, iota grow_step)
                 : bufferbase{ boss                     },
                        batch{ buffer_size, grow_step   },
-                       maker{ batch.width, batch.vsize },
+                       //maker{ batch.width, batch.vsize },
                        index{ 0                        },
                        arena{ 1                        }
             {
@@ -1518,6 +1518,13 @@ private:
                 sync_coord();
                 assert(c == batch.caret);
                 return true;
+            }
+            auto test_height()
+            {
+                auto test_vsize = 0;
+                for (auto& l : batch) test_vsize += l.height(panel.x);
+                if (test_vsize != batch.vsize) log(" ERROR! test_vsize=", test_vsize, " vsize=", batch.vsize);
+                return test_vsize == batch.vsize;
             }
             // scroll_buf: .
             iota get_oversize() override
@@ -1592,8 +1599,7 @@ private:
                         if (delta < 0) // Look up.
                         {
                             //log(" delta < 0 new_slide=", new_slide);
-                            delta = std::abs(delta);
-                            auto limit = start - std::min(delta, idpos);
+                            auto limit = start - std::min(std::abs(delta), idpos);
                             while (start != limit)
                             {
                                 auto& curln = *--start;
@@ -1892,11 +1898,7 @@ private:
             // scroll_buf: Return scrollback height.
             iota height() override
             {
-                #ifdef DEBUG
-                    auto test_vsize = 0; //sanity check
-                    for (auto& l : batch) test_vsize += l.height(panel.x);
-                    if (test_vsize != batch.vsize) log(" ERROR! test_vsize=", test_vsize, " vsize=", batch.vsize);
-                #endif
+                assert(test_height());
                 return batch.vsize;
             }
             // scroll_buf: Recalc left and right oversize.
@@ -2563,6 +2565,8 @@ private:
                 coord = dot_00;
                 batch.clear();
                 reset_scroll_region();
+                anchor_id = batch.back().index;
+                anchor_dy = 0;
                 bufferbase::clear_all();
             }
             // scroll_buf: Set scrollback limits.
@@ -2575,15 +2579,11 @@ private:
             // scroll_buf: Render to the canvas.
             void output(face& canvas) override
             {
-                maker.reset(canvas);
-                auto maker_full = maker.full();
-                maker_full.coor.y += y_top;
-                maker.full(maker_full);
-
                 auto view = canvas.view();
                 auto full = canvas.full();
-                auto coor = twod{ 0, batch.slide - anchor_dy };
-                auto stop = batch.slide + arena;
+                auto sled = batch.slide + y_top;
+                auto coor = twod{ 0, sled - anchor_dy };
+                auto stop = sled + arena;
                 auto head = batch.iter_by_id(anchor_id);
                 auto tail = batch.end();
                 auto left_edge_x = view.coor.x;
@@ -2597,11 +2597,11 @@ private:
                     if (auto r = view.clip(area))
                         canvas.fill(r, [&](auto& c){ c.txt(chr).fgc(tint::greenlt); });
                 };
-                while (head != tail)
+                while (head != tail && coor.y < stop)
                 {
                     auto& curln = *head;
-                    maker.ac(coor);
-                    maker.go(curln, canvas);
+                    canvas.ac(coor);
+                    canvas.output<faux>(curln);
                     auto height = curln.height(panel.x);
                     auto align = curln.style.jet();
                     if (auto length = curln.length()) // Mark lines not shown in full.
@@ -2642,7 +2642,6 @@ private:
                         }
                     }
                     coor.y += height;
-                    if (coor.y >= stop) break;
                     rght_rect.coor.y += height;
                     left_rect.coor.y = rght_rect.coor.y;
                     ++head;

@@ -11,7 +11,7 @@
       "buildCommandArgs": "-v",
       "ctestCommandArgs": "",
       "inheritEnvironments": [ "linux_x64" ],
-      "wslPath": "C:\\Users\\sdn\\AppData\\Local\\Microsoft\\WindowsApps\\ubuntu1804.exe",
+      "wslPath": "${defaultWSLPath}",
       "addressSanitizerRuntimeFlags": "detect_leaks=0",
       "remoteCopyUseCompilerDefaults": true,
       "intelliSenseMode": "linux-gcc-x64",
