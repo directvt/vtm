@@ -564,11 +564,6 @@ private:
             {
                 return 0;
             }
-            // bufferbase: Get vertival oversize.
-    virtual iota get_oversize()
-            {
-                return 0;
-            }
             // bufferbase: .
             void update_region()
             {
@@ -1140,6 +1135,7 @@ private:
                 iota height(iota width) const
                 {
                     auto len = length();
+                    assert(_kind == style.get_kind());
                     return len > width
                         && wrapped() ? (len + width - 1) / width
                                      : 1;
@@ -1449,7 +1445,7 @@ private:
                                  << c.batch.max<line::type::autowrap>() << " }";
             }
 
-            buff batch; // scroll_buf: Rods inner container.
+            buff batch; // scroll_buf: Scrollback container.
             indx index; // scroll_buf: Viewport line index.
             iota arena; // scroll_buf: Scrollable region height.
             face upbox; // scroll_buf:    Top margin canvas.
@@ -1463,10 +1459,10 @@ private:
             iota recalc_threshold = 1000;
 
             scroll_buf(term& boss, iota buffer_size, iota grow_step)
-                : bufferbase{ boss                     },
-                       batch{ buffer_size, grow_step   },
-                       index{ 0                        },
-                       arena{ 1                        }
+                : bufferbase{ boss                   },
+                       batch{ buffer_size, grow_step },
+                       index{ 0                      },
+                       arena{ 1                      }
             {
                 batch.invite(0); // At least one line must exist.
                 batch.set_width(1);
@@ -1524,11 +1520,6 @@ private:
                 return test_vsize == batch.vsize;
             }
             // scroll_buf: .
-            iota get_oversize() override
-            {
-                return std::max(0, batch.vsize - (batch.basis + arena));
-            }
-            // scroll_buf: .
             iota get_basis() override
             {
                 return batch.basis;
@@ -1559,6 +1550,7 @@ private:
                     auto& mapln = index.front();
                     anchor_id = mapln.index;
                     anchor_dy = mapln.start / panel.x;
+                    batch.slide = batch.basis;
                 }
                 else
                 {
@@ -1591,6 +1583,7 @@ private:
                     //else // calc exactly
                     {
                         auto idpos = batch.index_by_id(anchor_id);
+                        //log(" idpos=", idpos, " batch.size=", batch.size);
                         auto start = batch.begin() + idpos;
                         auto found = faux;
                         if (delta < 0) // Look up.
@@ -1606,23 +1599,26 @@ private:
                                 {
                                     anchor_id = curln.index;
                                     anchor_dy = new_slide - vtpos;
+                                    //log(" delta < 0  new_slide=", new_slide, " batch.slide=", batch.slide, " anchor_id=",anchor_id);
+                                    batch.slide = new_slide;
                                     found = true;
                                     break;
                                 }
                             }
 
-                            if (!found)
-                            {
-                                anchor_id = batch.back().index - (batch.size - 1);
-                                anchor_dy = 0;
-                                new_slide = 0;
-                                assert(anchor_id == batch.front().index);
-                            }
+                            //if (!found)
+                            //{
+                            //    ///log(" 0.1. slide reset old_slide", batch.slide, " new_slide=", batch.basis );
+                            //    anchor_id = batch.back().index - (batch.size - 1);
+                            //    anchor_dy = 0;
+                            //    batch.slide = 0;
+                            //    assert(anchor_id == batch.front().index);
+                            //}
                         }
-                        else // delta >= 0  Look down.
+                        else if (delta > 0) //  Look down.
                         {
                             //log(" delta > 0 new_slide=", new_slide);
-                            auto limit = start + std::min(delta, batch.size - idpos);
+                            auto limit = start + std::min(delta, batch.size - idpos - 1);
                             do
                             {
                                 auto& curln = *start;
@@ -1633,19 +1629,28 @@ private:
                                 {
                                     anchor_id = curln.index;
                                     anchor_dy = new_slide - curpos;
+                                    //log(" delta > 0  new_slide=", new_slide, " batch.slide=", batch.slide, " anchor_id=",anchor_id);
+                                    batch.slide = new_slide;
                                     found = true;
                                     break;
                                 }
                             }
                             while (start++ != limit);
 
-                            if (!found)
-                            {
-                                auto& mapln = index.front();
-                                anchor_id = mapln.index;
-                                anchor_dy = mapln.start / panel.x;
-                                new_slide = batch.basis;
-                            }
+                            //if (!found)
+                            //{
+                            //    //log(" 0.2. slide reset old_slide", batch.slide, " new_slide=", batch.basis );
+                            //    auto& mapln = index.front();
+                            //    anchor_id = mapln.index;
+                            //    anchor_dy = mapln.start / panel.x;
+                            //    batch.slide = batch.basis;
+                            //}
+                        }
+                        else
+                        {
+                            batch.slide = new_slide;
+                            anchor_dy = 0;
+                            found = true;
                         }
 
                         if (round)
@@ -1663,9 +1668,8 @@ private:
 
                 }
 
-                batch.slide = new_slide;
                 //print_slide("  set_slide");
-                return batch.slide;
+                return new_slide;
             }
             void recalc_slide(bool away)
             {
@@ -1693,6 +1697,7 @@ private:
                         else if (batch.slide <= 0) // Overflow.
                         {
                             //log(" Overflow on resize. batch.slide=", batch.slide);
+                            //log(" 1. slide reset old_slide", batch.slide, " new_slide=", 0 );
                             batch.slide = 0;
                             anchor_dy = 0;
                             anchor_id = endid - (batch.size - 1);
@@ -1703,14 +1708,16 @@ private:
                     {
                         //log(" Overflow on resize. Anchor id is outside. batch.slide=", batch.slide,
                         //" anchor_id=", anchor_id, " batch.front().index=", batch.front().index);
-                        batch.slide = 0;
+                        //log(" 2. slide reset old_slide", batch.slide, " new_slide=", 0 );
                         anchor_dy = 0;
                         anchor_id = endid - (batch.size - 1);
+                        batch.slide = 0;
                         assert(anchor_id == batch.front().index);
                     }
                 }
                 else
                 {
+                    //log(" 3. slide reset old_slide", batch.slide, " new_slide=", batch.basis );
                     round = faux;
                     batch.slide = batch.basis;
                     auto& mapln = index.front();
@@ -1904,13 +1911,15 @@ private:
                 auto left = std::max(0, batch.max<line::type::rghtside>() - panel.x);
                 auto rght = std::max(0, batch.max<line::type::leftside>() - panel.x);
                 auto cntr = std::max(0, batch.max<line::type::centered>() - panel.x);
+                auto bttm = std::max(0, batch.vsize - (batch.basis + arena));
                 auto both = cntr >> 1;
                 left = std::max(left, both);
                 rght = std::max(rght, both + (cntr & 1));
-                if (oversz.r != rght || oversz.l != left)
+                if (oversz.r != rght || oversz.l != left || oversz.b != bttm)
                 {
                     oversz.r = rght;
                     oversz.l = left;
+                    oversz.b = bttm;
                     return true;
                 }
                 else return faux;
@@ -2576,61 +2585,63 @@ private:
             // scroll_buf: Render to the canvas.
             void output(face& canvas) override
             {
+                canvas.vsize(batch.vsize + sctop + scend); // Include margins and bottom oversize.
                 auto view = canvas.view();
                 auto full = canvas.full();
-                auto sled = batch.slide + y_top;
-                auto coor = twod{ 0, sled - anchor_dy };
-                auto stop = sled + arena;
+                auto coor = twod{ 0, batch.slide - anchor_dy + y_top };
+                auto stop = view.coor.y + view.size.y;
                 auto head = batch.iter_by_id(anchor_id);
                 auto tail = batch.end();
-                auto left_edge_x = view.coor.x;
-                auto half_size_x = full.size.x / 2;
-                auto left_rect = rect{{ left_edge_x, coor.y + full.coor.y }, dot_11 };
-                auto rght_rect = left_rect;
-                rght_rect.coor.x+= view.size.x - 1;
-                auto rght_edge_x = rght_rect.coor.x + 1;
                 auto fill = [&](auto& area, auto chr)
                 {
                     if (auto r = view.clip(area))
                         canvas.fill(r, [&](auto& c){ c.txt(chr).fgc(tint::greenlt); });
                 };
-                while (head != tail && coor.y < stop)
+                auto left_edge = view.coor.x;
+                auto rght_edge = view.coor.x + view.size.x;
+                auto half_size = full.size.x / 2;
+                auto left_rect = rect{{ left_edge, full.coor.y + coor.y }, dot_11 };
+                auto rght_rect = left_rect;
+                rght_rect.coor.x += view.size.x - 1;
+
+                while (head != tail && rght_rect.coor.y < stop)
                 {
                     auto& curln = *head;
-                    canvas.ac(coor);
-                    canvas.output<faux>(curln);
                     auto height = curln.height(panel.x);
-                    auto align = curln.style.jet();
-                    if (auto length = curln.length()) // Mark lines not shown in full.
+                    auto length = curln.length();
+                    auto adjust = curln.style.jet();
+                    canvas.output(curln, coor);
+
+                    if (length > 0) // Highlight the lines that are not shown in full.
                     {
                         rght_rect.size.y = left_rect.size.y = height;
                         if (height == 1)
                         {
                             auto lt_dot = full.coor.x;
-                            if      (align == bias::center) lt_dot += half_size_x - length / 2;
-                            else if (align == bias::right)  lt_dot += full.size.x - length;
+                            if      (adjust == bias::center) lt_dot += half_size - length / 2;
+                            else if (adjust == bias::right)  lt_dot += full.size.x - length;
 
-                            if (left_edge_x > lt_dot         ) fill(left_rect, '<');
-                            if (rght_edge_x < lt_dot + length) fill(rght_rect, '>');
+                            if (left_edge > lt_dot         ) fill(left_rect, '<');
+                            if (rght_edge < lt_dot + length) fill(rght_rect, '>');
                         }
                         else
                         {
                             auto lt_dot = full.coor.x;
                             auto rt_dot = lt_dot + view.size.x;
                             auto remain = (length - 1) % view.size.x + 1;
-                            if (left_edge_x > lt_dot)
+                            if (left_edge > lt_dot)
                             {
-                                if (align == bias::right  && left_edge_x <= rt_dot - remain
-                                 || align == bias::center && left_edge_x <= lt_dot + half_size_x - remain / 2)
+                                if (adjust == bias::right  && left_edge <= rt_dot - remain
+                                 || adjust == bias::center && left_edge <= lt_dot + half_size - remain / 2)
                                 {
                                     --left_rect.size.y;
                                 }
                                 fill(left_rect, '<');
                             }
-                            if (rght_edge_x < rt_dot)
+                            if (rght_edge < rt_dot)
                             {
-                                if (align == bias::left   && rght_edge_x >= lt_dot + remain
-                                 || align == bias::center && rght_edge_x >= lt_dot + remain + half_size_x - remain / 2)
+                                if (adjust == bias::left   && rght_edge >= lt_dot + remain
+                                 || adjust == bias::center && rght_edge >= lt_dot + remain + half_size - remain / 2)
                                 {
                                     --rght_rect.size.y;
                                 }
@@ -2638,25 +2649,23 @@ private:
                             }
                         }
                     }
-                    coor.y += height;
+                              coor.y += height;
                     rght_rect.coor.y += height;
                     left_rect.coor.y = rght_rect.coor.y;
                     ++head;
                 }
 
-                {
-                    auto view = canvas.view();
-                    auto top_coor = twod{ view.coor.x, view.coor.y + y_top - sctop };
-                    auto end_coor = twod{ view.coor.x, view.coor.y + y_end + 1     };
-                    upbox.move(top_coor);
-                    dnbox.move(end_coor);
+                auto top_coor = twod{ view.coor.x, view.coor.y + y_top - sctop };
+                auto end_coor = twod{ view.coor.x, view.coor.y + y_end + 1     };
+                upbox.move(top_coor);
+                dnbox.move(end_coor);
 
-                    //canvas.plot(upbox, [](auto& dst, auto& src){ dst.fuse(src); dst.bgc(greendk).bga(0x80); });
-                    //canvas.plot(dnbox, [](auto& dst, auto& src){ dst.fuse(src); dst.bgc(reddk).bga(0x80); });
+                //todo make translucency configurable
+                canvas.plot(upbox, [](auto& dst, auto& src){ dst.fuse(src); dst.bga(0xC0); });
+                canvas.plot(dnbox, [](auto& dst, auto& src){ dst.fuse(src); dst.bga(0xC0); });
 
-                    canvas.plot(upbox, cell::shaders::flat);
-                    canvas.plot(dnbox, cell::shaders::flat);
-                }
+                //canvas.plot(upbox, cell::shaders::flat);
+                //canvas.plot(dnbox, cell::shaders::flat);
             }
             // scroll_buf: Remove all lines below (including futures) except the current. "ED2 Erase viewport" keeps empty lines.
             void del_below() override
@@ -3130,22 +3139,20 @@ private:
             auto adjust_pads = console.recalc_pads(oversz);
             auto scroll_size = console.panel;
             scroll_size.y += basis;
-            oversz.b = console.get_oversize();
             if (force_basis)
             {
                 origin.y = -basis;
-                //console.set_slide(basis);
                 this->SIGNAL(tier::release, e2::coor::set, origin);
             }
-            else if (auto slide = -console.get_slide(); origin.y != slide)
-            {
-                //todo optimize
-                //todo separate the viewport position from the slide
-                origin.y = slide;
-                this->SIGNAL(tier::release, e2::coor::set, origin);
-                this->SIGNAL(tier::release, e2::size::set, scroll_size); // Update scrollbars.
-                return;
-            }
+            //else if (auto slide = -console.get_slide(); origin.y != slide)
+            //{
+            //    //todo optimize
+            //    //todo separate the viewport position from the slide
+            //    origin.y = slide;
+            //    this->SIGNAL(tier::release, e2::coor::set, origin);
+            //    this->SIGNAL(tier::release, e2::size::set, scroll_size); // Update scrollbars.
+            //    return;
+            //}
 
             //todo scrollbars is not updated on keypress
             //if (scroll_size != base::size() || adjust_pads)
@@ -3164,7 +3171,6 @@ private:
                     SIGNAL(tier::general, e2::debug::output, data); // Post for the Logs.
 
                     auto force_basis = target->force_basis();
-                    //auto force_basis = origin.y == -target->get_basis();
                     ansi::parse(data, target);
                     scroll(force_basis);
 
@@ -3277,7 +3283,6 @@ private:
                         auto& console = *target;
                         new_sz = std::max(new_sz, dot_11);
                         console.resize_viewport(new_sz);
-                        oversz.b = console.get_oversize();
 
                         this->SUBMIT(tier::preview, e2::size::set, new_sz)
                         {
@@ -3286,8 +3291,17 @@ private:
 
                             auto force_basis = console.force_basis();
                             console.resize_viewport(new_sz);
-                            //scroll(faux);
-                            scroll(force_basis);
+
+                            if (!force_basis)
+                            {
+                                auto slide = -console.get_slide();
+                                if (origin.y != slide)
+                                {
+                                    origin.y = slide;
+                                    this->SIGNAL(tier::release, e2::coor::set, origin);
+                                }
+                            }
+                            else scroll();
 
                             ptycon.resize(new_sz);
 

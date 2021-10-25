@@ -524,8 +524,11 @@ namespace netxs::console
         template<bool RtoL, bool ReLF, class T, class P>
         void trimmed(T const& block, P print)
         {
-            if (centered) flow::ax(middle());
-            output<faux, RtoL, ReLF>(block, print);
+            if (textline.size.x > 0)
+            {
+                if (centered) flow::ax(middle());
+                output<faux, RtoL, ReLF>(block, print);
+            }
         }
         template<bool RtoL, bool ReLF, class T, class P>
         void proceed(T const& block, P print)
@@ -549,6 +552,7 @@ namespace netxs::console
             : flow { pagerect.size }
         { }
 
+        void vsize(iota height) { pagerect.size.y = height;  } // flow: Set client full height.
         void  size(twod const& size) { pagerect.size = size; } // flow: Set client full size.
         void  full(rect const& area) { pagerect = area;      } // flow: Set client full rect.
         auto& full() const           { return pagerect;      } // flow: Get client full rect reference.

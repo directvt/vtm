@@ -825,7 +825,7 @@ namespace netxs::ansi
         auto& mgn   (fifo& q) { v.margin.set(q);                          return *this; } // deco: fx_ccc_mgn.
         auto& rst   ()        { token = 0;                                return *this; } // deco: Reset.
         constexpr auto& glb() { operator=(deco(0));                       return *this; }  // deco: Reset to default.
-        auto get_kind()
+        auto get_kind() const
         {
             return v.wrapln == wrap::on    ? type::autowrap :
                    v.adjust == bias::left  ? type::leftside :
