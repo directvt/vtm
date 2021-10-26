@@ -3067,10 +3067,10 @@ private:
                         break;
                     case 1047: // Use alternate screen buffer.
                     case 1049: // Save cursor pos and use alternate screen buffer, clearing it first.  This control combines the effects of the 1047 and 1048  modes.
-                        altbuf.panel = target->panel;
                         altbuf.style = target->style;
-                        target = &altbuf;
                         altbuf.clear_all();
+                        altbuf.resize_viewport(target->panel);
+                        target = &altbuf;
                         base::resize(altbuf.panel);
                         break;
                     case 2004: // Set bracketed paste mode.
@@ -3139,8 +3139,8 @@ private:
                         break;
                     case 1047: // Use normal screen buffer.
                     case 1049: // Use normal screen buffer and restore cursor.
-                        normal.panel = target->panel;
                         normal.style = target->style;
+                        normal.resize_viewport(target->panel);
                         target = &normal;
                         base::resize(normal.panel);
                         break;
@@ -3205,7 +3205,7 @@ private:
             }
 
             //todo scrollbars is not updated on keypress
-            //if (scroll_size != base::size() || adjust_pads)
+            if (scroll_size != base::size() || adjust_pads)
             {
                 this->SIGNAL(tier::release, e2::size::set, scroll_size); // Update scrollbars.
             }
