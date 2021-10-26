@@ -2767,6 +2767,8 @@ private:
                     curln.trimto(batch.caret);
                     batch.recalc(curln);
 
+                    sync_coord();
+
                     dnbox.wipe(blank);
                 };
 
