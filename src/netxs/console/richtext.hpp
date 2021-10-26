@@ -819,11 +819,13 @@ namespace netxs::console
         auto substr(iota at, iota width = maxiota) const { return shadow().substr(at, width);       }
         void trimto(iota max_size)                       { if (length() > max_size) crop(max_size); }
         void reserv(iota oversize)                       { if (oversize > length()) crop(oversize); }
-        void shrink(cell const& blank, iota max_size = 0)
+        void shrink(cell const& blank, iota max_size = 0, iota min_size = 0)
         {
+            assert(min_size <= length());
             auto head = iter();
             auto tail = iend();
-            while (head != tail-- && *tail == blank) { }
+            auto stop = head + min_size;
+            while (stop != tail-- && *tail == blank) { }
             auto new_size = static_cast<iota>(tail - head + 1);
             if (max_size && max_size < new_size) new_size = max_size;
             if (new_size != length()) crop(new_size);

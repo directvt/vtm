@@ -1512,7 +1512,7 @@ private:
             void print_index(text msg)
             {
                 log(" ", msg, " index.size=", index.size, " basis=", batch.basis);
-                for (auto n = 0; auto l : index)
+                for (auto n = 0; auto& l : index)
                 {
                     log("  ", n++,". id=", l.index," offset=", l.start, " width=", l.width);
                     if (l.start % panel.x != 0) throw;
@@ -1524,8 +1524,14 @@ private:
             }
             void print_batch(text msg)
             {
-                log(" ", msg, " batch.size=", batch.size);
-                for (auto n = 0; auto l : batch)
+                log(" ", msg,
+                " batch.size=",  batch.size,
+                " batch.vsize=", batch.vsize,
+                " batch.basis=", batch.basis,
+                " batch.slide=", batch.slide,
+                " coord=", coord
+                );
+                for (auto n = 0; auto& l : batch)
                 {
                     log("  ", n++,". id=", l.index, " length()=", l.length());
                 }
@@ -1799,7 +1805,7 @@ private:
                 {
                     if (in_top > 0) coord.y = std::max(0          , y_top - in_top);
                     else            coord.y = std::min(panel.y - 1, y_end + in_end);
-                    batch.basis = batch.vsize - arena;
+                    batch.basis = std::max(0, batch.vsize - arena);
                     index_rebuild();
                     recalc_slide(away);
                     return;
@@ -1916,6 +1922,12 @@ private:
             // scroll_buf: Rebuild index up to basis.
             void index_rebuild()
             {
+                if (batch.basis >= batch.vsize)
+                {
+                    log(" batch.basis >= batch.vsize  batch.basis=", batch.basis, " batch.vsize=", batch.vsize);
+                    batch.basis = batch.vsize - 1;
+                }
+
                 index.clear();
                 auto coor = batch.vsize;
                 auto head = batch.end();
@@ -2351,11 +2363,14 @@ private:
                     {
                         curln.splice<true>(start, count, blank);
 
-                        //batch->shrink(blank); // It kills wrapped lines and as a result requires the viewport to be rebuilt.
                         batch.recalc(curln);
-
                         auto& mapln = index[coord.y];
                         mapln.width = std::min(panel.x, curln.length() - mapln.start);
+
+                        //curln.shrink(blank); //todo revise: It kills wrapped lines and as a result requires the viewport to be rebuilt.
+                        //batch.recalc(curln); //             The cursor may be misplaced when resizing because curln.length is less than batch.caret.
+                        //index_rebuild();
+                        //print_batch(" el");
                     }
                 }
                 else alt_screen::_el(n, ctx.block, coord, panel, blank);
@@ -2521,12 +2536,22 @@ private:
                             auto& mapln = index[coord.y];
                             if (curid == mapln.index) // case 1 - plain: cursor is inside the current paragraph.
                             {
-                                if (coord.x > mapln.width)
+                                if (batch.caret - coord.x == mapln.start)
                                 {
+                                    if (coord.x > mapln.width)
+                                    {
+                                        mapln.width = coord.x;
+                                        batch.recalc(curln);
+                                    }
+                                    else assert(curln._size == curln.length());
+                                }
+                                else // Case when panel.y == 1
+                                {
+                                    assert(panel.y == 1);
+                                    mapln.start = batch.caret - coord.x;
                                     mapln.width = coord.x;
                                     batch.recalc(curln);
                                 }
-                                else assert(curln._size == curln.length());
 
                                 assert(test_futures());
                             } // case 1 done.
@@ -2738,9 +2763,8 @@ private:
 
                     auto& curln = batch[i];
                     auto& mapln = index[coor.y];
-                    auto  start = mapln.start;
                     mapln.width = coor.x;
-                    curln.trimto(start + coor.x);
+                    curln.trimto(batch.caret);
                     batch.recalc(curln);
 
                     dnbox.wipe(blank);
@@ -3069,7 +3093,7 @@ private:
                     case 1049: // Save cursor pos and use alternate screen buffer, clearing it first.  This control combines the effects of the 1047 and 1048  modes.
                         altbuf.style = target->style;
                         altbuf.clear_all();
-                        altbuf.resize_viewport(target->panel);
+                        altbuf.resize_viewport(target->panel); // Reset viewport to the basis.
                         target = &altbuf;
                         base::resize(altbuf.panel);
                         break;
@@ -3140,7 +3164,7 @@ private:
                     case 1047: // Use normal screen buffer.
                     case 1049: // Use normal screen buffer and restore cursor.
                         normal.style = target->style;
-                        normal.resize_viewport(target->panel);
+                        normal.resize_viewport(target->panel); // Reset viewport to the basis.
                         target = &normal;
                         base::resize(normal.panel);
                         break;
