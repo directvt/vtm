@@ -1136,7 +1136,11 @@ private:
                     _size = {};
                     _kind = {};
                 }
-                auto wrapped() const { return _kind == type::autowrap; }
+                auto wrapped() const
+                {
+                    assert(_kind == style.get_kind());
+                    return _kind == type::autowrap;
+                }
                 iota height(iota width) const
                 {
                     auto len = length();
@@ -1163,9 +1167,7 @@ private:
                     : index{ index },
                       start{ start },
                       width{ width }
-                {
-                    assert(index < 20000);
-                }
+                { }
             };
 
             using ring = generics::ring<std::vector<line>, true>;
@@ -1247,6 +1249,16 @@ private:
                     }
                     while (head != tail);
                 }
+                // buff: Check buffer size.
+                void check_size(twod const new_size)
+                {
+                    set_width(new_size.x);
+                    if (ring::peak <= new_size.y)
+                    {
+                        static constexpr auto BOTTOM_ANCHORED = true;
+                        ring::resize<BOTTOM_ANCHORED>(new_size.y, ring::step);
+                    }
+                }
                 // buff: Register new line.
                 void invite(type& kind, iota& size, type new_kind, iota new_size)
                 {
@@ -1270,7 +1282,10 @@ private:
                         if (new_lens.size() <= new_size) new_lens.resize(new_size * 2 + 1);
 
                         if (new_size <  size
-                         || new_kind != kind) undock(kind, size);
+                         || new_kind != kind)
+                        {
+                            undock(kind, size);
+                        }
                         else
                         {
                             --lens[kind][size];
@@ -1286,7 +1301,7 @@ private:
                     }
                 }
                 // buff: Discard the specified metrics.
-                void undock(type& kind, iota& size)
+                void undock(type kind, iota size)
                 {
                     auto& cur_lens =       lens[kind];
                     auto cur_count = --cur_lens[size];
@@ -1296,23 +1311,6 @@ private:
                     }
                     dec_height(vsize, kind, size);
                 }
-                // buff: Discard the specified metrics and update the metrics based on the scrollback height.
-                //void undock_front(type& kind, iota& size)
-                //{
-                //    undock(kind, size);
-                //    dec_height(basis, kind, size);
-                //    dec_height(slide, kind, size);
-                //    if (basis < 0) basis = 0;
-                //    if (slide < 0)
-                //    {
-                //        anchor_id = back().index - (ring::size - 1) + 1;
-                //        //assert(front().index == anchor_id);
-                //        log(" --------------- reset anchor_id=", anchor_id, " front().index= ", front().index);
-                //        anchor_dy = 0;
-                //        slide = 0;
-                //    }
-                //    need_to_correct = true;
-                //}
                 // buff: Push back the specified line.
                 void invite(line& l)
                 {
@@ -1340,7 +1338,6 @@ private:
                 // buff: Remove the specified line info from accounting and update the metrics based on the scrollback height.
                 void undock_base_front(line& l) override
                 {
-                    //undock_front(l._kind, l._size);
                     auto kind = l._kind;
                     auto size = l._size;
                     undock(kind, size);
@@ -1350,14 +1347,13 @@ private:
                     if (slide < 0)
                     {
                         anchor_id = l.index + 1;
-                        //log(" --------------- reset to anchor_id=", anchor_id);
                         anchor_dy = 0;
                         slide = 0;
                     }
                     need_to_correct = true;
                 }
                 // buff: Remove information about the specified line from accounting.
-                void undock_base_back (line& l) override { undock      (l._kind, l._size); }
+                void undock_base_back (line& l) override { undock(l._kind, l._size); }
                 // buff: Return an item position in the scrollback using its id.
                 template<auto N> auto max() { return lens[N].max; }
                 auto index_by_id(ui32 id)
@@ -1533,7 +1529,7 @@ private:
                 );
                 for (auto n = 0; auto& l : batch)
                 {
-                    log("  ", n++,". id=", l.index, " length()=", l.length());
+                    log("  ", n++,". id=", l.index, " length()=", l.length(), " wrapped=", l.wrapped() ? "true" : "faux");
                 }
                 log(" -----------------");
             }
@@ -1782,14 +1778,8 @@ private:
 
                 bufferbase::resize_viewport(new_sz);
 
-                batch.set_width(panel.x);
+                batch.check_size(panel);
                 index.clear();
-
-                if (batch.ring::peak <= panel.y)
-                {
-                    static constexpr auto BOTTOM_ANCHORED = true;
-                    batch.ring::resize<BOTTOM_ANCHORED>(panel.y, batch.ring::step);
-                }
 
                 // Preserve original content. The app that changed the margins is responsible for updating the content.
                 auto upnew = std::max(upmin, twod{ panel.x, sctop });
@@ -1800,6 +1790,14 @@ private:
                 arena = y_end - y_top + 1;
                 index.resize(arena); // Use a fixed ring because new lines are added much more often than a futures feed.
                 auto away = batch.basis != batch.slide;
+
+                auto& curln = batch.current();
+                if (curln.wrapped() && batch.caret > curln.length()) // Dangling cursor.
+                {
+                    auto blank = brush.spc();
+                    curln.crop(batch.caret, blank);
+                    batch.recalc(curln);
+                }
 
                 if (in_top > 0 || in_end > 0) // The cursor is outside the scrolling region.
                 {
@@ -1812,7 +1810,7 @@ private:
                 }
 
                 batch.basis = batch.vsize;
-                auto lnid = batch.current().index;
+                auto lnid = curln.index;
                 auto head = batch.end();
                 auto maxn = batch.size - batch.index();
                 auto tail = head - std::max(maxn, std::min(batch.size, arena));
@@ -1821,8 +1819,9 @@ private:
                 while (head != tail && (index.size < arena || unknown))
                 {
                     auto& curln = *--head;
+                    auto  curid = curln.index;
                     auto length = curln.length();
-                    auto active = curln.index == lnid;
+                    auto active = curid == lnid;
                     if (curln.wrapped())
                     {
                         auto offset = length;
@@ -1831,7 +1830,7 @@ private:
                         do
                         {
                             offset -= remain;
-                            push(curln.index, offset, remain);
+                            push(curid, offset, remain);
                             if (unknown && active && offset <= batch.caret)
                             {
                                 auto eq = batch.caret && length == batch.caret;
@@ -1846,7 +1845,7 @@ private:
                     }
                     else
                     {
-                        push(curln.index, 0, length);
+                        push(curid, 0, length);
                         if (active)
                         {
                             unknown = faux;
@@ -1875,6 +1874,7 @@ private:
                 assert(curid == mapln.index);
                 if (start == width) // Go to the next line.
                 {
+                    assert(curit != batch.end() - 1); //todo scroll_region -> feed_futures(count) -> stash/avail is wrong
                     auto& curln = *++curit;
                     width = curln.length();
                     wraps = curln.wrapped();
@@ -1896,8 +1896,13 @@ private:
                         }
                     }
                     if (avail-- <= 0) break;
+
+                    assert(start == 0 || wraps);
                     index.push_back(curid, start, width - start);
 
+                    if (avail == 0) break;
+
+                    assert(curit != batch.end() - 1);
                     auto& curln = *++curit;
                     width = curln.length();
                     wraps = curln.wrapped();
@@ -1910,21 +1915,21 @@ private:
             void index_rebuild_from(iota y_pos)
             {
                 assert(y_pos >= 0 && y_pos < index.size);
-                auto  mapit = index.begin() + y_pos++;
-                auto& mapln =*mapit;
+
+                auto& mapln = index[y_pos];
                 auto  curit = batch.iter_by_id(mapln.index);
-                auto  avail = std::min(batch.vsize - batch.basis - y_pos, arena - y_pos);
-                auto  count = index.size - y_pos;
+                auto  avail = std::min(batch.vsize - batch.basis, arena) - y_pos - 1;
+                auto  count = index.size - y_pos - 1;
                 while (count-- > 0) index.pop_back();
 
-                reindex(avail, curit, mapln);
+                if (avail > 0) reindex(avail, curit, mapln);
             }
             // scroll_buf: Rebuild index up to basis.
             void index_rebuild()
             {
                 if (batch.basis >= batch.vsize)
                 {
-                    log(" batch.basis >= batch.vsize  batch.basis=", batch.basis, " batch.vsize=", batch.vsize);
+                    assert((log(" batch.basis >= batch.vsize  batch.basis=", batch.basis, " batch.vsize=", batch.vsize), true));
                     batch.basis = batch.vsize - 1;
                 }
 
@@ -1934,23 +1939,24 @@ private:
                 while (coor != batch.basis)
                 {
                     auto& curln = *--head;
+                    auto  curid = curln.index;
                     auto length = curln.length();
                     if (curln.wrapped())
                     {
                         auto remain = length ? (length - 1) % panel.x + 1 : 0;
                         length -= remain;
-                        index.push_front(curln.index, length, remain);
+                        index.push_front(curid, length, remain);
                         --coor;
                         while (length > 0 && coor != batch.basis)
                         {
                             length -= panel.x;
-                            index.push_front(curln.index, length, panel.x);
+                            index.push_front(curid, length, panel.x);
                             --coor;
                         }
                     }
                     else
                     {
-                        index.push_front(curln.index, 0, length);
+                        index.push_front(curid, 0, length);
                         --coor;
                     }
                 }
@@ -2066,9 +2072,17 @@ private:
                     {
                         auto newix = batch.index_by_id(mapln.index);
                         batch.index(newix);
-                        if (batch->style != parser::style) _set_style(parser::style);
+
+                        if (batch->style != parser::style)
+                        {
+                            _set_style(parser::style);
+                            assert(newix == batch.index_by_id(index[coord.y].index));
+                        }
+
                     }
                     coord.y += y_top;
+
+                    assert((batch.caret - coord.x) % panel.x == 0);
                 }
             }
 
@@ -2239,6 +2253,14 @@ private:
                 auto  wraps = curln.wrapped();
                 auto  width = curln.length();
                 curln.style = new_style;
+
+                if (batch.caret > width) // Dangling cursor.
+                {
+                    auto blank = brush.spc();
+                         width = batch.caret;
+                    curln.crop(width, blank);
+                }
+
                 batch.recalc(curln);
 
                 if (wraps != curln.wrapped())
@@ -2247,11 +2269,13 @@ private:
                     {
                         if (wraps)
                         {
+                            if (coord.x == 0) coord.y -= 1;
                             coord.x  =  batch.caret;
-                            coord.y -= (batch.caret - 1) / panel.x + 1;
+                            coord.y -= (batch.caret - 1) / panel.x;
                             if (coord.y < 0)
                             {
                                 batch.basis -= std::abs(coord.y);
+                                assert(batch.basis >= 0);
                                 coord.y = 0;
                             }
                         }
@@ -2267,6 +2291,7 @@ private:
                                 coord.x  = batch.caret % panel.x;
                                 coord.y += batch.caret / panel.x;
                             }
+
                             if (coord.y >= arena)
                             {
                                 auto limit = arena - 1;
@@ -2280,10 +2305,10 @@ private:
                     else
                     {
                         auto& mapln = index[coord.y];
-                        auto  width = curln.length();
+                        auto  wraps = curln.wrapped();
                         mapln.start = 0;
-                        mapln.width = curln.wrapped() ? std::min(panel.x, width)
-                                                      : width;
+                        mapln.width = wraps ? std::min(panel.x, width)
+                                            : width;
                         index_rebuild_from(coord.y);
                     }
                 }
@@ -2364,8 +2389,10 @@ private:
                         curln.splice<true>(start, count, blank);
 
                         batch.recalc(curln);
+                        width = curln.length();
                         auto& mapln = index[coord.y];
-                        mapln.width = std::min(panel.x, curln.length() - mapln.start);
+                        mapln.width = wraps ? std::min(panel.x, width - mapln.start)
+                                            : width;
 
                         //curln.shrink(blank); //todo revise: It kills wrapped lines and as a result requires the viewport to be rebuilt.
                         //batch.recalc(curln); //             The cursor may be misplaced when resizing because curln.length is less than batch.caret.
@@ -2386,8 +2413,11 @@ private:
                     auto& curln = batch.current();
                     curln.insert(batch.caret, n, blank, panel.x);
                     batch.recalc(curln); // Line front is filled by blanks. No wrapping.
+                    auto  width = curln.length();
+                    auto  wraps = curln.wrapped();
                     auto& mapln = index[coord.y];
-                    mapln.width = std::min(panel.x, curln.length() - mapln.start);
+                    mapln.width = wraps ? std::min(panel.x, width - mapln.start)
+                                        : width;
                 }
                 else ctx.block.insert(coord, n, blank);
             }
@@ -2400,6 +2430,7 @@ private:
                 {
                     auto& curln = batch.current();
                     curln.cutoff(batch.caret, n, blank, panel.x);
+                    batch.recalc(curln);
                 }
                 else ctx.block.cutoff(coord, n, blank);
             }
@@ -2415,7 +2446,10 @@ private:
                     curln.splice(batch.caret, n, blank);
                     batch.recalc(curln);
                     auto& mapln = index[coord.y];
-                    mapln.width = std::min(panel.x, curln.length() - mapln.start);
+                    auto  width = curln.length();
+                    auto  wraps = curln.wrapped();
+                    mapln.width = wraps ? std::min(panel.x, curln.length() - mapln.start)
+                                        : width;
                 }
                 else ctx.block.splice(coord, n, blank);
             }
@@ -2766,6 +2800,7 @@ private:
                     mapln.width = coor.x;
                     curln.trimto(batch.caret);
                     batch.recalc(curln);
+                    assert(mapln.start == 0 || curln.wrapped());
 
                     sync_coord();
 

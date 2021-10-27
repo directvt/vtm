@@ -132,12 +132,12 @@ namespace netxs::console
                 canvas.assign(region.size.x * region.size.y, marker);
             }
         }
-        void crop(iota newsizex) // core: Resize while saving the textline.
+        void crop(iota newsizex, cell const& c = {}) // core: Resize while saving the textline.
         {
             region.size.x = newsizex;
             region.size.y = 1;
             client.size = region.size;
-            canvas.resize(newsizex);
+            canvas.resize(newsizex, c);
             digest++;
         }
         //todo unify
