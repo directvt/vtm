@@ -16,12 +16,17 @@
 
 namespace netxs
 {
+    using byte = uint8_t;
+    using ui16 = uint16_t;
     using iota = int32_t;
     using ui32 = uint32_t;
+    using ui64 = uint64_t;
+
+    static constexpr iota maxiota = std::numeric_limits<iota>::max();
 
     constexpr size_t operator "" _sz (unsigned long long i)	{ return i; }
 
-    struct noop { template<class ...T> void operator()(T...) {}; };
+    struct noop { template<class ...T> constexpr void operator()(T...) {}; };
 
     template <class T>
     using to_signed_t = std::conditional_t<(int64_t)std::numeric_limits<std::remove_reference_t<T>>::max() <= std::numeric_limits<int16_t>::max(), int16_t,
@@ -30,7 +35,7 @@ namespace netxs
     // intmath: Summ and return TRUE in case of
     //          unsigned integer overflow and store result in accum.
     template<class T1, class T2>
-    bool sum_overflow(T1& accum, T2 delta)
+    constexpr bool sum_overflow(T1& accum, T2 delta)
     {
         auto store = accum;
         accum += delta;
@@ -39,14 +44,14 @@ namespace netxs
 
     // intmath: Clamp a value in case it exceeds its numerical limits.
     template<class T, class L>
-    T clamp(L value)
+    constexpr T clamp(L value)
     {
         static_assert(std::is_integral<T>::value, "Integral type only");
         static_assert(std::is_integral<L>::value, "Integral type only");
 
         if constexpr (sizeof(T) < sizeof(L))
         {
-            static constexpr L max = std::numeric_limits<T>::max();
+            constexpr L max = std::numeric_limits<T>::max();
             return static_cast<T>(std::min(value, max));
         }
         else
@@ -56,7 +61,7 @@ namespace netxs
     }
 
     template<class T1, class T2, class T3 = T2>
-    T3 divround(T1 n, T2 d)
+    constexpr T3 divround(T1 n, T2 d)
     {
         static_assert(std::is_integral<T1>::value, "Integral type only");
         static_assert(std::is_integral<T2>::value, "Integral type only");
@@ -74,7 +79,7 @@ namespace netxs
     }
 
     template<class T1, class T2, class T3 = T2>
-    T3 divupper(T1 n, T2 d)
+    constexpr T3 divupper(T1 n, T2 d)
     {
         static_assert(std::is_integral<T1>::value, "Integral type only");
         static_assert(std::is_integral<T2>::value, "Integral type only");
@@ -86,7 +91,7 @@ namespace netxs
     }
 
     template<class T1, class T2, class T3 = T2>
-    T3 divfloor(T1 n, T2 d)
+    constexpr T3 divfloor(T1 n, T2 d)
     {
         static_assert(std::is_integral<T1>::value, "Integral type only");
         static_assert(std::is_integral<T2>::value, "Integral type only");
@@ -288,8 +293,8 @@ namespace netxs
 
         if constexpr (RtoL) lyric += width;
 
-        auto  limit = frame + width;
-        while(limit!= frame)
+        auto limit = frame + width;
+        while (limit != frame)
         {
             if constexpr (RtoL) handle(*frame++, *--lyric);
             else                handle(*frame++, *lyric++);
@@ -311,8 +316,8 @@ namespace netxs
             auto data1 = bitmap1.data();
             auto data2 = bitmap2.data();
 
-            auto  limit = data1 + size1.y * size2.x;
-            while(limit!= data1)
+            auto limit = data1 + size1.y * size2.x;
+            while (limit != data1)
             {
                 handle(*data1++, *data2++);
             }
@@ -345,11 +350,11 @@ namespace netxs
             skip2 -= region.size.x;
         }
 
-        auto  limit = data1 + region.size.y * size1.x;
-        while(limit!= data1)
+        auto limit = data1 + region.size.y * size1.x;
+        while (limit != data1)
         {
-            auto  limit = data1 + region.size.x;
-            while(limit!= data1)
+            auto limit = data1 + region.size.x;
+            while (limit != data1)
             {
                 if constexpr (RtoL) handle(*data1++, *--data2);
                 else                handle(*data1++, *data2++);
@@ -391,11 +396,11 @@ namespace netxs
             auto frame = place.size.x * basis.y + basis.x + canvas.data();
             auto notch = place.size.x - joint.size.x;
 
-            auto  limit = place.size.x * joint.size.y + frame;
-            while(limit!= frame)
+            auto limit = place.size.x * joint.size.y + frame;
+            while (limit != frame)
             {
-                auto  limit = frame + joint.size.x;
-                while(limit!= frame)
+                auto limit = frame + joint.size.x;
+                while (limit != frame)
                 {
                     handle(*frame++);
                 }
@@ -699,6 +704,37 @@ namespace netxs
                 d_ptr += d_dty;
             }
         }
+        // intmath: Move block to the specified destination. If begin_it > end_it (exclusive) decrement is used.
+        template<bool FWD, class SRC, class DST, class P>
+        void proc_block(SRC begin_it, SRC end_it, DST dest_it, P proc)
+        {
+                while (begin_it != end_it)
+                {
+                    if constexpr (FWD)
+                    {
+                        proc(*begin_it, *dest_it);
+                        ++begin_it;
+                        ++dest_it;
+                    }
+                    else
+                    {
+                        proc(*begin_it, *dest_it);
+                        --begin_it;
+                        --dest_it;
+                    }
+            }
+        }
+    }
+
+    template<bool FWD = true, class SRC, class DST>
+    void move_block(SRC begin_it, SRC end_it, DST dest_it)
+    {
+        _private::proc_block<FWD>(begin_it, end_it, dest_it, [](auto& src, auto& dst){ dst = std::move(src); });
+    }
+    template<bool FWD = true, class SRC, class DST>
+    void swap_block(SRC begin_it, SRC end_it, DST dest_it)
+    {
+        _private::proc_block<FWD>(begin_it, end_it, dest_it, [](auto& src, auto& dst){ std::swap(src, dst); });
     }
 
     /// <summary> intmath:

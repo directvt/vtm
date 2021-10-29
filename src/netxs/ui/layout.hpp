@@ -100,7 +100,7 @@ namespace netxs::ui::atoms
             auto mode = queue.rawarg(mode_RGB);
             if (fifo::issub(mode))
             {
-                switch(fifo::desub(mode))
+                switch (fifo::desub(mode))
                 {
                     case mode_RGB:
                         chan.r = queue.subarg(0);
@@ -117,7 +117,7 @@ namespace netxs::ui::atoms
             }
             else
             {
-                switch(mode)
+                switch (mode)
                 {
                     case mode_RGB:
                         chan.r = queue(0);
@@ -1049,13 +1049,17 @@ namespace netxs::ui::atoms
             uv.fg = rgba::transit(c1.uv.fg, c2.uv.fg, level);
             uv.bg = rgba::transit(c1.uv.bg, c2.uv.bg, level);
         }
+        // cell: Return whitespace.
+        cell spc () const
+        {
+            return cell{ *this }.txt(whitespace);
+        }
         // cell: Set Grapheme cluster and its width.
         void set_gc (view c, size_t w) { gc.set(c, w); }
         // cell: Set Grapheme cluster.
         void set_gc (cell const& c) { gc = c.gc; }
         // cell: Reset Grapheme cluster.
         void set_gc () { gc.wipe(); }
-
         // cell: Copy view of the cell (Preserve ID).
         cell& set (cell const& c) { uv = c.uv;
                                     st = c.st;
@@ -1108,6 +1112,7 @@ namespace netxs::ui::atoms
         bool        inv () const { return st.inv();      } // cell: Return Negative attribute.
         bool        stk () const { return st.stk();      } // cell: Return Strikethrough attribute.
         id_t       link () const { return id;            } // cell: Return link object ID.
+
         //id_t       para () const { return pg;            } // cell: Return paragraph ID.
         view        txt () const { return gc.get();      } // cell: Return Grapheme cluster.
         size_t      len () const { return gc.state.count;} // cell: Return Grapheme cluster utf-8 length.
@@ -1131,6 +1136,71 @@ namespace netxs::ui::atoms
             }
             return faux;
         }
+
+        class shaders
+        {
+            template<class FUNC>
+            struct brush_t
+            {
+                template<class CELL>
+                struct func
+                {
+                    CELL brush;
+                    static constexpr auto f = FUNC{};
+                    constexpr func(CELL const& c) : brush{ c } { }
+                    template<class D> inline void operator() (D& dst) const { f(dst, brush); }
+                };
+            };
+            struct contrast_t : public brush_t<contrast_t>
+            {
+                static constexpr auto threshold = rgba{ tint::whitedk }.luma() - 0xF;
+                template<class C> constexpr inline auto operator() (C brush) const { return func<C>(brush); }
+                static inline auto invert(rgba const& color)
+                {
+                    return color.luma() >= threshold ? 0xFF000000
+                                                     : 0xFFffffff;
+                }
+                template<class D, class S>
+                inline void operator() (D& dst, S& src) const
+                {
+                    auto& fgc = src.fgc();
+                    if (fgc.chan.a == 0x00) dst.fgc(invert(dst.bgc())).fusefull(src);
+                    else                    dst.fusefull(src);
+                }
+            };
+            struct flat_t : public brush_t<flat_t>
+            {
+                template<class C> constexpr inline auto operator() (C brush) const { return func<C>(brush); }
+                template<class D, class S>  inline void operator() (D& dst, S& src) const { dst.set(src); }
+            };
+            struct full_t : public brush_t<full_t>
+            {
+                template<class C> constexpr inline auto operator() (C brush) const { return func<C>(brush); }
+                template<class D, class S>  inline void operator() (D& dst, S& src) const { dst = src; }
+            };
+            struct fuse_t : public brush_t<fuse_t>
+            {
+                template<class C> constexpr inline auto operator() (C brush) const { return func<C>(brush); }
+                template<class D, class S>  inline void operator() (D& dst, S& src) const { dst.fuse(src); }
+            };
+            struct fusefull_t : public brush_t<fusefull_t>
+            {
+                template<class C> constexpr inline auto operator() (C brush) const { return func<C>(brush); }
+                template<class D, class S>  inline void operator() (D& dst, S& src) const { dst.fusefull(src); }
+            };
+            struct xlight_t
+            {
+                template<class D> inline void operator() (D& dst) const { dst.xlight(); }
+            };
+
+        public:
+            static constexpr auto contrast = contrast_t{};
+            static constexpr auto fusefull = fusefull_t{};
+            static constexpr auto     fuse =     fuse_t{};
+            static constexpr auto     flat =     flat_t{};
+            static constexpr auto     full =     full_t{};
+            static constexpr auto   xlight =   xlight_t{};
+        };
     };
 
     // Extern link statics.
@@ -1138,10 +1208,10 @@ namespace netxs::ui::atoms
     template<class T> text                     cell::glyf<T>::empty;
     template<class T> std::map<uint64_t, text> cell::glyf<T>::jumbo;
 
-    struct bias { enum type : iota { none, left, right, center, }; };
-    struct wrap { enum type : iota { none, on,  off,            }; };
-    struct rtol { enum type : iota { none, rtl, ltr,            }; };
-    struct feed { enum type : iota { none, rev, fwd,            }; };
+    enum class bias : unsigned char { none, left, right, center, };
+    enum class wrap : unsigned char { none, on,  off,            };
+    enum class rtol : unsigned char { none, rtl, ltr,            };
+    enum class feed : unsigned char { none, rev, fwd,            };
 
     struct rect
     {
@@ -1409,7 +1479,6 @@ namespace netxs::ui::atoms
             t -= p.y;
             b -= p.y;
         }
-        // side: Set paddings.
         void set(iota new_l, iota new_r = 0, iota new_t = 0, iota new_b = 0)
         {
             l = new_l;
@@ -1422,19 +1491,14 @@ namespace netxs::ui::atoms
         {
             set(left_right.first, left_right.second);
         }
-        // side: Return top left corner.
-        auto topleft() const { return twod{ l, t }; }
-
-        // side: Margin summary size.
-        auto summ() const { return twod{ l + r, t + b }; }
-        // side: Return height.
-        auto height() const { return b - t; }
-        // side: Return width.
-        auto width() const { return r - l; }
-        // side: Return square.
-        auto area() const { return rect{ { l, t }, { r - l, b - t } } ; }
-        // side: Textify.
-        auto str() const
+        auto topleft() const { return twod{ l, t };                       }
+        auto summ   () const { return twod{ l + r, t + b };               }
+        auto vsumm  () const { return b + t;                              }
+        auto hsumm  () const { return r + l;                              }
+        auto height () const { return b - t;                              }
+        auto width  () const { return r - l;                              }
+        auto area   () const { return rect{ { l, t }, { r - l, b - t } }; }
+        auto str    () const
         {
             return "{ l:" + std::to_string(l) + " r: " + std::to_string(r) +
                     " t:" + std::to_string(t) + " b: " + std::to_string(b) + " }";
@@ -1446,59 +1510,39 @@ namespace netxs::ui::atoms
     };
 
     // layout: Padding, space around an element's content.
-    struct dent
+    template<class type>
+    struct dent_t
     {
+        template<auto just>
         struct edge
         {
-            bool just = faux;
-            iota step = 0;
-
-            constexpr edge(bool just, iota n = 0)
-                : just { just          },
-                  step { n }
-            { }
-
-            auto get(iota size) const
+            type step = 0;
+            constexpr inline auto get(iota size) const
             {
-                return just ? step : size - step;
-            }
-            edge& operator = (iota n)
-            {
-                step = n;
-                return *this;
-            }
-            edge& operator = (edge const& e)
-            {
-                step = e.step;
-                just = e.just;
-                return *this;
+                if constexpr (just) return step;
+                else                return size - step;
             }
         };
-        edge west;
-        edge east;
-        edge head;
-        edge foot;
+        edge<true> west = {};
+        edge<faux> east = {};
+        edge<true> head = {};
+        edge<faux> foot = {};
 
-        constexpr dent()
-            : west{ true },
-              east{ faux },
-              head{ true },
-              foot{ faux }
+        constexpr dent_t() = default;
+        constexpr dent_t(iota w, iota e = 0, iota h = 0, iota f = 0)
+            : west{ static_cast<type>(w) },
+              east{ static_cast<type>(e) },
+              head{ static_cast<type>(h) },
+              foot{ static_cast<type>(f) }
         { }
-        constexpr dent(iota w, iota e = 0, iota h = 0, iota f = 0)
-            : west{ true, w },
-              east{ faux, e },
-              head{ true, h },
-              foot{ faux, f }
-        { }
-        constexpr dent(dent const& pad)
-            : west{ true, pad.west.step },
-              east{ faux, pad.east.step },
-              head{ true, pad.head.step },
-              foot{ faux, pad.foot.step }
+        constexpr dent_t(dent_t const& pad)
+            : west{ pad.west.step },
+              east{ pad.east.step },
+              head{ pad.head.step },
+              foot{ pad.foot.step }
         { }
 
-        auto& operator = (dent const& pad)
+        constexpr auto& operator = (dent_t const& pad)
         {
             west = pad.west;
             east = pad.east;
@@ -1506,7 +1550,7 @@ namespace netxs::ui::atoms
             foot = pad.foot;
             return *this;
         }
-        auto& operator += (dent const& pad)
+        constexpr auto& operator += (dent_t const& pad)
         {
             west.step += pad.west.step;
             east.step += pad.east.step;
@@ -1514,19 +1558,19 @@ namespace netxs::ui::atoms
             foot.step += pad.foot.step;
             return *this;
         }
-        auto operator == (dent const& pad)
+        constexpr auto operator == (dent_t const& pad)
         {
             return west.step == pad.west.step
                 && east.step == pad.east.step
                 && head.step == pad.head.step
                 && foot.step == pad.foot.step;
         }
-        auto operator != (dent const& pad)
+        auto operator != (dent_t const& pad)
         {
             return !operator==(pad);
         }
         // dent: Return inner area rectangle.
-        auto area(iota size_x, iota size_y) const
+        constexpr auto area(iota size_x, iota size_y) const
         {
             //todo RTL
             auto w = west.get(size_x);
@@ -1536,57 +1580,57 @@ namespace netxs::ui::atoms
             return rect{ {w, h}, {std::max(e - w, 0), std::max(f - h, 0)} };
         }
         // dent: Return inner area rectangle.
-        auto area(twod const& size) const
+        constexpr auto area(twod const& size) const
         {
             return area(size.x, size.y);
         }
         // dent: Return inner area rectangle.
-        auto area(rect const& content) const
+        constexpr auto area(rect const& content) const
         {
             rect field = area(content.size.x, content.size.y);
             field.coor += content.coor;
             return field;
         }
         // dent: Return the coor of the area rectangle.
-        auto corner() const
+        constexpr auto corner() const
         {
             return twod{ west.step,
                          head.step };
         }
         // dent: Return inner width.
-        auto width(iota size_x) const
+        constexpr auto width(iota size_x) const
         {
             auto w = west.get(size_x);
             auto e = east.get(size_x);
             return std::max(e - w, 0);
         }
         // dent: Return inner height.
-        auto height(iota size_y) const
+        constexpr auto height(iota size_y) const
         {
             auto h = head.get(size_y);
             auto f = foot.get(size_y);
             return std::max(f - h, 0);
         }
         // dent: Return size of the inner rectangle.
-        auto size(twod const& size) const
+        constexpr auto size(twod const& size) const
         {
             return twod{ width(size.x), height(size.y) };
         }
         // dent: Return the horizontal coordinate using percentages.
-        auto h_ratio(iota px, iota size_x) const
+        constexpr auto h_ratio(iota px, iota size_x) const
         {
             auto w = west.get(size_x);
             auto e = east.get(size_x);
             return divround(px * (std::max(e - w, 1) - 1), 100);
         }
         // dent: Return the vertical coordinate using percentages.
-        auto v_ratio(iota py, iota size_y) const
+        constexpr auto v_ratio(iota py, iota size_y) const
         {
             auto h = head.get(size_y);
             auto f = foot.get(size_y);
             return divround(py * (std::max(f - h, 1) - 1), 100);
         }
-        void reset()
+        constexpr void reset()
         {
             west.step = 0;
             east.step = 0;
@@ -1595,25 +1639,25 @@ namespace netxs::ui::atoms
         }
         void set(fifo& q)
         {
-            west = q(0);
-            east = q(0);
-            head = q(0);
-            foot = q(0);
+            west.step = q(0);
+            east.step = q(0);
+            head.step = q(0);
+            foot.step = q(0);
         }
         // dent: Return size with padding.
-        friend auto operator + (twod const& size, dent const& pad)
+        friend auto operator + (twod const& size, dent_t const& pad)
         {
             return twod{ std::max(0, size.x + (pad.west.step + pad.east.step)),
                          std::max(0, size.y + (pad.head.step + pad.foot.step)) };
         }
         // dent: Return size without padding.
-        friend auto operator - (twod const& size, dent const& pad)
+        friend auto operator - (twod const& size, dent_t const& pad)
         {
             return twod{ std::max(0, size.x - (pad.west.step + pad.east.step)),
                          std::max(0, size.y - (pad.head.step + pad.foot.step)) };
         }
         // dent: Return area with padding.
-        friend auto operator + (rect const& area, dent const& pad)
+        friend auto operator + (rect const& area, dent_t const& pad)
         {
             return rect{{ area.coor.x - pad.west.step,
                           area.coor.y - pad.head.step },
@@ -1621,7 +1665,7 @@ namespace netxs::ui::atoms
                           std::max(0, area.size.y + (pad.head.step + pad.foot.step)) }};
         }
         // dent: Return area without padding.
-        friend auto operator - (rect const& area, dent const& pad)
+        friend auto operator - (rect const& area, dent_t const& pad)
         {
             return rect{ { area.coor.x + pad.west.step,
                            area.coor.y + pad.head.step },
@@ -1629,20 +1673,20 @@ namespace netxs::ui::atoms
                            std::max(0, area.size.y - (pad.head.step + pad.foot.step)) }};
         }
         // dent: Return summ of two paddings.
-        friend auto operator + (dent const& pad1, dent const& pad2)
+        friend auto operator + (dent_t const& pad1, dent_t const& pad2)
         {
-            return dent{ pad1.west.step + pad2.west.step,
-                         pad1.east.step + pad2.east.step,
-                         pad1.head.step + pad2.head.step,
-                         pad1.foot.step + pad2.foot.step };
+            return dent_t{ pad1.west.step + pad2.west.step,
+                           pad1.east.step + pad2.east.step,
+                           pad1.head.step + pad2.head.step,
+                           pad1.foot.step + pad2.foot.step };
         }
         // dent: Return diff of two paddings.
-        friend auto operator - (dent const& pad1, dent const& pad2)
+        friend auto operator - (dent_t const& pad1, dent_t const& pad2)
         {
-            return dent{ pad1.west.step - pad2.west.step,
-                         pad1.east.step - pad2.east.step,
-                         pad1.head.step - pad2.head.step,
-                         pad1.foot.step - pad2.foot.step };
+            return dent_t{ pad1.west.step - pad2.west.step,
+                           pad1.east.step - pad2.east.step,
+                           pad1.head.step - pad2.head.step,
+                           pad1.foot.step - pad2.foot.step };
         }
     };
 
@@ -1652,7 +1696,7 @@ namespace netxs::ui::atoms
         twod region; // rack: Available scroll area.
         rect window; // rack: Scrolling viewport.
         side beyond; // rack: Scroll margins outside of the scroll region.
-        // rack: Textify.
+
         auto str() const
         {
             return "{ reg:" + region.str() + " win:" + window.str() +
@@ -1663,6 +1707,24 @@ namespace netxs::ui::atoms
             return s << p.str();
         }
     };
+
+    // layout: Extract 1D length.
+    template<class T>
+    static inline iota getlen(T p)
+    {
+        if constexpr (std::is_same_v<T, twod>) return p.x;
+        else                                   return static_cast<iota>(p);
+    }
+    // layout: Extract 2D size.
+    template<class T>
+    static inline rect getvol(T p)
+    {
+        if constexpr (std::is_same_v<T, twod>) return { dot_00, p };
+        else                                   return { dot_00, { static_cast<iota>(p),  1 } };
+    }
+
+    using grid = std::vector<cell>;
+    using dent = dent_t<int8_t>;
 }
 namespace netxs::ui
 {

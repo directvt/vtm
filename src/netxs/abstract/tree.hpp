@@ -26,7 +26,8 @@ namespace netxs::generics
         template<class F>
         void operator = (F func)
         {
-            sure = true;
+            if constexpr (std::is_same_v<F, std::nullptr_t>) sure = faux;
+            else                                             sure = true;
             proc = func;
         }
         auto& resize(size_t newsize)

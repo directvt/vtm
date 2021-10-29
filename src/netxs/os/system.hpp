@@ -189,7 +189,7 @@ namespace netxs::os
     template<class T>
     bool ok(T error_condition, text msg = {})
     {
-        if(
+        if (
             #if defined(_WIN32)
                 error_condition == 0
             #else
@@ -472,9 +472,6 @@ namespace netxs::os
     {
         #if defined(_WIN32)
 
-            //auto binary_w = utf::to_utf(binary);
-            //auto params_w = utf::to_utf(params);
-
             SHELLEXECUTEINFO ShExecInfo = {};
             ShExecInfo.cbSize = sizeof(SHELLEXECUTEINFO);
             ShExecInfo.fMask = SEE_MASK_NOCLOSEPROCESS;
@@ -491,7 +488,7 @@ namespace netxs::os
         #else
 
             auto p_id = ::fork();
-            if (p_id == 0) // Child branch
+            if (p_id == 0) // Child branch.
             {
                 log("exec: executing '", binary, " ", params, "'");
                 char* argv[] = { binary.data(), params.data(), nullptr };
@@ -500,14 +497,14 @@ namespace netxs::os
                 os::exit(1, "exec: error ", errno);
             }
 
-            if (p_id > 0) // Parent branch
+            if (p_id > 0) // Parent branch.
             {
                 int stat;
-                ::waitpid(p_id, &stat, 0); // wait for the child to avoid zombies
+                ::waitpid(p_id, &stat, 0); // Wait for the child to avoid zombies.
 
                 if (WIFEXITED(stat) && (WEXITSTATUS(stat) == 0))
                 {
-                    return true; // child forked and exited successfully
+                    return true; // Child forked and exited successfully.
                 }
             }
 
@@ -520,7 +517,7 @@ namespace netxs::os
     {
         #if defined(_WIN32)
 
-            //todo inplement
+            //todo implement
 
         #else
 
@@ -875,8 +872,7 @@ namespace netxs::os
         uint8_t i = 0;
 
         while (i < 100 && netxs::os::test_path(tmp_dir = file_guid + "\\$temp_" + utf::adjust(std::to_string(i++), 3, "0", true)))
-        {
-        }
+        { }
 
         if (i == 100) tmp_dir.clear();
 
@@ -1398,7 +1394,7 @@ namespace netxs::os
         public:
             operator fd_t () { return h[0]; }
             flash_t()        { ok(::pipe(h), "pipe(2) error"); }
-           ~flash_t()        { for(auto f : h) if (f != INVALID_FD) ::close(f); }
+           ~flash_t()        { for (auto f : h) if (f != INVALID_FD) ::close(f); }
             void reset()     { send(h[1], &x, sizeof(x)); }
             void flush()     { recv(h[0], &x, sizeof(x)); }
         };
@@ -1642,18 +1638,12 @@ namespace netxs::os
                 {
                     switch (errno)
                     {
-                    case EBADF:
-                        return fail("EBADF: The socket argument is not a valid file descriptor.");
-                    case EINVAL:
-                        return fail("EINVAL: The how argument is invalid.");
-                    case ENOTCONN:
-                        return fail("ENOTCONN: The socket is not connected.");
-                    case ENOTSOCK:
-                        return fail("ENOTSOCK: The socket argument does not refer to a socket.");
-                    case ENOBUFS:
-                        return fail("ENOBUFS: Insufficient resources were available in the system to perform the operation.");
-                    default:
-                        return fail("unknown reason");
+                        case EBADF:    return fail("EBADF: The socket argument is not a valid file descriptor.");
+                        case EINVAL:   return fail("EINVAL: The how argument is invalid.");
+                        case ENOTCONN: return fail("ENOTCONN: The socket is not connected.");
+                        case ENOTSOCK: return fail("ENOTSOCK: The socket argument does not refer to a socket.");
+                        case ENOBUFS:  return fail("ENOBUFS: Insufficient resources were available in the system to perform the operation.");
+                        default:       return fail("unknown reason");
                     }
                 }
                 else return true;
@@ -1850,7 +1840,7 @@ namespace netxs::os
                 #if defined(_WIN32)
 
                     CONSOLE_SCREEN_BUFFER_INFO cinfo;
-                    if(ok(GetConsoleScreenBufferInfo(STDOUT_FD, &cinfo)))
+                    if (ok(GetConsoleScreenBufferInfo(STDOUT_FD, &cinfo)))
                     {
                         winsz({ cinfo.srWindow.Right - cinfo.srWindow.Left + 1,
                                 cinfo.srWindow.Bottom - cinfo.srWindow.Top + 1 });
@@ -1859,7 +1849,7 @@ namespace netxs::os
                 #else
 
                     winsize size;
-                    if(ok(::ioctl(STDOUT_FD, TIOCGWINSZ, &size)))
+                    if (ok(::ioctl(STDOUT_FD, TIOCGWINSZ, &size)))
                     {
                         winsz({ size.ws_col, size.ws_row });
                     }
@@ -2140,7 +2130,7 @@ namespace netxs::os
                     auto imps2_init_string = "\xf3\xc8\xf3\x64\xf3\x50";
                     auto mouse_device = "/dev/input/mice";
                     auto fd = ::open(mouse_device, O_RDWR);
-                    if(fd == -1) log(" tty: error opening ", mouse_device, ", error ", errno, errno == 13 ? " - permission denied" : "");
+                    if (fd == -1) log(" tty: error opening ", mouse_device, ", error ", errno, errno == 13 ? " - permission denied" : "");
                     else if (os::send(fd, imps2_init_string, sizeof(imps2_init_string)))
                     {
                         char ack;
@@ -2324,7 +2314,7 @@ namespace netxs::os
             os::set_palette(mode);
             os::vgafont_update(mode);
 
-            auto  input = std::thread{ [&]() { reader(mode); } };
+            auto input = std::thread{ [&]() { reader(mode); } };
 
             while (output(ipcio.recv()))
             { }
@@ -2342,7 +2332,7 @@ namespace netxs::os
     template<class V> conmode     tty::_globals<V>::state;
     template<class V> testy<twod> tty::_globals<V>::winsz;
 
-    class cons
+    class ptydev
     {
         #if defined(_WIN32)
 
@@ -2365,22 +2355,22 @@ namespace netxs::os
         std::function<void(iota)> shutdown;
 
     public:
-        ~cons()
+        ~ptydev()
         {
-            log("cons: dtor started");
+            log("ptydev: dtor started");
             if (termlink) wait_child();
             if (stdinput.joinable())
             {
-                log("cons: input thread joining");
+                log("ptydev: input thread joining");
                 stdinput.join();
             }
             #if defined(_WIN32)
                 if (client_exit_waiter.joinable())
                 {
-                    log("cons: client_exit_waiter thread joining");
+                    log("ptydev: client_exit_waiter thread joining");
                     client_exit_waiter.join();
                 }
-                log("cons: client_exit_waiter thread joined");
+                log("ptydev: client_exit_waiter thread joined");
             #endif
         }
         
@@ -2391,7 +2381,7 @@ namespace netxs::os
         {
             receiver = input_hndl;
             shutdown = shutdown_hndl;
-            log("cons: new process: ", cmdline);
+            log("ptydev: new process: ", cmdline);
 
             #if defined(_WIN32)
 
@@ -2470,21 +2460,21 @@ namespace netxs::os
                         HANDLE signals[] = { hProcess, gameover };
                         if (WAIT_OBJECT_0 != WaitForMultipleObjects(2, signals, FALSE, INFINITE))
                         {
-                            log("cons: client_exit_waiter error");
+                            log("ptydev: client_exit_waiter error");
                         }
-                        log("cons: client_exit_waiter finished");
+                        log("ptydev: client_exit_waiter finished");
                         CloseHandle(gameover);
                         if (termlink)
                         {
                             auto exit_code = wait_child();
                             shutdown(exit_code);
                         }
-                        log("cons: client_exit_waiter exit");
+                        log("ptydev: client_exit_waiter exit");
                     });
                     termlink.set({ m_pipe_r, m_pipe_w }, true);
-                    log("cons: conpty created: ", winsz);
+                    log("ptydev: conpty created: ", winsz);
                 }
-                else log("cons: process creation error ", GetLastError());
+                else log("ptydev: process creation error ", GetLastError());
 
                 //todo workaround for GH#10400 (resolved) https://github.com/microsoft/terminal/issues/10400
                 std::this_thread::sleep_for(250ms);
@@ -2510,7 +2500,7 @@ namespace netxs::os
                     // Current process must be a session leader (::setsid()) and not have
                     // a controlling terminal already.
                     // arg = 0: 1 - to stole fds from another process, it doesn't matter here.
-                    ok(::ioctl(fds, TIOCSCTTY, 0), "cons: assign controlling terminal error");
+                    ok(::ioctl(fds, TIOCSCTTY, 0), "ptydev: assign controlling terminal error");
 
                     ::signal(SIGINT,  SIG_DFL); // Reset control signals to default values.
                     ::signal(SIGQUIT, SIG_DFL); //
@@ -2534,7 +2524,7 @@ namespace netxs::os
 
                     ::setenv("TERM", "xterm-256color", 1); //todo too hacky
                     ok(::execvp(argv.front(), argv.data()), "execvp error");
-                    os::exit(1, "cons: exec error ", errno);
+                    os::exit(1, "ptydev: exec error ", errno);
                 }
 
                 // Parent branch.
@@ -2549,16 +2539,16 @@ namespace netxs::os
         {
             iota exit_code;
             termlink.reset();
-            log("cons: wait child process");
+            log("ptydev: wait child process");
 
             #if defined(_WIN32)
 
                 ClosePseudoConsole(hPC);
                 termlink.shut();
                 DWORD code = 0;
-                if (GetExitCodeProcess(hProcess, &code) == FALSE) log("cons: child GetExitCodeProcess() error: ", GetLastError());
-                else if (code == STILL_ACTIVE)                    log("cons: child process still running");
-                else                                              log("cons: child process exit code ", code);
+                if (GetExitCodeProcess(hProcess, &code) == FALSE) log("ptydev: child GetExitCodeProcess() error: ", GetLastError());
+                else if (code == STILL_ACTIVE)                    log("ptydev: child process still running");
+                else                                              log("ptydev: child process exit code ", code);
                 exit_code = code;
                 SetEvent(gameover);
                 CloseHandle(hProcess);
@@ -2572,16 +2562,16 @@ namespace netxs::os
                 if (WIFEXITED(status))
                 {
                     exit_code = WEXITSTATUS(status);
-                    log("cons: child process exit code ", exit_code);
+                    log("ptydev: child process exit code ", exit_code);
                 }
                 else
                 {
                     exit_code = 0;
-                    log("cons: error: child process exit code not detected");
+                    log("ptydev: error: child process exit code not detected");
                 }
 
             #endif
-            log("cons: wait_child() exit");
+            log("ptydev: wait_child() exit");
             return exit_code;
         }
         void read_socket_thread()
@@ -2600,7 +2590,7 @@ namespace netxs::os
             }
             if (termlink)
             {
-                log("cons: read_socket_thread ended");
+                log("ptydev: read_socket_thread ended");
                 auto exit_code = wait_child();
                 shutdown(exit_code);
             }
@@ -2615,7 +2605,7 @@ namespace netxs::os
                     winsz.X = newsize.x;
                     winsz.Y = newsize.y;
                     auto hr = ResizePseudoConsole(hPC, winsz);
-                    if (hr != S_OK) log("cons: ResizePseudoConsole error, ", hr);
+                    if (hr != S_OK) log("ptydev: ResizePseudoConsole error, ", hr);
 
                 #else
 

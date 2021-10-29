@@ -14,17 +14,17 @@ namespace netxs
     {
         using std::begin;
         using std::end;
-        auto it = begin(iterable);
-        auto end_it = end(iterable);
-        while (it != end_it)
+        auto end_it =   end(iterable);
+        auto cur_it = begin(iterable);
+        while (cur_it != end_it)
         {
-            if (predicate(*it))
+            if (predicate(*cur_it))
             {
                 break;
             }
-            ++it;
+            ++cur_it;
         }
-        return it;
+        return cur_it;
     }
 
     // iterator: Execute the func(item) for each item in the iterable container if the predicate(item) is true.
@@ -33,11 +33,11 @@ namespace netxs
     {
         using std::begin;
         using std::end;
-        auto it = begin(iterable);
-        auto end_it = end(iterable);
-        while (it != end_it)
+        auto end_it =   end(iterable);
+        auto cur_it = begin(iterable);
+        while (cur_it != end_it)
         {
-            auto& item = *it++;
+            auto& item = *cur_it++;
             if (predicate(item))
             {
                 func(item);
