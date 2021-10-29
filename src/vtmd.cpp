@@ -2,18 +2,10 @@
 // Licensed under the MIT license.
 
 #define MONOTTY_VER "Monotty Desktopio v0.5.9999"
-// Autostart demo apps.
+// Enable demo apps and assign Esc key to log off.
 //#define DEMO
-// Enable keyboard input and disable exit by single Esc.
+// Enable keyboard input and unassign Esc key.
 #define PROD
-
-// Terminal's default line wrapping mode.
-#ifdef DEMO
-    #define WRAPPING (wrap::off)
-#else
-    //#define WRAPPING (wrap::on)
-    #define WRAPPING (wrap::off)
-#endif
 
 // Enable to show debug overlay.
 //#define DEBUG_OVERLAY
@@ -298,7 +290,7 @@ class post_logs
                     f(cluster.attr.cdpoint, cluster.text, cluster.attr.ucwidth);
                 };
                 utf::decode<faux>(s, y, shadow);
-                yield.wrp(WRAPPING).eol();
+                yield.wrp(deco::defwrp).eol();
             }
             yield.eol();
             return page{ yield };

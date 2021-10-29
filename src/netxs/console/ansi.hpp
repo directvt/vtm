@@ -774,6 +774,7 @@ namespace netxs::ansi
             count,
         };
 
+        static constexpr auto defwrp = wrap::on; // deco: Default autowrap behavior.
         static constexpr iota maxtab = 255; // deco: Tab length limit.
         struct
         {
@@ -786,13 +787,13 @@ namespace netxs::ansi
         } v;
         ui64 token;
 
-        constexpr deco()                          : token { 0 }            { }
-        constexpr deco            (deco const& d) : token { d.token }      { }
-        constexpr void operator = (deco const& d) { token = d.token;         }
-        constexpr bool operator== (deco const& d) { return token == d.token; }
-        constexpr bool operator!= (deco const& d) { return token != d.token; }
+        friend    auto operator!= (deco const& a, deco const& b)
+                                                  { return a.token != b.token; }
+        constexpr deco()                          : token { 0 }              { }
+        constexpr deco            (deco const& d) : token { d.token }        { }
+        constexpr void operator = (deco const& d) { token = d.token;           }
         constexpr deco(iota)
-            : v{ .wrapln = wrap::on,
+            : v{ .wrapln = deco::defwrp,
                  .adjust = bias::left,
                  .r_to_l = rtol::ltr,
                  .rlfeed = feed::fwd,

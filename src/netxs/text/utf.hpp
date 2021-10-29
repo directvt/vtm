@@ -1205,17 +1205,11 @@ namespace netxs::utf
         {
             return dict[s];
         }
-        auto operator() (text const& s)
+        auto operator() (text s)
         {
-            text crop = s;
-            for (int i : {1, 2})
-            {
-                for (auto &var : dict)
-                {
-                    utf::change(crop, var.first, var.second);
-                }
-            }
-            return crop;
+            for (auto& var : dict) utf::change(s, var.first, var.second);
+            for (auto& var : dict) utf::change(s, var.first, var.second);
+            return s;
         }
     };
 

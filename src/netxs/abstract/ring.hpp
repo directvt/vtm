@@ -40,16 +40,16 @@ namespace netxs::generics
               : buff{ buff },
                 addr{ addr }
             { }
-            auto  operator -  (iota n)        const { return iter{ buff, buff.mod(addr - n) };                      }
-            auto  operator +  (iota n)        const { return iter{ buff, buff.mod(addr + n) };                      }
-            auto  operator ++ (iota)                { auto temp = iter{ buff, addr }; buff.inc(addr); return temp;  }
-            auto  operator -- (iota)                { auto temp = iter{ buff, addr }; buff.dec(addr); return temp;  }
-            auto& operator ++ ()                    {                                 buff.inc(addr); return *this; }
-            auto& operator -- ()                    {                                 buff.dec(addr); return *this; }
-            auto& operator *  ()                    { return buff.buff[addr];                                       }
-            auto  operator -> ()                    { return buff.buff.begin() + addr;                              }
-            auto  operator != (iter const& m) const { return addr != m.addr;                                        }
-            auto  operator == (iter const& m) const { return addr == m.addr;                                        }
+            auto  operator -  (iota n)        const {      return iter<RING>{ buff, buff.mod(addr - n) };                 }
+            auto  operator +  (iota n)        const {      return iter<RING>{ buff, buff.mod(addr + n) };                 }
+            auto  operator ++ (iota)                { auto temp = iter<RING>{ buff, addr }; buff.inc(addr); return temp;  }
+            auto  operator -- (iota)                { auto temp = iter<RING>{ buff, addr }; buff.dec(addr); return temp;  }
+            auto& operator ++ ()                    {                                       buff.inc(addr); return *this; }
+            auto& operator -- ()                    {                                       buff.dec(addr); return *this; }
+            auto& operator *  ()                    { return buff.buff[addr];                                             }
+            auto  operator -> ()                    { return buff.buff.begin() + addr;                                    }
+            auto  operator != (iter const& m) const { return addr != m.addr;                                              }
+            auto  operator == (iter const& m) const { return addr == m.addr;                                              }
         };
 
         ring(iota ring_size, iota grow_by = 0)
@@ -66,23 +66,23 @@ namespace netxs::generics
         virtual void undock_base_front(type&) { };
         virtual void undock_base_back (type&) { };
 
-        auto  current_it()        { return iter{ *this, cart };          }
-        auto  begin()             { return iter{ *this, head };          }
-        auto  end()               { return iter{ *this, mod(tail + 1) }; }
-        auto  begin() const       { return iter{ *this, head };          }
-        auto  end()   const       { return iter{ *this, mod(tail + 1) }; }
-        auto&         at (iota i) { return buff[mod(head + i)];          }
-        auto& operator[] (iota i) { return at(i);                        }
-        auto& back()              { return buff[tail];                   }
-        auto& front()             { return buff[head];                   }
-        auto& length() const      { return size;                         }
-        auto& current     ()      { return buff[cart];                   }
-        auto& operator  * ()      { return buff[cart];                   }
-        auto  operator -> ()      { return buff.begin() + cart;          }
-        auto  index() const       { return dst(head, cart);              }
-        void  index(iota i)       { cart = mod(head + i);                }
-        void  prev()              { dec(cart);                           }
-        void  next()              { inc(cart);                           }
+        auto  current_it()        { return iter<      ring>{ *this, cart };          }
+        auto  begin()             { return iter<      ring>{ *this, head };          }
+        auto    end()             { return iter<      ring>{ *this, mod(tail + 1) }; }
+        auto  begin() const       { return iter<const ring>{ *this, head };          }
+        auto    end() const       { return iter<const ring>{ *this, mod(tail + 1) }; }
+        auto& length() const      { return size;                }
+        auto&  back()             { return buff[tail];          }
+        auto& front()             { return buff[head];          }
+        auto& current     ()      { return buff[cart];          }
+        auto& operator  * ()      { return buff[cart];          }
+        auto  operator -> ()      { return buff.begin() + cart; }
+        auto&         at (iota i) { return buff[mod(head + i)]; }
+        auto& operator[] (iota i) { return at(i);               }
+        auto  index() const       { return dst(head, cart);     }
+        void  index(iota i)       { cart = mod(head + i);       }
+        void  prev()              { dec(cart);                  }
+        void  next()              { inc(cart);                  }
 
     private:
         auto  full()
@@ -94,10 +94,15 @@ namespace netxs::generics
             }
             return faux;
         }
+        template<bool USE_BACK = faux>
         inline void undock_front()
         {
             auto& item = front();
-            if constexpr (USE_UNDOCK) undock_base_front(item);
+            if constexpr (USE_UNDOCK)
+            {
+                if constexpr (USE_BACK) undock_base_back (item);
+                else                    undock_base_front(item);
+            } 
             item = type{};
             if (cart == head) inc(head), cart = head;
             else              inc(head);
@@ -131,8 +136,9 @@ namespace netxs::generics
             item = type(std::forward<Args>(args)...);
             return item;
         }
-        void pop_back () { undock_back();  --size; }
-        void pop_front() { undock_front(); --size; }
+        template<bool USE_BACK = faux>
+        void pop_front() { undock_front<USE_BACK>(); --size; }
+        void pop_back () { undock_back();            --size; }
         // ring: Insert an item before the specified position. Pop front when full. Return an iterator pointing to the new item.
         template<class ...Args>
         auto insert(iota at, Args&&... args) // Pop front always if ring is full.
@@ -219,7 +225,8 @@ namespace netxs::generics
                 auto tail = begin() - 1;
                 auto head = tail + top_block;
                 netxs::swap_block<faux>(head, tail, head + n);
-                while (n-- > 0) pop_front();
+                static constexpr auto USE_BACK = true;
+                while (n-- > 0) pop_front<USE_BACK>();
             }
             else
             {

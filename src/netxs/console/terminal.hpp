@@ -471,7 +471,7 @@ private:
 
                 vt.csier.table[CSI_CCC][CCC_SBS] = VT_PROC{ p->owner.sbsize(q); };  // CCC_SBS: Set scrollback size.
                 vt.csier.table[CSI_CCC][CCC_EXT] = VT_PROC{ p->owner.native(q(1)); };          // CCC_EXT: Setup extended functionality.
-                vt.csier.table[CSI_CCC][CCC_RST] = VT_PROC{ p->style.glb(); p->style.wrp(WRAPPING); };  // fx_ccc_rst
+                vt.csier.table[CSI_CCC][CCC_RST] = VT_PROC{ p->style.glb(); p->style.wrp(deco::defwrp); };  // fx_ccc_rst
 
                 vt.intro[ctrl::ESC][ESC_IND] = VT_PROC{ p->lf(1); };          // ESC D  Index. Caret down and scroll if needed (IND).
                 vt.intro[ctrl::ESC][ESC_IR ] = VT_PROC{ p->ri (); };          // ESC M  Reverse index (RI).
@@ -629,7 +629,7 @@ private:
             {
                 if (parser::style.wrp() != old_style.wrp())
                 {
-                    auto status = parser::style.wrp() == wrap::none ? WRAPPING
+                    auto status = parser::style.wrp() == wrap::none ? deco::defwrp
                                                                     : parser::style.wrp();
                     owner.base::broadcast->SIGNAL(tier::release, app::term::events::layout::wrapln, status);
                 }
@@ -1571,7 +1571,7 @@ private:
                 return batch.slide;
             }
             // scroll_buf: .
-            bool force_basis()
+            bool force_basis() override
             {
                 return batch.slide == batch.basis;
             }
@@ -2019,8 +2019,11 @@ private:
                     coor.y += batch.basis;
 
                     auto visible = coor.y + origin.y;
-                    if (visible < y_top // Do not show cursor behind margins.
-                     || visible > y_end) return dot_mx;
+                    if (visible < y_top // Do not show cursor behind margins when the scroll region is dragged by mouse.
+                     || visible > y_end)
+                    {
+                        coor.y = dot_mx.y;
+                    }
 
                     auto& curln = batch.current();
                     auto  align = curln.style.jet();
@@ -2051,12 +2054,16 @@ private:
             void sync_coord()
             {
                 coord.y = std::clamp(coord.y, 0, panel.y - 1);
+                if (coord.x < 0) coord.x = 0;
 
                 if (coord.y >= y_top
                  && coord.y <= y_end)
                 {
                     auto& curln = batch.current();
+                    auto  wraps = curln.wrapped();
                     auto  curid = curln.index;
+                    if (coord.x > panel.x && wraps) coord.x = panel.x;
+
                     coord.y -= y_top;
 
                     if (index.size <= coord.y)
@@ -2083,6 +2090,10 @@ private:
                     coord.y += y_top;
 
                     assert((batch.caret - coord.x) % panel.x == 0);
+                }
+                else // Always wraps inside margins.
+                {
+                    if (coord.x > panel.x) coord.x = panel.x;
                 }
             }
 
@@ -2193,7 +2204,7 @@ private:
                     while (size.y-- > 0)
                     {
                         auto oldsz = batch.size;
-                        auto proto = core::span{ curit, static_cast<size_t>(size.x) };
+                        auto proto = core::span{ &(*curit), static_cast<size_t>(size.x) }; // Apple Clang doesn't accept an iterator as an arg in the span ctor.
                         auto curln = line{ curid++, style, proto, width };
                         curln.shrink(block.mark());
                         batch.insert(start, std::move(curln));
@@ -3236,6 +3247,7 @@ private:
                 queue.clear();
             }
         }
+        bool follow_cursor = faux;
         // term: Reset viewport position.
         void scroll(bool force_basis = true)
         {
@@ -3246,9 +3258,30 @@ private:
             scroll_size.y += basis;
             if (force_basis)
             {
+                if (follow_cursor)
+                {
+                    follow_cursor = faux;
+                    if (scroll_size != base::size() || adjust_pads)
+                    {
+                        SIGNAL(tier::release, e2::size::set, scroll_size); // Update scrollbars.
+                    }
+
+                    auto c = console.get_coord(dot_00);
+                    if (origin.x != 0 || c.x != console.panel.x)
+                    {
+                             if (c.x >= 0  && c.x < console.panel.x) origin.x = 0;
+                        else if (c.x >= -origin.x + console.panel.x) origin.x = -c.x + console.panel.x - 1;
+                        else if (c.x <  -origin.x                  ) origin.x = -c.x;
+                    }
+
+                    origin.y = -basis;
+                    SIGNAL(tier::release, e2::coor::set, origin);
+                    return;
+                }
+
                 //todo check the case: arena == batch.peak - 1
                 origin.y = -basis;
-                this->SIGNAL(tier::release, e2::coor::set, origin);
+                SIGNAL(tier::release, e2::coor::set, origin);
             }
             else if (console.is_need_to_correct())
             {
@@ -3259,8 +3292,8 @@ private:
                     //todo optimize
                     //todo separate the viewport position from the slide
                     origin.y = slide;
-                    this->SIGNAL(tier::release, e2::coor::set, origin);
-                    this->SIGNAL(tier::release, e2::size::set, scroll_size); // Update scrollbars.
+                    SIGNAL(tier::release, e2::coor::set, origin);
+                    SIGNAL(tier::release, e2::size::set, scroll_size); // Update scrollbars.
                     return;
                 }
             }
@@ -3268,7 +3301,7 @@ private:
             //todo scrollbars is not updated on keypress
             if (scroll_size != base::size() || adjust_pads)
             {
-                this->SIGNAL(tier::release, e2::size::set, scroll_size); // Update scrollbars.
+                SIGNAL(tier::release, e2::size::set, scroll_size); // Update scrollbars.
             }
         }
         // term: Proceed terminal input.
@@ -3428,7 +3461,8 @@ private:
             SUBMIT(tier::release, hids::events::keybd::any, gear)
             {
                 //todo stop/finalize scrolling animations
-                scroll();
+                scroll(true);
+                follow_cursor = true;
                 //todo optimize/unify
                 auto data = gear.keystrokes;
                 if (!bpmode)
