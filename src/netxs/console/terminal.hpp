@@ -1971,10 +1971,10 @@ private:
             // scroll_buf: Recalc left and right oversize.
             bool recalc_pads(side& oversz) override
             {
-                auto left = std::max(0, batch.max<line::type::rghtside>() - panel.x);
-                auto rght = std::max(0, batch.max<line::type::leftside>() - panel.x);
-                auto cntr = std::max(0, batch.max<line::type::centered>() - panel.x);
-                auto bttm = std::max(0, batch.vsize - (batch.basis + arena));
+                auto rght = std::max({0, batch.max<line::type::leftside>() - panel.x, coord.x - panel.x + 1 }); // Take into account the cursor position.
+                auto left = std::max( 0, batch.max<line::type::rghtside>() - panel.x );
+                auto cntr = std::max( 0, batch.max<line::type::centered>() - panel.x );
+                auto bttm = std::max( 0, batch.vsize - (batch.basis + arena)         );
                 auto both = cntr >> 1;
                 left = std::max(left, both);
                 rght = std::max(rght, both + (cntr & 1));
@@ -3273,11 +3273,7 @@ private:
 
                     origin.y = -basis;
                     SIGNAL(tier::release, e2::coor::set, origin);
-
-                    if (scroll_size != base::size() || adjust_pads)
-                    {
-                        SIGNAL(tier::release, e2::size::set, scroll_size); // Update scrollbars.
-                    }
+                    SIGNAL(tier::release, e2::size::set, scroll_size); // Update scrollbars.
                     return;
                 }
 
@@ -3300,7 +3296,6 @@ private:
                 }
             }
 
-            //todo scrollbars is not updated on keypress
             if (scroll_size != base::size() || adjust_pads)
             {
                 SIGNAL(tier::release, e2::size::set, scroll_size); // Update scrollbars.
