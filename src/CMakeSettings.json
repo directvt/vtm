@@ -3,7 +3,7 @@
     {
       "name": "WSL-GCC-Release",
       "generator": "Ninja",
-      "configurationType": "Release",
+      "configurationType": "MinSizeRel",
       "buildRoot": "${projectDir}\\build\\${name}",
       "installRoot": "${projectDir}\\build\\install\\${name}",
       "cmakeExecutable": "/usr/bin/cmake",
@@ -19,6 +19,16 @@
         {
           "name": "CMAKE_CXX_FLAGS",
           "value": "-pthread",
+          "type": "STRING"
+        },
+        {
+          "name": "CMAKE_C_FLAGS_MINSIZEREL",
+          "value": "-Os -DNDEBUG",
+          "type": "STRING"
+        },
+        {
+          "name": "CMAKE_CXX_FLAGS_MINSIZEREL",
+          "value": "-Ofast -DNDEBUG -s",
           "type": "STRING"
         }
       ]

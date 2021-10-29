@@ -119,7 +119,7 @@ namespace netxs::ui
         auto depend_on_collection(S data_collection_src)
         {
             auto backup = This<T>();
-            for(auto& data_src : data_collection_src)
+            for (auto& data_src : data_collection_src)
             {
                 depend(data_src);
             }
@@ -158,7 +158,7 @@ namespace netxs::ui
         auto attach_collection(PROPERTY, S& data_collection_src, P item_template)
         {
             auto backup = This<T>();
-            for(auto& data_src_sptr : data_collection_src)
+            for (auto& data_src_sptr : data_collection_src)
             {
                 attach_element(PROPERTY{}, data_src_sptr, item_template);
             }
@@ -682,7 +682,7 @@ namespace netxs::ui
     {
         struct item
         {
-            iota id;
+            ui32 id;
             twod coor;
         };
 
@@ -1261,7 +1261,7 @@ namespace netxs::ui
                                                 : 0;
                 master_pos = (iota)std::round(master_center - master_box / 2.0);
 
-                // Reset to extreme positions
+                // Reset to extreme positions.
                 if (scroll_pos == 0 && master_pos > 0) master_pos = 0;
                 if (scroll_pos == s && master_pos < m) master_pos = m;
             }
@@ -1274,14 +1274,14 @@ namespace netxs::ui
                 scroll_box = std::max(1, (iota)(master_box * r));
                 scroll_pos = (iota)std::round(scroll_middle - scroll_box / 2.0);
 
-                // Don't place the grip behind the scrollbar
+                // Don't place the grip behind the scrollbar.
                 if (scroll_pos >= scroll_len) scroll_pos = scroll_len - 1;
 
-                // Extreme positions are always closed last
+                // Extreme positions are always closed last.
                 s = scroll_len - scroll_box;
                 m = master_len - master_box;
 
-                if (scroll_len > 2) // Two-row hight is not suitable for this type of aligning
+                if (scroll_len > 2) // Two-row hight is not suitable for this type of aligning.
                 {
                     if (scroll_pos == 0 && master_pos > 0) scroll_pos = 1;
                     if (scroll_pos == s && master_pos < m) scroll_pos = s - 1;
@@ -1829,7 +1829,7 @@ namespace netxs::ui
                     canvas.output(topic);
                     base::ruined(faux);
                 }
-                parent_canvas.plot(canvas);
+                parent_canvas.fill(canvas, cell::shaders::fusefull);
             };
         }
     };
@@ -2071,7 +2071,7 @@ namespace netxs::ui
                     canvas.render(grip_ctl, base::coor());
                     base::ruined(faux);
                 }
-                parent_canvas.plot(canvas);
+                parent_canvas.fill(canvas, cell::shaders::fusefull);
             };
         }
     };

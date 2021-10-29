@@ -268,7 +268,7 @@ namespace netxs::events
         static inline auto _counter()
         {
             sync lock;
-            while (netxs::on_key(store, ++newid)) {}
+            while (netxs::on_key(store, ++newid)) { }
             return newid;
         }
 

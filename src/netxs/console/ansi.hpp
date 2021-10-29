@@ -66,6 +66,7 @@ namespace netxs::ansi
     static const char CSI_CBT = 'Z';     // CSI n      Z  — Caret backward n tab stops (default = 1).
     static const char CSI_TBC = 'g';     // CSI n      g  — Reset tabstop value.
     static const char CSI_SGR = 'm';     // CSI n [;k] m  — Select Graphic Rendition.
+    static const char CSI_DSR = 'n';     // CSI n      n  — Device Status Report (DSR). n==5 -> "OK"; n==6 -> CSI r ; c R
     static const char DECSTBM = 'r';     // CSI t ; b  r  — Set scrolling region (t/b: top + bottom).
     static const char CSI_SCP = 's';     // CSI        s  — Save caret Position.
     static const char CSI_RCP = 'u';     // CSI        u  — Restore caret Position.
@@ -233,7 +234,7 @@ namespace netxs::ansi
             auto bake = [&](auto bits)
             {
                 do *--cptr = static_cast<char>('0' + bits % 10);
-                while(bits /= 10);
+                while (bits /= 10);
             };
             if constexpr (std::is_signed_v<T>)
             {
@@ -262,6 +263,13 @@ namespace netxs::ansi
             else if constexpr (std::is_integral_v<D>)
             {
                 itos(data);
+            }
+            else if constexpr (std::is_same_v<D, bias>
+                            || std::is_same_v<D, wrap>
+                            || std::is_same_v<D, rtol>
+                            || std::is_same_v<D, feed>)
+            {
+                itos(static_cast<iota>(data));
             }
             else if constexpr (std::is_same_v<D, twod>)
             {
@@ -299,6 +307,7 @@ namespace netxs::ansi
                                                    : "\033[?1002;1003;1004;1006;10060l"); } // esc: Focus and Mouse position reporting/tracking.
         esc& locate(iota x, iota y) { return add("\033[", y,     ';', x,     'H'       ); } // esc: 1-Based caret position.
         esc& locate(twod const& p)  { return add("\033[", p.y+1, ';', p.x+1, 'H'       ); } // esc: 0-Based caret position.
+        esc& report(twod const& p)  { return add("\033[", p.y+1, ";", p.x+1, "R"       ); } // esc: Report 1-Based caret position (CPR).
         esc& locate_wipe ()         { return add("\033[r"                              ); } // esc: Enable scrolling for entire display (clear screen).
         esc& locate_call ()         { return add("\033[6n"                             ); } // esc: Report caret position.
         esc& scroll_wipe ()         { return add("\033[2J"                             ); } // esc: Erase scrollback.
@@ -441,7 +450,7 @@ namespace netxs::ansi
         esc& fgc16(rgba const& c)
         {
             iota clr = 30;
-            switch(c.token)
+            switch (c.token)
             {
                 case 0xFF000000: clr += 0;
                     return add("\033[22;", clr, 'm');
@@ -485,7 +494,7 @@ namespace netxs::ansi
         esc& bgc16(rgba const& c)
         {
             iota clr = 40;
-            switch(c.token)
+            switch (c.token)
             {
                 case 0xFF000000: clr += 0; break;
                 case 0xFFffffff: clr += 5; break;
@@ -517,36 +526,30 @@ namespace netxs::ansi
         template<svga VGAMODE = svga::truecolor>
         esc& fgc(rgba const& c)
         {
-            switch(VGAMODE)
+            switch (VGAMODE)
             {
                 case svga::truecolor:
                     return add("\033[38;2;", c.chan.r, ';',
                                              c.chan.g, ';',
                                              c.chan.b, 'm');
-                case svga::vga16:
-                    return fgc16(c);
-                case svga::vga256:
-                    return fgc256(c);
-                default:
-                    return *this;
+                case svga::vga16:  return fgc16 (c);
+                case svga::vga256: return fgc256(c);
+                default:           return *this;
             }
         }
         // esc: SGR Background color. RGB: red, green, blue.
         template<svga VGAMODE = svga::truecolor>
         esc& bgc(rgba const& c)
         {
-            switch(VGAMODE)
+            switch (VGAMODE)
             {
                 case svga::truecolor:
                     return add("\033[48;2;", c.chan.r, ';',
                                              c.chan.g, ';',
                                              c.chan.b, 'm');
-                case svga::vga16:
-                    return bgc16(c);
-                case svga::vga256:
-                    return bgc256(c);
-                default:
-                    return *this;
+                case svga::vga16:  return bgc16 (c);
+                case svga::vga256: return bgc256(c);
+                default:           return *this;
             }
         }
         esc& sav ()              { return add("\033[10m"              ); } // esc: Save SGR attributes.
@@ -566,14 +569,14 @@ namespace netxs::ansi
         esc& mgr (iota n)        { return add("\033[8:" , n  , CSI_CCC); } // esc: Right margin. Positive - native binding. Negative - opposite binding.
         esc& mgt (iota n)        { return add("\033[9:" , n  , CSI_CCC); } // esc: Top margin. Positive - native binding. Negative - opposite binding.
         esc& mgb (iota n)        { return add("\033[10:", n  , CSI_CCC); } // esc: Bottom margin. Positive - native binding. Negative - opposite binding.
-        esc& jet (iota n)        { return add("\033[11:", n  , CSI_CCC); } // esc: Text alignment.
-        esc& wrp (iota n)        { return add("\033[12:", n  , CSI_CCC); } // esc: Text wrapping.
-        esc& rtl (iota n)        { return add("\033[13:", n  , CSI_CCC); } // esc: Text right-to-left.
-        esc& rlf (iota n)        { return add("\033[14:", n  , CSI_CCC); } // esc: Reverse line feed.
-        esc& jet_or (iota n)     { return add("\033[15:", n  , CSI_CCC); } // esc: Text alignment.
-        esc& wrp_or (iota n)     { return add("\033[16:", n  , CSI_CCC); } // esc: Text wrapping.
-        esc& rtl_or (iota n)     { return add("\033[17:", n  , CSI_CCC); } // esc: Text right-to-left.
-        esc& rlf_or (iota n)     { return add("\033[18:", n  , CSI_CCC); } // esc: Reverse line feed.
+        esc& jet (bias n)        { return add("\033[11:", n  , CSI_CCC); } // esc: Text alignment.
+        esc& wrp (wrap n)        { return add("\033[12:", n  , CSI_CCC); } // esc: Text wrapping.
+        esc& rtl (rtol n)        { return add("\033[13:", n  , CSI_CCC); } // esc: Text right-to-left.
+        esc& rlf (feed n)        { return add("\033[14:", n  , CSI_CCC); } // esc: Reverse line feed.
+        esc& jet_or (bias n)     { return add("\033[15:", n  , CSI_CCC); } // esc: Text alignment.
+        esc& wrp_or (wrap n)     { return add("\033[16:", n  , CSI_CCC); } // esc: Text wrapping.
+        esc& rtl_or (rtol n)     { return add("\033[17:", n  , CSI_CCC); } // esc: Text right-to-left.
+        esc& rlf_or (feed n)     { return add("\033[18:", n  , CSI_CCC); } // esc: Reverse line feed.
         esc& idx (iota i)        { return add("\033[19:", i  , CSI_CCC); } // esc: Split the text run and associate the fragment with an id.
         esc& ref (iota i)        { return add("\033[23:", i  , CSI_CCC); } // esc: Create the reference to the existing paragraph.
         esc& ext (iota b)        { return add("\033[25:", b  , CSI_CCC); } // esc: Extended functionality support, 0 - faux, 1 - true.
@@ -667,14 +670,14 @@ namespace netxs::ansi
     static esc ext (bool b)          { return esc{}.ext (b); } // ansi: Extended functionality.
     static esc show_mouse(bool b)    { return esc{}.show_mouse(b); } // esc: Should the mouse poiner to be drawn.
 
-    static esc jet (iota n)          { return esc{}.jet (n); } // ansi: Text alignment.
-    static esc wrp (iota n)          { return esc{}.wrp (n); } // ansi: Text wrapping.
-    static esc rtl (iota n)          { return esc{}.rtl (n); } // ansi: Text right-to-left.
-    static esc rlf (iota n)          { return esc{}.rlf (n); } // ansi: Reverse line feed.
-    static esc jet_or (iota n)       { return esc{}.jet_or (n); } // ansi: Set text alignment if it is not set.
-    static esc wrp_or (iota n)       { return esc{}.wrp_or (n); } // ansi: Set text wrapping if it is not set.
-    static esc rtl_or (iota n)       { return esc{}.rtl_or (n); } // ansi: Set text right-to-left if it is not set.
-    static esc rlf_or (iota n)       { return esc{}.rlf_or (n); } // ansi: Set reverse line feed if it is not set.
+    static esc jet (bias n)          { return esc{}.jet (n); } // ansi: Text alignment.
+    static esc wrp (wrap n)          { return esc{}.wrp (n); } // ansi: Text wrapping.
+    static esc rtl (rtol n)          { return esc{}.rtl (n); } // ansi: Text right-to-left.
+    static esc rlf (feed n)          { return esc{}.rlf (n); } // ansi: Reverse line feed.
+    static esc jet_or (bias n)       { return esc{}.jet_or (n); } // ansi: Set text alignment if it is not set.
+    static esc wrp_or (wrap n)       { return esc{}.wrp_or (n); } // ansi: Set text wrapping if it is not set.
+    static esc rtl_or (rtol n)       { return esc{}.rtl_or (n); } // ansi: Set text right-to-left if it is not set.
+    static esc rlf_or (feed n)       { return esc{}.rlf_or (n); } // ansi: Set reverse line feed if it is not set.
 
     static esc rst ()                { return esc{}.rst ( ); } // ansi: Reset formatting parameters.
     static esc nop ()                { return esc{}.nop ( ); } // ansi: No operation. Split the text run.
@@ -751,70 +754,144 @@ namespace netxs::ansi
               fresh{ brush },
               spare{ brush }
         { }
-        void reset()              { *this = fresh; }
-        void reset(cell const& c) { *this = fresh = c; }
+        void reset()              { *this = fresh;          }
+        void reset(cell const& c) { *this = fresh = c;      }
         auto busy() const         { return  fresh != *this; } // mark: Is the marker modified.
         void  sav()               { spare.set(*this);       } // mark: Save current SGR attributes.
         void  nil()               { this->set(spare);       } // mark: Restore saved SGR attributes.
         void  rfg()               { this->fgc(spare.fgc()); } // mark: Reset SGR Foreground color.
         void  rbg()               { this->bgc(spare.bgc()); } // mark: Reset SGR Background color.
     };
-    struct deco
+    #pragma pack(push,1)
+    union deco
     {
-        static constexpr iota maxtab = 256; // deco: Tab length limit.
-        iota adjust = bias::none; // deco: Horizontal alignment.
-        iota wrapln = wrap::none; // deco: Auto wrapping.
-        iota r_to_l = rtol::none; // deco: RTL.
-        iota rlfeed = feed::none; // deco: Reverse line feed.
-        iota tablen = 0;          // deco: Tab length.
-        dent margin;              // deco: Page margins.
+        enum type : iota
+        {
+            leftside, // default
+            rghtside,
+            centered,
+            autowrap,
+            count,
+        };
 
-        auto& wrp(bool  b) { wrapln = b ? wrap::on  : wrap::off;  return *this; } // deco: Set auto wrapping.
-        auto& rtl(bool  b) { r_to_l = b ? rtol::rtl : rtol::ltr;  return *this; } // deco: Set RTL.
-        auto& rlf(bool  b) { rlfeed = b ? feed::rev : feed::fwd;  return *this; } // deco: Set revverse line feed.
-        auto& jet(iota  n = bias::none)        { adjust = n;      return *this; } // deco: Paragraph adjustment.
-        auto& wrp(iota  n = wrap::none)        { wrapln = n;      return *this; } // deco: Auto wrapping.
-        auto& rtl(iota  n = rtol::none)        { r_to_l = n;      return *this; } // deco: RTL.
-        auto& rlf(iota  n = feed::none)        { rlfeed = n;      return *this; } // deco: Reverse line feed.
-        auto& jet_or(iota  n)     { if (!adjust) adjust = n;      return *this; } // deco: Paragraph adjustment.
-        auto& wrp_or(iota  n)     { if (!wrapln) wrapln = n;      return *this; } // deco: Auto wrapping.
-        auto& rtl_or(iota  n)     { if (!r_to_l) r_to_l = n;      return *this; } // deco: RTL.
-        auto& rlf_or(iota  n)     { if (!rlfeed) rlfeed = n;      return *this; } // deco: Reverse line feed.
-        auto& tbs(iota  n = 0)                 { tablen = std::min(n, maxtab); return *this; } // deco: fx_ccc_tbs.
-        auto& mgl(iota  n = 0)                 { margin.west = n; return *this; } // deco: fx_ccc_mgl.
-        auto& mgr(iota  n = 0)                 { margin.east = n; return *this; } // deco: fx_ccc_mgr.
-        auto& mgt(iota  n = 0)                 { margin.head = n; return *this; } // deco: fx_ccc_mgt.
-        auto& mgb(iota  n = 0)                 { margin.foot = n; return *this; } // deco: fx_ccc_mgb.
-        auto& mgn(fifo& q)                     { margin.set(q);   return *this; } // deco: fx_ccc_mgn.
-        auto& rst()  // deco: Reset to none.
+        static constexpr auto defwrp = wrap::on; // deco: Default autowrap behavior.
+        static constexpr iota maxtab = 255; // deco: Tab length limit.
+        struct
         {
-            adjust = bias::none;
-            wrapln = wrap::none;
-            r_to_l = rtol::none;
-            rlfeed = feed::none;
-            tablen = 0;
-            margin.reset();
-            return *this;
+            wrap wrapln : 2; // deco: Autowrap.
+            bias adjust : 2; // deco: Horizontal alignment.
+            rtol r_to_l : 2; // deco: RTL.
+            feed rlfeed : 2; // deco: Reverse line feed.
+            byte tablen : 8; // deco: Tab length.
+            dent margin;     // deco: Page margins.
+        } v;
+        ui64 token;
+
+        friend    auto operator!= (deco const& a, deco const& b)
+                                                  { return a.token != b.token; }
+        constexpr deco()                          : token { 0 }              { }
+        constexpr deco            (deco const& d) : token { d.token }        { }
+        constexpr void operator = (deco const& d) { token = d.token;           }
+        constexpr deco(iota)
+            : v{ .wrapln = deco::defwrp,
+                 .adjust = bias::left,
+                 .r_to_l = rtol::ltr,
+                 .rlfeed = feed::fwd,
+                 .tablen = 8,
+                 .margin = {} }
+        { }
+
+        auto  wrp   () const  { return v.wrapln;                                        } // deco: Return Auto wrapping.
+        auto  jet   () const  { return v.adjust;                                        } // deco: Return Paragraph adjustment.
+        auto  rtl   () const  { return v.r_to_l;                                        } // deco: Return RTL.
+        auto  rlf   () const  { return v.rlfeed;                                        } // deco: Return Reverse line feed.
+        auto  tbs   () const  { return v.tablen;                                        } // deco: Return Reverse line feed.
+        auto& mgn   () const  { return v.margin;                                        } // deco: Return margins.
+        auto& wrp   (bool  b) { v.wrapln = b ? wrap::on  : wrap::off;     return *this; } // deco: Set auto wrapping.
+        auto& rtl   (bool  b) { v.r_to_l = b ? rtol::rtl : rtol::ltr;     return *this; } // deco: Set RTL.
+        auto& rlf   (bool  b) { v.rlfeed = b ? feed::rev : feed::fwd;     return *this; } // deco: Set revverse line feed.
+        auto& wrp   (wrap  n) { v.wrapln = n;                             return *this; } // deco: Auto wrapping.
+        auto& jet   (bias  n) { v.adjust = n;                             return *this; } // deco: Paragraph adjustment.
+        auto& rtl   (rtol  n) { v.r_to_l = n;                             return *this; } // deco: RTL.
+        auto& rlf   (feed  n) { v.rlfeed = n;                             return *this; } // deco: Reverse line feed.
+        auto& wrp_or(wrap  n) { if (v.wrapln == wrap::none) v.wrapln = n; return *this; } // deco: Auto wrapping.
+        auto& jet_or(bias  n) { if (v.adjust == bias::none) v.adjust = n; return *this; } // deco: Paragraph adjustment.
+        auto& rtl_or(rtol  n) { if (v.r_to_l == rtol::none) v.r_to_l = n; return *this; } // deco: RTL.
+        auto& rlf_or(feed  n) { if (v.rlfeed == feed::none) v.rlfeed = n; return *this; } // deco: Reverse line feed.
+        auto& tbs   (iota  n) { v.tablen = std::min(n, maxtab);           return *this; } // deco: fx_ccc_tbs.
+        auto& mgl   (iota  n) { v.margin.west.step = n;                   return *this; } // deco: fx_ccc_mgl.
+        auto& mgr   (iota  n) { v.margin.east.step = n;                   return *this; } // deco: fx_ccc_mgr.
+        auto& mgt   (iota  n) { v.margin.head.step = n;                   return *this; } // deco: fx_ccc_mgt.
+        auto& mgb   (iota  n) { v.margin.foot.step = n;                   return *this; } // deco: fx_ccc_mgb.
+        auto& mgn   (fifo& q) { v.margin.set(q);                          return *this; } // deco: fx_ccc_mgn.
+        auto& rst   ()        { token = 0;                                return *this; } // deco: Reset.
+        constexpr auto& glb() { operator=(deco(0));                       return *this; }  // deco: Reset to default.
+        auto get_kind() const
+        {
+            return v.wrapln == wrap::on    ? type::autowrap :
+                   v.adjust == bias::left  ? type::leftside :
+                   v.adjust == bias::right ? type::rghtside :
+                                             type::centered ;
         }
-        auto& glb()  // deco: Reset to default.
+    };
+    #pragma pack(pop)
+
+    static constexpr auto def_style = deco(0);
+
+    struct runtime
+    {
+        bool iswrapln;
+        bool isr_to_l;
+        bool isrlfeed;
+        bool straight; // runtime: Text substring retrieving direction.
+        bool centered;
+        bool arighted;
+        iota tabwidth;
+        dent textpads;
+
+        void combine(deco const& global, deco const& custom)
         {
-            adjust = bias::left;
-            wrapln = wrap::on;
-            r_to_l = rtol::ltr;
-            rlfeed = feed::fwd;
-            tablen = 8;
-            margin.reset();
-            return *this;
+            // Custom settings take precedence over global.
+            auto s_wrp = custom.wrp(); iswrapln = s_wrp != wrap::none ? s_wrp == wrap::on  : global.wrp() == wrap::on;
+            auto s_rtl = custom.rtl(); isr_to_l = s_rtl != rtol::none ? s_rtl == rtol::rtl : global.rtl() == rtol::rtl;
+            auto s_rlf = custom.rlf(); isrlfeed = s_rlf != feed::none ? s_rlf == feed::rev : global.rlf() == feed::rev;
+            auto s_tbs = custom.tbs(); tabwidth = s_tbs != 0          ? s_tbs              : global.tbs();
+            auto s_jet = custom.jet();
+            if (s_jet != bias::none)
+            {
+                arighted = s_jet == bias::right;
+                centered = s_jet == bias::center;
+            }
+            else
+            {
+                auto g_jet = global.jet(); 
+                arighted = g_jet == bias::right;
+                centered = g_jet == bias::center;
+            }
+            straight = iswrapln || isr_to_l == arighted;
+            // Combine local and global margins.
+            textpads = global.mgn();
+            textpads+= custom.mgn();
         }
-        auto& set(deco const& l)  // deco: Copy.
+    };
+
+    //todo should we parse these controls as a C0-like?
+    //     split paragraphs when flow direction changes, for example.
+    struct marker
+    {
+        using changer = std::array<void (*)(cell&), ctrl::COUNT>;
+        changer	setter = {};
+        marker()
         {
-            adjust = l.adjust;
-            wrapln = l.wrapln;
-            r_to_l = l.r_to_l;
-            rlfeed = l.rlfeed;
-            margin = l.margin;
-            tablen = l.tablen;
-            return *this;
+            setter[ctrl::ALM                 ] = [](cell& p) { p.rtl(true);    };
+            setter[ctrl::RLM                 ] = [](cell& p) { p.rtl(true);    };
+            setter[ctrl::LRM                 ] = [](cell& p) { p.rtl(faux);    };
+            setter[ctrl::SHY                 ] = [](cell& p) { p.hyphen(true); };
+            setter[ctrl::FUNCTION_APPLICATION] = [](cell& p) { p.fnappl(true); };
+            setter[ctrl::INVISIBLE_TIMES     ] = [](cell& p) { p.itimes(true); };
+            setter[ctrl::INVISIBLE_SEPARATOR ] = [](cell& p) { p.isepar(true); };
+            setter[ctrl::INVISIBLE_PLUS      ] = [](cell& p) { p.inplus(true); };
+            setter[ctrl::ZWNBSP              ] = [](cell& p) { p.zwnbsp(true); };
         }
     };
 
@@ -843,9 +920,9 @@ namespace netxs::ansi
         {
            /* Contract for client p
             * Unicode
-            * - void post(utf::frag const& cluster); // Proceed grapheme cluster.
-            * - void task(ansi::rule const& cmd);    // Proceed curses command.
-            * - void cook();                         // Finalize paragraph.
+            * - void task(ansi::rule const& cmd);          // Proceed curses command.
+            * - void meta(deco& old, deco& new);           // Proceed new style.
+            * - void data(iota count, grid const& proto);  // Proceed new cells.
             * SGR:
             * - void nil();                          // Reset all SGR to default.
             * - void sav();                          // Set current SGR as default.
@@ -908,6 +985,7 @@ namespace netxs::ansi
                 table[CSI__SD] = nullptr;
                 table[CSI__SU] = nullptr;
                 table[CSI_WIN] = nullptr;
+                table[CSI_DSR] = nullptr;
 
                 auto& csi_ccc = table[CSI_CCC].resize(0x100);
                 csi_ccc.enable_multi_arg();
@@ -925,14 +1003,14 @@ namespace netxs::ansi
                     csi_ccc[CCC_MGT   ] = VT_PROC{ p->style.mgt   (q(0)); }; // fx_ccc_mgt
                     csi_ccc[CCC_MGB   ] = VT_PROC{ p->style.mgb   (q(0)); }; // fx_ccc_mgb
                     csi_ccc[CCC_TBS   ] = VT_PROC{ p->style.tbs   (q(0)); }; // fx_ccc_tbs
-                    csi_ccc[CCC_JET   ] = VT_PROC{ p->style.jet   (q(0)); }; // fx_ccc_jet
-                    csi_ccc[CCC_WRP   ] = VT_PROC{ p->style.wrp   (q(0)); }; // fx_ccc_wrp
-                    csi_ccc[CCC_RTL   ] = VT_PROC{ p->style.rtl   (q(0)); }; // fx_ccc_rtl
-                    csi_ccc[CCC_RLF   ] = VT_PROC{ p->style.rlf   (q(0)); }; // fx_ccc_rlf
-                    csi_ccc[CCC_JET_or] = VT_PROC{ p->style.jet_or(q(0)); }; // fx_ccc_or_jet
-                    csi_ccc[CCC_WRP_or] = VT_PROC{ p->style.wrp_or(q(0)); }; // fx_ccc_or_wrp
-                    csi_ccc[CCC_RTL_or] = VT_PROC{ p->style.rtl_or(q(0)); }; // fx_ccc_or_rtl
-                    csi_ccc[CCC_RLF_or] = VT_PROC{ p->style.rlf_or(q(0)); }; // fx_ccc_or_rlf
+                    csi_ccc[CCC_JET   ] = VT_PROC{ p->style.jet   (static_cast<bias>(q(0))); }; // fx_ccc_jet
+                    csi_ccc[CCC_WRP   ] = VT_PROC{ p->style.wrp   (static_cast<wrap>(q(0))); }; // fx_ccc_wrp
+                    csi_ccc[CCC_RTL   ] = VT_PROC{ p->style.rtl   (static_cast<rtol>(q(0))); }; // fx_ccc_rtl
+                    csi_ccc[CCC_RLF   ] = VT_PROC{ p->style.rlf   (static_cast<feed>(q(0))); }; // fx_ccc_rlf
+                    csi_ccc[CCC_JET_or] = VT_PROC{ p->style.jet_or(static_cast<bias>(q(0))); }; // fx_ccc_or_jet
+                    csi_ccc[CCC_WRP_or] = VT_PROC{ p->style.wrp_or(static_cast<wrap>(q(0))); }; // fx_ccc_or_wrp
+                    csi_ccc[CCC_RTL_or] = VT_PROC{ p->style.rtl_or(static_cast<rtol>(q(0))); }; // fx_ccc_or_rtl
+                    csi_ccc[CCC_RLF_or] = VT_PROC{ p->style.rlf_or(static_cast<feed>(q(0))); }; // fx_ccc_or_rlf
 
                     csi_ccc[CCC_NOP] = nullptr;
                     csi_ccc[CCC_IDX] = nullptr;
@@ -1014,24 +1092,24 @@ namespace netxs::ansi
         void proceed_asterisk  (fifo& q, T*& p) { table_asterisk.execute(q, p); }
     };
 
-    template<class T> struct _glb { static typename T::template parser<T> parser; };
-    template<class T> typename T::template parser<T> _glb<T>::parser;
+    template<class T> struct _glb { static typename T::template vt_parser<T>          vt_parser; };
+    template<class T>                      typename T::template vt_parser<T> _glb<T>::vt_parser;
 
-    template<class T> inline void parse(view utf8, T*&  dest) { _glb<T>::parser.parse(utf8, dest); }
-    template<class T> inline void parse(view utf8, T*&& dest) { T* dptr = dest; parse(utf8, dptr); }
+    template<class T> inline void parse(view utf8, T*&  dest) { _glb<T>::vt_parser.parse(utf8, dest); }
+    template<class T> inline void parse(view utf8, T*&& dest) { T* dptr = dest;    parse(utf8, dptr); }
 
     template<class T> using esc_t = func<qiew, T>;
     template<class T> using osc_h = std::function<void(view&, T*&)>;
     template<class T> using osc_t = std::map<text, osc_h<T>>;
 
     template<class T>
-    struct parser
+    struct vt_parser
     {
-        ansi::esc_t<T> intro; // parser:  C0 table.
-        ansi::csi_t<T> csier; // parser: CSI table.
-        ansi::osc_t<T> oscer; // parser: OSC table.
+        ansi::esc_t<T> intro; // vt_parser:  C0 table.
+        ansi::csi_t<T> csier; // vt_parser: CSI table.
+        ansi::osc_t<T> oscer; // vt_parser: OSC table.
 
-        parser()
+        vt_parser()
         {
             intro.resize(ctrl::NON_CONTROL);
             //intro[ctrl::BS ] = backspace;
@@ -1050,7 +1128,7 @@ namespace netxs::ansi
                 //esc['M'  ] = __ri;
         }
 
-        // ansi: Static UTF-8/ANSI parser proc.
+        // vt_parser: Static UTF-8/ANSI parser proc.
         void parse(view utf8, T*& client)
         {
             auto s = [&](auto& traits, auto& utf8)
@@ -1062,17 +1140,17 @@ namespace netxs::ansi
             auto y = [&](auto& cluster) { client->post(cluster); };
 
             utf::decode(s, y, utf8);
-            client->cook();
+            client->flush();
         }
-        // ansi: Static UTF-8/ANSI parser proc.
+        // vt_parser: Static UTF-8/ANSI parser proc.
         void parse(view utf8, T*&& client)
         {
             T* p = client;
-            parse(p, utf8);
+            parse(utf8, p);
         }
 
     private:
-        // Control Sequence Introducer (CSI) parser.
+        // vt_parser: Control Sequence Introducer (CSI) parser.
         static void xcsi(qiew& ascii, T*& client)
         {
             // Take the control sequence from the string until CSI (cmd >= 0x40 && cmd <= 0x7E) command occured
@@ -1086,7 +1164,7 @@ namespace netxs::ansi
             {
                 auto b = '\0';
                 auto ints = []  (unsigned char cmd) { return cmd >= 0x20 && cmd <= 0x2f; }; // "intermediate bytes" in the range 0x20–0x2F
-                auto pars = []  (unsigned char cmd) { return cmd >= 0x3A && cmd <= 0x3f; }; // "parameter bytes" in the range 0x30–0x3F
+                auto pars = []  (unsigned char cmd) { return cmd >= 0x3C && cmd <= 0x3f; }; // "parameter bytes" in the range 0x30–0x3F
                 auto cmds = []  (unsigned char cmd) { return cmd >= 0x40 && cmd <= 0x7E; };
                 auto fill = [&] (auto& queue)
                 {
@@ -1118,7 +1196,7 @@ namespace netxs::ansi
                     }
                 };
 
-                auto& csier = _glb<T>::parser.csier;
+                auto& csier = _glb<T>::vt_parser.csier;
                 auto c = ascii.front();
                 if (cmds(c))
                 {
@@ -1153,7 +1231,7 @@ namespace netxs::ansi
             }
         }
 
-        // Operating System Command (OSC) parser.
+        // vt_parser: Operating System Command (OSC) parser.
         static void xosc(qiew& ascii, T*& client)
         {
             // Take the string until ST (='\e\\'='ESC\' aka String Terminator) or BEL (='\x07')
@@ -1181,7 +1259,7 @@ namespace netxs::ansi
                 auto delm = tail; // Semicolon ';' position
                 auto exec = [&](auto pad)
                 {
-                    auto& oscer = _glb<T>::parser.oscer;
+                    auto& oscer = _glb<T>::vt_parser.oscer;
                     text cmd(base, delm);
                     ++delm;
                     auto size = head - delm;
@@ -1238,7 +1316,7 @@ namespace netxs::ansi
             }
         }
 
-        // Set keypad mode.
+        // vt_parser: Set keypad mode.
         static void keym(qiew& ascii, T*& p)
         {
             // Keypad mode	Application ESC =
@@ -1251,7 +1329,7 @@ namespace netxs::ansi
             //}
         }
 
-        // Designate G0 Character Set.
+        // vt_parser: Designate G0 Character Set.
         static void g0__(qiew& ascii, T*& p)
         {
             // ESC ( C
@@ -1265,25 +1343,95 @@ namespace netxs::ansi
         }
     };
 
-    //todo should we parse these controls as a C0-like?
-    //     split paragraphs when flow direction changes, for example.
-    template<class CELL>
-    struct marker
+    class parser
     {
-        using changer = std::array<void (*)(CELL &), ctrl::COUNT>;
-        changer	setter = {};
-        marker()
+        //todo use C++20 requires expressions
+        template <class A>
+        struct has
         {
-            setter[ctrl::ALM                 ] = [](CELL& p) { p.rtl(true);    };
-            setter[ctrl::RLM                 ] = [](CELL& p) { p.rtl(true);    };
-            setter[ctrl::LRM                 ] = [](CELL& p) { p.rtl(faux);    };
-            setter[ctrl::SHY                 ] = [](CELL& p) { p.hyphen(true); };
-            setter[ctrl::FUNCTION_APPLICATION] = [](CELL& p) { p.fnappl(true); };
-            setter[ctrl::INVISIBLE_TIMES     ] = [](CELL& p) { p.itimes(true); };
-            setter[ctrl::INVISIBLE_SEPARATOR ] = [](CELL& p) { p.isepar(true); };
-            setter[ctrl::INVISIBLE_PLUS      ] = [](CELL& p) { p.inplus(true); };
-            setter[ctrl::ZWNBSP              ] = [](CELL& p) { p.zwnbsp(true); };
+            template <class B> static int16_t _(decltype(&B::template parser_config<ansi::vt_parser<B>>));
+            template <class B> static uint8_t _(...);
+            static constexpr bool parser_config = sizeof(_<A>(nullptr)) - 1;
+        };
+
+    public:
+        deco style{}; // parser: Parser style.
+        deco state{}; // parser: Parser style last state.
+        grid proto{}; // parser: Proto lyric.
+        iota count{}; // parser: Proto lyric length.
+        mark brush{}; // parser: Parser brush.
+        //text debug{};
+
+        parser() = default;
+        parser(deco style)
+            : style{ style },
+              state{ style }
+        { };
+
+        template<class T>
+        struct vt_parser : public ansi::vt_parser<T>
+        {
+            using vt = ansi::vt_parser<T>;
+            vt_parser() : vt()
+            {
+                if constexpr (has<T>::parser_config) T::parser_config(*this);
+            }
+        };
+
+        void post(utf::frag const& cluster)
+        {
+            static ansi::marker marker;
+
+            auto& utf8 = cluster.text;
+            auto& attr = cluster.attr;
+            if (auto w = attr.ucwidth)
+            {
+                count += w;
+                brush.set_gc(utf8, w);
+                proto.push_back(brush);
+                //debug += (debug.size() ? "_"s : ""s) + text(utf8);
+            }
+            else
+            {
+                if (auto set_prop = marker.setter[attr.control])
+                {
+                    if (proto.size())
+                    {
+                        set_prop(proto.back());
+                    }
+                    else
+                    {
+                        auto empty = brush;
+                        empty.txt(whitespace).wdt(w);
+                        set_prop(empty);
+                        proto.push_back(empty);
+                    }
+                }
+                else
+                {
+                    brush.set_gc(utf8, w);
+                    proto.push_back(brush);
+                }
+                //auto i = utf::to_hex((size_t)attr.control, 5, true);
+                //debug += (debug.size() ? "_<fn:"s : "<fn:"s) + i + ">"s;
+            }
         }
+        inline void flush()
+        {
+            if (state != style)
+            {
+                meta(state);
+                state = style;
+            }
+            if (count)
+            {
+                data(count, proto);
+                proto.clear();
+                count = 0;
+            }
+        }
+        virtual void meta(deco const& old_style)         { };
+        virtual void data(iota count, grid const& proto) { };
     };
 
     // ansi: Caret manipulation command list.

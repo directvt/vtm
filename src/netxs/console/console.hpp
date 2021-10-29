@@ -11,10 +11,10 @@
 #include <iostream>
 #include <typeindex>
 
-#define SPD            10   // console: Auto-scroll initial speed component ΔR.
+#define SPD            1   // console: Auto-scroll initial speed component ΔR.
 #define PLS            167  // console: Auto-scroll initial speed component ΔT.
 #define CCL            120  // console: Auto-scroll duration in ms.
-#define SPD_ACCEL      3    // console: Auto-scroll speed accelation.
+#define SPD_ACCEL      4    // console: Auto-scroll speed accelation.
 #define CCL_ACCEL      30   // console: Auto-scroll additional duration in ms.
 #define SPD_MAX        100  // console: Auto-scroll max speed.
 #define CCL_MAX        1000 // console: Auto-scroll max duration in ms.
@@ -503,11 +503,10 @@ namespace netxs::console
 
     // console: Textographical canvas.
     class face
-        : public core, public flow, public std::enable_shared_from_this<face>
+        : public rich, public flow, public std::enable_shared_from_this<face>
     {
         using vrgb = std::vector<irgb>;
 
-        cell brush;
         twod anker;     // face: The position of the nearest visible paragraph.
         id_t piece = 1; // face: The nearest to top paragraph.
 
@@ -526,6 +525,20 @@ namespace netxs::console
         bool moved = faux; // face: Is reflow required.
         bool decoy = true; // face: Is the cursor inside the viewport.
 
+        // face: Print something else at the specified coor.
+        template<class T, class P = noop>
+        void output(T const& block, twod const& coord, P printfx = P())
+        {
+            flow::ac(coord);
+            flow::go(block, *this, printfx);
+        }
+        // face: Print something else.
+        template<bool USE_FWD = faux, class T, class P = noop>
+        void output(T const& block, P printfx = P())
+        {
+            //todo unify
+            flow::print<USE_FWD>(block, *this, printfx);
+        }
         // face: Print paragraph.
         void output(para const& block)
         {
@@ -538,7 +551,6 @@ namespace netxs::console
             auto publish = [&](auto const& combo)
             {
                 flow::print(combo, *this, printfx);
-                brush = combo.mark(); // Current mark of the last printed fragment.
             };
             textpage.stream(publish);
         }
@@ -553,7 +565,6 @@ namespace netxs::console
             auto gain = [&](auto const& combo)
             {
                 auto pred = flow::print(combo, *this);
-                brush = combo.mark(); // Current mark of the last printed fragment.
 
                 auto post = flow::cp();
                 if (!done)
@@ -648,7 +659,7 @@ namespace netxs::console
             flow::reset();
         }
         // face: Change current context. Return old context.
-        auto  bump(dent const& delta)
+        auto bump(dent const& delta)
         {
             auto old_full = face::full();
             auto old_view = core::view();
@@ -659,7 +670,7 @@ namespace netxs::console
             return std::pair{ old_full, old_view };
         }
         // face: Restore previously saved context.
-        void  bump(std::pair<rect, rect> ctx)
+        void bump(std::pair<rect, rect> ctx)
         {
             face::full(ctx.first);
             core::view(ctx.second);
@@ -695,7 +706,22 @@ namespace netxs::console
             core::size(newsize);
             flow::size(newsize);
         }
-
+        auto size () // face: Return size of the face/core.
+        {
+            return core::size();
+        }
+        template<bool BOTTOM_ANCHORED = faux>
+        void crop(twod const& newsize, cell const& c) // face: Resize while saving the bitmap.
+        {
+            core::crop<BOTTOM_ANCHORED>(newsize, c);
+            flow::size(newsize);
+        }
+        template<bool BOTTOM_ANCHORED = faux>
+        void crop(twod const& newsize) // face: Resize while saving the bitmap.
+        {
+            core::crop<BOTTOM_ANCHORED>(newsize, core::mark());
+            flow::size(newsize);
+        }
         template<class P = noop>
         void blur(iota r, P shade = P())
         {
@@ -2058,35 +2084,18 @@ namespace netxs::console
                             {
                                 area.coor -= dot_11;
                                 area.size += dot_22;
-
-                                // Calc average bg brightness.
-                                auto count = 0;
-                                auto light = 0;
-                                auto sumfx = [&](cell& c)
-                                {
-                                    count++;
-                                    auto& clr = c.bgc();
-                                    light += clr.chan.r + clr.chan.g + clr.chan.b;
-                                };
-                                auto head = area;
-                                head.size.y = 1;
-                                canvas.each(head, sumfx);
-                                auto b = count ? light / (count * 3) : 0;
-
-                                // Draw the frame.
                                 auto mark = skin::color(tone::kb_focus);
                                 auto fill = [&](cell& c) { c.fuse(mark); };
                                 canvas.cage(area, dot_11, fill);
-                                coder.wrp(wrap::off).fgc(b > 130 ? 0xFF000000
-                                                                 : 0xFFFFFFFF).add("capture area: ", slot);
-                                auto size = para(coder);
+                                coder.wrp(wrap::off).add("capture area: ", slot);
+                                //todo optimize para
+                                auto caption = para(coder);
                                 coder.clear();
-                                //canvas.cup(area.coor);
-                                //canvas.output(size);
-
-                                auto header = *size.lyric;
-                                header.move(area.coor + canvas.coor());
-                                canvas.fill(header);
+                                auto header = *caption.lyric;
+                                auto coor = area.coor + canvas.coor();
+                                coor.y--;
+                                header.move(coor);
+                                canvas.fill(header, cell::shaders::contrast);
                             }
                             else
                             {
@@ -2094,6 +2103,15 @@ namespace netxs::console
                                 canvas.view(area);
                                 canvas.fill(area, [&](cell& c) { c.fuse(mark); c.und(faux); });
                                 canvas.blur(10);
+                                coder.wrp(wrap::off).add(' ').add(slot.size.x).add(" × ").add(slot.size.y).add(' ');
+                                //todo optimize para
+                                auto caption = para(coder);
+                                coder.clear();
+                                auto header = *caption.lyric;
+                                auto coor = area.coor + area.size + canvas.coor();
+                                coor.x -= caption.length() - 1;
+                                header.move(coor);
+                                canvas.fill(header, cell::shaders::contrast);
                                 canvas.view(temp);
                             }
                         }
@@ -2175,6 +2193,40 @@ namespace netxs::console
                     show();
                 }
             }
+            void style(iota mode)
+            {
+                switch (mode)
+                {
+                    case 0: // n = 0  blinking box
+                    case 1: // n = 1  blinking box (default)
+                        blink_period();
+                        style(true);
+                        break;
+                    case 2: // n = 2  steady box
+                        blink_period(period::zero());
+                        style(true);
+                        break;
+                    case 3: // n = 3  blinking underline
+                        blink_period();
+                        style(faux);
+                        break;
+                    case 4: // n = 4  steady underline
+                        blink_period(period::zero());
+                        style(faux);
+                        break;
+                    case 5: // n = 5  blinking I-bar
+                        blink_period();
+                        style(true);
+                        break;
+                    case 6: // n = 6  steady I-bar
+                        blink_period(period::zero());
+                        style(true);
+                        break;
+                    default:
+                        log("pro::caret: unsupported cursor style requested, ", mode);
+                        break;
+                }
+            }
             // pro::caret: Set caret position.
             void coor(twod const& coor)
             {
@@ -2227,8 +2279,23 @@ namespace netxs::console
                             point.coor += field.coor + boss.base::coor();
                             if (auto area = field.clip(point))
                             {
-                                if (form) canvas.fill(area, [](cell& c) { c.inv(!c.inv()); });
-                                else      canvas.fill(area, [](cell& c) { c.und(!c.und()); });
+                                if (form)
+                                {
+                                    canvas.fill(area, [](cell& c) {
+                                        auto b = c.bgc();
+                                        auto f = c.fgc();
+                                        if (c.inv()) c.bgc(f).fgc(cell::shaders::contrast.invert(f));
+                                        else         c.fgc(b).bgc(cell::shaders::contrast.invert(b));
+                                    });
+                                }
+                                else canvas.fill(area, [](cell& c) { c.und(!c.und()); });
+                            }
+                            else if (area.size.y)
+                            {
+                                auto chr = area.coor.x ? '>' : '<';
+                                area.coor.x -= area.coor.x ? 1 : 0;
+                                area.size.x = 1;
+                                canvas.fill(area, [&](auto& c){ c.txt(chr).fgc(cell::shaders::contrast.invert(c.bgc())); });
                             }
                         }
                     };
@@ -2455,9 +2522,11 @@ namespace netxs::console
                 {
                     shadow();
                     auto& k = gear;
+
                     #ifdef KEYLOG
-                    log("debug fired ", k.character);
+                        log("debug fired ", utf::to_utf(&k.character, 1));
                     #endif
+
                     status[prop::last_event   ].set(stress) = "key";
                     status[prop::key_pressed  ].set(stress) = k.down ? "pressed" : "idle";
                     status[prop::ctrl_state   ].set(stress) = "0x" + utf::to_hex(k.ctlstate );
@@ -2569,22 +2638,11 @@ namespace netxs::console
                 {
                     if (live)
                     {
-                        auto contrast_fx = [](auto& dst, auto& src)
-                        {
-                            auto& fgc = src.fgc();
-                            if (fgc.chan.a == 0x00)
-                            {
-                                auto constexpr threshold = rgba{ tint::whitedk }.luma();
-                                if (dst.bgc().luma() >= threshold) dst.fgc(0xFF000000).fusefull(src);
-                                else                               dst.fgc(0xFFffffff).fusefull(src);
-                            }
-                            else dst.fusefull(src);
-                        };
                         auto saved_context = canvas.bump(dent{ 0,0,head_size.y,foot_size.y });
                         canvas.cup(dot_00);
-                        canvas.output(head_page, contrast_fx);
+                        canvas.output(head_page, cell::shaders::contrast);
                         canvas.cup({ 0, head_size.y + boss.size().y });
-                        canvas.output(foot_page, contrast_fx);
+                        canvas.output(foot_page, cell::shaders::contrast);
                         canvas.bump(saved_context);
                     }
                 };
@@ -2871,8 +2929,7 @@ namespace netxs::console
 
                             while (--item != head
                                 && !area.clip((**std::prev(item)).region))
-                            {
-                            }
+                            { }
 
                             items.insert(item.base(), shadow);
                             return area;
@@ -3320,7 +3377,7 @@ namespace netxs::console
                 };
                 boss.SUBMIT_T(tier::release, e2::form::draggable::any, memo, enabled)
                 {
-                    switch(auto deed = boss.bell::protos<tier::release>())
+                    switch (auto deed = boss.bell::protos<tier::release>())
                     {
                         default:
                         case e2::form::draggable::left     .id: draggable<sysmouse::left     >(); break;
@@ -3644,7 +3701,7 @@ namespace netxs::console
                             boss.SIGNAL(tier::release, e2::render::any, canvas);
                             boss.base::ruined(faux);
                         }
-                        parent_canvas.plot(canvas);
+                        parent_canvas.fill(canvas, cell::shaders::fusefull);
                         boss.bell::expire<tier::release>();
                     };
                 }
@@ -4143,7 +4200,6 @@ namespace netxs::console
         sysmouse  mouse; // link: Mouse state.
         syskeybd  keybd; // link: Keyboard state.
         bool      close; // link: Pre closing condition.
-        text      chunk; // link: The next received chunk of data input.
         text      total; // link: Accumulated unparsed input.
 
         void reader()
@@ -4151,12 +4207,11 @@ namespace netxs::console
             log("link: std_input thread started");
             while (auto yield = canal->recv())
             {
-                std::lock_guard guard{ mutex };
-
-                chunk.resize(yield.length());
-                std::copy(yield.begin(), yield.end(), chunk.data());
-
-                ready = true;
+                {
+                    std::lock_guard guard{ mutex };
+                    total += yield;
+                    ready = true;
+                }
                 synch.notify_one();
             }
 
@@ -4207,7 +4262,6 @@ namespace netxs::console
             {
                 ready = faux;
 
-                total += chunk;
                 //todo why?
                 //todo separate commands and keypress
                 //
@@ -4224,7 +4278,7 @@ namespace netxs::console
                 view strv = total;
 
                 #ifdef KEYLOG
-                log("link: input data (", chunk.size(), " bytes):\n", utf::debase(chunk));
+                    log("link: input data (", total.size(), " bytes):\n", utf::debase(total));
                 #endif
 
                 #ifndef PROD
@@ -4232,7 +4286,7 @@ namespace netxs::console
                 {
                     close = faux;
                     owner.SIGNAL(tier::release, e2::conio::preclose, close);
-                    if (chunk.front() == '\x1b') // two consecutive escapes
+                    if (total.front() == '\x1b') // two consecutive escapes
                     {
                         log("\t - two consecutive escapes: \n\tstrv:        ", strv);
                         owner.SIGNAL(tier::release, e2::conio::quit, "pipe two consecutive escapes");
@@ -4627,7 +4681,7 @@ again:
                                     && tmp.at(0) == ':')
                                 {
                                     tmp.remove_prefix(1); // pop ':'
-                                    if(auto v = utf::to_int(tmp))
+                                    if (auto v = utf::to_int(tmp))
                                     {
                                         if (tmp.size() && tmp.at(0) == 'p')
                                         {
@@ -5114,7 +5168,7 @@ again:
             log("diff: ctor start");
             paint = work([&]
                 { 
-                    switch(video)
+                    switch (video)
                     {
                         case svga::truecolor: render<svga::truecolor>(); break;
                         case svga::vga16:     render<svga::vga16    >(); break;
@@ -5433,7 +5487,7 @@ again:
                         area.coor.x -= (iota)header.size().x / 2;
                         //todo unify header coords
                         header.move(area.coor);
-                        parent_canvas.fill(header);
+                        parent_canvas.fill(header, cell::shaders::fuse);
                     }
                 }
                 else
@@ -5457,7 +5511,7 @@ again:
                         if (show_mouse) brush.txt("\u2588"/* █ */).fgc(0xFF00ff00);
                         else            brush.txt(whitespace).bgc(greenlt);
                     }
-                    parent_canvas.fill(area, brush);
+                    parent_canvas.fill(area, cell::shaders::fuse(brush));
                 }
                 #ifdef REGIONS
                 parent_canvas.each([](cell& c){

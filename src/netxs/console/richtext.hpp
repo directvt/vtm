@@ -6,6 +6,10 @@
 
 #include "ansi.hpp"
 #include "../text/logger.hpp"
+#include "../abstract/ring.hpp"
+
+#include <cassert>
+#include <span>
 
 namespace netxs::console
 {
@@ -14,7 +18,7 @@ namespace netxs::console
 
     using ansi::qiew;
     using ansi::writ;
-    using grid = std::vector<cell>;
+    using ansi::deco;
     using irgb = netxs::ui::atoms::irgb<uint32_t>;
 
     class poly
@@ -72,15 +76,38 @@ namespace netxs::console
         rect client;
 
     public:
-        core() = default;
+        using span = std::span<cell>;
 
-        constexpr auto& size() const        { return region.size;   }
-        auto& coor() const                  { return region.coor;   }
-        auto& area() const                  { return region;        }
-        auto  hash()                        { return digest;        } // core: Return the digest value that associatated with the current canvas size.
-        auto  data() const                  { return canvas.data(); }
-        auto  data()                        { return canvas.data(); }
-        auto& pick()                        { return canvas;        }
+        core()                         = default;
+        core(core&&)                   = default;
+        core(core const&)              = default;
+        core& operator = (core&&)      = default;
+        core& operator = (core const&) = default;
+        core(span const& body, twod const& size)
+            : region{ dot_00, size },
+              client{ dot_00, size },
+              canvas( body.begin(), body.end() )
+        {
+            assert(size.x * size.y == std::distance(body.begin(), body.end()));
+        }
+
+        friend void swap(core& lhs, core& rhs)
+        {
+            std::swap(lhs.digest, rhs.digest);
+            std::swap(lhs.marker, rhs.marker);
+            std::swap(lhs.region, rhs.region);
+            std::swap(lhs.canvas, rhs.canvas);
+            std::swap(lhs.client, rhs.client);
+        }
+        constexpr auto& size() const        { return region.size;        }
+        auto& coor() const                  { return region.coor;        }
+        auto& area() const                  { return region;             }
+        auto  hash()                        { return digest;             } // core: Return the digest value that associatated with the current canvas size.
+        auto  data() const                  { return canvas.data();      }
+        auto  data()                        { return canvas.data();      }
+        auto& pick()                        { return canvas;             }
+        auto  iter()                        { return canvas.begin();     }
+        auto  iend()                        { return canvas.end();       }
         auto  test(twod const& coord) const { return region.size.inside(coord); } // core: Check the coor inside the canvas.
         auto  data(twod const& coord)       { return  data() + coord.x + coord.y * region.size.x; } // core: Return the offset of the cell corresponding to the specified coordinates.
         auto  data(twod const& coord) const { return  data() + coord.x + coord.y * region.size.x; } // core: Return the const offset value of the cell.
@@ -105,49 +132,49 @@ namespace netxs::console
                 canvas.assign(region.size.x * region.size.y, marker);
             }
         }
-        void  crop(iota newsizex) // core: Resize while saving the textline.
+        void crop(iota newsizex, cell const& c = {}) // core: Resize while saving the textline.
         {
             region.size.x = newsizex;
             region.size.y = 1;
             client.size = region.size;
-            canvas.resize(newsizex);
+            canvas.resize(newsizex, c);
             digest++;
         }
         //todo unify
-        void  crop(twod const& newsize) // core: Resize while saving the bitmap.
+        template<bool BOTTOM_ANCHORED = faux>
+        void crop(twod const& newsize) // core: Resize while saving the bitmap.
         {
             core block{ region.coor, newsize };
+            if constexpr (BOTTOM_ANCHORED) block.step({ 0, region.size.y - newsize.y });
 
-            auto full = [](auto& dst, auto& src) { dst = src; };
-            netxs::onbody(block, *this, full);
-
+            netxs::onbody(block, *this, cell::shaders::full);
             region.size = newsize;
             client.size = region.size;
             swap(block);
             digest++;
         }
-        void  crop(twod const& newsize, cell const& c) // core: Resize while saving the bitmap.
+        template<bool BOTTOM_ANCHORED = faux>
+        void crop(twod const& newsize, cell const& c) // core: Resize while saving the bitmap.
         {
             core block{ region.coor, newsize, c };
-
-            auto full = [](auto& dst, auto& src) { dst = src; };
-            netxs::onbody(block, *this, full);
-
+            if constexpr (BOTTOM_ANCHORED) block.step({ 0, region.size.y - newsize.y });
+                
+            netxs::onbody(block, *this, cell::shaders::full);
             region.size = newsize;
             client.size = region.size;
             swap(block);
             digest++;
         }
-        void  kill() // core: Collapse canvas to size zero (see para).
+        void kill() // core: Collapse canvas to size zero (see para).
         {
             region.size.x = 0;
             client.size.x = 0;
             canvas.resize(0);
             digest++;
         }
-        void  wipe(cell const& c) { std::fill(canvas.begin(), canvas.end(), c); } // core: Fill the canvas with the specified marker.
-        void  wipe() { wipe(marker); } // core: Fill the canvas with the default color.
-        void  wipe(id_t id)            // core: Fill the canvas with the specified id.
+        void wipe(cell const& c) { std::fill(canvas.begin(), canvas.end(), c); } // core: Fill canvas with specified marker.
+        void wipe()              { wipe(marker); } // core: Fill canvas with default color.
+        void wipe(id_t id)                         // core: Fill canvas with specified id.
         {
             auto my = marker.link();
             marker.link(id);
@@ -155,7 +182,7 @@ namespace netxs::console
             marker.link(my);
         }
         template<class P>
-        void  each(P proc) // core: Exec a proc for each cell.
+        void each(P proc) // core: Exec a proc for each cell.
         {
             for (auto& c : canvas)
             {
@@ -163,69 +190,51 @@ namespace netxs::console
             }
         }
         template<class P>
-        void  each(rect const& region, P proc) // core: Exec a proc for each cell of the specified region.
+        void each(rect const& region, P proc) // core: Exec a proc for each cell of the specified region.
         {
             netxs::onrect(*this, region, proc);
         }
-        auto  copy(grid& target) const { target = canvas; return region.size; } // core: Copy only grid of the canvas to the specified grid bitmap.
-        void  copy(core& target, bool copymetadata = faux) const // core: Copy the canvas to the specified target bitmap. The target bitmap must be the same size.
+        auto copy(grid& target) const // core: Copy only grid of the canvas to the specified grid bitmap.
         {
-            auto full = [](auto& dst, auto& src) { dst = src; };
-            auto flat = [](auto& dst, auto& src) { dst.set(src); };
-
-            copymetadata ? netxs::oncopy(target, *this, full)
-                         : netxs::oncopy(target, *this, flat);
-
+            target = canvas;
+            return region.size;
+        }                                                      
+        template<class P>
+        void copy(core& target, P proc) const // core: Copy the canvas to the specified target bitmap. The target bitmap must be the same size.
+        {
+            netxs::oncopy(target, *this, proc);
             //todo should we copy all members?
             //target.marker = marker;
             //flow::cursor
         }
-        void  plot(core const& block, bool force = faux) // core: Place the specified face using its coordinates.
+        template<class P>
+        void fill(core const& block, P fuse) // core: Fill canvas by the specified face using its coordinates.
         {
-            auto full = [](auto& dst, auto& src) { dst = src; };
-            auto fuse = [](auto& dst, auto& src) { dst.fusefull(src); };
-
-            force ? netxs::onbody(*this, block, full)
-                  : netxs::onbody(*this, block, fuse);
-        }
-        void  fill(core const& block, bool force = faux) // core: Fill by the specified face using its coordinates.
-        {
-            auto flat = [](auto& dst, auto& src) { dst.set(src); };
-            auto fuse = [](auto& dst, auto& src) { dst.fuse(src); };
-
-            force ? netxs::onbody(*this, block, flat)
-                  : netxs::onbody(*this, block, fuse);
-        }
-        void  fill(sptr<core> block_ptr, bool force = faux) // core: Fill by the specified face using its coordinates.
-        {
-            if (block_ptr) fill(*block_ptr, force);
-        }
-        void  fill(ui::rect block, cell const& brush, bool force = faux) // core: Fill the specified region with the specified color. If forced == true use direct copy instead of mixing.
-        {
-            auto flat = [brush](auto& dst) { dst = brush ; };
-            auto fuse = [brush](auto& dst) { dst.fusefull(brush); };
-
-            block.coor += region.coor;
-            force ? netxs::onrect(*this, block, flat)
-                  : netxs::onrect(*this, block, fuse);
-        }
-        void  fill(cell const& brush, bool force = faux) // core: Fill the client area with the specified color. If forced == true use direct copy instead of mixing.
-        {
-            fill(view(), brush, force);
+            netxs::onbody(*this, block, fuse);
         }
         template<class P>
-        void  fill(ui::rect block, P fuse) // core: Process the specified region by the specified proc.
+        void plot(core const& block, P fuse) // core: Fill view by the specified face using its coordinates.
+        {
+            auto joint = view().clip(block.area());
+            if (joint)
+            {
+                auto place = joint.coor - block.coor();
+                netxs::inbody<faux>(*this, block, joint, place, fuse);
+            }
+        }
+        template<class P>
+        void fill(ui::rect block, P fuse) // core: Process the specified region by the specified proc.
         {
             block.normalize_itself();
             block.coor += region.coor;
             netxs::onrect(*this, block, fuse);
         }
         template<class P>
-        void  fill(P fuse) // core: Fill the client area using lambda.
+        void fill(P fuse) // core: Fill the client area using lambda.
         {
             fill(view(), fuse);
         }
-        void  grad(rgba const& c1, rgba const& c2) // core: Fill the specified region with the linear gradient.
+        void grad(rgba const& c1, rgba const& c2) // core: Fill the specified region with the linear gradient.
         {
             auto mx = (float)region.size.x;
             auto my = (float)region.size.y;
@@ -253,8 +262,8 @@ namespace netxs::console
             };
             netxs::onrect(*this, region, allfx, eolfx);
         }
-        void  swap(core& target) { canvas.swap(target.canvas); } // core: Unconditionally swap canvases.
-        auto  swap(grid& target)                                 // core: Move the canvas to the specified array and return the current layout size.
+        void swap(core& target) { canvas.swap(target.canvas); } // core: Unconditionally swap canvases.
+        auto swap(grid& target)                                 // core: Move the canvas to the specified array and return the current layout size.
         {
             if (auto size = canvas.size())
             {
@@ -352,7 +361,7 @@ namespace netxs::console
             fill(temp, fuse);
         }
         template<class TEXT, class P = noop>
-        void  text(twod const& pos, TEXT const& txt, bool rtl = faux, P print = P()) // core: Put the specified text substring to the specified coordinates on the canvas.
+        void text(twod const& pos, TEXT const& txt, bool rtl = faux, P print = P()) // core: Put the specified text substring to the specified coordinates on the canvas.
         {
             rtl ? txt.template output<true>(*this, pos, print)
                 : txt.template output<faux>(*this, pos, print);
@@ -365,14 +374,12 @@ namespace netxs::console
             auto new_sz = twod{ a_size.x + b_size.x, std::max(a_size.y, b_size.y) };
             core block{ region.coor, new_sz, marker };
 
-            auto full = [](auto& dst, auto& src) { dst = src; };
-
-            auto region = rect{ twod{0,new_sz.y - a_size.y}, a_size };
-            netxs::inbody<faux>(block, *this, region, dot_00, full);
+            auto region = rect{ twod{ 0, new_sz.y - a_size.y }, a_size };
+            netxs::inbody<faux>(block, *this, region, dot_00, cell::shaders::full);
             region.coor.x += a_size.x;
             region.coor.y += new_sz.y - a_size.y;
             region.size = b_size;
-            netxs::inbody<faux>(block,   src, region, dot_00, full);
+            netxs::inbody<faux>(block, src, region, dot_00, cell::shaders::full);
 
             swap(block);
             digest++;
@@ -381,14 +388,12 @@ namespace netxs::console
 
     // richtext: The text feeder.
     class flow
-        : public ansi::deco
+        : protected ansi::runtime
     {
-        using deco = ansi::deco;
         rect textline{ }; // flow: Textline placeholder.
         iota textsize{ }; // flow: Full textline length (1D).
         side boundary{ }; // flow: Affected area by the text output.
         iota curpoint{ }; // flow: Current substring start position.
-        bool straight{ }; // flow: Text substring retrieving direction.
         iota caret_mx{ }; // flow: Maximum x-coor value on the visible area.
         twod caretpos{ }; // flow: Current virtual (w/o style applied) caret position.
         twod caretsav{ }; // flow: Caret pos saver.
@@ -396,6 +401,7 @@ namespace netxs::console
         rect pagerect{ }; // flow: Client full area. Used as a nested areas (coords++) accumulator.
         rect pagecopy{ }; // flow: Client full area saver.
         deco selfcopy{ }; // flow: Flow state storage.
+        deco runstyle{ }; // flow: Flow state.
         iota highness{1}; // flow: Last processed line height.
 
         iota const& size_x;
@@ -518,38 +524,19 @@ namespace netxs::console
         template<bool RtoL, bool ReLF, class T, class P>
         void trimmed(T const& block, P print)
         {
-            if (centered) flow::ax(middle());
-            output<faux, RtoL, ReLF>(block, print);
-        }
-
-        template<class T> constexpr
-        iota get_len(T p)
-        {
-            if constexpr (std::is_same_v<T, twod>) return p.x;
-            else                                   return static_cast<iota>(p);
-        }
-        template<class T> constexpr
-        rect get_vol(T p)
-        {
-            if constexpr (std::is_same_v<T, twod>) return { dot_00, p };
-            else                                   return { dot_00, { static_cast<iota>(p),  1 } };
+            if (textline.size.x > 0)
+            {
+                if (centered) flow::ax(middle());
+                output<faux, RtoL, ReLF>(block, print);
+            }
         }
         template<bool RtoL, bool ReLF, class T, class P>
         void proceed(T const& block, P print)
         {
             if (iswrapln) if (centered) centred<RtoL, ReLF>(block, print);
-                           else         wrapped<RtoL, ReLF>(block, print);
+                          else          wrapped<RtoL, ReLF>(block, print);
             else                        trimmed<RtoL, ReLF>(block, print);
         }
-
-    protected:
-        bool iswrapln{ };
-        bool arighted{ };
-        bool isr_to_l{ };
-        bool isrlfeed{ };
-        bool centered{ };
-        iota tabwidth{ };
-        dent textpads{ };
 
         std::function<void(ansi::fn cmd, iota arg)> custom; // flow: Draw commands (customizable).
 
@@ -557,9 +544,7 @@ namespace netxs::console
         flow(iota const& size_x, iota const& size_y)
             : size_x { size_x },
               size_y { size_y }
-        {
-            deco::glb();
-        }
+        { }
         flow(twod const& size )
             : flow { size.x, size.y }
         { }
@@ -567,6 +552,7 @@ namespace netxs::console
             : flow { pagerect.size }
         { }
 
+        void vsize(iota height) { pagerect.size.y = height;  } // flow: Set client full height.
         void  size(twod const& size) { pagerect.size = size; } // flow: Set client full size.
         void  full(rect const& area) { pagerect = area;      } // flow: Set client full rect.
         auto& full() const           { return pagerect;      } // flow: Get client full rect reference.
@@ -579,37 +565,14 @@ namespace netxs::console
         template<class T, class P = noop>
         void compose(T const& block, P print = P())
         {
-            // Local settings take precedence over global ones (deco::*).
-            iswrapln = block.style.wrapln ? block.style.wrapln == wrap::on
-                                          : deco::wrapln == wrap::on;
-            isr_to_l = block.style.r_to_l ? block.style.r_to_l == rtol::rtl
-                                          : deco::r_to_l == rtol::rtl;
-            isrlfeed = block.style.rlfeed ? block.style.rlfeed == feed::rev
-                                          : deco::rlfeed == feed::rev;
-            tabwidth = block.style.tablen ? block.style.tablen
-                                          : deco::tablen;
-            if (block.style.adjust)
-            {
-                arighted = block.style.adjust == bias::right;
-                centered = block.style.adjust == bias::center;
-            }
-            else
-            {
-                arighted = deco::adjust == bias::right;
-                centered = deco::adjust == bias::center;
-            }
-            // Combine local and global margins.
-            textpads = deco::margin;
-            textpads += block.style.margin;
+            combine(runstyle, block.style);
 
-            auto block_size = block.size(); // 2D size.
-            textsize = get_len(block_size); // 1D length.
-
+            auto block_size = block.size();
+            textsize = getlen(block_size);
             if (textsize)
             {
-                textline = get_vol(block_size); // 2D size
+                textline = getvol(block_size);
                 curpoint = 0;
-                straight = iswrapln || isr_to_l == arighted;
                 viewrect = textpads.area(size_x, size_y);
                 viewrect.coor += pagerect.coor;
                 caret_mx = viewrect.size.x;
@@ -646,7 +609,6 @@ namespace netxs::console
         {
             compose(block);
         }
-
         template<class T, class P = noop>
         void go(T const& block, core& canvas, P printfx = P())
         {
@@ -658,47 +620,53 @@ namespace netxs::console
         template<bool USE_LOCUS = true, class T, class P = noop>
         auto print(T const& block, core& canvas, P printfx = P())
         {
-            auto cp = USE_LOCUS ? forward(block)
-                                : flow::cp();
+            using type = std::invoke_result_t<decltype(&flow::cp), flow>;
+            type coor;
+
+            if constexpr (USE_LOCUS) coor = forward(block);
+            else                     coor = flow::cp();
+
             go(block, canvas, printfx);
-            return cp;
+            return coor;
         }
         template<bool USE_LOCUS = true, class T>
         auto print(T const& block)
         {
-            auto cp = USE_LOCUS ? forward(block)
-                                : flow::cp();
+            using type = std::invoke_result_t<decltype(&flow::cp), flow>;
+            type coor;
+
+            if constexpr (USE_LOCUS) coor = forward(block);
+            else                     coor = flow::cp();
+
             go(block);
-            return cp;
+            return coor;
         }
 
-        void ax	(iota x)        { caretpos.x  = x;               }
-        void ay	(iota y)        { caretpos.y  = y;               }
-        void ac	(twod const& c) { ax(c.x); ay(c.y);              }
-        void ox	(iota x)        { caretpos.x  = x - 1;           }
-        void oy	(iota y)        { caretpos.y  = y - 1;           }
-        void oc	(twod const& c) { ox(c.x); oy(c.y);              }
-        void dx	(iota n)        { caretpos.x += n;               }
-        void dy	(iota n)        { caretpos.y += n;               }
-        void nl	(iota n)        { ax(0); dy(n);                  }
-        void px	(iota x)        { ax(margin.h_ratio(x, size_x)); }
-        void py	(iota y)        { ay(margin.v_ratio(y, size_y)); }
-        void pc	(twod const& c) { px(c.x); py(c.y);              }
+        void ax	(iota x)        { caretpos.x  = x;                 }
+        void ay	(iota y)        { caretpos.y  = y;                 }
+        void ac	(twod const& c) { ax(c.x); ay(c.y);                }
+        void ox	(iota x)        { caretpos.x  = x - 1;             }
+        void oy	(iota y)        { caretpos.y  = y - 1;             }
+        void oc	(twod const& c) { ox(c.x); oy(c.y);                }
+        void dx	(iota n)        { caretpos.x += n;                 }
+        void dy	(iota n)        { caretpos.y += n;                 }
+        void nl	(iota n)        { ax(0); dy(n);                    }
+        void px	(iota x)        { ax(textpads.h_ratio(x, size_x)); }
+        void py	(iota y)        { ay(textpads.v_ratio(y, size_y)); }
+        void pc	(twod const& c) { px(c.x); py(c.y);                }
         void tb	(iota n)
         {
             if (n)
             {
-                dx(tablen - caretpos.x % tablen);
-                if (n > 0 ? --n : ++n) dx(tablen * n);
+                dx(tabwidth - caretpos.x % tabwidth);
+                if (n > 0 ? --n : ++n) dx(tabwidth * n);
             }
         }
-        twod cp() const // flow: Return absolute cursor position.
+        twod cp () const // flow: Return absolute cursor position.
         {
             twod coor{ caretpos };
-
-            if (adjust == bias::right) coor.x = textpads.width (size_x) - 1 - coor.x;
-            if (rlfeed == feed::rev  ) coor.y = textpads.height(size_y) - 1 - coor.y;
-
+            if (arighted) coor.x = textpads.width (size_x) - 1 - coor.x;
+            if (isrlfeed) coor.y = textpads.height(size_y) - 1 - coor.y;
             coor += textpads.corner();
             return coor;
         }
@@ -708,32 +676,32 @@ namespace netxs::console
             boundary |= cp; /* |= cursor*/;
             return cp;
         }
-        void zz	(twod const& offset = dot_00)
+        void zz (twod const& offset = dot_00)
         {
-            deco::glb();
+            runstyle.glb();
             caretpos = dot_00;
             pagerect.coor = offset;
         }
         void sc () // flow: Save current state.
         {
-            selfcopy.set(*this);
+            selfcopy = runstyle;
             caretsav = caretpos;
             pagecopy.coor = pagerect.coor;
         }
         void rc () // flow: Restore state.
         {
-            deco::set(selfcopy);
+            runstyle = selfcopy;
             caretpos = caretsav;
             pagerect.coor = pagecopy.coor;
         }
         auto get_state()
         {
-            return std::tuple<deco,twod,twod>{ *this, caretpos, pagerect.coor };
+            return std::tuple<deco,twod,twod>{ runstyle, caretpos, pagerect.coor };
         }
         template<class S>
         auto set_state(S const& state)
         {
-            deco::set(      std::get<0>(state));
+            runstyle      = std::get<0>(state);
             caretpos      = std::get<1>(state);
             pagerect.coor = std::get<2>(state);
         }
@@ -747,13 +715,19 @@ namespace netxs::console
         {
             reset(canvas.pagerect.coor);
         }
+        void set_style(deco const& new_style)
+        {
+            runstyle = new_style;
+        }
+        auto get_style()
+        {
+            return runstyle;
+        }
     };
 
     // richtext: The shadow of the para.
     class shot
     {
-        static constexpr iota maxlen = std::numeric_limits<iota>::max();
-
         core const& basis;
         iota        start;
         iota        width;
@@ -783,7 +757,7 @@ namespace netxs::console
         { }
 
         constexpr
-        auto substr(iota begin, iota piece = maxlen) const
+        auto substr(iota begin, iota piece = maxiota) const
         {
             auto w = basis.size().x;
             auto a = start + std::max(begin, 0);
@@ -833,74 +807,431 @@ namespace netxs::console
         }
     };
 
+    // richtext: Enriched text line.
+    class rich
+        : public core
+    {
+    public:
+        using core::core;
+
+        auto length() const                              { return size().x;                         }
+        auto shadow() const                              { return shot{ *this };                    }
+        auto substr(iota at, iota width = maxiota) const { return shadow().substr(at, width);       }
+        void trimto(iota max_size)                       { if (length() > max_size) crop(max_size); }
+        void reserv(iota oversize)                       { if (oversize > length()) crop(oversize); }
+        void shrink(cell const& blank, iota max_size = 0, iota min_size = 0)
+        {
+            assert(min_size <= length());
+            auto head = iter();
+            auto tail = iend();
+            auto stop = head + min_size;
+            while (stop != tail-- && *tail == blank) { }
+            auto new_size = static_cast<iota>(tail - head + 1);
+            if (max_size && max_size < new_size) new_size = max_size;
+            if (new_size != length()) crop(new_size);
+        }
+        template<bool AUTOGROW = faux>
+        void splice(iota at, iota count, cell const& blank)
+        {
+            if (count <= 0) return;
+            auto len = length();
+            if constexpr (AUTOGROW) reserv(at + count);
+            else                    count = std::min(count, len - at);
+            auto ptr = iter();
+            auto dst = ptr + at;
+            auto end = dst + count;
+            while (dst != end) *dst++ = blank;
+        }
+        void splice(iota at, shot const& fragment)
+        {
+            auto len = fragment.length();
+            reserv(len + at);
+            auto ptr = iter();
+            auto dst = ptr + at;
+            auto end = dst + len;
+            auto src = fragment.data();
+            while (dst != end) *dst++ = *src++;
+        }
+        template<class SRC_IT, class DST_IT>
+        static void forward_fill_proc(SRC_IT data, DST_IT dest, DST_IT tail)
+        {
+            //  + evaluate TAB etc
+            //  + bidi
+            //  + eliminate non-printable and with cwidth == 0 (\0, \t, \b, etc...)
+            //  + while (--wide)
+            //    {
+            //        /* IT IS UNSAFE IF REALLOCATION OCCURS. BOOK ALWAYS */
+            //        lyric.emplace_back(cluster, console::whitespace);
+            //    }
+            //  + convert front into the screen-like sequence (unfold, remmove zerospace chars)
+
+            --tail; /* tail - 1: half of the wide char */;
+            while (dest < tail)
+            {
+                auto c = *data++;
+                auto w = c.wdt();
+                if (w == 1)
+                {
+                    *dest++ = c;
+                }
+                else if (w == 2)
+                {
+                    *dest++ = c.wdt(2);
+                    *dest++ = c.wdt(3);
+                }
+                else if (w == 0)
+                {
+                    //todo implemet controls/commands
+                    // winsrv2019's cmd.exe sets title with a zero at the end
+                    //*dst++ = cell{ c, whitespace };
+                }
+                else if (w > 2)
+                {
+                    // Forbid using super wide characters until terminal emulators support the fragmentation attribute.
+                    c.txt(utf::REPLACEMENT_CHARACTER_UTF8_VIEW);
+                    do *dest++ = c;
+                    while (--w && dest != tail + 1);
+                }
+            }
+            if (dest == tail) // Last cell; tail - 1.
+            {
+                auto c = *data;
+                auto w = c.wdt();
+                     if (w == 1) *dest = c;
+                else if (w == 2) *dest = c.wdt(3);
+                else if (w >  2) *dest = c.txt(utf::REPLACEMENT_CHARACTER_UTF8_VIEW);
+            }
+        }
+        template<class SRC_IT, class DST_IT>
+        static void unlimit_fill_proc(SRC_IT data, iota size, DST_IT dest, DST_IT tail, iota back)
+        {
+            //  + evaluate TAB etc
+            //  + bidi
+            //  + eliminate non-printable and with cwidth == 0 (\0, \t, \b, etc...)
+            //  + while (--wide)
+            //    {
+            //        /* IT IS UNSAFE IF REALLOCATION OCCURS. BOOK ALWAYS */
+            //        lyric.emplace_back(cluster, console::whitespace);
+            //    }
+            //  + convert front into the screen-like sequence (unfold, remmove zerospace chars)
+
+            auto set = [&](auto const& c)
+            {
+                if (dest == tail) dest -= back;
+                *dest++ = c;
+                --size;
+            };
+            while (size > 0)
+            {
+                auto c = *data++;
+                auto w = c.wdt();
+                if (w == 1)
+                {
+                    set(c);
+                }
+                else if (w == 2)
+                {
+                    set(c.wdt(2));
+                    set(c.wdt(3));
+                }
+                else if (w == 0)
+                {
+                    //todo implemet controls/commands
+                    // winsrv2019's cmd.exe sets title with a zero at the end
+                    //*dst++ = cell{ c, whitespace };
+                }
+                else if (w > 2)
+                {
+                    // Forbid using super wide characters until terminal emulators support the fragmentation attribute.
+                    c.txt(utf::REPLACEMENT_CHARACTER_UTF8_VIEW);
+                    do set(c);
+                    while (--w && size > 0);
+                }
+            }
+        }
+        template<class SRC_IT, class DST_IT>
+        static void reverse_fill_proc(SRC_IT data, DST_IT dest, DST_IT tail)
+        {
+            //  + evaluate TAB etc
+            //  + bidi
+            //  + eliminate non-printable and with cwidth == 0 (\0, \t, \b, etc...)
+            //  + while (--wide)
+            //    {
+            //        /* IT IS UNSAFE IF REALLOCATION OCCURS. BOOK ALWAYS */
+            //        lyric.emplace_back(cluster, console::whitespace);
+            //    }
+            //  + convert front into the screen-like sequence (unfold, remmove zerospace chars)
+
+            ++tail; /* tail + 1: half of the wide char */;
+            while (dest > tail)
+            {
+                auto c = *--data;
+                auto w = c.wdt();
+                if (w == 1)
+                {
+                    *--dest = c;
+                }
+                else if (w == 2)
+                {
+                    *--dest = c.wdt(3);
+                    *--dest = c.wdt(2);
+                }
+                else if (w == 0)
+                {
+                    //todo implemet controls/commands
+                    // winsrv2019's cmd.exe sets title with a zero at the end
+                    //*dst++ = cell{ c, whitespace };
+                }
+                else if (w > 2)
+                {
+                    // Forbid using super wide characters until terminal emulators support the fragmentation attribute.
+                    c.txt(utf::REPLACEMENT_CHARACTER_UTF8_VIEW);
+                    do *--dest = c;
+                    while (--w && dest != tail - 1);
+                }
+            }
+            if (dest == tail) // Last cell; tail + 1.
+            {
+                auto c = *--data;
+                auto w = c.wdt();
+                     if (w == 1) *--dest = c;
+                else if (w == 2) *--dest = c.wdt(3);
+                else if (w >  2) *--dest = c.txt(utf::REPLACEMENT_CHARACTER_UTF8_VIEW);
+            }
+        }
+        void splice(iota at, iota count, grid const& proto)
+        {
+            if (count <= 0) return;
+            reserv(at + count);
+            auto end = iter() + at;
+            auto dst = end + count;
+            auto src = proto.end();
+            reverse_fill_proc(src, dst, end);
+        }
+        void splice(twod at, iota count, grid const& proto)
+        {
+            if (count <= 0) return;
+            auto end = iter() + at.x + at.y * size().x;
+            auto dst = end + count;
+            auto src = proto.end();
+            reverse_fill_proc(src, dst, end);
+        }
+        // rich: Scroll by gap the 2D-block of lines between top and end (exclusive); down: gap > 0; up: gap < 0.
+        void scroll(iota top, iota end, iota gap, cell const& clr)
+        {
+            auto data = core::data();
+            auto size = core::size();
+            auto step = size.x;
+            assert(top >= 0 && top < end && end <= size.y);
+            assert(gap != 0);
+            if (gap > 0)
+            {
+                auto src = top * size.x + data;
+                auto cut = end - gap;
+                if (cut > top)
+                {
+                    step *= gap;
+                    auto head = data + size.x * cut;
+                    auto dest = head + step;
+                    auto tail = src;
+                    while (head != tail) *--dest = *--head;
+                }
+                else step *= end - top;
+
+                auto dst = src + step;
+                while (dst != src) *src++ = clr;
+            }
+            else
+            {
+                auto src = end * size.x + data;
+                auto cut = top - gap;
+                if (cut < end)
+                {
+                    step *= gap;
+                    auto head = data + size.x * cut;
+                    auto dest = head + step;
+                    auto tail = src;
+                    while (head != tail) *dest++ = *head++;
+                }
+                else step *= top - end;
+
+                auto dst = src + step;
+                while (dst != src) *--src = clr;
+            }
+        }
+        // rich: (current segment) Insert n blanks at the specified position. Autogrow within segment only.
+        void insert(iota at, iota count, cell const& blank, iota margin)
+        {
+            if (count <= 0) return;
+            auto len = length();
+            auto pos = at % margin;
+            auto vol = std::min(count, margin - pos);
+            auto max = std::min(len + vol, at + margin - pos);
+            reserv(max);
+            auto ptr = iter();
+            auto dst = ptr + max;
+            auto src = dst - vol;
+            auto end = ptr + at;
+            while (src != end) *--dst = *--src;
+            while (dst != end) *--dst = blank;
+        }
+        // rich: (whole line) Insert n blanks at the specified position. Autogrow.
+        void insert_full(iota at, iota count, cell const& blank)
+        {
+            if (count <= 0) return;
+            auto len = length();
+            crop(std::max(at, len) + count);
+            auto ptr = iter();
+            auto pos = ptr + at;
+            auto end = pos + count;
+            auto src = ptr + len;
+            if (at < len)
+            {
+                auto dst = src + count;
+                while (dst != end) *--dst = *--src;
+                src = pos;
+            }
+            while (src != end) *src++ = blank;
+        }
+        // rich: (current segment) Delete n chars and add blanks at the right margin.
+        void cutoff(iota at, iota count, cell const& blank, iota margin)
+        {
+            if (count <= 0) return;
+            auto len = length();
+            if (at < len)
+            {
+                auto pos = at % margin;
+                auto rem = std::min(margin - pos, len - at);
+                auto vol = std::min(count, rem);
+                auto dst = iter() + at;
+                auto end = dst + rem;
+                auto src = dst + vol;
+                while (src != end) *dst++ = *src++;
+                while (dst != end) *dst++ = blank;
+            }
+        }
+        // rich: (whole line) Delete n chars and add blanks at the right margin.
+        void cutoff_full(iota at, iota count, cell const& blank, iota margin)
+        {
+            if (count <= 0) return;
+            auto len = length();
+            if (at < len)
+            {
+                margin -= at % margin;
+                count = std::min(count, margin);
+                if (count >= len - at)
+                {
+                    auto ptr = iter();
+                    auto dst = ptr + at;
+                    auto end = ptr + len;
+                    while (dst != end) *dst++ = blank;
+                }
+                else
+                {
+                    reserv(margin + at);
+                    auto ptr = iter();
+                    auto dst = ptr + at;
+                    auto src = dst + count;
+                    auto end = dst - count + margin;
+                    while (dst != end) *dst++ = *src++;
+                    end += count; //end = ptr + right_margin;
+                    while (dst != end) *dst++ = blank;
+                }
+            }
+        }
+        // rich: Put n blanks on top of the chars and cut them off with the right edge.
+        void splice(twod const& at, iota count, cell const& blank)
+        {
+            if (count <= 0) return;
+            auto len = size();
+            auto vol = std::min(count, len.x - at.x);
+            assert(at.x + at.y * len.x + vol <= len.y * len.x);
+            auto ptr = iter();
+            auto dst = ptr + at.x + at.y * len.x;
+            auto end = dst + vol;
+            while (dst != end) *dst++ = blank;
+        }
+        // rich: Insert n blanks by shifting chars to the right. Same as delete(twod), but shifts from left to right.
+        void insert(twod const& at, iota count, cell const& blank)
+        {
+            if (count <= 0) return;
+            auto len = size();
+            auto vol = std::min(count, len.x - at.x);
+            assert(at.x + at.y * len.x + vol <= len.y * len.x);
+            auto ptr = iter();
+            auto pos = ptr + at.y * len.x;
+            auto dst = pos + len.x;
+            auto end = pos + at.x;
+            auto src = dst - vol;
+            while (src != end) *--dst = *--src;
+            while (dst != end) *--dst = blank;
+        }
+        // rich: Delete n chars and add blanks at the right. Same as insert(twod), but shifts from right to left.
+        void cutoff(twod const& at, iota count, cell const& blank)
+        {
+            if (count <= 0) return;
+            auto len = size();
+            auto vol = std::min(count, len.x - at.x);
+            assert(at.x + at.y * len.x + vol <= len.y * len.x);
+            auto ptr = iter();
+            auto pos = ptr + at.y * len.x;
+            auto dst = pos + at.x;
+            auto end = pos + len.x;
+            auto src = dst + vol;
+            while (src != end) *dst++ = *src++;
+            while (dst != end) *dst++ = blank;
+        }
+        // rich: Clear from the specified coor to the bottom.
+        void del_below(twod const& pos, cell const& blank)
+        {
+            auto len = size();
+            auto ptr = iter();
+            auto dst = ptr + std::min<iota>(pos.x + pos.y * len.x,
+                                                    len.y * len.x);
+            auto end = iend();
+            while (dst != end) *dst++ = blank;
+        }
+        // rich: Clear from the top to the specified coor.
+        void del_above(twod const& pos, cell const& blank)
+        {
+            auto len = size();
+            auto dst = iter();
+            auto end = dst + std::min<iota>(pos.x + pos.y * len.x,
+                                                    len.y * len.x);
+            while (dst != end) *dst++ = blank;
+        }
+    };
+
     // richtext: Enriched text paragraph.
     class para
+        : public ansi::parser
     {
-        using corx = sptr<core>;
-
-        grid proto;     // para: Proto lyric.
-        iota width = 0; // para: Length of the proto lyric.
-        iota caret = 0; // para: Cursor position inside lyric.
+        using corx = sptr<rich>;
 
     public:
-        template<class T>
-        using parser = ansi::parser<T>; // Use default static parser.
-        using mark   = ansi::mark;
-        using deco   = ansi::deco;
-
-        iota selfid = 0;
-        iota bossid = 0; // para: Index of the top visible text line.
-
-        text debug; // para: debug string.
+        iota caret = 0; // para: Cursor position inside lyric.
+        ui32 index = 0;
         writ locus;
-        corx lyric = std::make_shared<core>();
+        corx lyric = std::make_shared<rich>();
 
-        mark brush; // para: Brush for parser.
-        deco style; // para: Style for parser.
-
+        using parser::parser;
         para()                         = default;
         para(para&&)                   = default;
         para(para const&)              = default;
         para& operator = (para&&)      = default;
         para& operator = (para const&) = default;
+        para(ui32 newid, deco const& style = {})
+            : parser{ style },
+              index { newid }
+        { }
 
-        para(deco const& style)
-            : style{ style }
-        { }
-        para(iota newid, deco const& style = {})
-            : style  { style },
-              selfid { newid },
-              bossid { newid }
-        { }
-        para(view utf8)
-        {
-            ansi::parse(utf8, this);
-        }
+        para              (view utf8) {              ansi::parse(utf8, this);               }
+        auto& operator  = (view utf8) { wipe(brush); ansi::parse(utf8, this); return *this; }
+        auto& operator += (view utf8) {              ansi::parse(utf8, this); return *this; }
 
         operator writ const& () const { return locus; }
-        auto& operator += (view utf8) // para: Append a new text using current attributes.
-        {
-            ansi::parse(utf8, this);
-            return *this;
-        }
-        auto& operator = (view utf8) // para: Replace with a new text. Preserve current attributes.
-        {
-            wipe(brush);
-            return operator += (utf8);
-        }
-        // para: Move all from p.
-        void resite(para& p)
-        {
-            width = p.width;
-            caret = p.caret;
-            style = p.style;
-            locus = std::move(p.locus);
-            proto = std::move(p.proto);
-            debug = std::move(p.debug);
-            lyric = std::move(p.lyric);
-            p.lyric = std::make_shared<core>();
-        }
-        void decouple() { lyric = std::make_shared<core>(*lyric); } // para: Make canvas isolated copy.
+
+        void decouple() { lyric = std::make_shared<rich>(*lyric); } // para: Make canvas isolated copy.
         shot   shadow() const { return *lyric; } // para: Return paragraph shadow.
         shot   substr(iota start, iota width) const // para: Return paragraph substring shadow.
         {
@@ -908,266 +1239,40 @@ namespace netxs::console
         }
         bool   bare() const { return locus.bare();    } // para: Does the paragraph have no locator.
         auto length() const { return lyric->size().x; } // para: Return printable length.
-        auto   step() const { return lyric->size().x - caret; } // para: Return step back.
+        auto   step() const { return count;           } // para: The next caret step.
         auto   size() const { return lyric->size();   } // para: Return 2D volume size.
         auto&  back() const { return brush;           } // para: Return current brush.
         bool   busy() const { return length() || !proto.empty() || brush.busy(); } // para: Is it filled.
         void   ease()   { brush.nil(); lyric->each([&](auto& c) { c.clr(brush); });  } // para: Reset color for all text.
         void   link(id_t id)         { lyric->each([&](auto& c) { c.link(id);   });  } // para: Set object ID for each cell.
-        void   open()                { bossid = selfid;  } // para: Set paragraph open(uncovered, ie not covered by the lines above).
         void   wipe(cell c = cell{}) // para: Clear the text and locus, and reset SGR attributes.
         {
-            width = 0;
+            count = 0;
             caret = 0;
             brush.reset(c);
             //todo revise
             //style.rst();
-            debug.clear();
-            proto.clear();
+            //proto.clear();
             locus.kill();
             lyric->kill();
         }
         void task(ansi::rule const& cmd) { if (!busy()) locus.push(cmd); } // para: Add locus command. In case of text presence try to change current target otherwise abort content building.
-        void post(utf::frag const& cluster, cell& brush)                   // para: Add grapheme cluster.
-        {
-            static ansi::marker<cell> marker;
-
-            auto& utf8 = cluster.text;
-            auto& attr = cluster.attr;
-
-            if (unsigned w = attr.ucwidth)
-            {
-                width += w;
-                brush.set_gc(utf8, w);
-                proto.push_back(brush);
-
-                debug += (debug.size() ? "_"s : ""s) + text(utf8);
-            }
-            else
-            {
-                if (auto set_prop = marker.setter[attr.control])
-                {
-                    if (proto.size())
-                    {
-                        set_prop(proto.back());
-                    }
-                    else
-                    {
-                        auto empty = brush;
-                        empty.txt(whitespace).wdt(w);
-                        set_prop(empty);
-                        proto.push_back(empty);
-                    }
-                }
-                else
-                {
-                    brush.set_gc(utf8, w);
-                    proto.push_back(brush);
-                }
-                auto i = utf::to_hex((size_t)attr.control, 5, true);
-                debug += (debug.size() ? "_<fn:"s : "<fn:"s) + i + ">"s;
-            }
-        }
-        void post(utf::frag const& cluster) // para: Add grapheme cluster.
-        {
-            post(cluster, brush);
-        }
         // para: Convert into the screen-adapted sequence (unfold, remove zerospace chars, etc.).
-        void cook()
+        void data(iota count, grid const& proto) override
         {
-            //log(" para cook ", " para id ", this);
-
-            //	//if (front)
-            //	//{
-            //	//	//+ evaluate TAB etc
-            //	//	//+ bidi
-            //	//	//+ eliminate non-printable and with cwidth == 0 (\0, \t, \b, etc...)
-            //	//	//+ while (--wide)
-            //	//	//	{
-            //	//	//		/* IT IS UNSAFE IF REALLOCATION OCCURS. BOOK ALWAYS */
-            //	//	//		lyric.emplace_back(cluster, console::whitespace);
-            //	//	//	}
-            //	//	//+ convert front into the screen-like sequence (unfold, remmove zerospace chars)
-            //	//
-
-            auto merge = [&](auto fuse) {
-                for (auto& c : proto)
-                {
-                    auto w = c.wdt();
-                    if (w == 1)
-                    {
-                        fuse(c);
-                    }
-                    else if (w == 2)
-                    {
-                        fuse(c.wdt(2));
-                        fuse(c.wdt(3));
-                        w -= 2;
-                    }
-                    else if (w == 0)
-                    {
-                        //todo implemet controls/commands
-                        // winsrv2019's cmd.exe sets title with a zero at the end
-                        //fuse(cell{ c, whitespace });
-                    }
-                    else if (w > 2)
-                    {
-                        // Forbid using wide characters until terminal emulators support the fragmentation attribute.
-                        auto dumb = c.txt(utf::REPLACEMENT_CHARACTER_UTF8_VIEW);
-                        while (w--)
-                        {
-                            fuse(dumb);
-                        }
-                    }
-                }
-            };
-
-            auto& lyric = *this->lyric;
-
-            //todo unify for size.y > 1
-            auto newsz = caret + width;
-            if (newsz > lyric.size().x)
-            {
-                lyric.crop(twod{ newsz, std::max(lyric.size().y,1) });
-            }
-
-            auto it = lyric.data() + caret;
-            merge([&](auto c) { *it++ = c; });
-
-            caret = newsz;
-            proto.clear();
-            width = 0;
-
-            /// for the lyric of rich
-            //auto newsz = caret + width;
-            //if (caret == lyric.size())
-            //{
-            //	lyric.reserve(newsz);
-            //	merge([&](auto c) { lyric.push_back(c); });
-            //}
-            //else
-            //{
-            //	if (newsz > lyric.size()) lyric.resize(newsz, cell{ whitespace });
-            //
-            //	auto it = lyric.begin() + caret;
-            //	merge([&](auto c) { *it++ = c; });
-            //}
-            //
-            //caret = newsz;
-            //proto.clear();
-            //width = 0;
+            lyric->splice(caret, count, proto);
+            caret += count;
         }
+        void id(ui32 newid) { index = newid; }
+        auto id() const     { return index;  }
 
-        auto id() const        { return selfid;  }
-        void id(iota newid)    { selfid = newid; }
-
-        auto chx() const       { return caret;    }
-        void chx(iota new_pos)
-        {
-            if (new_pos < 0)
-            {
-                //todo investigate the reason
-                caret = 0;
-            }
-            else caret = new_pos; 
-        }
-
-        void trimto(iota max_width)
-        {
-            if (length() > max_width)
-            {
-                auto& lyric = *this->lyric;
-                lyric.crop(max_width);
-            }
-        }
-        void trim(cell const& default_cell, iota maxs = 0)
-        {
-            auto& lyric = *this->lyric;
-
-            auto& data = lyric.pick();
-            auto  head = data.rbegin();
-            auto  tail = data.rend();
-            while (head != tail)
-            {
-                auto& c = *head;
-                if (c != default_cell) break;
-                //if (!c.issame_visual(default_cell)) break;
-                ++head;
-            }
-
-            auto size = maxs ? std::min(maxs, static_cast<iota>(tail - head))
-                                            : static_cast<iota>(tail - head);
-            if (size != lyric.size().x)
-            {
-                lyric.crop({ size, 1 });
-            }
-        }
-        // para: Insert n spaces (= Erase n, CSI n X).
-        void ins(iota n, cell& brush)
-        {
-            static const utf::frag space = utf::frag
-            {
-                utf::WHITESPACE_CHARACTER_UTF8_VIEW,
-                utf::prop(0x20, 1)
-            };
-
-            for (auto i = 0; i < n; ++i)
-                post(space, brush);
-        }
-        void ins(iota n)
-        {
-            ins(n, brush);
-        }
-        template<bool AUTOGROW = faux>
-        void ins(iota start, iota count, cell const& brush)
-        {
-            auto region = rect{ { start, 0 }, { count, 1 } };
-            if constexpr (AUTOGROW)
-            {
-                auto oldsize = rect{ dot_00, size() };
-                auto newsize = oldsize | region.trunc(dot_mx);
-                if (oldsize != newsize) lyric->crop(newsize.size, brush);
-            }
-            lyric->each(region, [&](cell& c) { c = brush; });
-        }
-        // para: for bug testing.
-        auto get_utf8()
-        {
-            text yield;
-            auto& lyric = *this->lyric;
-            lyric.each(
-                [&](cell& c) { yield += c.txt(); }
-            );
-            return yield;
-        }
-        auto& set (cell const& c)
-        {
-            brush.set(c);
-            return *this;
-        }
-        //todo make it 2D
-        // para: Insert fragment at the specified position.
-        void insert(iota at, shot const& fragment)
-        {
-            auto& line = *lyric;
-            auto  size = fragment.length();
-            auto  full = at + size;
-            if   (full > length()) line.crop(full);
-            auto& data = line.pick();
-            auto  head = data.begin() + at;
-            auto  tail = head + size;
-            auto  frag = fragment.data();
-            while(head != tail)
-            {
-                 *head++ = *frag++;
-            }
-        }
+        auto& set(cell const& c) { brush.set(c); return *this; }
     };
 
     // richtext: Cascade of the identical paragraphs.
     class rope
     {
-        using iter = std::list<para>::const_iterator;
+        using iter = std::list<sptr<para>>::const_iterator;
         iter source;
         iter finish;
         iota prefix;
@@ -1180,11 +1285,11 @@ namespace netxs::console
               finish{ finish },
               suffix{ suffix },
               volume{ volume }
-              ,style{source->style}
+              ,style{(**source).style}
         { }
 
     public:
-        ansi::deco style;
+        deco style;
 
         rope(iter const& head, iter const& tail, twod const& size)
             : source{ head },
@@ -1192,29 +1297,29 @@ namespace netxs::console
               prefix{ 0    },
               suffix{ 0    },
               volume{ size }
-              ,style{head->style}
+              ,style{(**head).style}
         { }
 
-        operator writ const& () const { return *source; }
+        operator writ const& () const { return **source; }
 
         // rope: Return a substring rope the source content.
         //       ! No checking of boundaries !
         rope substr(iota start, iota width) const
         {
             auto first = source;
-            auto piece = first->size().x;
+            auto piece = (**first).size().x;
 
             while (piece <= start)
             {
                 start -= piece;
-                piece = (++first)->size().x;
+                piece = (**++first).size().x;
             }
 
             auto end = first;
             piece -= start;
             while (piece < width)
             {
-                piece += (++end)->size().x;
+                piece += (**++end).size().x;
             }
             piece -= width;
 
@@ -1252,7 +1357,7 @@ namespace netxs::console
                 };
 
                 auto refer = finish;
-                auto& item = *refer;
+                auto& item = **refer;
                 auto piece = item.size().x - suffix;
 
                 iota start, width, yield;
@@ -1261,7 +1366,7 @@ namespace netxs::console
 
                 while (total -= yield)
                 {
-                    auto& item = *--refer;
+                    auto& item = **--refer;
                     piece = item.size().x;
 
                     crop(piece, total, start, width);
@@ -1271,158 +1376,126 @@ namespace netxs::console
             else
             {
                 auto refer = source;
-                auto& item = *refer;
+                auto& item = **refer;
                 auto yield = draw(item, prefix, total);
 
                 while (total -= yield)
                 {
-                    auto& item = *++refer;
+                    auto& item = **++refer;
                     yield = draw(item, 0, total);
                 }
             }
         }
         constexpr
-        auto  size  () const { return volume;         } // rope: Return volume of the source content.
-        auto  length() const { return volume.x;       } // rope: Return the length of the source content.
-        auto& mark  () const { return finish->brush;  } // rope: Return the the last paragraph brush state.
-        auto  id    () const { return source->id();   } // rope: Return paragraph id.
-        auto  caret () const { return source->chx();  } // rope: Return interal paragraph caret.
+        auto  size  () const { return volume;            } // rope: Return volume of the source content.
+        auto  length() const { return volume.x;          } // rope: Return the length of the source content.
+        auto  id    () const { return (**source).id();   } // rope: Return paragraph id.
     };
 
     // richtext: Enriched text page.
     class page
+        : public ansi::parser
     {
-        using list = std::list<para>;
+        using list = std::list<sptr<para>>;
         using iter = list::iterator;
-        using imap = std::map<iota, iter>;
-        using mark = ansi::mark;
-        using deco = ansi::deco;
+        using imap = std::map<iota, wptr<para>>;
 
     public:
-        iota parid = 1;               // page: Current paragraph id.
-        list batch = { para(parid) }; // page: The list of the rich-text paragraphs.
+        ui32 index = {};              // page: Current paragraph id.
+        list batch = { std::make_shared<para>(index) }; // page: Paragraph list.
         iter layer = batch.begin();   // page: Current paragraph.
-        imap parts;                   // page: Embedded text blocks.
+        imap parts;                   // page: Paragraph index.
+
+        //todo use ring
         iota limit = std::numeric_limits<iota>::max(); // page: Paragraphs number limit.
-
-        mark brush; // page: Parser brush.
-        deco style; // page: Parser style.
-
-        // page: Remove over limit paragraphs.
-        void shrink()
+        void shrink() // page: Remove over limit paragraphs.
         {
             auto size = batch.size();
             if (size > limit)
             {
                 auto item = static_cast<iota>(std::distance(batch.begin(), layer));
-
                 while (batch.size() > limit)
                 {
                     batch.pop_front();
                 }
-                batch.front().locus.clear();
-                // Update current layer tr if it gets out.
+                batch.front()->locus.clear();
+                // Update current layer ptr if it gets out.
                 if (item < size - limit) layer = batch.begin();
             }
         }
+        void maxlen(iota m) { limit = std::max(1, m); shrink(); } // page: Set the limit of paragraphs.
+        auto maxlen() { return limit; } // page: Get the limit of paragraphs.
 
-        template<class T>
-        struct parser : public ansi::parser<T>
+        using ring = generics::ring<std::vector<para>>;
+        struct buff : public ring
         {
-            using vt = ansi::parser<T>;
-            parser() : vt()
-            {
-                using namespace netxs::ansi;
-                vt::intro[ctrl::CR ]     = VT_PROC{ q.pop_if(ctrl::EOL); p->task({ fn::nl,1 }); };
-                vt::intro[ctrl::TAB]     = VT_PROC{ p->task({ fn::tb,q.pop_all(ctrl::TAB) }); };
-                vt::intro[ctrl::EOL]     = VT_PROC{ p->task({ fn::nl,q.pop_all(ctrl::EOL) }); };
-                vt::csier.table[CSI__ED] = VT_PROC{ p->task({ fn::ed, q(0) }); }; // CSI Ps J
-                vt::csier.table[CSI__EL] = VT_PROC{ p->task({ fn::el, q(0) }); }; // CSI Ps K
-                vt::csier.table[CSI_CCC][CCC_NOP] = VT_PROC{ p->fork(); };
-                vt::csier.table[CSI_CCC][CCC_IDX] = VT_PROC{ p->fork(q(0)); };
-                vt::csier.table[CSI_CCC][CCC_REF] = VT_PROC{ p->bind(q(0)); };
-            }
+            using ring::ring;
+            //void undock_base_front(para& p) override { }
+            //void undock_base_back (para& p) override { }
         };
 
-        page& operator = (page const&) = default;
+        template<class T>
+        static void parser_config(T& vt)
+        {
+            using namespace netxs::ansi;
+            vt.intro[ctrl::CR ]              = VT_PROC{ q.pop_if(ctrl::EOL); p->task({ fn::nl,1 }); };
+            vt.intro[ctrl::TAB]              = VT_PROC{ p->task({ fn::tb, q.pop_all(ctrl::TAB) }); };
+            vt.intro[ctrl::EOL]              = VT_PROC{ p->task({ fn::nl, q.pop_all(ctrl::EOL) }); };
+            vt.csier.table[CSI__ED]          = VT_PROC{ p->task({ fn::ed, q(0) }); }; // CSI Ps J
+            vt.csier.table[CSI__EL]          = VT_PROC{ p->task({ fn::el, q(0) }); }; // CSI Ps K
+            vt.csier.table[CSI_CCC][CCC_NOP] = VT_PROC{ p->fork(); };
+            vt.csier.table[CSI_CCC][CCC_IDX] = VT_PROC{ p->fork(q(0)); };
+            vt.csier.table[CSI_CCC][CCC_REF] = VT_PROC{ p->bind(q(0)); };
+        }
+        page              (view utf8) {          ansi::parse(utf8, this);               }
+        auto& operator  = (view utf8) { clear(); ansi::parse(utf8, this); return *this; }
+        auto& operator += (view utf8) {          ansi::parse(utf8, this); return *this; }
+
         page ()                        = default;
         page (page&&)                  = default;
         page (page const&)             = default;
-        page (view const& utf8)
-            : page()
+        page& operator = (page const&) = default;
+        auto& operator+= (page const& p)
         {
-            ansi::parse(utf8, this);
-        }
-
-        // page: Acquire para by id.
-        auto& operator [] (iota index)
-        {
-            if (netxs::on_key(parts, index))
-            {
-                return *parts[index];
-            }
-            else
-            {
-                fork(index);
-                return *layer;
-            }
-        }
-        // page: Wipe current content and store parsed UTF-8 text string.
-        auto& operator =  (view utf8)
-        {
-            clear();
-            ansi::parse(utf8, this);
-            return *this;
-        }
-        // page: Parse UTF-8 text string and appends result.
-        auto& operator += (view utf8)
-        {
-            ansi::parse(utf8, this);
-            return *this;
-        }
-        // page: Append another page. Move semantic
-        page& operator += (page const& p)
-        {
-            //parts.insert(p.parts.begin(), p.parts.end()); // Part id should be unique across pages
+            parts.insert(p.parts.begin(), p.parts.end()); // Part id should be unique across pages
             //batch.splice(std::next(layer), p.batch);
-
             for (auto& a: p.batch)
             {
                 batch.push_back(a);
-                batch.back().id(++parid);
+                batch.back()->id(++index);
             }
             shrink();
             layer = std::prev(batch.end());
             return *this;
         }
-        // page: Set the limit of paragraphs.
-        void maxlen(iota m)
+        // page: Acquire para by id.
+        auto& operator[] (iota id)
         {
-            limit = std::max(1, m);
-            shrink();
-        }
-        // page: Get the limit of paragraphs.
-        auto maxlen()
-        {
-            return limit;
+            if (netxs::on_key(parts, id))
+            {
+                if (auto item = parts[id].lock()) return *item;
+            }
+            fork(id);
+            parts.emplace(id, *layer);
+            return **layer;
         }
         // page: Clear the list of paragraphs.
-        page& clear (bool preserve_state = faux)
+        page& clear(bool preserve_state = faux)
         {
-            if (!preserve_state) brush.reset();
+            if (!preserve_state) parser::brush.reset();
             parts.clear();
             batch.resize(1);
             layer = batch.begin();
-            parid = 1;
-            batch.front().id(parid);
-            layer->wipe(brush);
+            index = 0;
+            auto& item = **layer;
+            item.id(index);
+            item.wipe(parser::brush);
             return *this;
         }
-
         // page: Disintegrate the page content into atomic contiguous pieces - ropes.
         //       Call publish(rope{first, last, length}):
         //       a range of [ first,last ] is the uniform consecutive paragraphs set.
-        //       Length is the sum of the length of each paragraph.
+        //       Length is the sum of the lengths of the paragraphs.
         template<class F>
         void stream(F publish) const
         {
@@ -1431,91 +1504,95 @@ namespace netxs::console
             auto tail = batch.end();
             while (last != tail)
             {
-                auto size = last->size();
+                auto size = (**last).size();
                 auto head = last;
                 while (++last != tail
-                      && last->bare()
-                      && size.y == (next = last->size()).y)
+                      && (**last).bare()
+                      && size.y == (next = (**last).size()).y)
                 {
                     size.x += next.x;
                 }
-
                 publish(rope{ head, std::prev(last), size });
             }
         }
         // page: Split the text run.
-        template<bool COOK = true>
+        template<bool FLUSH = true>
         void fork()
         {
-            if constexpr (COOK) cook();
-            layer = batch.insert(std::next(layer), style);
-            layer->id(++parid);
+            if constexpr (FLUSH) parser::flush();
+            layer = batch.insert(std::next(layer), std::make_shared<para>(parser::style));
+            (**layer).id(++index);
             shrink();
         }
         // page: Split the text run and associate the next paragraph with id.
         void fork(iota id)
         {
             fork();
-            parts[id] = layer;
+            parts[id] = *layer;
         }
         void test()
         {
-            cook();
-            if (layer->busy()) fork<faux>();
+            parser::flush();
+            if ((**layer).busy()) fork<faux>();
         }
-        // page: Make a shared copy of an existing paragraph,
-        //       or create a new one if it doesn't exist.
+        // page: Make a shared copy of lyric of existing paragraph.
         void bind(iota id)
         {
             test();
             auto it = parts.find(id);
             if (it != parts.end())
-                layer->lyric = (*it).second->lyric;
-            else
-                parts.emplace(id, layer);
+            {
+                if (auto item = it->second.lock())
+                {
+                    (**layer).lyric = item->lyric;
+                    return;
+                }
+            }
+            parts.emplace(id, *layer);
         }
-        // page: Add locus command. In case of text presence to change
-        //       current target otherwise abort content building.
+        // page: Add a locus command. In case of text presence change current target.
         void task(ansi::rule const& cmd)
         {
             test();
-            layer->locus.push(cmd);
+            auto& item = **layer;
+            item.locus.push(cmd);
         }
-        void post(utf::frag const& cluster) { layer->post(cluster, brush); }
-        void cook() { layer->style = style; layer->cook(); }
-        auto size() const { return static_cast<iota>(batch.size()); }
-
-        auto& current()       { return *layer; } // page: Access to the current paragraph.
-        auto& current() const { return *layer; } // page: RO access to the current paragraph.
-
-        void  tab(iota n) { layer->ins(n, brush); } // page: Inset tabs via space.
+        void meta(deco const& old_style) override
+        {
+            auto& item = **layer;
+            item.style = parser::style;
+        }
+        void data(iota count, grid const& proto) override
+        {
+            auto& item = **layer;
+            item.lyric->splice(item.caret, count, proto);
+            item.caret += count;
+        }
+        auto& current()       { return **layer; } // page: Access to the current paragraph.
+        auto& current() const { return **layer; } // page: RO access to the current paragraph.
+        auto  size()    const { return static_cast<iota>(batch.size()); }
     };
 
-    //todo revise
-    //struct meta ///<summary> richtext: . </summary>
-    //{
-    //	bool rigid;
-    //	cell brush;
-    //	rect field;
-        // core: Fill the specified region with the its own color and copying method.
-        //void	draw (mesh const& shape)
-        //{
-        //	for (auto& part : shape)
-        //	{
-        //		fill(part.field, part.brush, part.rigid);
-        //	}
-        //}
-        // core: Fill the specified region with the specified color.
-        //void	draw (mesh const& shape, cell const& elem)
-        //{
-        //	for (auto& part : shape)
-        //	{
-        //		fill(part.field, elem, part.rigid);
-        //	}
-        //}
-    //};
-    //
-    //using mesh = std::vector<meta>;
+    // Derivative vt-parser example.
+    struct derived_from_page
+        : public page
+    {
+        template<class T>
+        static void parser_config(T& vt)
+        {
+            page::parser_config(vt); // Inherit base vt-functionality.
+
+            // Override vt-functionality.
+            using namespace netxs::ansi;
+            vt.intro[ctrl::TAB] = VT_PROC{ p->tabs(q.pop_all(ctrl::TAB)); };
+        }
+
+        derived_from_page (view utf8) {          ansi::parse(utf8, this);               }
+        auto& operator  = (view utf8) { clear(); ansi::parse(utf8, this); return *this; }
+        auto& operator += (view utf8) {          ansi::parse(utf8, this); return *this; }
+
+        void tabs(iota) { log("Tabs are not supported"); }
+    };
 
     class tone
     {

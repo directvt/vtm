@@ -90,37 +90,15 @@ namespace netxs
         return  thing;
     }
 
-    namespace ptr
+    template<class...> struct change_value_type_helper;
+    template<template<class...> class C, class... ARGS>
+    struct change_value_type_helper<C<ARGS...>>
     {
-        // ptr: Move block to the specified destination. If begin_it > end_it decrement is used.
-        template<class SRC, class DST, class P>
-        void move_block(SRC begin_it, SRC end_it, DST dest_it, P move_proc)
-        {
-            if (auto direction = end_it - begin_it)
-            {
-                if (direction > 0)
-                {
-                    do
-                    {
-                        move_proc(*begin_it, *dest_it);
-                        ++begin_it;
-                        ++dest_it;
-                    }
-                    while(begin_it != end_it);
-                }
-                else
-                {
-                    do
-                    {
-                        move_proc(*begin_it, *dest_it);
-                        --begin_it;
-                        --dest_it;
-                    }
-                    while(begin_it != end_it);
-                }
-            }
-        }
-    }
+        template<class... NEW_ARGS>
+        using new_type = C<NEW_ARGS...>;
+    };
+    template<class C, class T>
+    using change_value_type = typename change_value_type_helper<C>::template new_type<T>;
 }
 
 #endif // NETXS_PTR_HPP

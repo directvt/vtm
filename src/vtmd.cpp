@@ -1,18 +1,11 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#define MONOTTY_VER "Monotty Desktopio v0.5.16"
-// Autostart demo apps.
+#define MONOTTY_VER "Monotty Desktopio v0.5.9999"
+// Enable demo apps and assign Esc key to log off.
 //#define DEMO
-// Enable keyboard input and disable exit by single Esc.
+// Enable keyboard input and unassign Esc key.
 #define PROD
-
-// Terminal's default line wrapping mode.
-#ifdef DEMO
-    #define WRAPPING (wrap::off)
-#else
-    #define WRAPPING (wrap::on)
-#endif
 
 // Enable to show debug overlay.
 //#define DEBUG_OVERLAY
@@ -297,7 +290,7 @@ class post_logs
                     f(cluster.attr.cdpoint, cluster.text, cluster.attr.ucwidth);
                 };
                 utf::decode<faux>(s, y, shadow);
-                yield.wrp(WRAPPING).eol();
+                yield.wrp(deco::defwrp).eol();
             }
             yield.eol();
             return page{ yield };
@@ -353,7 +346,7 @@ public:
         };
         broadcast->SUBMIT(tier::request, e2::command::custom, status)
         {
-            switch(status)
+            switch (status)
             {
                 case 1:
                     status = worker->show_codepoints ? 1 : 2;
@@ -364,7 +357,7 @@ public:
         };
         broadcast->SUBMIT(tier::preview, e2::command::custom, cmd_id)
         {
-            switch(cmd_id)
+            switch (cmd_id)
             {
                 case 0:
                     clear();
@@ -1820,7 +1813,7 @@ utility like ctags is used to locate the definitions.
                                     {
                                         boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                                         {
-                                            boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, app::term::commands::clear);
+                                            boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, app::term::commands::ui::clear);
                                             gear.dismiss(true);
                                         };
                                     }},
@@ -1830,7 +1823,7 @@ utility like ctags is used to locate the definitions.
                                     {
                                         boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                                         {
-                                            boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, app::term::commands::reset);
+                                            boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, app::term::commands::ui::reset);
                                             gear.dismiss(true);
                                         };
                                     }},
@@ -1839,7 +1832,7 @@ utility like ctags is used to locate the definitions.
                                     {
                                         boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                                         {
-                                            boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, app::term::commands::left);
+                                            boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, app::term::commands::ui::left);
                                             gear.dismiss(true);
                                         };
                                         boss.base::broadcast->SUBMIT(tier::release, app::term::events::layout::align, align)
@@ -1847,14 +1840,13 @@ utility like ctags is used to locate the definitions.
                                             //todo unify, get boss base colors, don't use x3
                                             boss.color(align == bias::left ? 0xFF00ff00 : x3.fgc(), x3.bgc());
                                         };
-                                        boss.color(0xFF00ff00, x3.bgc());
                                     }},
                                     std::pair<text, std::function<void(ui::pads&)>>{ "─=─",
                                     [](ui::pads& boss)
                                     {
                                         boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                                         {
-                                            boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, app::term::commands::center);
+                                            boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, app::term::commands::ui::center);
                                             gear.dismiss(true);
                                         };
                                         boss.base::broadcast->SUBMIT(tier::release, app::term::events::layout::align, align)
@@ -1868,7 +1860,7 @@ utility like ctags is used to locate the definitions.
                                     {
                                         boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                                         {
-                                            boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, app::term::commands::right);
+                                            boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, app::term::commands::ui::right);
                                             gear.dismiss(true);
                                         };
                                         boss.base::broadcast->SUBMIT(tier::release, app::term::events::layout::align, align)
@@ -1882,7 +1874,7 @@ utility like ctags is used to locate the definitions.
                                     {
                                         boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                                         {
-                                            boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, app::term::commands::togglewrp);
+                                            boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, app::term::commands::ui::togglewrp);
                                             gear.dismiss(true);
                                         };
                                         boss.base::broadcast->SUBMIT(tier::release, app::term::events::layout::wrapln, wrapln)
@@ -1948,7 +1940,7 @@ utility like ctags is used to locate the definitions.
                                     {
                                         boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                                         {
-                                            boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, app::term::commands::clear);
+                                            boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, app::term::commands::ui::clear);
                                             gear.dismiss(true);
                                         };
                                     }},
@@ -1957,7 +1949,7 @@ utility like ctags is used to locate the definitions.
                                     {
                                         boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                                         {
-                                            boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, app::term::commands::reset);
+                                            boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, app::term::commands::ui::reset);
                                             gear.dismiss(true);
                                         };
                                     }},
@@ -1992,7 +1984,7 @@ utility like ctags is used to locate the definitions.
                                     {
                                         boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                                         {
-                                            boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, app::term::commands::clear);
+                                            boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, app::term::commands::ui::clear);
                                             gear.dismiss(true);
                                         };
                                     }},
@@ -2001,7 +1993,7 @@ utility like ctags is used to locate the definitions.
                                     {
                                         boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                                         {
-                                            boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, app::term::commands::reset);
+                                            boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, app::term::commands::ui::reset);
                                             gear.dismiss(true);
                                         };
                                     }},
@@ -2233,14 +2225,14 @@ utility like ctags is used to locate the definitions.
 
         #ifdef DEMO
             auto sub_pos = twod{ 12+17, 0 };
-            creator(objs::Test, { twod{ 22, 1  } + sub_pos, { 70, 21 } });
-            creator(objs::Shop, { twod{ 4 , 6  } + sub_pos, { 80, 38 } });
-            creator(objs::Calc, { twod{ 15, 15 } + sub_pos, { 65, 23 } });
-            creator(objs::Text, { twod{ 30, 22 } + sub_pos, { 59, 26 } });
-            creator(objs::MC,   { twod{ 49, 28 } + sub_pos, { 63, 22 } });
-            creator(objs::Term, { twod{ 34, 38 } + sub_pos, { 57, 16 } });
-            creator(objs::Term, { twod{ 44 + 85, 35 } + sub_pos, { 57, 15 } });
-            creator(objs::Term, { twod{ 40 + 85, 42 } + sub_pos, { 57, 15 } });
+            creator(objs::Test, { twod{ 22     , 1  } + sub_pos, { 70, 21 } });
+            creator(objs::Shop, { twod{ 4      , 6  } + sub_pos, { 80, 38 } });
+            creator(objs::Calc, { twod{ 15     , 15 } + sub_pos, { 65, 23 } });
+            creator(objs::Text, { twod{ 30     , 22 } + sub_pos, { 59, 26 } });
+            creator(objs::MC,   { twod{ 49     , 28 } + sub_pos, { 63, 22 } });
+            creator(objs::Term, { twod{ 34     , 38 } + sub_pos, { 64, 16 } });
+            creator(objs::Term, { twod{ 44 + 85, 35 } + sub_pos, { 64, 15 } });
+            creator(objs::Term, { twod{ 40 + 85, 42 } + sub_pos, { 64, 15 } });
 
             creator(objs::View, { twod{ 0, 7 } + twod{ -120, 60 }, { 120, 52 } });
             creator(objs::View, { twod{ 0,-1 } + sub_pos, { 120, 52 } });
@@ -2345,7 +2337,7 @@ utility like ctags is used to locate the definitions.
                                                 auto data_src_shadow = ptr::shadow(data_src);
                                                 boss.SUBMIT_BYVAL(tier::release, hids::events::mouse::button::click::left, gear)
                                                 {
-                                                    if(auto data_src = data_src_shadow.lock())
+                                                    if (auto data_src = data_src_shadow.lock())
                                                     {
                                                         auto& inst = *data_src;
                                                         inst.SIGNAL(tier::preview, e2::form::layout::expose, inst);
@@ -2359,7 +2351,7 @@ utility like ctags is used to locate the definitions.
                                                 };
                                                 boss.SUBMIT_BYVAL(tier::release, hids::events::mouse::button::click::right, gear)
                                                 {
-                                                    if(auto data_src = data_src_shadow.lock())
+                                                    if (auto data_src = data_src_shadow.lock())
                                                     {
                                                         auto& inst = *data_src;
                                                         inst.SIGNAL(tier::preview, e2::form::layout::expose, inst);
@@ -2372,7 +2364,7 @@ utility like ctags is used to locate the definitions.
                                                 };
                                                 boss.SUBMIT_BYVAL(tier::release, e2::form::state::mouse, hits)
                                                 {
-                                                    if(auto data_src = data_src_shadow.lock())
+                                                    if (auto data_src = data_src_shadow.lock())
                                                     {
                                                         data_src->SIGNAL(tier::release, e2::form::highlight::any, !!hits);
                                                     }
@@ -2392,7 +2384,7 @@ utility like ctags is used to locate the definitions.
                                                                     auto data_src_shadow = ptr::shadow(data_src);
                                                                     boss.SUBMIT_BYVAL(tier::release, hids::events::mouse::button::click::left, gear)
                                                                     {
-                                                                        if(auto data_src = data_src_shadow.lock())
+                                                                        if (auto data_src = data_src_shadow.lock())
                                                                         {
                                                                             data_src->SIGNAL(tier::release, e2::form::proceed::detach, data_src);
                                                                             gear.dismiss();
@@ -2406,7 +2398,7 @@ utility like ctags is used to locate the definitions.
                     {
                         auto apps = base::create<ui::list>();
                         //todo loops are not compatible with Declarative UI
-                        for(auto const& [class_id, inst_ptr_list] : *apps_map)
+                        for (auto const& [class_id, inst_ptr_list] : *apps_map)
                         {
                             auto id = class_id;
                             if (inst_ptr_list.size())
@@ -2421,7 +2413,7 @@ utility like ctags is used to locate the definitions.
                                                         auto data_src_shadow = ptr::shadow(data_src);
                                                         boss.SUBMIT_BYVAL(tier::release, hids::events::mouse::button::click::left, gear)
                                                         {
-                                                            if(auto data_src = data_src_shadow.lock())
+                                                            if (auto data_src = data_src_shadow.lock())
                                                             {
                                                                 sptr<registry_t> registry_ptr;
                                                                 data_src->SIGNAL(tier::request, e2::bindings::list::apps, registry_ptr);
@@ -2442,7 +2434,7 @@ utility like ctags is used to locate the definitions.
                                                         };
                                                         boss.SUBMIT_BYVAL(tier::release, hids::events::mouse::button::click::right, gear)
                                                         {
-                                                            if(auto data_src = data_src_shadow.lock())
+                                                            if (auto data_src = data_src_shadow.lock())
                                                             {
                                                                 sptr<registry_t> registry_ptr;
                                                                 data_src->SIGNAL(tier::request, e2::bindings::list::apps, registry_ptr);
@@ -2476,7 +2468,7 @@ utility like ctags is used to locate the definitions.
                     {
                         auto menuitems = base::create<ui::list>();
                         //todo loops are not compatible with Declarative UI
-                        for(auto const& [class_id, inst_ptr_list] : *apps_map)
+                        for (auto const& [class_id, inst_ptr_list] : *apps_map)
                         {
                             auto id = class_id;
                             auto selected = class_id == current_default;
@@ -2519,7 +2511,7 @@ utility like ctags is used to locate the definitions.
                                                             client->SUBMIT_T_BYVAL(tier::release, e2::data::changed, boss.tracker, data)
                                                             {
                                                                 auto selected = id == data;
-                                                                if(auto mark = mark_shadow.lock())
+                                                                if (auto mark = mark_shadow.lock())
                                                                 {
                                                                     mark->set(ansi::fgc4(selected ? 0xFF00ff00 : 0xFF000000).add("██"));
                                                                     mark->deface();
@@ -2628,8 +2620,8 @@ utility like ctags is used to locate the definitions.
                                                     auto bttn_shadow = ptr::shadow(bttn);
                                                     boss.SUBMIT_BYVAL(tier::release, hids::events::mouse::button::click::left, gear)
                                                     {
-                                                        if(auto bttn = bttn_shadow.lock())
-                                                        if(auto task_menu_area = task_menu_area_shadow.lock())
+                                                        if (auto bttn = bttn_shadow.lock())
+                                                        if (auto task_menu_area = task_menu_area_shadow.lock())
                                                         {
                                                             auto state = task_menu_area->get_ratio();
                                                             bttn->set(state ? ">" : "<");
@@ -2645,8 +2637,8 @@ utility like ctags is used to locate the definitions.
                                                     boss.SUBMIT_BYVAL(tier::release, e2::form::state::mouse, active)
                                                     {
                                                         if (!active)
-                                                        if(auto bttn = bttn_shadow.lock())
-                                                        if(auto task_menu_area = task_menu_area_shadow.lock())
+                                                        if (auto bttn = bttn_shadow.lock())
+                                                        if (auto task_menu_area = task_menu_area_shadow.lock())
                                                         {
                                                             if (auto state = task_menu_area->get_ratio())
                                                             {
@@ -2683,8 +2675,8 @@ utility like ctags is used to locate the definitions.
                                                     boss.SUBMIT_BYVAL(tier::release, hids::events::mouse::button::click::left, gear)
                                                     {
                                                         static bool state = faux;
-                                                        if(auto bttn = bttn_shadow.lock())
-                                                        if(auto userlist = userlist_area_shadow.lock())
+                                                        if (auto bttn = bttn_shadow.lock())
+                                                        if (auto userlist = userlist_area_shadow.lock())
                                                         {
                                                             state = !state;
                                                             bttn->set(state ? ">" : "<");
