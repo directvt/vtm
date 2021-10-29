@@ -839,7 +839,9 @@ namespace netxs::ui
         pro::robot robot{*this }; // rail: Animation controller.
 
         template<auto N> static constexpr
-        auto events = e2::form::upon::scroll::_<N>;
+        //auto events = e2::form::upon::scroll::_<N>; //todo clang 11.0.1 doesn't support this.
+        auto events() { return e2::form::upon::scroll::_<N>; }
+
         bool strict[2] = { true, true }; // rail: Don't allow overscroll.
         bool manual[2] = { true, true }; // rail: Manaul scrolling (no auto align).
         bool locked{}; // rail: Client is under resizing.
@@ -874,7 +876,7 @@ namespace netxs::ui
         template<axis AXIS>
         auto follow(sptr<base> master = {})
         {
-            if (master) master->SUBMIT_T(tier::release, events<AXIS>, fasten, master_scinfo)
+            if (master) master->SUBMIT_T(tier::release, events<AXIS>(), fasten, master_scinfo)
             {
                 AXIS == axis::X ? scroll<X>(scinfo.window.coor.x - master_scinfo.window.coor.x)
                                 : scroll<Y>(scinfo.window.coor.y - master_scinfo.window.coor.y);
@@ -898,16 +900,16 @@ namespace netxs::ui
                     auto& item = *client;
                     switch (this->bell::protos<tier::preview>())
                     {
-                        case events<X>.id:
+                        case events<X>().id:
                             scroll<X>(scinfo.window.coor.x - info.window.coor.x);
                             break;
-                        case events<Y>.id:
+                        case events<Y>().id:
                             scroll<Y>(scinfo.window.coor.y - info.window.coor.y);
                             break;
-                        case events<X + 2>.id:
+                        case events<X + 2>().id:
                             cancel<X, true>();
                             break;
-                        case events<Y + 2>.id:
+                        case events<Y + 2>().id:
                             cancel<Y, true>();
                             break;
                     }
@@ -1146,7 +1148,7 @@ namespace netxs::ui
                 scinfo.region = block.size;
                 scinfo.window.coor =-block.coor; // Viewport.
                 scinfo.window.size = frame;      //
-                SIGNAL(tier::release, events<AXIS>, scinfo);
+                SIGNAL(tier::release, events<AXIS>(), scinfo);
 
                 block.coor += basis; // Client origin basis.
                 locked = true;
@@ -1175,8 +1177,8 @@ namespace netxs::ui
             {
                 scinfo.region = {};
                 scinfo.window.coor = {};
-                this->SIGNAL(tier::release, events<axis::X>, scinfo);
-                this->SIGNAL(tier::release, events<axis::Y>, scinfo);
+                this->SIGNAL(tier::release, events<axis::X>(), scinfo);
+                this->SIGNAL(tier::release, events<axis::Y>(), scinfo);
                 tokens.clear();
                 fasten.clear();
             };
@@ -1231,7 +1233,8 @@ namespace netxs::ui
         };
 
         template<auto N> static constexpr
-        auto events = e2::form::upon::scroll::_<N>;
+        //auto events = e2::form::upon::scroll::_<N>; //todo clang 11.0.1 doesn't support this.
+        auto events() { return e2::form::upon::scroll::_<N>; }
 
         static inline auto  xy(twod const& p) { return AXIS == axis::X ? p.x : p.y; }
         static inline auto  yx(twod const& p) { return AXIS == axis::Y ? p.x : p.y; }
@@ -1342,7 +1345,7 @@ namespace netxs::ui
 
         bool on_pager = faux;
 
-        template<class EVENT = decltype(events<AXIS>)>
+        template<class EVENT = decltype(events<AXIS>())>
         void send(EVENT)
         {
             if (auto master = this->boss.lock())
@@ -1352,7 +1355,7 @@ namespace netxs::ui
         }
         void gohome()
         {
-            send(events<AXIS + 2>);
+            send(events<AXIS + 2>());
         }
         void config(iota width)
         {
@@ -1381,7 +1384,7 @@ namespace netxs::ui
         {
             if (on_pager && calc.follow())
             {
-                send(events<AXIS>);
+                send(events<AXIS>());
             }
             return on_pager;
         }
@@ -1395,7 +1398,7 @@ namespace netxs::ui
         {
             config(thin);
 
-            boss->SUBMIT_T(tier::release, events<AXIS>, memo, scinfo)
+            boss->SUBMIT_T(tier::release, events<AXIS>(), memo, scinfo)
             {
                 calc.update(scinfo);
                 base::deface();
@@ -1413,7 +1416,7 @@ namespace netxs::ui
                 {
                     auto dir = gear.whldt < 0 ? 1 : -1;
                     calc.pager(dir);
-                    send(events<AXIS>);
+                    send(events<AXIS>());
                     gear.dismiss();
                 }
             };
@@ -1497,7 +1500,7 @@ namespace netxs::ui
                         if (auto delta = xy(gear.mouse::delta.get()))
                         {
                             calc.stepby(delta);
-                            send(events<AXIS>);
+                            send(events<AXIS>());
                             gear.dismiss();
                         }
                     }

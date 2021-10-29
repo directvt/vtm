@@ -3256,15 +3256,12 @@ private:
             auto adjust_pads = console.recalc_pads(oversz);
             auto scroll_size = console.panel;
             scroll_size.y += basis;
+
             if (force_basis)
             {
                 if (follow_cursor)
                 {
                     follow_cursor = faux;
-                    if (scroll_size != base::size() || adjust_pads)
-                    {
-                        SIGNAL(tier::release, e2::size::set, scroll_size); // Update scrollbars.
-                    }
 
                     auto c = console.get_coord(dot_00);
                     if (origin.x != 0 || c.x != console.panel.x)
@@ -3276,6 +3273,11 @@ private:
 
                     origin.y = -basis;
                     SIGNAL(tier::release, e2::coor::set, origin);
+
+                    if (scroll_size != base::size() || adjust_pads)
+                    {
+                        SIGNAL(tier::release, e2::size::set, scroll_size); // Update scrollbars.
+                    }
                     return;
                 }
 
