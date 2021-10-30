@@ -648,6 +648,7 @@ namespace netxs::ansi
     static esc dnl (bool b = true)   { return esc{}.dnl (b); } // ansi: SGR Double underline attribute.
     static esc ovr (bool b = true)   { return esc{}.ovr (b); } // ansi: SGR Overline attribute.
 
+    static esc add (view t)          { return esc{}.add (t); } // ansi: Add text.
     static esc fgc ()                { return esc{}.fgc ( ); } // ansi: Set default foreground color.
     static esc bgc ()                { return esc{}.bgc ( ); } // ansi: Set default background color.
     static esc fgc (rgba const& n)   { return esc{}.fgc (n); } // ansi: SGR Foreground color.

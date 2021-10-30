@@ -81,6 +81,14 @@ std::list<text> appstore_body =
     item("Term", blackdk, "469", "Free ", "Get",
     "Terminal emulator."),
 
+    item("Tile", bluedk, "3", "Free ", "Get",
+    ansi::add("Meta object. Tiling window manager preconfigurable "
+    "using environment variable ").
+    fgc(whitelt).bld(true).add("VTM_TILE").fgc().bld(faux).
+    add(".\n\nConfiguration example:\n\n").
+    mgl(2).fgc(whitelt).bgc(blacklt)
+    .add(" VTM_TILE=\"v(10/3, { Term: \\\"bash\\\" }, h(2/1, h(1/1, { Logs }, { Calc }), { Term: \\\"top\\\" }))\" ")),
+
     item("Text", cyandk, "102", "Free ", "Get",
     "A simple text editor for Monotty environment "
     "and a basic editing tool which enables "
@@ -1209,6 +1217,7 @@ utility like ctags is used to locate the definitions.
         X(Shop         , "Shop"                     ) \
         X(Logs         , "Logs"                     ) \
         X(View         , "View"                     ) \
+        X(Tile         , "Tile"                     ) \
         X(PowerShell   , "pwsh PowerShell"          ) \
         X(CommandPrompt, "cmd Command Prompt"       ) \
         X(Bash         , "Bash/Zsh/CMD"             ) \
@@ -2121,6 +2130,45 @@ utility like ctags is used to locate the definitions.
                     });
                     break;
                 }
+                case Tile:
+                {
+                    static iota i = 0; i++;
+                    window->plugin<pro::title>(ansi::jet(bias::center).add(" Tiling Window Manager ", i));
+                    window->invoke([&](auto& boss)
+                    {
+                        auto outer = dent{ 2,2,1,1 };
+                        auto inner = dent{ -4,-4,-2,-2 };
+                        auto& sizer = boss.template plugins<pro::sizer>();
+                        sizer.props(outer, inner);
+                        boss.SIGNAL(tier::preview, e2::form::prop::zorder, Z_order::backmost);
+                        boss.SUBMIT(tier::release, hids::events::mouse::button::dblclick::left, gear)
+                        {
+                            auto& sizer = boss.template plugins<pro::sizer>();
+                            auto [outer, inner] = sizer.get_props();
+                            auto actual_rect = rect{ dot_00, boss.base::size() } + outer;
+                            if (actual_rect.hittest(gear.coord))
+                            {
+                                if (auto gate_ptr = bell::getref(gear.id))
+                                {
+                                    rect viewport;
+                                    gate_ptr->SIGNAL(tier::request, e2::form::prop::viewport, viewport);
+                                    boss.base::extend(viewport);
+                                }
+                                gear.dismiss();
+                            }
+                        };
+                        boss.SUBMIT(tier::release, e2::render::prerender, parent_canvas)
+                        {
+                            rgba title_fg_color = 0xFFffffff;
+                            auto area = parent_canvas.full();
+                            auto mark = skin::color(tone::shadower);
+                            mark.fgc(title_fg_color).link(boss.bell::id);
+                            auto fill = [&](cell& c) { c.fusefull(mark); };
+                            parent_canvas.cage(area, dot_21, fill);
+                        };
+                    });
+                    break;
+                }
             }
             world->branch(type, window);
             return window;
@@ -2212,11 +2260,13 @@ utility like ctags is used to locate the definitions.
                     menu_list[objs::PowerShell];
                     menu_list[objs::Logs];
                     menu_list[objs::View];
+                    menu_list[objs::Tile];
                     menu_list[objs::RefreshRate];
                 #else
                     menu_list[objs::Term];
                     menu_list[objs::Logs];
                     menu_list[objs::View];
+                    menu_list[objs::Tile];
                     menu_list[objs::RefreshRate];
                     menu_list[objs::VTM];
                 #endif
@@ -2226,7 +2276,7 @@ utility like ctags is used to locate the definitions.
         #ifdef DEMO
             auto sub_pos = twod{ 12+17, 0 };
             creator(objs::Test, { twod{ 22     , 1  } + sub_pos, { 70, 21 } });
-            creator(objs::Shop, { twod{ 4      , 6  } + sub_pos, { 80, 38 } });
+            creator(objs::Shop, { twod{ 4      , 6  } + sub_pos, { 82, 38 } });
             creator(objs::Calc, { twod{ 15     , 15 } + sub_pos, { 65, 23 } });
             creator(objs::Text, { twod{ 30     , 22 } + sub_pos, { 59, 26 } });
             creator(objs::MC,   { twod{ 49     , 28 } + sub_pos, { 63, 22 } });
