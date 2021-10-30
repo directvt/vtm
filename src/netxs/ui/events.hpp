@@ -306,13 +306,6 @@ namespace netxs::events
                          static constexpr auto index() { return events::number<id>;    }
     };
 
-    template<class ...Args>
-    struct array
-    {
-        constexpr array(Args...) { }
-        template<auto N> static constexpr auto at = std::get<N>( std::tuple<typename std::remove_cv<Args>::type...>{} );
-    };
-
     #define SUBMIT(        level, event,        param) bell::template submit<level, decltype( event )>()        = [&] (typename decltype( event )::type &&  param)
     #define SUBMIT_BYVAL(  level, event,        param) bell::template submit<level, decltype( event )>()        = [=] (typename decltype( event )::type &&  param) mutable
     #define SUBMIT_T(      level, event, token, param) bell::template submit<level, decltype( event )>( token ) = [&] (typename decltype( event )::type &&  param)
@@ -330,7 +323,7 @@ namespace netxs::events
     #define  GROUP_XS( name, type ) EVENT_XS( _##name, type )
     #define SUBSET_XS( name )       }; class name { EVENTPACK( name, _##name )
     #define  INDEX_XS(  ... )       }; template<auto N> static constexpr \
-                                    auto _ = decltype(netxs::events::array{ __VA_ARGS__ })::at<N>; \
+                                    auto _ = std::get<N>( std::tuple{ __VA_ARGS__ } ); \
                                     private: static constexpr auto _dummy = { 777
     //todo unify seeding
     namespace userland
