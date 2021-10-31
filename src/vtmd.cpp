@@ -1322,6 +1322,120 @@ utility like ctags is used to locate the definitions.
                          ->attach<ui::item>("×");
             return menu_area;
         };
+
+        auto headless_te = [&]()
+        {
+            // Embedded terminal layout
+            //
+            //      Multiline
+            //      Window Title
+            //      ██████████████████████████████  <- decor: visually separates the title
+            //      sdn@meg: /mnt/d$ _              <- terminal content
+            //                                   ▒  <- vt scrollbar
+            //      ▒▒▒▒▒▒▒▒▒█████████████████████  <- hz scrollbar
+            //           status line: 1/200+0 30:2
+
+            //auto te_area = base::create<ui::pads>(dent{ 2,2,1,1}, dent{})
+            //                   ->attach<ui::fork>(axis::Y)
+            //                   ->active();
+            auto te_area = base::create<ui::fork>(axis::Y)
+                               ->active();
+
+                auto title_decor = te_area->attach<slot::_1, ui::fork>(axis::Y);
+                    auto title = title_decor->attach<slot::_1, ui::post>() //todo pro::title_2
+                                            ->colors(whitelt, 0xFF000000)
+                                            ->upload("Headless TE"); //todo make transparent
+                                    title->invoke([&](auto& boss)
+                                            {
+                                                auto shadow = ptr::shadow(title);
+                                                te_area->SUBMIT_BYVAL(tier::preview, e2::form::prop::header, newtext)
+                                                {
+                                                    if (auto ptr = shadow.lock())
+                                                    {
+                                                        ptr->upload(newtext);
+                                                    }
+                                                };
+                                                te_area->SUBMIT_BYVAL(tier::request, e2::form::prop::header, curtext)
+                                                {
+                                                    if (auto ptr = shadow.lock())
+                                                    {
+                                                        curtext = ptr->get_source();
+                                                    }
+                                                };
+                                            });
+                    auto decor = title_decor->attach<slot::_2, ui::cake>()
+                                            ->plugin<pro::limit>(twod{ -1,1 }, twod{ -1,1 });
+
+
+                //auto window = te_area->attach<slot::_2, ui::cake>()
+                //          ->plugin<pro::track>()
+                //          ->plugin<pro::align>()
+                //          ->plugin<pro::acryl>()
+                //          ->plugin<pro::cache>();
+                //    auto object = window->attach<ui::fork>(axis::Y)
+                //                        ->colors(whitelt, term_menu_bg);
+
+                        auto term_stat_area = te_area->attach<slot::_2, ui::fork>(axis::Y);
+                            auto layers = term_stat_area->attach<slot::_1, ui::cake>()
+                                                        ->plugin<pro::limit>(dot_11, twod{ 400,200 });
+                                auto scroll = layers->attach<ui::rail>();
+                                {
+                                    #ifdef DEMO
+                                        scroll->plugin<pro::limit>(twod{ 20,1 }); // mc crashes when window is too small
+                                    #endif
+
+                                    #if defined(_WIN32)
+
+                                        auto inst = scroll->attach<app::term>("bash");
+
+                                    #elif defined(__linux__)
+
+                                        auto inst = scroll->attach<app::term>("bash");
+
+                                    #elif defined(__APPLE__)
+
+                                        auto inst = scroll->attach<app::term>("zsh");
+
+                                    #elif defined(__FreeBSD__)
+
+                                        auto inst = scroll->attach<app::term>("csh");
+
+                                    #elif defined(__unix__)
+
+                                        auto inst = scroll->attach<app::term>("sh");
+
+                                    #endif
+
+                                    inst->colors(whitelt, blackdk);
+                                }
+                            auto scroll_bars = layers->attach<ui::fork>();
+                                auto vt = scroll_bars->attach<slot::_2, ui::grip<axis::Y>>(scroll);
+                                auto hz_footer = term_stat_area->attach<slot::_2, ui::fork>(axis::Y);
+                                    auto hz = hz_footer->attach<slot::_1, ui::grip<axis::X>>(scroll);
+                                    auto footer = hz_footer->attach<slot::_2, ui::post>()
+                                                        ->colors(whitelt, 0xFF000000)
+                                                        ->upload(ansi::jet(bias::right).add("1/20000+0 12:54")) //todo make transparent
+                                                        ->plugin<pro::limit>(twod{ -1,1 }, twod{ -1,1 });
+                                               footer->invoke([&](auto& boss)
+                                                        {
+                                                            auto shadow = ptr::shadow(footer);
+                                                            te_area->SUBMIT_BYVAL(tier::preview, e2::form::prop::footer, newtext)
+                                                            {
+                                                                if (auto ptr = shadow.lock())
+                                                                {
+                                                                    ptr->upload(newtext);
+                                                                }
+                                                            };
+                                                            te_area->SUBMIT_BYVAL(tier::request, e2::form::prop::footer, curtext)
+                                                            {
+                                                                if (auto ptr = shadow.lock())
+                                                                {
+                                                                    curtext = ptr->get_source();
+                                                                }
+                                                            };
+                                                        });
+            return te_area;
+        };
         auto custom_menu = [&](std::list<std::pair<text, std::function<void(ui::pads&)>>> menu_items)
         {
             auto menu_area = base::create<ui::fork>()
@@ -2132,41 +2246,64 @@ utility like ctags is used to locate the definitions.
                 }
                 case Tile:
                 {
-                    static iota i = 0; i++;
-                    window->plugin<pro::title>(ansi::jet(bias::center).add(" Tiling Window Manager ", i));
-                    window->invoke([&](auto& boss)
-                    {
-                        auto outer = dent{ 2,2,1,1 };
-                        auto inner = dent{ -4,-4,-2,-2 };
-                        auto& sizer = boss.template plugins<pro::sizer>();
-                        sizer.props(outer, inner);
-                        boss.SIGNAL(tier::preview, e2::form::prop::zorder, Z_order::backmost);
-                        boss.SUBMIT(tier::release, hids::events::mouse::button::dblclick::left, gear)
-                        {
-                            auto& sizer = boss.template plugins<pro::sizer>();
-                            auto [outer, inner] = sizer.get_props();
-                            auto actual_rect = rect{ dot_00, boss.base::size() } + outer;
-                            if (actual_rect.hittest(gear.coord))
-                            {
-                                if (auto gate_ptr = bell::getref(gear.id))
-                                {
-                                    rect viewport;
-                                    gate_ptr->SIGNAL(tier::request, e2::form::prop::viewport, viewport);
-                                    boss.base::extend(viewport);
-                                }
-                                gear.dismiss();
-                            }
-                        };
-                        boss.SUBMIT(tier::release, e2::render::prerender, parent_canvas)
-                        {
-                            rgba title_fg_color = 0xFFffffff;
-                            auto area = parent_canvas.full();
-                            auto mark = skin::color(tone::shadower);
-                            mark.fgc(title_fg_color).link(boss.bell::id);
-                            auto fill = [&](cell& c) { c.fusefull(mark); };
-                            parent_canvas.cage(area, dot_21, fill);
-                        };
-                    });
+                    window->plugin<pro::title>(ansi::add("Tiling window manager"))
+                          ->plugin<pro::track>()
+                          ->plugin<pro::align>()
+                          ->plugin<pro::acryl>();
+                          //->plugin<pro::cache>();
+
+                    auto object = window->attach<ui::fork>(axis::Y)
+                                        ->colors(whitelt, term_menu_bg);
+                    //auto object = window->attach<ui::pads>(dent{0,0,0,-1}, dent{0,0,0,0})
+                    //                    ->attach<ui::fork>(axis::Y)
+                    //                    ->colors(whitelt, term_menu_bg);
+                        auto menu = object->attach<slot::_1>(custom_menu(
+                            std::list{
+                                    std::pair<text, std::function<void(ui::pads&)>>{ "Split VT",
+                                    [](ui::pads& boss)
+                                    {
+                                        boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
+                                        {
+                                            //iota status = 1;
+                                            //boss.base::broadcast->SIGNAL(tier::request, e2::command::custom, status);
+                                            //boss.base::broadcast->SIGNAL(tier::preview, e2::command::custom, status == 2 ? 1/*show*/ : 2/*hide*/);
+                                            gear.dismiss(true);
+                                        };
+                                        boss.base::broadcast->SUBMIT(tier::release, e2::command::custom, status)
+                                        {
+                                            //boss.color(status == 1 ? 0xFF00ff00 : x3.fgc(), x3.bgc());
+                                        };
+                                    }},
+                                    std::pair<text, std::function<void(ui::pads&)>>{ "Split HZ",
+                                    [](ui::pads& boss)
+                                    {
+                                        boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
+                                        {
+                                            //boss.base::broadcast->SIGNAL(tier::preview, e2::command::custom, 0);
+                                            gear.dismiss(true);
+                                        };
+                                    }},
+                                    std::pair<text, std::function<void(ui::pads&)>>{ "Remove",
+                                    [](ui::pads& boss)
+                                    {
+                                        boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
+                                        {
+                                            //boss.base::broadcast->SIGNAL(tier::preview, e2::command::custom, 0);
+                                            gear.dismiss(true);
+                                        };
+                                    }},
+                                }))
+                                          ->plugin<pro::mover>(window);
+
+                        //auto pane = object->attach<slot::_2, ui::cake>()
+                        auto pane1 = object->attach<slot::_2, ui::fork>(axis::X, 2);
+                              auto rght_term = pane1->attach<slot::_2>(headless_te());
+                              auto left_stack = pane1->attach<slot::_1, ui::fork>(axis::Y, 0);
+                                auto top_left_term = left_stack->attach<slot::_1>(headless_te());
+                                auto bttm_stack = left_stack->attach<slot::_2, ui::fork>(axis::X, 2);
+                                bttm_stack->attach<slot::_1>(headless_te());
+                                bttm_stack->attach<slot::_2>(headless_te());
+
                     break;
                 }
             }

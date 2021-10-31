@@ -233,8 +233,12 @@ Module               | Options
 
  - `▀▄ Tile`
    - Tiling window manager preconfigurable using environment variable `VTM_TILE`.  
-     - Configuration example:
-       ` VTM_TILE="v(10/3, { Term: \"bash\" }, h(2/1, h(1/1, { Logs }, { Calc }), { Term: \"top\" }))" `
+     ```
+     # Configuration example:
+
+     VTM_TILE="v(10/3, { Term: \"bash\" }, h(2/1, h(1/1, { Logs }, { Calc }), { Term: \"top\" }))"
+     ```
+
 
 </p></details>
 

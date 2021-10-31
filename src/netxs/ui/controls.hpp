@@ -271,6 +271,15 @@ namespace netxs::ui
                 if (width)
                 {
                     //todo draw grips
+                    auto full = parent_canvas.full();
+                    auto view = parent_canvas.view();
+                    auto base = full.coor - view.coor;
+                    auto block = stem;
+
+                    block.coor = coor2 - xpose({ width, 0 });
+                    block.coor += basis - base - parent_canvas.coor();
+                    //parent_canvas.fill(block, [](cell& c){ c.bgc(redlt); });
+                    parent_canvas.fill(block, [](cell& c){ c.bgc(0xFF000000); });
                 }
             };
 
@@ -395,6 +404,10 @@ namespace netxs::ui
                 }
 
                 new_size = xpose({ split + width + get_x(size2), new_size0.y });
+
+                //todo revise
+                //stem = { xpose({ split, 0 }), xpose({ width, get_y(new_size) }) };
+                stem = { xpose({ split, 0 }), xpose({ width, new_size0.y }) };
             }
         }
 
@@ -453,13 +466,13 @@ namespace netxs::ui
         template<slot SLOT, class T>
         auto attach(sptr<T> item)
         {
-            if (SLOT == slot::_1) client_1 = item;
-            else                  client_2 = item;
+            if constexpr (SLOT == slot::_1) client_1 = item;
+            else                            client_2 = item;
             item->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
             return item;
         }
-        template<slot SLOT, class T, class ...Args>
         // fork: Create a new item of the specified subtype and attach it to a specified slot.
+        template<slot SLOT, class T, class ...Args>
         auto attach(Args&&... args)
         {
             return attach<SLOT>(create<T>(std::forward<Args>(args)...));
@@ -736,6 +749,7 @@ namespace netxs::ui
         : public flow, public form<post>
     {
         twod width; // post: Page dimensions.
+        text source; // post: Raw content.
         page_layout layout;
         bool beyond; // post: Allow vertical scrolling beyond last line.
 
@@ -751,9 +765,14 @@ namespace netxs::ui
         template<class TEXT>
         auto upload(TEXT utf8)
         {
+            source = utf8;
             topic = utf8;
             base::reflow();
             return This<post>();
+        }
+        auto& get_source() const
+        {
+            return source;
         }
         void output(face& canvas)
         {

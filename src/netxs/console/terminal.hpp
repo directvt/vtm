@@ -115,13 +115,10 @@ private:
                 if (scroll.update_status(*this))
                 {
                     data.clear();
-                    data.jet(bias::right)
-                        .add("size=", size,
-                            " peak=", peak - 1,
-                            " type=");
-                    if (step) data.add("unlimited, grow by ", step);
-                    else      data.add("fixed");
-                    data.add(" area=", area);
+                    data.jet(bias::right).add(size,
+                                         "/", peak - 1,
+                                         "+", step,
+                                         " ", area.x, ":", area.y);
                     return true;
                 }
                 else return faux;
