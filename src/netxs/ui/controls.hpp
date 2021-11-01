@@ -15,7 +15,7 @@ namespace netxs::ui
     using namespace netxs::ui::atoms;
     using namespace netxs::console;
 
-    enum slot : id_t { _1, _2 };
+    enum slot : id_t { _1, _2, _I };
     enum axis : id_t { X, Y };
     enum axes
     {
@@ -62,6 +62,15 @@ namespace netxs::ui
         {
             auto backup = This<T>();
             depo[std::type_index(typeid(S))] = std::make_unique<S>(*this, std::forward<Args>(args)...);
+            base::reflow();
+            return backup;
+        }
+        // form: Attach feature and return itself.
+        template<class S>
+        auto unplug()
+        {
+            auto backup = This<T>();
+            depo.erase(std::type_index(typeid(S)));
             base::reflow();
             return backup;
         }
@@ -177,10 +186,14 @@ namespace netxs::ui
 
         sptr<base> client_1; // fork: 1st object.
         sptr<base> client_2; // fork: 2nd object.
+        sptr<base> splitter; // fork: Resizing grip.
 
         twod size1;
         twod size2;
         twod coor2;
+        twod size3;
+        twod coor3;
+        iota split = 0;
 
         tint clr;
         //twod size;
@@ -236,6 +249,7 @@ namespace netxs::ui
             events::sync lock;
             if (client_1) client_1->base::detach();
             if (client_2) client_2->base::detach();
+            if (splitter) splitter->base::detach();
         }
         fork(axis alignment = axis::X, iota thickness = 0, iota scale = 50)
         :   maxpos{ 0 },
@@ -261,26 +275,18 @@ namespace netxs::ui
                     client_2->SIGNAL(tier::release, e2::coor::set, coor2);
                     client_2->SIGNAL(tier::release, e2::size::set, size2);
                 }
+                if (splitter)
+                {
+                    splitter->SIGNAL(tier::release, e2::coor::set, coor3);
+                    splitter->SIGNAL(tier::release, e2::size::set, size3);
+                }
             };
             SUBMIT(tier::release, e2::render::any, parent_canvas)
             {
                 auto& basis = base::coor();
+                if (splitter) parent_canvas.render(splitter, basis);
                 if (client_1) parent_canvas.render(client_1, basis);
                 if (client_2) parent_canvas.render(client_2, basis);
-
-                if (width)
-                {
-                    //todo draw grips
-                    auto full = parent_canvas.full();
-                    auto view = parent_canvas.view();
-                    auto base = full.coor - view.coor;
-                    auto block = stem;
-
-                    block.coor = coor2 - xpose({ width, 0 });
-                    block.coor += basis - base - parent_canvas.coor();
-                    //parent_canvas.fill(block, [](cell& c){ c.bgc(redlt); });
-                    parent_canvas.fill(block, [](cell& c){ c.bgc(0xFF000000); });
-                }
             };
 
             _config(alignment, thickness, scale);
@@ -356,10 +362,11 @@ namespace netxs::ui
         void size_preview(twod& new_size)
         {
             //todo revise/unify
+            //todo client_2 doesn't respect ui::pads
             auto new_size0 = xpose(new_size);
             {
                 maxpos = std::max(new_size0.x - width, 0);
-                auto split = netxs::divround(maxpos * ratio, MAX_RATIO);
+                split = netxs::divround(maxpos * ratio, MAX_RATIO);
 
                 size1 = xpose({ split, new_size0.y });
                 if (client_1)
@@ -402,12 +409,13 @@ namespace netxs::ui
 
                     coor2 = xpose({ split + width, 0 });
                 }
+                if (splitter)
+                {
+                    coor3 = xpose({ split, 0 });
+                    size3 = xpose({ width, new_size0.y });
+                }
 
                 new_size = xpose({ split + width + get_x(size2), new_size0.y });
-
-                //todo revise
-                //stem = { xpose({ split, 0 }), xpose({ width, get_y(new_size) }) };
-                stem = { xpose({ split, 0 }), xpose({ width, new_size0.y }) };
             }
         }
 
@@ -466,8 +474,19 @@ namespace netxs::ui
         template<slot SLOT, class T>
         auto attach(sptr<T> item)
         {
-            if constexpr (SLOT == slot::_1) client_1 = item;
-            else                            client_2 = item;
+                 if constexpr (SLOT == slot::_1) client_1 = item;
+            else if constexpr (SLOT == slot::_2) client_2 = item;
+            else
+            {
+                splitter = item;
+                splitter->SUBMIT(tier::preview, e2::form::upon::changed, delta)
+                {
+                    split += get_x(delta);
+                    ratio = netxs::divround(MAX_RATIO * split, maxpos);
+                    this->base::reflow();
+                };
+            }
+
             item->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
             return item;
         }
@@ -481,7 +500,8 @@ namespace netxs::ui
         void remove(sptr<base> item_ptr)
         {
             if (client_1 == item_ptr ? (client_1.reset(), true) :
-                client_2 == item_ptr ? (client_2.reset(), true) : faux)
+                client_2 == item_ptr ? (client_2.reset(), true) :
+                splitter == item_ptr ? (splitter.reset(), true) : faux)
             {
                 auto backup = This();
                 item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, backup);
@@ -745,8 +765,9 @@ namespace netxs::ui
     };
 
     // controls: Rigid text page.
-    class post
-        : public flow, public form<post>
+    template<auto printfx = noop{}>
+    class post_fx
+        : public flow, public form<post_fx<printfx>>
     {
         twod width; // post: Page dimensions.
         text source; // post: Raw content.
@@ -754,6 +775,8 @@ namespace netxs::ui
         bool beyond; // post: Allow vertical scrolling beyond last line.
 
     public:
+        using post = post_fx;
+
         page topic; // post: Text content.
 
         template<class T>
@@ -768,7 +791,7 @@ namespace netxs::ui
             source = utf8;
             topic = utf8;
             base::reflow();
-            return This<post>();
+            return base::This<post_fx>();
         }
         auto& get_source() const
         {
@@ -779,7 +802,7 @@ namespace netxs::ui
             flow::reset(canvas);
             auto publish = [&](auto const& combo)
             {
-                flow::print(combo, canvas);
+                flow::print(combo, canvas, printfx);
             };
             topic.stream(publish);
         }
@@ -822,7 +845,7 @@ namespace netxs::ui
             recalc();
         }
 
-        post(bool scroll_beyond = faux)
+        post_fx(bool scroll_beyond = faux)
             : flow{ width },
               beyond{ scroll_beyond }
         {
@@ -851,6 +874,8 @@ namespace netxs::ui
         }
     };
 
+    using post = post_fx<>;
+    
     // controls: Scroller.
     class rail
         : public form<rail>

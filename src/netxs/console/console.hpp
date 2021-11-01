@@ -1289,9 +1289,9 @@ namespace netxs::console
                     {
                         auto corner = item.corner(area.size);
                         auto side_x = item.hzgrip.shift(corner).normalize_itself()
-                                                    .shift_itself(area.coor).clip(area);
+                                                 .shift_itself(area.coor).clip(area);
                         auto side_y = item.vtgrip.shift(corner).normalize_itself()
-                                                    .shift_itself(area.coor).clip(area);
+                                                 .shift_itself(area.coor).clip(area);
                         canvas.fill(side_x, fuse);
                         canvas.fill(side_y, fuse);
                     });
@@ -1382,6 +1382,9 @@ namespace netxs::console
                 };
                 engage<sysmouse::left>();
             }
+            mover(base& boss)
+                : mover{ boss, boss.This() }
+            { }
             // pro::mover: Configuring the mouse button to operate.
             template<sysmouse::bttns BUTTON>
             void engage()
@@ -2575,7 +2578,9 @@ namespace netxs::console
             text head_name; // title: Preserve original header.
             text foot_name; // title: Preserve original footer.
             twod head_size; // title: Header page size.
-            twod foot_size; // title: Footer page size
+            twod foot_size; // title: Footer page size.
+            bool head_live; // title: Handle header events.
+            bool foot_live; // title: Handle footer events.
             flow ooooooooo; // title: .
 
         public:
@@ -2601,8 +2606,8 @@ namespace netxs::console
             {
                 head_size = new_size;
                 foot_size = new_size;
-                recalc(head_page, head_size);
-                recalc(foot_page, foot_size);
+                if (head_live) recalc(head_page, head_size);
+                if (foot_live) recalc(foot_page, foot_size);
             }
             void header(view newtext)
             {
@@ -2639,29 +2644,41 @@ namespace netxs::console
                     if (live)
                     {
                         auto saved_context = canvas.bump(dent{ 0,0,head_size.y,foot_size.y });
-                        canvas.cup(dot_00);
-                        canvas.output(head_page, cell::shaders::contrast);
-                        canvas.cup({ 0, head_size.y + boss.size().y });
-                        canvas.output(foot_page, cell::shaders::contrast);
+                        if (head_live)
+                        {
+                            canvas.cup(dot_00);
+                            canvas.output(head_page, cell::shaders::contrast);
+                        }
+                        if (foot_live)
+                        {
+                            canvas.cup({ 0, head_size.y + boss.size().y });
+                            canvas.output(foot_page, cell::shaders::contrast);
+                        }
                         canvas.bump(saved_context);
                     }
                 };
-                boss.SUBMIT_T(tier::preview, e2::form::prop::header, memo, newtext)
+                if (head_live)
                 {
-                    header(newtext);
-                };
-                boss.SUBMIT_T(tier::preview, e2::form::prop::footer, memo, newtext)
+                    boss.SUBMIT_T(tier::preview, e2::form::prop::header, memo, newtext)
+                    {
+                        header(newtext);
+                    };
+                    boss.SUBMIT_T(tier::request, e2::form::prop::header, memo, curtext)
+                    {
+                        curtext = head_name;
+                    };
+                }
+                if (foot_live)
                 {
-                    footer(newtext);
-                };
-                boss.SUBMIT_T(tier::request, e2::form::prop::header, memo, curtext)
-                {
-                    curtext = head_name;
-                };
-                boss.SUBMIT_T(tier::request, e2::form::prop::footer, memo, curtext)
-                {
-                    curtext = foot_name;
-                };
+                    boss.SUBMIT_T(tier::preview, e2::form::prop::footer, memo, newtext)
+                    {
+                        footer(newtext);
+                    };
+                    boss.SUBMIT_T(tier::request, e2::form::prop::footer, memo, curtext)
+                    {
+                        curtext = foot_name;
+                    };
+                }
                 /*
                 boss.SUBMIT_T(tier::request, e2::form::state::header, memo, caption)
                 {
@@ -2676,19 +2693,22 @@ namespace netxs::console
 
             title(base&&) = delete;
             title(base& boss)
-                : skill{ boss }
+                : skill{ boss },
+                  head_live{ true },
+                  foot_live{ true }
             {
                 init();
             }
-            title(base& boss, view title, bool visible = true)
-                : skill{ boss }
+            title(base& boss, view title, bool visible = true, bool on_header = true,
+                                                               bool on_footer = true)
+                : skill{ boss },
+                  head_live{ on_header },
+                  foot_live{ on_footer }
             {
                 init();
                 header(title);
                 live = visible;
-                #ifdef DEMO
-                footer(ansi::jet(bias::right) + "test\nmultiline\nfooter");
-                #endif
+                //footer(ansi::jet(bias::right) + "test\nmultiline\nfooter");
             }
         };
 
@@ -3732,7 +3752,7 @@ namespace netxs::console
             }
         };
 
-        // pro: Highlighter.
+        // pro: Background Highlighter.
         class light
             : public skill
         {
@@ -3758,9 +3778,40 @@ namespace netxs::console
                     {
                         auto area = parent_canvas.full();
                         auto mark = skin::color(tone::brighter);
-                        mark.fgc(title_fg_color); //todo unify, make it more contrast
+                             mark.fgc(title_fg_color); //todo unify, make it more contrast
                         auto fill = [&](cell& c) { c.fuse(mark); };
                         parent_canvas.fill(area, fill);
+                    }                
+                };
+            }
+        };
+
+        // pro: Custom highlighter.
+        template<auto fuse>
+        class shade
+            : public skill
+        {
+            using skill::boss,
+                  skill::memo;
+
+            bool highlighted = faux; // light2: .
+
+        public:
+            shade(base&&) = delete;
+            shade(base& boss)
+                : skill{ boss }
+            {
+                boss.SUBMIT_T(tier::release, e2::form::state::mouse, memo, active)
+                {
+                    highlighted = active;
+                    boss.base::deface();
+                };
+                boss.SUBMIT_T(tier::release, e2::postrender, memo, parent_canvas)
+                {
+                    if (highlighted)
+                    {
+                        auto area = parent_canvas.full();
+                        parent_canvas.fill(area, fuse);
                     }                
                 };
             }

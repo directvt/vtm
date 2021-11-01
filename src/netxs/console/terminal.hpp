@@ -3064,6 +3064,7 @@ private:
         buffer_ptr target; // term: Current   screen buffer pointer.
         os::ptydev ptycon; // term: PTY device.
         text       cmdarg; // term: Startup command line arguments.
+        twod       initsz; // term: Initial PTY size (pty inited in the parallel thread).
         hook       oneoff; // term: One-shot token for the first resize and shutdown events.
         twod       origin; // term: Viewport position.
         bool       active; // term: Terminal lifetime.
@@ -3442,13 +3443,24 @@ private:
                             }
                             else scroll();
 
-                            ptycon.resize(new_sz);
+                            initsz = new_sz;
+                            //std::thread{ [&]()
+                            //{
+                                //todo async command queue
+                                ptycon.resize(initsz);
+                            //} }.detach();
 
                             new_sz.y = console.get_basis() + new_sz.y;
                         };
 
-                        ptycon.start(cmdarg, new_sz, [&](auto utf8_shadow) { ondata(utf8_shadow);  },
-                                                     [&](auto exit_reason) { onexit(exit_reason); });
+                        //todo move it to the another thread (slow init)
+                        initsz = new_sz;
+                        //std::thread{ [&]()
+                        //{
+                            //todo async command queue
+                            ptycon.start(cmdarg, initsz, [&](auto utf8_shadow) { ondata(utf8_shadow); },
+                                                         [&](auto exit_reason) { onexit(exit_reason); } );
+                        //} }.detach();
                     }
                 };
             };

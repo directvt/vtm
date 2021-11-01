@@ -1261,6 +1261,7 @@ utility like ctags is used to locate the definitions.
         const static auto x2 = cell{ c2 }.bga(0x00);
         const static auto c1 = cell{}.bgc(danger_color).fgc(whitelt);
         const static auto x1 = cell{ c1 }.bga(0x00);
+        const static auto x0 = cell{ c3 }.bgc(0xFF000000); //todo make it as desktop bg
         const static auto term_menu_bg = rgba{ 0x80404040 };
 
         auto scroll_bars = [](auto master)
@@ -1323,7 +1324,7 @@ utility like ctags is used to locate the definitions.
             return menu_area;
         };
 
-        auto headless_te = [&]()
+        auto headless_te = [&](text cmdline)
         {
             // Embedded terminal layout
             //
@@ -1335,47 +1336,32 @@ utility like ctags is used to locate the definitions.
             //      ▒▒▒▒▒▒▒▒▒█████████████████████  <- hz scrollbar
             //           status line: 1/200+0 30:2
 
-            //auto te_area = base::create<ui::pads>(dent{ 2,2,1,1}, dent{})
-            //                   ->attach<ui::fork>(axis::Y)
-            //                   ->active();
             auto te_area = base::create<ui::fork>(axis::Y)
-                               ->active();
-
-                auto title_decor = te_area->attach<slot::_1, ui::fork>(axis::Y);
-                    auto title = title_decor->attach<slot::_1, ui::post>() //todo pro::title_2
-                                            ->colors(whitelt, 0xFF000000)
-                                            ->upload("Headless TE"); //todo make transparent
-                                    title->invoke([&](auto& boss)
-                                            {
-                                                auto shadow = ptr::shadow(title);
-                                                te_area->SUBMIT_BYVAL(tier::preview, e2::form::prop::header, newtext)
-                                                {
-                                                    if (auto ptr = shadow.lock())
-                                                    {
-                                                        ptr->upload(newtext);
-                                                    }
-                                                };
-                                                te_area->SUBMIT_BYVAL(tier::request, e2::form::prop::header, curtext)
-                                                {
-                                                    if (auto ptr = shadow.lock())
-                                                    {
-                                                        curtext = ptr->get_source();
-                                                    }
-                                                };
-                                            });
-                    auto decor = title_decor->attach<slot::_2, ui::cake>()
-                                            ->plugin<pro::limit>(twod{ -1,1 }, twod{ -1,1 });
-
-
-                //auto window = te_area->attach<slot::_2, ui::cake>()
-                //          ->plugin<pro::track>()
-                //          ->plugin<pro::align>()
-                //          ->plugin<pro::acryl>()
-                //          ->plugin<pro::cache>();
-                //    auto object = window->attach<ui::fork>(axis::Y)
-                //                        ->colors(whitelt, term_menu_bg);
-
-                        auto term_stat_area = te_area->attach<slot::_2, ui::fork>(axis::Y);
+                               ->plugin<pro::title>("", true, faux, true)
+                               ->plugin<pro::limit>(twod{ 10,-1 }, twod{ -1,-1 });
+                    auto title = te_area->attach<slot::_1, ui::post_fx<cell::shaders::contrast>>()
+                                        ->upload("Headless TE");
+                                   title->invoke([&](auto& boss)
+                                   {
+                                       auto shadow = ptr::shadow(title);
+                                       te_area->SUBMIT_BYVAL(tier::preview, e2::form::prop::header, newtext)
+                                       {
+                                           if (auto ptr = shadow.lock()) ptr->upload(newtext);
+                                       };
+                                       te_area->SUBMIT_BYVAL(tier::request, e2::form::prop::header, curtext)
+                                       {
+                                           if (auto ptr = shadow.lock()) curtext = ptr->get_source();
+                                       };
+                                   });
+                auto body = te_area->attach<slot::_2, ui::fork>(axis::Y)
+                                   ->plugin<pro::track>()
+                                   ->plugin<pro::acryl>()
+                                   ->plugin<pro::focus>()
+                                   ->plugin<pro::cache>();
+                    auto decor = body->attach<slot::_1, ui::cake>()
+                                     ->colors(whitelt, term_menu_bg)
+                                     ->plugin<pro::limit>(twod{ -1,1 }, twod{ -1,1 });
+                        auto term_stat_area = body->attach<slot::_2, ui::fork>(axis::Y);
                             auto layers = term_stat_area->attach<slot::_1, ui::cake>()
                                                         ->plugin<pro::limit>(dot_11, twod{ 400,200 });
                                 auto scroll = layers->attach<ui::rail>();
@@ -1384,56 +1370,14 @@ utility like ctags is used to locate the definitions.
                                         scroll->plugin<pro::limit>(twod{ 20,1 }); // mc crashes when window is too small
                                     #endif
 
-                                    #if defined(_WIN32)
-
-                                        auto inst = scroll->attach<app::term>("bash");
-
-                                    #elif defined(__linux__)
-
-                                        auto inst = scroll->attach<app::term>("bash");
-
-                                    #elif defined(__APPLE__)
-
-                                        auto inst = scroll->attach<app::term>("zsh");
-
-                                    #elif defined(__FreeBSD__)
-
-                                        auto inst = scroll->attach<app::term>("csh");
-
-                                    #elif defined(__unix__)
-
-                                        auto inst = scroll->attach<app::term>("sh");
-
-                                    #endif
-
+                                    auto inst = scroll->attach<app::term>(cmdline);
                                     inst->colors(whitelt, blackdk);
                                 }
                             auto scroll_bars = layers->attach<ui::fork>();
                                 auto vt = scroll_bars->attach<slot::_2, ui::grip<axis::Y>>(scroll);
-                                auto hz_footer = term_stat_area->attach<slot::_2, ui::fork>(axis::Y);
-                                    auto hz = hz_footer->attach<slot::_1, ui::grip<axis::X>>(scroll);
-                                    auto footer = hz_footer->attach<slot::_2, ui::post>()
-                                                        ->colors(whitelt, 0xFF000000)
-                                                        ->upload(ansi::jet(bias::right).add("1/20000+0 12:54")) //todo make transparent
-                                                        ->plugin<pro::limit>(twod{ -1,1 }, twod{ -1,1 });
-                                               footer->invoke([&](auto& boss)
-                                                        {
-                                                            auto shadow = ptr::shadow(footer);
-                                                            te_area->SUBMIT_BYVAL(tier::preview, e2::form::prop::footer, newtext)
-                                                            {
-                                                                if (auto ptr = shadow.lock())
-                                                                {
-                                                                    ptr->upload(newtext);
-                                                                }
-                                                            };
-                                                            te_area->SUBMIT_BYVAL(tier::request, e2::form::prop::footer, curtext)
-                                                            {
-                                                                if (auto ptr = shadow.lock())
-                                                                {
-                                                                    curtext = ptr->get_source();
-                                                                }
-                                                            };
-                                                        });
+                                auto hz_placeholder = term_stat_area->attach<slot::_2, ui::cake>()
+                                                                    ->colors(whitelt, term_menu_bg);
+                                auto hz = hz_placeholder->attach<ui::grip<axis::X>>(scroll);
             return te_area;
         };
         auto custom_menu = [&](std::list<std::pair<text, std::function<void(ui::pads&)>>> menu_items)
@@ -2246,20 +2190,14 @@ utility like ctags is used to locate the definitions.
                 }
                 case Tile:
                 {
-                    window->plugin<pro::title>(ansi::add("Tiling window manager"))
-                          ->plugin<pro::track>()
-                          ->plugin<pro::align>()
-                          ->plugin<pro::acryl>();
-                          //->plugin<pro::cache>();
+                    window->plugin<pro::title>(ansi::add("Tiling Window Manager"))
+                          ->unplug<pro::focus>() // Remove focus controller.
+                          ->plugin<pro::align>();
 
-                    auto object = window->attach<ui::fork>(axis::Y)
-                                        ->colors(whitelt, term_menu_bg);
-                    //auto object = window->attach<ui::pads>(dent{0,0,0,-1}, dent{0,0,0,0})
-                    //                    ->attach<ui::fork>(axis::Y)
-                    //                    ->colors(whitelt, term_menu_bg);
+                    auto object = window->attach<ui::fork>(axis::Y);
                         auto menu = object->attach<slot::_1>(custom_menu(
                             std::list{
-                                    std::pair<text, std::function<void(ui::pads&)>>{ "Split VT",
+                                    std::pair<text, std::function<void(ui::pads&)>>{ "  ║  ",
                                     [](ui::pads& boss)
                                     {
                                         boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
@@ -2274,7 +2212,7 @@ utility like ctags is used to locate the definitions.
                                             //boss.color(status == 1 ? 0xFF00ff00 : x3.fgc(), x3.bgc());
                                         };
                                     }},
-                                    std::pair<text, std::function<void(ui::pads&)>>{ "Split HZ",
+                                    std::pair<text, std::function<void(ui::pads&)>>{ " ══ ",
                                     [](ui::pads& boss)
                                     {
                                         boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
@@ -2283,7 +2221,7 @@ utility like ctags is used to locate the definitions.
                                             gear.dismiss(true);
                                         };
                                     }},
-                                    std::pair<text, std::function<void(ui::pads&)>>{ "Remove",
+                                    std::pair<text, std::function<void(ui::pads&)>>{ "  ×  ",
                                     [](ui::pads& boss)
                                     {
                                         boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
@@ -2293,17 +2231,29 @@ utility like ctags is used to locate the definitions.
                                         };
                                     }},
                                 }))
-                                          ->plugin<pro::mover>(window);
+                                ->colors(whitelt, term_menu_bg)
+                                ->plugin<pro::track>()
+                                ->plugin<pro::acryl>()
+                                ->plugin<pro::mover>(window);
 
-                        //auto pane = object->attach<slot::_2, ui::cake>()
-                        auto pane1 = object->attach<slot::_2, ui::fork>(axis::X, 2);
-                              auto rght_term = pane1->attach<slot::_2>(headless_te());
-                              auto left_stack = pane1->attach<slot::_1, ui::fork>(axis::Y, 0);
-                                auto top_left_term = left_stack->attach<slot::_1>(headless_te());
-                                auto bttm_stack = left_stack->attach<slot::_2, ui::fork>(axis::X, 2);
-                                bttm_stack->attach<slot::_1>(headless_te());
-                                bttm_stack->attach<slot::_2>(headless_te());
+                    auto mc   = "bash -c 'LC_ALL=en_US.UTF-8 mc -c -x -d; cat'";
+                    auto vim  = "bash -c 'vim -c :h; cat'";
+                    auto bin  = "bash -c 'ls /bin | nl | ccze -A; cat'";
+                    auto bash = "bash";
+                    auto pane1 = object->attach<slot::_2, ui::fork>(axis::X, 2);
+                        auto  rght_term = pane1->attach<slot::_2>(headless_te(vim));
+                        auto left_stack = pane1->attach<slot::_1, ui::fork>(axis::Y, 1);
+                            auto top_left_term = left_stack->attach<slot::_1>(headless_te(mc));
+                            auto    bttm_stack = left_stack->attach<slot::_2, ui::fork>(axis::X, 2);
+                            bttm_stack->attach<slot::_1>(headless_te(bin));
+                            bttm_stack->attach<slot::_2>(headless_te(bash));
 
+                    auto grip1 =      pane1->attach<slot::_I, ui::mock>()->plugin<pro::mover>();
+                    auto grip2 = left_stack->attach<slot::_I, ui::mock>()->plugin<pro::mover>();
+                    auto grip3 = bttm_stack->attach<slot::_I, ui::mock>()->plugin<pro::mover>();
+                    grip1->plugin<pro::shade<cell::shaders::xlight>>()->active();
+                    grip2->plugin<pro::shade<cell::shaders::xlight>>()->active();
+                    grip3->plugin<pro::shade<cell::shaders::xlight>>()->active();
                     break;
                 }
             }
@@ -2420,6 +2370,7 @@ utility like ctags is used to locate the definitions.
             creator(objs::Term, { twod{ 34     , 38 } + sub_pos, { 64, 16 } });
             creator(objs::Term, { twod{ 44 + 85, 35 } + sub_pos, { 64, 15 } });
             creator(objs::Term, { twod{ 40 + 85, 42 } + sub_pos, { 64, 15 } });
+            creator(objs::Tile, { twod{ 40 + 85,-10 } + sub_pos, {160, 42 } });
 
             creator(objs::View, { twod{ 0, 7 } + twod{ -120, 60 }, { 120, 52 } });
             creator(objs::View, { twod{ 0,-1 } + sub_pos, { 120, 52 } });
