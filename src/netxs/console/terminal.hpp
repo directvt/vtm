@@ -3455,7 +3455,7 @@ private:
 
                         //todo move it to the another thread (slow init)
                         initsz = new_sz;
-                        //std::thread{ [&]()
+                        //std::thread{ [&]( )
                         //{
                             //todo async command queue
                             ptycon.start(cmdarg, initsz, [&](auto utf8_shadow) { ondata(utf8_shadow); },

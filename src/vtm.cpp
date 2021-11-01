@@ -28,7 +28,7 @@ int main(int argc, char* argv[])
         os::exit(1, error);
     }
 
-    // Demo: get current region from ~./vtm/vtm.conf
+    // Demo: Get current region from "~./vtm/vtm.conf".
     utf::text spot;
     {
         std::ifstream config;
@@ -42,6 +42,26 @@ int main(int argc, char* argv[])
     }
 
     auto user = os::user();
+
+    // vtm: Get user defined tiling layout profiles.
+    utf::text data;
+    {
+        auto tile = os::get_envars("VTM_PROFILE");
+        auto size = tile.size();
+        if (size)
+        {
+            iota i = 0;
+            log("main: tiling profile", size > 1 ? "s":"", " found");
+            for (auto& v : tile)
+            {
+                log(" ", i++, ". profile: ", utf::debase(v));
+                data += v + '\n';
+            }
+            data.pop_back();
+            data = utf::base64(data);
+        }
+    }
+
     auto path = utf::concat("monotty_", user); //todo unify, use vtm.conf
 
     auto link = os::ipc::open<os::client>(path, 10s, [&]()
@@ -58,7 +78,8 @@ int main(int argc, char* argv[])
                            host, ";",
                            name, ";",
                            user, ";",
-                           mode, ";"));
+                           mode, ";",
+                           data, ";"));
 
     auto gate = os::tty::proxy(link);
     gate.ignite();

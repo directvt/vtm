@@ -2238,7 +2238,7 @@ utility like ctags is used to locate the definitions.
 
                     auto mc   = "bash -c 'LC_ALL=en_US.UTF-8 mc -c -x -d; cat'";
                     auto vim  = "bash -c 'vim -c :h; cat'";
-                    auto bin  = "bash -c 'ls /bin | nl | ccze -A; cat'";
+                    auto bin  = "bash -c 'ls /bin | nl | ccze -A; bash'";
                     auto bash = "bash";
                     auto pane1 = object->attach<slot::_2, ui::fork>(axis::X, 2);
                         auto  rght_term = pane1->attach<slot::_2>(headless_te(vim));
@@ -2406,11 +2406,13 @@ utility like ctags is used to locate the definitions.
                 auto _user   = peer->line(';');
                 auto _name   = peer->line(';');
                 auto _mode   = peer->line(';');
+                auto _data   = peer->line(';');
                 log("peer: region= ", _region,
                         ", ip= "    , _ip,
                         ", user= "  , _user,
                         ", name= "  , _name,
-                        ", mode= "  , _mode);
+                        ", mode= "  , _mode,
+                        ", data= "  , _data);
                 text c_ip;
                 text c_port;
                 auto c_info = utf::divide(_ip, " ");
@@ -2431,6 +2433,12 @@ utility like ctags is used to locate the definitions.
                     iota uibar_min_size = 4;
                     iota uibar_full_size = 32;
                     log("user: session name ", peer);
+                    auto prof_data = utf::unbase64(_data);
+                    auto tiling_profiles = utf::divide(prof_data, "\n");
+                    for (auto& l : tiling_profiles)
+                    {
+                        log("user: tiling profile: ", l);
+                    }
 
                     #ifndef PROD
                         auto username = "[User." + utf::remain(c_ip) + ":" + c_port + "]";
