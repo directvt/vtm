@@ -116,7 +116,7 @@ private:
                 {
                     data.clear();
                     data.jet(bias::right).add(size,
-                                         "/", peak - 1,
+                                         "/", peak,
                                          "+", step,
                                          " ", area.x, ":", area.y);
                     return true;
@@ -1493,9 +1493,9 @@ private:
                 batch.set_width(1);
                 index_rebuild();
             }
-            iota get_size() const override { return batch.size; }
-            iota get_peak() const override { return batch.peak; }
-            iota get_step() const override { return batch.step; }
+            iota get_size() const override { return batch.size;     }
+            iota get_peak() const override { return batch.peak - 1; }
+            iota get_step() const override { return batch.step;     }
 
             void print_slide(text msg)
             {
@@ -3278,6 +3278,8 @@ private:
                 //todo check the case: arena == batch.peak - 1
                 origin.y = -basis;
                 SIGNAL(tier::release, e2::coor::set, origin);
+                SIGNAL(tier::release, e2::size::set, scroll_size); // Update scrollbars.
+                return;
             }
             else if (console.is_need_to_correct())
             {

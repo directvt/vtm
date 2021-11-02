@@ -1300,7 +1300,7 @@ namespace netxs::utf
                 if (++step == 4)
                 {
                     step = 0;
-                    for (auto& a : buff) a = look.find(a);
+                    for (auto& a : buff) a = static_cast<byte>(look.find(a));
                     data.push_back(( buff[0]         << 2) + ((buff[1] & 0x30) >> 4));
                     data.push_back(((buff[1] & 0x0F) << 4) + ((buff[2] & 0x3C) >> 2));
                     data.push_back(((buff[2] & 0x03) << 6) +   buff[3]);
@@ -1311,7 +1311,7 @@ namespace netxs::utf
             {
                 auto temp = step;
                 while (temp < 4) buff[temp++] = 0;
-                for (auto& a : buff) a = look.find(a);
+                for (auto& a : buff) a = static_cast<byte>(look.find(a));
                 if (step > 1) data.push_back(( buff[0]         << 2) + ((buff[1] & 0x30) >> 4));
                 if (step > 2) data.push_back(((buff[1] & 0x0F) << 4) + ((buff[2] & 0x3C) >> 2));
             }

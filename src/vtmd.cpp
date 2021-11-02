@@ -1338,7 +1338,8 @@ utility like ctags is used to locate the definitions.
 
             auto te_area = base::create<ui::fork>(axis::Y)
                                ->plugin<pro::title>("", true, faux, true)
-                               ->plugin<pro::limit>(twod{ 10,-1 }, twod{ -1,-1 });
+                               ->plugin<pro::limit>(twod{ 10,-1 }, twod{ -1,-1 })
+                               ->active();
                     auto title = te_area->attach<slot::_1, ui::post_fx<cell::shaders::contrast>>()
                                         ->upload("Headless TE");
                                    title->invoke([&](auto& boss)
@@ -2197,6 +2198,21 @@ utility like ctags is used to locate the definitions.
                     auto object = window->attach<ui::fork>(axis::Y);
                         auto menu = object->attach<slot::_1>(custom_menu(
                             std::list{
+                                    std::pair<text, std::function<void(ui::pads&)>>{ "  ▀█  ",
+                                    [](ui::pads& boss)
+                                    {
+                                        boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
+                                        {
+                                            //iota status = 1;
+                                            //boss.base::broadcast->SIGNAL(tier::request, e2::command::custom, status);
+                                            //boss.base::broadcast->SIGNAL(tier::preview, e2::command::custom, status == 2 ? 1/*show*/ : 2/*hide*/);
+                                            gear.dismiss(true);
+                                        };
+                                        boss.base::broadcast->SUBMIT(tier::release, e2::command::custom, status)
+                                        {
+                                            //boss.color(status == 1 ? 0xFF00ff00 : x3.fgc(), x3.bgc());
+                                        };
+                                    }},
                                     std::pair<text, std::function<void(ui::pads&)>>{ "  ║  ",
                                     [](ui::pads& boss)
                                     {
@@ -2213,6 +2229,24 @@ utility like ctags is used to locate the definitions.
                                         };
                                     }},
                                     std::pair<text, std::function<void(ui::pads&)>>{ " ══ ",
+                                    [](ui::pads& boss)
+                                    {
+                                        boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
+                                        {
+                                            //boss.base::broadcast->SIGNAL(tier::preview, e2::command::custom, 0);
+                                            gear.dismiss(true);
+                                        };
+                                    }},
+                                    std::pair<text, std::function<void(ui::pads&)>>{ " <~> ",
+                                    [](ui::pads& boss)
+                                    {
+                                        boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
+                                        {
+                                            //boss.base::broadcast->SIGNAL(tier::preview, e2::command::custom, 0);
+                                            gear.dismiss(true);
+                                        };
+                                    }},
+                                    std::pair<text, std::function<void(ui::pads&)>>{ " >|< ",
                                     [](ui::pads& boss)
                                     {
                                         boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
@@ -2437,7 +2471,7 @@ utility like ctags is used to locate the definitions.
                     auto tiling_profiles = utf::divide(prof_data, "\n");
                     for (auto& l : tiling_profiles)
                     {
-                        log("user: tiling profile: ", l);
+                        log("user: - tiling profile: ", l);
                     }
 
                     #ifndef PROD
