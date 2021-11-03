@@ -2364,11 +2364,13 @@ utility like ctags is used to locate the definitions.
                                 ->plugin<pro::acryl>()
                                 ->plugin<pro::mover>(window);
 
-                    auto empty = [](){ return base::create<ui::mock>(); };
+                    auto empty = [](auto utf8){
+                        log("tile: parsing error at: ", utf::debase(utf8));
+                        return base::create<ui::mock>(); };
                     auto add_node = [&](auto&& add_node, view& utf8) -> sptr<base>
                     {
                         utf_trim_front(utf8, ", ");
-                        if (utf8.empty()) return empty();
+                        if (utf8.empty()) return empty(utf8);
                         auto tag = utf8.front();
                         if (tag == '\"')
                         {
@@ -2381,21 +2383,22 @@ utility like ctags is used to locate the definitions.
                         {
                             // add node
                             utf8.remove_prefix(1);
+                            utf_trim_front(utf8, " ");
                             iota s1 = 1;
                             iota s2 = 1;
                             if (auto param = utf::to_int(utf8))
                             {
                                 s1 = std::abs(param.value());
+                                if (utf8.empty() || utf8.front() != ':') return empty(utf8);
+                                utf8.remove_prefix(1);
+                                if (auto param = utf::to_int(utf8))
+                                {
+                                    s2 = std::abs(param.value());
+                                }
+                                else return empty(utf8);
                             }
-                            if (utf8.empty()) return empty();
-                            if (utf8.front() != ':') return empty();
-                            utf8.remove_prefix(1);
-                            if (auto param = utf::to_int(utf8))
-                            {
-                                s2 = std::abs(param.value());
-                            }
-                            if (utf8.empty()) return empty();
-                            if (utf8.front() != '(') return empty();
+                            utf_trim_front(utf8, " ");
+                            if (utf8.empty() || utf8.front() != '(') return empty(utf8);
                             utf8.remove_prefix(1);
                             auto ratio = netxs::divround(s1 * 100, s1 + s2);
                             auto node = tag == 'h' ? base::create<ui::fork>(axis::X, 2, ratio)
@@ -2406,11 +2409,10 @@ utility like ctags is used to locate the definitions.
                                              ->plugin<pro::mover>()
                                              ->plugin<pro::shade<cell::shaders::xlight>>()
                                              ->active();
-
                             utf_trim_front(utf8, ") ");
                             return node;
                         }
-                        else return empty();
+                        else return empty(utf8);
                     };
                     auto pane1 = object->attach<slot::_2>(add_node(add_node, envvar_data));
                     object->invoke([&](auto& boss)
