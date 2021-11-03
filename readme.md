@@ -232,11 +232,11 @@ Module               | Options
    - Serves for quick navigation through the desktop space using cyclic selection (left click on group title) in the `View` group on the taskbar.
 
  - `▀▄ Tile`
-   - Tiling window manager preconfigurable using environment variable `VTM_TILE`.  
+   - Tiling window manager preconfigurable using environment variable `VTM_PROFILE...`.  
      ```
      # Configuration example:
 
-     VTM_TILE="v(10/3, { Term: \"bash\" }, h(2/1, h(1/1, { Logs }, { Calc }), { Term: \"top\" }))"
+     VTM_PROFILE1="\"Menu label\", \"Window Title\", h2:1(v1:1(\"bash -c htop\",\"bash -c mc\"), \"bash\")"
      ```
 
 
