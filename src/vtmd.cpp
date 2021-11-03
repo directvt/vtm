@@ -1528,6 +1528,10 @@ utility like ctags is used to locate the definitions.
                     {
                         boss.base::detach(); // The object kills itself.
                     };
+                    boss.SUBMIT(tier::release, e2::form::quit, ack)
+                    {
+                        if (ack) boss.base::detach(); // The object kills itself.
+                    };
                 });
 
             window->extend(location);
@@ -2409,6 +2413,15 @@ utility like ctags is used to locate the definitions.
                         else return empty();
                     };
                     auto pane1 = object->attach<slot::_2>(add_node(add_node, envvar_data));
+                    object->invoke([&](auto& boss)
+                            {
+                                boss.SUBMIT(tier::release, e2::form::quit, ack)
+                                {
+                                    //todo relayout is not implemented
+                                    // so override and silently ignore.
+                                    //if (ack) boss.base::detach(); // The object kills itself.
+                                };
+                            });
                     break;
                 }
             }

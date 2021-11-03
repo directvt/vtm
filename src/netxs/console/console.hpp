@@ -142,6 +142,7 @@ namespace netxs::events::userland
             SUBSET_XS( form )
             {
                 EVENT_XS( canvas   , sptr<console::core> ), // request global canvas.
+                EVENT_XS( quit     , bool                ), // request parent for destroy.
                 GROUP_XS( layout   , const twod          ),
                 GROUP_XS( draggable, bool                ), // signal to the form to enable draggablity for specified mouse button.
                 GROUP_XS( highlight, bool                ),
