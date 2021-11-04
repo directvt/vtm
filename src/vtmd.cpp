@@ -2389,6 +2389,7 @@ utility like ctags is used to locate the definitions.
                             if (auto slot = shadow.lock())
                             {
                                 slot->attach(empty());
+                                slot->base::deface();
                             }
                         };
                     };
