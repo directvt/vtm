@@ -24,7 +24,14 @@ namespace netxs::ui
         ONLY_Y = 1 << 1,
         ALL    = (ONLY_X | ONLY_Y),
     };
-
+    enum snap
+    {
+        none,
+        head,
+        tail,
+        stretch,
+        center,
+    };
     // controls: base UI control.
     template<class T>
     class form
@@ -474,10 +481,19 @@ namespace netxs::ui
         template<slot SLOT, class T>
         auto attach(sptr<T> item)
         {
-                 if constexpr (SLOT == slot::_1) client_1 = item;
-            else if constexpr (SLOT == slot::_2) client_2 = item;
+            if constexpr (SLOT == slot::_1)
+            {
+                if (client_1) remove(client_1);
+                client_1 = item;
+            }
+            else if constexpr (SLOT == slot::_2)
+            {
+                if (client_2) remove(client_2);
+                client_2 = item;
+            }
             else
             {
+                if (splitter) remove(splitter);
                 splitter = item;
                 splitter->SUBMIT(tier::preview, e2::form::upon::changed, delta)
                 {
@@ -711,6 +727,104 @@ namespace netxs::ui
         }
     };
 
+    // controls: Align form controls.
+    class park
+        : public form<park>
+    {
+        struct type
+        {
+            sptr<base> ptr;
+            snap       hz;
+            snap       vt;
+        };
+        std::list<type> subset;
+
+        void xform(snap align, iota& coor, iota& size, iota width)
+        {
+            switch (align)
+            {
+                case snap::head:
+                    coor = 0;
+                    break;
+                case snap::tail:
+                    coor = width - size;
+                    break;
+                case snap::center:
+                    coor = (width - size) / 2;
+                    break;
+                case snap::stretch:
+                    coor = 0;
+                    size = width;
+                    break;
+                default:
+                    break;
+            }
+        }
+
+    public:
+        ~park()
+        {
+            events::sync lock;
+            while (subset.size())
+            {
+                subset.back().ptr->base::detach();
+                subset.pop_back();
+            }
+        }
+        park()
+        {
+            SUBMIT(tier::release, e2::size::set, newsz)
+            {
+                for (auto& client : subset)
+                {
+                    if (client.ptr)
+                    {
+                        auto& item = *client.ptr;
+                        auto  area = item.area();
+                        xform(client.hz, area.coor.x, area.size.x, newsz.x);
+                        xform(client.vt, area.coor.y, area.size.y, newsz.y);
+                        item.extend(area);
+                    }
+                }
+            };
+            SUBMIT(tier::release, e2::render::any, parent_canvas)
+            {
+                auto& basis = base::coor();
+                for (auto& client : subset)
+                {
+                    parent_canvas.render(client.ptr, basis);
+                }
+            };
+        }
+        // park: Create a new item of the specified subtype and attach it.
+        template<snap hz, snap vt, class T>
+        auto attach(sptr<T> item)
+        {
+            subset.push_back({ item, hz, vt });
+            item->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
+            return item;
+        }
+        // park: Create a new item of the specified subtype and attach it.
+        template<snap hz, snap vt, class T, class ...Args>
+        auto attach(Args&&... args)
+        {
+            return attach<hz, vt>(create<T>(std::forward<Args>(args)...));
+        }
+        // park: Remove nested object.
+        void remove(sptr<base> item_ptr)
+        {
+            auto head = subset.begin();
+            auto tail = subset.end();
+            auto item = std::find_if(head, tail, [&](auto& c){ return c.ptr == item_ptr; });
+            if (item != tail)
+            {
+                auto backup = This();
+                subset.erase(item);
+                item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, backup);
+            }
+        }
+    };
+
     struct page_layout
     {
         struct item
@@ -786,10 +900,11 @@ namespace netxs::ui
 
         // post: Set content.
         template<class TEXT>
-        auto upload(TEXT utf8)
+        auto upload(TEXT utf8, iota initial_width = 0)
         {
             source = utf8;
             topic = utf8;
+            base::resize(twod{ initial_width, 0 });
             base::reflow();
             return base::This<post_fx>();
         }
@@ -1207,6 +1322,7 @@ namespace netxs::ui
         template<class T>
         auto attach(sptr<T> item)
         {
+            if (client) remove(client);
             client = item;
             tokens.clear();
             item->SUBMIT_T(tier::release, e2::size::set, tokens.extra(), size)
@@ -1688,6 +1804,7 @@ namespace netxs::ui
         template<class T>
         auto attach(sptr<T> item)
         {
+            if (client) remove(client);
             client = item;
             item->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
             return item;

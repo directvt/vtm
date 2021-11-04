@@ -918,7 +918,7 @@ namespace netxs::console
 
     public:
         template<class T = base>
-        auto  This()       { return std::static_pointer_cast<typename std::remove_reference<T>::type>(shared_from_this()); }
+        auto  This()       { return std::static_pointer_cast<std::remove_reference_t<T>>(shared_from_this()); }
         auto& coor() const { return square.coor; }
         auto& size() const { return square.size; }
         auto& area() const { return square; }
@@ -4069,7 +4069,7 @@ namespace netxs::console
                         auto mark = skin::color(tone::kb_focus);
                         mark.fgc(title_fg_color); //todo unify, make it more contrast
                         auto fill = [&](cell& c) { c.fuse(mark); };
-                        parent_canvas.cage(area, dot_11, fill);
+                        parent_canvas.cage(area, dot_21, fill);
                     }
                 };
             }

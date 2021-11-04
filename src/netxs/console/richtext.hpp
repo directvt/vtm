@@ -125,7 +125,7 @@ namespace netxs::console
         void  view(rect const& viewreg)     { client = viewreg; }
         void  size(twod const& newsize) // core: Change the size of the face.
         {
-            if (region.size(newsize))
+            if (region.size(std::max(dot_00, newsize)))
             {
                 client.size = region.size;
                 digest++;

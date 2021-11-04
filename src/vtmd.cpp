@@ -1270,6 +1270,7 @@ utility like ctags is used to locate the definitions.
         using slot = ui::slot;
         using axis = ui::axis;
         using axes = ui::axes;
+        using snap = ui::snap;
 
         const static auto c7 = cell{}.bgc(whitedk).fgc(blackdk);
         const static auto c6 = cell{}.bgc(action_color).fgc(whitelt);
@@ -2364,13 +2365,37 @@ utility like ctags is used to locate the definitions.
                                 ->plugin<pro::acryl>()
                                 ->plugin<pro::mover>(window);
 
-                    auto empty = [](auto utf8){
-                        log("tile: parsing error at: ", utf::debase(utf8));
-                        return base::create<ui::mock>(); };
+                    auto empty = []()
+                    {
+                        auto place_holder = base::create<ui::park>()
+                                   ->colors(blacklt, term_menu_bg)
+                                   ->plugin<pro::limit>(dot_00, -dot_11)
+                                   ->plugin<pro::focus>()
+                                   ->invoke([](auto& boss)
+                                   {
+                                       boss.keybd.accept(true);
+                                       //todo keyboard only scenario
+                                   });
+                            place_holder->template attach<snap::center, snap::center, ui::post>()
+                                        ->upload("Empty Slot", 10);
+                        return place_holder;
+                    };
+                    auto fallback = [&](auto& boss)
+                    {
+                        auto shadow = ptr::shadow(boss.template This<decltype(boss)>());
+                        boss.SUBMIT_BYVAL(tier::release, e2::form::quit, ack)
+                        {
+                            if (ack)
+                            if (auto slot = shadow.lock())
+                            {
+                                slot->attach(empty());
+                            }
+                        };
+                    };
                     auto add_node = [&](auto&& add_node, view& utf8) -> sptr<base>
                     {
                         utf_trim_front(utf8, ", ");
-                        if (utf8.empty()) return empty(utf8);
+                        if (utf8.empty()) return empty();
                         auto tag = utf8.front();
                         if (tag == '\"')
                         {
@@ -2389,41 +2414,37 @@ utility like ctags is used to locate the definitions.
                             if (auto param = utf::to_int(utf8))
                             {
                                 s1 = std::abs(param.value());
-                                if (utf8.empty() || utf8.front() != ':') return empty(utf8);
+                                if (utf8.empty() || utf8.front() != ':') return empty();
                                 utf8.remove_prefix(1);
                                 if (auto param = utf::to_int(utf8))
                                 {
                                     s2 = std::abs(param.value());
                                 }
-                                else return empty(utf8);
+                                else return empty();
                             }
                             utf_trim_front(utf8, " ");
-                            if (utf8.empty() || utf8.front() != '(') return empty(utf8);
+                            if (utf8.empty() || utf8.front() != '(') return empty();
                             utf8.remove_prefix(1);
                             auto ratio = netxs::divround(s1 * 100, s1 + s2);
                             auto node = tag == 'h' ? base::create<ui::fork>(axis::X, 2, ratio)
                                                    : base::create<ui::fork>(axis::Y, 1, ratio);
-                            auto slot1 = node->attach<slot::_1>(add_node(add_node, utf8));
-                            auto slot2 = node->attach<slot::_2>(add_node(add_node, utf8));
+                            auto slot1 = node->attach<slot::_1, ui::pads>();
+                            auto slot2 = node->attach<slot::_2, ui::pads>();
+                                        slot1->attach(add_node(add_node, utf8));
+                                        slot2->attach(add_node(add_node, utf8));
                             auto grip  = node->attach<slot::_I, ui::mock>()
                                              ->plugin<pro::mover>()
                                              ->plugin<pro::shade<cell::shaders::xlight>>()
                                              ->active();
+                            slot1->invoke(fallback);
+                            slot2->invoke(fallback);
+
                             utf_trim_front(utf8, ") ");
                             return node;
                         }
-                        else return empty(utf8);
+                        else return empty();
                     };
                     auto pane1 = object->attach<slot::_2>(add_node(add_node, envvar_data));
-                    object->invoke([&](auto& boss)
-                            {
-                                boss.SUBMIT(tier::release, e2::form::quit, ack)
-                                {
-                                    //todo relayout is not implemented
-                                    // so override and silently ignore.
-                                    //if (ack) boss.base::detach(); // The object kills itself.
-                                };
-                            });
                     break;
                 }
             }
