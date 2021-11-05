@@ -28,7 +28,7 @@ int main(int argc, char* argv[])
         os::exit(1, error);
     }
 
-    // Demo: get current region from ~./vtm/vtm.conf
+    // Demo: Get current region from "~./vtm/vtm.conf".
     utf::text spot;
     {
         std::ifstream config;
@@ -43,7 +43,6 @@ int main(int argc, char* argv[])
 
     auto user = os::user();
     auto path = utf::concat("monotty_", user); //todo unify, use vtm.conf
-
     auto link = os::ipc::open<os::client>(path, 10s, [&]()
         {
             log("main: new desktop environment for user ", user);
