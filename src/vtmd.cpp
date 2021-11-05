@@ -87,7 +87,8 @@ std::list<text> appstore_body =
     fgc(whitelt).bld(true).add("VTM_TILE").fgc().bld(faux).
     add(".\n\nConfiguration example:\n\n").
     mgl(2).fgc(whitelt).bgc(blacklt)
-    .add(" VTM_TILE=\"v(10/3, { Term: \\\"bash\\\" }, h(2/1, h(1/1, { Logs }, { Calc }), { Term: \\\"top\\\" }))\" ")),
+    .add(" VTM_PROFILE_1='\"Menu label 1\", \"Window Title 1\", h1:2( v1:1(\"bash -c htop\", \"bash -c mc\"), \"bash\")' \n"
+         " VTM_PROFILE_2='\"Menu label 2\", \"Window Title 2\", h( v(\"bash -c htop\", \"bash -c mc\"), \"bash\")' ")),
 
     item("Text", cyandk, "102", "Free ", "Get",
     "A simple text editor for Monotty environment "

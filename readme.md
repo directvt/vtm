@@ -236,7 +236,8 @@ Module               | Options
      ```
      # Configuration example:
 
-     VTM_PROFILE1="\"Menu label\", \"Window Title\", h2:1(v1:1(\"bash -c htop\",\"bash -c mc\"), \"bash\")"
+     VTM_PROFILE_1='"Menu label 1", "Window Title 1", h1:2( v1:1("bash -c htop", "bash -c mc"), "bash")'
+     VTM_PROFILE_2='"Menu label 2", "Window Title 2", h( v("bash -c htop", "bash -c mc"), "bash")'
      ```
 
 
