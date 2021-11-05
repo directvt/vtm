@@ -2569,7 +2569,7 @@ utility like ctags is used to locate the definitions.
                     auto name = utf_get_quote(v, '\"');
                     if (!name.empty())
                     {
-                        menu_list[objs_config.size()];
+                        menu_list[static_cast<id_t>(objs_config.size())];
                         objs_config.emplace_back(objs::Tile, text{ name }, text{ p });
                     }
                 }

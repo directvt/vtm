@@ -590,7 +590,8 @@ private:
                 top    = std::clamp(top   , 0, panel.y);
                 bottom = std::clamp(bottom, 0, panel.y);
                 if (top    != 0 &&
-                    bottom != 0 && top > bottom) top = bottom;
+                    //bottom != 0 && top > bottom) top = bottom; //todo Nobody respects that.
+                    bottom != 0 && top >= bottom) top = bottom = 0;
 
                 coord = dot_00;
                 n_top = top    == 1       ? 0 : top;
@@ -1530,6 +1531,17 @@ private:
                 }
                 log(" -----------------");
             }
+            bool test_index()
+            {
+                auto m = index.front().index;
+                for (auto& i : index)
+                {
+                    auto step = i.index - m;
+                    assert(step >= 0 && step < 2);
+                    m = i.index;
+                }
+                return true;
+            }
             bool test_futures()
             {
                 auto stash = batch.vsize - batch.basis - index.size;
@@ -1800,6 +1812,7 @@ private:
                 {
                     if (in_top > 0) coord.y = std::max(0          , y_top - in_top);
                     else            coord.y = std::min(panel.y - 1, y_end + in_end);
+                    coord.x = std::clamp(coord.x, 0, panel.x - 1);
                     batch.basis = std::max(0, batch.vsize - arena);
                     index_rebuild();
                     recalc_slide(away);
@@ -1871,7 +1884,8 @@ private:
                 assert(curid == mapln.index);
                 if (start == width) // Go to the next line.
                 {
-                    assert(curit != batch.end() - 1); //todo scroll_region -> feed_futures(count) -> stash/avail is wrong
+                    assert(curit != batch.end() - 1);
+
                     auto& curln = *++curit;
                     width = curln.length();
                     wraps = curln.wrapped();
@@ -1906,6 +1920,7 @@ private:
                     curid = curln.index;
                     start = 0;
                 }
+                assert(test_index());
                 assert(test_futures());
             }
             // scroll_buf: Rebuild index from the known index at y_pos.
@@ -2320,6 +2335,7 @@ private:
                         index_rebuild_from(coord.y);
                     }
                 }
+                assert(test_index());
             }
             // scroll_buf: Proceed style update (parser callback).
             void meta(deco const& old_style) override
@@ -2587,9 +2603,9 @@ private:
                                     }
                                     else assert(curln._size == curln.length());
                                 }
-                                else // Case when panel.y == 1
+                                else // Case when arena == 1
                                 {
-                                    assert(panel.y == 1);
+                                    assert(arena == 1);
                                     mapln.start = batch.caret - coord.x;
                                     mapln.width = coord.x;
                                     batch.recalc(curln);
@@ -2601,7 +2617,7 @@ private:
                             {
                                 auto& target = batch.item_by_id(mapln.index);
                                 auto  shadow = target.wrapped() ? target.substr(mapln.start + coord.x)
-                                                                : target.substr(mapln.start + coord.x, mapln.width - coord.x);
+                                                                : target.substr(mapln.start + coord.x, std::min(panel.x, mapln.width) - coord.x);
                                 curln.splice(curln.length(), shadow);
                                 batch.recalc(curln);
                                 auto width = curln.length();
@@ -2611,6 +2627,8 @@ private:
                                      spoil = batch.remove(after, spoil);
                                 // Update index.
                                 {
+                                    assert(test_index());
+
                                     saved -= batch.basis;
                                     auto indit = index.begin() + saved;
                                     auto endit = index.end();
@@ -2639,6 +2657,8 @@ private:
                                             ++indit;
                                         }
                                     }
+
+                                    assert(test_index());
                                 }
 
                                 assert(test_futures());
@@ -2930,6 +2950,8 @@ private:
 
                     do  ++(curit++->index);
                     while (curit != endit);
+
+                    assert(test_index());
                 };
 
                 if (y_pos < index.size)
@@ -2975,6 +2997,7 @@ private:
 
                 auto stash = arena - (batch.vsize - batch.basis);
                 if (stash > 0) add_lines(stash); // Fill-up the scrolling region in order to simplify implementation (dissect() requirement).
+                assert(arena == index.size);
 
                 auto count = std::abs(n);
                 if (n < 0) // Scroll text up.
