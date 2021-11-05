@@ -2349,8 +2349,8 @@ private:
                         : c{ cy },
                           t{ ct },
                           b{ cb },
-                          block{ cy > cs.y_end ? t = cs.y_end + 1, cs.dnbox
-                                               :                   cs.upbox }
+                          block{ c.y > cs.y_end ? t = cs.y_end + 1, cs.dnbox
+                                                :                   cs.upbox }
                          { c.y -= t; }
                    ~qt() { c.y += t; }
                    operator bool () { return b; }
