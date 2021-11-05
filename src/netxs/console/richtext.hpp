@@ -125,7 +125,7 @@ namespace netxs::console
         void  view(rect const& viewreg)     { client = viewreg; }
         void  size(twod const& newsize) // core: Change the size of the face.
         {
-            if (region.size(newsize))
+            if (region.size(std::max(dot_00, newsize)))
             {
                 client.size = region.size;
                 digest++;
@@ -456,14 +456,34 @@ namespace netxs::console
         };
 
         // flow: Main cursor forwarding proc.
-        template<bool WRAP, bool RtoL, bool ReLF, class T, class P>
+        template<bool SPLIT, bool WRAP, bool RtoL, bool ReLF, class T, class P>
         void output(T const& block, P print)
         {
             textline.coor = caretpos;
-            auto printout = WRAP ? textline.trunc(viewrect.size)
-                                 : textline;
-            auto outwidth = WRAP ? printout.coor.x + printout.size.x - textline.coor.x
-                                 : textline.size.x;
+
+            rect printout;
+            iota outwidth;
+            if constexpr (WRAP)
+            {
+                printout = textline.trunc(viewrect.size);
+                outwidth = printout.coor.x + printout.size.x - textline.coor.x;
+
+                if constexpr (!SPLIT)
+                if (printout.size.x > 1)
+                {
+                    auto p = curpoint + printout.size.x - 1;
+                    if (block.at(p).wdt() == 2)
+                    {
+                        --printout.size.x;
+                    }
+                }
+            }
+            else
+            {
+                printout = textline;
+                outwidth = textline.size.x;
+            }
+
             //flow::up();
             flow::dx(outwidth);
             //flow::up();
@@ -500,7 +520,7 @@ namespace netxs::console
         auto middle() { return (viewrect.size.x >> 1) - (textline.size.x >> 1); }
         void autocr() { if (caretpos.x >= caret_mx) flow::nl(highness); }
 
-        template<bool RtoL, bool ReLF, class T, class P>
+        template<bool SPLIT, bool RtoL, bool ReLF, class T, class P>
         void centred(T const& block, P print)
         {
             while (textline.size.x > 0)
@@ -509,33 +529,33 @@ namespace netxs::console
                 auto axis = textline.size.x >= caret_mx ? 0
                                                         : middle();
                 flow::ax(axis);
-                output<true, RtoL, ReLF>(block, print);
+                output<SPLIT, true, RtoL, ReLF>(block, print);
             }
         }
-        template<bool RtoL, bool ReLF, class T, class P>
+        template<bool SPLIT, bool RtoL, bool ReLF, class T, class P>
         void wrapped(T const& block, P print)
         {
             while (textline.size.x > 0)
             {
                 autocr();
-                output<true, RtoL, ReLF>(block, print);
+                output<SPLIT, true, RtoL, ReLF>(block, print);
             }
         }
-        template<bool RtoL, bool ReLF, class T, class P>
+        template<bool SPLIT, bool RtoL, bool ReLF, class T, class P>
         void trimmed(T const& block, P print)
         {
             if (textline.size.x > 0)
             {
                 if (centered) flow::ax(middle());
-                output<faux, RtoL, ReLF>(block, print);
+                output<SPLIT, faux, RtoL, ReLF>(block, print);
             }
         }
-        template<bool RtoL, bool ReLF, class T, class P>
+        template<bool SPLIT, bool RtoL, bool ReLF, class T, class P>
         void proceed(T const& block, P print)
         {
-            if (iswrapln) if (centered) centred<RtoL, ReLF>(block, print);
-                          else          wrapped<RtoL, ReLF>(block, print);
-            else                        trimmed<RtoL, ReLF>(block, print);
+            if (iswrapln) if (centered) centred<SPLIT, RtoL, ReLF>(block, print);
+                          else          wrapped<SPLIT, RtoL, ReLF>(block, print);
+            else                        trimmed<SPLIT, RtoL, ReLF>(block, print);
         }
 
         std::function<void(ansi::fn cmd, iota arg)> custom; // flow: Draw commands (customizable).
@@ -562,7 +582,7 @@ namespace netxs::console
 
         // flow: Split specified textblock on the substrings
         //       and place it to the form by the specified proc.
-        template<class T, class P = noop>
+        template<bool SPLIT, class T, class P = noop>
         void compose(T const& block, P print = P())
         {
             combine(runstyle, block.style);
@@ -586,11 +606,11 @@ namespace netxs::console
                 }
 
                 if (arighted)
-                    if (isrlfeed) proceed<true, true>(block, print);
-                    else          proceed<true, faux>(block, print);
+                    if (isrlfeed) proceed<SPLIT, true, true>(block, print);
+                    else          proceed<SPLIT, true, faux>(block, print);
                 else
-                    if (isrlfeed) proceed<faux, true>(block, print);
-                    else          proceed<faux, faux>(block, print);
+                    if (isrlfeed) proceed<SPLIT, faux, true>(block, print);
+                    else          proceed<SPLIT, faux, faux>(block, print);
             }
         }
         // flow: Execute specified locus instruction list.
@@ -604,18 +624,18 @@ namespace netxs::console
             }
             return flow::up();
         }
-        template<class T>
+        template<bool SPLIT = true, class T>
         void go(T const& block)
         {
-            compose(block);
+            compose<SPLIT>(block);
         }
-        template<class T, class P = noop>
+        template<bool SPLIT = true, class T, class P = noop>
         void go(T const& block, core& canvas, P printfx = P())
         {
-            compose(block, [&](auto const& coord, auto const& subblock)
-                           {
-                               canvas.text(coord, subblock, isr_to_l, printfx);
-                           });
+            compose<SPLIT>(block, [&](auto const& coord, auto const& subblock)
+                                  {
+                                      canvas.text(coord, subblock, isr_to_l, printfx);
+                                  });
         }
         template<bool USE_LOCUS = true, class T, class P = noop>
         auto print(T const& block, core& canvas, P printfx = P())
@@ -626,7 +646,7 @@ namespace netxs::console
             if constexpr (USE_LOCUS) coor = forward(block);
             else                     coor = flow::cp();
 
-            go(block, canvas, printfx);
+            go<faux>(block, canvas, printfx);
             return coor;
         }
         template<bool USE_LOCUS = true, class T>
@@ -638,7 +658,7 @@ namespace netxs::console
             if constexpr (USE_LOCUS) coor = forward(block);
             else                     coor = flow::cp();
 
-            go(block);
+            go<faux>(block);
             return coor;
         }
 
@@ -1200,6 +1220,13 @@ namespace netxs::console
                                                     len.y * len.x);
             while (dst != end) *dst++ = blank;
         }
+
+        //todo unify
+        auto& at(iota p) const
+        {
+            assert(p >= 0);
+            return *(core::data() + p);
+        }
     };
 
     // richtext: Enriched text paragraph.
@@ -1267,6 +1294,9 @@ namespace netxs::console
         auto id() const     { return index;  }
 
         auto& set(cell const& c) { brush.set(c); return *this; }
+
+        //todo unify
+        auto& at(iota p) const { return lyric->data(p); } // para: .
     };
 
     // richtext: Cascade of the identical paragraphs.
@@ -1390,6 +1420,14 @@ namespace netxs::console
         auto  size  () const { return volume;            } // rope: Return volume of the source content.
         auto  length() const { return volume.x;          } // rope: Return the length of the source content.
         auto  id    () const { return (**source).id();   } // rope: Return paragraph id.
+        auto& front () const { return (**source).at(prefix); } // rope: Return first cell.
+
+        //todo unify
+        auto& at(iota p) const // rope: .
+        {
+            auto shadow = substr(p, 1);
+            return shadow.front();
+        }
     };
 
     // richtext: Enriched text page.

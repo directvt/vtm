@@ -81,6 +81,15 @@ std::list<text> appstore_body =
     item("Term", blackdk, "469", "Free ", "Get",
     "Terminal emulator."),
 
+    item("Tile", bluedk, "3", "Free ", "Get",
+    ansi::add("Meta object. Tiling window manager preconfigurable "
+    "using environment variable ").
+    fgc(whitelt).bld(true).add("VTM_TILE").fgc().bld(faux).
+    add(".\n\nConfiguration example:\n\n").
+    mgl(2).fgc(whitelt).bgc(blacklt)
+    .add(" VTM_PROFILE_1='\"Menu label 1\", \"Window Title 1\", h1:2( v1:1(\"bash -c htop\", \"bash -c mc\"), \"bash\")' \n"
+         " VTM_PROFILE_2='\"Menu label 2\", \"Window Title 2\", h( v(\"bash -c htop\", \"bash -c mc\"), \"bash\")' ")),
+
     item("Text", cyandk, "102", "Free ", "Get",
     "A simple text editor for Monotty environment "
     "and a basic editing tool which enables "
@@ -448,6 +457,18 @@ int main(int argc, char* argv[])
         conf.open("vtm.conf");
         if (conf.is_open()) std::getline(conf, config);
         if (config.empty()) config = "empty config";
+    }
+
+    // vtm: Get user defined tiling layouts.
+    auto tiling_profiles = os::get_envars("VTM_PROFILE");
+    if (auto size = tiling_profiles.size())
+    {
+        iota i = 0;
+        log("main: tiling profile", size > 1 ? "s":"", " found");
+        for (auto& p : tiling_profiles)
+        {
+            log(" ", i++, ". profile: ", utf::debase(p));
+        }
     }
 
     {
@@ -1203,30 +1224,42 @@ utility like ctags is used to locate the definitions.
         };
 
         #define TYPE_LIST                             \
-        X(Term         , "Term"                     ) \
-        X(Text         , "Text"                     ) \
-        X(Calc         , "Calc"                     ) \
-        X(Shop         , "Shop"                     ) \
-        X(Logs         , "Logs"                     ) \
-        X(View         , "View"                     ) \
-        X(PowerShell   , "pwsh PowerShell"          ) \
-        X(CommandPrompt, "cmd Command Prompt"       ) \
-        X(Bash         , "Bash/Zsh/CMD"             ) \
-        X(Far          , "Far Manager"              ) \
-        X(VTM          , "vtm (recursively)"        ) \
-        X(MC           , "mc  Midnight Commander"   ) \
-        X(Truecolor    , "RGB Truecolor image"      ) \
-        X(RefreshRate  , "FPS Refresh rate"         ) \
-        X(Strobe       , "Strobe"                   ) \
-        X(Test         , "Test"                     ) \
-        X(Empty        , "Test Empty window"        )
+        X(Term         , "Term"                  , "" ) \
+        X(Text         , "Text"                  , "" ) \
+        X(Calc         , "Calc"                  , "" ) \
+        X(Shop         , "Shop"                  , "" ) \
+        X(Logs         , "Logs"                  , "" ) \
+        X(View         , "View"                  , "" ) \
+        X(Tile         , "Tile"                  , "VTM_PROFILE1=\"Tile\", \"Tiling Window Manager\", h1:1(v1:1(\"bash -c 'LC_ALL=en_US.UTF-8 mc -c -x -d; cat'\", h1:1(\"bash -c 'ls /bin | nl | ccze -A; bash'\", \"bash\")), \"bash -c 'vim -c :h; cat'\")") \
+        X(PowerShell   , "pwsh PowerShell"       , "" ) \
+        X(CommandPrompt, "cmd Command Prompt"    , "" ) \
+        X(Bash         , "Bash/Zsh/CMD"          , "" ) \
+        X(Far          , "Far Manager"           , "" ) \
+        X(VTM          , "vtm (recursively)"     , "" ) \
+        X(MC           , "mc  Midnight Commander", "" ) \
+        X(Truecolor    , "RGB Truecolor image"   , "" ) \
+        X(RefreshRate  , "FPS Refresh rate"      , "" ) \
+        X(Strobe       , "Strobe"                , "" ) \
+        X(Test         , "Test"                  , "" ) \
+        X(Empty        , "Test Empty window"     , "" )
 
-        #define X(a, b) a,
-        enum objs { TYPE_LIST count };
+        #define X(a, b, c) a,
+        enum objs { TYPE_LIST };
         #undef X
 
-        #define X(a, b) b,
+        #define X(a, b, c) b,
         std::vector<text> objs_desc{ TYPE_LIST };
+        #undef X
+
+        struct menu_item
+        {
+            objs type;
+            text name;
+            text data;
+        };
+
+        #define X(a, b, c) { a, b, c },
+        std::vector<menu_item> objs_config{ TYPE_LIST };
         #undef X
         #undef TYPE_LIST
 
@@ -1238,6 +1271,7 @@ utility like ctags is used to locate the definitions.
         using slot = ui::slot;
         using axis = ui::axis;
         using axes = ui::axes;
+        using snap = ui::snap;
 
         const static auto c7 = cell{}.bgc(whitedk).fgc(blackdk);
         const static auto c6 = cell{}.bgc(action_color).fgc(whitelt);
@@ -1252,6 +1286,7 @@ utility like ctags is used to locate the definitions.
         const static auto x2 = cell{ c2 }.bga(0x00);
         const static auto c1 = cell{}.bgc(danger_color).fgc(whitelt);
         const static auto x1 = cell{ c1 }.bga(0x00);
+        const static auto x0 = cell{ c3 }.bgc(0xFF000000); //todo make it as desktop bg
         const static auto term_menu_bg = rgba{ 0x80404040 };
 
         auto scroll_bars = [](auto master)
@@ -1313,6 +1348,64 @@ utility like ctags is used to locate the definitions.
                          ->attach<ui::item>("×");
             return menu_area;
         };
+
+        auto headless_te = [&](text cmdline)
+        {
+            // Embedded terminal layout
+            //
+            //      Multiline
+            //      Window Title
+            //      ██████████████████████████████  <- decor: visually separates the title
+            //      sdn@meg: /mnt/d$ _              <- terminal content
+            //                                   ▒  <- vt scrollbar
+            //      ▒▒▒▒▒▒▒▒▒█████████████████████  <- hz scrollbar
+            //           status line: 1/200+0 30:2
+
+            auto te_area = base::create<ui::fork>(axis::Y)
+                               ->plugin<pro::title>("", true, faux, true)
+                               ->plugin<pro::limit>(twod{ 10,-1 }, twod{ -1,-1 })
+                               ->active();
+                    auto title = te_area->attach<slot::_1, ui::post_fx<cell::shaders::contrast>>()
+                                        ->upload("Headless TE");
+                                   title->invoke([&](auto& boss)
+                                   {
+                                       auto shadow = ptr::shadow(title);
+                                       te_area->SUBMIT_BYVAL(tier::preview, e2::form::prop::header, newtext)
+                                       {
+                                           if (auto ptr = shadow.lock()) ptr->upload(newtext);
+                                       };
+                                       te_area->SUBMIT_BYVAL(tier::request, e2::form::prop::header, curtext)
+                                       {
+                                           if (auto ptr = shadow.lock()) curtext = ptr->get_source();
+                                       };
+                                   });
+                auto body = te_area->attach<slot::_2, ui::fork>(axis::Y)
+                                   ->plugin<pro::track>()
+                                   ->plugin<pro::acryl>()
+                                   ->plugin<pro::focus>()
+                                   ->plugin<pro::cache>();
+                    auto decor = body->attach<slot::_1, ui::cake>()
+                                     ->colors(whitelt, term_menu_bg)
+                                     ->plugin<pro::limit>(twod{ -1,1 }, twod{ -1,1 });
+                        auto term_stat_area = body->attach<slot::_2, ui::fork>(axis::Y);
+                            auto layers = term_stat_area->attach<slot::_1, ui::cake>()
+                                                        ->plugin<pro::limit>(dot_11, twod{ 400,200 });
+                                auto scroll = layers->attach<ui::rail>();
+                                {
+                                    #ifdef DEMO
+                                        scroll->plugin<pro::limit>(twod{ 20,1 }); // mc crashes when window is too small
+                                    #endif
+
+                                    auto inst = scroll->attach<app::term>(cmdline);
+                                    inst->colors(whitelt, blackdk);
+                                }
+                            auto scroll_bars = layers->attach<ui::fork>();
+                                auto vt = scroll_bars->attach<slot::_2, ui::grip<axis::Y>>(scroll);
+                                auto hz_placeholder = term_stat_area->attach<slot::_2, ui::cake>()
+                                                                    ->colors(whitelt, term_menu_bg);
+                                auto hz = hz_placeholder->attach<ui::grip<axis::X>>(scroll);
+            return te_area;
+        };
         auto custom_menu = [&](std::list<std::pair<text, std::function<void(ui::pads&)>>> menu_items)
         {
             auto menu_area = base::create<ui::fork>()
@@ -1350,9 +1443,58 @@ utility like ctags is used to locate the definitions.
             return menu_area;
         };
 
-        //todo use XAML for that
-        auto create = [&](objs type, auto location) -> auto
+        auto utf_find_char = [](auto head, auto tail, char delim)
         {
+            while (head != tail)
+            {
+                auto c = *head;
+                        if (c == delim) break;
+                else if (c == '\\' && head != tail) ++head;
+                ++head;
+            }
+            return head;
+        };
+        auto utf_get_quote = [&](view& utf8, char delim)
+        {
+            auto head = utf8.begin();
+            auto tail = utf8.end();
+            auto start = utf_find_char(head, tail, delim);
+            if (std::distance(start, tail) < 2)
+            {
+                utf8 = view{};
+                return text{};
+            }
+            ++start;
+            auto end = utf_find_char(start, tail, delim);
+            if (end == tail)
+            {
+                utf8 = view{};
+                return text{};
+            }
+            utf8.remove_prefix(std::distance(head, end) + 1);
+            text str{ view{ start, end } }; 
+            utf::change(str, "\\"s + delim, text{ 1, delim} );
+            return str;
+        };
+        auto utf_trim_front = [](view& utf8, view delims)
+        {
+            auto head = utf8.begin();
+            auto tail = utf8.end();
+            while (head != tail)
+            {
+                auto c = *head;
+                if (delims.find(c) == text::npos) break;
+                ++head;
+            }
+            utf8.remove_prefix(std::distance(utf8.begin(), head));
+        };
+        //todo use XAML for that
+        auto create = [&](id_t menu_item_id, auto location) -> auto
+        {
+            assert(menu_item_id < objs_config.size());;
+            auto type = objs_config[menu_item_id].type;
+            auto name = objs_config[menu_item_id].name;
+            auto data = objs_config[menu_item_id].data;
             sptr<ui::cake> window = base::create<ui::cake>()
                 ->plugin<pro::limit>(dot_11, twod{ 400,200 }) //todo unify, set via config
                 ->plugin<pro::sizer>()
@@ -1387,6 +1529,10 @@ utility like ctags is used to locate the definitions.
                     boss.SUBMIT(tier::release, e2::form::proceed::detach, backup)
                     {
                         boss.base::detach(); // The object kills itself.
+                    };
+                    boss.SUBMIT(tier::release, e2::form::quit, ack)
+                    {
+                        if (ack) boss.base::detach(); // The object kills itself.
                     };
                 });
 
@@ -1663,7 +1809,7 @@ utility like ctags is used to locate the definitions.
                 }
                 case VTM:
                 {
-                    window->plugin<pro::title>("Term \n" + objs_desc[VTM])
+                    window->plugin<pro::title>("Term \n" + name)
                           ->plugin<pro::track>()
                           ->plugin<pro::align>()
                           ->plugin<pro::acryl>()
@@ -1700,7 +1846,7 @@ utility like ctags is used to locate the definitions.
                 }
                 case Far:
                 {
-                    window->plugin<pro::title>("Term \n" + objs_desc[Far])
+                    window->plugin<pro::title>("Term \n" + name)
                           ->plugin<pro::track>()
                           ->plugin<pro::align>()
                           ->plugin<pro::acryl>()
@@ -1719,7 +1865,7 @@ utility like ctags is used to locate the definitions.
                 }
                 case MC:
                 {
-                    window->plugin<pro::title>("Term \n" + objs_desc[MC])
+                    window->plugin<pro::title>("Term \n" + name)
                           ->plugin<pro::track>()
                           ->plugin<pro::align>()
                           ->plugin<pro::acryl>()
@@ -1766,7 +1912,7 @@ utility like ctags is used to locate the definitions.
                 case Bash:
                 case Term:
                 {
-                    window->plugin<pro::title>("Term \n" + objs_desc[Bash])
+                    window->plugin<pro::title>("Term \n" + name)
                           ->plugin<pro::track>()
                           ->plugin<pro::align>()
                           ->plugin<pro::acryl>()
@@ -2121,15 +2267,197 @@ utility like ctags is used to locate the definitions.
                     });
                     break;
                 }
+                case Tile:
+                {
+                    auto a = data.find('=');
+                    if (a == text::npos) break;
+                    auto b = data.begin();
+                    auto e = data.end();
+                    auto t = b + a;
+                    auto envvar_name = view{ b, t };
+                    log(" envvar_name=", envvar_name);
+                    b = t + 1;
+                    if (b == e) break;
+                    auto envvar_data = view{ b, e };
+                    log(" envvar_data=", envvar_data);
+                    auto menu_name = utf_get_quote(envvar_data, '\"');
+                    auto window_title = utf_get_quote(envvar_data, '\"');
+                    log(" menu_name=", menu_name);
+                    log(" window_title=", window_title);
+                    utf_trim_front(envvar_data, ", ");
+                    log(" layout_data=", envvar_data);
+
+                    window->plugin<pro::title>(ansi::add(window_title + '\n' + utf::debase(data)))
+                          ->unplug<pro::focus>() // Remove focus controller.
+                          ->plugin<pro::align>();
+
+                    auto object = window->attach<ui::fork>(axis::Y);
+                        auto menu = object->attach<slot::_1>(custom_menu(
+                            std::list{
+                                    std::pair<text, std::function<void(ui::pads&)>>{ "  ▀█  ",
+                                    [](ui::pads& boss)
+                                    {
+                                        boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
+                                        {
+                                            //iota status = 1;
+                                            //boss.base::broadcast->SIGNAL(tier::request, e2::command::custom, status);
+                                            //boss.base::broadcast->SIGNAL(tier::preview, e2::command::custom, status == 2 ? 1/*show*/ : 2/*hide*/);
+                                            gear.dismiss(true);
+                                        };
+                                        boss.base::broadcast->SUBMIT(tier::release, e2::command::custom, status)
+                                        {
+                                            //boss.color(status == 1 ? 0xFF00ff00 : x3.fgc(), x3.bgc());
+                                        };
+                                    }},
+                                    std::pair<text, std::function<void(ui::pads&)>>{ "  ║  ",
+                                    [](ui::pads& boss)
+                                    {
+                                        boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
+                                        {
+                                            //iota status = 1;
+                                            //boss.base::broadcast->SIGNAL(tier::request, e2::command::custom, status);
+                                            //boss.base::broadcast->SIGNAL(tier::preview, e2::command::custom, status == 2 ? 1/*show*/ : 2/*hide*/);
+                                            gear.dismiss(true);
+                                        };
+                                        boss.base::broadcast->SUBMIT(tier::release, e2::command::custom, status)
+                                        {
+                                            //boss.color(status == 1 ? 0xFF00ff00 : x3.fgc(), x3.bgc());
+                                        };
+                                    }},
+                                    std::pair<text, std::function<void(ui::pads&)>>{ " ══ ",
+                                    [](ui::pads& boss)
+                                    {
+                                        boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
+                                        {
+                                            //boss.base::broadcast->SIGNAL(tier::preview, e2::command::custom, 0);
+                                            gear.dismiss(true);
+                                        };
+                                    }},
+                                    std::pair<text, std::function<void(ui::pads&)>>{ " <~> ",
+                                    [](ui::pads& boss)
+                                    {
+                                        boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
+                                        {
+                                            //boss.base::broadcast->SIGNAL(tier::preview, e2::command::custom, 0);
+                                            gear.dismiss(true);
+                                        };
+                                    }},
+                                    std::pair<text, std::function<void(ui::pads&)>>{ " >|< ",
+                                    [](ui::pads& boss)
+                                    {
+                                        boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
+                                        {
+                                            //boss.base::broadcast->SIGNAL(tier::preview, e2::command::custom, 0);
+                                            gear.dismiss(true);
+                                        };
+                                    }},
+                                    std::pair<text, std::function<void(ui::pads&)>>{ "  ×  ",
+                                    [](ui::pads& boss)
+                                    {
+                                        boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
+                                        {
+                                            //boss.base::broadcast->SIGNAL(tier::preview, e2::command::custom, 0);
+                                            gear.dismiss(true);
+                                        };
+                                    }},
+                                }))
+                                ->colors(whitelt, term_menu_bg)
+                                ->plugin<pro::track>()
+                                ->plugin<pro::acryl>()
+                                ->plugin<pro::mover>(window);
+
+                    auto empty = []()
+                    {
+                        auto place_holder = base::create<ui::park>()
+                                   ->colors(blacklt, term_menu_bg)
+                                   ->plugin<pro::limit>(dot_00, -dot_11)
+                                   ->plugin<pro::focus>()
+                                   ->invoke([](auto& boss)
+                                   {
+                                       boss.keybd.accept(true);
+                                       //todo keyboard only scenario
+                                   });
+                            place_holder->template attach<snap::center, snap::center, ui::post>()
+                                        ->upload("Empty Slot", 10);
+                        return place_holder;
+                    };
+                    auto fallback = [&](auto& boss)
+                    {
+                        auto shadow = ptr::shadow(boss.template This<decltype(boss)>());
+                        boss.SUBMIT_BYVAL(tier::release, e2::form::quit, ack)
+                        {
+                            if (ack)
+                            if (auto slot = shadow.lock())
+                            {
+                                slot->attach(empty());
+                                slot->base::deface();
+                            }
+                        };
+                    };
+                    auto add_node = [&](auto&& add_node, view& utf8) -> sptr<base>
+                    {
+                        utf_trim_front(utf8, ", ");
+                        if (utf8.empty()) return empty();
+                        auto tag = utf8.front();
+                        if (tag == '\"')
+                        {
+                            // add leaf
+                            auto cmdline = utf_get_quote(utf8, '\"');
+                            log(" node cmdline=", cmdline);
+                            return headless_te(cmdline);
+                        }
+                        else if (tag == 'h' || tag == 'v')
+                        {
+                            // add node
+                            utf8.remove_prefix(1);
+                            utf_trim_front(utf8, " ");
+                            iota s1 = 1;
+                            iota s2 = 1;
+                            if (auto param = utf::to_int(utf8))
+                            {
+                                s1 = std::abs(param.value());
+                                if (utf8.empty() || utf8.front() != ':') return empty();
+                                utf8.remove_prefix(1);
+                                if (auto param = utf::to_int(utf8))
+                                {
+                                    s2 = std::abs(param.value());
+                                }
+                                else return empty();
+                            }
+                            utf_trim_front(utf8, " ");
+                            if (utf8.empty() || utf8.front() != '(') return empty();
+                            utf8.remove_prefix(1);
+                            auto ratio = netxs::divround(s1 * 100, s1 + s2);
+                            auto node = tag == 'h' ? base::create<ui::fork>(axis::X, 2, ratio)
+                                                   : base::create<ui::fork>(axis::Y, 1, ratio);
+                            auto slot1 = node->attach<slot::_1, ui::pads>();
+                            auto slot2 = node->attach<slot::_2, ui::pads>();
+                                        slot1->attach(add_node(add_node, utf8));
+                                        slot2->attach(add_node(add_node, utf8));
+                            auto grip  = node->attach<slot::_I, ui::mock>()
+                                             ->plugin<pro::mover>()
+                                             ->plugin<pro::shade<cell::shaders::xlight>>()
+                                             ->active();
+                            slot1->invoke(fallback);
+                            slot2->invoke(fallback);
+
+                            utf_trim_front(utf8, ") ");
+                            return node;
+                        }
+                        else return empty();
+                    };
+                    auto pane1 = object->attach<slot::_2>(add_node(add_node, envvar_data));
+                    break;
+                }
             }
             world->branch(type, window);
             return window;
         };
 
-        auto creator = [&, insts_count = 0](objs obj_type, rect area) mutable
+        auto creator = [&, insts_count = 0](id_t menu_item_id, rect area) mutable
         {
             insts_count++;
-            auto frame = create(obj_type, area);
+            auto frame = create(menu_item_id, area);
             #ifndef PROD
             if (insts_count > max_count)
             {
@@ -2189,7 +2517,7 @@ utility like ctags is used to locate the definitions.
                     auto& gate = *gate_ptr;
                     iota data = 0;
                     gate.SIGNAL(tier::request, e2::data::changed, data);
-                    auto current_default = static_cast<objs>(data);
+                    auto current_default = static_cast<id_t>(data);
                     auto frame = creator(current_default, location);
 
                     gear.kb_focus_taken = faux;
@@ -2203,45 +2531,73 @@ utility like ctags is used to locate the definitions.
             sptr<registry_t> menu_list_ptr;
             world->SIGNAL(tier::request, e2::bindings::list::apps, menu_list_ptr);
             auto& menu_list = *menu_list_ptr;
+            auto b = objs_config.begin();
+            auto e = objs_config.end();
+            auto find = [&](auto type_id)
+            {
+                //auto iter = std::find_if(b, e, [&](auto& item){ return item.first == type_id; });
+                //return iter != e ? std::distance(b, iter) : 0;
+                iota i = 0;
+                for (auto& a : objs_config)
+                {
+                    if (a.type == type_id) break;
+                    ++i;
+                }
+                return i;
+            };
             #ifdef DEMO
-                iota i = objs::count;
+                iota i = objs_config.size();
                 while (i--) menu_list[i];
             #else
                 #ifdef _WIN32
-                    menu_list[objs::CommandPrompt];
-                    menu_list[objs::PowerShell];
-                    menu_list[objs::Logs];
-                    menu_list[objs::View];
-                    menu_list[objs::RefreshRate];
+                    menu_list[find(objs::CommandPrompt)];
+                    menu_list[find(objs::PowerShell)];
+                    menu_list[find(objs::Logs)];
+                    menu_list[find(objs::View)];
+                    menu_list[find(objs::RefreshRate)];
                 #else
-                    menu_list[objs::Term];
-                    menu_list[objs::Logs];
-                    menu_list[objs::View];
-                    menu_list[objs::RefreshRate];
-                    menu_list[objs::VTM];
+                    menu_list[find(objs::Term)];
+                    menu_list[find(objs::Logs)];
+                    menu_list[find(objs::View)];
+                    menu_list[find(objs::RefreshRate)];
+                    menu_list[find(objs::VTM)];
                 #endif
+                // Add custom commands to the menu.
+                for (auto& p : tiling_profiles)
+                {
+                    //todo rewrite
+                    auto v = view{ p };
+                    auto name = utf_get_quote(v, '\"');
+                    if (!name.empty())
+                    {
+                        menu_list[static_cast<id_t>(objs_config.size())];
+                        objs_config.emplace_back(objs::Tile, text{ name }, text{ p });
+                    }
+                }
             #endif
+
+            #ifdef DEMO
+                auto sub_pos = twod{ 12+17, 0 };
+                creator(find(objs::Test), { twod{ 22     , 1  } + sub_pos, { 70, 21 } });
+                creator(find(objs::Shop), { twod{ 4      , 6  } + sub_pos, { 82, 38 } });
+                creator(find(objs::Calc), { twod{ 15     , 15 } + sub_pos, { 65, 23 } });
+                creator(find(objs::Text), { twod{ 30     , 22 } + sub_pos, { 59, 26 } });
+                creator(find(objs::MC),   { twod{ 49     , 28 } + sub_pos, { 63, 22 } });
+                creator(find(objs::Term), { twod{ 34     , 38 } + sub_pos, { 64, 16 } });
+                creator(find(objs::Term), { twod{ 44 + 85, 35 } + sub_pos, { 64, 15 } });
+                creator(find(objs::Term), { twod{ 40 + 85, 42 } + sub_pos, { 64, 15 } });
+                creator(find(objs::Tile), { twod{ 40 + 85,-10 } + sub_pos, {160, 42 } });
+
+                creator(find(objs::View), { twod{ 0, 7 } + twod{ -120, 60 }, { 120, 52 } });
+                creator(find(objs::View), { twod{ 0,-1 } + sub_pos, { 120, 52 } });
+
+                sub_pos = twod{-120, 60};
+                creator(find(objs::Truecolor),   { twod{ 20, 15 } + sub_pos, { 70, 30 } });
+                creator(find(objs::Logs),        { twod{ 52, 33 } + sub_pos, { 45, 12 } });
+                creator(find(objs::RefreshRate), { twod{ 60, 41 } + sub_pos, { 35, 10 } });
+            #endif
+
         }
-
-        #ifdef DEMO
-            auto sub_pos = twod{ 12+17, 0 };
-            creator(objs::Test, { twod{ 22     , 1  } + sub_pos, { 70, 21 } });
-            creator(objs::Shop, { twod{ 4      , 6  } + sub_pos, { 80, 38 } });
-            creator(objs::Calc, { twod{ 15     , 15 } + sub_pos, { 65, 23 } });
-            creator(objs::Text, { twod{ 30     , 22 } + sub_pos, { 59, 26 } });
-            creator(objs::MC,   { twod{ 49     , 28 } + sub_pos, { 63, 22 } });
-            creator(objs::Term, { twod{ 34     , 38 } + sub_pos, { 64, 16 } });
-            creator(objs::Term, { twod{ 44 + 85, 35 } + sub_pos, { 64, 15 } });
-            creator(objs::Term, { twod{ 40 + 85, 42 } + sub_pos, { 64, 15 } });
-
-            creator(objs::View, { twod{ 0, 7 } + twod{ -120, 60 }, { 120, 52 } });
-            creator(objs::View, { twod{ 0,-1 } + sub_pos, { 120, 52 } });
-
-            sub_pos = twod{-120, 60};
-            creator(objs::Truecolor,   { twod{ 20, 15 } + sub_pos, { 70, 30 } });
-            creator(objs::Logs,        { twod{ 52, 33 } + sub_pos, { 45, 12 } });
-            creator(objs::RefreshRate, { twod{ 60, 41 } + sub_pos, { 35, 10 } });
-        #endif
 
         world->SIGNAL(tier::general, e2::config::fps, 60);
 
@@ -2400,7 +2756,8 @@ utility like ctags is used to locate the definitions.
                         //todo loops are not compatible with Declarative UI
                         for (auto const& [class_id, inst_ptr_list] : *apps_map)
                         {
-                            auto id = class_id;
+                            auto inst_id  = class_id;
+                            auto obj_desc = objs_config[class_id].name;
                             if (inst_ptr_list.size())
                             {
                                 auto selected = class_id == current_default;
@@ -2417,7 +2774,7 @@ utility like ctags is used to locate the definitions.
                                                             {
                                                                 sptr<registry_t> registry_ptr;
                                                                 data_src->SIGNAL(tier::request, e2::bindings::list::apps, registry_ptr);
-                                                                auto& app_list = (*registry_ptr)[id];
+                                                                auto& app_list = (*registry_ptr)[inst_id];
                                                                 // Rotate list forward.
                                                                 app_list.push_back(app_list.front());
                                                                 app_list.pop_front();
@@ -2438,7 +2795,7 @@ utility like ctags is used to locate the definitions.
                                                             {
                                                                 sptr<registry_t> registry_ptr;
                                                                 data_src->SIGNAL(tier::request, e2::bindings::list::apps, registry_ptr);
-                                                                auto& app_list = (*registry_ptr)[id];
+                                                                auto& app_list = (*registry_ptr)[inst_id];
                                                                 // Rotate list forward.
                                                                 app_list.push_front(app_list.back());
                                                                 app_list.pop_back();
@@ -2456,7 +2813,7 @@ utility like ctags is used to locate the definitions.
                                                     });
                                     auto block = item_area->template attach<ui::fork>(axis::Y);
                                         auto head_area = block->template attach<slot::_1, ui::pads>(dent{ 0,0,0,0 }, dent{ 0,0,1,1 });
-                                            auto head = head_area->template attach<ui::item>(objs_desc[class_id], true);
+                                            auto head = head_area->template attach<ui::item>(obj_desc, true);
                                         auto list_pads = block->template attach<slot::_2, ui::pads>(dent{ 0,0,0,0 }, dent{ 0,0,0,0 });
                                 auto insts = list_pads->template attach<ui::list>()
                                                       ->attach_collection(e2::form::prop::header, inst_ptr_list, app_template);
@@ -2471,6 +2828,8 @@ utility like ctags is used to locate the definitions.
                         for (auto const& [class_id, inst_ptr_list] : *apps_map)
                         {
                             auto id = class_id;
+                            auto obj_desc = objs_config[class_id].name;
+
                             auto selected = class_id == current_default;
                             auto item_area = menuitems->attach<ui::pads>(dent{ 0,0,0,1 }, dent{ 0,0,1,0 })
                                                     ->plugin<pro::fader>(x3, c3, 0ms)
@@ -2521,7 +2880,7 @@ utility like ctags is used to locate the definitions.
                                                     });
                                     auto label_area = block->template attach<slot::_2, ui::pads>(dent{ 1,1,0,0 }, dent{ 0,0,0,0 });
                                         auto label = label_area->template attach<ui::item>(
-                                            ansi::fgc4(0xFFffffff).add(objs_desc[class_id]), true, true);
+                                            ansi::fgc4(0xFFffffff).add(obj_desc), true, true);
                         }
                         return menuitems;
                     };

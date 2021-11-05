@@ -199,6 +199,7 @@ Module               | Options
 - `▀▄ Term` Terminal emulator
 - `▀▄ Logs` Debug output console
 - `▀▄ View` Workspace navigation helper
+- `▀▄ Tile` Tiling window manager
 
 <details><summary>show details...</summary><p>
 
@@ -229,6 +230,16 @@ Module               | Options
 
  - `▀▄ View`
    - Serves for quick navigation through the desktop space using cyclic selection (left click on group title) in the `View` group on the taskbar.
+
+ - `▀▄ Tile`
+   - Tiling window manager preconfigurable using environment variable `VTM_PROFILE...`.  
+     ```
+     # Configuration example:
+
+     VTM_PROFILE_1='"Menu label 1", "Window Title 1", h1:2( v1:1("bash -c htop", "bash -c mc"), "bash")'
+     VTM_PROFILE_2='"Menu label 2", "Window Title 2", h( v("bash -c htop", "bash -c mc"), "bash")'
+     ```
+
 
 </p></details>
 

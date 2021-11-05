@@ -1234,11 +1234,11 @@ namespace netxs::utf
 
     auto base64(view utf8)
     {
+        static constexpr auto code = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
         text data;
         if (auto size = utf8.size())
         {
             data.resize(((size + 2) / 3) << 2);
-            auto code = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
             auto iter = utf8.begin();
             auto tail = utf8.end();
             auto dest = data.begin();
@@ -1271,6 +1271,50 @@ namespace netxs::utf
                 *dest++ = code[0x3F & crop      ];
             }
             while (iter != tail);
+        }
+        return data;
+    }
+
+    auto unbase64(view bs64)
+    {
+        static constexpr auto code = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+        auto is64 = [](auto c) { return c > 0x2E && c < 0x3A // '/' and digits
+                                     || c > 0x40 && c < 0x5B // Uppercase letters
+                                     || c > 0x60 && c < 0x7B // Lowercase letters
+                                     || c == 0x2B; };        // '+'
+        text data;
+        view look{ code };
+        //todo reserv data
+        if (auto size = bs64.size())
+        {
+            byte buff[4];
+            auto head = bs64.begin();
+            auto tail = head + size;
+            auto step = 0;
+            while (head != tail)
+            {
+                auto c = *head++;
+                if (!is64(c) || c == '=') break;
+
+                buff[step] = c;
+                if (++step == 4)
+                {
+                    step = 0;
+                    for (auto& a : buff) a = static_cast<byte>(look.find(a));
+                    data.push_back(( buff[0]         << 2) + ((buff[1] & 0x30) >> 4));
+                    data.push_back(((buff[1] & 0x0F) << 4) + ((buff[2] & 0x3C) >> 2));
+                    data.push_back(((buff[2] & 0x03) << 6) +   buff[3]);
+                }
+            }
+
+            if (step != 0)
+            {
+                auto temp = step;
+                while (temp < 4) buff[temp++] = 0;
+                for (auto& a : buff) a = static_cast<byte>(look.find(a));
+                if (step > 1) data.push_back(( buff[0]         << 2) + ((buff[1] & 0x30) >> 4));
+                if (step > 2) data.push_back(((buff[1] & 0x0F) << 4) + ((buff[2] & 0x3C) >> 2));
+            }
         }
         return data;
     }

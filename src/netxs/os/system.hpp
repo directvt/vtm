@@ -84,6 +84,9 @@
         #include <sys/kd.h> // ::console_ioctl()
         #include <linux/keyboard.h> // ::keyb_ioctl()
     #endif
+
+    extern char **environ;
+
 #endif
 
 namespace netxs::os
@@ -226,6 +229,22 @@ namespace netxs::os
         auto val = std::getenv(var.c_str());
         return val ? text{ val }
                    : text{};
+    }
+    //system: Get list of envvars using wildcard.
+    static auto get_envars(text&& var)
+    {
+        std::vector<text> yield;
+        char **list = environ;
+        while (*list)
+        {
+            auto v = view{ *list++ };
+            if (v.starts_with(var))
+            {
+                yield.emplace_back(v);
+            }
+        }
+        std::sort(yield.begin(), yield.end());
+        return yield;
     }
 
     struct legacy

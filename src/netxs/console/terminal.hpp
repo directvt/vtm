@@ -115,13 +115,10 @@ private:
                 if (scroll.update_status(*this))
                 {
                     data.clear();
-                    data.jet(bias::right)
-                        .add("size=", size,
-                            " peak=", peak - 1,
-                            " type=");
-                    if (step) data.add("unlimited, grow by ", step);
-                    else      data.add("fixed");
-                    data.add(" area=", area);
+                    data.jet(bias::right).add(size,
+                                         "/", peak,
+                                         "+", step,
+                                         " ", area.x, ":", area.y);
                     return true;
                 }
                 else return faux;
@@ -593,7 +590,8 @@ private:
                 top    = std::clamp(top   , 0, panel.y);
                 bottom = std::clamp(bottom, 0, panel.y);
                 if (top    != 0 &&
-                    bottom != 0 && top > bottom) top = bottom;
+                    //bottom != 0 && top > bottom) top = bottom; //todo Nobody respects that.
+                    bottom != 0 && top >= bottom) top = bottom = 0;
 
                 coord = dot_00;
                 n_top = top    == 1       ? 0 : top;
@@ -1496,9 +1494,9 @@ private:
                 batch.set_width(1);
                 index_rebuild();
             }
-            iota get_size() const override { return batch.size; }
-            iota get_peak() const override { return batch.peak; }
-            iota get_step() const override { return batch.step; }
+            iota get_size() const override { return batch.size;     }
+            iota get_peak() const override { return batch.peak - 1; }
+            iota get_step() const override { return batch.step;     }
 
             void print_slide(text msg)
             {
@@ -1532,6 +1530,17 @@ private:
                     log("  ", n++,". id=", l.index, " length()=", l.length(), " wrapped=", l.wrapped() ? "true" : "faux");
                 }
                 log(" -----------------");
+            }
+            bool test_index()
+            {
+                auto m = index.front().index;
+                for (auto& i : index)
+                {
+                    auto step = i.index - m;
+                    assert(step >= 0 && step < 2);
+                    m = i.index;
+                }
+                return true;
             }
             bool test_futures()
             {
@@ -1803,6 +1812,7 @@ private:
                 {
                     if (in_top > 0) coord.y = std::max(0          , y_top - in_top);
                     else            coord.y = std::min(panel.y - 1, y_end + in_end);
+                    coord.x = std::clamp(coord.x, 0, panel.x - 1);
                     batch.basis = std::max(0, batch.vsize - arena);
                     index_rebuild();
                     recalc_slide(away);
@@ -1874,7 +1884,8 @@ private:
                 assert(curid == mapln.index);
                 if (start == width) // Go to the next line.
                 {
-                    assert(curit != batch.end() - 1); //todo scroll_region -> feed_futures(count) -> stash/avail is wrong
+                    assert(curit != batch.end() - 1);
+
                     auto& curln = *++curit;
                     width = curln.length();
                     wraps = curln.wrapped();
@@ -1909,6 +1920,7 @@ private:
                     curid = curln.index;
                     start = 0;
                 }
+                assert(test_index());
                 assert(test_futures());
             }
             // scroll_buf: Rebuild index from the known index at y_pos.
@@ -1971,10 +1983,10 @@ private:
             // scroll_buf: Recalc left and right oversize.
             bool recalc_pads(side& oversz) override
             {
-                auto left = std::max(0, batch.max<line::type::rghtside>() - panel.x);
-                auto rght = std::max(0, batch.max<line::type::leftside>() - panel.x);
-                auto cntr = std::max(0, batch.max<line::type::centered>() - panel.x);
-                auto bttm = std::max(0, batch.vsize - (batch.basis + arena));
+                auto rght = std::max({0, batch.max<line::type::leftside>() - panel.x, coord.x - panel.x + 1 }); // Take into account the cursor position.
+                auto left = std::max( 0, batch.max<line::type::rghtside>() - panel.x );
+                auto cntr = std::max( 0, batch.max<line::type::centered>() - panel.x );
+                auto bttm = std::max( 0, batch.vsize - (batch.basis + arena)         );
                 auto both = cntr >> 1;
                 left = std::max(left, both);
                 rght = std::max(rght, both + (cntr & 1));
@@ -2323,6 +2335,7 @@ private:
                         index_rebuild_from(coord.y);
                     }
                 }
+                assert(test_index());
             }
             // scroll_buf: Proceed style update (parser callback).
             void meta(deco const& old_style) override
@@ -2352,8 +2365,8 @@ private:
                         : c{ cy },
                           t{ ct },
                           b{ cb },
-                          block{ cy > cs.y_end ? t = cs.y_end + 1, cs.dnbox
-                                               :                   cs.upbox }
+                          block{ c.y > cs.y_end ? t = cs.y_end + 1, cs.dnbox
+                                                :                   cs.upbox }
                          { c.y -= t; }
                    ~qt() { c.y += t; }
                    operator bool () { return b; }
@@ -2590,9 +2603,9 @@ private:
                                     }
                                     else assert(curln._size == curln.length());
                                 }
-                                else // Case when panel.y == 1
+                                else // Case when arena == 1
                                 {
-                                    assert(panel.y == 1);
+                                    assert(arena == 1);
                                     mapln.start = batch.caret - coord.x;
                                     mapln.width = coord.x;
                                     batch.recalc(curln);
@@ -2604,7 +2617,7 @@ private:
                             {
                                 auto& target = batch.item_by_id(mapln.index);
                                 auto  shadow = target.wrapped() ? target.substr(mapln.start + coord.x)
-                                                                : target.substr(mapln.start + coord.x, mapln.width - coord.x);
+                                                                : target.substr(mapln.start + coord.x, std::min(panel.x, mapln.width) - coord.x);
                                 curln.splice(curln.length(), shadow);
                                 batch.recalc(curln);
                                 auto width = curln.length();
@@ -2614,6 +2627,8 @@ private:
                                      spoil = batch.remove(after, spoil);
                                 // Update index.
                                 {
+                                    assert(test_index());
+
                                     saved -= batch.basis;
                                     auto indit = index.begin() + saved;
                                     auto endit = index.end();
@@ -2642,6 +2657,8 @@ private:
                                             ++indit;
                                         }
                                     }
+
+                                    assert(test_index());
                                 }
 
                                 assert(test_futures());
@@ -2933,6 +2950,8 @@ private:
 
                     do  ++(curit++->index);
                     while (curit != endit);
+
+                    assert(test_index());
                 };
 
                 if (y_pos < index.size)
@@ -2978,6 +2997,7 @@ private:
 
                 auto stash = arena - (batch.vsize - batch.basis);
                 if (stash > 0) add_lines(stash); // Fill-up the scrolling region in order to simplify implementation (dissect() requirement).
+                assert(arena == index.size);
 
                 auto count = std::abs(n);
                 if (n < 0) // Scroll text up.
@@ -3067,6 +3087,7 @@ private:
         buffer_ptr target; // term: Current   screen buffer pointer.
         os::ptydev ptycon; // term: PTY device.
         text       cmdarg; // term: Startup command line arguments.
+        twod       initsz; // term: Initial PTY size (pty inited in the parallel thread).
         hook       oneoff; // term: One-shot token for the first resize and shutdown events.
         twod       origin; // term: Viewport position.
         bool       active; // term: Terminal lifetime.
@@ -3256,15 +3277,12 @@ private:
             auto adjust_pads = console.recalc_pads(oversz);
             auto scroll_size = console.panel;
             scroll_size.y += basis;
+
             if (force_basis)
             {
                 if (follow_cursor)
                 {
                     follow_cursor = faux;
-                    if (scroll_size != base::size() || adjust_pads)
-                    {
-                        SIGNAL(tier::release, e2::size::set, scroll_size); // Update scrollbars.
-                    }
 
                     auto c = console.get_coord(dot_00);
                     if (origin.x != 0 || c.x != console.panel.x)
@@ -3276,12 +3294,15 @@ private:
 
                     origin.y = -basis;
                     SIGNAL(tier::release, e2::coor::set, origin);
+                    SIGNAL(tier::release, e2::size::set, scroll_size); // Update scrollbars.
                     return;
                 }
 
                 //todo check the case: arena == batch.peak - 1
                 origin.y = -basis;
                 SIGNAL(tier::release, e2::coor::set, origin);
+                SIGNAL(tier::release, e2::size::set, scroll_size); // Update scrollbars.
+                return;
             }
             else if (console.is_need_to_correct())
             {
@@ -3298,7 +3319,6 @@ private:
                 }
             }
 
-            //todo scrollbars is not updated on keypress
             if (scroll_size != base::size() || adjust_pads)
             {
                 SIGNAL(tier::release, e2::size::set, scroll_size); // Update scrollbars.
@@ -3339,7 +3359,7 @@ private:
                 SUBMIT_T(tier::general, e2::tick, oneoff, t)
                 {
                     oneoff.reset();
-                    base::destroy();
+                    this->base::riseup<tier::release>(e2::form::quit, true);
                 };
             }
         }
@@ -3448,13 +3468,24 @@ private:
                             }
                             else scroll();
 
-                            ptycon.resize(new_sz);
+                            initsz = new_sz;
+                            //std::thread{ [&]()
+                            //{
+                                //todo async command queue
+                                ptycon.resize(initsz);
+                            //} }.detach();
 
                             new_sz.y = console.get_basis() + new_sz.y;
                         };
 
-                        ptycon.start(cmdarg, new_sz, [&](auto utf8_shadow) { ondata(utf8_shadow);  },
-                                                     [&](auto exit_reason) { onexit(exit_reason); });
+                        //todo move it to the another thread (slow init)
+                        initsz = new_sz;
+                        //std::thread{ [&]( )
+                        //{
+                            //todo async command queue
+                            ptycon.start(cmdarg, initsz, [&](auto utf8_shadow) { ondata(utf8_shadow); },
+                                                         [&](auto exit_reason) { onexit(exit_reason); } );
+                        //} }.detach();
                     }
                 };
             };

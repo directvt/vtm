@@ -15,7 +15,7 @@ namespace netxs::ui
     using namespace netxs::ui::atoms;
     using namespace netxs::console;
 
-    enum slot : id_t { _1, _2 };
+    enum slot : id_t { _1, _2, _I };
     enum axis : id_t { X, Y };
     enum axes
     {
@@ -24,7 +24,14 @@ namespace netxs::ui
         ONLY_Y = 1 << 1,
         ALL    = (ONLY_X | ONLY_Y),
     };
-
+    enum snap
+    {
+        none,
+        head,
+        tail,
+        stretch,
+        center,
+    };
     // controls: base UI control.
     template<class T>
     class form
@@ -62,6 +69,15 @@ namespace netxs::ui
         {
             auto backup = This<T>();
             depo[std::type_index(typeid(S))] = std::make_unique<S>(*this, std::forward<Args>(args)...);
+            base::reflow();
+            return backup;
+        }
+        // form: Attach feature and return itself.
+        template<class S>
+        auto unplug()
+        {
+            auto backup = This<T>();
+            depo.erase(std::type_index(typeid(S)));
             base::reflow();
             return backup;
         }
@@ -177,10 +193,14 @@ namespace netxs::ui
 
         sptr<base> client_1; // fork: 1st object.
         sptr<base> client_2; // fork: 2nd object.
+        sptr<base> splitter; // fork: Resizing grip.
 
         twod size1;
         twod size2;
         twod coor2;
+        twod size3;
+        twod coor3;
+        iota split = 0;
 
         tint clr;
         //twod size;
@@ -236,6 +256,7 @@ namespace netxs::ui
             events::sync lock;
             if (client_1) client_1->base::detach();
             if (client_2) client_2->base::detach();
+            if (splitter) splitter->base::detach();
         }
         fork(axis alignment = axis::X, iota thickness = 0, iota scale = 50)
         :   maxpos{ 0 },
@@ -261,17 +282,18 @@ namespace netxs::ui
                     client_2->SIGNAL(tier::release, e2::coor::set, coor2);
                     client_2->SIGNAL(tier::release, e2::size::set, size2);
                 }
+                if (splitter)
+                {
+                    splitter->SIGNAL(tier::release, e2::coor::set, coor3);
+                    splitter->SIGNAL(tier::release, e2::size::set, size3);
+                }
             };
             SUBMIT(tier::release, e2::render::any, parent_canvas)
             {
                 auto& basis = base::coor();
+                if (splitter) parent_canvas.render(splitter, basis);
                 if (client_1) parent_canvas.render(client_1, basis);
                 if (client_2) parent_canvas.render(client_2, basis);
-
-                if (width)
-                {
-                    //todo draw grips
-                }
             };
 
             _config(alignment, thickness, scale);
@@ -347,10 +369,11 @@ namespace netxs::ui
         void size_preview(twod& new_size)
         {
             //todo revise/unify
+            //todo client_2 doesn't respect ui::pads
             auto new_size0 = xpose(new_size);
             {
                 maxpos = std::max(new_size0.x - width, 0);
-                auto split = netxs::divround(maxpos * ratio, MAX_RATIO);
+                split = netxs::divround(maxpos * ratio, MAX_RATIO);
 
                 size1 = xpose({ split, new_size0.y });
                 if (client_1)
@@ -392,6 +415,11 @@ namespace netxs::ui
                     }
 
                     coor2 = xpose({ split + width, 0 });
+                }
+                if (splitter)
+                {
+                    coor3 = xpose({ split, 0 });
+                    size3 = xpose({ width, new_size0.y });
                 }
 
                 new_size = xpose({ split + width + get_x(size2), new_size0.y });
@@ -453,13 +481,33 @@ namespace netxs::ui
         template<slot SLOT, class T>
         auto attach(sptr<T> item)
         {
-            if (SLOT == slot::_1) client_1 = item;
-            else                  client_2 = item;
+            if constexpr (SLOT == slot::_1)
+            {
+                if (client_1) remove(client_1);
+                client_1 = item;
+            }
+            else if constexpr (SLOT == slot::_2)
+            {
+                if (client_2) remove(client_2);
+                client_2 = item;
+            }
+            else
+            {
+                if (splitter) remove(splitter);
+                splitter = item;
+                splitter->SUBMIT(tier::preview, e2::form::upon::changed, delta)
+                {
+                    split += get_x(delta);
+                    ratio = netxs::divround(MAX_RATIO * split, maxpos);
+                    this->base::reflow();
+                };
+            }
+
             item->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
             return item;
         }
-        template<slot SLOT, class T, class ...Args>
         // fork: Create a new item of the specified subtype and attach it to a specified slot.
+        template<slot SLOT, class T, class ...Args>
         auto attach(Args&&... args)
         {
             return attach<SLOT>(create<T>(std::forward<Args>(args)...));
@@ -468,7 +516,8 @@ namespace netxs::ui
         void remove(sptr<base> item_ptr)
         {
             if (client_1 == item_ptr ? (client_1.reset(), true) :
-                client_2 == item_ptr ? (client_2.reset(), true) : faux)
+                client_2 == item_ptr ? (client_2.reset(), true) :
+                splitter == item_ptr ? (splitter.reset(), true) : faux)
             {
                 auto backup = This();
                 item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, backup);
@@ -678,6 +727,104 @@ namespace netxs::ui
         }
     };
 
+    // controls: Align form controls.
+    class park
+        : public form<park>
+    {
+        struct type
+        {
+            sptr<base> ptr;
+            snap       hz;
+            snap       vt;
+        };
+        std::list<type> subset;
+
+        void xform(snap align, iota& coor, iota& size, iota width)
+        {
+            switch (align)
+            {
+                case snap::head:
+                    coor = 0;
+                    break;
+                case snap::tail:
+                    coor = width - size;
+                    break;
+                case snap::center:
+                    coor = (width - size) / 2;
+                    break;
+                case snap::stretch:
+                    coor = 0;
+                    size = width;
+                    break;
+                default:
+                    break;
+            }
+        }
+
+    public:
+        ~park()
+        {
+            events::sync lock;
+            while (subset.size())
+            {
+                subset.back().ptr->base::detach();
+                subset.pop_back();
+            }
+        }
+        park()
+        {
+            SUBMIT(tier::release, e2::size::set, newsz)
+            {
+                for (auto& client : subset)
+                {
+                    if (client.ptr)
+                    {
+                        auto& item = *client.ptr;
+                        auto  area = item.area();
+                        xform(client.hz, area.coor.x, area.size.x, newsz.x);
+                        xform(client.vt, area.coor.y, area.size.y, newsz.y);
+                        item.extend(area);
+                    }
+                }
+            };
+            SUBMIT(tier::release, e2::render::any, parent_canvas)
+            {
+                auto& basis = base::coor();
+                for (auto& client : subset)
+                {
+                    parent_canvas.render(client.ptr, basis);
+                }
+            };
+        }
+        // park: Create a new item of the specified subtype and attach it.
+        template<snap hz, snap vt, class T>
+        auto attach(sptr<T> item)
+        {
+            subset.push_back({ item, hz, vt });
+            item->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
+            return item;
+        }
+        // park: Create a new item of the specified subtype and attach it.
+        template<snap hz, snap vt, class T, class ...Args>
+        auto attach(Args&&... args)
+        {
+            return attach<hz, vt>(create<T>(std::forward<Args>(args)...));
+        }
+        // park: Remove nested object.
+        void remove(sptr<base> item_ptr)
+        {
+            auto head = subset.begin();
+            auto tail = subset.end();
+            auto item = std::find_if(head, tail, [&](auto& c){ return c.ptr == item_ptr; });
+            if (item != tail)
+            {
+                auto backup = This();
+                subset.erase(item);
+                item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, backup);
+            }
+        }
+    };
+
     struct page_layout
     {
         struct item
@@ -732,14 +879,18 @@ namespace netxs::ui
     };
 
     // controls: Rigid text page.
-    class post
-        : public flow, public form<post>
+    template<auto printfx = noop{}>
+    class post_fx
+        : public flow, public form<post_fx<printfx>>
     {
         twod width; // post: Page dimensions.
+        text source; // post: Raw content.
         page_layout layout;
         bool beyond; // post: Allow vertical scrolling beyond last line.
 
     public:
+        using post = post_fx;
+
         page topic; // post: Text content.
 
         template<class T>
@@ -749,18 +900,24 @@ namespace netxs::ui
 
         // post: Set content.
         template<class TEXT>
-        auto upload(TEXT utf8)
+        auto upload(TEXT utf8, iota initial_width = 0)
         {
+            source = utf8;
             topic = utf8;
+            base::resize(twod{ initial_width, 0 });
             base::reflow();
-            return This<post>();
+            return base::This<post_fx>();
+        }
+        auto& get_source() const
+        {
+            return source;
         }
         void output(face& canvas)
         {
             flow::reset(canvas);
             auto publish = [&](auto const& combo)
             {
-                flow::print(combo, canvas);
+                flow::print(combo, canvas, printfx);
             };
             topic.stream(publish);
         }
@@ -803,7 +960,7 @@ namespace netxs::ui
             recalc();
         }
 
-        post(bool scroll_beyond = faux)
+        post_fx(bool scroll_beyond = faux)
             : flow{ width },
               beyond{ scroll_beyond }
         {
@@ -832,6 +989,8 @@ namespace netxs::ui
         }
     };
 
+    using post = post_fx<>;
+    
     // controls: Scroller.
     class rail
         : public form<rail>
@@ -839,7 +998,9 @@ namespace netxs::ui
         pro::robot robot{*this }; // rail: Animation controller.
 
         template<auto N> static constexpr
-        auto events = e2::form::upon::scroll::_<N>;
+        //auto events = e2::form::upon::scroll::_<N>; //todo clang 11.0.1 doesn't support this.
+        auto events() { return e2::form::upon::scroll::_<N>; }
+
         bool strict[2] = { true, true }; // rail: Don't allow overscroll.
         bool manual[2] = { true, true }; // rail: Manaul scrolling (no auto align).
         bool locked{}; // rail: Client is under resizing.
@@ -874,7 +1035,7 @@ namespace netxs::ui
         template<axis AXIS>
         auto follow(sptr<base> master = {})
         {
-            if (master) master->SUBMIT_T(tier::release, events<AXIS>, fasten, master_scinfo)
+            if (master) master->SUBMIT_T(tier::release, events<AXIS>(), fasten, master_scinfo)
             {
                 AXIS == axis::X ? scroll<X>(scinfo.window.coor.x - master_scinfo.window.coor.x)
                                 : scroll<Y>(scinfo.window.coor.y - master_scinfo.window.coor.y);
@@ -898,16 +1059,16 @@ namespace netxs::ui
                     auto& item = *client;
                     switch (this->bell::protos<tier::preview>())
                     {
-                        case events<X>.id:
+                        case events<X>().id:
                             scroll<X>(scinfo.window.coor.x - info.window.coor.x);
                             break;
-                        case events<Y>.id:
+                        case events<Y>().id:
                             scroll<Y>(scinfo.window.coor.y - info.window.coor.y);
                             break;
-                        case events<X + 2>.id:
+                        case events<X + 2>().id:
                             cancel<X, true>();
                             break;
-                        case events<Y + 2>.id:
+                        case events<Y + 2>().id:
                             cancel<Y, true>();
                             break;
                     }
@@ -1146,7 +1307,7 @@ namespace netxs::ui
                 scinfo.region = block.size;
                 scinfo.window.coor =-block.coor; // Viewport.
                 scinfo.window.size = frame;      //
-                SIGNAL(tier::release, events<AXIS>, scinfo);
+                SIGNAL(tier::release, events<AXIS>(), scinfo);
 
                 block.coor += basis; // Client origin basis.
                 locked = true;
@@ -1161,6 +1322,7 @@ namespace netxs::ui
         template<class T>
         auto attach(sptr<T> item)
         {
+            if (client) remove(client);
             client = item;
             tokens.clear();
             item->SUBMIT_T(tier::release, e2::size::set, tokens.extra(), size)
@@ -1175,8 +1337,8 @@ namespace netxs::ui
             {
                 scinfo.region = {};
                 scinfo.window.coor = {};
-                this->SIGNAL(tier::release, events<axis::X>, scinfo);
-                this->SIGNAL(tier::release, events<axis::Y>, scinfo);
+                this->SIGNAL(tier::release, events<axis::X>(), scinfo);
+                this->SIGNAL(tier::release, events<axis::Y>(), scinfo);
                 tokens.clear();
                 fasten.clear();
             };
@@ -1231,7 +1393,8 @@ namespace netxs::ui
         };
 
         template<auto N> static constexpr
-        auto events = e2::form::upon::scroll::_<N>;
+        //auto events = e2::form::upon::scroll::_<N>; //todo clang 11.0.1 doesn't support this.
+        auto events() { return e2::form::upon::scroll::_<N>; }
 
         static inline auto  xy(twod const& p) { return AXIS == axis::X ? p.x : p.y; }
         static inline auto  yx(twod const& p) { return AXIS == axis::Y ? p.x : p.y; }
@@ -1342,7 +1505,7 @@ namespace netxs::ui
 
         bool on_pager = faux;
 
-        template<class EVENT = decltype(events<AXIS>)>
+        template<class EVENT = decltype(events<AXIS>())>
         void send(EVENT)
         {
             if (auto master = this->boss.lock())
@@ -1352,7 +1515,7 @@ namespace netxs::ui
         }
         void gohome()
         {
-            send(events<AXIS + 2>);
+            send(events<AXIS + 2>());
         }
         void config(iota width)
         {
@@ -1381,7 +1544,7 @@ namespace netxs::ui
         {
             if (on_pager && calc.follow())
             {
-                send(events<AXIS>);
+                send(events<AXIS>());
             }
             return on_pager;
         }
@@ -1395,7 +1558,7 @@ namespace netxs::ui
         {
             config(thin);
 
-            boss->SUBMIT_T(tier::release, events<AXIS>, memo, scinfo)
+            boss->SUBMIT_T(tier::release, events<AXIS>(), memo, scinfo)
             {
                 calc.update(scinfo);
                 base::deface();
@@ -1413,7 +1576,7 @@ namespace netxs::ui
                 {
                     auto dir = gear.whldt < 0 ? 1 : -1;
                     calc.pager(dir);
-                    send(events<AXIS>);
+                    send(events<AXIS>());
                     gear.dismiss();
                 }
             };
@@ -1497,7 +1660,7 @@ namespace netxs::ui
                         if (auto delta = xy(gear.mouse::delta.get()))
                         {
                             calc.stepby(delta);
-                            send(events<AXIS>);
+                            send(events<AXIS>());
                             gear.dismiss();
                         }
                     }
@@ -1641,6 +1804,7 @@ namespace netxs::ui
         template<class T>
         auto attach(sptr<T> item)
         {
+            if (client) remove(client);
             client = item;
             item->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
             return item;
