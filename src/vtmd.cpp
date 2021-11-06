@@ -25,13 +25,13 @@ using namespace std::placeholders;
 using namespace netxs::console;
 using namespace netxs;
 
-text monotty_logo  = ansi::bgc(blackdk)  .add("▀▄");
-text textancy_logo = ansi::bgc(cyandk)   .add("▀▄");
-text cellatix_logo = ansi::bgc(greendk)  .add("▀▄");
+text monotty_logo  = ansi::bgc(blackdk  ).add("▀▄");
+text textancy_logo = ansi::bgc(cyandk   ).add("▀▄");
+text cellatix_logo = ansi::bgc(greendk  ).add("▀▄");
 text informio_logo = ansi::bgc(magentadk).add("▀▄");
-text ansiplex_logo = ansi::bgc(reddk)    .add("▀▄");
-text unicodex_logo = ansi::bgc(yellowdk) .add("▀▄");
-text appstore_logo = ansi::bgc(blacklt)  .add("▀▄");
+text ansiplex_logo = ansi::bgc(reddk    ).add("▀▄");
+text unicodex_logo = ansi::bgc(yellowdk ).add("▀▄");
+text appstore_logo = ansi::bgc(blacklt  ).add("▀▄");
 
 text line = ansi::wrp(wrap::off).add("──────────────────────────────────────────────────────────────────────────────────────").wrp(wrap::on).eol();
 auto item = [](auto app, auto clr, auto rating, auto price, auto buy, auto desc)
@@ -1223,14 +1223,14 @@ utility like ctags is used to locate the definitions.
             }
         };
 
-        #define TYPE_LIST                             \
+        #define TYPE_LIST                               \
         X(Term         , "Term"                  , "" ) \
         X(Text         , "Text"                  , "" ) \
         X(Calc         , "Calc"                  , "" ) \
         X(Shop         , "Shop"                  , "" ) \
         X(Logs         , "Logs"                  , "" ) \
         X(View         , "View"                  , "" ) \
-        X(Tile         , "Tile"                  , "VTM_PROFILE1=\"Tile\", \"Tiling Window Manager\", h1:1(v1:1(\"bash -c 'LC_ALL=en_US.UTF-8 mc -c -x -d; cat'\", h1:1(\"bash -c 'ls /bin | nl | ccze -A; bash'\", \"bash\")), \"bash -c 'vim -c :h; cat'\")") \
+        X(Tile         , "Tile"                  , "" ) \
         X(PowerShell   , "pwsh PowerShell"       , "" ) \
         X(CommandPrompt, "cmd Command Prompt"    , "" ) \
         X(Bash         , "Bash/Zsh/CMD"          , "" ) \
@@ -1262,6 +1262,12 @@ utility like ctags is used to locate the definitions.
         std::vector<menu_item> objs_config{ TYPE_LIST };
         #undef X
         #undef TYPE_LIST
+
+        #ifdef DEMO
+            objs_config[objs::Tile].data = "VTM_PROFILE1=\"Tile\", \"Tiling Window Manager\", h1:1(v1:1(\"bash -c 'LC_ALL=en_US.UTF-8 mc -c -x -d; cat'\", h1:1(\"bash -c 'ls /bin | nl | ccze -A; bash'\", \"bash\")), \"bash -c 'vim -c :h; cat'\")";
+        #else
+            objs_config[objs::Tile].data = "VTM_PROFILE1=\"Tile\", \"Tiling Window Manager\", h()";
+        #endif
 
         static iota    max_count = 20;// 50;
         static iota    max_vtm = 3;
@@ -2269,25 +2275,31 @@ utility like ctags is used to locate the definitions.
                 }
                 case Tile:
                 {
+                    view envvar_data;
+                    text window_title;
                     auto a = data.find('=');
-                    if (a == text::npos) break;
-                    auto b = data.begin();
-                    auto e = data.end();
-                    auto t = b + a;
-                    auto envvar_name = view{ b, t };
-                    log(" envvar_name=", envvar_name);
-                    b = t + 1;
-                    if (b == e) break;
-                    auto envvar_data = view{ b, e };
-                    log(" envvar_data=", envvar_data);
-                    auto menu_name = utf_get_quote(envvar_data, '\"');
-                    auto window_title = utf_get_quote(envvar_data, '\"');
-                    log(" menu_name=", menu_name);
-                    log(" window_title=", window_title);
-                    utf_trim_front(envvar_data, ", ");
-                    log(" layout_data=", envvar_data);
-
-                    window->plugin<pro::title>(ansi::add(window_title + '\n' + utf::debase(data)))
+                    if (a != text::npos)
+                    {
+                        auto b = data.begin();
+                        auto e = data.end();
+                        auto t = b + a;
+                        auto envvar_name = view{ b, t };
+                        log(" envvar_name=", envvar_name);
+                        b = t + 1;
+                        if (b != e)
+                        {
+                            envvar_data = view{ b, e };
+                            log(" envvar_data=", envvar_data);
+                            auto menu_name = utf_get_quote(envvar_data, '\"');
+                            window_title = utf_get_quote(envvar_data, '\"');
+                            log(" menu_name=", menu_name);
+                            log(" window_title=", window_title);
+                            utf_trim_front(envvar_data, ", ");
+                            log(" layout_data=", envvar_data);
+                        }
+                    }
+                    auto title = window_title.length() ? window_title + '\n' : ""s;
+                    window->plugin<pro::title>(ansi::add(title + utf::debase(data)))
                           ->unplug<pro::focus>() // Remove focus controller.
                           ->plugin<pro::align>();
 
@@ -2552,11 +2564,13 @@ utility like ctags is used to locate the definitions.
                 #ifdef _WIN32
                     menu_list[find(objs::CommandPrompt)];
                     menu_list[find(objs::PowerShell)];
+                    menu_list[find(objs::Tile)];
                     menu_list[find(objs::Logs)];
                     menu_list[find(objs::View)];
                     menu_list[find(objs::RefreshRate)];
                 #else
                     menu_list[find(objs::Term)];
+                    menu_list[find(objs::Tile)];
                     menu_list[find(objs::Logs)];
                     menu_list[find(objs::View)];
                     menu_list[find(objs::RefreshRate)];
