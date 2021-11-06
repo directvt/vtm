@@ -3788,7 +3788,7 @@ namespace netxs::console
         };
 
         // pro: Custom highlighter.
-        template<auto fuse>
+        //template<auto fuse> //todo apple clang doesn't get it
         class shade
             : public skill
         {
@@ -3812,7 +3812,8 @@ namespace netxs::console
                     if (highlighted)
                     {
                         auto area = parent_canvas.full();
-                        parent_canvas.fill(area, fuse);
+                        //parent_canvas.fill(area, fuse); //todo apple clang doesn't get it
+                        parent_canvas.fill(area, cell::shaders::xlight);
                     }                
                 };
             }

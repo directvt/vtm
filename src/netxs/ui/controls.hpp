@@ -879,9 +879,121 @@ namespace netxs::ui
     };
 
     // controls: Rigid text page.
-    template<auto printfx = noop{}>
+    class post
+        : public flow, public form<post>
+    {
+        twod width; // post: Page dimensions.
+        text source; // post: Raw content.
+        page_layout layout;
+        bool beyond; // post: Allow vertical scrolling beyond last line.
+
+    public:
+        //using post = post_fx;
+
+        page topic; // post: Text content.
+
+        template<class T>
+        auto& lyric(T paraid) { return *topic[paraid].lyric; }
+        template<class T>
+        auto& content(T paraid) { return topic[paraid]; }
+
+        // post: Set content.
+        template<class TEXT>
+        auto upload(TEXT utf8, iota initial_width = 0)
+        {
+            source = utf8;
+            topic = utf8;
+            base::resize(twod{ initial_width, 0 });
+            base::reflow();
+            return base::This<post>();
+        }
+        auto& get_source() const
+        {
+            return source;
+        }
+        void output(face& canvas)
+        {
+            flow::reset(canvas);
+            auto publish = [&](auto const& combo)
+            {
+                flow::print(combo, canvas);
+            };
+            topic.stream(publish);
+        }
+        auto get_size() const
+        {
+            return width;
+        }
+        void recalc()
+        {
+            if (topic.size() > layout.capacity())
+                layout.reserve(topic.size() * 2);
+
+            auto entry = layout.get_entry(base::anchor); // Take the object under central point
+            layout.clear();
+
+            flow::reset();
+            auto publish = [&](auto const& combo)
+            {
+                auto cp = flow::print(combo);
+
+                auto id = combo.id();
+                if (id == entry.id) entry.coor.y -= cp.y;
+                layout.push_back({ id,cp });
+            };
+            topic.stream(publish);
+
+            // Apply only vertical anchoring for this type of control.
+            base::anchor.y -= entry.coor.y; // Move the central point accordingly to the anchored object
+
+            auto& cover = flow::minmax();
+            base::oversz.set(-std::min(0, cover.l),
+                              std::max(0, cover.r - width.x + 1),
+                             -std::min(0, cover.t),
+                              0);
+            width.y = cover.height() + (beyond ? width.y : 1); //todo unify (text editor)
+        }
+        void recalc(twod const& size)
+        {
+            width = size;
+            recalc();
+        }
+
+        post(bool scroll_beyond = faux)
+            : flow{ width },
+              beyond{ scroll_beyond }
+        {
+            SUBMIT(tier::preview, e2::size::set, size)
+            {
+                recalc(size);
+                size.y = width.y;
+            };
+            SUBMIT(tier::release, e2::size::set, size)
+            {
+                //if (width != size)
+                //{
+                //	recalc(size);
+                //	//width.y = size.y;
+                //}
+                width = size;
+            };
+            SUBMIT(tier::release, e2::render::any, parent_canvas)
+            {
+                output(parent_canvas);
+
+                //auto mark = rect{ base::anchor + base::coor(), {10,5} };
+                //mark.coor += parent_canvas.view().coor; // Set client's basis
+                //parent_canvas.fill(mark, [](cell& c) { c.alpha(0x80).bgc().chan.r = 0xff; });
+            };
+        }
+    };
+
+    // controls: Rigid text page.
+    //template<auto printfx = noop{}> //todo apple clang doesn't get it
+    //class post_fx
+    //    : public flow, public form<post_fx<printfx>>
     class post_fx
-        : public flow, public form<post_fx<printfx>>
+        : public flow, public form<post_fx>
     {
         twod width; // post: Page dimensions.
         text source; // post: Raw content.
@@ -917,7 +1029,7 @@ namespace netxs::ui
             flow::reset(canvas);
             auto publish = [&](auto const& combo)
             {
-                flow::print(combo, canvas, printfx);
+                flow::print(combo, canvas, cell::shaders::contrast);
             };
             topic.stream(publish);
         }
@@ -989,7 +1101,7 @@ namespace netxs::ui
         }
     };
 
-    using post = post_fx<>;
+    //using post = post_fx<>;  //todo apple clang doesn't get it
     
     // controls: Scroller.
     class rail
