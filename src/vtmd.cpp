@@ -3,7 +3,7 @@
 
 #define MONOTTY_VER "Monotty Desktopio v0.5.9999"
 // Enable demo apps and assign Esc key to log off.
-//#define DEMO
+#define DEMO
 // Enable keyboard input and unassign Esc key.
 #define PROD
 
@@ -1264,7 +1264,11 @@ utility like ctags is used to locate the definitions.
         #undef TYPE_LIST
 
         #ifdef DEMO
-            objs_config[objs::Tile].data = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h1:1(v1:1(\"bash -c 'LC_ALL=en_US.UTF-8 mc -c -x -d; cat'\", h1:1(\"bash -c 'ls /bin | nl | ccze -A; bash'\", \"bash\")), \"bash -c 'vim -c :h; cat'\")";
+            #ifdef PROD
+                objs_config[objs::Tile].data = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h1:1(v1:1(\"bash -c 'LC_ALL=en_US.UTF-8 mc -c -x; bash'\", h1:1(\"bash -c 'ls /bin | nl | ccze -A; bash'\", \"bash\")), a(\"calc\",\"app title\",\"app data\"))";
+            #else
+                objs_config[objs::Tile].data = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h1:1(v1:1(\"bash -c 'LC_ALL=en_US.UTF-8 mc -c -x -d; cat'\", h1:1(\"bash -c 'ls /bin | nl | ccze -A; bash'\", \"bash\")), a(\"calc\",\"\",\"\")";
+            #endif
         #else
             objs_config[objs::Tile].data = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h()";
         #endif
@@ -1313,7 +1317,7 @@ utility like ctags is used to locate the definitions.
             return scroll_bars;
         };
 
-        // Menu bar (collapsible on right click).
+        // Menu bar (shrinkable on right-click).
         auto custom_menu = [&](bool full_size, std::list<std::pair<text, std::function<void(ui::pads&)>>> menu_items)
         {
             auto menu_block = base::create<ui::park>()
@@ -1339,6 +1343,7 @@ utility like ctags is used to locate the definitions.
                              ->plugin<pro::fader>(x3, c3, 150ms)
                              ->invoke([&](ui::pads& boss)
                                 {
+                                    //todo maximize/restore funct
                                     boss.SUBMIT(tier::release, hids::events::mouse::button::dblclick::left, gear)
                                     {
                                         boss.base::template riseup<tier::release>(e2::form::quit, true);
@@ -1495,60 +1500,31 @@ utility like ctags is used to locate the definitions.
 
         auto headless_te = [&](text cmdline)
         {
-            // Embedded terminal layout
-            //
-            //      Multiline
-            //      Window Title
-            //      ██████████████████████████████  <- menu: Collapsible menu bar
-            //      sdn@meg: /mnt/d$ _              <- terminal content
-            //                                   ▒  <- vt scrollbar
-            //      ▒▒▒▒▒▒▒▒▒█████████████████████  <- hz scrollbar
-            //           status line: 1/200+0 30:2
+            auto body = base::create<ui::fork>(axis::Y)
+                                ->plugin<pro::track>()
+                                ->plugin<pro::focus>()
+                                ->plugin<pro::acryl>()
+                                ->plugin<pro::cache>();
+                auto menu = body->attach<slot::_1>(terminal_menu(faux))
+                                    ->colors(whitelt, term_menu_bg);
+                    auto term_stat_area = body->attach<slot::_2, ui::fork>(axis::Y);
+                        auto layers = term_stat_area->attach<slot::_1, ui::cake>()
+                                                    ->plugin<pro::limit>(dot_11, twod{ 400,200 });
+                            auto scroll = layers->attach<ui::rail>();
+                            {
+                                #ifdef DEMO
+                                    scroll->plugin<pro::limit>(twod{ 20,1 }); // mc crashes when window is too small
+                                #endif
 
-            auto te_area = base::create<ui::fork>(axis::Y)
-                               ->plugin<pro::title>("", true, faux, true)
-                               ->plugin<pro::limit>(twod{ 10,-1 }, twod{ -1,-1 })
-                               ->active();
-                    //auto title = te_area->attach<slot::_1, ui::post_fx<cell::shaders::contrast>>() //todo apple clang doesn't get it
-                    auto title = te_area->attach<slot::_1, ui::post_fx>()
-                                        ->upload("Headless TE");
-                                   title->invoke([&](auto& boss)
-                                   {
-                                       auto shadow = ptr::shadow(title);
-                                       te_area->SUBMIT_BYVAL(tier::preview, e2::form::prop::header, newtext)
-                                       {
-                                           if (auto ptr = shadow.lock()) ptr->upload(newtext);
-                                       };
-                                       te_area->SUBMIT_BYVAL(tier::request, e2::form::prop::header, curtext)
-                                       {
-                                           if (auto ptr = shadow.lock()) curtext = ptr->get_source();
-                                       };
-                                   });
-                auto body = te_area->attach<slot::_2, ui::fork>(axis::Y)
-                                   ->plugin<pro::track>()
-                                   ->plugin<pro::focus>()
-                                   ->plugin<pro::acryl>()
-                                   ->plugin<pro::cache>();
-                    auto menu = body->attach<slot::_1>(terminal_menu(faux))
-                                     ->colors(whitelt, term_menu_bg);
-                        auto term_stat_area = body->attach<slot::_2, ui::fork>(axis::Y);
-                            auto layers = term_stat_area->attach<slot::_1, ui::cake>()
-                                                        ->plugin<pro::limit>(dot_11, twod{ 400,200 });
-                                auto scroll = layers->attach<ui::rail>();
-                                {
-                                    #ifdef DEMO
-                                        scroll->plugin<pro::limit>(twod{ 20,1 }); // mc crashes when window is too small
-                                    #endif
-
-                                    auto inst = scroll->attach<app::term>(cmdline);
-                                    inst->colors(whitelt, blackdk);
-                                }
-                            auto scroll_bars = layers->attach<ui::fork>();
-                                auto vt = scroll_bars->attach<slot::_2, ui::grip<axis::Y>>(scroll);
-                                auto hz_placeholder = term_stat_area->attach<slot::_2, ui::cake>()
-                                                                    ->colors(whitelt, term_menu_bg);
-                                auto hz = hz_placeholder->attach<ui::grip<axis::X>>(scroll);
-            return te_area;
+                                auto inst = scroll->attach<app::term>(cmdline);
+                                inst->colors(whitelt, blackdk);
+                            }
+                        auto scroll_bars = layers->attach<ui::fork>();
+                            auto vt = scroll_bars->attach<slot::_2, ui::grip<axis::Y>>(scroll);
+                            auto hz_placeholder = term_stat_area->attach<slot::_2, ui::cake>()
+                                                                ->colors(whitelt, term_menu_bg);
+                            auto hz = hz_placeholder->attach<ui::grip<axis::X>>(scroll);
+            return body;
         };
 
         auto utf_find_char = [](auto head, auto tail, char delim)
@@ -1595,6 +1571,41 @@ utility like ctags is used to locate the definitions.
                 ++head;
             }
             utf8.remove_prefix(std::distance(utf8.begin(), head));
+        };
+
+        auto create_box_with_title = [&](view title, auto branch)
+        {
+            auto te_area = base::create<ui::fork>(axis::Y)
+                    ->plugin<pro::title>("", true, faux, true)
+                    ->plugin<pro::limit>(twod{ 10,-1 }, twod{ -1,-1 })
+                    ->active();
+            //auto title = te_area->attach<slot::_1, ui::post_fx<cell::shaders::contrast>>() //todo apple clang doesn't get it
+            auto title_obj = te_area->attach<slot::_1, ui::post_fx>()
+                            ->upload(title);
+                        title_obj->invoke([&](auto& boss)
+                        {
+                            auto shadow = ptr::shadow(title_obj);
+                            te_area->SUBMIT_BYVAL(tier::preview, e2::form::prop::header, newtext)
+                            {
+                                if (auto ptr = shadow.lock()) ptr->upload(newtext);
+                            };
+                            te_area->SUBMIT_BYVAL(tier::request, e2::form::prop::header, curtext)
+                            {
+                                if (auto ptr = shadow.lock()) curtext = ptr->get_source();
+                            };
+                        });
+            auto body = te_area->attach<slot::_2>(branch);
+            return te_area;
+        };
+        auto create_app_by_id = [&](auto id, view app_title, view app_data) -> auto
+        {
+            
+        };
+        auto create_app = [&](view app_id_str, view app_title, view app_data) -> auto
+        {
+            auto object = base::create<ui::mock>()
+                ->colors(0, 0); //todo mouse tracking
+            return object;
         };
         //todo use XAML for that
         auto create = [&](id_t menu_item_id, auto location) -> auto
@@ -2399,19 +2410,38 @@ utility like ctags is used to locate the definitions.
                             }
                         };
                     };
-                    auto add_node = [&](auto&& add_node, view& utf8) -> sptr<base>
+                    auto add_node = [&](auto&& add_node, auto host, view& utf8)// -> sptr<base>
                     {
                         utf_trim_front(utf8, ", ");
-                        if (utf8.empty()) return empty();
+                        if (utf8.empty()) { host->attach(empty()); return; }
                         auto tag = utf8.front();
                         if (tag == '\"')
                         {
                             // add leaf
                             auto cmdline = utf_get_quote(utf8, '\"');
                             log(" node cmdline=", cmdline);
-                            auto inst = headless_te(cmdline);
+                            auto inst = create_box_with_title("Headless TE", headless_te(cmdline));
                             inst->base::isroot(true);
-                            return inst;
+                            host->attach(inst);
+                            return;
+                        }
+                        else if (tag == 'a')
+                        {
+                            // add app
+                            utf8.remove_prefix(1);
+                            utf_trim_front(utf8, " ");
+                            if (utf8.empty() || utf8.front() != '(') { host->attach(empty()); return; }
+                            utf8.remove_prefix(1);
+                            auto app_id  = utf_get_quote(utf8, '\"');
+                            utf_trim_front(utf8, ", ");
+                            auto app_title = utf_get_quote(utf8, '\"');
+                            utf_trim_front(utf8, ", ");
+                            auto app_data = utf_get_quote(utf8, '\"');
+                            log(" app_id=", app_id, " app_title=", app_title, " app_data=", app_data);
+                            auto app = create_box_with_title(app_title, create_app(app_id, app_title, app_data));
+                            host->attach(app);
+                            utf_trim_front(utf8, ") ");
+                            return;
                         }
                         else if (tag == 'h' || tag == 'v')
                         {
@@ -2423,38 +2453,45 @@ utility like ctags is used to locate the definitions.
                             if (auto param = utf::to_int(utf8))
                             {
                                 s1 = std::abs(param.value());
-                                if (utf8.empty() || utf8.front() != ':') return empty();
+                                if (utf8.empty() || utf8.front() != ':') { host->attach(empty()); return; }
                                 utf8.remove_prefix(1);
                                 if (auto param = utf::to_int(utf8))
                                 {
                                     s2 = std::abs(param.value());
                                 }
-                                else return empty();
+                                else { host->attach(empty()); return; }
                             }
                             utf_trim_front(utf8, " ");
-                            if (utf8.empty() || utf8.front() != '(') return empty();
+                            if (utf8.empty() || utf8.front() != '(') { host->attach(empty()); return; }
                             utf8.remove_prefix(1);
                             auto ratio = netxs::divround(s1 * 100, s1 + s2);
                             auto node = tag == 'h' ? base::create<ui::fork>(axis::X, 2, ratio)
                                                    : base::create<ui::fork>(axis::Y, 1, ratio);
                             auto slot1 = node->attach<slot::_1, ui::pads>();
                             auto slot2 = node->attach<slot::_2, ui::pads>();
-                                        slot1->attach(add_node(add_node, utf8));
-                                        slot2->attach(add_node(add_node, utf8));
+                                        slot1->invoke(fallback);
+                                        slot2->invoke(fallback);
+                                        add_node(add_node, slot1, utf8);
+                                        add_node(add_node, slot2, utf8);
                             auto grip  = node->attach<slot::_I, ui::mock>()
-                                             ->plugin<pro::mover>()
-                                             //->plugin<pro::shade<cell::shaders::xlight>>() //todo apple clang doesn't get it
-                                             ->plugin<pro::shade>() //todo apple clang doesn't get it
-                                             ->active();
-                            slot1->invoke(fallback);
-                            slot2->invoke(fallback);
+                                            ->plugin<pro::mover>()
+                                            ->plugin<pro::focus>()
+                                            //->plugin<pro::shade<cell::shaders::xlight>>() //todo apple clang doesn't get it
+                                            ->plugin<pro::shade>()
+                                            ->invoke([](auto& boss)
+                                            {
+                                                boss.keybd.accept(true);
+                                            })
+                                            ->active();
+                            host->attach(node);
 
                             utf_trim_front(utf8, ") ");
-                            return node;
+                            return;
                         }
-                        else return empty();
+                        else { host->attach(empty()); return; }
                     };
-                    auto pane1 = object->attach<slot::_2>(add_node(add_node, envvar_data));
+                    auto host = object->attach<slot::_2, ui::pads>();
+                    add_node(add_node, host, envvar_data);
                     break;
                 }
             }
