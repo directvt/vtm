@@ -1599,7 +1599,7 @@ utility like ctags is used to locate the definitions.
         //todo use XAML for that
         auto create = [&](id_t menu_item_id, auto location) -> auto
         {
-            assert(menu_item_id < objs_config.size());;
+            assert(menu_item_id < objs_config.size());
             auto type = objs_config[menu_item_id].type;
             auto name = objs_config[menu_item_id].name;
             auto data = objs_config[menu_item_id].data;
@@ -2409,7 +2409,9 @@ utility like ctags is used to locate the definitions.
                             // add leaf
                             auto cmdline = utf_get_quote(utf8, '\"');
                             log(" node cmdline=", cmdline);
-                            return headless_te(cmdline);
+                            auto inst = headless_te(cmdline);
+                            inst->base::isroot(true);
+                            return inst;
                         }
                         else if (tag == 'h' || tag == 'v')
                         {
