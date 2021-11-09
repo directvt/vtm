@@ -1573,7 +1573,7 @@ utility like ctags is used to locate the definitions.
             utf8.remove_prefix(std::distance(utf8.begin(), head));
         };
 
-        auto create_box_with_title = [&](view title, auto branch)
+        auto box_with_title = [&](view title, auto branch)
         {
             auto te_area = base::create<ui::fork>(axis::Y)
                     ->plugin<pro::title>("", true, faux, true)
@@ -2404,9 +2404,9 @@ utility like ctags is used to locate the definitions.
                                     if (ack)
                                     if (auto slot = shadow.lock())
                                     {
-                                        auto alive = slot->pop_back();
+                                        auto [alive, item] = slot->pop_back();
                                         if (alive < 1) slot->base::riseup<tier::release>(e2::form::quit, true);
-                                        else           slot->base::deface();
+                                        else           slot->base::reflow();
                                     }
                                 };
                             });
@@ -2423,7 +2423,7 @@ utility like ctags is used to locate the definitions.
                             // add term
                             auto cmdline = utf_get_quote(utf8, '\"');
                             log(" node cmdline=", cmdline);
-                            auto inst = create_box_with_title("Headless TE", headless_te(cmdline));
+                            auto inst = box_with_title("Headless TE", headless_te(cmdline));
                             inst->base::isroot(true);
                             place->attach(inst);
                         }
@@ -2440,7 +2440,7 @@ utility like ctags is used to locate the definitions.
                             utf_trim_front(utf8, ", ");
                             auto app_data = utf_get_quote(utf8, '\"');
                             log(" app_id=", app_id, " app_title=", app_title, " app_data=", app_data);
-                            auto app = create_box_with_title(app_title, create_app(app_id, app_title, app_data));
+                            auto app = box_with_title(app_title, create_app(app_id, app_title, app_data));
                             place->attach(app);
                             utf_trim_front(utf8, ") ");
                         }
@@ -2459,15 +2459,14 @@ utility like ctags is used to locate the definitions.
                                 if (auto param = utf::to_int(utf8))
                                 {
                                     s2 = std::abs(param.value());
+                                    utf_trim_front(utf8, " ");
                                 }
                                 else return place;
                             }
-                            utf_trim_front(utf8, " ");
                             if (utf8.empty() || utf8.front() != '(') return place;
                             utf8.remove_prefix(1);
-                            auto ratio = netxs::divround(s1 * 100, s1 + s2);
-                            auto node = tag == 'h' ? base::create<ui::fork>(axis::X, 2, ratio)
-                                                   : base::create<ui::fork>(axis::Y, 1, ratio);
+                            auto node = tag == 'h' ? base::create<ui::fork>(axis::X, 2, s1, s2)
+                                                   : base::create<ui::fork>(axis::Y, 1, s1, s2);
                             auto slot1 = node->attach<slot::_1>(add_node(add_node, utf8));
                             auto slot2 = node->attach<slot::_2>(add_node(add_node, utf8));
                             auto grip  = node->attach<slot::_I, ui::mock>()
@@ -3026,7 +3025,8 @@ utility like ctags is used to locate the definitions.
                                                         {
                                                             auto state = task_menu_area->get_ratio();
                                                             bttn->set(state ? ">" : "<");
-                                                            task_menu_area->config(state ? 0 : 100);
+                                                            if (state) task_menu_area->config(0, 1);
+                                                            else       task_menu_area->config(1, 0);
                                                             gear.dismiss();
                                                         }
                                                     };

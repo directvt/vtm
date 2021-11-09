@@ -216,7 +216,7 @@ namespace netxs::ui
         iota get_x(twod const& pt) { return updown ? pt.y : pt.x; }
         iota get_y(twod const& pt) { return updown ? pt.x : pt.y; }
 
-        void _config(axis alignment, iota thickness, iota scale)
+        void _config(axis alignment, iota thickness, iota s1 = 1, iota s2 = 1)
         {
             switch (alignment)
             {
@@ -231,8 +231,7 @@ namespace netxs::ui
                     break;
             }
             width = std::max(thickness, 0);
-            ratio = MAX_RATIO * std::clamp(scale, 0, 100) / 100;
-            base::reflow();
+            config(s1, s2);
         }
 
     public:
@@ -240,14 +239,18 @@ namespace netxs::ui
         {
             return ratio;
         }
-        auto config(iota scale)
+        void config(iota s1, iota s2 = 1)
         {
-            ratio = MAX_RATIO * std::clamp(scale, 0, 100) / 100;
+            if (s1 < 0) s1 = 0;
+            if (s2 < 0) s2 = 0;
+            auto sum = s1 + s2;
+            ratio = sum ? netxs::divround(s1 * MAX_RATIO, sum)
+                        : MAX_RATIO >> 1;
             base::reflow();
         }
-        auto config(axis alignment, iota thickness, iota scale)
+        auto config(axis alignment, iota thickness, iota s1, iota s2)
         {
-            _config(alignment, thickness, scale);
+            _config(alignment, thickness, s1, s2);
             return This<fork>();
         }
 
@@ -258,13 +261,13 @@ namespace netxs::ui
             if (client_2) client_2->base::detach();
             if (splitter) splitter->base::detach();
         }
-        fork(axis alignment = axis::X, iota thickness = 0, iota scale = 50)
-        :   maxpos{ 0 },
-            start{ 0 },
-            width{ 0 },
-            movable{ true },
-            updown{ faux },
-            ratio{ 0xFFFF >> 1 }
+        fork(axis alignment = axis::X, iota thickness = 0, iota s1 = 1, iota s2 = 1)
+            : maxpos{ 0 },
+              start{ 0 },
+              width{ 0 },
+              movable{ true },
+              updown{ faux },
+              ratio{ 0xFFFF >> 1 }
         {
             SUBMIT(tier::preview, e2::size::set, new_size)
             {
@@ -296,7 +299,7 @@ namespace netxs::ui
                 if (client_2) parent_canvas.render(client_2, basis);
             };
 
-            _config(alignment, thickness, scale);
+            _config(alignment, thickness, s1, s2);
             //  case WM_SIZE:
             //  	entity->resize({ GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) });
             //  	return 0;
@@ -865,8 +868,8 @@ namespace netxs::ui
                 }
             };
         }
-        // veer: Remove the last object.
-        auto pop_back()
+        // veer: Remove the last object. Return subset size and the object refrence.
+        auto pop_back() -> std::pair<iota, sptr<base>>
         {
             if (subset.size())
             {
@@ -875,8 +878,9 @@ namespace netxs::ui
                 auto backup = This();
                 subset.erase(item);
                 item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, backup);
+                return { subset.size(), item_ptr };
             }
-            return subset.size();
+            return { 0, {} };
         }
         // veer: Create a new item of the specified subtype and attach it.
         template<class T>
@@ -1033,7 +1037,9 @@ namespace netxs::ui
                               std::max(0, cover.r - width.x + 1),
                              -std::min(0, cover.t),
                               0);
-            width.y = cover.height() + (beyond ? width.y : 1); //todo unify (text editor)
+            auto height = cover.width() ? cover.height() + 1
+                                        : 0;
+            width.y = height + (beyond ? width.y : 0); //todo unify (text editor)
         }
         void recalc(twod const& size)
         {
@@ -1146,7 +1152,9 @@ namespace netxs::ui
                               std::max(0, cover.r - width.x + 1),
                              -std::min(0, cover.t),
                               0);
-            width.y = cover.height() + (beyond ? width.y : 1); //todo unify (text editor)
+            auto height = cover.width() ? cover.height() + 1
+                                        : 0;
+            width.y = height + (beyond ? width.y : 0); //todo unify (text editor)
         }
         void recalc(twod const& size)
         {
