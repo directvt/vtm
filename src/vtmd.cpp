@@ -1223,49 +1223,50 @@ utility like ctags is used to locate the definitions.
             }
         };
 
-        #define TYPE_LIST                               \
-        X(Term         , "Term"                  , "" ) \
-        X(Text         , "Text"                  , "" ) \
-        X(Calc         , "Calc"                  , "" ) \
-        X(Shop         , "Shop"                  , "" ) \
-        X(Logs         , "Logs"                  , "" ) \
-        X(View         , "View"                  , "" ) \
-        X(Tile         , "Tile"                  , "" ) \
-        X(PowerShell   , "pwsh PowerShell"       , "" ) \
-        X(CommandPrompt, "cmd Command Prompt"    , "" ) \
-        X(Bash         , "Bash/Zsh/CMD"          , "" ) \
-        X(Far          , "Far Manager"           , "" ) \
-        X(VTM          , "vtm (recursively)"     , "" ) \
-        X(MC           , "mc  Midnight Commander", "" ) \
-        X(Truecolor    , "RGB Truecolor image"   , "" ) \
-        X(RefreshRate  , "FPS Refresh rate"      , "" ) \
-        X(Strobe       , "Strobe"                , "" ) \
-        X(Test         , "Test"                  , "" ) \
-        X(Empty        , "Test Empty window"     , "" )
+        #define TYPE_LIST                                                                                                 \
+        X(Term         , "Term"                  , ("Term \nBash/Zsh/CMD")                                         , "" ) \
+        X(Text         , "Text"                  , (ansi::jet(bias::center).add("Text Editor\n ~/Untitled 1.txt")) , "" ) \
+        X(Calc         , "Calc"                  , (ansi::jet(bias::right).add("Spreadsheet\n ~/Untitled 1.ods"))  , "" ) \
+        X(Shop         , "Shop"                  , ("Desktopio App Store")                                         , "" ) \
+        X(Logs         , "Logs"                  , ("Logs \nDebug output console")                                 , "" ) \
+        X(View         , "View"                  , (ansi::jet(bias::center).add("View \n Region 1"))               , "" ) \
+        X(Tile         , "Tile"                  , ("Tiling Window Manager")                                       , "" ) \
+        X(PowerShell   , "pwsh PowerShell"       , ("Term \nPowerShell")                                           , "" ) \
+        X(CommandPrompt, "cmd Command Prompt"    , ("Term \nCommand Prompt")                                       , "" ) \
+        X(Bash         , "Bash/Zsh/CMD"          , ("Term \nBash/Zsh/CMD")                                         , "" ) \
+        X(Far          , "Far Manager"           , ("Term \nFar Manager")                                          , "" ) \
+        X(VTM          , "vtm (recursively)"     , ("Term \nvtm (recursively)")                                    , "" ) \
+        X(MC           , "mc  Midnight Commander", ("Term \nMidnight Commander")                                   , "" ) \
+        X(Truecolor    , "RGB Truecolor image"   , (ansi::jet(bias::right).add("True color ANSI/ASCII image test")), "" ) \
+        X(RefreshRate  , "FPS Refresh rate"      , ("Frame rate adjustment")                                       , "" ) \
+        X(Strobe       , "Strobe"                , (ansi::jet(bias::center).add("Strobe"))                         , "" ) \
+        X(Test         , "Test"                  , (ansi::jet(bias::center).add("Test Page"))                      , "" ) \
+        X(Empty        , "Test Empty window"     , (ansi::mgl(1).mgr(1).add("Empty Instance \nid: "))              , "" )
 
-        #define X(a, b, c) a,
+        #define X(a, b, c, d) a,
         enum objs { TYPE_LIST };
         #undef X
 
-        #define X(a, b, c) b,
-        std::vector<text> objs_desc{ TYPE_LIST };
+        #define X(a, b, c, d)  { #a, a },
+        std::map<text, id_t> objs_map{ TYPE_LIST };
         #undef X
 
         struct menu_item
         {
             objs type;
             text name;
+            text title;
             text data;
         };
 
-        #define X(a, b, c) { a, b, c },
+        #define X(a, b, c, d) { a, b, c, d },
         std::vector<menu_item> objs_config{ TYPE_LIST };
         #undef X
         #undef TYPE_LIST
 
         #ifdef DEMO
             #ifdef PROD
-                objs_config[objs::Tile].data = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h1:1(v1:1(\"bash -c 'LC_ALL=en_US.UTF-8 mc -c -x; bash'\", h1:1(\"bash -c 'ls /bin | nl | ccze -A; bash'\", \"bash\")), a(\"calc\",\"app title\",\"app data\"))";
+                objs_config[objs::Tile].data = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h1:1(v1:1(\"bash -c 'LC_ALL=en_US.UTF-8 mc -c -x; bash'\", h1:1(\"bash -c 'ls /bin | nl | ccze -A; bash'\", \"bash\")), a(\"Calc\",\"app title\",\"app data\"))";
             #else
                 objs_config[objs::Tile].data = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h1:1(v1:1(\"bash -c 'LC_ALL=en_US.UTF-8 mc -c -x -d; cat'\", h1:1(\"bash -c 'ls /bin | nl | ccze -A; bash'\", \"bash\")), a(\"calc\",\"\",\"\")";
             #endif
@@ -1332,6 +1333,14 @@ utility like ctags is used to locate the definitions.
                         limit.set(limits);
                         boss.reflow();
                         gear.dismiss();
+                    };
+                    boss.base::broadcast->SUBMIT(tier::release, e2::form::prop::menusize, size)
+                    {
+                        auto& limit = boss.plugins<pro::limit>();
+                        auto limits = limit.get();
+                        limits.min.y = limits.max.y = size == 1 ? 3 : 1;
+                        limit.set(limits);
+                        boss.reflow();
                     };
                 });
             auto menu_area = menu_block->attach<snap::stretch, snap::center, ui::fork>()
@@ -1575,6 +1584,8 @@ utility like ctags is used to locate the definitions.
 
         auto box_with_title = [&](view title, auto branch)
         {
+            branch->base::broadcast->SIGNAL(tier::release, e2::form::prop::menusize, 0);
+
             auto te_area = base::create<ui::fork>(axis::Y)
                     ->plugin<pro::title>("", true, faux, true)
                     ->plugin<pro::limit>(twod{ 10,-1 }, twod{ -1,-1 })
@@ -1597,87 +1608,30 @@ utility like ctags is used to locate the definitions.
             auto body = te_area->attach<slot::_2>(branch);
             return te_area;
         };
-        auto create_app_by_id = [&](auto id, view app_title, view app_data) -> auto
-        {
-            
-        };
-        auto create_app = [&](view app_id_str, view app_title, view app_data) -> auto
-        {
-            auto object = base::create<ui::mock>()
-                ->colors(0, 0); //todo mouse tracking
-            return object;
-        };
-        //todo use XAML for that
-        auto create = [&](id_t menu_item_id, auto location) -> auto
-        {
-            assert(menu_item_id < objs_config.size());
-            auto type = objs_config[menu_item_id].type;
-            auto name = objs_config[menu_item_id].name;
-            auto data = objs_config[menu_item_id].data;
-            sptr<ui::cake> window = base::create<ui::cake>()
-                ->plugin<pro::limit>(dot_11, twod{ 400,200 }) //todo unify, set via config
-                ->plugin<pro::sizer>()
-                ->plugin<pro::frame>()
-                ->plugin<pro::light>()
-                ->plugin<pro::focus>()
-                ->invoke([&](ui::cake& boss)
-                {
-                    boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
-                    {
-                        auto& area = boss.base::area();
-                        if (!area.size.inside(gear.coord))
-                        {
-                            auto center = area.coor + (area.size / 2);
-                            bell::getref(gear.id)->
-                                SIGNAL(tier::release, e2::form::layout::shift, center);
-                        }
-                        boss.base::deface();
-                    };
-                    boss.SUBMIT(tier::release, hids::events::mouse::button::click::leftright, gear)
-                    {
-                        auto backup = boss.This();
-                        boss.base::detach();
-                        gear.dismiss();
-                    };
-                    boss.SUBMIT(tier::release, hids::events::mouse::button::click::middle, gear)
-                    {
-                        auto backup = boss.This();
-                        boss.base::detach();
-                        gear.dismiss();
-                    };
-                    boss.SUBMIT(tier::release, e2::form::proceed::detach, backup)
-                    {
-                        boss.base::detach(); // The object kills itself.
-                    };
-                    boss.SUBMIT(tier::release, e2::form::quit, ack)
-                    {
-                        if (ack) boss.base::detach(); // The object kills itself.
-                    };
-                });
 
-            window->extend(location);
-
+        auto create_app = [&](auto&& create_app, auto window, auto type, view data)
+        {
+            //todo use XAML for that
             switch (type)
             {
                 default:
                 case Test:
                 {
-                    window->plugin<pro::title>(ansi::jet(bias::center).add("Test Page"))
-                          ->plugin<pro::track>()
-                          ->plugin<pro::align>()
-                          ->plugin<pro::acryl>()
-                          ->plugin<pro::cache>();
-                    auto object0 = window->attach<ui::fork>(axis::Y)
+                    window->template plugin<pro::track>()
+                          ->template plugin<pro::align>()
+                          ->template plugin<pro::acryl>()
+                          ->template plugin<pro::cache>();
+                    auto object0 = window->template attach<ui::fork>(axis::Y)
                                          ->colors(whitelt, 0xA0db3700);
-                        auto menu = object0->attach<slot::_1>(custom_menu(true, {}))
-                                           ->plugin<pro::mover>(window);
-                        auto test_stat_area = object0->attach<slot::_2, ui::fork>(axis::Y);
-                            auto layers = test_stat_area->attach<slot::_1, ui::cake>();
-                                auto scroll = layers->attach<ui::rail>()
+                        auto menu = object0->template attach<slot::_1>(custom_menu(true, {}))
+                                           ->template plugin<pro::mover>(window);
+                        auto test_stat_area = object0->template attach<slot::_2, ui::fork>(axis::Y);
+                            auto layers = test_stat_area->template attach<slot::_1, ui::cake>();
+                                auto scroll = layers->template attach<ui::rail>()
                                                     ->colors(cyanlt, bluedk)
-                                                    ->plugin<pro::mover>(window)
+                                                    ->template plugin<pro::mover>(window)
                                                     ->config(true, true);
-                                    auto object = scroll->attach<ui::post>()
+                                    auto object = scroll->template attach<ui::post>()
                                                         ->upload(topic)
                                                         ->invoke([&](auto& self)
                                                         {
@@ -1697,9 +1651,9 @@ utility like ctags is used to locate the definitions.
                                                             //    self.content(test_topic_vars::dynamix3).lyric = canvas_ptr;
                                                             //};
                                                         });
-                                auto scroll_bars = layers->attach<ui::fork>();
-                                    auto vt = scroll_bars->attach<slot::_2, ui::grip<axis::Y>>(scroll);
-                                    auto hz = test_stat_area->attach<slot::_2, ui::grip<axis::X>>(scroll);
+                                auto scroll_bars = layers->template attach<ui::fork>();
+                                    auto vt = scroll_bars->template attach<slot::_2, ui::grip<axis::Y>>(scroll);
+                                    auto hz = test_stat_area->template attach<slot::_2, ui::grip<axis::X>>(scroll);
                         auto& a = object->lyric(test_topic_vars::canvas1);
                             a.mark().fgc(0xFF000000);
                             a.size({ 40, 9 });
@@ -1716,10 +1670,9 @@ utility like ctags is used to locate the definitions.
                 }
                 case Strobe:
                 {
-                    window->plugin<pro::title>(ansi::jet(bias::center).add("Strobe"))
-                          ->plugin<pro::align>();
-                    auto strob = window->attach<ui::mock>()
-                                       ->plugin<pro::mover>(window);
+                    window->template plugin<pro::align>();
+                    auto strob = window->template attach<ui::mock>()
+                                       ->template plugin<pro::mover>(window);
                     auto strob_shadow = ptr::shadow(strob);
                     bool stobe_state = true;
                     strob->SUBMIT_BYVAL(tier::general, e2::tick, now)
@@ -1735,127 +1688,140 @@ utility like ctags is used to locate the definitions.
                 }
                 case RefreshRate:
                 {
-                    window->plugin<pro::title>("Frame rate adjustment")
-                          ->plugin<pro::align>();
-                    window->attach<ui::stem_rate<tier::general, decltype(e2::config::fps)>>("Set frame rate", 1, 200, "fps")
-                          ->color(0xFFFFFFFF, bluedk);
+                    window->template plugin<pro::align>();
+                    window->template attach<ui::stem_rate<tier::general, decltype(e2::config::fps)>>("Set frame rate", 1, 200, "fps")
+                                   ->color(0xFFFFFFFF, bluedk);
                     break;
                 }
                 case Truecolor:
                 {
-                    window->plugin<pro::title>(ansi::jet(bias::right).add("True color ANSI/ASCII image test"))
-                          ->plugin<pro::track>()
-                          ->plugin<pro::align>()
-                          ->plugin<pro::acryl>()
-                          ->plugin<pro::cache>();
-                    auto object = window->attach<ui::fork>(axis::Y)
+                    window->template plugin<pro::track>()
+                          ->template plugin<pro::align>()
+                          ->template plugin<pro::acryl>()
+                          ->template plugin<pro::cache>();
+                    auto object = window->template attach<ui::fork>(axis::Y)
                                         ->colors(whitelt, 0xA01f0fc4);
-                        auto menu = object->attach<slot::_1>(custom_menu(true, {}))
-                                          ->plugin<pro::mover>(window);
-                        auto test_stat_area = object->attach<slot::_2, ui::fork>(axis::Y);
-                            auto layers = test_stat_area->attach<slot::_1, ui::cake>();
-                                auto scroll = layers->attach<ui::rail>()
-                                                    ->plugin<pro::mover>(window)
+                        auto menu = object->template attach<slot::_1>(custom_menu(true, {}))
+                                          ->template plugin<pro::mover>(window);
+                        auto test_stat_area = object->template attach<slot::_2, ui::fork>(axis::Y);
+                            auto layers = test_stat_area->template attach<slot::_1, ui::cake>();
+                                auto scroll = layers->template attach<ui::rail>()
+                                                    ->template plugin<pro::mover>(window)
                                                     ->config(true, true)
                                                     ->colors(whitelt, reddk);
-                                            scroll->attach<ui::post>()
+                                            scroll->template attach<ui::post>()
                                                   ->upload(truecolor);
-                                auto scroll_bars = layers->attach<ui::fork>();
-                                    auto vt = scroll_bars->attach<slot::_2, ui::grip<axis::Y>>(scroll);
-                                    auto hz = test_stat_area->attach<slot::_2, ui::grip<axis::X>>(scroll);
+                                auto scroll_bars = layers->template attach<ui::fork>();
+                                    auto vt = scroll_bars->template attach<slot::_2, ui::grip<axis::Y>>(scroll);
+                                    auto hz = test_stat_area->template attach<slot::_2, ui::grip<axis::X>>(scroll);
                     break;
                 }
                 case Empty:
                 {
-                    window->plugin<pro::title>(ansi::mgl(1).mgr(1).add("Empty Instance \nid: ", window->id))
-                          ->plugin<pro::track>()
-                          ->plugin<pro::align>()
-                          ->plugin<pro::acryl>();
-                    auto object = window->attach<ui::mock>()
+                    window->template plugin<pro::track>()
+                          ->template plugin<pro::align>()
+                          ->template plugin<pro::acryl>()
+                          ->invoke([&](auto& boss)
+                          {
+                              boss.SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
+                              {
+                                    static iota i = 0; i++;
+                                    auto title = ansi::mgl(1).mgr(1).add("Empty Instance \nid: ", parent->id);
+                                    boss.base::riseup<tier::preview>(e2::form::prop::header, title);
+                              };
+                          });
+                    auto object = window->template attach<ui::mock>()
                                         ->colors(0,0) //todo mouse tracking
-                                        ->plugin<pro::mover>(window);
+                                        ->template plugin<pro::mover>(window);
                     break;
                 }
                 case Shop:
                 {
-                    window->plugin<pro::title>("Desktopio App Store", faux)
-                          ->colors(whitelt, 0x60000000)
-                          ->plugin<pro::track>()
-                          ->plugin<pro::align>()
-                          ->plugin<pro::acryl>()
-                          ->plugin<pro::cache>();
-                    auto object = window->attach<ui::fork>(axis::Y)
+                    window->colors(whitelt, 0x60000000)
+                          ->template plugin<pro::track>()
+                          ->template plugin<pro::align>()
+                          ->template plugin<pro::acryl>()
+                          ->template plugin<pro::cache>();
+                    auto object = window->template attach<ui::fork>(axis::Y)
                                         ->colors(whitelt, 0);
-                        auto menu_object = object->attach<slot::_1, ui::fork>(axis::Y);
-                            menu_object->attach<slot::_1>(custom_menu(true,
+                        auto menu_object = object->template attach<slot::_1, ui::fork>(axis::Y);
+                            menu_object->template attach<slot::_1>(custom_menu(true,
                                 std::list{
                                     std::pair<text, std::function<void(ui::pads&)>>{ ansi::und(true).add("D").nil().add("esktopio App Store"), [](ui::pads& p){} }
                                 }));
-                            menu_object->attach<slot::_2, ui::post>()
-                                       ->plugin<pro::limit>(twod{ 37,-1 }, twod{ -1,-1 })
+                            menu_object->template attach<slot::_2, ui::post>()
+                                       ->template plugin<pro::limit>(twod{ 37,-1 }, twod{ -1,-1 })
                                        ->upload(appstore_head)
-                                       ->plugin<pro::mover>(window)
+                                       ->template plugin<pro::mover>(window)
                                        ->active();
-                        auto layers = object->attach<slot::_2, ui::cake>();
-                            auto scroll = layers->attach<ui::rail>()
+                        auto layers = object->template attach<slot::_2, ui::cake>();
+                            auto scroll = layers->template attach<ui::rail>()
                                                 ->colors(whitedk, 0xFF0f0f0f)
-                                                ->plugin<pro::limit>(twod{ -1,2 }, twod{ -1,-1 })
+                                                ->template plugin<pro::limit>(twod{ -1,2 }, twod{ -1,-1 })
                                                 ->config(true, true);
-                                auto items = scroll->attach<ui::list>();
-                                for (auto& body : appstore_body) items->attach<ui::post>()
+                                auto items = scroll->template attach<ui::list>();
+                                for (auto& body : appstore_body) items->template attach<ui::post>()
                                                                       ->upload(body)
-                                                                      ->plugin<pro::grade>()
-                                                                      ->plugin<pro::fader>(x3, c3, 250ms);
-                                items->attach<ui::post>()
+                                                                      ->template plugin<pro::grade>()
+                                                                      ->template plugin<pro::fader>(x3, c3, 250ms);
+                                items->template attach<ui::post>()
                                      ->upload(desktopio_body)
-                                     ->plugin<pro::grade>();
+                                     ->template plugin<pro::grade>();
                         layers->attach(scroll_bars(scroll));
                     break;
                 }
                 case Calc:
                 {
-                    static iota i = 0; i++;
-                    window->plugin<pro::title>(ansi::jet(bias::right).add("Spreadsheet\n ~/Untitled ", i, ".ods"))
-                          ->colors(whitelt, 0x601A5f00)
-                          ->plugin<pro::limit>(twod{ 10,7 },twod{ -1,-1 })
-                          ->plugin<pro::track>()
-                          ->plugin<pro::align>()
-                          ->plugin<pro::acryl>()
-                          ->plugin<pro::cache>();
-                    auto object = window->attach<ui::fork>(axis::Y)
+                    window->colors(whitelt, 0x601A5f00)
+                          ->template plugin<pro::limit>(twod{ 10,7 },twod{ -1,-1 })
+                          ->template plugin<pro::track>()
+                          ->template plugin<pro::align>()
+                          ->template plugin<pro::acryl>()
+                          ->template plugin<pro::cache>()
+                          ->invoke([&](auto& boss)
+                          {
+                              boss.keybd.accept(true);
+                              boss.SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
+                              {
+                                    static iota i = 0; i++;
+                                    auto title = ansi::jet(bias::right).add("Spreadsheet\n ~/Untitled ", i, ".ods");
+                                    boss.base::riseup<tier::preview>(e2::form::prop::header, title);
+                              };
+                          });
+                    auto object = window->template attach<ui::fork>(axis::Y)
                                         ->colors(whitelt, 0);
-                        auto menu = object->attach<slot::_1>(main_menu())
-                                          ->plugin<pro::mover>(window);
-                        auto all_rail = object->attach<slot::_2, ui::rail>();
-                        auto all_stat = all_rail->attach<ui::fork>(axis::Y)
-                                                ->plugin<pro::limit>(twod{ -1,-1 },twod{ 136,102 });
-                            auto func_body_pad = all_stat->attach<slot::_1, ui::pads>(dent{ 1,1 });
-                                auto func_body = func_body_pad->attach<ui::fork>(axis::Y);
-                                    auto func_line = func_body->attach<slot::_1, ui::fork>();
-                                        auto fx_sum = func_line->attach<slot::_1, ui::fork>();
-                                            auto fx = fx_sum->attach<slot::_1, ui::post>()
-                                                            ->plugin<pro::fader>(c7, c3, 150ms)
-                                                            ->plugin<pro::limit>(twod{ 3,-1 }, twod{ 4,-1 })
+                        auto menu = object->template attach<slot::_1>(main_menu())
+                                          ->template plugin<pro::mover>(window);
+                        auto all_rail = object->template attach<slot::_2, ui::rail>();
+                        auto all_stat = all_rail->template attach<ui::fork>(axis::Y)
+                                                ->template plugin<pro::limit>(twod{ -1,-1 },twod{ 136,102 });
+                            auto func_body_pad = all_stat->template attach<slot::_1, ui::pads>(dent{ 1,1 });
+                                auto func_body = func_body_pad->template attach<ui::fork>(axis::Y);
+                                    auto func_line = func_body->template attach<slot::_1, ui::fork>();
+                                        auto fx_sum = func_line->template attach<slot::_1, ui::fork>();
+                                            auto fx = fx_sum->template attach<slot::_1, ui::post>()
+                                                            ->template plugin<pro::fader>(c7, c3, 150ms)
+                                                            ->template plugin<pro::limit>(twod{ 3,-1 }, twod{ 4,-1 })
                                                             ->upload(ansi::wrp(wrap::off).add(" Fx "));
-                                        auto ellipsis = func_line->attach<slot::_2, ui::post>()
-                                                                 ->plugin<pro::fader>(c7, c3, 150ms)
-                                                                 ->plugin<pro::limit>(twod{ -1,1 }, twod{ 3,-1 })
+                                        auto ellipsis = func_line->template attach<slot::_2, ui::post>()
+                                                                 ->template plugin<pro::fader>(c7, c3, 150ms)
+                                                                 ->template plugin<pro::limit>(twod{ -1,1 }, twod{ 3,-1 })
                                                                  ->upload(ansi::wrp(wrap::off).add(" … "));
-                                    auto body_area = func_body->attach<slot::_2, ui::fork>(axis::Y);
-                                        auto corner_cols = body_area->attach<slot::_1, ui::fork>();
-                                            auto corner = corner_cols->attach<slot::_1, ui::post>()
-                                                                     ->plugin<pro::limit>(twod{ 4,1 }, twod{ 4,1 })
+                                    auto body_area = func_body->template attach<slot::_2, ui::fork>(axis::Y);
+                                        auto corner_cols = body_area->template attach<slot::_1, ui::fork>();
+                                            auto corner = corner_cols->template attach<slot::_1, ui::post>()
+                                                                     ->template plugin<pro::limit>(twod{ 4,1 }, twod{ 4,1 })
                                                                      ->upload(ansi::bgc(0xffffff - 0x1f1f1f).fgc(0).add("    "));
-                                        auto rows_body = body_area->attach<slot::_2, ui::fork>();
-                                            auto layers = rows_body->attach<slot::_2, ui::cake>();
-                                            auto scroll = layers->attach<ui::rail>()
-                                                                ->plugin<pro::limit>(twod{ -1,1 }, twod{ -1,-1 })
+                                        auto rows_body = body_area->template attach<slot::_2, ui::fork>();
+                                            auto layers = rows_body->template attach<slot::_2, ui::cake>();
+                                            auto scroll = layers->template attach<ui::rail>()
+                                                                ->template plugin<pro::limit>(twod{ -1,1 }, twod{ -1,-1 })
                                                                 ->config(true, true);
-                                                auto grid = scroll->attach<ui::post>()
+                                                auto grid = scroll->template attach<ui::post>()
                                                                   ->colors(0xFF000000, 0xFFffffff)
-                                                                  ->plugin<pro::cell_highlight>()
+                                                                  ->template plugin<pro::cell_highlight>()
                                                                   ->upload(cellatix_text);
-                                            auto sum = fx_sum->attach<slot::_2, ui::post>()
+                                            auto sum = fx_sum->template attach<slot::_2, ui::post>()
                                                              ->colors(0, whitelt)
                                                              ->upload(ansi::bgc(whitelt).fgc(blacklt)
                                                                .add(" =SUM(").itc(true).fgc(reddk).add("select cells by dragging").itc(faux)
@@ -1867,60 +1833,68 @@ utility like ctags is used to locate the definitions.
                                                                     boss.upload(ansi::bgc(whitelt).fgc(blacklt).add(data));
                                                                  };
                                                              });
-                                            auto cols_area = corner_cols->attach<slot::_2, ui::rail>(axes::ONLY_X, axes::ONLY_X)
-                                                                        ->follow<axis::X>(scroll);
-                                                auto cols = cols_area->attach<ui::post>()
-                                                                     ->plugin<pro::limit>(twod{ -1,1 }, twod{ -1,1 })
+                                            auto cols_area = corner_cols->template attach<slot::_2, ui::rail>(axes::ONLY_X, axes::ONLY_X)
+                                                                        ->template follow<axis::X>(scroll);
+                                                auto cols = cols_area->template attach<ui::post>()
+                                                                     ->template plugin<pro::limit>(twod{ -1,1 }, twod{ -1,1 })
                                                                      ->upload(cellatix_cols); //todo grid  A  B  C ...
-                                            auto rows_area = rows_body->attach<slot::_1, ui::rail>(axes::ONLY_Y, axes::ONLY_Y)
-                                                                      ->follow<axis::Y>(scroll)
-                                                                      ->plugin<pro::limit>(twod{ 4,-1 }, twod{ 4,-1 });
-                                                auto rows = rows_area->attach<ui::post>()
+                                            auto rows_area = rows_body->template attach<slot::_1, ui::rail>(axes::ONLY_Y, axes::ONLY_Y)
+                                                                      ->template follow<axis::Y>(scroll)
+                                                                      ->template plugin<pro::limit>(twod{ 4,-1 }, twod{ 4,-1 });
+                                                auto rows = rows_area->template attach<ui::post>()
                                                                      ->upload(cellatix_rows); //todo grid  1 \n 2 \n 3 \n ...
-                            auto stat_area = all_stat->attach<slot::_2, ui::rail>()
-                                                     ->plugin<pro::limit>(twod{ -1,1 }, twod{ -1,1 })
-                                                     ->moveby<axis::X>(-5);
-                                auto sheet_plus = stat_area->attach<ui::fork>();
-                                    auto sheet = sheet_plus->attach<slot::_1, ui::post>()
-                                                           ->plugin<pro::limit>(twod{ -1,-1 }, twod{ 13,-1 })
+                            auto stat_area = all_stat->template attach<slot::_2, ui::rail>()
+                                                     ->template plugin<pro::limit>(twod{ -1,1 }, twod{ -1,1 })
+                                                     ->template moveby<axis::X>(-5);
+                                auto sheet_plus = stat_area->template attach<ui::fork>();
+                                    auto sheet = sheet_plus->template attach<slot::_1, ui::post>()
+                                                           ->template plugin<pro::limit>(twod{ -1,-1 }, twod{ 13,-1 })
                                                            ->upload(ansi::wrp(wrap::off).add("     ")
                                                              .bgc(whitelt).fgc(blackdk).add(" Sheet1 "));
-                                    auto plus_pad = sheet_plus->attach<slot::_2, ui::fork>();
-                                        auto plus = plus_pad->attach<slot::_1, ui::post>()
-                                                            ->plugin<pro::fader>(c7, c3, 150ms)
-                                                            ->plugin<pro::limit>(twod{ 3,-1 }, twod{ 3,-1 })
+                                    auto plus_pad = sheet_plus->template attach<slot::_2, ui::fork>();
+                                        auto plus = plus_pad->template attach<slot::_1, ui::post>()
+                                                            ->template plugin<pro::fader>(c7, c3, 150ms)
+                                                            ->template plugin<pro::limit>(twod{ 3,-1 }, twod{ 3,-1 })
                                                             ->upload(ansi::wrp(wrap::off).add(" + "));
-                                        auto pad = plus_pad->attach<slot::_2, ui::mock>()
-                                                           ->plugin<pro::limit>(twod{ 1,1 }, twod{ 1,1 });
+                                        auto pad = plus_pad->template attach<slot::_2, ui::mock>()
+                                                           ->template plugin<pro::limit>(twod{ 1,1 }, twod{ 1,1 });
                             layers->attach(scroll_bars(scroll));
                     break;
                 }
                 case Text:
                 {
-                    static iota i = 0; i++;
-                    window->plugin<pro::title>(ansi::jet(bias::center).add("Text Editor\n ~/Untitled ", i, ".txt"))
-                          ->plugin<pro::track>()
-                          ->plugin<pro::align>()
-                          ->plugin<pro::acryl>()
-                          ->plugin<pro::cache>();
-                    auto object = window->attach<ui::fork>(axis::Y)
+                    window->template plugin<pro::track>()
+                          ->template plugin<pro::align>()
+                          ->template plugin<pro::acryl>()
+                          ->template plugin<pro::cache>()
+                          ->invoke([&](auto& boss)
+                          {
+                              boss.keybd.accept(true);
+                              boss.SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
+                              {
+                                    static iota i = 0; i++;
+                                    auto title = ansi::jet(bias::center).add("Text Editor\n ~/Untitled ", i, ".txt");
+                                    boss.base::riseup<tier::preview>(e2::form::prop::header, title);
+                              };
+                          });
+                    auto object = window->template attach<ui::fork>(axis::Y)
                                         ->colors(whitelt, 0xA05f1a00);
-                        auto menu = object->attach<slot::_1>(main_menu())
-                                          ->plugin<pro::mover>(window);
-                        auto body_area = object->attach<slot::_2, ui::fork>(axis::Y);
-                            auto fields = body_area->attach<slot::_1, ui::pads>(dent{ 1,1 });
-                                auto layers = fields->attach<ui::cake>();
-                                    auto scroll = layers->attach<ui::rail>()
-                                                        ->plugin<pro::limit>(twod{ 4,3 }, twod{ -1,-1 });
-                                        auto edit_box = scroll->attach<ui::post>(true)
-                                                              ->plugin<pro::caret>(true, twod{ 25,1 }, true)
+                        auto menu = object->template attach<slot::_1>(main_menu())
+                                          ->template plugin<pro::mover>(window);
+                        auto body_area = object->template attach<slot::_2, ui::fork>(axis::Y);
+                            auto fields = body_area->template attach<slot::_1, ui::pads>(dent{ 1,1 });
+                                auto layers = fields->template attach<ui::cake>();
+                                    auto scroll = layers->template attach<ui::rail>()
+                                                        ->template plugin<pro::limit>(twod{ 4,3 }, twod{ -1,-1 });
+                                        auto edit_box = scroll->template attach<ui::post>(true)
+                                                              ->template plugin<pro::caret>(true, twod{ 25,1 }, true)
                                                               ->colors(blackdk, whitelt)
                                                               ->upload(ansi::wrp(wrap::off).mgl(1)
                                                                 .add(topic3)
                                                                 .fgc(highlight_color)
                                                                 .add("From Wikipedia, the free encyclopedia"));
-                            auto status_line = body_area->attach<slot::_2, ui::post>()
-                                                        ->plugin<pro::limit>(twod{ 1,1 }, twod{ -1,1 })
+                            auto status_line = body_area->template attach<slot::_2, ui::post>()
+                                                        ->template plugin<pro::limit>(twod{ 1,1 }, twod{ -1,1 })
                                                         ->upload(ansi::wrp(wrap::off).mgl(1).mgr(1).jet(bias::right).fgc(whitedk)
                                                            .add("INS  Sel: 0:0  Col: 26  Ln: 2/148").nil());
                                 layers->attach(scroll_bars(scroll));
@@ -1928,22 +1902,21 @@ utility like ctags is used to locate the definitions.
                 }
                 case VTM:
                 {
-                    window->plugin<pro::title>("Term \n" + name)
-                          ->plugin<pro::track>()
-                          ->plugin<pro::align>()
-                          ->plugin<pro::acryl>()
-                          ->plugin<pro::cache>();
-                    auto object = window->attach<ui::fork>(axis::Y)
+                    window->template plugin<pro::track>()
+                          ->template plugin<pro::align>()
+                          ->template plugin<pro::acryl>()
+                          ->template plugin<pro::cache>();
+                    auto object = window->template attach<ui::fork>(axis::Y)
                                         ->colors(whitelt, term_menu_bg);
-                        auto menu = object->attach<slot::_1>(custom_menu(true, {}))
-                                          ->plugin<pro::mover>(window);
-                        auto layers = object->attach<slot::_2, ui::cake>()
-                                            ->plugin<pro::limit>(dot_11, twod{ 400,200 });
-                            auto scroll = layers->attach<ui::rail>();
+                        auto menu = object->template attach<slot::_1>(custom_menu(true, {}))
+                                          ->template plugin<pro::mover>(window);
+                        auto layers = object->template attach<slot::_2, ui::cake>()
+                                            ->template plugin<pro::limit>(dot_11, twod{ 400,200 });
+                            auto scroll = layers->template attach<ui::rail>();
                             if (vtm_count < max_vtm)
                             {
                                 auto c = &vtm_count; (*c)++;
-                                scroll->attach<app::term>("vtm")
+                                scroll->template attach<app::term>("vtm")
                                       ->colors(whitelt, blackdk)
                                       ->SUBMIT_BYVAL(tier::release, e2::dtor, item_id)
                                         {
@@ -1953,7 +1926,7 @@ utility like ctags is used to locate the definitions.
                             }
                             else
                             {
-                                scroll->attach<ui::post>()
+                                scroll->template attach<ui::post>()
                                       ->colors(whitelt, blackdk)
                                       ->upload(ansi::fgc(yellowlt).mgl(4).mgr(4).wrp(wrap::off)
                                         .add("\n\nconnection rejected\n\n")
@@ -1965,62 +1938,60 @@ utility like ctags is used to locate the definitions.
                 }
                 case Far:
                 {
-                    window->plugin<pro::title>("Term \n" + name)
-                          ->plugin<pro::track>()
-                          ->plugin<pro::align>()
-                          ->plugin<pro::acryl>()
-                          ->plugin<pro::cache>();
-                    auto object = window->attach<ui::fork>(axis::Y)
+                    window->template plugin<pro::track>()
+                          ->template plugin<pro::align>()
+                          ->template plugin<pro::acryl>()
+                          ->template plugin<pro::cache>();
+                    auto object = window->template attach<ui::fork>(axis::Y)
                                         ->colors(whitelt, term_menu_bg);
-                        auto menu = object->attach<slot::_1>(custom_menu(true, {}))
-                                          ->plugin<pro::mover>(window);
-                        auto layers = object->attach<slot::_2, ui::cake>()
-                                            ->plugin<pro::limit>(dot_11, twod{ 400,200 });
-                            auto scroll = layers->attach<ui::rail>();
-                            scroll->attach<app::term>("far")
+                        auto menu = object->template attach<slot::_1>(custom_menu(true, {}))
+                                          ->template plugin<pro::mover>(window);
+                        auto layers = object->template attach<slot::_2, ui::cake>()
+                                            ->template plugin<pro::limit>(dot_11, twod{ 400,200 });
+                            auto scroll = layers->template attach<ui::rail>();
+                            scroll->template attach<app::term>("far")
                                   ->colors(whitelt, blackdk);
                         layers->attach(scroll_bars_term(scroll));
                     break;
                 }
                 case MC:
                 {
-                    window->plugin<pro::title>("Term \n" + name)
-                          ->plugin<pro::track>()
-                          ->plugin<pro::align>()
-                          ->plugin<pro::acryl>()
-                          ->plugin<pro::cache>();
-                    auto object = window->attach<ui::fork>(axis::Y)
+                    window->template plugin<pro::track>()
+                          ->template plugin<pro::align>()
+                          ->template plugin<pro::acryl>()
+                          ->template plugin<pro::cache>();
+                    auto object = window->template attach<ui::fork>(axis::Y)
                                         ->colors(whitelt, term_menu_bg);
-                        auto menu = object->attach<slot::_1>(custom_menu(faux, {}))
-                                          ->plugin<pro::mover>(window);
-                        auto layers = object->attach<slot::_2, ui::cake>()
-                                            ->plugin<pro::limit>(dot_11, twod{ 400,200 });
-                            auto scroll = layers->attach<ui::rail>()
-                                                ->plugin<pro::limit>(twod{ 10,1 }); // mc crashes when window is too small
+                        auto menu = object->template attach<slot::_1>(custom_menu(faux, {}))
+                                          ->template plugin<pro::mover>(window);
+                        auto layers = object->template attach<slot::_2, ui::cake>()
+                                            ->template plugin<pro::limit>(dot_11, twod{ 400,200 });
+                            auto scroll = layers->template attach<ui::rail>()
+                                                ->template plugin<pro::limit>(twod{ 10,1 }); // mc crashes when window is too small
                             // -c -- force color support
                             // -x -- force xtrem functionality
 
                             #if defined(_WIN32)
 
-                                auto inst = scroll->attach<app::term>("wsl mc");
+                                auto inst = scroll->template attach<app::term>("wsl mc");
 
                             #elif defined(__linux__)
                                 #ifndef PROD
-                                    auto inst = scroll->attach<app::term>("bash -c 'LC_ALL=en_US.UTF-8 mc -c -x -d'");
+                                    auto inst = scroll->template attach<app::term>("bash -c 'LC_ALL=en_US.UTF-8 mc -c -x -d'");
                                 #else
-                                    auto inst = scroll->attach<app::term>("bash -c 'LC_ALL=en_US.UTF-8 mc -c -x'");
+                                    auto inst = scroll->template attach<app::term>("bash -c 'LC_ALL=en_US.UTF-8 mc -c -x'");
                                 #endif
                             #elif defined(__APPLE__)
 
-                                auto inst = scroll->attach<app::term>("zsh -c 'LC_ALL=en_US.UTF-8 mc -c -x'");
+                                auto inst = scroll->template attach<app::term>("zsh -c 'LC_ALL=en_US.UTF-8 mc -c -x'");
 
                             #elif defined(__FreeBSD__)
 
-                                auto inst = scroll->attach<app::term>("csh -c 'LC_ALL=en_US.UTF-8 mc -c -x'");
+                                auto inst = scroll->template attach<app::term>("csh -c 'LC_ALL=en_US.UTF-8 mc -c -x'");
 
                             #elif defined(__unix__)
 
-                                auto inst = scroll->attach<app::term>("sh -c 'LC_ALL=en_US.UTF-8 mc -c -x'");
+                                auto inst = scroll->template attach<app::term>("sh -c 'LC_ALL=en_US.UTF-8 mc -c -x'");
 
                             #endif
 
@@ -2031,63 +2002,61 @@ utility like ctags is used to locate the definitions.
                 case Bash:
                 case Term:
                 {
-                    window->plugin<pro::title>("Term \n" + name)
-                          ->plugin<pro::track>()
-                          ->plugin<pro::align>()
-                          ->plugin<pro::acryl>()
-                          ->plugin<pro::cache>();
-                    auto object = window->attach<ui::fork>(axis::Y)
+                    window->template plugin<pro::track>()
+                          ->template plugin<pro::align>()
+                          ->template plugin<pro::acryl>()
+                          ->template plugin<pro::cache>();
+                    auto object = window->template attach<ui::fork>(axis::Y)
                                         ->colors(whitelt, term_menu_bg);
-                        auto menu = object->attach<slot::_1>(terminal_menu(true))
-                                          ->plugin<pro::mover>(window);
-                        auto term_stat_area = object->attach<slot::_2, ui::fork>(axis::Y);
-                            auto layers = term_stat_area->attach<slot::_1, ui::cake>()
-                                                        ->plugin<pro::limit>(dot_11, twod{ 400,200 });
-                                auto scroll = layers->attach<ui::rail>();
+                        auto menu = object->template attach<slot::_1>(terminal_menu(true))
+                                          ->template plugin<pro::mover>(window);
+                        auto term_stat_area = object->template attach<slot::_2, ui::fork>(axis::Y);
+                            auto layers = term_stat_area->template attach<slot::_1, ui::cake>()
+                                                        ->template plugin<pro::limit>(dot_11, twod{ 400,200 });
+                                auto scroll = layers->template attach<ui::rail>();
                                 {
                                     #ifdef DEMO
-                                        scroll->plugin<pro::limit>(twod{ 20,1 }); // mc crashes when window is too small
+                                        scroll->template plugin<pro::limit>(twod{ 20,1 }); // mc crashes when window is too small
                                     #endif
 
                                     #if defined(_WIN32)
 
-                                        auto inst = scroll->attach<app::term>("bash");
+                                        auto inst = scroll->template attach<app::term>("bash");
 
                                     #elif defined(__linux__)
 
-                                        auto inst = scroll->attach<app::term>("bash");
+                                        auto inst = scroll->template attach<app::term>("bash");
 
                                     #elif defined(__APPLE__)
 
-                                        auto inst = scroll->attach<app::term>("zsh");
+                                        auto inst = scroll->template attach<app::term>("zsh");
 
                                     #elif defined(__FreeBSD__)
 
-                                        auto inst = scroll->attach<app::term>("csh");
+                                        auto inst = scroll->template attach<app::term>("csh");
 
                                     #elif defined(__unix__)
 
-                                        auto inst = scroll->attach<app::term>("sh");
+                                        auto inst = scroll->template attach<app::term>("sh");
 
                                     #endif
 
                                     inst->colors(whitelt, blackdk);
                                 }
-                            auto scroll_bars = layers->attach<ui::fork>();
-                                auto vt = scroll_bars->attach<slot::_2, ui::grip<axis::Y>>(scroll);
-                                auto hz = term_stat_area->attach<slot::_2, ui::grip<axis::X>>(scroll);
+                            auto scroll_bars = layers->template attach<ui::fork>();
+                                auto vt = scroll_bars->template attach<slot::_2, ui::grip<axis::Y>>(scroll);
+                                auto hz = term_stat_area->template attach<slot::_2, ui::grip<axis::X>>(scroll);
                     break;
                 }
                 case PowerShell:
                 {
-                    window->plugin<pro::title>("Term \nPowerShell")
-                          ->plugin<pro::track>()
-                          ->plugin<pro::align>()
-                          ->plugin<pro::acryl>()
-                          ->plugin<pro::cache>();
-                    auto object = window->attach<ui::fork>(axis::Y)
+                    window->template plugin<pro::track>()
+                          ->template plugin<pro::align>()
+                          ->template plugin<pro::acryl>()
+                          ->template plugin<pro::cache>();
+                    auto object = window->template attach<ui::fork>(axis::Y)
                                         ->colors(whitelt, term_menu_bg);
-                        auto menu = object->attach<slot::_1>(custom_menu(true,
+                        auto menu = object->template attach<slot::_1>(custom_menu(true,
                             std::list{
                                     std::pair<text, std::function<void(ui::pads&)>>{ ansi::esc("C").und(true).add("l").nil().add("ear"),
                                     [](ui::pads& boss)
@@ -2108,30 +2077,29 @@ utility like ctags is used to locate the definitions.
                                         };
                                     }},
                                 }))
-                                          ->plugin<pro::mover>(window);
-                        auto term_stat_area = object->attach<slot::_2, ui::fork>(axis::Y);
-                            auto layers = term_stat_area->attach<slot::_1, ui::cake>()
-                                                ->plugin<pro::limit>(dot_11, twod{ 400,200 });
-                                auto scroll = layers->attach<ui::rail>()
-                                                    ->plugin<pro::mover>(window)
+                                          ->template plugin<pro::mover>(window);
+                        auto term_stat_area = object->template attach<slot::_2, ui::fork>(axis::Y);
+                            auto layers = term_stat_area->template attach<slot::_1, ui::cake>()
+                                                ->template plugin<pro::limit>(dot_11, twod{ 400,200 });
+                                auto scroll = layers->template attach<ui::rail>()
+                                                    ->template plugin<pro::mover>(window)
                                                     ->colors(whitelt, 0xFF560000);
-                                    scroll->attach<app::term>("powershell")
+                                    scroll->template attach<app::term>("powershell")
                                         ->colors(whitelt, 0xFF562401);
-                            auto scroll_bars = layers->attach<ui::fork>();
-                                auto vt = scroll_bars->attach<slot::_2, ui::grip<axis::Y>>(scroll);
-                                auto hz = term_stat_area->attach<slot::_2, ui::grip<axis::X>>(scroll);
+                            auto scroll_bars = layers->template attach<ui::fork>();
+                                auto vt = scroll_bars->template attach<slot::_2, ui::grip<axis::Y>>(scroll);
+                                auto hz = term_stat_area->template attach<slot::_2, ui::grip<axis::X>>(scroll);
                     break;
                 }
                 case CommandPrompt:
                 {
-                    window->plugin<pro::title>("Term \nCommand Prompt")
-                          ->plugin<pro::track>()
-                          ->plugin<pro::align>()
-                          ->plugin<pro::acryl>()
-                          ->plugin<pro::cache>();
-                    auto object = window->attach<ui::fork>(axis::Y)
+                    window->template plugin<pro::track>()
+                          ->template plugin<pro::align>()
+                          ->template plugin<pro::acryl>()
+                          ->template plugin<pro::cache>();
+                    auto object = window->template attach<ui::fork>(axis::Y)
                                         ->colors(whitelt, term_menu_bg);
-                        auto menu = object->attach<slot::_1>(custom_menu(true,
+                        auto menu = object->template attach<slot::_1>(custom_menu(true,
                             std::list{
                                     std::pair<text, std::function<void(ui::pads&)>>{ ansi::esc("C").und(true).add("l").nil().add("ear"),
                                     [](ui::pads& boss)
@@ -2152,45 +2120,44 @@ utility like ctags is used to locate the definitions.
                                         };
                                     }},
                                 }))
-                                          ->plugin<pro::mover>(window);
-                        auto term_stat_area = object->attach<slot::_2, ui::fork>(axis::Y);
-                            auto layers = term_stat_area->attach<slot::_1, ui::cake>()
-                                                ->plugin<pro::limit>(dot_11, twod{ 400,200 });
-                                auto scroll = layers->attach<ui::rail>()
-                                                    ->plugin<pro::mover>(window);
+                                          ->template plugin<pro::mover>(window);
+                        auto term_stat_area = object->template attach<slot::_2, ui::fork>(axis::Y);
+                            auto layers = term_stat_area->template attach<slot::_1, ui::cake>()
+                                                ->template plugin<pro::limit>(dot_11, twod{ 400,200 });
+                                auto scroll = layers->template attach<ui::rail>()
+                                                    ->template plugin<pro::mover>(window);
                         #ifdef DEMO
-                            scroll->plugin<pro::limit>(twod{ 20,1 }); // mc crashes when window is too small
+                            scroll->template plugin<pro::limit>(twod{ 20,1 }); // mc crashes when window is too small
                         #endif
 
                             #if defined(_WIN32)
-                                auto inst = scroll->attach<app::term>("cmd");
+                                auto inst = scroll->template attach<app::term>("cmd");
                             #elif defined(__linux__)
-                                auto inst = scroll->attach<app::term>("bash");
+                                auto inst = scroll->template attach<app::term>("bash");
                             #elif defined(__APPLE__)
-                                auto inst = scroll->attach<app::term>("zsh");
+                                auto inst = scroll->template attach<app::term>("zsh");
                             #elif defined(__FreeBSD__)
-                                auto inst = scroll->attach<app::term>("csh");
+                                auto inst = scroll->template attach<app::term>("csh");
                             #elif defined(__unix__)
-                                auto inst = scroll->attach<app::term>("sh");
+                                auto inst = scroll->template attach<app::term>("sh");
                             #endif
 
                                 inst->colors(whitelt, blackdk);
 
-                        auto scroll_bars = layers->attach<ui::fork>();
-                            auto vt = scroll_bars->attach<slot::_2, ui::grip<axis::Y>>(scroll);
-                            auto hz = term_stat_area->attach<slot::_2, ui::grip<axis::X>>(scroll);
+                        auto scroll_bars = layers->template attach<ui::fork>();
+                            auto vt = scroll_bars->template attach<slot::_2, ui::grip<axis::Y>>(scroll);
+                            auto hz = term_stat_area->template attach<slot::_2, ui::grip<axis::X>>(scroll);
                     break;
                 }
                 case Logs:
                 {
-                    window->plugin<pro::title>("Logs \nDebug output console")
-                          ->plugin<pro::track>()
-                          ->plugin<pro::align>()
-                          ->plugin<pro::acryl>()
-                          ->plugin<pro::cache>();
-                    auto object = window->attach<ui::fork>(axis::Y)
+                    window->template plugin<pro::track>()
+                          ->template plugin<pro::align>()
+                          ->template plugin<pro::acryl>()
+                          ->template plugin<pro::cache>();
+                    auto object = window->template attach<ui::fork>(axis::Y)
                                         ->colors(whitelt, term_menu_bg);
-                        auto menu = object->attach<slot::_1>(custom_menu(true,
+                        auto menu = object->template attach<slot::_1>(custom_menu(true,
                             std::list{
                                     std::pair<text, std::function<void(ui::pads&)>>{ "Codepoints",
                                     [](ui::pads& boss)
@@ -2218,19 +2185,19 @@ utility like ctags is used to locate the definitions.
                                         };
                                     }},
                                 }))
-                                          ->plugin<pro::mover>(window);
-                        auto layers = object->attach<slot::_2, ui::cake>();
-                            auto scroll = layers->attach<ui::rail>()
-                                                ->plugin<pro::mover>(window);
+                                          ->template plugin<pro::mover>(window);
+                        auto layers = object->template attach<slot::_2, ui::cake>();
+                            auto scroll = layers->template attach<ui::rail>()
+                                                ->template plugin<pro::mover>(window);
                             #ifndef PROD
-                            scroll->attach<ui::post>()
+                            scroll->template attach<ui::post>()
                                   ->colors(whitelt, blackdk)
                                   ->upload(ansi::fgc(yellowlt).mgl(4).mgr(4).wrp(wrap::off)
                                     + "\n\nLogs is not availabe in DEMO mode\n\n"
                                     + ansi::nil().wrp(wrap::on)
                                     + "Use the full version of vtm to run Logs.");
                             #else
-                            scroll->attach<post_logs>()
+                            scroll->template attach<post_logs>()
                                   ->colors(whitelt, blackdk);
                             #endif
                         layers->attach(scroll_bars(scroll));
@@ -2238,8 +2205,6 @@ utility like ctags is used to locate the definitions.
                 }
                 case View:
                 {
-                    static iota i = 0; i++;
-                    window->plugin<pro::title>(ansi::jet(bias::center).add("View \n Region ", i));
                     window->invoke([&](auto& boss)
                     {
                         auto outer = dent{ 2,2,1,1 };
@@ -2272,6 +2237,12 @@ utility like ctags is used to locate the definitions.
                             auto fill = [&](cell& c) { c.fusefull(mark); };
                             parent_canvas.cage(area, dot_21, fill);
                         };
+                        boss.SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
+                        {
+                            static iota i = 0; i++;
+                            auto title = ansi::jet(bias::center).add("View \n Region ", i);
+                            boss.base::riseup<tier::preview>(e2::form::prop::header, title);
+                        };
                     });
                     break;
                 }
@@ -2303,12 +2274,19 @@ utility like ctags is used to locate the definitions.
                             if (window_title.length()) window_title += '\n';
                         }
                     }
-                    window->plugin<pro::title>(ansi::add(window_title + utf::debase(data)))
-                          ->unplug<pro::focus>() // Remove focus controller.
-                          ->plugin<pro::align>();
+                    window->template unplug<pro::focus>() // Remove focus controller.
+                          ->template plugin<pro::align>()
+                          ->invoke([&](auto& boss)
+                          {
+                              boss.SUBMIT_BYVAL(tier::release, e2::form::upon::vtree::attached, parent)
+                              {
+                                    auto title = ansi::add(window_title + utf::debase(data));
+                                    parent->base::riseup<tier::preview>(e2::form::prop::header, title);
+                              };
+                          });
 
-                    auto object = window->attach<ui::fork>(axis::Y);
-                        auto menu = object->attach<slot::_1>(custom_menu(true,
+                    auto object = window->template attach<ui::fork>(axis::Y);
+                        auto menu = object->template attach<slot::_1>(custom_menu(true,
                             std::list{
                                     std::pair<text, std::function<void(ui::pads&)>>{ "  ▀█  ",
                                     [](ui::pads& boss)
@@ -2378,22 +2356,21 @@ utility like ctags is used to locate the definitions.
                                     }},
                                 }))
                                 ->colors(whitelt, term_menu_bg)
-                                ->plugin<pro::track>()
-                                ->plugin<pro::acryl>()
-                                ->plugin<pro::mover>(window);
+                                ->template plugin<pro::track>()
+                                ->template plugin<pro::acryl>()
+                                ->template plugin<pro::mover>(window);
 
                     auto empty_slot = []()
                     {
                         auto host = base::create<ui::veer>();
-                        auto place_holder = host->attach<ui::park>()
+                        auto place_holder = host->template attach<ui::park>()
                                    ->colors(blacklt, term_menu_bg)
-                                   ->plugin<pro::limit>(dot_00, -dot_11)
-                                   ->plugin<pro::focus>()
-                                   ->invoke([](auto& boss)
-                                   {
-                                       boss.keybd.accept(true);
-                                       //todo keyboard only scenario
-                                   });
+                                   ->template plugin<pro::limit>(dot_00, -dot_11)
+                                   ->template plugin<pro::focus>()
+                                   ->invoke([&](auto& boss)
+                                    {
+                                        boss.keybd.accept(true);
+                                    });
                             place_holder->template attach<snap::center, snap::center, ui::post>()
                                         ->upload("Empty Slot", 10);
                             host->invoke([&](auto& boss)
@@ -2423,7 +2400,10 @@ utility like ctags is used to locate the definitions.
                             // add term
                             auto cmdline = utf_get_quote(utf8, '\"');
                             log(" node cmdline=", cmdline);
-                            auto inst = box_with_title("Headless TE", headless_te(cmdline));
+                            auto host = base::create<ui::cake>()
+                                    ->plugin<pro::focus>();
+                            create_app(create_app, host, objs_map["Term"], cmdline);
+                            auto inst = box_with_title("Headless TE", host);
                             inst->base::isroot(true);
                             place->attach(inst);
                         }
@@ -2440,7 +2420,10 @@ utility like ctags is used to locate the definitions.
                             utf_trim_front(utf8, ", ");
                             auto app_data = utf_get_quote(utf8, '\"');
                             log(" app_id=", app_id, " app_title=", app_title, " app_data=", app_data);
-                            auto app = box_with_title(app_title, create_app(app_id, app_title, app_data));
+                            auto host = base::create<ui::cake>()
+                                    ->plugin<pro::focus>();
+                            create_app(create_app, host, objs_map[app_id], app_data);
+                            auto app = box_with_title(app_title, host);
                             place->attach(app);
                             utf_trim_front(utf8, ") ");
                         }
@@ -2485,11 +2468,62 @@ utility like ctags is used to locate the definitions.
                         }
                         return place;
                     };
-                    auto host = object->attach<slot::_2>(add_node(add_node, envvar_data));
+                    auto host = object->template attach<slot::_2>(add_node(add_node, envvar_data));
                     break;
                 }
             }
-            world->branch(type, window);
+        };
+
+        auto create = [&](id_t menu_item_id, auto location) -> auto
+        {
+            assert(menu_item_id < objs_config.size());
+
+            auto config = objs_config[menu_item_id];
+            sptr<ui::cake> window = base::create<ui::cake>()
+                ->plugin<pro::title>(config.title)
+                ->plugin<pro::limit>(dot_11, twod{ 400,200 }) //todo unify, set via config
+                ->plugin<pro::sizer>()
+                ->plugin<pro::frame>()
+                ->plugin<pro::light>()
+                ->plugin<pro::focus>()
+                ->invoke([&](ui::cake& boss)
+                {
+                    boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
+                    {
+                        auto& area = boss.base::area();
+                        if (!area.size.inside(gear.coord))
+                        {
+                            auto center = area.coor + (area.size / 2);
+                            bell::getref(gear.id)->
+                                SIGNAL(tier::release, e2::form::layout::shift, center);
+                        }
+                        boss.base::deface();
+                    };
+                    boss.SUBMIT(tier::release, hids::events::mouse::button::click::leftright, gear)
+                    {
+                        auto backup = boss.This();
+                        boss.base::detach();
+                        gear.dismiss();
+                    };
+                    boss.SUBMIT(tier::release, hids::events::mouse::button::click::middle, gear)
+                    {
+                        auto backup = boss.This();
+                        boss.base::detach();
+                        gear.dismiss();
+                    };
+                    boss.SUBMIT(tier::release, e2::form::proceed::detach, backup)
+                    {
+                        boss.base::detach(); // The object kills itself.
+                    };
+                    boss.SUBMIT(tier::release, e2::form::quit, ack)
+                    {
+                        if (ack) boss.base::detach(); // The object kills itself.
+                    };
+                });
+
+            window->extend(location);
+            create_app(create_app, window, config.type, config.data);
+            world->branch(config.type, window);
             return window;
         };
 
@@ -2612,7 +2646,12 @@ utility like ctags is used to locate the definitions.
                     if (!name.empty())
                     {
                         menu_list[static_cast<id_t>(objs_config.size())];
-                        objs_config.push_back(menu_item{ objs::Tile, text{ name }, text{ p } });
+                        auto m = menu_item{};
+                        m.type = objs::Tile;
+                        m.name = text{ name };
+                        m.title = text{ name }; // Use the same title as the menu label.
+                        m.data = text{ p };
+                        objs_config.push_back(menu_item);
                     }
                 }
             #endif
