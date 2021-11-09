@@ -2382,9 +2382,10 @@ utility like ctags is used to locate the definitions.
                                 ->plugin<pro::acryl>()
                                 ->plugin<pro::mover>(window);
 
-                    auto empty = []()
+                    auto empty_slot = []()
                     {
-                        auto place_holder = base::create<ui::park>()
+                        auto host = base::create<ui::veer>();
+                        auto place_holder = host->attach<ui::park>()
                                    ->colors(blacklt, term_menu_bg)
                                    ->plugin<pro::limit>(dot_00, -dot_11)
                                    ->plugin<pro::focus>()
@@ -2395,42 +2396,43 @@ utility like ctags is used to locate the definitions.
                                    });
                             place_holder->template attach<snap::center, snap::center, ui::post>()
                                         ->upload("Empty Slot", 10);
-                        return place_holder;
-                    };
-                    auto fallback = [&](auto& boss)
-                    {
-                        auto shadow = ptr::shadow(boss.template This<decltype(boss)>());
-                        boss.SUBMIT_BYVAL(tier::release, e2::form::quit, ack)
-                        {
-                            if (ack)
-                            if (auto slot = shadow.lock())
+                            host->invoke([&](auto& boss)
                             {
-                                slot->attach(empty());
-                                slot->base::deface();
-                            }
-                        };
+                                auto shadow = ptr::shadow(boss.template This<decltype(boss)>());
+                                boss.SUBMIT_BYVAL(tier::release, e2::form::quit, ack)
+                                {
+                                    if (ack)
+                                    if (auto slot = shadow.lock())
+                                    {
+                                        auto alive = slot->pop_back();
+                                        if (alive < 1) slot->base::riseup<tier::release>(e2::form::quit, true);
+                                        else           slot->base::deface();
+                                    }
+                                };
+                            });
+                        return host;
                     };
-                    auto add_node = [&](auto&& add_node, auto host, view& utf8)// -> sptr<base>
+                    auto add_node = [&](auto&& add_node, view& utf8) -> sptr<base>
                     {
+                        auto place = empty_slot();
                         utf_trim_front(utf8, ", ");
-                        if (utf8.empty()) { host->attach(empty()); return; }
+                        if (utf8.empty()) return place;
                         auto tag = utf8.front();
                         if (tag == '\"')
                         {
-                            // add leaf
+                            // add term
                             auto cmdline = utf_get_quote(utf8, '\"');
                             log(" node cmdline=", cmdline);
                             auto inst = create_box_with_title("Headless TE", headless_te(cmdline));
                             inst->base::isroot(true);
-                            host->attach(inst);
-                            return;
+                            place->attach(inst);
                         }
                         else if (tag == 'a')
                         {
                             // add app
                             utf8.remove_prefix(1);
                             utf_trim_front(utf8, " ");
-                            if (utf8.empty() || utf8.front() != '(') { host->attach(empty()); return; }
+                            if (utf8.empty() || utf8.front() != '(') return place;
                             utf8.remove_prefix(1);
                             auto app_id  = utf_get_quote(utf8, '\"');
                             utf_trim_front(utf8, ", ");
@@ -2439,13 +2441,12 @@ utility like ctags is used to locate the definitions.
                             auto app_data = utf_get_quote(utf8, '\"');
                             log(" app_id=", app_id, " app_title=", app_title, " app_data=", app_data);
                             auto app = create_box_with_title(app_title, create_app(app_id, app_title, app_data));
-                            host->attach(app);
+                            place->attach(app);
                             utf_trim_front(utf8, ") ");
-                            return;
                         }
                         else if (tag == 'h' || tag == 'v')
                         {
-                            // add node
+                            // add split
                             utf8.remove_prefix(1);
                             utf_trim_front(utf8, " ");
                             iota s1 = 1;
@@ -2453,45 +2454,39 @@ utility like ctags is used to locate the definitions.
                             if (auto param = utf::to_int(utf8))
                             {
                                 s1 = std::abs(param.value());
-                                if (utf8.empty() || utf8.front() != ':') { host->attach(empty()); return; }
+                                if (utf8.empty() || utf8.front() != ':') return place;
                                 utf8.remove_prefix(1);
                                 if (auto param = utf::to_int(utf8))
                                 {
                                     s2 = std::abs(param.value());
                                 }
-                                else { host->attach(empty()); return; }
+                                else return place;
                             }
                             utf_trim_front(utf8, " ");
-                            if (utf8.empty() || utf8.front() != '(') { host->attach(empty()); return; }
+                            if (utf8.empty() || utf8.front() != '(') return place;
                             utf8.remove_prefix(1);
                             auto ratio = netxs::divround(s1 * 100, s1 + s2);
                             auto node = tag == 'h' ? base::create<ui::fork>(axis::X, 2, ratio)
                                                    : base::create<ui::fork>(axis::Y, 1, ratio);
-                            auto slot1 = node->attach<slot::_1, ui::pads>();
-                            auto slot2 = node->attach<slot::_2, ui::pads>();
-                                        slot1->invoke(fallback);
-                                        slot2->invoke(fallback);
-                                        add_node(add_node, slot1, utf8);
-                                        add_node(add_node, slot2, utf8);
+                            auto slot1 = node->attach<slot::_1>(add_node(add_node, utf8));
+                            auto slot2 = node->attach<slot::_2>(add_node(add_node, utf8));
                             auto grip  = node->attach<slot::_I, ui::mock>()
-                                            ->plugin<pro::mover>()
-                                            ->plugin<pro::focus>()
-                                            //->plugin<pro::shade<cell::shaders::xlight>>() //todo apple clang doesn't get it
-                                            ->plugin<pro::shade>()
-                                            ->invoke([](auto& boss)
-                                            {
-                                                boss.keybd.accept(true);
-                                            })
-                                            ->active();
-                            host->attach(node);
+                                             ->plugin<pro::mover>()
+                                             ->plugin<pro::focus>()
+                                             //->plugin<pro::shade<cell::shaders::xlight>>() //todo apple clang doesn't get it
+                                             ->plugin<pro::shade>()
+                                             ->invoke([](auto& boss)
+                                             {
+                                                 boss.keybd.accept(true);
+                                             })
+                                             ->active();
+                            place->attach(node);
 
                             utf_trim_front(utf8, ") ");
-                            return;
                         }
-                        else { host->attach(empty()); return; }
+                        return place;
                     };
-                    auto host = object->attach<slot::_2, ui::pads>();
-                    add_node(add_node, host, envvar_data);
+                    auto host = object->attach<slot::_2>(add_node(add_node, envvar_data));
                     break;
                 }
             }

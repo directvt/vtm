@@ -825,6 +825,88 @@ namespace netxs::ui
         }
     };
 
+    // controls: Container for many controls but shows the last one.
+    class veer
+        : public form<veer>
+    {
+        std::list<sptr<base>> subset;
+
+    public:
+        ~veer()
+        {
+            events::sync lock;
+            while (subset.size())
+            {
+                subset.back()->base::detach();
+                subset.pop_back();
+            }
+        }
+        veer()
+        {
+            SUBMIT(tier::preview, e2::size::set, newsz)
+            {
+                if (subset.size())
+                if (auto active = subset.back())
+                    active->SIGNAL(tier::preview, e2::size::set, newsz);
+            };
+            SUBMIT(tier::release, e2::size::set, newsz)
+            {
+                if (subset.size())
+                if (auto active = subset.back())
+                    active->SIGNAL(tier::release, e2::size::set, newsz);
+            };
+            SUBMIT(tier::release, e2::render::any, parent_canvas)
+            {
+                if (subset.size())
+                if (auto active = subset.back())
+                {
+                    auto& basis = base::coor();
+                    parent_canvas.render(active, basis);
+                }
+            };
+        }
+        // veer: Remove the last object.
+        auto pop_back()
+        {
+            if (subset.size())
+            {
+                auto item = std::prev(subset.end());
+                auto item_ptr = *item;
+                auto backup = This();
+                subset.erase(item);
+                item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, backup);
+            }
+            return subset.size();
+        }
+        // veer: Create a new item of the specified subtype and attach it.
+        template<class T>
+        auto attach(sptr<T> item)
+        {
+            subset.push_back(item);
+            item->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
+            return item;
+        }
+        // veer: Create a new item of the specified subtype and attach it.
+        template<class T, class ...Args>
+        auto attach(Args&&... args)
+        {
+            return attach(create<T>(std::forward<Args>(args)...));
+        }
+        // veer: Remove nested object.
+        void remove(sptr<base> item_ptr)
+        {
+            auto head = subset.begin();
+            auto tail = subset.end();
+            auto item = std::find_if(head, tail, [&](auto& c){ return c == item_ptr; });
+            if (item != tail)
+            {
+                auto backup = This();
+                subset.erase(item);
+                item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, backup);
+            }
+        }
+    };
+
     struct page_layout
     {
         struct item
