@@ -1268,7 +1268,7 @@ utility like ctags is used to locate the definitions.
             #ifdef PROD
                 objs_config[objs::Tile].data = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h1:1(v1:1(\"bash -c 'LC_ALL=en_US.UTF-8 mc -c -x; bash'\", h1:1(\"bash -c 'ls /bin | nl | ccze -A; bash'\", \"bash\")), a(\"Calc\",\"app title\",\"app data\"))";
             #else
-                objs_config[objs::Tile].data = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h1:1(v1:1(\"bash -c 'LC_ALL=en_US.UTF-8 mc -c -x -d; cat'\", h1:1(\"bash -c 'ls /bin | nl | ccze -A; bash'\", \"bash\")), a(\"calc\",\"\",\"\")";
+                objs_config[objs::Tile].data = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h1:1(v1:1(\"bash -c 'LC_ALL=en_US.UTF-8 mc -c -x -d; cat'\", h1:1(\"bash -c 'ls /bin | nl | ccze -A; bash'\", a(\"RefreshRate\",\"\",\"\"))), a(\"Calc\",\"\",\"\"))";
             #endif
         #else
             objs_config[objs::Tile].data = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h()";
@@ -1505,35 +1505,6 @@ utility like ctags is used to locate the definitions.
                 }},
             };
             return custom_menu(full_size, items);
-        };
-
-        auto headless_te = [&](text cmdline)
-        {
-            auto body = base::create<ui::fork>(axis::Y)
-                                ->plugin<pro::track>()
-                                ->plugin<pro::focus>()
-                                ->plugin<pro::acryl>()
-                                ->plugin<pro::cache>();
-                auto menu = body->attach<slot::_1>(terminal_menu(faux))
-                                    ->colors(whitelt, term_menu_bg);
-                    auto term_stat_area = body->attach<slot::_2, ui::fork>(axis::Y);
-                        auto layers = term_stat_area->attach<slot::_1, ui::cake>()
-                                                    ->plugin<pro::limit>(dot_11, twod{ 400,200 });
-                            auto scroll = layers->attach<ui::rail>();
-                            {
-                                #ifdef DEMO
-                                    scroll->plugin<pro::limit>(twod{ 20,1 }); // mc crashes when window is too small
-                                #endif
-
-                                auto inst = scroll->attach<app::term>(cmdline);
-                                inst->colors(whitelt, blackdk);
-                            }
-                        auto scroll_bars = layers->attach<ui::fork>();
-                            auto vt = scroll_bars->attach<slot::_2, ui::grip<axis::Y>>(scroll);
-                            auto hz_placeholder = term_stat_area->attach<slot::_2, ui::cake>()
-                                                                ->colors(whitelt, term_menu_bg);
-                            auto hz = hz_placeholder->attach<ui::grip<axis::X>>(scroll);
-            return body;
         };
 
         auto utf_find_char = [](auto head, auto tail, char delim)

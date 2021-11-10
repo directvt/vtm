@@ -3307,6 +3307,15 @@ namespace netxs::console
 
                     boss.SIGNAL(tier::release, hids::events::keybd::any, gear);
                 };
+                //boss.SUBMIT_T(tier::release, e2::form::upon::vtree::detached, memo, parent)
+                //{
+                //    if (parent)
+                //    {
+                //        //auto gear = gear.set_kb_focus(boss.This());
+                //        //;
+                //        //parent->SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
+                //    }
+                //};
             };
 
             // pro::keybd: Subscribe on keybd offers.

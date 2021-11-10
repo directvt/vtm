@@ -677,7 +677,7 @@ namespace netxs::input
         bell&       owner;
         id_t        relay; // hids: Mouse routing call stack initiator.
         xmap const& idmap; // hids: Area of the main form. Primary or relative region of the mouse coverage.
-        list        kb_focus; // hids: keyboard subscribers.
+        list        kb_focus; // hids: Keyboard subscribers.
         bool        alive; // hids: Whether event processing is complete.
         //todo revise
         uint32_t ctlstate = 0;
@@ -914,9 +914,13 @@ namespace netxs::input
         {
             kb_focus_taken = true;
             if (hids::meta(ANYCTRL))
+            {
                 add_group_kb_focus_or_release_captured(item);
+            }
             else
+            {
                 add_single_kb_focus(item);
+            }
         }
         void clear_kb_focus()
         {
