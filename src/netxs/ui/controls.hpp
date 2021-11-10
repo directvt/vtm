@@ -878,7 +878,7 @@ namespace netxs::ui
                 auto backup = This();
                 subset.erase(item);
                 item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, backup);
-                return { subset.size(), item_ptr };
+                return { static_cast<iota>(subset.size()), item_ptr };
             }
             return { 0, {} };
         }

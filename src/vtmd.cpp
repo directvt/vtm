@@ -3,7 +3,7 @@
 
 #define MONOTTY_VER "Monotty Desktopio v0.5.9999"
 // Enable demo apps and assign Esc key to log off.
-#define DEMO
+//#define DEMO
 // Enable keyboard input and unassign Esc key.
 #define PROD
 
@@ -2021,11 +2021,11 @@ utility like ctags is used to locate the definitions.
 
                                     #if defined(_WIN32)
 
-                                        auto inst = scroll->template attach<app::term>("bash");
+                                        auto inst = scroll->template attach<app::term>("bash -i");
 
                                     #elif defined(__linux__)
 
-                                        auto inst = scroll->template attach<app::term>("bash");
+                                        auto inst = scroll->template attach<app::term>("bash -i");
 
                                     #elif defined(__APPLE__)
 
@@ -2133,7 +2133,7 @@ utility like ctags is used to locate the definitions.
                             #if defined(_WIN32)
                                 auto inst = scroll->template attach<app::term>("cmd");
                             #elif defined(__linux__)
-                                auto inst = scroll->template attach<app::term>("bash");
+                                auto inst = scroll->template attach<app::term>("bash -i");
                             #elif defined(__APPLE__)
                                 auto inst = scroll->template attach<app::term>("zsh");
                             #elif defined(__FreeBSD__)
@@ -2303,7 +2303,7 @@ utility like ctags is used to locate the definitions.
                                             //boss.color(status == 1 ? 0xFF00ff00 : x3.fgc(), x3.bgc());
                                         };
                                     }},
-                                    std::pair<text, std::function<void(ui::pads&)>>{ "  ║  ",
+                                    std::pair<text, std::function<void(ui::pads&)>>{ "  │  ", // "  ║  ", - VGA Linux console
                                     [](ui::pads& boss)
                                     {
                                         boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
@@ -2318,7 +2318,7 @@ utility like ctags is used to locate the definitions.
                                             //boss.color(status == 1 ? 0xFF00ff00 : x3.fgc(), x3.bgc());
                                         };
                                     }},
-                                    std::pair<text, std::function<void(ui::pads&)>>{ " ══ ",
+                                    std::pair<text, std::function<void(ui::pads&)>>{  " ── ", // " ══ ", - VGA Linux console
                                     [](ui::pads& boss)
                                     {
                                         boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
@@ -2327,7 +2327,7 @@ utility like ctags is used to locate the definitions.
                                             gear.dismiss(true);
                                         };
                                     }},
-                                    std::pair<text, std::function<void(ui::pads&)>>{ " <~> ",
+                                    std::pair<text, std::function<void(ui::pads&)>>{ " <-> ",
                                     [](ui::pads& boss)
                                     {
                                         boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
@@ -2651,7 +2651,7 @@ utility like ctags is used to locate the definitions.
                         m.name = text{ name };
                         m.title = text{ name }; // Use the same title as the menu label.
                         m.data = text{ p };
-                        objs_config.push_back(menu_item);
+                        objs_config.push_back(m);
                     }
                 }
             #endif
