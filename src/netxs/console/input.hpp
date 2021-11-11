@@ -696,6 +696,8 @@ namespace netxs::input
         rect slot; // slot for pro::maker and e2::createby.
 
         bool kb_focus_taken = faux;
+        //todo unify
+        bool force_group_focus = faux;
 
         enum modifiers : uint32_t
         {
@@ -913,7 +915,7 @@ namespace netxs::input
         void set_kb_focus(sptr<bell> item)
         {
             kb_focus_taken = true;
-            if (hids::meta(ANYCTRL))
+            if (hids::meta(ANYCTRL) || force_group_focus)
             {
                 add_group_kb_focus_or_release_captured(item);
             }

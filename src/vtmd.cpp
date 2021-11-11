@@ -1266,7 +1266,8 @@ utility like ctags is used to locate the definitions.
 
         #ifdef DEMO
             #ifdef PROD
-                objs_config[objs::Tile].data = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h1:1(v1:1(\"bash -c 'LC_ALL=en_US.UTF-8 mc -c -x; bash'\", h1:1(\"bash -c 'ls /bin | nl | ccze -A; bash'\", \"bash\")), a(\"Calc\",\"app title\",\"app data\"))";
+                //objs_config[objs::Tile].data = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h1:1(v1:1(\"bash -c 'LC_ALL=en_US.UTF-8 mc -c -x; bash'\", h1:1(\"bash -c 'ls /bin | nl | ccze -A; bash'\", a(\"RefreshRate\",\"\",\"\"))), a(\"Calc\",\"app title\",\"app data\"))";
+                objs_config[objs::Tile].data = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h1:1(v1:1(\"bash -c 'LC_ALL=en_US.UTF-8 mc -c -x; bash'\", h1:1(\"bash -c 'ls /bin | nl | ccze -A; bash'\", a(\"Text\",\"app title\",\"app data\"))), \"bash -i\")";
             #else
                 objs_config[objs::Tile].data = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h1:1(v1:1(\"bash -c 'LC_ALL=en_US.UTF-8 mc -c -x -d; cat'\", h1:1(\"bash -c 'ls /bin | nl | ccze -A; bash'\", a(\"RefreshRate\",\"\",\"\"))), a(\"Calc\",\"\",\"\"))";
             #endif
@@ -1355,7 +1356,7 @@ utility like ctags is used to locate the definitions.
                                     //todo maximize/restore funct
                                     boss.SUBMIT(tier::release, hids::events::mouse::button::dblclick::left, gear)
                                     {
-                                        boss.base::template riseup<tier::release>(e2::form::quit, true);
+                                        boss.base::template riseup<tier::release>(e2::form::quit, boss.This());
                                         gear.dismiss();
                                     };
                                 })
@@ -1370,7 +1371,7 @@ utility like ctags is used to locate the definitions.
                             {
                                 boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                                 {
-                                    boss.base::template riseup<tier::release>(e2::form::quit, true);
+                                    boss.base::template riseup<tier::release>(e2::form::quit, boss.This());
                                     gear.dismiss();
                                 };
                             })
@@ -1561,6 +1562,7 @@ utility like ctags is used to locate the definitions.
                     ->plugin<pro::title>("", true, faux, true)
                     ->plugin<pro::limit>(twod{ 10,-1 }, twod{ -1,-1 })
                     ->active();
+            te_area->base::isroot(true);
             //auto title = te_area->attach<slot::_1, ui::post_fx<cell::shaders::contrast>>() //todo apple clang doesn't get it
             auto title_obj = te_area->attach<slot::_1, ui::post_fx>()
                             ->upload(title);
@@ -2347,14 +2349,31 @@ utility like ctags is used to locate the definitions.
                             host->invoke([&](auto& boss)
                             {
                                 auto shadow = ptr::shadow(boss.template This<decltype(boss)>());
-                                boss.SUBMIT_BYVAL(tier::release, e2::form::quit, ack)
+                                boss.SUBMIT_BYVAL(tier::release, e2::form::quit, nested_item_ptr)
                                 {
-                                    if (ack)
-                                    if (auto slot = shadow.lock())
+                                    if (nested_item_ptr)
                                     {
-                                        auto [alive, item] = slot->pop_back();
-                                        if (alive < 1) slot->base::riseup<tier::release>(e2::form::quit, true);
-                                        else           slot->base::reflow();
+                                        auto& item = *nested_item_ptr;
+                                        using type = decltype(e2::form::state::keybd::handover)::type;
+                                        type gear_id_list;
+                                        item.broadcast->SIGNAL(tier::request, e2::form::state::keybd::handover, gear_id_list);
+
+                                        if (auto boss_ptr = shadow.lock())
+                                        {
+                                            auto& boss = *boss_ptr;
+                                            auto [alive, item] = boss.pop_back();
+
+                                            for (auto gear_id : gear_id_list) // Handover focus to the parent.
+                                            {
+                                                if (auto gate_ptr = bell::getref(gear_id))
+                                                {
+                                                    gate_ptr->SIGNAL(tier::preview, e2::form::proceed::focus, boss_ptr);
+                                                }
+                                            }
+
+                                            if (alive < 1) boss.base::riseup<tier::release>(e2::form::quit, boss_ptr);
+                                            else           boss.base::reflow();
+                                        }
                                     }
                                 };
                             });
@@ -2375,7 +2394,6 @@ utility like ctags is used to locate the definitions.
                                     ->plugin<pro::focus>();
                             create_app(create_app, host, objs_map["Term"], cmdline);
                             auto inst = box_with_title("Headless TE", host);
-                            inst->base::isroot(true);
                             place->attach(inst);
                         }
                         else if (tag == 'a')
@@ -2486,9 +2504,9 @@ utility like ctags is used to locate the definitions.
                     {
                         boss.base::detach(); // The object kills itself.
                     };
-                    boss.SUBMIT(tier::release, e2::form::quit, ack)
+                    boss.SUBMIT(tier::release, e2::form::quit, nested_item)
                     {
-                        if (ack) boss.base::detach(); // The object kills itself.
+                        if (nested_item) boss.base::detach(); // The object kills itself.
                     };
                 });
 

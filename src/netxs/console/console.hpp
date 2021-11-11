@@ -142,7 +142,7 @@ namespace netxs::events::userland
             SUBSET_XS( form )
             {
                 EVENT_XS( canvas   , sptr<console::core> ), // request global canvas.
-                EVENT_XS( quit     , bool                ), // request parent for destroy.
+                EVENT_XS( quit     , sptr<console::base> ), // request parent for destroy.
                 GROUP_XS( layout   , const twod          ),
                 GROUP_XS( draggable, bool                ), // signal to the form to enable draggablity for specified mouse button.
                 GROUP_XS( highlight, bool                ),
@@ -182,8 +182,6 @@ namespace netxs::events::userland
                     //EVENT_XS( hide      , bool       ), // order to make it hidden.
                     //EVENT_XS( next      , sptr<base> ), // request client for next child object, only request.
                     //EVENT_XS( prev      , sptr<base> ), // request client for prev child object, only request.
-                    //EVENT_XS( footer    , const rich ), // notify the client has changed footer, only release.
-                    //EVENT_XS( clientrect, rect       ), // notify the client area has changed, only release.
                 };
                 SUBSET_XS( highlight )
                 {
@@ -227,6 +225,8 @@ namespace netxs::events::userland
                     EVENT_XS( render  , console::drawfx     ), // ask children to render itself to the parent canvas, arg is a function drawfx to perform drawing.
                     EVENT_XS( attach  , sptr<console::base> ), // order to attach a child, arg is a parent base_sptr.
                     EVENT_XS( detach  , sptr<console::base> ), // order to detach a child, tier::release - kill itself, tier::preview - detach the child specified in args, arg is a child sptr.
+                    EVENT_XS( focus   , sptr<console::base> ), // order to set focus to the specified object, arg is a object sptr.
+                    EVENT_XS( unfocus , sptr<console::base> ), // order to unset focus on the specified object, arg is a object sptr.
                     //EVENT_XS( commit     , iota                     ), // order to output the targets, arg is a frame number.
                     //EVENT_XS( multirender, vector<shared_ptr<face>> ), // ask children to render itself to the set of canvases, arg is an array of the face sptrs.
                     //EVENT_XS( draw       , face                     ), // ????  order to render itself to the canvas.
@@ -308,8 +308,6 @@ namespace netxs::events::userland
                 {
                     EVENT_XS( ctxmenu , twod ), // request context menu at specified coords.
                     EVENT_XS( lucidity, iota ), // set or request global window transparency, iota: 0-255, -1 to request.
-                    //EVENT_XS( prev  , twod ), // request the prev scene window.
-                    //EVENT_XS( next  , twod ), // request the next scene window.
                     //GROUP_XS( object,      ), // global scene objects events
                     //GROUP_XS( user  ,      ), // global scene users events
 
@@ -326,12 +324,19 @@ namespace netxs::events::userland
                 };
                 SUBSET_XS( state )
                 {
-                    EVENT_XS( mouse , iota          ), // notify the client is mouse active or not. The form is active when the number of client (form::eventa::mouse::enter - mouse::leave) is not zero, only release, iota - number of clients.
-                    EVENT_XS( keybd , bool          ), // notify the client is keybd active or not. The form is active when the number of client (form::eventa::keybd::got - keybd::lost) is not zero, only release.
+                    EVENT_XS( mouse , iota          ), // notify the client if mouse is active or not. The form is active when the number of clients (form::eventa::mouse::enter - mouse::leave) is not zero, only release, iota - number of clients.
                     EVENT_XS( header, console::para ), // notify the client has changed title.
                     EVENT_XS( footer, console::para ), // notify the client has changed footer.
                     EVENT_XS( params, console::para ), // notify the client has changed title params.
                     EVENT_XS( color , console::tone ), // notify the client has changed tone, preview to set.
+                    GROUP_XS( keybd , bool          ), // notify the client if keybd is active or not. The form is active when the number of clients (form::eventa::keybd::got - keybd::lost) is not zero, only release.
+
+                    SUBSET_XS( keybd )
+                    {
+                        EVENT_XS( got     , input::hids     ), // release: got  keyboard focus.
+                        EVENT_XS( lost    , input::hids     ), // release: lost keyboard focus.
+                        EVENT_XS( handover, std::list<id_t> ), // request: Handover all available foci.
+                    };
                 };
             };
         };
@@ -821,7 +826,6 @@ namespace netxs::console
         bool invalid = true; // base: Should the object be redrawn.
         bool visual_root = faux; // Whether the size is tied to the size of the clients.
         hook kb_offer_token;
-        hook broadcast_update_token;
 
     public:
         sptr<bell> broadcast = std::make_shared<bell>(); // base: Broadcast bus.
@@ -857,11 +861,6 @@ namespace netxs::console
                 {
                     auto bcast_backup = broadcast;
                     base::switch_to_bus(parent_ptr->base::broadcast);
-                    parent_ptr->SUBMIT_T(tier::release, e2::config::broadcast, broadcast_update_token, new_broadcast)
-                    {
-                        broadcast = new_broadcast;
-                        this->SIGNAL(tier::release, e2::config::broadcast, new_broadcast);
-                    };
                 }
                 parent_shadow = parent_ptr;
                 // Propagate form events up to the visual branch.
@@ -889,10 +888,6 @@ namespace netxs::console
                 if (this->bell::protos<tier::release>(e2::form::upon::vtree::detached))
                 {
                     kb_offer_token.reset();
-                    if (!visual_root)
-                    {
-                        broadcast_update_token.reset();
-                    }
                 }
                 parent_ptr->base::reflow();
             };
@@ -3278,7 +3273,7 @@ namespace netxs::console
                     {
                         if (!clients++)
                         {
-                            boss.SIGNAL(tier::release, e2::form::state::keybd, true);
+                            boss.SIGNAL(tier::release, e2::form::state::keybd::got, gear);
                         }
                     }
                 };
@@ -3289,11 +3284,11 @@ namespace netxs::console
                     {
                         if (!--clients)
                         {
-                            boss.SIGNAL(tier::release, e2::form::state::keybd, faux);
+                            boss.SIGNAL(tier::release, e2::form::state::keybd::lost, gear);
                         }
                     }
                 };
-                boss.SUBMIT_T(tier::request, e2::form::state::keybd, memo, state)
+                boss.SUBMIT_T(tier::request, e2::form::state::keybd::any, memo, state)
                 {
                     state = !!clients;
                 };
@@ -4034,24 +4029,59 @@ namespace netxs::console
             using skill::boss,
                   skill::memo;
 
-            bool active = faux; // mold: Keyboard focus.
-            rgba title_fg_color = 0xFFffffff;
+            using list = std::list<id_t>;
+
+            list pool; // focus: List of active input devices.
 
         public:
             focus(base&&) = delete;
-            focus(base& boss)
+            focus(base& boss, text test = {})
                 : skill{ boss }
             {
-                boss.SUBMIT_T(tier::release, e2::form::state::keybd, memo, status)
+                boss.broadcast->SUBMIT_T(tier::request, e2::form::state::keybd::handover, memo, gear_id_list)
                 {
-                    active = status;
+                    auto This = boss.This();
+                    auto head = gear_id_list.end();
+                    gear_id_list.insert(head, pool.begin(), pool.end());
+                    auto tail = gear_id_list.end();
+                    while (head != tail)
+                    {
+                        auto gear_id = *head++;
+                        if (auto gate_ptr = bell::getref(gear_id))
+                        {
+                            gear_id_list.push_back(gear_id);
+                            gate_ptr->SIGNAL(tier::preview, e2::form::proceed::unfocus, This);
+                        }
+                    }
                     boss.base::deface();
+                };
+                boss.SUBMIT_T(tier::release, e2::form::state::keybd::got, memo, gear)
+                {
+                    pool.push_back(gear.id);
+                    boss.base::deface();
+                };
+                boss.SUBMIT_T(tier::release, e2::form::state::keybd::lost, memo, gear)
+                {
+                    assert(!pool.empty());
+
+                    if (!pool.empty())
+                    {
+                        auto head = pool.begin();
+                        auto tail = pool.end();
+                        auto item = std::find_if(head, tail, [&](auto& c) { return c == gear.id; });
+                        if (item != tail)
+                        {
+                            pool.erase(item);
+                        }
+                        boss.base::deface();
+                    }
                 };
                 boss.SUBMIT_T(tier::release, e2::render::prerender, memo, parent_canvas)
                 {
                     //todo revise, too many fillings (mold's artifacts)
                     auto normal = boss.base::color();
-                    if (active)
+                    rgba title_fg_color = 0xFFffffff;
+                    if (!pool.empty())
                     {
                         auto bright = skin::color(tone::brighter);
                         auto shadow = skin::color(tone::shadower);
@@ -5457,6 +5487,25 @@ again:
                 {
                     gear.slot.coor += base::coor();
                     world->SIGNAL(tier::release, e2::form::proceed::createby, gear);
+                }
+            };
+            SUBMIT(tier::preview, e2::form::proceed::focus, item_ptr)
+            {
+                if (item_ptr)
+                {
+                    auto& gear = input;
+                    //todo unify
+                    gear.force_group_focus = true;
+                    item_ptr->SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
+                    gear.force_group_focus = faux;
+                }
+            };
+            SUBMIT(tier::preview, e2::form::proceed::unfocus, item_ptr)
+            {
+                if (item_ptr)
+                {
+                    auto& gear = input;
+                    gear.remove_from_kb_focus(item_ptr);
                 }
             };
             SUBMIT(tier::preview, hids::events::keybd::any, gear)

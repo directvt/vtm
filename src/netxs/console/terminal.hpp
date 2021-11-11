@@ -3359,7 +3359,7 @@ private:
                 SUBMIT_T(tier::general, e2::tick, oneoff, t)
                 {
                     oneoff.reset();
-                    this->base::riseup<tier::release>(e2::form::quit, true);
+                    this->base::riseup<tier::release>(e2::form::quit, This());
                 };
             }
         }
