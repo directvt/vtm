@@ -150,7 +150,6 @@ Module               | Options
     <td colspan="1"></td>
     <td colspan="2">Toggle menu height</td>
     <td colspan="1"></td>
-    <td></td>
     <td colspan="2">Center app window</td>
     <td></td>
   </tr>
