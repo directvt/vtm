@@ -295,14 +295,15 @@ namespace netxs::events::userland
                 };
                 SUBSET_XS( prop )
                 {
-                    EVENT_XS( header    , text       ), // set form caption header.
-                    EVENT_XS( footer    , text       ), // set form caption footer.
-                    EVENT_XS( name      , text       ), // user name.
-                    EVENT_XS( zorder    , iota       ), // set form z-order, iota: -1 backmost, 0 plain, 1 topmost.
-                    EVENT_XS( brush     , const cell ), // set form brush/color.
-                    EVENT_XS( fullscreen, bool       ), // set fullscreen flag.
-                    EVENT_XS( viewport  , rect       ), // request: return form actual viewport.
-                    EVENT_XS( menusize  , iota       ), // release: set menu height: 0 - hide, 1 - slim, 2 - full.
+                    EVENT_XS( header    , text        ), // set form caption header.
+                    EVENT_XS( footer    , text        ), // set form caption footer.
+                    EVENT_XS( name      , text        ), // user name.
+                    EVENT_XS( zorder    , iota        ), // set form z-order, iota: -1 backmost, 0 plain, 1 topmost.
+                    EVENT_XS( brush     , const cell  ), // set form brush/color.
+                    EVENT_XS( fullscreen, bool        ), // set fullscreen flag.
+                    EVENT_XS( viewport  , rect        ), // request: return form actual viewport.
+                    EVENT_XS( menusize  , iota        ), // release: set menu height: 0 - hide, 1 - slim, 2 - full.
+                    EVENT_XS( winsize   , input::hids ), // toggle window size: maximize/restore.
                 };
                 SUBSET_XS( global )
                 {
@@ -1508,14 +1509,13 @@ namespace netxs::console
             {
                 if (maximize)
                 {
-                    boss.SUBMIT_T(tier::release, hids::events::mouse::button::dblclick::left, maxs, gear)
+                    boss.SUBMIT_T(tier::release, e2::form::prop::winsize, maxs, gear)
                     {
                         auto size = boss.base::size();
                         if (size.inside(gear.coord))
                         {
                             if (seized(gear.id)) unbind();
                             else                 follow(gear.id, dot_00);
-                            gear.dismiss();
                         }
                     };
                 }

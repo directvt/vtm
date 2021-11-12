@@ -1267,7 +1267,7 @@ utility like ctags is used to locate the definitions.
         #ifdef DEMO
             #ifdef PROD
                 //objs_config[objs::Tile].data = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h1:1(v1:1(\"bash -c 'LC_ALL=en_US.UTF-8 mc -c -x; bash'\", h1:1(\"bash -c 'ls /bin | nl | ccze -A; bash'\", a(\"RefreshRate\",\"\",\"\"))), a(\"Calc\",\"app title\",\"app data\"))";
-                objs_config[objs::Tile].data = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h1:1(v1:1(\"bash -c 'LC_ALL=en_US.UTF-8 mc -c -x; bash'\", h1:1(\"bash -c 'ls /bin | nl | ccze -A; bash'\", a(\"Text\",\"app title\",\"app data\"))), \"bash -i\")";
+                objs_config[objs::Tile].data = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h1:1(v1:1(\"bash -c 'LC_ALL=en_US.UTF-8 mc -c -x; bash'\", h1:1(\"bash -c 'ls /bin | nl | ccze -A; bash'\", a(\"Text\",\"app title\",\"app data\"))), a(\"Calc\",\"app title\",\"app data\"))";
             #else
                 objs_config[objs::Tile].data = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h1:1(v1:1(\"bash -c 'LC_ALL=en_US.UTF-8 mc -c -x -d; cat'\", h1:1(\"bash -c 'ls /bin | nl | ccze -A; bash'\", a(\"RefreshRate\",\"\",\"\"))), a(\"Calc\",\"\",\"\"))";
             #endif
@@ -1359,17 +1359,11 @@ utility like ctags is used to locate the definitions.
                              ->plugin<pro::fader>(x3, c3, 150ms)
                              ->invoke([&](ui::pads& boss)
                                 {
-                                    //todo maximize/restore funct
                                     boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                                     {
-                                        boss.base::template riseup<tier::release>(e2::form::quit, boss.This());
+                                        boss.base::template riseup<tier::release>(e2::form::prop::winsize, gear);
                                         gear.dismiss();
                                     };
-                                    //boss.SUBMIT(tier::release, hids::events::mouse::button::dblclick::left, gear)
-                                    //{
-                                    //    boss.base::template riseup<tier::release>(e2::form::quit, boss.This());
-                                    //    gear.dismiss();
-                                    //};
                                 })
                             ->template attach<ui::item>(" ≡", faux, true);
                 for (auto& body : menu_items) menu_list->attach<ui::pads>(inner_pads, dent{ 1 })
@@ -1572,10 +1566,18 @@ utility like ctags is used to locate the definitions.
             auto te_area = base::create<ui::fork>(axis::Y)
                     ->plugin<pro::title>("", true, faux, true)
                     ->plugin<pro::limit>(twod{ 10,-1 }, twod{ -1,-1 })
-                    ->active();
+                    ->active()
+                    ->invoke([&](auto& boss)
+                    {
+                        boss.SUBMIT(tier::release, hids::events::mouse::button::dblclick::left, gear)
+                        {
+                            boss.base::template riseup<tier::release>(e2::form::prop::winsize, gear);
+                            gear.dismiss();
+                        };
+                    });
             te_area->base::isroot(true);
             //auto title = te_area->attach<slot::_1, ui::post_fx<cell::shaders::contrast>>() //todo apple clang doesn't get it
-            auto title_obj = te_area->attach<slot::_1, ui::post_fx>()
+            auto title_obj = te_area->template attach<slot::_1, ui::post_fx>()
                             ->upload(title);
                         title_obj->invoke([&](auto& boss)
                         {
@@ -1589,7 +1591,7 @@ utility like ctags is used to locate the definitions.
                                 if (auto ptr = shadow.lock()) curtext = ptr->get_source();
                             };
                         });
-            auto body = te_area->attach<slot::_2>(branch);
+            auto body = te_area->template attach<slot::_2>(branch);
             return te_area;
         };
 
@@ -2174,7 +2176,7 @@ utility like ctags is used to locate the definitions.
                 }
                 case View:
                 {
-                    window->unplug<pro::align>()
+                    window->template unplug<pro::align>()
                           ->invoke([&](auto& boss)
                           {
                               auto outer = dent{ 2,2,1,1 };
@@ -2332,7 +2334,7 @@ utility like ctags is used to locate the definitions.
                     auto empty_slot = []()
                     {
                         auto host = base::create<ui::veer>();
-                        auto place_holder = host->template attach<ui::park>()
+                        auto place_holder = host->template attach<ui::park>() //todo is visual_root?
                                    ->colors(blacklt, term_menu_bg)
                                    ->template plugin<pro::limit>(dot_00, -dot_11)
                                    ->template plugin<pro::focus>()
@@ -2345,6 +2347,41 @@ utility like ctags is used to locate the definitions.
                             host->invoke([&](auto& boss)
                             {
                                 auto shadow = ptr::shadow(boss.template This<decltype(boss)>());
+                                boss.SUBMIT_BYVAL(tier::release, e2::form::prop::winsize, gear)
+                                {
+                                    if (auto boss_ptr = shadow.lock())
+                                    {
+                                        auto& boss = *boss_ptr;
+                                        auto [alive, fullscreen_item] = boss.pop_back();
+                                        if (fullscreen_item)
+                                        {
+                                            // One-time return ticket.
+                                            auto oneoff = std::make_shared<hook>();
+                                            fullscreen_item->SUBMIT_T_BYVAL(tier::release, e2::form::prop::winsize, *oneoff, gear)
+                                            {
+                                                if (auto boss_ptr = shadow.lock())
+                                                {
+                                                    auto& boss = *boss_ptr;
+                                                    using type = decltype(e2::form::proceed::detach)::type;
+                                                    type fullscreen_item;
+                                                    boss.base::riseup<tier::release>(e2::form::proceed::detach, fullscreen_item);
+                                                    if (fullscreen_item)
+                                                    {
+                                                        boss.attach(fullscreen_item);
+                                                        boss.base::reflow();
+                                                    }
+                                                }
+                                                oneoff.reset();
+                                            };
+                                            boss.base::riseup<tier::release>(e2::form::proceed::attach, fullscreen_item);
+                                            if (fullscreen_item) // Unsuccessful maximization. Attach it back.
+                                            {
+                                                boss.attach(fullscreen_item);
+                                            }
+                                            boss.base::reflow();
+                                        }
+                                    }
+                                };
                                 boss.SUBMIT_BYVAL(tier::release, e2::form::quit, nested_item_ptr)
                                 {
                                     if (nested_item_ptr)
@@ -2375,7 +2412,7 @@ utility like ctags is used to locate the definitions.
                             });
                         return host;
                     };
-                    auto add_node = [&](auto&& add_node, view& utf8) -> sptr<base>
+                    auto add_node = [&](auto&& add_node, view& utf8) -> sptr<ui::veer>
                     {
                         auto place = empty_slot();
                         utf_trim_front(utf8, ", ");
@@ -2454,6 +2491,22 @@ utility like ctags is used to locate the definitions.
                         return place;
                     };
                     auto host = object->template attach<slot::_2>(add_node(add_node, envvar_data));
+                    host->invoke([&](auto& boss)
+                    {
+                        boss.SUBMIT(tier::release, e2::form::proceed::attach, fullscreen_item)
+                        {
+                            if (fullscreen_item)
+                            {
+                                boss.attach(fullscreen_item);
+                                fullscreen_item.reset();
+                            }
+                        };
+                        boss.SUBMIT(tier::release, e2::form::proceed::detach, fullscreen_item)
+                        {
+                            auto [size, item ] = boss.pop_back();
+                            if (item) fullscreen_item = item;
+                        };
+                    });
                     break;
                 }
             }
@@ -2474,6 +2527,11 @@ utility like ctags is used to locate the definitions.
                 ->plugin<pro::focus>()
                 ->invoke([&](ui::cake& boss)
                 {
+                    boss.SUBMIT(tier::release, hids::events::mouse::button::dblclick::left, gear)
+                    {
+                        boss.base::template riseup<tier::release>(e2::form::prop::winsize, gear);
+                        gear.dismiss();
+                    };
                     boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                     {
                         auto& area = boss.base::area();
@@ -2605,8 +2663,8 @@ utility like ctags is used to locate the definitions.
                 return i;
             };
             #ifdef DEMO
-                iota i = objs_config.size();
-                while (i--) menu_list[i];
+                for (auto i = objs_config.size(); i-- != 0;)
+                    menu_list[static_cast<id_t>(i)];
             #else
                 #ifdef _WIN32
                     menu_list[find(objs::CommandPrompt)];
