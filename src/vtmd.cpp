@@ -1339,7 +1339,13 @@ utility like ctags is used to locate the definitions.
                     {
                         auto& limit = boss.plugins<pro::limit>();
                         auto limits = limit.get();
-                        limits.min.y = limits.max.y = size == 1 ? 3 : 1;
+                        switch (size)
+                        {
+                            default:
+                            case 2: limits.min.y = limits.max.y = 3; break;
+                            case 1: limits.min.y = limits.max.y = 1; break;
+                            case 0: limits.min.y = limits.max.y = 0; break;
+                        }
                         limit.set(limits);
                         boss.reflow();
                     };
@@ -1354,11 +1360,16 @@ utility like ctags is used to locate the definitions.
                              ->invoke([&](ui::pads& boss)
                                 {
                                     //todo maximize/restore funct
-                                    boss.SUBMIT(tier::release, hids::events::mouse::button::dblclick::left, gear)
+                                    boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                                     {
                                         boss.base::template riseup<tier::release>(e2::form::quit, boss.This());
                                         gear.dismiss();
                                     };
+                                    //boss.SUBMIT(tier::release, hids::events::mouse::button::dblclick::left, gear)
+                                    //{
+                                    //    boss.base::template riseup<tier::release>(e2::form::quit, boss.This());
+                                    //    gear.dismiss();
+                                    //};
                                 })
                             ->template attach<ui::item>(" ≡", faux, true);
                 for (auto& body : menu_items) menu_list->attach<ui::pads>(inner_pads, dent{ 1 })
@@ -1556,7 +1567,7 @@ utility like ctags is used to locate the definitions.
 
         auto box_with_title = [&](view title, auto branch)
         {
-            branch->base::broadcast->SIGNAL(tier::release, e2::form::prop::menusize, 0);
+            branch->base::broadcast->SIGNAL(tier::release, e2::form::prop::menusize, 1);
 
             auto te_area = base::create<ui::fork>(axis::Y)
                     ->plugin<pro::title>("", true, faux, true)
@@ -1591,7 +1602,6 @@ utility like ctags is used to locate the definitions.
                 case Test:
                 {
                     window->template plugin<pro::track>()
-                          ->template plugin<pro::align>()
                           ->template plugin<pro::acryl>()
                           ->template plugin<pro::cache>();
                     auto object0 = window->template attach<ui::fork>(axis::Y)
@@ -1643,7 +1653,6 @@ utility like ctags is used to locate the definitions.
                 }
                 case Strobe:
                 {
-                    window->template plugin<pro::align>();
                     auto strob = window->template attach<ui::mock>()
                                        ->template plugin<pro::mover>(window);
                     auto strob_shadow = ptr::shadow(strob);
@@ -1661,7 +1670,6 @@ utility like ctags is used to locate the definitions.
                 }
                 case RefreshRate:
                 {
-                    window->template plugin<pro::align>();
                     window->template attach<ui::stem_rate<tier::general, decltype(e2::config::fps)>>("Set frame rate", 1, 200, "fps")
                                    ->color(0xFFFFFFFF, bluedk);
                     break;
@@ -1669,7 +1677,6 @@ utility like ctags is used to locate the definitions.
                 case Truecolor:
                 {
                     window->template plugin<pro::track>()
-                          ->template plugin<pro::align>()
                           ->template plugin<pro::acryl>()
                           ->template plugin<pro::cache>();
                     auto object = window->template attach<ui::fork>(axis::Y)
@@ -1692,7 +1699,6 @@ utility like ctags is used to locate the definitions.
                 case Empty:
                 {
                     window->template plugin<pro::track>()
-                          ->template plugin<pro::align>()
                           ->template plugin<pro::acryl>()
                           ->invoke([&](auto& boss)
                           {
@@ -1712,7 +1718,6 @@ utility like ctags is used to locate the definitions.
                 {
                     window->colors(whitelt, 0x60000000)
                           ->template plugin<pro::track>()
-                          ->template plugin<pro::align>()
                           ->template plugin<pro::acryl>()
                           ->template plugin<pro::cache>();
                     auto object = window->template attach<ui::fork>(axis::Y)
@@ -1748,7 +1753,6 @@ utility like ctags is used to locate the definitions.
                     window->colors(whitelt, 0x601A5f00)
                           ->template plugin<pro::limit>(twod{ 10,7 },twod{ -1,-1 })
                           ->template plugin<pro::track>()
-                          ->template plugin<pro::align>()
                           ->template plugin<pro::acryl>()
                           ->template plugin<pro::cache>()
                           ->invoke([&](auto& boss)
@@ -1837,7 +1841,6 @@ utility like ctags is used to locate the definitions.
                 case Text:
                 {
                     window->template plugin<pro::track>()
-                          ->template plugin<pro::align>()
                           ->template plugin<pro::acryl>()
                           ->template plugin<pro::cache>()
                           ->invoke([&](auto& boss)
@@ -1876,7 +1879,6 @@ utility like ctags is used to locate the definitions.
                 case VTM:
                 {
                     window->template plugin<pro::track>()
-                          ->template plugin<pro::align>()
                           ->template plugin<pro::acryl>()
                           ->template plugin<pro::cache>();
                     auto object = window->template attach<ui::fork>(axis::Y)
@@ -1912,7 +1914,6 @@ utility like ctags is used to locate the definitions.
                 case Far:
                 {
                     window->template plugin<pro::track>()
-                          ->template plugin<pro::align>()
                           ->template plugin<pro::acryl>()
                           ->template plugin<pro::cache>();
                     auto object = window->template attach<ui::fork>(axis::Y)
@@ -1930,7 +1931,6 @@ utility like ctags is used to locate the definitions.
                 case MC:
                 {
                     window->template plugin<pro::track>()
-                          ->template plugin<pro::align>()
                           ->template plugin<pro::acryl>()
                           ->template plugin<pro::cache>();
                     auto object = window->template attach<ui::fork>(axis::Y)
@@ -1976,7 +1976,6 @@ utility like ctags is used to locate the definitions.
                 case Term:
                 {
                     window->template plugin<pro::track>()
-                          ->template plugin<pro::align>()
                           ->template plugin<pro::acryl>()
                           ->template plugin<pro::cache>();
                     auto object = window->template attach<ui::fork>(axis::Y)
@@ -2024,7 +2023,6 @@ utility like ctags is used to locate the definitions.
                 case PowerShell:
                 {
                     window->template plugin<pro::track>()
-                          ->template plugin<pro::align>()
                           ->template plugin<pro::acryl>()
                           ->template plugin<pro::cache>();
                     auto object = window->template attach<ui::fork>(axis::Y)
@@ -2067,7 +2065,6 @@ utility like ctags is used to locate the definitions.
                 case CommandPrompt:
                 {
                     window->template plugin<pro::track>()
-                          ->template plugin<pro::align>()
                           ->template plugin<pro::acryl>()
                           ->template plugin<pro::cache>();
                     auto object = window->template attach<ui::fork>(axis::Y)
@@ -2125,7 +2122,6 @@ utility like ctags is used to locate the definitions.
                 case Logs:
                 {
                     window->template plugin<pro::track>()
-                          ->template plugin<pro::align>()
                           ->template plugin<pro::acryl>()
                           ->template plugin<pro::cache>();
                     auto object = window->template attach<ui::fork>(axis::Y)
@@ -2178,45 +2174,46 @@ utility like ctags is used to locate the definitions.
                 }
                 case View:
                 {
-                    window->invoke([&](auto& boss)
-                    {
-                        auto outer = dent{ 2,2,1,1 };
-                        auto inner = dent{ -4,-4,-2,-2 };
-                        auto& sizer = boss.template plugins<pro::sizer>();
-                        sizer.props(outer, inner);
-                        boss.SIGNAL(tier::preview, e2::form::prop::zorder, Z_order::backmost);
-                        boss.SUBMIT(tier::release, hids::events::mouse::button::dblclick::left, gear)
-                        {
-                            auto& sizer = boss.template plugins<pro::sizer>();
-                            auto [outer, inner] = sizer.get_props();
-                            auto actual_rect = rect{ dot_00, boss.base::size() } + outer;
-                            if (actual_rect.hittest(gear.coord))
-                            {
-                                if (auto gate_ptr = bell::getref(gear.id))
-                                {
-                                    rect viewport;
-                                    gate_ptr->SIGNAL(tier::request, e2::form::prop::viewport, viewport);
-                                    boss.base::extend(viewport);
-                                }
-                                gear.dismiss();
-                            }
-                        };
-                        boss.SUBMIT(tier::release, e2::render::prerender, parent_canvas)
-                        {
-                            rgba title_fg_color = 0xFFffffff;
-                            auto area = parent_canvas.full();
-                            auto mark = skin::color(tone::shadower);
-                            mark.fgc(title_fg_color).link(boss.bell::id);
-                            auto fill = [&](cell& c) { c.fusefull(mark); };
-                            parent_canvas.cage(area, dot_21, fill);
-                        };
-                        boss.SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
-                        {
-                            static iota i = 0; i++;
-                            auto title = ansi::jet(bias::center).add("View \n Region ", i);
-                            boss.base::riseup<tier::preview>(e2::form::prop::header, title);
-                        };
-                    });
+                    window->unplug<pro::align>()
+                          ->invoke([&](auto& boss)
+                          {
+                              auto outer = dent{ 2,2,1,1 };
+                              auto inner = dent{ -4,-4,-2,-2 };
+                              auto& sizer = boss.template plugins<pro::sizer>();
+                              sizer.props(outer, inner);
+                              boss.SIGNAL(tier::preview, e2::form::prop::zorder, Z_order::backmost);
+                              boss.SUBMIT(tier::release, hids::events::mouse::button::dblclick::left, gear)
+                              {
+                                  auto& sizer = boss.template plugins<pro::sizer>();
+                                  auto [outer, inner] = sizer.get_props();
+                                  auto actual_rect = rect{ dot_00, boss.base::size() } + outer;
+                                  if (actual_rect.hittest(gear.coord))
+                                  {
+                                      if (auto gate_ptr = bell::getref(gear.id))
+                                      {
+                                          rect viewport;
+                                          gate_ptr->SIGNAL(tier::request, e2::form::prop::viewport, viewport);
+                                          boss.base::extend(viewport);
+                                      }
+                                      gear.dismiss();
+                                  }
+                              };
+                              boss.SUBMIT(tier::release, e2::render::prerender, parent_canvas)
+                              {
+                                  rgba title_fg_color = 0xFFffffff;
+                                  auto area = parent_canvas.full();
+                                  auto mark = skin::color(tone::shadower);
+                                  mark.fgc(title_fg_color).link(boss.bell::id);
+                                  auto fill = [&](cell& c) { c.fusefull(mark); };
+                                  parent_canvas.cage(area, dot_21, fill);
+                              };
+                              boss.SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
+                              {
+                                  static iota i = 0; i++;
+                                  auto title = ansi::jet(bias::center).add("View \n Region ", i);
+                                  boss.base::riseup<tier::preview>(e2::form::prop::header, title);
+                              };
+                          });
                     break;
                 }
                 case Tile:
@@ -2248,7 +2245,6 @@ utility like ctags is used to locate the definitions.
                         }
                     }
                     window->template unplug<pro::focus>() // Remove focus controller.
-                          ->template plugin<pro::align>()
                           ->invoke([&](auto& boss)
                           {
                               boss.SUBMIT_BYVAL(tier::release, e2::form::upon::vtree::attached, parent)
@@ -2261,7 +2257,7 @@ utility like ctags is used to locate the definitions.
                     auto object = window->template attach<ui::fork>(axis::Y);
                         auto menu = object->template attach<slot::_1>(custom_menu(true,
                             std::list{
-                                    std::pair<text, std::function<void(ui::pads&)>>{ "  ▀█  ",
+                                    std::pair<text, std::function<void(ui::pads&)>>{ "  ─┐  ", //"  ▀█  ",
                                     [](ui::pads& boss)
                                     {
                                         boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
@@ -2474,6 +2470,7 @@ utility like ctags is used to locate the definitions.
                 ->plugin<pro::sizer>()
                 ->plugin<pro::frame>()
                 ->plugin<pro::light>()
+                ->plugin<pro::align>()
                 ->plugin<pro::focus>()
                 ->invoke([&](ui::cake& boss)
                 {

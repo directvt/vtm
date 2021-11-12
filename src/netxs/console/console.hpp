@@ -302,7 +302,7 @@ namespace netxs::events::userland
                     EVENT_XS( brush     , const cell ), // set form brush/color.
                     EVENT_XS( fullscreen, bool       ), // set fullscreen flag.
                     EVENT_XS( viewport  , rect       ), // request: return form actual viewport.
-                    EVENT_XS( menusize  , iota       ), // release: set menu height: 0 - slim; 1 - full.
+                    EVENT_XS( menusize  , iota       ), // release: set menu height: 0 - hide, 1 - slim, 2 - full.
                 };
                 SUBSET_XS( global )
                 {
