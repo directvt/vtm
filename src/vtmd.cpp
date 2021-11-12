@@ -88,7 +88,7 @@ std::list<text> appstore_body =
     add(".\n\nConfiguration example:\n\n").
     mgl(2).fgc(whitelt).bgc(blacklt)
     .add(" VTM_PROFILE_1='\"Menu label 1\", \"Window Title 1\", h1:2( v1:1(\"bash -c htop\", \"bash -c mc\"), \"bash\")' \n"
-         " VTM_PROFILE_2='\"Menu label 2\", \"Window Title 2\", h( v(\"bash -c htop\", \"bash -c mc\"), \"bash\")' ")),
+         " VTM_PROFILE_2='\"Menu label 2\", \"Window Title 2\", h( v(\"bash -c htop\", \"bash -c mc\"), a(\"Calc\",\"\",\"\"))' ")),
 
     item("Text", cyandk, "102", "Free ", "Get",
     "A simple text editor for Monotty environment "
@@ -1609,13 +1609,11 @@ utility like ctags is used to locate the definitions.
                           ->template plugin<pro::cache>();
                     auto object0 = window->template attach<ui::fork>(axis::Y)
                                          ->colors(whitelt, 0xA0db3700);
-                        auto menu = object0->template attach<slot::_1>(custom_menu(true, {}))
-                                           ->template plugin<pro::mover>(window);
+                        auto menu = object0->template attach<slot::_1>(custom_menu(true, {}));
                         auto test_stat_area = object0->template attach<slot::_2, ui::fork>(axis::Y);
                             auto layers = test_stat_area->template attach<slot::_1, ui::cake>();
                                 auto scroll = layers->template attach<ui::rail>()
                                                     ->colors(cyanlt, bluedk)
-                                                    ->template plugin<pro::mover>(window)
                                                     ->config(true, true);
                                     auto object = scroll->template attach<ui::post>()
                                                         ->upload(topic)
@@ -1656,8 +1654,7 @@ utility like ctags is used to locate the definitions.
                 }
                 case Strobe:
                 {
-                    auto strob = window->template attach<ui::mock>()
-                                       ->template plugin<pro::mover>(window);
+                    auto strob = window->template attach<ui::mock>();
                     auto strob_shadow = ptr::shadow(strob);
                     bool stobe_state = true;
                     strob->SUBMIT_BYVAL(tier::general, e2::tick, now)
@@ -1684,12 +1681,10 @@ utility like ctags is used to locate the definitions.
                           ->template plugin<pro::cache>();
                     auto object = window->template attach<ui::fork>(axis::Y)
                                         ->colors(whitelt, 0xA01f0fc4);
-                        auto menu = object->template attach<slot::_1>(custom_menu(true, {}))
-                                          ->template plugin<pro::mover>(window);
+                        auto menu = object->template attach<slot::_1>(custom_menu(true, {}));
                         auto test_stat_area = object->template attach<slot::_2, ui::fork>(axis::Y);
                             auto layers = test_stat_area->template attach<slot::_1, ui::cake>();
                                 auto scroll = layers->template attach<ui::rail>()
-                                                    ->template plugin<pro::mover>(window)
                                                     ->config(true, true)
                                                     ->colors(whitelt, reddk);
                                             scroll->template attach<ui::post>()
@@ -1713,8 +1708,7 @@ utility like ctags is used to locate the definitions.
                               };
                           });
                     auto object = window->template attach<ui::mock>()
-                                        ->colors(0,0) //todo mouse tracking
-                                        ->template plugin<pro::mover>(window);
+                                        ->colors(0,0); //todo mouse tracking
                     break;
                 }
                 case Shop:
@@ -1733,7 +1727,6 @@ utility like ctags is used to locate the definitions.
                             menu_object->template attach<slot::_2, ui::post>()
                                        ->template plugin<pro::limit>(twod{ 37,-1 }, twod{ -1,-1 })
                                        ->upload(appstore_head)
-                                       ->template plugin<pro::mover>(window)
                                        ->active();
                         auto layers = object->template attach<slot::_2, ui::cake>();
                             auto scroll = layers->template attach<ui::rail>()
@@ -1770,8 +1763,7 @@ utility like ctags is used to locate the definitions.
                           });
                     auto object = window->template attach<ui::fork>(axis::Y)
                                         ->colors(whitelt, 0);
-                        auto menu = object->template attach<slot::_1>(main_menu())
-                                          ->template plugin<pro::mover>(window);
+                        auto menu = object->template attach<slot::_1>(main_menu());
                         auto all_rail = object->template attach<slot::_2, ui::rail>();
                         auto all_stat = all_rail->template attach<ui::fork>(axis::Y)
                                                 ->template plugin<pro::limit>(twod{ -1,-1 },twod{ 136,102 });
@@ -1858,8 +1850,7 @@ utility like ctags is used to locate the definitions.
                           });
                     auto object = window->template attach<ui::fork>(axis::Y)
                                         ->colors(whitelt, 0xA05f1a00);
-                        auto menu = object->template attach<slot::_1>(main_menu())
-                                          ->template plugin<pro::mover>(window);
+                        auto menu = object->template attach<slot::_1>(main_menu());
                         auto body_area = object->template attach<slot::_2, ui::fork>(axis::Y);
                             auto fields = body_area->template attach<slot::_1, ui::pads>(dent{ 1,1 });
                                 auto layers = fields->template attach<ui::cake>();
@@ -1886,8 +1877,7 @@ utility like ctags is used to locate the definitions.
                           ->template plugin<pro::cache>();
                     auto object = window->template attach<ui::fork>(axis::Y)
                                         ->colors(whitelt, term_menu_bg);
-                        auto menu = object->template attach<slot::_1>(custom_menu(true, {}))
-                                          ->template plugin<pro::mover>(window);
+                        auto menu = object->template attach<slot::_1>(custom_menu(faux, {}));
                         auto layers = object->template attach<slot::_2, ui::cake>()
                                             ->template plugin<pro::limit>(dot_11, twod{ 400,200 });
                             auto scroll = layers->template attach<ui::rail>();
@@ -1921,8 +1911,7 @@ utility like ctags is used to locate the definitions.
                           ->template plugin<pro::cache>();
                     auto object = window->template attach<ui::fork>(axis::Y)
                                         ->colors(whitelt, term_menu_bg);
-                        auto menu = object->template attach<slot::_1>(custom_menu(true, {}))
-                                          ->template plugin<pro::mover>(window);
+                        auto menu = object->template attach<slot::_1>(custom_menu(true, {}));
                         auto layers = object->template attach<slot::_2, ui::cake>()
                                             ->template plugin<pro::limit>(dot_11, twod{ 400,200 });
                             auto scroll = layers->template attach<ui::rail>();
@@ -1938,8 +1927,7 @@ utility like ctags is used to locate the definitions.
                           ->template plugin<pro::cache>();
                     auto object = window->template attach<ui::fork>(axis::Y)
                                         ->colors(whitelt, term_menu_bg);
-                        auto menu = object->template attach<slot::_1>(custom_menu(faux, {}))
-                                          ->template plugin<pro::mover>(window);
+                        auto menu = object->template attach<slot::_1>(custom_menu(faux, {}));
                         auto layers = object->template attach<slot::_2, ui::cake>()
                                             ->template plugin<pro::limit>(dot_11, twod{ 400,200 });
                             auto scroll = layers->template attach<ui::rail>()
@@ -1983,8 +1971,7 @@ utility like ctags is used to locate the definitions.
                           ->template plugin<pro::cache>();
                     auto object = window->template attach<ui::fork>(axis::Y)
                                         ->colors(whitelt, term_menu_bg);
-                        auto menu = object->template attach<slot::_1>(terminal_menu(true))
-                                          ->template plugin<pro::mover>(window);
+                        auto menu = object->template attach<slot::_1>(terminal_menu(true));
                         auto term_stat_area = object->template attach<slot::_2, ui::fork>(axis::Y);
                             auto layers = term_stat_area->template attach<slot::_1, ui::cake>()
                                                         ->template plugin<pro::limit>(dot_11, twod{ 400,200 });
@@ -2050,13 +2037,11 @@ utility like ctags is used to locate the definitions.
                                             gear.dismiss(true);
                                         };
                                     }},
-                                }))
-                                          ->template plugin<pro::mover>(window);
+                                }));
                         auto term_stat_area = object->template attach<slot::_2, ui::fork>(axis::Y);
                             auto layers = term_stat_area->template attach<slot::_1, ui::cake>()
                                                 ->template plugin<pro::limit>(dot_11, twod{ 400,200 });
                                 auto scroll = layers->template attach<ui::rail>()
-                                                    ->template plugin<pro::mover>(window)
                                                     ->colors(whitelt, 0xFF560000);
                                     scroll->template attach<app::term>("powershell")
                                         ->colors(whitelt, 0xFF562401);
@@ -2092,13 +2077,11 @@ utility like ctags is used to locate the definitions.
                                             gear.dismiss(true);
                                         };
                                     }},
-                                }))
-                                          ->template plugin<pro::mover>(window);
+                                }));
                         auto term_stat_area = object->template attach<slot::_2, ui::fork>(axis::Y);
                             auto layers = term_stat_area->template attach<slot::_1, ui::cake>()
                                                 ->template plugin<pro::limit>(dot_11, twod{ 400,200 });
-                                auto scroll = layers->template attach<ui::rail>()
-                                                    ->template plugin<pro::mover>(window);
+                                auto scroll = layers->template attach<ui::rail>();
                         #ifdef DEMO
                             scroll->template plugin<pro::limit>(twod{ 20,1 }); // mc crashes when window is too small
                         #endif
@@ -2156,11 +2139,9 @@ utility like ctags is used to locate the definitions.
                                             gear.dismiss(true);
                                         };
                                     }},
-                                }))
-                                          ->template plugin<pro::mover>(window);
+                                }));
                         auto layers = object->template attach<slot::_2, ui::cake>();
-                            auto scroll = layers->template attach<ui::rail>()
-                                                ->template plugin<pro::mover>(window);
+                            auto scroll = layers->template attach<ui::rail>();
                             #ifndef PROD
                             scroll->template attach<ui::post>()
                                   ->colors(whitelt, blackdk)
@@ -2329,8 +2310,7 @@ utility like ctags is used to locate the definitions.
                                 }))
                                 ->colors(whitelt, term_menu_bg)
                                 ->template plugin<pro::track>()
-                                ->template plugin<pro::acryl>()
-                                ->template plugin<pro::mover>(window);
+                                ->template plugin<pro::acryl>();
 
                     auto empty_slot = []()
                     {
