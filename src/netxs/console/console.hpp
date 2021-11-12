@@ -854,7 +854,9 @@ namespace netxs::console
             {
                 broadcast = new_broadcast;
             };
-
+           /*
+            * Only visual_root can be reattached multiple times!
+            */
             SUBMIT(tier::release, e2::form::upon::vtree::attached, parent_ptr)
             {
                 if (!visual_root)
@@ -5496,6 +5498,7 @@ again:
                     auto& gear = input;
                     //todo unify
                     gear.force_group_focus = true;
+                    gear.kb_focus_taken = faux;
                     item_ptr->SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
                     gear.force_group_focus = faux;
                 }
