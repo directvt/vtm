@@ -1279,6 +1279,7 @@ utility like ctags is used to locate the definitions.
         static iota    max_count = 20;// 50;
         static iota    max_vtm = 3;
         static iota    vtm_count = 0;
+        static iota    tile_count = 0;
         constexpr auto del_timeout = 1s;
 
         using slot = ui::slot;
@@ -1575,6 +1576,16 @@ utility like ctags is used to locate the definitions.
                             boss.base::template riseup<tier::release>(e2::form::prop::winsize, gear);
                             gear.dismiss();
                         };
+                        boss.SUBMIT(tier::release, hids::events::mouse::button::click::leftright, gear)
+                        {
+                            boss.base::template riseup<tier::release>(e2::form::quit, boss.This());
+                            gear.dismiss();
+                        };
+                        boss.SUBMIT(tier::release, hids::events::mouse::button::click::middle, gear)
+                        {
+                            boss.base::template riseup<tier::release>(e2::form::quit, boss.This());
+                            gear.dismiss();
+                        };
                     });
             te_area->base::isroot(true);
             //auto title = te_area->attach<slot::_1, ui::post_fx<cell::shaders::contrast>>() //todo apple clang doesn't get it
@@ -1596,7 +1607,7 @@ utility like ctags is used to locate the definitions.
             return te_area;
         };
 
-        auto create_app = [&](auto&& create_app, auto window, auto type, view data)
+        auto create_app = [&](auto&& create_app, auto window, auto type, view data) -> void
         {
             //todo use XAML for that
             switch (type)
@@ -1720,10 +1731,7 @@ utility like ctags is used to locate the definitions.
                     auto object = window->template attach<ui::fork>(axis::Y)
                                         ->colors(whitelt, 0);
                         auto menu_object = object->template attach<slot::_1, ui::fork>(axis::Y);
-                            menu_object->template attach<slot::_1>(custom_menu(true,
-                                std::list{
-                                    std::pair<text, std::function<void(ui::pads&)>>{ ansi::und(true).add("D").nil().add("esktopio App Store"), [](ui::pads& p){} }
-                                }));
+                            menu_object->template attach<slot::_1>(custom_menu(true, {}));
                             menu_object->template attach<slot::_2, ui::post>()
                                        ->template plugin<pro::limit>(twod{ 37,-1 }, twod{ -1,-1 })
                                        ->upload(appstore_head)
@@ -2202,6 +2210,23 @@ utility like ctags is used to locate the definitions.
                 }
                 case Tile:
                 {
+                    #ifndef PROD
+                        if (tile_count < max_vtm)
+                        {
+                            auto c = &tile_count; (*c)++;
+                            window->SUBMIT_BYVAL(tier::release, e2::dtor, item_id)
+                                    {
+                                        (*c)--;
+                                        log("main: tile manager destoyed");
+                                    };
+                        }
+                        else
+                        {
+                            create_app(create_app, window, Empty, "Reached the limit");
+                            break;
+                        }
+                    #endif
+
                     view envvar_data;
                     text window_title;
                     auto a = data.find('=');
@@ -2225,7 +2250,7 @@ utility like ctags is used to locate the definitions.
                             log(" window_title=", window_title);
                             utf_trim_front(envvar_data, ", ");
                             log(" layout_data=", envvar_data);
-                            if (window_title.length()) window_title += '\n';
+                            //if (window_title.length()) window_title += '\n';
                         }
                     }
                     window->template unplug<pro::focus>() // Remove focus controller.
@@ -2233,7 +2258,7 @@ utility like ctags is used to locate the definitions.
                           {
                               boss.SUBMIT_BYVAL(tier::release, e2::form::upon::vtree::attached, parent)
                               {
-                                    auto title = ansi::add(window_title + utf::debase(data));
+                                    auto title = ansi::add(window_title);// + utf::debase(data));
                                     parent->base::riseup<tier::preview>(e2::form::prop::header, title);
                               };
                           });
@@ -2322,6 +2347,11 @@ utility like ctags is used to locate the definitions.
                                    ->invoke([&](auto& boss)
                                     {
                                         boss.keybd.accept(true);
+                                        boss.SUBMIT(tier::release, hids::events::mouse::button::click::right, gear)
+                                        {
+                                            boss.base::riseup<tier::release>(e2::form::proceed::createby, gear);
+                                            gear.dismiss();
+                                        };
                                     });
                             place_holder->template attach<snap::center, snap::center, ui::post>()
                                         ->upload("Empty Slot", 10);
@@ -2395,7 +2425,37 @@ utility like ctags is used to locate the definitions.
                     };
                     auto add_node = [&](auto&& add_node, view& utf8) -> sptr<ui::veer>
                     {
-                        auto place = empty_slot();
+                        auto place = empty_slot()
+                            ->invoke([&](auto& boss)
+                            {
+                                boss.SUBMIT(tier::release, e2::form::proceed::createby, gear)
+                                {
+                                    if (gear.meta(hids::ANYCTRL))
+                                    {
+                                        //todo ...
+                                    }
+                                    else
+                                    {
+                                        if (auto gate_ptr = bell::getref(gear.id))
+                                        {
+                                            auto& gate = *gate_ptr;
+                                            iota data = 0;
+                                            gate.SIGNAL(tier::request, e2::data::changed, data);
+                                            auto current_default = static_cast<id_t>(data);
+                                            auto config = objs_config[current_default];
+
+                                            auto host = base::create<ui::cake>()
+                                                            ->plugin<pro::focus>();
+                                            create_app(create_app, host, current_default, config.data);
+                                            auto app = box_with_title(config.title, host);
+                                            boss.attach(app);
+
+                                            gear.kb_focus_taken = faux;
+                                            host->SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
+                                        }
+                                    }
+                                };
+                            });
                         utf_trim_front(utf8, ", ");
                         if (utf8.empty()) return place;
                         auto tag = utf8.front();

@@ -95,10 +95,15 @@ namespace netxs::ui
             if (!brush.wdt()) base::color(brush.txt(whitespace));
             return This<T>();
         }
-        // form: Return plugin reference of specified type.
-        template<class S>
-        auto& plugins()
+        // form: Return plugin reference of specified type. Add the specified plugin (using specified args) if it is missing.
+        template<class S, class ...Args>
+        auto& plugins(Args&&... args)
         {
+            const auto it = depo.find(std::type_index(typeid(S)));
+            if (it == depo.end())
+            {
+                plugin<S>(std::forward<Args>(args)...);
+            }
             auto ptr = static_cast<S*>(depo[std::type_index(typeid(S))].get());
             return *ptr;
         }
