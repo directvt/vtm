@@ -2148,8 +2148,16 @@ namespace netxs::os
                     log(" tty: compatibility mode");
                     auto imps2_init_string = "\xf3\xc8\xf3\x64\xf3\x50";
                     auto mouse_device = "/dev/input/mice";
+                    auto mouse_fallback = "/dev/input/mice_vtm";
                     auto fd = ::open(mouse_device, O_RDWR);
-                    if (fd == -1) log(" tty: error opening ", mouse_device, ", error ", errno, errno == 13 ? " - permission denied" : "");
+                    if (fd == -1)
+                    {
+                        fd = ::open(mouse_fallback, O_RDWR);
+                    }
+                    if (fd == -1)
+                    {
+                        log(" tty: error opening ", mouse_device, " and ", mouse_fallback, ", error ", errno, errno == 13 ? " - permission denied" : "");
+                    }
                     else if (os::send(fd, imps2_init_string, sizeof(imps2_init_string)))
                     {
                         char ack;

@@ -14,12 +14,11 @@ if (WIN32)
 
     set (CMAKE_CXX_FLAGS "/DWIN32 /D_WINDOWS /W3 /GR /EHsc /bigobj")
 else ()
+    set (CMAKE_CXX_FLAGS "-pthread")
     if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
         #static linkage
         #set (CMAKE_CXX_FLAGS "-static-libstdc++ -static-libgcc -pthread -s")
         #set (CMAKE_CXX_FLAGS "-pthread -s")
-    else ()
-        set (CMAKE_CXX_FLAGS "-pthread")
     endif ()
 endif ()
 

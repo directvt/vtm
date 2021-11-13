@@ -124,7 +124,8 @@ Module               | Options
     <td>Set default app</td>
     <td>Go to app</td>
     <td></td>
-    <td colspan="4">Assign exclusive keyboard focus</td>
+    <td>Maximize/restore</td>
+    <td colspan="3">Assign exclusive keyboard focus</td>
     <td>Go to app</td>
     <td>Clear keyboard focus</td>
   </tr>
@@ -138,7 +139,7 @@ Module               | Options
     <th>double LeftClick</th>
     <td>Run app</td>
     <td colspan="2"></td>
-    <td>Close app</td>
+    <td></td>
     <td colspan="2">Maximize/restore app window</td>
     <td colspan="3"></td>
   </tr>
@@ -146,8 +147,10 @@ Module               | Options
     <th>RightClick</th>
     <td></td>
     <td>Center app window</td>
-    <td colspan="5"></td>
-    <td>Center app window</td>
+    <td colspan="1"></td>
+    <td colspan="2">Toggle menu height</td>
+    <td colspan="1"></td>
+    <td colspan="2">Center app window</td>
     <td></td>
   </tr>
   <tr>

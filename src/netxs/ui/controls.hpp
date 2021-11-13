@@ -95,10 +95,15 @@ namespace netxs::ui
             if (!brush.wdt()) base::color(brush.txt(whitespace));
             return This<T>();
         }
-        // form: Return plugin reference of specified type.
-        template<class S>
-        auto& plugins()
+        // form: Return plugin reference of specified type. Add the specified plugin (using specified args) if it is missing.
+        template<class S, class ...Args>
+        auto& plugins(Args&&... args)
         {
+            const auto it = depo.find(std::type_index(typeid(S)));
+            if (it == depo.end())
+            {
+                plugin<S>(std::forward<Args>(args)...);
+            }
             auto ptr = static_cast<S*>(depo[std::type_index(typeid(S))].get());
             return *ptr;
         }
@@ -216,7 +221,7 @@ namespace netxs::ui
         iota get_x(twod const& pt) { return updown ? pt.y : pt.x; }
         iota get_y(twod const& pt) { return updown ? pt.x : pt.y; }
 
-        void _config(axis alignment, iota thickness, iota scale)
+        void _config(axis alignment, iota thickness, iota s1 = 1, iota s2 = 1)
         {
             switch (alignment)
             {
@@ -231,8 +236,7 @@ namespace netxs::ui
                     break;
             }
             width = std::max(thickness, 0);
-            ratio = MAX_RATIO * std::clamp(scale, 0, 100) / 100;
-            base::reflow();
+            config(s1, s2);
         }
 
     public:
@@ -240,14 +244,18 @@ namespace netxs::ui
         {
             return ratio;
         }
-        auto config(iota scale)
+        void config(iota s1, iota s2 = 1)
         {
-            ratio = MAX_RATIO * std::clamp(scale, 0, 100) / 100;
+            if (s1 < 0) s1 = 0;
+            if (s2 < 0) s2 = 0;
+            auto sum = s1 + s2;
+            ratio = sum ? netxs::divround(s1 * MAX_RATIO, sum)
+                        : MAX_RATIO >> 1;
             base::reflow();
         }
-        auto config(axis alignment, iota thickness, iota scale)
+        auto config(axis alignment, iota thickness, iota s1, iota s2)
         {
-            _config(alignment, thickness, scale);
+            _config(alignment, thickness, s1, s2);
             return This<fork>();
         }
 
@@ -258,13 +266,13 @@ namespace netxs::ui
             if (client_2) client_2->base::detach();
             if (splitter) splitter->base::detach();
         }
-        fork(axis alignment = axis::X, iota thickness = 0, iota scale = 50)
-        :   maxpos{ 0 },
-            start{ 0 },
-            width{ 0 },
-            movable{ true },
-            updown{ faux },
-            ratio{ 0xFFFF >> 1 }
+        fork(axis alignment = axis::X, iota thickness = 0, iota s1 = 1, iota s2 = 1)
+            : maxpos{ 0 },
+              start{ 0 },
+              width{ 0 },
+              movable{ true },
+              updown{ faux },
+              ratio{ 0xFFFF >> 1 }
         {
             SUBMIT(tier::preview, e2::size::set, new_size)
             {
@@ -296,7 +304,7 @@ namespace netxs::ui
                 if (client_2) parent_canvas.render(client_2, basis);
             };
 
-            _config(alignment, thickness, scale);
+            _config(alignment, thickness, s1, s2);
             //  case WM_SIZE:
             //  	entity->resize({ GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) });
             //  	return 0;
@@ -825,6 +833,89 @@ namespace netxs::ui
         }
     };
 
+    // controls: Container for many controls but shows the last one.
+    class veer
+        : public form<veer>
+    {
+        std::list<sptr<base>> subset;
+
+    public:
+        ~veer()
+        {
+            events::sync lock;
+            while (subset.size())
+            {
+                subset.back()->base::detach();
+                subset.pop_back();
+            }
+        }
+        veer()
+        {
+            SUBMIT(tier::preview, e2::size::set, newsz)
+            {
+                if (subset.size())
+                if (auto active = subset.back())
+                    active->SIGNAL(tier::preview, e2::size::set, newsz);
+            };
+            SUBMIT(tier::release, e2::size::set, newsz)
+            {
+                if (subset.size())
+                if (auto active = subset.back())
+                    active->SIGNAL(tier::release, e2::size::set, newsz);
+            };
+            SUBMIT(tier::release, e2::render::any, parent_canvas)
+            {
+                if (subset.size())
+                if (auto active = subset.back())
+                {
+                    auto& basis = base::coor();
+                    parent_canvas.render(active, basis);
+                }
+            };
+        }
+        // veer: Remove the last object. Return subset size and the object refrence.
+        auto pop_back() -> std::pair<iota, sptr<base>>
+        {
+            if (subset.size())
+            {
+                auto item = std::prev(subset.end());
+                auto item_ptr = *item;
+                auto backup = This();
+                subset.erase(item);
+                item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, backup);
+                return { static_cast<iota>(subset.size()), item_ptr };
+            }
+            return { 0, {} };
+        }
+        // veer: Create a new item of the specified subtype and attach it.
+        template<class T>
+        auto attach(sptr<T> item)
+        {
+            subset.push_back(item);
+            item->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
+            return item;
+        }
+        // veer: Create a new item of the specified subtype and attach it.
+        template<class T, class ...Args>
+        auto attach(Args&&... args)
+        {
+            return attach(create<T>(std::forward<Args>(args)...));
+        }
+        // veer: Remove nested object.
+        void remove(sptr<base> item_ptr)
+        {
+            auto head = subset.begin();
+            auto tail = subset.end();
+            auto item = std::find_if(head, tail, [&](auto& c){ return c == item_ptr; });
+            if (item != tail)
+            {
+                auto backup = This();
+                subset.erase(item);
+                item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, backup);
+            }
+        }
+    };
+
     struct page_layout
     {
         struct item
@@ -951,7 +1042,9 @@ namespace netxs::ui
                               std::max(0, cover.r - width.x + 1),
                              -std::min(0, cover.t),
                               0);
-            width.y = cover.height() + (beyond ? width.y : 1); //todo unify (text editor)
+            auto height = cover.width() ? cover.height() + 1
+                                        : 0;
+            width.y = height + (beyond ? width.y : 0); //todo unify (text editor)
         }
         void recalc(twod const& size)
         {
@@ -1064,7 +1157,9 @@ namespace netxs::ui
                               std::max(0, cover.r - width.x + 1),
                              -std::min(0, cover.t),
                               0);
-            width.y = cover.height() + (beyond ? width.y : 1); //todo unify (text editor)
+            auto height = cover.width() ? cover.height() + 1
+                                        : 0;
+            width.y = height + (beyond ? width.y : 0); //todo unify (text editor)
         }
         void recalc(twod const& size)
         {
