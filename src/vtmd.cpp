@@ -1355,9 +1355,9 @@ utility like ctags is used to locate the definitions.
             auto menu_area = menu_block->attach<snap::stretch, snap::center, ui::fork>()
                                        ->active();
                 auto inner_pads = dent{ 1,2,1,1 };
-                auto menu_list = menu_area->attach<slot::_1, ui::fork>()
-                                          ->attach<slot::_1, ui::list>(axis::X);
-                    menu_list->attach<ui::pads>(inner_pads, dent{ 0 })
+                auto menu_list = menu_area->attach<slot::_1, ui::fork>();
+                                          
+                    menu_list->attach<slot::_1, ui::pads>(inner_pads, dent{ 0 })
                              ->plugin<pro::fader>(x3, c3, 150ms)
                              ->invoke([&](ui::pads& boss)
                                 {
@@ -1368,7 +1368,9 @@ utility like ctags is used to locate the definitions.
                                     };
                                 })
                             ->template attach<ui::item>(" ≡", faux, true);
-                for (auto& body : menu_items) menu_list->attach<ui::pads>(inner_pads, dent{ 1 })
+                    auto scrl_list = menu_list->attach<slot::_2, ui::rail>(axes::ONLY_X, axes::ONLY_X)
+                                              ->attach<ui::list>(axis::X);
+                for (auto& body : menu_items) scrl_list->attach<ui::pads>(inner_pads, dent{ 1 })
                                                        ->plugin<pro::fader>(x3, c3, 150ms)
                                                        ->invoke(body.second)
                                                        ->attach<ui::item>(body.first, faux, true);

@@ -1382,7 +1382,7 @@ namespace netxs::ui
                 {
                     if (manual[X]) cancel<X, true>();
                     if (manual[Y]) cancel<Y, true>();
-                    gear.dismiss();
+                    //gear.dismiss();
                 }
             };
             SUBMIT(tier::release, e2::form::animate::stop, id)
@@ -2081,10 +2081,28 @@ namespace netxs::ui
                 {
                     auto area = parent_canvas.view();
                     auto size = name.size();
-                    if (area.size.x > 0 && area.size.x < size.x)
+                    //if (area.size.x > 0 && area.size.x < size.x)
+                    if (area.size.x > 0)
                     {
-                        auto coor = area.coor + area.size - dot_11;
-                        parent_canvas.core::data(coor)->txt(dots);
+                        if (size.x > 0)
+                        {
+                            auto full = parent_canvas.full();
+                            if (full.coor.x < area.coor.x)
+                            {
+                                auto coor = area.coor;
+                                parent_canvas.core::data(coor)->txt(dots);
+                            }
+                            if (full.coor.x + size.x > area.coor.x + area.size.x)
+                            {
+                                auto coor = area.coor + area.size - dot_11;
+                                parent_canvas.core::data(coor)->txt(dots);
+                            }
+                        }
+                        //else
+                        //{
+                        //    auto coor = area.coor + area.size - dot_11;
+                        //    parent_canvas.core::data(coor)->txt(dots);
+                        //}
                     }
                 }
             };
