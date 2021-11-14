@@ -2336,7 +2336,7 @@ utility like ctags is used to locate the definitions.
 
                     auto empty_slot = [&]()
                     {
-                        auto host = ui::veer::ctor()
+                        return ui::veer::ctor()
                             ->invoke([&](auto& boss)
                             {
                                 auto shadow = ptr::shadow(boss.This());
@@ -2443,25 +2443,29 @@ utility like ctags is used to locate the definitions.
                                         }
                                     }
                                 };
-                            });
-                        auto place_holder = ui::park::ctor()
-                                 ->isroot(true)
-                                 ->colors(blacklt, term_menu_bg)
-                                 ->template plugin<pro::limit>(dot_00, -dot_11)
-                                 ->template plugin<pro::focus>("place_holder")
-                                 ->invoke([&](auto& boss)
-                                  {
-                                      boss.keybd.accept(true);
-                                      boss.SUBMIT(tier::release, hids::events::mouse::button::click::right, gear)
-                                      {
-                                          boss.base::riseup<tier::release>(e2::form::proceed::createby, gear);
-                                          gear.dismiss();
-                                      };
-                                  });
-                            auto label = place_holder->attach(snap::center, snap::center, ui::post::ctor())
-                                        ->upload("Empty Slot", 10);
-                        host->attach(place_holder);
-                        return host;
+                            })
+                            ->branch
+                            (
+                                ui::park::ctor()
+                                ->isroot(true)
+                                ->colors(blacklt, term_menu_bg)
+                                ->template plugin<pro::limit>(dot_00, -dot_11)
+                                ->template plugin<pro::focus>("place_holder")
+                                ->invoke([&](auto& boss)
+                                {
+                                    boss.keybd.accept(true);
+                                    boss.SUBMIT(tier::release, hids::events::mouse::button::click::right, gear)
+                                    {
+                                        boss.base::riseup<tier::release>(e2::form::proceed::createby, gear);
+                                        gear.dismiss();
+                                    };
+                                })
+                                ->branch
+                                (
+                                    ui::post::ctor()->upload("Empty Slot", 10),
+                                      snap::center, snap::center
+                                )
+                            );
                     };
                     auto add_node = [&](auto&& add_node, view& utf8) -> sptr<ui::veer>
                     {

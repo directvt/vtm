@@ -128,15 +128,6 @@ namespace netxs::ui
             functor(*backup);
             return backup;
         }
-        // form: Create item, set it root, attach and return it.
-        //template<class C, class ...Args>
-        //auto asroot(Args&&... args)
-        //{
-        //    auto item_ptr = base::create<C>(std::forward<Args>(args)...);
-        //    item_ptr->base::root(true);
-        //    This()->T::attach(item_ptr);
-        //    return item_ptr;
-        //}
         // form: Attach homeless branch and return itself.
         template<class C, class ...Args>
         auto branch(sptr<C> child, Args&&... args)
@@ -536,12 +527,6 @@ namespace netxs::ui
             item->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
             return item;
         }
-        // fork: Create a new item of the specified subtype and attach it to a specified slot.
-        //template<class T, class ...Args>
-        //auto attach(slot SLOT, Args&&... args)
-        //{
-        //    return attach(SLOT, create<T>(std::forward<Args>(args)...));
-        //}
         // fork: Remove nested object by it's ptr.
         void remove(sptr<base> item_ptr)
         {
@@ -648,12 +633,6 @@ namespace netxs::ui
             item->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
             return item;
         }
-        // list: Create a new item of the specified subtype and attach it.
-        //template<class T, class ...Args>
-        //auto attach(Args&&... args)
-        //{
-        //    return attach(create<T>(std::forward<Args>(args)...));
-        //}
         // list: Remove nested object.
         void remove(sptr<base> item_ptr)
         {
@@ -736,12 +715,6 @@ namespace netxs::ui
             item->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
             return item;
         }
-        // cake: Create a new item of the specified subtype and attach it.
-        //template<class T, class ...Args>
-        //auto attach(Args&&... args)
-        //{
-        //    return attach(create<T>(std::forward<Args>(args)...));
-        //}
         // cake: Remove nested object.
         void remove(sptr<base> item_ptr)
         {
@@ -834,12 +807,6 @@ namespace netxs::ui
             item->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
             return item;
         }
-        // park: Create a new item of the specified subtype and attach it.
-        //template<class T, class ...Args>
-        //auto attach(snap hz, snap vt, Args&&... args)
-        //{
-        //    return attach(hz, vt, create<T>(std::forward<Args>(args)...));
-        //}
         // park: Remove nested object.
         void remove(sptr<base> item_ptr)
         {
@@ -923,12 +890,6 @@ namespace netxs::ui
             item->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
             return item;
         }
-        // veer: Create a new item of the specified subtype and attach it.
-        //template<class T, class ...Args>
-        //auto attach(Args&&... args)
-        //{
-        //    return attach(create<T>(std::forward<Args>(args)...));
-        //}
         // veer: Remove nested object.
         void remove(sptr<base> item_ptr)
         {
@@ -1580,12 +1541,6 @@ namespace netxs::ui
             item->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
             return item;
         }
-        // rail: Create a new item of the specified subtype and attach it.
-        //template<class T, class ...Args>
-        //auto attach(Args&&... args)
-        //{
-        //    return attach(create<T>(std::forward<Args>(args)...));
-        //}
         //template<class T>
         void remove(sptr<base> item_ptr)
         {
@@ -2044,12 +1999,6 @@ namespace netxs::ui
             item->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
             return item;
         }
-        // pads: Create a new item of the specified subtype and attach it.
-        //template<class T, class ...Args>
-        //auto attach(Args&&... args)
-        //{
-        //    return attach(create<T>(std::forward<Args>(args)...));
-        //}
         // pads: Remove item.
         void remove(sptr<base> item_ptr)
         {
