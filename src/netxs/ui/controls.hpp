@@ -1573,6 +1573,7 @@ namespace netxs::ui
 
         using wptr = netxs::wptr<base>;
         using sptr = netxs::sptr<base>;
+        using form = ui::form<grip<AXIS>>;
 
         enum activity
         {
@@ -1720,7 +1721,8 @@ namespace netxs::ui
             {
                 if (gear.captured(bell::id))
                 {
-                    if (this->bell::protos<tier::release>(hids::events::mouse::button::drag::cancel::right))
+                    //if (this->form<grip<AXIS>>::template protos<tier::release>(hids::events::mouse::button::drag::cancel::right))
+                    if (this->form::template protos<tier::release>(hids::events::mouse::button::drag::cancel::right))
                     {
                         gohome();
                     }
@@ -1781,8 +1783,8 @@ namespace netxs::ui
             SUBMIT(tier::release, hids::events::mouse::button::down::any, gear)
             {
                 if (!on_pager)
-                if (this->bell::protos<tier::release>(bttn::down::left) ||
-                    this->bell::protos<tier::release>(bttn::down::right))
+                if (this->form::template protos<tier::release>(bttn::down::left) ||
+                    this->form::template protos<tier::release>(bttn::down::right))
                 if (auto dir = calc.inside(xy(gear.mouse::coord)))
                 {
                     if (gear.capture(bell::id))
@@ -1809,8 +1811,8 @@ namespace netxs::ui
             {
                 if (on_pager && gear.captured(bell::id))
                 {
-                    if (this->bell::protos<tier::release>(bttn::up::left) ||
-                        this->bell::protos<tier::release>(bttn::up::right))
+                    if (this->form::template protos<tier::release>(bttn::up::left) ||
+                        this->form::template protos<tier::release>(bttn::up::right))
                     {
                         gear.release();
                         gear.dismiss();
@@ -1871,7 +1873,7 @@ namespace netxs::ui
                 {
                     if (gear.captured(bell::id))
                     {
-                        if (this->bell::protos<tier::release>(bttn::drag::stop::right))
+                        if (this->form::template protos<tier::release>(bttn::drag::stop::right))
                         {
                             gohome();
                         }
@@ -2393,7 +2395,7 @@ namespace netxs::ui
                     move_grip(cur_val + 1);
                     gear.dismiss();
                 };
-                this->SUBMIT(tier::release, e2::size::set, size)
+                SUBMIT(tier::release, e2::size::set, size)
                 {
                     recalc();
                 };
