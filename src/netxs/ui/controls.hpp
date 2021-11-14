@@ -129,11 +129,11 @@ namespace netxs::ui
             return backup;
         }
         // form: Attach homeless branch and return itself.
-        template<class C, class ...Args>
-        auto branch(sptr<C> child, Args&&... args)
+        template<class ...Args>
+        auto branch(Args&&... args)
         {
             auto backup = This();
-            if (child) backup->T::attach(std::forward<Args>(args)..., child);
+            backup->T::attach(std::forward<Args>(args)...);
             return backup;
         }
         // form: UI-control will be detached when the master is detached.
@@ -2395,10 +2395,10 @@ namespace netxs::ui
                     move_grip(cur_val + 1);
                     gear.dismiss();
                 };
-                SUBMIT(tier::release, e2::size::set, size)
-                {
-                    recalc();
-                };
+                recalc();
+            };
+            SUBMIT(tier::release, e2::size::set, size)
+            {
                 recalc();
             };
             SUBMIT(tier::release, hids::events::mouse::button::click::right, gear)

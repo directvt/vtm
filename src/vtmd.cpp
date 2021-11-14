@@ -1589,7 +1589,8 @@ utility like ctags is used to locate the definitions.
                             boss.base::template riseup<tier::release>(e2::form::quit, boss.This());
                             gear.dismiss();
                         };
-                    });
+                    })
+                    ->branch(slot::_2, branch);
             //te_area->attach(slot::_1, ui::post_fx<cell::shaders::contrast>::ctor()) //todo apple clang doesn't get it
             te_area->attach(slot::_1, ui::post_fx::ctor())
                    ->upload(title)
@@ -1605,7 +1606,6 @@ utility like ctags is used to locate the definitions.
                            if (auto ptr = shadow.lock()) curtext = ptr->get_source();
                        };
                    });
-            auto body = te_area->attach(slot::_2, branch);
             return te_area;
         };
 
@@ -2462,8 +2462,8 @@ utility like ctags is used to locate the definitions.
                                 })
                                 ->branch
                                 (
-                                    ui::post::ctor()->upload("Empty Slot", 10),
-                                      snap::center, snap::center
+                                    snap::center, snap::center,
+                                    ui::post::ctor()->upload("Empty Slot", 10)
                                 )
                             );
                     };
