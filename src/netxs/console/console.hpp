@@ -149,11 +149,12 @@ namespace netxs::events::userland
                 GROUP_XS( upon     , bool                ),
                 GROUP_XS( proceed  , bool                ),
                 GROUP_XS( cursor   , bool                ),
-                GROUP_XS( drag     , console::hids       ),
+                GROUP_XS( drag     , input::hids         ),
                 GROUP_XS( prop     , text                ),
                 GROUP_XS( global   , twod                ),
                 GROUP_XS( state    , const twod          ),
                 GROUP_XS( animate  , id_t                ),
+                GROUP_XS( ui       , input::hids         ), // Window manager command pack.
 
                 SUBSET_XS( draggable )
                 {
@@ -194,7 +195,7 @@ namespace netxs::events::userland
                     EVENT_XS( cached , console::face       ), // inform about camvas is cached.
                     EVENT_XS( wiped  , console::face       ), // event after wipe the canvas.
                     EVENT_XS( changed, twod                ), // event after resize, arg: diff bw old and new size.
-                    EVENT_XS( dragged, console::hids       ), // event after drag.
+                    EVENT_XS( dragged, input::hids         ), // event after drag.
                     GROUP_XS( vtree  , sptr<console::base> ), // visual tree events, arg: parent base_sptr.
                     GROUP_XS( scroll , rack                ), // event after scroll.
                     //EVENT_XS( created    , sptr<console::base> ), // event after itself creation, arg: itself bell_sptr.
@@ -220,7 +221,7 @@ namespace netxs::events::userland
                 SUBSET_XS( proceed )
                 {
                     EVENT_XS( create  , rect                ), // return coordinates of the new object placeholder.
-                    EVENT_XS( createby, console::hids       ), // return gear with coordinates of the new object placeholder gear::slot.
+                    EVENT_XS( createby, input::hids         ), // return gear with coordinates of the new object placeholder gear::slot.
                     EVENT_XS( destroy , console::base       ), // ??? bool return reference to the parent.
                     EVENT_XS( render  , console::drawfx     ), // ask children to render itself to the parent canvas, arg is a function drawfx to perform drawing.
                     EVENT_XS( attach  , sptr<console::base> ), // order to attach a child, arg is a parent base_sptr.
@@ -243,52 +244,52 @@ namespace netxs::events::userland
                 };
                 SUBSET_XS( drag )
                 {
-                    GROUP_XS( start , console::hids ), // notify about mouse drag start by pro::mouse.
-                    GROUP_XS( pull  , console::hids ), // notify about mouse drag pull by pro::mouse.
-                    GROUP_XS( cancel, console::hids ), // notify about mouse drag cancel by pro::mouse.
-                    GROUP_XS( stop  , console::hids ), // notify about mouse drag stop by pro::mouse.
+                    GROUP_XS( start , input::hids ), // notify about mouse drag start by pro::mouse.
+                    GROUP_XS( pull  , input::hids ), // notify about mouse drag pull by pro::mouse.
+                    GROUP_XS( cancel, input::hids ), // notify about mouse drag cancel by pro::mouse.
+                    GROUP_XS( stop  , input::hids ), // notify about mouse drag stop by pro::mouse.
 
                     SUBSET_XS( start )
                     {
-                        EVENT_XS( left     , console::hids ),
-                        EVENT_XS( right    , console::hids ),
-                        EVENT_XS( leftright, console::hids ),
-                        EVENT_XS( middle   , console::hids ),
-                        EVENT_XS( wheel    , console::hids ),
-                        EVENT_XS( win      , console::hids ),
+                        EVENT_XS( left     , input::hids ),
+                        EVENT_XS( right    , input::hids ),
+                        EVENT_XS( leftright, input::hids ),
+                        EVENT_XS( middle   , input::hids ),
+                        EVENT_XS( wheel    , input::hids ),
+                        EVENT_XS( win      , input::hids ),
 
                         INDEX_XS( left, right, leftright, middle, wheel, win ),
                     };
                     SUBSET_XS( pull )
                     {
-                        EVENT_XS( left     , console::hids ),
-                        EVENT_XS( right    , console::hids ),
-                        EVENT_XS( leftright, console::hids ),
-                        EVENT_XS( middle   , console::hids ),
-                        EVENT_XS( wheel    , console::hids ),
-                        EVENT_XS( win      , console::hids ),
+                        EVENT_XS( left     , input::hids ),
+                        EVENT_XS( right    , input::hids ),
+                        EVENT_XS( leftright, input::hids ),
+                        EVENT_XS( middle   , input::hids ),
+                        EVENT_XS( wheel    , input::hids ),
+                        EVENT_XS( win      , input::hids ),
 
                         INDEX_XS( left, right, leftright, middle, wheel, win ),
                     };
                     SUBSET_XS( cancel )
                     {
-                        EVENT_XS( left     , console::hids ),
-                        EVENT_XS( right    , console::hids ),
-                        EVENT_XS( leftright, console::hids ),
-                        EVENT_XS( middle   , console::hids ),
-                        EVENT_XS( wheel    , console::hids ),
-                        EVENT_XS( win      , console::hids ),
+                        EVENT_XS( left     , input::hids ),
+                        EVENT_XS( right    , input::hids ),
+                        EVENT_XS( leftright, input::hids ),
+                        EVENT_XS( middle   , input::hids ),
+                        EVENT_XS( wheel    , input::hids ),
+                        EVENT_XS( win      , input::hids ),
 
                         INDEX_XS( left, right, leftright, middle, wheel, win ),
                     };
                     SUBSET_XS( stop )
                     {
-                        EVENT_XS( left     , console::hids ),
-                        EVENT_XS( right    , console::hids ),
-                        EVENT_XS( leftright, console::hids ),
-                        EVENT_XS( middle   , console::hids ),
-                        EVENT_XS( wheel    , console::hids ),
-                        EVENT_XS( win      , console::hids ),
+                        EVENT_XS( left     , input::hids ),
+                        EVENT_XS( right    , input::hids ),
+                        EVENT_XS( leftright, input::hids ),
+                        EVENT_XS( middle   , input::hids ),
+                        EVENT_XS( wheel    , input::hids ),
+                        EVENT_XS( win      , input::hids ),
 
                         INDEX_XS( left, right, leftright, middle, wheel, win ),
                     };
@@ -303,7 +304,6 @@ namespace netxs::events::userland
                     EVENT_XS( fullscreen, bool        ), // set fullscreen flag.
                     EVENT_XS( viewport  , rect        ), // request: return form actual viewport.
                     EVENT_XS( menusize  , iota        ), // release: set menu height: 0 - hide, 1 - slim, 2 - full.
-                    EVENT_XS( winsize   , input::hids ), // toggle window size: maximize/restore.
                 };
                 SUBSET_XS( global )
                 {
@@ -337,6 +337,20 @@ namespace netxs::events::userland
                         EVENT_XS( got     , input::hids     ), // release: got  keyboard focus.
                         EVENT_XS( lost    , input::hids     ), // release: lost keyboard focus.
                         EVENT_XS( handover, std::list<id_t> ), // request: Handover all available foci.
+                    };
+                };
+                SUBSET_XS( ui )
+                {
+                    EVENT_XS( close   , input::hids ),
+                    EVENT_XS( toggle  , input::hids ), // toggle window size: maximize/restore.
+                    EVENT_XS( swap    , input::hids ),
+                    EVENT_XS( equalize, input::hids ),
+                    GROUP_XS( split   , input::hids ),
+
+                    SUBSET_XS( split )
+                    {
+                        EVENT_XS( vt, input::hids ),
+                        EVENT_XS( hz, input::hids ),
                     };
                 };
             };
@@ -921,8 +935,9 @@ namespace netxs::console
         auto& coor() const { return square.coor; }
         auto& size() const { return square.size; }
         auto& area() const { return square; }
+        void  root(bool b) { assert(!kb_offer_token); visual_root = b; }
+        bool  root()       { return visual_root; }
         auto parent()      { return parent_shadow.lock(); }
-        void isroot(bool state) { visual_root = state; }
         void ruined(bool state) { invalid = state; }
         auto ruined() const { return invalid; }
         auto color() const { return brush; }
@@ -1509,7 +1524,7 @@ namespace netxs::console
             {
                 if (maximize)
                 {
-                    boss.SUBMIT_T(tier::release, e2::form::prop::winsize, maxs, gear)
+                    boss.SUBMIT_T(tier::release, e2::form::ui::toggle, maxs, gear)
                     {
                         auto size = boss.base::size();
                         if (size.inside(gear.coord))
@@ -2711,6 +2726,7 @@ namespace netxs::console
             }
         };
 
+        //todo move to console::desk
         // pro: Provides functionality for the scene objects manipulations.
         class scene
             : public skill
@@ -3113,7 +3129,7 @@ namespace netxs::console
             auto branch(id_t class_id, sptr<S> item)
             {
                 items.append(item);
-                item->base::isroot(true);
+                item->base::root(true);
                 (*app_registry)[class_id].push_back(item);
                 item->SIGNAL(tier::release, e2::form::upon::vtree::attached, boss.base::This());
 
@@ -3137,7 +3153,7 @@ namespace netxs::console
                 auto user = boss.indexer<bell>::create<S>(std::forward<Args>(args)...);
                 users.append(user);
                 usr_registry->push_back(user);
-                user->base::isroot(true);
+                user->base::root(true);
                 user->SIGNAL(tier::release, e2::form::upon::vtree::attached, boss.base::This());
 
                 //todo unify
@@ -4034,12 +4050,41 @@ namespace netxs::console
             using list = std::list<id_t>;
 
             list pool; // focus: List of active input devices.
+            text t;
+
+            bool find(auto test_id)
+            {
+                for (auto id : pool) if (test_id == id) return true;
+                return faux;
+            }
 
         public:
             focus(base&&) = delete;
             focus(base& boss, text test = {})
                 : skill{ boss }
+                ,t{test}
             {
+                boss.broadcast->SUBMIT_T(tier::preview, e2::form::ui::any, memo, gear)
+                {
+                    log(t, " focus event=", boss.broadcast->bell::protos<tier::preview>());
+                    if (find(gear.id))
+                    {
+                        log(" got it");
+                        if (auto deed = boss.broadcast->bell::protos<tier::preview>())
+                        {
+                            //this->bell::signal<tier::release>(deed, gear);
+                            switch (deed)
+                            {
+                                case e2::form::ui::close.id:
+                                    boss.riseup<tier::release>(e2::form::quit, boss.This());
+                                    break;
+                                case  e2::form::ui::toggle.id:
+                                    boss.riseup<tier::release>(e2::form::ui::toggle, gear);
+                                    break;
+                            }
+                        }
+                    }
+                };
                 boss.broadcast->SUBMIT_T(tier::request, e2::form::state::keybd::handover, memo, gear_id_list)
                 {
                     auto This = boss.This();

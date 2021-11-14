@@ -53,21 +53,28 @@ namespace netxs::ui
         pro::mouse mouse{ *this }; // form: Mouse controller.
         pro::keybd keybd{ *this }; // form: Keybd controller.
 
+        auto This() { return base::This<T>(); }
         form()
         {
             if constexpr (has<T>::remove)
             {
                 SUBMIT(tier::preview, e2::form::proceed::detach, shadow)
                 {
-                    This<T>()->T::remove(shadow);
+                    This()->T::remove(shadow);
                 };
             }
+        }
+        template<class ...Args>
+        static auto ctor(Args&&... args)
+        {
+            auto item = base::create<T>(std::forward<Args>(args)...);
+            return item;
         }
         // form: Attach feature and return itself.
         template<class S, class ...Args>
         auto plugin(Args&&... args)
         {
-            auto backup = This<T>();
+            auto backup = This();
             depo[std::type_index(typeid(S))] = std::make_unique<S>(*this, std::forward<Args>(args)...);
             base::reflow();
             return backup;
@@ -76,7 +83,7 @@ namespace netxs::ui
         template<class S>
         auto unplug()
         {
-            auto backup = This<T>();
+            auto backup = This();
             depo.erase(std::type_index(typeid(S)));
             base::reflow();
             return backup;
@@ -86,14 +93,20 @@ namespace netxs::ui
         auto colors(Args&&... args)
         {
             base::color(std::forward<Args>(args)...);
-            return This<T>();
+            return This();
+        }
+        // form: Set control as root.
+        auto isroot(bool state)
+        {
+            base::root(state);
+            return This();
         }
         // form: Set the form visible for mouse.
         auto active(bool visible = true)
         {
             auto brush = base::color();
             if (!brush.wdt()) base::color(brush.txt(whitespace));
-            return This<T>();
+            return This();
         }
         // form: Return plugin reference of specified type. Add the specified plugin (using specified args) if it is missing.
         template<class S, class ...Args>
@@ -111,16 +124,25 @@ namespace netxs::ui
         template<class P>
         auto invoke(P functor)
         {
-            auto backup = This<T>();
+            auto backup = This();
             functor(*backup);
             return backup;
         }
+        // form: Create item, set it root, attach and return it.
+        //template<class C, class ...Args>
+        //auto asroot(Args&&... args)
+        //{
+        //    auto item_ptr = base::create<C>(std::forward<Args>(args)...);
+        //    item_ptr->base::root(true);
+        //    This()->T::attach(item_ptr);
+        //    return item_ptr;
+        //}
         // form: Attach homeless branch and return itself.
         template<class C, class ...Args>
-        auto branch(C child, Args&&... args)
+        auto branch(sptr<C> child, Args&&... args)
         {
-            auto backup = This<T>();
-            if (child) backup->T::attach(child, std::forward<Args>(args)...);
+            auto backup = This();
+            if (child) backup->T::attach(std::forward<Args>(args)..., child);
             return backup;
         }
         // form: UI-control will be detached when the master is detached.
@@ -129,17 +151,17 @@ namespace netxs::ui
             auto& master = *master_ptr;
             master.SUBMIT_T(tier::release, e2::form::upon::vtree::detached, memomap[master.id], parent_ptr)
             {
-                auto backup = This<T>();
+                auto backup = This();
                 memomap.erase(master.id);
                 if (memomap.empty()) base::detach();
             };
-            return This<T>();
+            return This();
         }
         // form: UI-control will be detached when the last item of collection is detached.
         template<class S>
         auto depend_on_collection(S data_collection_src)
         {
-            auto backup = This<T>();
+            auto backup = This();
             for (auto& data_src : data_collection_src)
             {
                 depend(data_src);
@@ -148,10 +170,10 @@ namespace netxs::ui
         }
         // form: Create and attach a new item using a template and dynamic datasource.
         template<class PROPERTY, class C, class P>
-        auto attach_element(PROPERTY, C& data_src_sptr, P item_template)
+        auto attach_element(PROPERTY, sptr<C> data_src_sptr, P item_template)
         {
             using prop_t = typename PROPERTY::type;
-            auto backup = This<T>();
+            auto backup = This();
             prop_t arg_value;
             data_src_sptr->SIGNAL(tier::request, PROPERTY{}, arg_value);
             auto new_item = item_template(data_src_sptr, arg_value)
@@ -178,7 +200,7 @@ namespace netxs::ui
         template<class PROPERTY, class S, class P>
         auto attach_collection(PROPERTY, S& data_collection_src, P item_template)
         {
-            auto backup = This<T>();
+            auto backup = This();
             for (auto& data_src_sptr : data_collection_src)
             {
                 attach_element(PROPERTY{}, data_src_sptr, item_template);
@@ -256,7 +278,7 @@ namespace netxs::ui
         auto config(axis alignment, iota thickness, iota s1, iota s2)
         {
             _config(alignment, thickness, s1, s2);
-            return This<fork>();
+            return This();
         }
 
         ~fork()
@@ -486,15 +508,15 @@ namespace netxs::ui
                 base::deface();
             }
         }
-        template<slot SLOT, class T>
-        auto attach(sptr<T> item)
+        template<class T>
+        auto attach(slot SLOT, sptr<T> item)
         {
-            if constexpr (SLOT == slot::_1)
+            if (SLOT == slot::_1)
             {
                 if (client_1) remove(client_1);
                 client_1 = item;
             }
-            else if constexpr (SLOT == slot::_2)
+            else if (SLOT == slot::_2)
             {
                 if (client_2) remove(client_2);
                 client_2 = item;
@@ -515,11 +537,11 @@ namespace netxs::ui
             return item;
         }
         // fork: Create a new item of the specified subtype and attach it to a specified slot.
-        template<slot SLOT, class T, class ...Args>
-        auto attach(Args&&... args)
-        {
-            return attach<SLOT>(create<T>(std::forward<Args>(args)...));
-        }
+        //template<class T, class ...Args>
+        //auto attach(slot SLOT, Args&&... args)
+        //{
+        //    return attach(SLOT, create<T>(std::forward<Args>(args)...));
+        //}
         // fork: Remove nested object by it's ptr.
         void remove(sptr<base> item_ptr)
         {
@@ -627,11 +649,11 @@ namespace netxs::ui
             return item;
         }
         // list: Create a new item of the specified subtype and attach it.
-        template<class T, class ...Args>
-        auto attach(Args&&... args)
-        {
-            return attach(create<T>(std::forward<Args>(args)...));
-        }
+        //template<class T, class ...Args>
+        //auto attach(Args&&... args)
+        //{
+        //    return attach(create<T>(std::forward<Args>(args)...));
+        //}
         // list: Remove nested object.
         void remove(sptr<base> item_ptr)
         {
@@ -715,11 +737,11 @@ namespace netxs::ui
             return item;
         }
         // cake: Create a new item of the specified subtype and attach it.
-        template<class T, class ...Args>
-        auto attach(Args&&... args)
-        {
-            return attach(create<T>(std::forward<Args>(args)...));
-        }
+        //template<class T, class ...Args>
+        //auto attach(Args&&... args)
+        //{
+        //    return attach(create<T>(std::forward<Args>(args)...));
+        //}
         // cake: Remove nested object.
         void remove(sptr<base> item_ptr)
         {
@@ -805,19 +827,19 @@ namespace netxs::ui
             };
         }
         // park: Create a new item of the specified subtype and attach it.
-        template<snap hz, snap vt, class T>
-        auto attach(sptr<T> item)
+        template<class T>
+        auto attach(snap hz, snap vt, sptr<T> item)
         {
             subset.push_back({ item, hz, vt });
             item->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
             return item;
         }
         // park: Create a new item of the specified subtype and attach it.
-        template<snap hz, snap vt, class T, class ...Args>
-        auto attach(Args&&... args)
-        {
-            return attach<hz, vt>(create<T>(std::forward<Args>(args)...));
-        }
+        //template<class T, class ...Args>
+        //auto attach(snap hz, snap vt, Args&&... args)
+        //{
+        //    return attach(hz, vt, create<T>(std::forward<Args>(args)...));
+        //}
         // park: Remove nested object.
         void remove(sptr<base> item_ptr)
         {
@@ -873,6 +895,12 @@ namespace netxs::ui
                 }
             };
         }
+        // veer: Return the last object refrence or empty sptr.
+        auto back() -> sptr<base>
+        {
+            return subset.size() ? subset.back()
+                                 : sptr<base>{};
+        }
         // veer: Remove the last object. Return subset size and the object refrence.
         auto pop_back() -> std::pair<iota, sptr<base>>
         {
@@ -896,11 +924,11 @@ namespace netxs::ui
             return item;
         }
         // veer: Create a new item of the specified subtype and attach it.
-        template<class T, class ...Args>
-        auto attach(Args&&... args)
-        {
-            return attach(create<T>(std::forward<Args>(args)...));
-        }
+        //template<class T, class ...Args>
+        //auto attach(Args&&... args)
+        //{
+        //    return attach(create<T>(std::forward<Args>(args)...));
+        //}
         // veer: Remove nested object.
         void remove(sptr<base> item_ptr)
         {
@@ -996,7 +1024,7 @@ namespace netxs::ui
             topic = utf8;
             base::resize(twod{ initial_width, 0 });
             base::reflow();
-            return base::This<post>();
+            return This();
         }
         auto& get_source() const
         {
@@ -1111,7 +1139,7 @@ namespace netxs::ui
             topic = utf8;
             base::resize(twod{ initial_width, 0 });
             base::reflow();
-            return base::This<post_fx>();
+            return This();
         }
         auto& get_source() const
         {
@@ -1230,14 +1258,14 @@ namespace netxs::ui
         {
             overscroll[axis::X] = allow_x_overscroll;
             overscroll[axis::Y] = allow_y_overscroll;
-            return This<rail>();
+            return This();
         }
         template<axis AXIS>
         auto moveby(iota coor)
         {
             AXIS == axis::X ? scroll<X>(coor)
                             : scroll<Y>(coor);
-            return This<rail>();
+            return This();
         }
         template<axis AXIS>
         auto follow(sptr<base> master = {})
@@ -1249,7 +1277,7 @@ namespace netxs::ui
             };
             else fasten.clear();
 
-            return This<rail>();
+            return This();
         }
         //todo should we detach client in dtor?
         //~rail...
@@ -1553,11 +1581,11 @@ namespace netxs::ui
             return item;
         }
         // rail: Create a new item of the specified subtype and attach it.
-        template<class T, class ...Args>
-        auto attach(Args&&... args)
-        {
-            return attach(create<T>(std::forward<Args>(args)...));
-        }
+        //template<class T, class ...Args>
+        //auto attach(Args&&... args)
+        //{
+        //    return attach(create<T>(std::forward<Args>(args)...));
+        //}
         //template<class T>
         void remove(sptr<base> item_ptr)
         {
@@ -1582,9 +1610,9 @@ namespace netxs::ui
     // controls: Scroll bar.
     template<axis AXIS>
     class grip // rename to roll?
-        : public base
+        : public form<grip<AXIS>>
     {
-        pro::mouse mouse{*this }; // grip: Mouse events controller.
+        //pro::mouse mouse{*this }; // grip: Mouse events controller.
         pro::timer timer{*this }; // grip: Minimize by timeout.
         pro::limit limit{*this }; // grip: Size limits.
 
@@ -2017,11 +2045,11 @@ namespace netxs::ui
             return item;
         }
         // pads: Create a new item of the specified subtype and attach it.
-        template<class T, class ...Args>
-        auto attach(Args&&... args)
-        {
-            return attach(create<T>(std::forward<Args>(args)...));
-        }
+        //template<class T, class ...Args>
+        //auto attach(Args&&... args)
+        //{
+        //    return attach(create<T>(std::forward<Args>(args)...));
+        //}
         // pads: Remove item.
         void remove(sptr<base> item_ptr)
         {
@@ -2216,7 +2244,7 @@ namespace netxs::ui
 
     template<tier TIER, class EVENT>
     class stem_rate
-        : public base
+        : public form<stem_rate<TIER, EVENT>>
     {
         pro::mouse mouse{*this }; // stem_rate: Mouse controller.
         pro::robot robot{*this }; // stem_rate: Animation controller.
@@ -2294,7 +2322,7 @@ namespace netxs::ui
             {
                 cur_val = new_val;
                 recalc();
-                deface();
+                base::deface();
 
                 return true;
             }
@@ -2364,8 +2392,8 @@ namespace netxs::ui
             };
             SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
             {
-                grip_ctl = create<stem_rate_grip>(grip_suffix);
-                grip_ctl->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
+                grip_ctl = base::create<stem_rate_grip>(grip_suffix);
+                grip_ctl->SIGNAL(tier::release, e2::form::upon::vtree::attached, base::This());
 
                 grip_ctl->SUBMIT(tier::release, hids::events::mouse::button::drag::start::left, gear)
                 {
@@ -2398,7 +2426,7 @@ namespace netxs::ui
                     {
                         deltas = 0;
                         gear.release();
-                        deface();
+                        base::deface();
                         robot.actify(bygone.fader<quadratic<iota>>(750ms), [&](auto& delta)
                             {
                                 move_grip(cur_val + delta);
@@ -2424,8 +2452,8 @@ namespace netxs::ui
             };
             SUBMIT(tier::release, hids::events::mouse::button::click::right, gear)
             {
-                color(canvas.mark().fgc(), (tint)((++bgclr) % 16));
-                deface();
+                base::color(canvas.mark().fgc(), (tint)((++bgclr) % 16));
+                base::deface();
                 gear.dismiss();
             };
             SUBMIT(tier::release, hids::events::mouse::scroll::up, gear)
