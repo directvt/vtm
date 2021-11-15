@@ -2165,7 +2165,7 @@ utility like ctags is used to locate the definitions.
                                     + ansi::nil().wrp(wrap::on)
                                     + "Use the full version of vtm to run Logs.");
                             #else
-                            scroll->attach(post_logs::ctor())
+                            scroll->attach(base::create<post_logs>())
                                   ->colors(whitelt, blackdk);
                             #endif
                         layers->attach(scroll_bars(scroll));
