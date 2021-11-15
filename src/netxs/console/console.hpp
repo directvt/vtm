@@ -4113,11 +4113,13 @@ namespace netxs::console
                 };
                 boss.SUBMIT_T(tier::release, e2::form::state::keybd::got, memo, gear)
                 {
+                    log(" got id=", boss.id, " t=", t);
                     pool.push_back(gear.id);
                     boss.base::deface();
                 };
                 boss.SUBMIT_T(tier::release, e2::form::state::keybd::lost, memo, gear)
                 {
+                    log(" lost id=", boss.id, " t=", t);
                     assert(!pool.empty());
 
                     if (!pool.empty())

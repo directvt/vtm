@@ -2479,11 +2479,13 @@ utility like ctags is used to locate the definitions.
                                                 auto config = objs_config[current_default];
 
                                                 auto host = ui::cake::ctor()
-                                                            ->plugin<pro::focus>();
+                                                            ->plugin<pro::focus>(config.name);
                                                 create_app(create_app, host, current_default, config.data);
                                                 auto app = box_with_title(config.title, host);
+                                                gear.remove_from_kb_focus(boss.back()); // Take focus from the empty slot.
                                                 boss.attach(app);
 
+                                                //todo unify
                                                 gear.kb_focus_taken = faux;
                                                 host->SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
                                             }
@@ -2497,7 +2499,7 @@ utility like ctags is used to locate the definitions.
                                 ->isroot(true)
                                 ->colors(blacklt, term_menu_bg)
                                 ->template plugin<pro::limit>(dot_00, -dot_11)
-                                ->template plugin<pro::focus>("place_holder")
+                                ->template plugin<pro::focus>("empty slot")
                                 ->invoke([&](auto& boss)
                                 {
                                     boss.keybd.accept(true);
@@ -3112,10 +3114,10 @@ utility like ctags is used to locate the definitions.
                     };
                     auto user_template = [&](auto& data_src, auto const& utf8)
                     {
-                        auto item_area = ui::pads::ctor((dent{ 1,0,0,1 }, dent{ 0,0,1,0 }))
+                        auto item_area = ui::pads::ctor((dent{ 1,0,0,1 }, dent{ 0,0,1,1 }))
                                              ->plugin<pro::fader>(x3, c3, 150ms);
                             auto user = item_area->attach(
-                                ui::item::ctor(ansi::esc(" &").nil().add(" ")
+                                ui::item::ctor(ansi::esc("  &").nil().add(" ")
                                     .fgc4(data_src->id == my_id ? rgba::color256[whitelt] : 0x00).add(utf8), true));
                         return item_area;
                     };
