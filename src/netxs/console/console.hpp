@@ -341,6 +341,7 @@ namespace netxs::events::userland
                 };
                 SUBSET_XS( ui )
                 {
+                    EVENT_XS( create  , input::hids ),
                     EVENT_XS( close   , input::hids ),
                     EVENT_XS( toggle  , input::hids ), // toggle window size: maximize/restore.
                     EVENT_XS( swap    , input::hids ),
@@ -905,6 +906,8 @@ namespace netxs::console
                 if (this->bell::protos<tier::release>(e2::form::upon::vtree::detached))
                 {
                     kb_offer_token.reset();
+                    //todo revise
+                    //parent_shadow.reset();
                 }
                 parent_ptr->base::reflow();
             };
@@ -4072,6 +4075,9 @@ namespace netxs::console
                         {
                             switch (deed)
                             {
+                                case e2::form::ui::create.id:
+                                    boss.riseup<tier::release>(e2::form::proceed::createby, gear);
+                                    break;
                                 case e2::form::ui::close.id:
                                     boss.riseup<tier::release>(e2::form::quit, boss.This());
                                     break;
@@ -4088,20 +4094,22 @@ namespace netxs::console
                 };
                 boss.broadcast->SUBMIT_T(tier::request, e2::form::state::keybd::handover, memo, gear_id_list)
                 {
-                    auto This = boss.This();
-                    auto head = gear_id_list.end();
-                    gear_id_list.insert(head, pool.begin(), pool.end());
-                    auto tail = gear_id_list.end();
-                    while (head != tail)
+                    if (pool.size())
                     {
-                        auto gear_id = *head++;
-                        if (auto gate_ptr = bell::getref(gear_id))
+                        auto This = boss.This();
+                        auto head = gear_id_list.end();
+                        gear_id_list.insert(head, pool.begin(), pool.end());
+                        auto tail = gear_id_list.end();
+                        while (head != tail)
                         {
-                            gear_id_list.push_back(gear_id);
-                            gate_ptr->SIGNAL(tier::preview, e2::form::proceed::unfocus, This);
+                            auto gear_id = *head++;
+                            if (auto gate_ptr = bell::getref(gear_id))
+                            {
+                                gate_ptr->SIGNAL(tier::preview, e2::form::proceed::unfocus, This);
+                            }
                         }
+                        boss.base::deface();
                     }
-                    boss.base::deface();
                 };
                 boss.SUBMIT_T(tier::release, e2::form::state::keybd::got, memo, gear)
                 {

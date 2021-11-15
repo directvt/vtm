@@ -868,8 +868,13 @@ namespace netxs::ui
             return subset.size() ? subset.back()
                                  : sptr<base>{};
         }
+        // veer: Return nested objects count.
+        auto count()
+        {
+            return subset.size();
+        }
         // veer: Remove the last object. Return subset size and the object refrence.
-        auto pop_back() -> std::pair<iota, sptr<base>>
+        auto pop_back() -> sptr<base>
         {
             if (subset.size())
             {
@@ -878,9 +883,9 @@ namespace netxs::ui
                 auto backup = This();
                 subset.erase(item);
                 item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, backup);
-                return { static_cast<iota>(subset.size()), item_ptr };
+                return item_ptr;
             }
-            return { 0, {} };
+            return {};
         }
         // veer: Create a new item of the specified subtype and attach it.
         template<class T>

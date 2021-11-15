@@ -1563,50 +1563,55 @@ utility like ctags is used to locate the definitions.
             utf8.remove_prefix(std::distance(utf8.begin(), head));
         };
 
+        auto mouse_actions = [&](auto& boss)
+        {
+            boss.SUBMIT(tier::release, hids::events::mouse::button::dblclick::left, gear)
+            {
+                boss.base::template riseup<tier::release>(e2::form::ui::toggle, gear);
+                gear.dismiss();
+            };
+            boss.SUBMIT(tier::release, hids::events::mouse::button::click::leftright, gear)
+            {
+                boss.base::template riseup<tier::release>(e2::form::quit, boss.This());
+                gear.dismiss();
+            };
+            boss.SUBMIT(tier::release, hids::events::mouse::button::click::middle, gear)
+            {
+                boss.base::template riseup<tier::release>(e2::form::quit, boss.This());
+                gear.dismiss();
+            };
+        };
         auto box_with_title = [&](view title, auto branch)
         {
-            branch->base::broadcast->SIGNAL(tier::release, e2::form::prop::menusize, 1);
-
-            auto te_area = ui::fork::ctor(axis::Y)
+            return ui::fork::ctor(axis::Y)
                     ->plugin<pro::title>("", true, faux, true)
                     ->plugin<pro::limit>(twod{ 10,-1 }, twod{ -1,-1 })
                     ->isroot(true)
                     ->active()
-                    ->invoke([&](auto& boss)
-                    {
-                        boss.SUBMIT(tier::release, hids::events::mouse::button::dblclick::left, gear)
+                    ->invoke([&](auto& boss) { mouse_actions(boss); })
+                    //->branch(slot::_1, ui::post_fx<cell::shaders::contrast>::ctor()) //todo apple clang doesn't get it
+                    ->branch(slot::_1, ui::post_fx::ctor()
+                        ->upload(title)
+                        ->invoke([&](auto& boss)
                         {
-                            boss.base::template riseup<tier::release>(e2::form::ui::toggle, gear);
-                            gear.dismiss();
-                        };
-                        boss.SUBMIT(tier::release, hids::events::mouse::button::click::leftright, gear)
+                            auto shadow = ptr::shadow(boss.This());
+                            boss.SUBMIT_BYVAL(tier::release, e2::form::upon::vtree::attached, parent)
+                            {
+                                parent->SUBMIT_BYVAL(tier::preview, e2::form::prop::header, newtext)
+                                {
+                                    if (auto ptr = shadow.lock()) ptr->upload(newtext);
+                                };
+                                parent->SUBMIT_BYVAL(tier::request, e2::form::prop::header, curtext)
+                                {
+                                    if (auto ptr = shadow.lock()) curtext = ptr->get_source();
+                                };
+                            };
+                        }))
+                    ->branch(slot::_2, branch
+                        ->invoke([&](auto& boss)
                         {
-                            boss.base::template riseup<tier::release>(e2::form::quit, boss.This());
-                            gear.dismiss();
-                        };
-                        boss.SUBMIT(tier::release, hids::events::mouse::button::click::middle, gear)
-                        {
-                            boss.base::template riseup<tier::release>(e2::form::quit, boss.This());
-                            gear.dismiss();
-                        };
-                    })
-                    ->branch(slot::_2, branch);
-            //te_area->attach(slot::_1, ui::post_fx<cell::shaders::contrast>::ctor()) //todo apple clang doesn't get it
-            te_area->attach(slot::_1, ui::post_fx::ctor())
-                   ->upload(title)
-                   ->invoke([&](auto& boss)
-                   {
-                       auto shadow = ptr::shadow(boss.This());
-                       te_area->SUBMIT_BYVAL(tier::preview, e2::form::prop::header, newtext)
-                       {
-                           if (auto ptr = shadow.lock()) ptr->upload(newtext);
-                       };
-                       te_area->SUBMIT_BYVAL(tier::request, e2::form::prop::header, curtext)
-                       {
-                           if (auto ptr = shadow.lock()) curtext = ptr->get_source();
-                       };
-                   });
-            return te_area;
+                            boss.base::broadcast->SIGNAL(tier::release, e2::form::prop::menusize, 1);
+                        }));
         };
 
         auto create_app = [&](auto&& create_app, auto window, auto type, view data) -> void
@@ -2268,7 +2273,16 @@ utility like ctags is used to locate the definitions.
                     auto object = window->attach(ui::fork::ctor(axis::Y));
                         auto menu = object->attach(slot::_1, custom_menu(true,
                             std::list{
-                                    std::pair<text, std::function<void(ui::pads&)>>{ "  ─┐  ", //"  ▀█  ",
+                                    std::pair<text, std::function<void(ui::pads&)>>{ "  +  ",
+                                    [](ui::pads& boss)
+                                    {
+                                        boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
+                                        {
+                                            boss.base::broadcast->SIGNAL(tier::preview, e2::form::ui::create, gear);
+                                            gear.dismiss(true);
+                                        };
+                                    }},
+                                    std::pair<text, std::function<void(ui::pads&)>>{"  ┐└  ",//  ─┐  ", //"  ▀█  ",
                                     [](ui::pads& boss)
                                     {
                                         boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
@@ -2343,14 +2357,28 @@ utility like ctags is used to locate the definitions.
                                 auto shadow = ptr::shadow(boss.This());
                                 boss.broadcast->SUBMIT_T(tier::preview, e2::form::ui::any, boss.tracker, gear)
                                 {
-                                    if (auto item_ptr = boss.back())
+                                    if (auto deed = boss.broadcast->bell::protos<tier::preview>())
                                     {
-                                        auto& item = *item_ptr;
-                                        if (item.base::root())
+                                        //auto size = boss.count();
+                                        //if (deed == e2::form::ui::toggle.id
+                                        // && size > 2
+                                        // && gear.countdown > 0)
+                                        //{
+                                        //    if (auto fullscreen_item = boss.back())
+                                        //    {
+                                        //        gear.countdown--;
+                                        //        fullscreen_item->SIGNAL(tier::release, e2::form::ui::toggle, gear);
+                                        //    }
+                                        //}
+                                        //else
+                                        if (auto item_ptr = boss.back())
                                         {
-                                            if (auto deed = boss.broadcast->bell::protos<tier::preview>())
+                                            auto& item = *item_ptr;
+                                            if (item.base::root())
                                             {
+                                                gear.force_group_focus = true;
                                                 item.broadcast->template signal<tier::preview>(deed, gear);
+                                                gear.force_group_focus = faux;
                                             }
                                         }
                                     }
@@ -2359,34 +2387,42 @@ utility like ctags is used to locate the definitions.
                                 {
                                     if (auto boss_ptr = shadow.lock())
                                     {
-                                        auto& boss = *boss_ptr;
-                                        auto [alive, fullscreen_item] = boss.pop_back();
-                                        if (fullscreen_item)
+                                        auto& boss =*boss_ptr;
+                                        auto  size = boss.count();
+                                        if (size > 1) // Preventing the empty slot from maximizing.
                                         {
-                                            // One-time return ticket.
-                                            auto oneoff = std::make_shared<hook>();
-                                            fullscreen_item->SUBMIT_T_BYVAL(tier::release, e2::form::ui::toggle, *oneoff, gear)
+                                            //todo revise
+                                            if (boss.back()->base::root()) // Preventing the splitter from maximizing.
                                             {
-                                                if (auto boss_ptr = shadow.lock())
+                                                auto fullscreen_item = boss.pop_back();
+                                                if (fullscreen_item)
                                                 {
-                                                    auto& boss = *boss_ptr;
-                                                    using type = decltype(e2::form::proceed::detach)::type;
-                                                    type fullscreen_item;
-                                                    boss.base::riseup<tier::release>(e2::form::proceed::detach, fullscreen_item);
-                                                    if (fullscreen_item)
+                                                    // One-time return ticket.
+                                                    auto oneoff = std::make_shared<hook>();
+                                                    fullscreen_item->SUBMIT_T_BYVAL(tier::release, e2::form::ui::toggle, *oneoff, gear)
+                                                    {
+                                                        if (auto boss_ptr = shadow.lock())
+                                                        {
+                                                            auto& boss = *boss_ptr;
+                                                            using type = decltype(e2::form::proceed::detach)::type;
+                                                            type fullscreen_item;
+                                                            boss.base::riseup<tier::release>(e2::form::proceed::detach, fullscreen_item);
+                                                            if (fullscreen_item)
+                                                            {
+                                                                boss.attach(fullscreen_item);
+                                                                boss.base::reflow();
+                                                            }
+                                                        }
+                                                        oneoff.reset();
+                                                    };
+                                                    boss.base::riseup<tier::release>(e2::form::proceed::attach, fullscreen_item);
+                                                    if (fullscreen_item) // Unsuccessful maximization. Attach it back.
                                                     {
                                                         boss.attach(fullscreen_item);
-                                                        boss.base::reflow();
                                                     }
+                                                    boss.base::reflow();
                                                 }
-                                                oneoff.reset();
-                                            };
-                                            boss.base::riseup<tier::release>(e2::form::proceed::attach, fullscreen_item);
-                                            if (fullscreen_item) // Unsuccessful maximization. Attach it back.
-                                            {
-                                                boss.attach(fullscreen_item);
                                             }
-                                            boss.base::reflow();
                                         }
                                     }
                                 };
@@ -2402,45 +2438,55 @@ utility like ctags is used to locate the definitions.
                                         if (auto boss_ptr = shadow.lock())
                                         {
                                             auto& boss = *boss_ptr;
-                                            auto [alive, item] = boss.pop_back();
-
-                                            for (auto gear_id : gear_id_list) // Handover focus to the parent.
+                                            if (boss.count() > 1)
                                             {
-                                                if (auto gate_ptr = bell::getref(gear_id))
-                                                {
-                                                    gate_ptr->SIGNAL(tier::preview, e2::form::proceed::focus, boss_ptr);
-                                                }
-                                            }
+                                                auto item = boss.pop_back();
 
-                                            //if (alive < 1) boss.base::riseup<tier::release>(e2::form::quit, boss_ptr);
-                                            //else           boss.base::reflow();
+                                                for (auto gear_id : gear_id_list) // Handover focus to the parent.
+                                                {
+                                                    if (auto gate_ptr = bell::getref(gear_id))
+                                                    {
+                                                        gate_ptr->SIGNAL(tier::preview, e2::form::proceed::focus, boss_ptr);
+                                                    }
+                                                }
+                                                //auto alive = boss.count();
+                                                //if (alive < 1) boss.base::riseup<tier::release>(e2::form::quit, boss_ptr);
+                                                //else           boss.base::reflow();
+                                            }
+                                            else
+                                            {
+                                                //todo remove slot, reorganize
+                                            }
                                         }
                                     }
                                 };
                                 boss.SUBMIT(tier::release, e2::form::proceed::createby, gear)
                                 {
-                                    if (gear.meta(hids::ANYCTRL))
+                                    if (boss.count() == 1) // Create new apps at the empty slots only.
                                     {
-                                        //todo ...
-                                    }
-                                    else
-                                    {
-                                        if (auto gate_ptr = bell::getref(gear.id))
+                                        if (gear.meta(hids::ANYCTRL))
                                         {
-                                            auto& gate = *gate_ptr;
-                                            iota data = 0;
-                                            gate.SIGNAL(tier::request, e2::data::changed, data);
-                                            auto current_default = static_cast<id_t>(data);
-                                            auto config = objs_config[current_default];
+                                            //todo ...
+                                        }
+                                        else
+                                        {
+                                            if (auto gate_ptr = bell::getref(gear.id))
+                                            {
+                                                auto& gate = *gate_ptr;
+                                                iota data = 0;
+                                                gate.SIGNAL(tier::request, e2::data::changed, data);
+                                                auto current_default = static_cast<id_t>(data);
+                                                auto config = objs_config[current_default];
 
-                                            auto host = ui::cake::ctor()
-                                                        ->plugin<pro::focus>();
-                                            create_app(create_app, host, current_default, config.data);
-                                            auto app = box_with_title(config.title, host);
-                                            boss.attach(app);
+                                                auto host = ui::cake::ctor()
+                                                            ->plugin<pro::focus>();
+                                                create_app(create_app, host, current_default, config.data);
+                                                auto app = box_with_title(config.title, host);
+                                                boss.attach(app);
 
-                                            gear.kb_focus_taken = faux;
-                                            host->SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
+                                                gear.kb_focus_taken = faux;
+                                                host->SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
+                                            }
                                         }
                                     }
                                 };
@@ -2535,9 +2581,11 @@ utility like ctags is used to locate the definitions.
                                              ->plugin<pro::focus>()
                                              //->plugin<pro::shade<cell::shaders::xlight>>() //todo apple clang doesn't get it
                                              ->plugin<pro::shade>()
-                                             ->invoke([](auto& boss)
+                                             ->invoke([&](auto& boss)
                                              {
                                                  boss.keybd.accept(true);
+                                                 //todo revise
+                                                 mouse_actions(boss);
                                              })
                                              ->active();
                             place->attach(node);
@@ -2559,7 +2607,7 @@ utility like ctags is used to locate the definitions.
                         };
                         boss.SUBMIT(tier::release, e2::form::proceed::detach, fullscreen_item)
                         {
-                            auto [size, item] = boss.pop_back();
+                            auto item = boss.pop_back();
                             if (item) fullscreen_item = item;
                         };
                     });
