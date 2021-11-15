@@ -4066,20 +4066,21 @@ namespace netxs::console
             {
                 boss.broadcast->SUBMIT_T(tier::preview, e2::form::ui::any, memo, gear)
                 {
-                    log(t, " focus event=", boss.broadcast->bell::protos<tier::preview>());
                     if (find(gear.id))
                     {
-                        log(" got it");
                         if (auto deed = boss.broadcast->bell::protos<tier::preview>())
                         {
-                            //this->bell::signal<tier::release>(deed, gear);
                             switch (deed)
                             {
                                 case e2::form::ui::close.id:
                                     boss.riseup<tier::release>(e2::form::quit, boss.This());
                                     break;
                                 case  e2::form::ui::toggle.id:
-                                    boss.riseup<tier::release>(e2::form::ui::toggle, gear);
+                                    if (gear.countdown > 0)
+                                    {
+                                        gear.countdown--;
+                                        boss.riseup<tier::release>(e2::form::ui::toggle, gear);
+                                    }
                                     break;
                             }
                         }

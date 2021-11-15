@@ -698,6 +698,7 @@ namespace netxs::input
         bool kb_focus_taken = faux;
         //todo unify
         bool force_group_focus = faux;
+        iota countdown = 0;
 
         enum modifiers : uint32_t
         {

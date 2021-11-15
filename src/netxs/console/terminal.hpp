@@ -3383,9 +3383,8 @@ private:
             cursor.style(commands::cursor::def_style);
             //cursor.style(commands::cursor::steady_box);
 
-            #ifdef PROD
             form::keybd.accept(true); // Subscribe to keybd offers.
-            #endif
+
             base::broadcast->SUBMIT_T(tier::preview, app::term::events::cmd, bell::tracker, cmd)
             {
                 log("term: tier::preview, app::term::cmd, ", cmd);
@@ -3494,6 +3493,9 @@ private:
                 //todo stop/finalize scrolling animations
                 scroll(true);
                 follow_cursor = true;
+                #ifndef PROD
+                    return;
+                #endif
                 //todo optimize/unify
                 auto data = gear.keystrokes;
                 if (!bpmode)

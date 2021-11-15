@@ -2273,6 +2273,7 @@ utility like ctags is used to locate the definitions.
                                     {
                                         boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                                         {
+                                            gear.countdown = 1;
                                             boss.base::broadcast->SIGNAL(tier::preview, e2::form::ui::toggle, gear);
                                             //iota status = 1;
                                             //boss.base::broadcast->SIGNAL(tier::request, e2::command::custom, status);
