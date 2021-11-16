@@ -1240,7 +1240,7 @@ utility like ctags is used to locate the definitions.
         X(Truecolor    , "RGB Truecolor image"   , (ansi::jet(bias::right).add("True color ANSI/ASCII image test")), "" ) \
         X(RefreshRate  , "FPS Refresh rate"      , ("Frame rate adjustment")                                       , "" ) \
         X(Strobe       , "Strobe"                , (ansi::jet(bias::center).add("Strobe"))                         , "" ) \
-        X(Test         , "Test windw"            , (ansi::jet(bias::center).add("Test Page"))                      , "" ) \
+        X(Test         , "Test window"           , (ansi::jet(bias::center).add("Test Page"))                      , "" ) \
         X(Empty        , "Empty test window"     , (ansi::mgl(1).mgr(1).add("Empty Instance \nid: "))              , "" )
 
         #define X(a, b, c, d) a,
@@ -2360,6 +2360,52 @@ utility like ctags is used to locate the definitions.
                             ->invoke([&](auto& boss)
                             {
                                 auto shadow = ptr::shadow(boss.This());
+                                boss.SUBMIT(tier::release, e2::form::proceed::swap, item_ptr)
+                                {
+                                    auto count = boss.count();
+                                    if (count == 1) // Only empty slot available.
+                                    {
+                                        log(" empty_slot swap: defective structure, count=", count);
+                                    }
+                                    else if (count == 2)
+                                    {
+                                        auto my_item_ptr = boss.pop_back();
+                                        if (item_ptr)
+                                        {
+                                            boss.attach(item_ptr);
+                                        }
+                                    }
+                                    else log(" empty_slot swap: defective structure, count=", count);
+                                };
+                                boss.SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
+                                {
+                                    //todo revise, possible parent subscription leaks when reattached
+                                    auto parent_memo = std::make_shared<subs>();
+                                    parent->SUBMIT_T(tier::request, e2::form::proceed::swap, *parent_memo, item_ptr)
+                                    {
+                                        if (item_ptr != boss.This()) // It wasn't me. It was the one-armed man.
+                                        {
+                                            auto count = boss.count();
+                                            if (count == 1) // Only empty slot available.
+                                            {
+                                                item_ptr.reset();
+                                            }
+                                            else if (count == 2)
+                                            {
+                                                item_ptr = boss.pop_back();
+                                            }
+                                            else log(" empty_slot: defective structure, count=", count);
+                                            if (auto parent = boss.parent())
+                                            {
+                                                parent->bell::expire<tier::request>();
+                                            }
+                                        }
+                                    };
+                                    boss.SUBMIT_T_BYVAL(tier::request, e2::form::upon::vtree::detached, *parent_memo, parent)
+                                    {
+                                        parent_memo.reset();
+                                    };
+                                };
                                 boss.broadcast->SUBMIT_T(tier::preview, e2::form::ui::any, boss.tracker, gear)
                                 {
                                     if (auto deed = boss.broadcast->bell::protos<tier::preview>())
@@ -2461,10 +2507,29 @@ utility like ctags is used to locate the definitions.
                                                     //else           boss.base::reflow();
                                                 }
                                             }
-                                            else if (count == 1)
+                                            else if (count == 1) // Remove slot, reorganize.
                                             {
-                                                //todo remove slot, reorganize
-                                                log(" del empty slot");
+                                                if (auto parent = boss.base::parent())
+                                                {
+                                                    using type = decltype(e2::form::proceed::swap)::type;
+                                                    type item_ptr = boss_ptr; // sptr must be of the same type as the event argument. Casting kills all intermediaries.
+                                                    parent->SIGNAL(tier::request, e2::form::proceed::swap, item_ptr);
+                                                    if (item_ptr)
+                                                    {
+                                                        if (item_ptr != boss_ptr) // Parallel slot is not empty.
+                                                        {
+                                                            parent->base::riseup<tier::release>(e2::form::proceed::swap, item_ptr);
+                                                        }
+                                                        else // I'm alone.
+                                                        {
+                                                            // Nothing todo. There can be only one!
+                                                        }
+                                                    }
+                                                    else // Both slots are empty.
+                                                    {
+                                                        parent->base::riseup<tier::release>(e2::form::proceed::swap, item_ptr);
+                                                    }
+                                                }
                                             }
                                         }
                                     }

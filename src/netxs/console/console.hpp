@@ -228,6 +228,7 @@ namespace netxs::events::userland
                     EVENT_XS( detach  , sptr<console::base> ), // order to detach a child, tier::release - kill itself, tier::preview - detach the child specified in args, arg is a child sptr.
                     EVENT_XS( focus   , sptr<console::base> ), // order to set focus to the specified object, arg is a object sptr.
                     EVENT_XS( unfocus , sptr<console::base> ), // order to unset focus on the specified object, arg is a object sptr.
+                    EVENT_XS( swap    , sptr<console::base> ), // order to relace existing client. See tiling manager empty slot.
                     //EVENT_XS( commit     , iota                     ), // order to output the targets, arg is a frame number.
                     //EVENT_XS( multirender, vector<shared_ptr<face>> ), // ask children to render itself to the set of canvases, arg is an array of the face sptrs.
                     //EVENT_XS( draw       , face                     ), // ????  order to render itself to the canvas.
@@ -854,8 +855,11 @@ namespace netxs::console
         bool is_attached() const { return kb_offer_token.operator bool(); }
         void switch_to_bus(sptr<bell> parent_bus)
         {
-            parent_bus->merge(broadcast);
-            broadcast->SIGNAL(tier::release, e2::config::broadcast, parent_bus);
+            if (parent_bus != broadcast) // Reattaching is allowed within the same visual tree.
+            {
+                parent_bus->merge(broadcast);
+                broadcast->SIGNAL(tier::release, e2::config::broadcast, parent_bus);
+            }
         }
 
         virtual ~base() = default;
