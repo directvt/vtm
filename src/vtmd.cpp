@@ -1235,13 +1235,13 @@ utility like ctags is used to locate the definitions.
         X(CommandPrompt, "cmd Command Prompt"    , ("Term \nCommand Prompt")                                       , "" ) \
         X(Bash         , "Bash/Zsh/CMD"          , ("Term \nBash/Zsh/CMD")                                         , "" ) \
         X(Far          , "Far Manager"           , ("Term \nFar Manager")                                          , "" ) \
-        X(VTM          , "vtm (recursively)"     , ("Term \nvtm (recursively)")                                    , "" ) \
+        X(vtm          , "vtm (recursively)"     , ("Term \nvtm (recursively)")                                    , "" ) \
         X(MC           , "mc  Midnight Commander", ("Term \nMidnight Commander")                                   , "" ) \
         X(Truecolor    , "RGB Truecolor image"   , (ansi::jet(bias::right).add("True color ANSI/ASCII image test")), "" ) \
         X(RefreshRate  , "FPS Refresh rate"      , ("Frame rate adjustment")                                       , "" ) \
         X(Strobe       , "Strobe"                , (ansi::jet(bias::center).add("Strobe"))                         , "" ) \
-        X(Test         , "Test"                  , (ansi::jet(bias::center).add("Test Page"))                      , "" ) \
-        X(Empty        , "Test Empty window"     , (ansi::mgl(1).mgr(1).add("Empty Instance \nid: "))              , "" )
+        X(Test         , "Test windw"            , (ansi::jet(bias::center).add("Test Page"))                      , "" ) \
+        X(Empty        , "Empty test window"     , (ansi::mgl(1).mgr(1).add("Empty Instance \nid: "))              , "" )
 
         #define X(a, b, c, d) a,
         enum objs { TYPE_LIST };
@@ -1268,7 +1268,8 @@ utility like ctags is used to locate the definitions.
             #ifdef PROD
                 //objs_config[objs::Tile].data = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h1:1(v1:1(\"bash -c 'LC_ALL=en_US.UTF-8 mc -c -x; bash'\", h1:1(\"bash -c 'ls /bin | nl | ccze -A; bash'\", a(\"RefreshRate\",\"\",\"\"))), a(\"Calc\",\"app title\",\"app data\"))";
                 //objs_config[objs::Tile].data = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h1:1(v1:1(\"bash -c 'LC_ALL=en_US.UTF-8 mc -c -x; bash'\", h1:1(\"bash -c 'ls /bin | nl | ccze -A; bash'\", a(\"Text\",\"app title\",\"app data\"))), a(\"Calc\",\"app title\",\"app data\"))";
-                objs_config[objs::Tile].data = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h1:1(v1:1(\"bash -c 'LC_ALL=en_US.UTF-8 mc -c -x -d; cat'\", h1:1(\"bash -c 'ls /bin | nl | ccze -A; bash'\", a(\"RefreshRate\",\"\",\"\"))), a(\"Calc\",\"\",\"\"))";
+                //objs_config[objs::Tile].data = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h1:1:1(v1:1:2(\"bash -c 'LC_ALL=en_US.UTF-8 mc -c -x -d; cat'\", h1:1:0(\"bash -c 'ls /bin | nl | ccze -A; bash'\", a(\"RefreshRate\",\"\",\"\"))), a(\"Calc\",\"\",\"\"))";
+                objs_config[objs::Tile].data = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h(v(\"bash -c 'LC_ALL=en_US.UTF-8 mc -c -x -d; cat'\", h(\"bash -c 'ls /bin | nl | ccze -A; bash'\", a(\"RefreshRate\",\"\",\"\"))), a(\"Calc\",\"\",\"\"))";
             #else
                 objs_config[objs::Tile].data = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h1:1(v1:1(\"bash -c 'LC_ALL=en_US.UTF-8 mc -c -x -d; cat'\", h1:1(\"bash -c 'ls /bin | nl | ccze -A; bash'\", a(\"RefreshRate\",\"\",\"\"))), a(\"Calc\",\"\",\"\"))";
             #endif
@@ -1885,7 +1886,7 @@ utility like ctags is used to locate the definitions.
                                 layers->attach(scroll_bars(scroll));
                     break;
                 }
-                case VTM:
+                case vtm:
                 {
                     window->template plugin<pro::track>()
                           ->template plugin<pro::acryl>()
@@ -2282,6 +2283,10 @@ utility like ctags is used to locate the definitions.
                                             gear.dismiss(true);
                                         };
                                     }},
+                                    //  Green                                  ?Even    Red
+                                    // ┌────┐  ┌────┐  ┌─┬──┐  ┌────┐  ┌─┬──┐  ┌─┬──┐  ┌────┐  // ┌─┐  ┌─┬─┐  ┌─┬─┐  ┌─┬─┐  
+                                    // │Exec│  ├─┐  │  │ H  │  ├ V ─┤  │Swap│  │Fair│  │Shut│  // ├─┤  └─┴─┘  └<┴>┘  └>┴<┘  
+                                    // └────┘  └─┴──┘  └─┴──┘  └────┘  └─┴──┘  └─┴──┘  └────┘  // └─┘                       
                                     std::pair<text, std::function<void(ui::pads&)>>{"  ┐└  ",//  ─┐  ", //"  ▀█  ",
                                     [](ui::pads& boss)
                                     {
@@ -2388,8 +2393,8 @@ utility like ctags is used to locate the definitions.
                                     if (auto boss_ptr = shadow.lock())
                                     {
                                         auto& boss =*boss_ptr;
-                                        auto  size = boss.count();
-                                        if (size > 1) // Preventing the empty slot from maximizing.
+                                        auto count = boss.count();
+                                        if (count > 1) // Preventing the empty slot from maximizing.
                                         {
                                             //todo revise
                                             if (boss.back()->base::root()) // Preventing the splitter from maximizing.
@@ -2438,24 +2443,28 @@ utility like ctags is used to locate the definitions.
                                         if (auto boss_ptr = shadow.lock())
                                         {
                                             auto& boss = *boss_ptr;
-                                            if (boss.count() > 1)
+                                            auto count = boss.count();
+                                            if (count > 1)
                                             {
-                                                auto item = boss.pop_back();
-
-                                                for (auto gear_id : gear_id_list) // Handover focus to the parent.
+                                                if (boss.back()->base::root()) // Only app can be deleted.
                                                 {
-                                                    if (auto gate_ptr = bell::getref(gear_id))
+                                                    auto item = boss.pop_back();
+                                                    for (auto gear_id : gear_id_list) // Handover focus to the parent.
                                                     {
-                                                        gate_ptr->SIGNAL(tier::preview, e2::form::proceed::focus, boss_ptr);
+                                                        if (auto gate_ptr = bell::getref(gear_id))
+                                                        {
+                                                            gate_ptr->SIGNAL(tier::preview, e2::form::proceed::focus, boss_ptr);
+                                                        }
                                                     }
+                                                    //auto alive = boss.count();
+                                                    //if (alive < 1) boss.base::riseup<tier::release>(e2::form::quit, boss_ptr);
+                                                    //else           boss.base::reflow();
                                                 }
-                                                //auto alive = boss.count();
-                                                //if (alive < 1) boss.base::riseup<tier::release>(e2::form::quit, boss_ptr);
-                                                //else           boss.base::reflow();
                                             }
-                                            else
+                                            else if (count == 1)
                                             {
                                                 //todo remove slot, reorganize
+                                                log(" del empty slot");
                                             }
                                         }
                                     }
@@ -2560,6 +2569,7 @@ utility like ctags is used to locate the definitions.
                             utf_trim_front(utf8, " ");
                             iota s1 = 1;
                             iota s2 = 1;
+                            iota w = -1;
                             if (auto param = utf::to_int(utf8))
                             {
                                 s1 = std::abs(param.value());
@@ -2569,13 +2579,22 @@ utility like ctags is used to locate the definitions.
                                 {
                                     s2 = std::abs(param.value());
                                     utf_trim_front(utf8, " ");
+                                    if (!utf8.empty() && utf8.front() == ':') // Grip width.
+                                    {
+                                        utf8.remove_prefix(1);
+                                        if (auto param = utf::to_int(utf8))
+                                        {
+                                            w = std::abs(param.value());
+                                            utf_trim_front(utf8, " ");
+                                        }
+                                    }
                                 }
                                 else return place;
                             }
                             if (utf8.empty() || utf8.front() != '(') return place;
                             utf8.remove_prefix(1);
-                            auto node = tag == 'h' ? ui::fork::ctor(axis::X, 2, s1, s2)
-                                                   : ui::fork::ctor(axis::Y, 1, s1, s2);
+                            auto node = tag == 'h' ? ui::fork::ctor(axis::X, w == -1 ? 2 : w, s1, s2)
+                                                   : ui::fork::ctor(axis::Y, w == -1 ? 1 : w, s1, s2);
                             auto slot1 = node->attach(slot::_1, add_node(add_node, utf8));
                             auto slot2 = node->attach(slot::_2, add_node(add_node, utf8));
                             auto grip  = node->attach(slot::_I, ui::mock::ctor())
@@ -2785,7 +2804,7 @@ utility like ctags is used to locate the definitions.
                     menu_list[find(objs::Logs)];
                     menu_list[find(objs::View)];
                     menu_list[find(objs::RefreshRate)];
-                    menu_list[find(objs::VTM)];
+                    menu_list[find(objs::vtm)];
                 #endif
                 // Add custom commands to the menu.
                 for (auto& p : tiling_profiles)
