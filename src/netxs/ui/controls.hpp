@@ -818,6 +818,11 @@ namespace netxs::ui
         {
             return subset.size();
         }
+        // veer: Return true if empty.
+        auto empty()
+        {
+            return subset.empty();
+        }
         // veer: Remove the last object. Return subset size and the object refrence.
         auto pop_back() -> sptr<base>
         {

@@ -843,7 +843,7 @@ namespace netxs::console
         rect square;
         bool invalid = true; // base: Should the object be redrawn.
         bool visual_root = faux; // Whether the size is tied to the size of the clients.
-        hook kb_offer_token;
+        hook kb_token;
 
     public:
         sptr<bell> broadcast = std::make_shared<bell>(); // base: Broadcast bus.
@@ -853,7 +853,7 @@ namespace netxs::console
         twod anchor; // base: Object balance point. Center point for any transform (on preview).
 
     protected:
-        bool is_attached() const { return kb_offer_token.operator bool(); }
+        bool is_attached() const { return kb_token.operator bool(); }
         void switch_to_bus(sptr<bell> parent_bus)
         {
             if (parent_bus != broadcast) // Reattaching is allowed within the same visual tree.
@@ -888,11 +888,11 @@ namespace netxs::console
                 parent_shadow = parent_ptr;
                 // Propagate form events up to the visual branch.
                 // Exec after all subscriptions.
-                parent_ptr->SUBMIT_T(tier::release, hids::events::upevent::any, kb_offer_token, gear)
+                parent_ptr->SUBMIT_T(tier::release, hids::events::upevent::any, kb_token, gear)
                 {
                     if (auto parent_ptr = parent_shadow.lock())
                     {
-                        if (gear.focus_taken())
+                        if (gear.focus_taken()) //todo unify, upevent::kbannul using it
                         {
                             parent_ptr->bell::expire<tier::release>();
                         }
@@ -910,7 +910,7 @@ namespace netxs::console
             {
                 if (this->bell::protos<tier::release>(e2::form::upon::vtree::detached))
                 {
-                    kb_offer_token.reset();
+                    kb_token.reset();
                     //todo revise
                     //parent_shadow.reset();
                 }
@@ -943,7 +943,7 @@ namespace netxs::console
         auto& coor() const { return square.coor; }
         auto& size() const { return square.size; }
         auto& area() const { return square; }
-        void  root(bool b) { assert(!kb_offer_token); visual_root = b; }
+        void  root(bool b) { assert(!kb_token); visual_root = b; }
         bool  root()       { return visual_root; }
         auto parent()      { return parent_shadow.lock(); }
         void ruined(bool state) { invalid = state; }
@@ -3264,7 +3264,7 @@ namespace netxs::console
         {
             using skill::boss,
                   skill::memo;
-            hook accept_kbd;
+            subs kb_subs;
             iota clients = 0;
 
         public:
@@ -3344,7 +3344,7 @@ namespace netxs::console
             {
                 if (value)
                 {
-                    boss.SUBMIT_T(tier::release, hids::events::upevent::kboffer, accept_kbd, gear)
+                    boss.SUBMIT_T(tier::release, hids::events::upevent::kboffer, kb_subs, gear)
                     {
                         if (!gear.focus_taken())
                         {
@@ -3352,10 +3352,14 @@ namespace netxs::console
                             boss.bell::expire<tier::release>();
                         }
                     };
+                    boss.SUBMIT_T(tier::release, hids::events::upevent::kbannul, kb_subs, gear)
+                    {
+                        gear.remove_from_kb_focus(boss.This());
+                    };
                 }
                 else
                 {
-                    accept_kbd.reset();
+                    kb_subs.clear();
                 }
             }
         };
@@ -4058,7 +4062,6 @@ namespace netxs::console
             using list = std::list<id_t>;
 
             list pool; // focus: List of active input devices.
-            text t;
 
             bool find(auto test_id)
             {
@@ -4068,9 +4071,8 @@ namespace netxs::console
 
         public:
             focus(base&&) = delete;
-            focus(base& boss, text test = {})
+            focus(base& boss, text test = {}) //todo test for debug
                 : skill{ boss }
-                ,t{test}
             {
                 boss.broadcast->SUBMIT_T(tier::preview, e2::form::ui::any, memo, gear)
                 {
@@ -4102,6 +4104,12 @@ namespace netxs::console
                                 case e2::form::ui::equalize.id:
                                     boss.riseup<tier::release>(e2::form::ui::equalize, gear);
                                     break;
+                                case e2::form::ui::split::vt.id:
+                                    boss.riseup<tier::release>(e2::form::ui::split::vt, gear);
+                                    break;
+                                case e2::form::ui::split::hz.id:
+                                    boss.riseup<tier::release>(e2::form::ui::split::hz, gear);
+                                    break;
                             }
                         }
                     }
@@ -4127,13 +4135,11 @@ namespace netxs::console
                 };
                 boss.SUBMIT_T(tier::release, e2::form::state::keybd::got, memo, gear)
                 {
-                    log(" got id=", boss.id, " t=", t);
                     pool.push_back(gear.id);
                     boss.base::deface();
                 };
                 boss.SUBMIT_T(tier::release, e2::form::state::keybd::lost, memo, gear)
                 {
-                    log(" lost id=", boss.id, " t=", t);
                     assert(!pool.empty());
 
                     if (!pool.empty())
@@ -5578,7 +5584,9 @@ again:
                 if (item_ptr)
                 {
                     auto& gear = input;
-                    gear.remove_from_kb_focus(item_ptr);
+                    //todo unify
+                    gear.kb_focus_taken = faux; //todo used in base::upevent handler
+                    item_ptr->SIGNAL(tier::release, hids::events::upevent::kbannul, gear);
                 }
             };
             SUBMIT(tier::preview, hids::events::keybd::any, gear)

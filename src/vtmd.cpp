@@ -2383,7 +2383,62 @@ utility like ctags is used to locate the definitions.
                             }
                         }
                     };
-                    auto empty_slot = [&]()
+                    auto built_node = [&](auto tag, auto s1, auto s2, auto w)
+                    {
+                        auto node = tag == 'h' ? ui::fork::ctor(axis::X, w == -1 ? 2 : w, s1, s2)
+                                               : ui::fork::ctor(axis::Y, w == -1 ? 1 : w, s1, s2);
+                        node->invoke([](auto& boss)
+                        {
+                            boss.SUBMIT(tier::release, e2::form::ui::swap, gear)
+                            {
+                                boss.swap();
+                            };
+                            boss.SUBMIT(tier::release, e2::form::ui::rotate, gear)
+                            {
+                                boss.rotate();
+                            };
+                            boss.SUBMIT(tier::release, e2::form::ui::equalize, gear)
+                            {
+                                boss.config(1, 1);
+                            };
+                        });
+                        auto grip = node->attach(slot::_I, ui::mock::ctor())
+                                        ->template plugin<pro::mover>()
+                                        ->template plugin<pro::focus>()
+                                        //->template plugin<pro::shade<cell::shaders::xlight>>() //todo apple clang doesn't get it
+                                        ->template plugin<pro::shade>()
+                                        ->invoke([&](auto& boss)
+                                        {
+                                            boss.keybd.accept(true);
+                                            //todo revise
+                                            mouse_actions(boss);
+                                        })
+                                        ->active();
+                        return node;
+                    };
+                    auto place_holder = []()
+                    {
+                        return ui::park::ctor()
+                            ->isroot(true)
+                            ->colors(blacklt, term_menu_bg)
+                            ->template plugin<pro::limit>(dot_00, -dot_11)
+                            ->template plugin<pro::focus>("empty slot")
+                            ->invoke([&](auto& boss)
+                            {
+                                boss.keybd.accept(true);
+                                boss.SUBMIT(tier::release, hids::events::mouse::button::click::right, gear)
+                                {
+                                    boss.base::riseup<tier::release>(e2::form::proceed::createby, gear);
+                                    gear.dismiss();
+                                };
+                            })
+                            ->branch
+                            (
+                                snap::center, snap::center,
+                                ui::post::ctor()->upload("Empty Slot", 10)
+                            );
+                    };
+                    auto empty_slot = [&](auto&& empty_slot) -> sptr<ui::veer>
                     {
                         return ui::veer::ctor()
                             ->invoke([&](auto& boss)
@@ -2507,6 +2562,34 @@ utility like ctags is used to locate the definitions.
                                         }
                                     }
                                 };
+                                boss.SUBMIT_BYVAL(tier::release, e2::form::ui::split::any, gear)
+                                {
+                                    if (auto boss_ptr = shadow.lock())
+                                    {
+                                        auto& boss = *boss_ptr;
+                                        if (auto deed = boss.bell::protos<tier::release>())
+                                        {
+                                            if (auto gate_ptr = bell::getref(gear.id))
+                                            {
+                                                auto heading = deed == e2::form::ui::split::vt.id;
+                                                auto newnode = built_node(heading ? 'v':'h', 1, 1, heading ? 1 : 2);
+                                                auto empty_1 = empty_slot(empty_slot);
+                                                auto empty_2 = empty_slot(empty_slot);
+                                                auto curitem = boss.pop_back(); // In order to preserve all foci.
+                                                gate_ptr->SIGNAL(tier::preview, e2::form::proceed::focus,   empty_1);
+                                                gate_ptr->SIGNAL(tier::preview, e2::form::proceed::unfocus, curitem);
+                                                if (boss.empty())
+                                                {
+                                                    boss.attach(place_holder());
+                                                    empty_2->pop_back();
+                                                }
+                                                auto slot_1 = newnode->attach(slot::_1, empty_1);
+                                                auto slot_2 = newnode->attach(slot::_2, empty_2->branch(curitem));
+                                                boss.attach(newnode);
+                                            }
+                                        }
+                                    }
+                                };
                                 boss.SUBMIT_BYVAL(tier::release, e2::form::quit, nested_item_ptr)
                                 {
                                     if (nested_item_ptr)
@@ -2592,30 +2675,12 @@ utility like ctags is used to locate the definitions.
                             })
                             ->branch
                             (
-                                ui::park::ctor()
-                                ->isroot(true)
-                                ->colors(blacklt, term_menu_bg)
-                                ->template plugin<pro::limit>(dot_00, -dot_11)
-                                ->template plugin<pro::focus>("empty slot")
-                                ->invoke([&](auto& boss)
-                                {
-                                    boss.keybd.accept(true);
-                                    boss.SUBMIT(tier::release, hids::events::mouse::button::click::right, gear)
-                                    {
-                                        boss.base::riseup<tier::release>(e2::form::proceed::createby, gear);
-                                        gear.dismiss();
-                                    };
-                                })
-                                ->branch
-                                (
-                                    snap::center, snap::center,
-                                    ui::post::ctor()->upload("Empty Slot", 10)
-                                )
+                                place_holder()
                             );
                     };
                     auto add_node = [&](auto&& add_node, view& utf8) -> sptr<ui::veer>
                     {
-                        auto place = empty_slot();
+                        auto place = empty_slot(empty_slot);
                         utf_trim_front(utf8, ", ");
                         if (utf8.empty()) return place;
                         auto tag = utf8.front();
@@ -2681,37 +2746,9 @@ utility like ctags is used to locate the definitions.
                             }
                             if (utf8.empty() || utf8.front() != '(') return place;
                             utf8.remove_prefix(1);
-                            auto node = tag == 'h' ? ui::fork::ctor(axis::X, w == -1 ? 2 : w, s1, s2)
-                                                   : ui::fork::ctor(axis::Y, w == -1 ? 1 : w, s1, s2);
-                            node->invoke([](auto& boss)
-                            {
-                                boss.SUBMIT(tier::release, e2::form::ui::swap, gear)
-                                {
-                                    boss.swap();
-                                };
-                                boss.SUBMIT(tier::release, e2::form::ui::rotate, gear)
-                                {
-                                    boss.rotate();
-                                };
-                                boss.SUBMIT(tier::release, e2::form::ui::equalize, gear)
-                                {
-                                    boss.config(1, 1);
-                                };
-                            });
+                            auto node = built_node(tag, s1, s2, w);
                             auto slot1 = node->attach(slot::_1, add_node(add_node, utf8));
                             auto slot2 = node->attach(slot::_2, add_node(add_node, utf8));
-                            auto grip  = node->attach(slot::_I, ui::mock::ctor())
-                                             ->plugin<pro::mover>()
-                                             ->plugin<pro::focus>()
-                                             //->plugin<pro::shade<cell::shaders::xlight>>() //todo apple clang doesn't get it
-                                             ->plugin<pro::shade>()
-                                             ->invoke([&](auto& boss)
-                                             {
-                                                 boss.keybd.accept(true);
-                                                 //todo revise
-                                                 mouse_actions(boss);
-                                             })
-                                             ->active();
                             place->attach(node);
 
                             utf_trim_front(utf8, ") ");

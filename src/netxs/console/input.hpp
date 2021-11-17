@@ -24,7 +24,9 @@ namespace netxs::events::userland
 
             SUBSET_XS( upevent )
             {
+                //todo make group keybd::...
                 EVENT_XS( kboffer, input::hids ), // inform nested objects that the keybd focus should be taken.
+                EVENT_XS( kbannul, input::hids ), // inform nested objects that the keybd focus should be released.
             };
             SUBSET_XS( notify )
             {
