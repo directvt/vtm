@@ -7,6 +7,12 @@
 // Enable keyboard input and unassign Esc key.
 #define PROD
 
+// Tiling nesting max level.
+#ifndef PROD
+    #define INHERITANCE_LIMIT 16
+#else
+    #define INHERITANCE_LIMIT 30
+#endif
 // Enable to show debug overlay.
 //#define DEBUG_OVERLAY
 
@@ -2571,21 +2577,34 @@ utility like ctags is used to locate the definitions.
                                         {
                                             if (auto gate_ptr = bell::getref(gear.id))
                                             {
-                                                auto heading = deed == e2::form::ui::split::vt.id;
-                                                auto newnode = built_node(heading ? 'v':'h', 1, 1, heading ? 1 : 2);
-                                                auto empty_1 = empty_slot(empty_slot);
-                                                auto empty_2 = empty_slot(empty_slot);
-                                                auto curitem = boss.pop_back(); // In order to preserve all foci.
-                                                gate_ptr->SIGNAL(tier::preview, e2::form::proceed::focus,   empty_1);
-                                                gate_ptr->SIGNAL(tier::preview, e2::form::proceed::unfocus, curitem);
-                                                if (boss.empty())
+                                                using type = decltype(e2::depth)::type;
+                                                auto depth = type{};
+                                                boss.base::riseup<tier::request>(e2::depth, depth, true);
+                                                log(" depth=", depth);
+                                                if (depth > INHERITANCE_LIMIT) return;
+
+                                                if (boss.back()->base::root())
                                                 {
-                                                    boss.attach(place_holder());
-                                                    empty_2->pop_back();
+                                                    auto heading = deed == e2::form::ui::split::vt.id;
+                                                    auto newnode = built_node(heading ? 'v':'h', 1, 1, heading ? 1 : 2);
+                                                    auto empty_1 = empty_slot(empty_slot);
+                                                    auto empty_2 = empty_slot(empty_slot);
+                                                    auto curitem = boss.pop_back(); // In order to preserve all foci.
+                                                    gate_ptr->SIGNAL(tier::preview, e2::form::proceed::focus,   empty_1);
+                                                    gate_ptr->SIGNAL(tier::preview, e2::form::proceed::unfocus, curitem);
+                                                    if (boss.empty())
+                                                    {
+                                                        boss.attach(place_holder());
+                                                        empty_2->pop_back();
+                                                    }
+                                                    auto slot_1 = newnode->attach(slot::_1, empty_1);
+                                                    auto slot_2 = newnode->attach(slot::_2, empty_2->branch(curitem));
+                                                    boss.attach(newnode);
                                                 }
-                                                auto slot_1 = newnode->attach(slot::_1, empty_1);
-                                                auto slot_2 = newnode->attach(slot::_2, empty_2->branch(curitem));
-                                                boss.attach(newnode);
+                                                else
+                                                {
+                                                    //todo
+                                                }
                                             }
                                         }
                                     }

@@ -59,6 +59,7 @@ namespace netxs::events::userland
         {
             EVENT_XS( tick      , moment              ), // timer tick, arg: current moment (now).
             EVENT_XS( postrender, console::face       ), // release: UI-tree post-rendering.
+            EVENT_XS( depth     , iota                ), // request: Determine the depth of the hierarchy.
             GROUP_XS( render    , console::face       ), // release: UI-tree rendering.
             GROUP_XS( conio     , iota                ),
             GROUP_XS( size      , twod                ), // release: Object size.
@@ -866,6 +867,8 @@ namespace netxs::console
         virtual ~base() = default;
         base()
         {
+            SUBMIT(tier::request, e2::depth, depth) { depth++; };
+
             SUBMIT(tier::release, e2::coor::set, new_coor) { square.coor = new_coor; };
             SUBMIT(tier::request, e2::coor::set, coor_var) { coor_var = square.coor; };
             SUBMIT(tier::release, e2::size::set, new_size) { square.size = new_size; };
@@ -1099,14 +1102,25 @@ namespace netxs::console
         // Usage example:
         //          base::riseup<tier::preview, e2::form::prop::header>(txt);
         template<tier TIER, class EVENT, class T>
-        void riseup(EVENT, T&& data)
+        void riseup(EVENT, T&& data, bool forced = faux)
         {
-            if (!SIGNAL(TIER, EVENT{}, data))
+            if (forced)
             {
+                SIGNAL(TIER, EVENT{}, data);
                 base::toboss([&](auto& boss)
                 {
-                    boss.base::template riseup<TIER>(EVENT{}, std::forward<T>(data));
+                    boss.base::template riseup<TIER>(EVENT{}, std::forward<T>(data), forced);
                 });
+            }
+            else
+            {
+                if (!SIGNAL(TIER, EVENT{}, data))
+                {
+                    base::toboss([&](auto& boss)
+                    {
+                        boss.base::template riseup<TIER>(EVENT{}, std::forward<T>(data), forced);
+                    });
+                }
             }
         }
     };
