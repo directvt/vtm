@@ -2353,7 +2353,19 @@ utility like ctags is used to locate the definitions.
                                 ->colors(whitelt, term_menu_bg)
                                 ->template plugin<pro::track>()
                                 ->template plugin<pro::acryl>();
-
+                    auto pass_focus = [](auto& gear_id_list, auto& item_ptr)
+                    {
+                        if (item_ptr)
+                        {
+                            for (auto gear_id : gear_id_list)
+                            {
+                                if (auto gate_ptr = bell::getref(gear_id))
+                                {
+                                    gate_ptr->SIGNAL(tier::preview, e2::form::proceed::focus, item_ptr);
+                                }
+                            }
+                        }
+                    };
                     auto empty_slot = [&]()
                     {
                         return ui::veer::ctor()
@@ -2374,6 +2386,7 @@ utility like ctags is used to locate the definitions.
                                         {
                                             boss.attach(item_ptr);
                                         }
+                                        else item_ptr = boss.This(); // Heir to the focus.
                                     }
                                     else log(" empty_slot swap: defective structure, count=", count);
                                 };
@@ -2492,33 +2505,25 @@ utility like ctags is used to locate the definitions.
                                             auto count = boss.count();
                                             if (count > 1)
                                             {
-                                                if (boss.back()->base::root()) // Only app can be deleted.
+                                                if (boss.back()->base::root()) // Only apps can be deleted.
                                                 {
-                                                    auto item = boss.pop_back();
-                                                    for (auto gear_id : gear_id_list) // Handover focus to the parent.
-                                                    {
-                                                        if (auto gate_ptr = bell::getref(gear_id))
-                                                        {
-                                                            gate_ptr->SIGNAL(tier::preview, e2::form::proceed::focus, boss_ptr);
-                                                        }
-                                                    }
-                                                    //auto alive = boss.count();
-                                                    //if (alive < 1) boss.base::riseup<tier::release>(e2::form::quit, boss_ptr);
-                                                    //else           boss.base::reflow();
+                                                    auto item = boss.pop_back(); // Throw away.
+                                                    pass_focus(gear_id_list, boss_ptr);
                                                 }
                                             }
-                                            else if (count == 1) // Remove slot, reorganize.
+                                            else if (count == 1) // Remove empty slot, reorganize.
                                             {
                                                 if (auto parent = boss.base::parent())
                                                 {
                                                     using type = decltype(e2::form::proceed::swap)::type;
-                                                    type item_ptr = boss_ptr; // sptr must be of the same type as the event argument. Casting kills all intermediaries.
+                                                    type item_ptr = boss_ptr; // sptr must be of the same type as the event argument. Casting kills all intermediaries when return.
                                                     parent->SIGNAL(tier::request, e2::form::proceed::swap, item_ptr);
                                                     if (item_ptr)
                                                     {
                                                         if (item_ptr != boss_ptr) // Parallel slot is not empty.
                                                         {
                                                             parent->base::riseup<tier::release>(e2::form::proceed::swap, item_ptr);
+                                                            pass_focus(gear_id_list, item_ptr);
                                                         }
                                                         else // I'm alone.
                                                         {
@@ -2528,6 +2533,7 @@ utility like ctags is used to locate the definitions.
                                                     else // Both slots are empty.
                                                     {
                                                         parent->base::riseup<tier::release>(e2::form::proceed::swap, item_ptr);
+                                                        pass_focus(gear_id_list, item_ptr);
                                                     }
                                                 }
                                             }
