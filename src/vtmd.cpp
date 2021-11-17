@@ -1690,7 +1690,11 @@ utility like ctags is used to locate the definitions.
                 case RefreshRate:
                 {
                     window->attach(ui::stem_rate<tier::general, decltype(e2::config::fps)>::ctor("Set frame rate", 1, 200, "fps"))
-                          ->color(0xFFFFFFFF, bluedk);
+                          ->colors(0xFFFFFFFF, bluedk)
+                          ->invoke([&](auto& boss)
+                          {
+                              boss.keybd.accept(true);
+                          });
                     break;
                 }
                 case Truecolor:
@@ -2125,7 +2129,11 @@ utility like ctags is used to locate the definitions.
                 {
                     window->template plugin<pro::track>()
                           ->template plugin<pro::acryl>()
-                          ->template plugin<pro::cache>();
+                          ->template plugin<pro::cache>()
+                          ->invoke([&](auto& boss)
+                          {
+                              boss.keybd.accept(true);
+                          });
                     auto object = window->attach(ui::fork::ctor(axis::Y))
                                         ->colors(whitelt, term_menu_bg);
                         auto menu = object->attach(slot::_1, custom_menu(true,
@@ -2319,6 +2327,15 @@ utility like ctags is used to locate the definitions.
                                         boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                                         {
                                             boss.base::broadcast->SIGNAL(tier::preview, e2::form::ui::split::vt, gear);
+                                            gear.dismiss(true);
+                                        };
+                                    }},
+                                    std::pair<text, std::function<void(ui::pads&)>>{ "  ┌┘  ",
+                                    [](ui::pads& boss)
+                                    {
+                                        boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
+                                        {
+                                            boss.base::broadcast->SIGNAL(tier::preview, e2::form::ui::rotate, gear);
                                             gear.dismiss(true);
                                         };
                                     }},
@@ -2666,6 +2683,21 @@ utility like ctags is used to locate the definitions.
                             utf8.remove_prefix(1);
                             auto node = tag == 'h' ? ui::fork::ctor(axis::X, w == -1 ? 2 : w, s1, s2)
                                                    : ui::fork::ctor(axis::Y, w == -1 ? 1 : w, s1, s2);
+                            node->invoke([](auto& boss)
+                            {
+                                boss.SUBMIT(tier::release, e2::form::ui::swap, gear)
+                                {
+                                    boss.swap();
+                                };
+                                boss.SUBMIT(tier::release, e2::form::ui::rotate, gear)
+                                {
+                                    boss.rotate();
+                                };
+                                boss.SUBMIT(tier::release, e2::form::ui::equalize, gear)
+                                {
+                                    boss.config(1, 1);
+                                };
+                            });
                             auto slot1 = node->attach(slot::_1, add_node(add_node, utf8));
                             auto slot2 = node->attach(slot::_2, add_node(add_node, utf8));
                             auto grip  = node->attach(slot::_I, ui::mock::ctor())

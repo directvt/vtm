@@ -238,15 +238,9 @@ namespace netxs::ui
         {
             switch (alignment)
             {
-                case axis::X:
-                    updown = faux;
-                    break;
-                case axis::Y:
-                    updown = true;
-                    break;
-                default:
-                    updown = faux;
-                    break;
+                case axis::X: updown = faux; break;
+                case axis::Y: updown = true; break;
+                default:      updown = faux; break;
             }
             width = std::max(thickness, 0);
             config(s1, s2);
@@ -318,73 +312,24 @@ namespace netxs::ui
             };
 
             _config(alignment, thickness, s1, s2);
-            //  case WM_SIZE:
-            //  	entity->resize({ GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) });
-            //  	return 0;
-            //  case WM_PAINT:
-            //  	entity->draw();
-            //  	return 0;
-            //  case WM_SETCURSOR:
-            //  	if (LOWORD(lParam) == HTCLIENT)
-            //  	{
-            //  		return entity->showcursor();
-            //  	}
-            //  	return 0;
-            //  case WM_APP_LIMITSCHANGED:
-            //  	entity->calclimits();
-            //  	return 0;
-            //  case WM_APP_CTXUPDATE:
-            //  	entity->forward(WM_APP_CTXUPDATE);
-            //  	return 0;
-            //  case WM_APP_CONFIG:
-            //  	entity->config((gui::orientation)wParam, LOWORD(lParam), HIWORD(lParam));
-            //  	return 0;
-            //  case WM_LBUTTONDBLCLK:
-            //  	entity->toggle();
-            //  	return 0;
-            //  case WM_RBUTTONUP:
-            //  	entity->rotate();
-            //  	return 0;
-            //  case WM_LBUTTONDOWN:
-            //  	entity->slider(action::seize, { GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) });
-            //  	return 0;
-            //  case WM_LBUTTONUP:
-            //  	entity->slider(action::release, { GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) });
-            //  	return 0;
-            //  case WM_MOUSEMOVE:
-            //  	if (wParam & MK_LBUTTON)
-            //  	{
-            //  		entity->slider(action::drag, { GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) });
-            //  	}
-            //  	return 0;
         }
         void rotate()
         {
             updown = !updown;
-            //base::resize(size);
+            //todo revise/unify
+                 if (updown  && width == 2) width = 1;
+            else if (!updown && width == 1) width = 2;
             base::reflow();
-
-            //fork::resize(size);
-            //takecursor();
         }
-        void toggle()
+        void swap()
         {
-            if (movable)
+            std::swap(client_1, client_2);
+            if (client_1)
             {
-                switch (ratio)
-                {
-                    case 0:
-                        ratio = HALF_RATIO;
-                        break;
-                    case MAX_RATIO:
-                        ratio = HALF_RATIO + 1;
-                        break;
-                    default:
-                        ratio = ratio > HALF_RATIO ? MAX_RATIO : 0;
-                        break;
-                }
-                base::reflow();
+                auto coor1 = dot_00;
+                client_1->SIGNAL(tier::release, e2::coor::set, coor1);
             }
+            base::reflow();
         }
         // fork: .
         void size_preview(twod& new_size)

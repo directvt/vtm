@@ -346,6 +346,7 @@ namespace netxs::events::userland
                     EVENT_XS( close   , input::hids ),
                     EVENT_XS( toggle  , input::hids ), // toggle window size: maximize/restore.
                     EVENT_XS( swap    , input::hids ),
+                    EVENT_XS( rotate  , input::hids ), // change nested objects order. See tilimg manager (ui::fork).
                     EVENT_XS( equalize, input::hids ),
                     GROUP_XS( split   , input::hids ),
 
@@ -4085,12 +4086,21 @@ namespace netxs::console
                                 case e2::form::ui::close.id:
                                     boss.riseup<tier::release>(e2::form::quit, boss.This());
                                     break;
-                                case  e2::form::ui::toggle.id:
+                                case e2::form::ui::toggle.id:
                                     if (gear.countdown > 0)
                                     {
                                         gear.countdown--;
                                         boss.riseup<tier::release>(e2::form::ui::toggle, gear);
                                     }
+                                    break;
+                                case e2::form::ui::swap.id:
+                                    boss.riseup<tier::release>(e2::form::ui::swap, gear);
+                                    break;
+                                case e2::form::ui::rotate.id:
+                                    boss.riseup<tier::release>(e2::form::ui::rotate, gear);
+                                    break;
+                                case e2::form::ui::equalize.id:
+                                    boss.riseup<tier::release>(e2::form::ui::equalize, gear);
                                     break;
                             }
                         }
