@@ -1254,7 +1254,7 @@ utility like ctags is used to locate the definitions.
         #undef X
 
         #define X(a, b, c, d)  { #a, a },
-        std::map<text, id_t> objs_map{ TYPE_LIST };
+        std::map<text, events::id_t> objs_map{ TYPE_LIST };
         #undef X
 
         struct menu_item
