@@ -9,7 +9,7 @@
 
 // Tiling nesting max level.
 #ifndef PROD
-    #define INHERITANCE_LIMIT 16
+    #define INHERITANCE_LIMIT 12
 #else
     #define INHERITANCE_LIMIT 30
 #endif
@@ -1621,7 +1621,7 @@ utility like ctags is used to locate the definitions.
                         }));
         };
 
-        auto create_app = [&](auto&& create_app, auto window, auto type, view data) -> void
+        auto create_app = [&, insts_count = 0](auto&& create_app, auto window, auto type, view data) mutable -> void
         {
             //todo use XAML for that
             switch (type)
@@ -1733,7 +1733,7 @@ utility like ctags is used to locate the definitions.
                               {
                                     static iota i = 0; i++;
                                     auto title = ansi::mgl(1).mgr(1).add("Empty Instance \nid: ", parent->id);
-                                    boss.base::riseup<tier::preview>(e2::form::prop::header, title);
+                                    boss.base::template riseup<tier::preview>(e2::form::prop::header, title);
                               };
                           });
                     auto object = window->attach(ui::mock::ctor())
@@ -1784,7 +1784,7 @@ utility like ctags is used to locate the definitions.
                               {
                                     static iota i = 0; i++;
                                     auto title = ansi::jet(bias::right).add("Spreadsheet\n ~/Untitled ", i, ".ods");
-                                    boss.base::riseup<tier::preview>(e2::form::prop::header, title);
+                                    boss.base::template riseup<tier::preview>(e2::form::prop::header, title);
                               };
                           });
                     auto object = window->attach(ui::fork::ctor(axis::Y))
@@ -1871,7 +1871,7 @@ utility like ctags is used to locate the definitions.
                               {
                                     static iota i = 0; i++;
                                     auto title = ansi::jet(bias::center).add("Text Editor\n ~/Untitled ", i, ".txt");
-                                    boss.base::riseup<tier::preview>(e2::form::prop::header, title);
+                                    boss.base::template riseup<tier::preview>(e2::form::prop::header, title);
                               };
                           });
                     auto object = window->attach(ui::fork::ctor(axis::Y))
@@ -2225,7 +2225,7 @@ utility like ctags is used to locate the definitions.
                               {
                                   static iota i = 0; i++;
                                   auto title = ansi::jet(bias::center).add("View \n Region ", i);
-                                  boss.base::riseup<tier::preview>(e2::form::prop::header, title);
+                                  boss.base::template riseup<tier::preview>(e2::form::prop::header, title);
                               };
                           });
                     break;
@@ -2426,7 +2426,7 @@ utility like ctags is used to locate the definitions.
                                 boss.keybd.accept(true);
                                 boss.SUBMIT(tier::release, hids::events::mouse::button::click::right, gear)
                                 {
-                                    boss.base::riseup<tier::release>(e2::form::proceed::createby, gear);
+                                    boss.base::template riseup<tier::release>(e2::form::proceed::createby, gear);
                                     gear.dismiss();
                                 };
                             })
@@ -2480,7 +2480,7 @@ utility like ctags is used to locate the definitions.
                                             else log(" empty_slot: defective structure, count=", count);
                                             if (auto parent = boss.parent())
                                             {
-                                                parent->bell::expire<tier::request>();
+                                                parent->bell::template expire<tier::request>();
                                             }
                                         }
                                     };
@@ -2491,7 +2491,7 @@ utility like ctags is used to locate the definitions.
                                 };
                                 boss.broadcast->SUBMIT_T(tier::preview, e2::form::ui::any, boss.tracker, gear)
                                 {
-                                    if (auto deed = boss.broadcast->bell::protos<tier::preview>())
+                                    if (auto deed = boss.broadcast->bell::template protos<tier::preview>())
                                     {
                                         //auto size = boss.count();
                                         //if (deed == e2::form::ui::toggle.id
@@ -2540,7 +2540,7 @@ utility like ctags is used to locate the definitions.
                                                             auto& boss = *boss_ptr;
                                                             using type = decltype(e2::form::proceed::detach)::type;
                                                             type fullscreen_item;
-                                                            boss.base::riseup<tier::release>(e2::form::proceed::detach, fullscreen_item);
+                                                            boss.base::template riseup<tier::release>(e2::form::proceed::detach, fullscreen_item);
                                                             if (fullscreen_item)
                                                             {
                                                                 boss.attach(fullscreen_item);
@@ -2549,7 +2549,7 @@ utility like ctags is used to locate the definitions.
                                                         }
                                                         oneoff.reset();
                                                     };
-                                                    boss.base::riseup<tier::release>(e2::form::proceed::attach, fullscreen_item);
+                                                    boss.base::template riseup<tier::release>(e2::form::proceed::attach, fullscreen_item);
                                                     if (fullscreen_item) // Unsuccessful maximization. Attach it back.
                                                     {
                                                         boss.attach(fullscreen_item);
@@ -2565,13 +2565,13 @@ utility like ctags is used to locate the definitions.
                                     if (auto boss_ptr = shadow.lock())
                                     {
                                         auto& boss = *boss_ptr;
-                                        if (auto deed = boss.bell::protos<tier::release>())
+                                        if (auto deed = boss.bell::template protos<tier::release>())
                                         {
                                             if (auto gate_ptr = bell::getref(gear.id))
                                             {
                                                 using type = decltype(e2::depth)::type;
                                                 auto depth = type{};
-                                                boss.base::riseup<tier::request>(e2::depth, depth, true);
+                                                boss.base::template riseup<tier::request>(e2::depth, depth, true);
                                                 log(" depth=", depth);
                                                 if (depth > INHERITANCE_LIMIT) return;
 
@@ -2630,7 +2630,7 @@ utility like ctags is used to locate the definitions.
                                                     {
                                                         if (item_ptr != boss_ptr) // Parallel slot is not empty.
                                                         {
-                                                            parent->base::riseup<tier::release>(e2::form::proceed::swap, item_ptr);
+                                                            parent->base::template riseup<tier::release>(e2::form::proceed::swap, item_ptr);
                                                             pass_focus(gear_id_list, item_ptr);
                                                         }
                                                         else // I'm alone.
@@ -2640,7 +2640,7 @@ utility like ctags is used to locate the definitions.
                                                     }
                                                     else // Both slots are empty.
                                                     {
-                                                        parent->base::riseup<tier::release>(e2::form::proceed::swap, item_ptr);
+                                                        parent->base::template riseup<tier::release>(e2::form::proceed::swap, item_ptr);
                                                         pass_focus(gear_id_list, item_ptr);
                                                     }
                                                 }
@@ -2673,6 +2673,36 @@ utility like ctags is used to locate the definitions.
                                                 gear.remove_from_kb_focus(boss.back()); // Take focus from the empty slot.
                                                 boss.attach(app);
 
+                                                //todo unify, demo limits
+                                                {
+                                                    insts_count++;
+                                                    #ifndef PROD
+                                                        if (insts_count > max_count)
+                                                        {
+                                                            log("tile: inst: max count reached");
+                                                            auto timeout = tempus::now() + del_timeout;
+                                                            auto w_frame = ptr::shadow(host);
+                                                            host->SUBMIT_BYVAL(tier::general, e2::tick, timestamp)
+                                                            {
+                                                                if (timestamp > timeout)
+                                                                {
+                                                                    log("tile: inst: timebomb");
+                                                                    if (auto host = w_frame.lock())
+                                                                    {
+                                                                        host->riseup<tier::release>(e2::form::quit, host);
+                                                                        //host->base::detach();
+                                                                        log("tile: inst: frame detached: ", insts_count);
+                                                                    }
+                                                                }
+                                                            };
+                                                        }
+                                                    #endif
+                                                    host->SUBMIT(tier::release, events::userland::root::dtor, id)
+                                                    {
+                                                        insts_count--;
+                                                        log("tile: inst: detached: ", insts_count, " id=", id);
+                                                    };
+                                                }
                                                 //todo unify
                                                 gear.kb_focus_taken = faux;
                                                 host->SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
@@ -3281,10 +3311,10 @@ utility like ctags is used to locate the definitions.
                     };
                     auto user_template = [&](auto& data_src, auto const& utf8)
                     {
-                        auto item_area = ui::pads::ctor((dent{ 1,0,0,1 }, dent{ 0,0,1,1 }))
+                        auto item_area = ui::pads::ctor(dent{ 1,0,0,1 }, dent{ 0,0,1,0 })
                                              ->plugin<pro::fader>(x3, c3, 150ms);
                             auto user = item_area->attach(
-                                ui::item::ctor(ansi::esc("  &").nil().add(" ")
+                                ui::item::ctor(ansi::esc(" &").nil().add(" ")
                                     .fgc4(data_src->id == my_id ? rgba::color256[whitelt] : 0x00).add(utf8), true));
                         return item_area;
                     };

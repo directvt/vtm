@@ -476,9 +476,9 @@ namespace netxs::ui
         // fork: Remove nested object by it's ptr.
         void remove(sptr<base> item_ptr)
         {
-            if (client_1 == item_ptr ? (client_1.reset(), true) :
-                client_2 == item_ptr ? (client_2.reset(), true) :
-                splitter == item_ptr ? (splitter.reset(), true) : faux)
+            if (client_1 == item_ptr ? ((void)client_1.reset(), true) :
+                client_2 == item_ptr ? ((void)client_2.reset(), true) :
+                splitter == item_ptr ? ((void)splitter.reset(), true) : faux)
             {
                 auto backup = This();
                 item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, backup);
