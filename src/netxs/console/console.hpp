@@ -349,6 +349,7 @@ namespace netxs::events::userland
                     EVENT_XS( swap    , input::hids ),
                     EVENT_XS( rotate  , input::hids ), // change nested objects order. See tilimg manager (ui::fork).
                     EVENT_XS( equalize, input::hids ),
+                    EVENT_XS( select  , input::hids ),
                     GROUP_XS( split   , input::hids ),
 
                     SUBSET_XS( split )
