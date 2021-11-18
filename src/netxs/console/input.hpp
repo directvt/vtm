@@ -24,7 +24,9 @@ namespace netxs::events::userland
 
             SUBSET_XS( upevent )
             {
+                //todo make group keybd::...
                 EVENT_XS( kboffer, input::hids ), // inform nested objects that the keybd focus should be taken.
+                EVENT_XS( kbannul, input::hids ), // inform nested objects that the keybd focus should be released.
             };
             SUBSET_XS( notify )
             {
@@ -698,6 +700,8 @@ namespace netxs::input
         bool kb_focus_taken = faux;
         //todo unify
         bool force_group_focus = faux;
+        bool combine_focus = faux;
+        iota countdown = 0;
 
         enum modifiers : uint32_t
         {
@@ -860,12 +864,8 @@ namespace netxs::input
                 else kb_focus.erase(std::prev(iter));
             }
         }
-        void _add_kb_focus(sptr<bell> item)
-        {
-            kb_focus.push_back(item);
-            item->bell::template signal<tier::release>(focus_take, *this);
-        }
-        bool remove_from_kb_focus(sptr<bell> item)
+        template<class P = noop>
+        bool _check_kb_focus(sptr<bell> item, P proc = {})
         {
             auto iter = kb_focus.begin();
             while (iter != kb_focus.end())
@@ -874,14 +874,27 @@ namespace netxs::input
                 {
                     if (item == next)
                     {
-                        next->bell::template signal<tier::release>(focus_lost, *this);
-                        kb_focus.erase(iter);
+                        proc(iter);
                         return true;
                     }
                 }
                 iter++;
             }
             return faux;
+        }
+        void _add_kb_focus(sptr<bell> item)
+        {
+            kb_focus.push_back(item);
+            item->bell::template signal<tier::release>(focus_take, *this);
+        }
+        bool remove_from_kb_focus(sptr<bell> item)
+        {
+            return _check_kb_focus(item, [&](auto iter)
+            {
+                auto next = iter->lock();
+                next->bell::template signal<tier::release>(focus_lost, *this);
+                kb_focus.erase(iter);
+            });
         }
         void add_single_kb_focus(sptr<bell> item)
         {
@@ -917,7 +930,14 @@ namespace netxs::input
             kb_focus_taken = true;
             if (hids::meta(ANYCTRL) || force_group_focus)
             {
-                add_group_kb_focus_or_release_captured(item);
+                if (combine_focus)
+                {
+                    if (!_check_kb_focus(item)) _add_kb_focus(item);
+                }
+                else
+                {
+                    add_group_kb_focus_or_release_captured(item);
+                }
             }
             else
             {

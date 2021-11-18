@@ -856,7 +856,11 @@ namespace netxs::console
             if (count <= 0) return;
             auto len = length();
             if constexpr (AUTOGROW) reserv(at + count);
-            else                    count = std::min(count, len - at);
+            else
+            {
+                if (at >= len) return;
+                count = std::min(count, len - at);
+            }
             auto ptr = iter();
             auto dst = ptr + at;
             auto end = dst + count;

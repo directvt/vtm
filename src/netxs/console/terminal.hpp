@@ -2365,8 +2365,8 @@ private:
                         : c{ cy },
                           t{ ct },
                           b{ cb },
-                          block{ c.y > cs.y_end ? t = cs.y_end + 1, cs.dnbox
-                                                :                   cs.upbox }
+                          block{ c.y > cs.y_end ? (void)(t = cs.y_end + 1), cs.dnbox
+                                                :                           cs.upbox }
                          { c.y -= t; }
                    ~qt() { c.y += t; }
                    operator bool () { return b; }
@@ -2761,8 +2761,8 @@ private:
                             auto remain = (length - 1) % view.size.x + 1;
                             if (left_edge > lt_dot)
                             {
-                                if (adjust == bias::right  && left_edge <= rt_dot - remain
-                                 || adjust == bias::center && left_edge <= lt_dot + half_size - remain / 2)
+                                if ((adjust == bias::right  && left_edge <= rt_dot - remain)
+                                 || (adjust == bias::center && left_edge <= lt_dot + half_size - remain / 2))
                                 {
                                     --left_rect.size.y;
                                 }
@@ -2770,8 +2770,8 @@ private:
                             }
                             if (rght_edge < rt_dot)
                             {
-                                if (adjust == bias::left   && rght_edge >= lt_dot + remain
-                                 || adjust == bias::center && rght_edge >= lt_dot + remain + half_size - remain / 2)
+                                if ((adjust == bias::left   && rght_edge >= lt_dot + remain)
+                                 || (adjust == bias::center && rght_edge >= lt_dot + remain + half_size - remain / 2))
                                 {
                                     --rght_rect.size.y;
                                 }
@@ -3383,9 +3383,8 @@ private:
             cursor.style(commands::cursor::def_style);
             //cursor.style(commands::cursor::steady_box);
 
-            #ifdef PROD
             form::keybd.accept(true); // Subscribe to keybd offers.
-            #endif
+
             base::broadcast->SUBMIT_T(tier::preview, app::term::events::cmd, bell::tracker, cmd)
             {
                 log("term: tier::preview, app::term::cmd, ", cmd);
@@ -3494,6 +3493,9 @@ private:
                 //todo stop/finalize scrolling animations
                 scroll(true);
                 follow_cursor = true;
+                #ifndef PROD
+                    return;
+                #endif
                 //todo optimize/unify
                 auto data = gear.keystrokes;
                 if (!bpmode)
