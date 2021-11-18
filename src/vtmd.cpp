@@ -2318,7 +2318,7 @@ utility like ctags is used to locate the definitions.
                                             gear.dismiss(true);
                                         };
                                     }},
-                                    std::pair<text, std::function<void(ui::pads&)>>{ "  *  ",
+                                    std::pair<text, std::function<void(ui::pads&)>>{ " ::: ",
                                     [](ui::pads& boss)
                                     {
                                         boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)

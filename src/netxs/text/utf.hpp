@@ -1278,10 +1278,10 @@ namespace netxs::utf
     auto unbase64(view bs64)
     {
         static constexpr auto code = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-        auto is64 = [](auto c) { return c > 0x2E && c < 0x3A // '/' and digits
-                                     || c > 0x40 && c < 0x5B // Uppercase letters
-                                     || c > 0x60 && c < 0x7B // Lowercase letters
-                                     || c == 0x2B; };        // '+'
+        auto is64 = [](auto c) { return (c > 0x2E && c < 0x3A) // '/' and digits
+                                     || (c > 0x40 && c < 0x5B) // Uppercase letters
+                                     || (c > 0x60 && c < 0x7B) // Lowercase letters
+                                     || (c == 0x2B); };        // '+'
         text data;
         view look{ code };
         //todo reserv data
