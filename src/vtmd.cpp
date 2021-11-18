@@ -2393,33 +2393,25 @@ utility like ctags is used to locate the definitions.
                     {
                         auto node = tag == 'h' ? ui::fork::ctor(axis::X, w == -1 ? 2 : w, s1, s2)
                                                : ui::fork::ctor(axis::Y, w == -1 ? 1 : w, s1, s2);
-                        node->invoke([](auto& boss)
-                        {
-                            boss.SUBMIT(tier::release, e2::form::ui::swap, gear)
+                        node->isroot(true, 1) // Set object kind to 1 to be different from others.
+                            ->invoke([](auto& boss)
                             {
-                                boss.swap();
-                            };
-                            boss.SUBMIT(tier::release, e2::form::ui::rotate, gear)
-                            {
-                                boss.rotate();
-                            };
-                            boss.SUBMIT(tier::release, e2::form::ui::equalize, gear)
-                            {
-                                boss.config(1, 1);
-                            };
-                        });
-                        auto grip = node->attach(slot::_I, ui::mock::ctor())
-                                        ->template plugin<pro::mover>()
-                                        ->template plugin<pro::focus>()
-                                        //->template plugin<pro::shade<cell::shaders::xlight>>() //todo apple clang doesn't get it
-                                        ->template plugin<pro::shade>()
-                                        ->invoke([&](auto& boss)
-                                        {
-                                            boss.keybd.accept(true);
-                                            //todo revise
-                                            mouse_actions(boss);
-                                        })
-                                        ->active();
+                                boss.SUBMIT(tier::release, e2::form::ui::swap    , gear) { boss.swap();       };
+                                boss.SUBMIT(tier::release, e2::form::ui::rotate  , gear) { boss.rotate();     };
+                                boss.SUBMIT(tier::release, e2::form::ui::equalize, gear) { boss.config(1, 1); };
+                            });
+                            auto grip = node->attach(slot::_I, ui::mock::ctor())
+                                            ->template plugin<pro::mover>()
+                                            ->template plugin<pro::focus>()
+                                            //->template plugin<pro::shade<cell::shaders::xlight>>() //todo apple clang doesn't get it
+                                            ->template plugin<pro::shade>()
+                                            ->invoke([&](auto& boss)
+                                            {
+                                                boss.keybd.accept(true);
+                                                //todo revise
+                                                mouse_actions(boss);
+                                            })
+                                            ->active();
                         return node;
                     };
                     auto place_holder = []()
@@ -2534,7 +2526,7 @@ utility like ctags is used to locate the definitions.
                                         if (count > 1) // Preventing the empty slot from maximizing.
                                         {
                                             //todo revise
-                                            if (boss.back()->base::root()) // Preventing the splitter from maximizing.
+                                            if (boss.back()->base::kind() == 0) // Preventing the splitter from maximizing.
                                             {
                                                 auto fullscreen_item = boss.pop_back();
                                                 if (fullscreen_item)
@@ -2601,10 +2593,7 @@ utility like ctags is used to locate the definitions.
                                                     auto slot_2 = newnode->attach(slot::_2, empty_2->branch(curitem));
                                                     boss.attach(newnode);
                                                 }
-                                                else
-                                                {
-                                                    //todo
-                                                }
+                                                else log(" empty_slot split: defective structure, count=", boss.count());
                                             }
                                         }
                                     }
@@ -2624,7 +2613,7 @@ utility like ctags is used to locate the definitions.
                                             auto count = boss.count();
                                             if (count > 1)
                                             {
-                                                if (boss.back()->base::root()) // Only apps can be deleted.
+                                                if (boss.back()->base::kind() == 0) // Only apps can be deleted.
                                                 {
                                                     auto item = boss.pop_back(); // Throw away.
                                                     pass_focus(gear_id_list, boss_ptr);

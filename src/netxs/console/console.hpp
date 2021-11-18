@@ -845,6 +845,7 @@ namespace netxs::console
         bool invalid = true; // base: Should the object be redrawn.
         bool visual_root = faux; // Whether the size is tied to the size of the clients.
         hook kb_token;
+        iota object_kind = {};
 
     public:
         sptr<bell> broadcast = std::make_shared<bell>(); // base: Broadcast bus.
@@ -948,6 +949,8 @@ namespace netxs::console
         auto& area() const { return square; }
         void  root(bool b) { assert(!kb_token); visual_root = b; }
         bool  root()       { return visual_root; }
+        iota  kind()       { return object_kind; }
+        void  kind(iota k) { object_kind = k; }
         auto parent()      { return parent_shadow.lock(); }
         void ruined(bool state) { invalid = state; }
         auto ruined() const { return invalid; }

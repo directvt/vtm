@@ -96,9 +96,10 @@ namespace netxs::ui
             return This();
         }
         // form: Set control as root.
-        auto isroot(bool state)
+        auto isroot(bool state, iota kind = 0)
         {
             base::root(state);
+            base::kind(kind);
             return This();
         }
         // form: Set the form visible for mouse.
