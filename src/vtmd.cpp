@@ -1,7 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#define MONOTTY_VER "Monotty Desktopio v0.5.9999"
+#define MONOTTY_VER "Monotty Desktopio v0.5.9999a"
 // Enable demo apps and assign Esc key to log off.
 //#define DEMO
 // Enable keyboard input and unassign Esc key.
@@ -2288,15 +2288,6 @@ utility like ctags is used to locate the definitions.
                     auto object = window->attach(ui::fork::ctor(axis::Y));
                         auto menu = object->attach(slot::_1, custom_menu(true,
                             std::list{
-                                    std::pair<text, std::function<void(ui::pads&)>>{ "  +  ",
-                                    [](ui::pads& boss)
-                                    {
-                                        boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
-                                        {
-                                            boss.base::broadcast->SIGNAL(tier::preview, e2::form::ui::create, gear);
-                                            gear.dismiss(true);
-                                        };
-                                    }},
                                     //  Green                                  ?Even    Red
                                     // ┌────┐  ┌────┐  ┌─┬──┐  ┌────┐  ┌─┬──┐  ┌─┬──┐  ┌────┐  // ┌─┐  ┌─┬─┐  ┌─┬─┐  ┌─┬─┐  
                                     // │Exec│  ├─┐  │  │ H  │  ├ V ─┤  │Swap│  │Fair│  │Shut│  // ├─┤  └─┴─┘  └<┴>┘  └>┴<┘  
@@ -2316,6 +2307,24 @@ utility like ctags is used to locate the definitions.
                                         boss.base::broadcast->SUBMIT(tier::release, e2::command::custom, status)
                                         {
                                             //boss.color(status == 1 ? 0xFF00ff00 : x3.fgc(), x3.bgc());
+                                        };
+                                    }},
+                                    std::pair<text, std::function<void(ui::pads&)>>{ "  +  ",
+                                    [](ui::pads& boss)
+                                    {
+                                        boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
+                                        {
+                                            boss.base::broadcast->SIGNAL(tier::preview, e2::form::ui::create, gear);
+                                            gear.dismiss(true);
+                                        };
+                                    }},
+                                    std::pair<text, std::function<void(ui::pads&)>>{ "  *  ",
+                                    [](ui::pads& boss)
+                                    {
+                                        boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
+                                        {
+                                            boss.base::broadcast->SIGNAL(tier::preview, e2::form::ui::select, gear);
+                                            gear.dismiss(true);
                                         };
                                     }},
                                     std::pair<text, std::function<void(ui::pads&)>>{ "  │  ", // "  ║  ", - VGA Linux console doesn't support unicode glyphs
@@ -2942,6 +2951,13 @@ utility like ctags is used to locate the definitions.
 
                     gear.kb_focus_taken = faux;
                     frame->SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
+
+                    auto config = objs_config[current_default];
+                    if (config.type == objs::Tile) // Reset the currently selected application to the previous one.
+                    {
+                        gate.SIGNAL(tier::preview, e2::data::changed, data); // Get previous default;
+                        gate.SIGNAL(tier::release, e2::data::changed, data); // Set current  default;
+                    }
                 }
             }
         };
@@ -3102,13 +3118,25 @@ utility like ctags is used to locate the definitions.
                     #else
                         auto current_default = objs::Term;
                     #endif
+                    auto previous_default = current_default;
+
                     client->SUBMIT(tier::request, e2::data::changed, data)
                     {
                         data = current_default;
                     };
+                    //todo unify
+                    client->SUBMIT(tier::preview, e2::data::changed, data)
+                    {
+                        data = previous_default;
+                    };
                     client->SUBMIT(tier::release, e2::data::changed, data)
                     {
-                        current_default = static_cast<objs>(data);
+                        auto new_default = static_cast<objs>(data);
+                        if (current_default != new_default)
+                        {
+                            previous_default = current_default;
+                            current_default = new_default;
+                        }
                     };
 
                     auto app_template = [&](auto& data_src, auto const& utf8)
