@@ -2423,7 +2423,7 @@ utility like ctags is used to locate the definitions.
                                             ->active();
                         return node;
                     };
-                    auto place_holder = []()
+                    auto place_holder = [&]()
                     {
                         return ui::park::ctor()
                             ->isroot(true)
@@ -2433,6 +2433,7 @@ utility like ctags is used to locate the definitions.
                             ->invoke([&](auto& boss)
                             {
                                 boss.keybd.accept(true);
+                                mouse_actions(boss);
                                 boss.SUBMIT(tier::release, hids::events::mouse::button::click::right, gear)
                                 {
                                     boss.base::template riseup<tier::release>(e2::form::proceed::createby, gear);
