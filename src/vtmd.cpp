@@ -1588,6 +1588,19 @@ utility like ctags is used to locate the definitions.
                 gear.dismiss();
             };
         };
+        auto select_all = [](auto& boss)
+        {
+            boss.broadcast->SUBMIT_T(tier::preview, e2::form::ui::select, boss.tracker, gear)
+            {
+                //todo unify
+                gear.force_group_focus = true;
+                gear.kb_focus_taken = faux;
+                gear.combine_focus = true;
+                boss.SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
+                gear.combine_focus = faux;
+                gear.force_group_focus = faux;
+            };
+        };
         auto box_with_title = [&](view title, auto branch)
         {
             return ui::fork::ctor(axis::Y)
@@ -1595,7 +1608,11 @@ utility like ctags is used to locate the definitions.
                     ->plugin<pro::limit>(twod{ 10,-1 }, twod{ -1,-1 })
                     ->isroot(true)
                     ->active()
-                    ->invoke([&](auto& boss) { mouse_actions(boss); })
+                    ->invoke([&](auto& boss)
+                    {
+                        mouse_actions(boss);
+                        select_all(boss);
+                    })
                     //->branch(slot::_1, ui::post_fx<cell::shaders::contrast>::ctor()) //todo apple clang doesn't get it
                     ->branch(slot::_1, ui::post_fx::ctor()
                         ->upload(title)
@@ -2434,6 +2451,7 @@ utility like ctags is used to locate the definitions.
                             {
                                 boss.keybd.accept(true);
                                 mouse_actions(boss);
+                                select_all(boss);
                                 boss.SUBMIT(tier::release, hids::events::mouse::button::click::right, gear)
                                 {
                                     boss.base::template riseup<tier::release>(e2::form::proceed::createby, gear);
