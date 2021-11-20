@@ -37,17 +37,17 @@ namespace netxs::events::userland
 
 namespace netxs::app
 {
-    // tiling: Built-in tiling window manager.
+    // tilingwm: Built-in tiling window manager.
     using tile = netxs::events::userland::tile;
 
     //todo revise
     using namespace netxs::console;
     using namespace netxs;
-        using slot = ui::slot;
-        using axis = ui::axis;
-        using axes = ui::axes;
-        using snap = ui::snap;
-        using id_t = netxs::input::id_t;
+    using slot = ui::slot;
+    using axis = ui::axis;
+    using axes = ui::axes;
+    using snap = ui::snap;
+    using id_t = netxs::input::id_t;
 
     //todo unify
     const static auto term_menu_bg = rgba{ 0x80404040 };
@@ -173,32 +173,32 @@ namespace netxs::app
                         switch (deed)
                         {
                             case app::tile::ui::create.id:
-                                boss.riseup<tier::release>(e2::form::proceed::createby, gear);
+                                boss.template riseup<tier::release>(e2::form::proceed::createby, gear);
                                 break;
                             case app::tile::ui::close.id:
-                                boss.riseup<tier::release>(e2::form::quit, boss.This());
+                                boss.template riseup<tier::release>(e2::form::quit, boss.This());
                                 break;
                             case app::tile::ui::toggle.id:
                                 if (gear.countdown > 0)
                                 {
                                     gear.countdown--;
-                                    boss.riseup<tier::release>(e2::form::maximize, gear);
+                                    boss.template riseup<tier::release>(e2::form::maximize, gear);
                                 }
                                 break;
                             case app::tile::ui::swap.id:
-                                boss.riseup<tier::release>(app::tile::ui::swap, gear);
+                                boss.template riseup<tier::release>(app::tile::ui::swap, gear);
                                 break;
                             case app::tile::ui::rotate.id:
-                                boss.riseup<tier::release>(app::tile::ui::rotate, gear);
+                                boss.template riseup<tier::release>(app::tile::ui::rotate, gear);
                                 break;
                             case app::tile::ui::equalize.id:
-                                boss.riseup<tier::release>(app::tile::ui::equalize, gear);
+                                boss.template riseup<tier::release>(app::tile::ui::equalize, gear);
                                 break;
                             case app::tile::ui::split::vt.id:
-                                boss.riseup<tier::release>(app::tile::ui::split::vt, gear);
+                                boss.template riseup<tier::release>(app::tile::ui::split::vt, gear);
                                 break;
                             case app::tile::ui::split::hz.id:
-                                boss.riseup<tier::release>(app::tile::ui::split::hz, gear);
+                                boss.template riseup<tier::release>(app::tile::ui::split::hz, gear);
                                 break;
                         }
                     }
