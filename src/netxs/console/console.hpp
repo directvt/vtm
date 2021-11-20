@@ -339,6 +339,7 @@ namespace netxs::events::userland
                         EVENT_XS( got     , input::hids     ), // release: got  keyboard focus.
                         EVENT_XS( lost    , input::hids     ), // release: lost keyboard focus.
                         EVENT_XS( handover, std::list<id_t> ), // request: Handover all available foci.
+                        EVENT_XS( find    , id_t            ), // request: Check the focus.
                     };
                 };
                 SUBSET_XS( ui )
@@ -4089,48 +4090,13 @@ namespace netxs::console
 
         public:
             focus(base&&) = delete;
-            focus(base& boss, text test = {}) //todo test for debug
+            focus(base& boss)
                 : skill{ boss }
             {
-                boss.broadcast->SUBMIT_T(tier::preview, e2::form::ui::any, memo, gear)
+                boss.broadcast->SUBMIT_T(tier::request, e2::form::state::keybd::find, memo, gear_id)
                 {
-                    if (find(gear.id))
-                    {
-                        if (auto deed = boss.broadcast->bell::protos<tier::preview>())
-                        {
-                            switch (deed)
-                            {
-                                case e2::form::ui::create.id:
-                                    boss.riseup<tier::release>(e2::form::proceed::createby, gear);
-                                    break;
-                                case e2::form::ui::close.id:
-                                    boss.riseup<tier::release>(e2::form::quit, boss.This());
-                                    break;
-                                case e2::form::ui::toggle.id:
-                                    if (gear.countdown > 0)
-                                    {
-                                        gear.countdown--;
-                                        boss.riseup<tier::release>(e2::form::ui::toggle, gear);
-                                    }
-                                    break;
-                                case e2::form::ui::swap.id:
-                                    boss.riseup<tier::release>(e2::form::ui::swap, gear);
-                                    break;
-                                case e2::form::ui::rotate.id:
-                                    boss.riseup<tier::release>(e2::form::ui::rotate, gear);
-                                    break;
-                                case e2::form::ui::equalize.id:
-                                    boss.riseup<tier::release>(e2::form::ui::equalize, gear);
-                                    break;
-                                case e2::form::ui::split::vt.id:
-                                    boss.riseup<tier::release>(e2::form::ui::split::vt, gear);
-                                    break;
-                                case e2::form::ui::split::hz.id:
-                                    boss.riseup<tier::release>(e2::form::ui::split::hz, gear);
-                                    break;
-                            }
-                        }
-                    }
+                    gear_id = find(gear_id) ? gear_id
+                                            : decltype(gear_id){};
                 };
                 boss.broadcast->SUBMIT_T(tier::request, e2::form::state::keybd::handover, memo, gear_id_list)
                 {

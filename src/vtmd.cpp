@@ -1572,6 +1572,48 @@ utility like ctags is used to locate the definitions.
 
         auto mouse_actions = [&](auto& boss)
         {
+            boss.broadcast->SUBMIT_T(tier::preview, e2::form::ui::any, boss.tracker, gear)
+            {
+                auto gear_id = gear.id;
+                boss.broadcast->SIGNAL(tier::request, e2::form::state::keybd::find, gear_id);
+                if (gear_id)
+                {
+                    if (auto deed = boss.broadcast->bell::protos<tier::preview>())
+                    {
+                        switch (deed)
+                        {
+                            case e2::form::ui::create.id:
+                                boss.riseup<tier::release>(e2::form::proceed::createby, gear);
+                                break;
+                            case e2::form::ui::close.id:
+                                boss.riseup<tier::release>(e2::form::quit, boss.This());
+                                break;
+                            case e2::form::ui::toggle.id:
+                                if (gear.countdown > 0)
+                                {
+                                    gear.countdown--;
+                                    boss.riseup<tier::release>(e2::form::ui::toggle, gear);
+                                }
+                                break;
+                            case e2::form::ui::swap.id:
+                                boss.riseup<tier::release>(e2::form::ui::swap, gear);
+                                break;
+                            case e2::form::ui::rotate.id:
+                                boss.riseup<tier::release>(e2::form::ui::rotate, gear);
+                                break;
+                            case e2::form::ui::equalize.id:
+                                boss.riseup<tier::release>(e2::form::ui::equalize, gear);
+                                break;
+                            case e2::form::ui::split::vt.id:
+                                boss.riseup<tier::release>(e2::form::ui::split::vt, gear);
+                                break;
+                            case e2::form::ui::split::hz.id:
+                                boss.riseup<tier::release>(e2::form::ui::split::hz, gear);
+                                break;
+                        }
+                    }
+                }
+            };
             boss.SUBMIT(tier::release, hids::events::mouse::button::dblclick::left, gear)
             {
                 boss.base::template riseup<tier::release>(e2::form::ui::toggle, gear);
@@ -2420,8 +2462,9 @@ utility like ctags is used to locate the definitions.
                         auto node = tag == 'h' ? ui::fork::ctor(axis::X, w == -1 ? 2 : w, s1, s2)
                                                : ui::fork::ctor(axis::Y, w == -1 ? 1 : w, s1, s2);
                         node->isroot(true, 1) // Set object kind to 1 to be different from others.
-                            ->invoke([](auto& boss)
+                            ->invoke([&](auto& boss)
                             {
+                                mouse_actions(boss);
                                 boss.SUBMIT(tier::release, e2::form::ui::swap    , gear) { boss.swap();       };
                                 boss.SUBMIT(tier::release, e2::form::ui::rotate  , gear) { boss.rotate();     };
                                 boss.SUBMIT(tier::release, e2::form::ui::equalize, gear) { boss.config(1, 1); };
@@ -2434,8 +2477,7 @@ utility like ctags is used to locate the definitions.
                                             ->invoke([&](auto& boss)
                                             {
                                                 boss.keybd.accept(true);
-                                                //todo revise
-                                                mouse_actions(boss);
+                                                //todo implement
                                             })
                                             ->active();
                         return node;
@@ -2446,7 +2488,7 @@ utility like ctags is used to locate the definitions.
                             ->isroot(true)
                             ->colors(blacklt, term_menu_bg)
                             ->template plugin<pro::limit>(dot_00, -dot_11)
-                            ->template plugin<pro::focus>("empty slot")
+                            ->template plugin<pro::focus>()
                             ->invoke([&](auto& boss)
                             {
                                 boss.keybd.accept(true);
@@ -2695,7 +2737,7 @@ utility like ctags is used to locate the definitions.
                                                 auto config = objs_config[current_default];
 
                                                 auto host = ui::cake::ctor()
-                                                            ->plugin<pro::focus>(config.name);
+                                                            ->plugin<pro::focus>();
                                                 create_app(create_app, host, current_default, config.data);
                                                 auto app = box_with_title(config.title, host);
                                                 gear.remove_from_kb_focus(boss.back()); // Take focus from the empty slot.
@@ -2756,9 +2798,18 @@ utility like ctags is used to locate the definitions.
                             auto cmdline = utf_get_quote(utf8, '\"');
                             log(" node cmdline=", cmdline);
                             auto host = ui::cake::ctor()
-                                    ->plugin<pro::focus>("term "s + cmdline);
+                                    ->plugin<pro::focus>();
                             create_app(create_app, host, objs_map["Term"], cmdline);
                             auto inst = box_with_title("Headless TE", host);
+
+                            // empty_slot<veer>->(r0,f)place_holder<park>
+                            //                 ->(r0)box_with_title<fork>->title
+                            //                                           ->(f)cake->app
+                            // empty_slot<veer>->(r0,f)place_holder<park>
+                            //                 ->(r1)node_split<fork>->slot_1 ...
+                            //                                       ->slot_2 ...
+                            //                                       ->(f)grip
+
                             place->attach(inst);
                         }
                         else if (tag == 'a')
@@ -2775,7 +2826,7 @@ utility like ctags is used to locate the definitions.
                             auto app_data = utf_get_quote(utf8, '\"');
                             log(" app_id=", app_id, " app_title=", app_title, " app_data=", app_data);
                             auto host = ui::cake::ctor()
-                                    ->plugin<pro::focus>("app "s + app_title);
+                                    ->plugin<pro::focus>();
                             create_app(create_app, host, objs_map[app_id], app_data);
                             auto app = box_with_title(app_title, host);
                             place->attach(app);
