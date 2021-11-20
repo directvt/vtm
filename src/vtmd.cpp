@@ -27,6 +27,43 @@
 
 #include <fstream>
 
+
+namespace netxs::events::userland
+{
+    struct tile
+    {
+        EVENTPACK( tile, netxs::events::userland::root::custom )
+        {
+            GROUP_XS( ui, input::hids ), // Window manager command pack.
+
+            SUBSET_XS( ui )
+            {
+                EVENT_XS( create  , input::hids ),
+                EVENT_XS( close   , input::hids ),
+                EVENT_XS( toggle  , input::hids ), // toggle window size: maximize/restore.
+                EVENT_XS( swap    , input::hids ),
+                EVENT_XS( rotate  , input::hids ), // change nested objects order. See tilimg manager (ui::fork).
+                EVENT_XS( equalize, input::hids ),
+                EVENT_XS( select  , input::hids ),
+                GROUP_XS( split   , input::hids ),
+
+                SUBSET_XS( split )
+                {
+                    EVENT_XS( vt, input::hids ),
+                    EVENT_XS( hz, input::hids ),
+                };
+            };
+        };
+    };
+}
+
+namespace netxs::app
+{
+    // tilimg: Built-in tiling window manager.
+    using tile = netxs::events::userland::tile;
+}
+
+
 using namespace std::placeholders;
 using namespace netxs::console;
 using namespace netxs;
@@ -1370,7 +1407,7 @@ utility like ctags is used to locate the definitions.
                                 {
                                     boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                                     {
-                                        boss.base::template riseup<tier::release>(e2::form::ui::toggle, gear);
+                                        boss.base::template riseup<tier::release>(e2::form::maximize, gear);
                                         gear.dismiss();
                                     };
                                 })
@@ -1522,162 +1559,6 @@ utility like ctags is used to locate the definitions.
                 }},
             };
             return custom_menu(full_size, items);
-        };
-
-        auto utf_find_char = [](auto head, auto tail, char delim)
-        {
-            while (head != tail)
-            {
-                auto c = *head;
-                        if (c == delim) break;
-                else if (c == '\\' && head != tail) ++head;
-                ++head;
-            }
-            return head;
-        };
-        auto utf_get_quote = [&](view& utf8, char delim)
-        {
-            auto head = utf8.begin();
-            auto tail = utf8.end();
-            auto start = utf_find_char(head, tail, delim);
-            if (std::distance(start, tail) < 2)
-            {
-                utf8 = view{};
-                return text{};
-            }
-            ++start;
-            auto end = utf_find_char(start, tail, delim);
-            if (end == tail)
-            {
-                utf8 = view{};
-                return text{};
-            }
-            utf8.remove_prefix(std::distance(head, end) + 1);
-            text str{ start, end }; 
-            utf::change(str, "\\"s + delim, text{ 1, delim} );
-            return str;
-        };
-        auto utf_trim_front = [](view& utf8, view delims)
-        {
-            auto head = utf8.begin();
-            auto tail = utf8.end();
-            while (head != tail)
-            {
-                auto c = *head;
-                if (delims.find(c) == text::npos) break;
-                ++head;
-            }
-            utf8.remove_prefix(std::distance(utf8.begin(), head));
-        };
-
-        auto mouse_actions = [&](auto& boss)
-        {
-            boss.broadcast->SUBMIT_T(tier::preview, e2::form::ui::any, boss.tracker, gear)
-            {
-                auto gear_id = gear.id;
-                boss.broadcast->SIGNAL(tier::request, e2::form::state::keybd::find, gear_id);
-                if (gear_id)
-                {
-                    if (auto deed = boss.broadcast->bell::protos<tier::preview>())
-                    {
-                        switch (deed)
-                        {
-                            case e2::form::ui::create.id:
-                                boss.riseup<tier::release>(e2::form::proceed::createby, gear);
-                                break;
-                            case e2::form::ui::close.id:
-                                boss.riseup<tier::release>(e2::form::quit, boss.This());
-                                break;
-                            case e2::form::ui::toggle.id:
-                                if (gear.countdown > 0)
-                                {
-                                    gear.countdown--;
-                                    boss.riseup<tier::release>(e2::form::ui::toggle, gear);
-                                }
-                                break;
-                            case e2::form::ui::swap.id:
-                                boss.riseup<tier::release>(e2::form::ui::swap, gear);
-                                break;
-                            case e2::form::ui::rotate.id:
-                                boss.riseup<tier::release>(e2::form::ui::rotate, gear);
-                                break;
-                            case e2::form::ui::equalize.id:
-                                boss.riseup<tier::release>(e2::form::ui::equalize, gear);
-                                break;
-                            case e2::form::ui::split::vt.id:
-                                boss.riseup<tier::release>(e2::form::ui::split::vt, gear);
-                                break;
-                            case e2::form::ui::split::hz.id:
-                                boss.riseup<tier::release>(e2::form::ui::split::hz, gear);
-                                break;
-                        }
-                    }
-                }
-            };
-            boss.SUBMIT(tier::release, hids::events::mouse::button::dblclick::left, gear)
-            {
-                boss.base::template riseup<tier::release>(e2::form::ui::toggle, gear);
-                gear.dismiss();
-            };
-            boss.SUBMIT(tier::release, hids::events::mouse::button::click::leftright, gear)
-            {
-                boss.base::template riseup<tier::release>(e2::form::quit, boss.This());
-                gear.dismiss();
-            };
-            boss.SUBMIT(tier::release, hids::events::mouse::button::click::middle, gear)
-            {
-                boss.base::template riseup<tier::release>(e2::form::quit, boss.This());
-                gear.dismiss();
-            };
-        };
-        auto select_all = [](auto& boss)
-        {
-            boss.broadcast->SUBMIT_T(tier::preview, e2::form::ui::select, boss.tracker, gear)
-            {
-                //todo unify
-                gear.force_group_focus = true;
-                gear.kb_focus_taken = faux;
-                gear.combine_focus = true;
-                boss.SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
-                gear.combine_focus = faux;
-                gear.force_group_focus = faux;
-            };
-        };
-        auto box_with_title = [&](view title, auto branch)
-        {
-            return ui::fork::ctor(axis::Y)
-                    ->plugin<pro::title>("", true, faux, true)
-                    ->plugin<pro::limit>(twod{ 10,-1 }, twod{ -1,-1 })
-                    ->isroot(true)
-                    ->active()
-                    ->invoke([&](auto& boss)
-                    {
-                        mouse_actions(boss);
-                        select_all(boss);
-                    })
-                    //->branch(slot::_1, ui::post_fx<cell::shaders::contrast>::ctor()) //todo apple clang doesn't get it
-                    ->branch(slot::_1, ui::post_fx::ctor()
-                        ->upload(title)
-                        ->invoke([&](auto& boss)
-                        {
-                            auto shadow = ptr::shadow(boss.This());
-                            boss.SUBMIT_BYVAL(tier::release, e2::form::upon::vtree::attached, parent)
-                            {
-                                parent->SUBMIT_BYVAL(tier::preview, e2::form::prop::header, newtext)
-                                {
-                                    if (auto ptr = shadow.lock()) ptr->upload(newtext);
-                                };
-                                parent->SUBMIT_BYVAL(tier::request, e2::form::prop::header, curtext)
-                                {
-                                    if (auto ptr = shadow.lock()) curtext = ptr->get_source();
-                                };
-                            };
-                        }))
-                    ->branch(slot::_2, branch
-                        ->invoke([&](auto& boss)
-                        {
-                            boss.base::broadcast->SIGNAL(tier::release, e2::form::prop::menusize, 1);
-                        }));
         };
 
         auto create_app = [&, insts_count = 0](auto&& create_app, auto window, auto type, view data) mutable -> void
@@ -2325,11 +2206,11 @@ utility like ctags is used to locate the definitions.
                             //envvar_data = view{ b, e }; //todo apple clang doesn't get it
                             envvar_data = view{ &(*b), (size_t)(e - b) };
                             log(" envvar_data=", envvar_data);
-                            auto menu_name = utf_get_quote(envvar_data, '\"');
-                            window_title = utf_get_quote(envvar_data, '\"');
+                            auto menu_name = utf::get_quote(envvar_data, '\"');
+                            window_title = utf::get_quote(envvar_data, '\"');
                             log(" menu_name=", menu_name);
                             log(" window_title=", window_title);
-                            utf_trim_front(envvar_data, ", ");
+                            utf::trim_front(envvar_data, ", ");
                             log(" layout_data=", envvar_data);
                             //if (window_title.length()) window_title += '\n';
                         }
@@ -2357,7 +2238,7 @@ utility like ctags is used to locate the definitions.
                                         boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                                         {
                                             gear.countdown = 1;
-                                            boss.base::broadcast->SIGNAL(tier::preview, e2::form::ui::toggle, gear);
+                                            boss.base::broadcast->SIGNAL(tier::preview, app::tile::ui::toggle, gear);
                                             //iota status = 1;
                                             //boss.base::broadcast->SIGNAL(tier::request, e2::command::custom, status);
                                             //boss.base::broadcast->SIGNAL(tier::preview, e2::command::custom, status == 2 ? 1/*show*/ : 2/*hide*/);
@@ -2373,7 +2254,7 @@ utility like ctags is used to locate the definitions.
                                     {
                                         boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                                         {
-                                            boss.base::broadcast->SIGNAL(tier::preview, e2::form::ui::create, gear);
+                                            boss.base::broadcast->SIGNAL(tier::preview, app::tile::ui::create, gear);
                                             gear.dismiss(true);
                                         };
                                     }},
@@ -2382,7 +2263,7 @@ utility like ctags is used to locate the definitions.
                                     {
                                         boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                                         {
-                                            boss.base::broadcast->SIGNAL(tier::preview, e2::form::ui::select, gear);
+                                            boss.base::broadcast->SIGNAL(tier::preview, app::tile::ui::select, gear);
                                             gear.dismiss(true);
                                         };
                                     }},
@@ -2391,7 +2272,7 @@ utility like ctags is used to locate the definitions.
                                     {
                                         boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                                         {
-                                            boss.base::broadcast->SIGNAL(tier::preview, e2::form::ui::split::hz, gear);
+                                            boss.base::broadcast->SIGNAL(tier::preview, app::tile::ui::split::hz, gear);
                                             gear.dismiss(true);
                                         };
                                     }},
@@ -2400,7 +2281,7 @@ utility like ctags is used to locate the definitions.
                                     {
                                         boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                                         {
-                                            boss.base::broadcast->SIGNAL(tier::preview, e2::form::ui::split::vt, gear);
+                                            boss.base::broadcast->SIGNAL(tier::preview, app::tile::ui::split::vt, gear);
                                             gear.dismiss(true);
                                         };
                                     }},
@@ -2409,7 +2290,7 @@ utility like ctags is used to locate the definitions.
                                     {
                                         boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                                         {
-                                            boss.base::broadcast->SIGNAL(tier::preview, e2::form::ui::rotate, gear);
+                                            boss.base::broadcast->SIGNAL(tier::preview, app::tile::ui::rotate, gear);
                                             gear.dismiss(true);
                                         };
                                     }},
@@ -2418,7 +2299,7 @@ utility like ctags is used to locate the definitions.
                                     {
                                         boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                                         {
-                                            boss.base::broadcast->SIGNAL(tier::preview, e2::form::ui::swap, gear);
+                                            boss.base::broadcast->SIGNAL(tier::preview, app::tile::ui::swap, gear);
                                             gear.dismiss(true);
                                         };
                                     }},
@@ -2427,7 +2308,7 @@ utility like ctags is used to locate the definitions.
                                     {
                                         boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                                         {
-                                            boss.base::broadcast->SIGNAL(tier::preview, e2::form::ui::equalize, gear);
+                                            boss.base::broadcast->SIGNAL(tier::preview, app::tile::ui::equalize, gear);
                                             gear.dismiss(true);
                                         };
                                     }},
@@ -2436,7 +2317,7 @@ utility like ctags is used to locate the definitions.
                                     {
                                         boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                                         {
-                                            boss.base::broadcast->SIGNAL(tier::preview, e2::form::ui::close, gear);
+                                            boss.base::broadcast->SIGNAL(tier::preview, app::tile::ui::close, gear);
                                             gear.dismiss(true);
                                         };
                                     }},
@@ -2444,6 +2325,116 @@ utility like ctags is used to locate the definitions.
                                 ->colors(whitelt, term_menu_bg)
                                 ->template plugin<pro::track>()
                                 ->template plugin<pro::acryl>();
+
+                    auto mouse_actions = [](auto& boss)
+                    {
+                        boss.broadcast->SUBMIT_T(tier::preview, app::tile::ui::any, boss.tracker, gear)
+                        {
+                            auto gear_id = gear.id;
+                            boss.broadcast->SIGNAL(tier::request, e2::form::state::keybd::find, gear_id);
+                            if (gear_id)
+                            {
+                                if (auto deed = boss.broadcast->bell::protos<tier::preview>())
+                                {
+                                    switch (deed)
+                                    {
+                                        case app::tile::ui::create.id:
+                                            boss.riseup<tier::release>(e2::form::proceed::createby, gear);
+                                            break;
+                                        case app::tile::ui::close.id:
+                                            boss.riseup<tier::release>(e2::form::quit, boss.This());
+                                            break;
+                                        case app::tile::ui::toggle.id:
+                                            if (gear.countdown > 0)
+                                            {
+                                                gear.countdown--;
+                                                boss.riseup<tier::release>(e2::form::maximize, gear);
+                                            }
+                                            break;
+                                        case app::tile::ui::swap.id:
+                                            boss.riseup<tier::release>(app::tile::ui::swap, gear);
+                                            break;
+                                        case app::tile::ui::rotate.id:
+                                            boss.riseup<tier::release>(app::tile::ui::rotate, gear);
+                                            break;
+                                        case app::tile::ui::equalize.id:
+                                            boss.riseup<tier::release>(app::tile::ui::equalize, gear);
+                                            break;
+                                        case app::tile::ui::split::vt.id:
+                                            boss.riseup<tier::release>(app::tile::ui::split::vt, gear);
+                                            break;
+                                        case app::tile::ui::split::hz.id:
+                                            boss.riseup<tier::release>(app::tile::ui::split::hz, gear);
+                                            break;
+                                    }
+                                }
+                            }
+                        };
+                        boss.SUBMIT(tier::release, hids::events::mouse::button::dblclick::left, gear)
+                        {
+                            boss.base::template riseup<tier::release>(e2::form::maximize, gear);
+                            gear.dismiss();
+                        };
+                        boss.SUBMIT(tier::release, hids::events::mouse::button::click::leftright, gear)
+                        {
+                            boss.base::template riseup<tier::release>(e2::form::quit, boss.This());
+                            gear.dismiss();
+                        };
+                        boss.SUBMIT(tier::release, hids::events::mouse::button::click::middle, gear)
+                        {
+                            boss.base::template riseup<tier::release>(e2::form::quit, boss.This());
+                            gear.dismiss();
+                        };
+                    };
+                    auto select_all = [](auto& boss)
+                    {
+                        boss.broadcast->SUBMIT_T(tier::preview, app::tile::ui::select, boss.tracker, gear)
+                        {
+                            //todo unify
+                            gear.force_group_focus = true;
+                            gear.kb_focus_taken = faux;
+                            gear.combine_focus = true;
+                            boss.SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
+                            gear.combine_focus = faux;
+                            gear.force_group_focus = faux;
+                        };
+                    };
+                    auto box_with_title = [&](view title, auto branch)
+                    {
+                        return ui::fork::ctor(axis::Y)
+                                ->plugin<pro::title>("", true, faux, true)
+                                ->plugin<pro::limit>(twod{ 10,-1 }, twod{ -1,-1 })
+                                ->isroot(true)
+                                ->active()
+                                ->invoke([&](auto& boss)
+                                {
+                                    mouse_actions(boss);
+                                    select_all(boss);
+                                })
+                                //->branch(slot::_1, ui::post_fx<cell::shaders::contrast>::ctor()) //todo apple clang doesn't get it
+                                ->branch(slot::_1, ui::post_fx::ctor()
+                                    ->upload(title)
+                                    ->invoke([&](auto& boss)
+                                    {
+                                        auto shadow = ptr::shadow(boss.This());
+                                        boss.SUBMIT_BYVAL(tier::release, e2::form::upon::vtree::attached, parent)
+                                        {
+                                            parent->SUBMIT_BYVAL(tier::preview, e2::form::prop::header, newtext)
+                                            {
+                                                if (auto ptr = shadow.lock()) ptr->upload(newtext);
+                                            };
+                                            parent->SUBMIT_BYVAL(tier::request, e2::form::prop::header, curtext)
+                                            {
+                                                if (auto ptr = shadow.lock()) curtext = ptr->get_source();
+                                            };
+                                        };
+                                    }))
+                                ->branch(slot::_2, branch
+                                    ->invoke([&](auto& boss)
+                                    {
+                                        boss.base::broadcast->SIGNAL(tier::release, e2::form::prop::menusize, 1);
+                                    }));
+                    };
                     auto pass_focus = [](auto& gear_id_list, auto& item_ptr)
                     {
                         if (item_ptr)
@@ -2465,9 +2456,9 @@ utility like ctags is used to locate the definitions.
                             ->invoke([&](auto& boss)
                             {
                                 mouse_actions(boss);
-                                boss.SUBMIT(tier::release, e2::form::ui::swap    , gear) { boss.swap();       };
-                                boss.SUBMIT(tier::release, e2::form::ui::rotate  , gear) { boss.rotate();     };
-                                boss.SUBMIT(tier::release, e2::form::ui::equalize, gear) { boss.config(1, 1); };
+                                boss.SUBMIT(tier::release, app::tile::ui::swap    , gear) { boss.swap();       };
+                                boss.SUBMIT(tier::release, app::tile::ui::rotate  , gear) { boss.rotate();     };
+                                boss.SUBMIT(tier::release, app::tile::ui::equalize, gear) { boss.config(1, 1); };
                             });
                             auto grip = node->attach(slot::_I, ui::mock::ctor())
                                             ->template plugin<pro::mover>()
@@ -2559,19 +2550,19 @@ utility like ctags is used to locate the definitions.
                                         parent_memo.reset();
                                     };
                                 };
-                                boss.broadcast->SUBMIT_T(tier::preview, e2::form::ui::any, boss.tracker, gear)
+                                boss.broadcast->SUBMIT_T(tier::preview, app::tile::ui::any, boss.tracker, gear)
                                 {
                                     if (auto deed = boss.broadcast->bell::template protos<tier::preview>())
                                     {
                                         //auto size = boss.count();
-                                        //if (deed == e2::form::ui::toggle.id
+                                        //if (deed == app::tile::ui::toggle.id
                                         // && size > 2
                                         // && gear.countdown > 0)
                                         //{
                                         //    if (auto fullscreen_item = boss.back())
                                         //    {
                                         //        gear.countdown--;
-                                        //        fullscreen_item->SIGNAL(tier::release, e2::form::ui::toggle, gear);
+                                        //        fullscreen_item->SIGNAL(tier::release, app::tile::ui::toggle, gear);
                                         //    }
                                         //}
                                         //else
@@ -2587,7 +2578,7 @@ utility like ctags is used to locate the definitions.
                                         }
                                     }
                                 };
-                                boss.SUBMIT_BYVAL(tier::release, e2::form::ui::toggle, gear)
+                                boss.SUBMIT_BYVAL(tier::release, e2::form::maximize, gear)
                                 {
                                     if (auto boss_ptr = shadow.lock())
                                     {
@@ -2603,7 +2594,7 @@ utility like ctags is used to locate the definitions.
                                                 {
                                                     // One-time return ticket.
                                                     auto oneoff = std::make_shared<hook>();
-                                                    fullscreen_item->SUBMIT_T_BYVAL(tier::release, e2::form::ui::toggle, *oneoff, gear)
+                                                    fullscreen_item->SUBMIT_T_BYVAL(tier::release, e2::form::maximize, *oneoff, gear)
                                                     {
                                                         if (auto boss_ptr = shadow.lock())
                                                         {
@@ -2630,7 +2621,7 @@ utility like ctags is used to locate the definitions.
                                         }
                                     }
                                 };
-                                boss.SUBMIT_BYVAL(tier::release, e2::form::ui::split::any, gear)
+                                boss.SUBMIT_BYVAL(tier::release, app::tile::ui::split::any, gear)
                                 {
                                     if (auto boss_ptr = shadow.lock())
                                     {
@@ -2647,7 +2638,7 @@ utility like ctags is used to locate the definitions.
 
                                                 if (boss.back()->base::root())
                                                 {
-                                                    auto heading = deed == e2::form::ui::split::vt.id;
+                                                    auto heading = deed == app::tile::ui::split::vt.id;
                                                     auto newnode = built_node(heading ? 'v':'h', 1, 1, heading ? 1 : 2);
                                                     auto empty_1 = empty_slot(empty_slot);
                                                     auto empty_2 = empty_slot(empty_slot);
@@ -2789,13 +2780,13 @@ utility like ctags is used to locate the definitions.
                     auto add_node = [&](auto&& add_node, view& utf8) -> sptr<ui::veer>
                     {
                         auto place = empty_slot(empty_slot);
-                        utf_trim_front(utf8, ", ");
+                        utf::trim_front(utf8, ", ");
                         if (utf8.empty()) return place;
                         auto tag = utf8.front();
                         if (tag == '\"')
                         {
                             // add term
-                            auto cmdline = utf_get_quote(utf8, '\"');
+                            auto cmdline = utf::get_quote(utf8, '\"');
                             log(" node cmdline=", cmdline);
                             auto host = ui::cake::ctor()
                                     ->plugin<pro::focus>();
@@ -2816,27 +2807,27 @@ utility like ctags is used to locate the definitions.
                         {
                             // add app
                             utf8.remove_prefix(1);
-                            utf_trim_front(utf8, " ");
+                            utf::trim_front(utf8, " ");
                             if (utf8.empty() || utf8.front() != '(') return place;
                             utf8.remove_prefix(1);
-                            auto app_id  = utf_get_quote(utf8, '\"');
-                            utf_trim_front(utf8, ", ");
-                            auto app_title = utf_get_quote(utf8, '\"');
-                            utf_trim_front(utf8, ", ");
-                            auto app_data = utf_get_quote(utf8, '\"');
+                            auto app_id  = utf::get_quote(utf8, '\"');
+                            utf::trim_front(utf8, ", ");
+                            auto app_title = utf::get_quote(utf8, '\"');
+                            utf::trim_front(utf8, ", ");
+                            auto app_data = utf::get_quote(utf8, '\"');
                             log(" app_id=", app_id, " app_title=", app_title, " app_data=", app_data);
                             auto host = ui::cake::ctor()
                                     ->plugin<pro::focus>();
                             create_app(create_app, host, objs_map[app_id], app_data);
                             auto app = box_with_title(app_title, host);
                             place->attach(app);
-                            utf_trim_front(utf8, ") ");
+                            utf::trim_front(utf8, ") ");
                         }
                         else if (tag == 'h' || tag == 'v')
                         {
                             // add split
                             utf8.remove_prefix(1);
-                            utf_trim_front(utf8, " ");
+                            utf::trim_front(utf8, " ");
                             iota s1 = 1;
                             iota s2 = 1;
                             iota w = -1;
@@ -2848,14 +2839,14 @@ utility like ctags is used to locate the definitions.
                                 if (auto param = utf::to_int(utf8))
                                 {
                                     s2 = std::abs(param.value());
-                                    utf_trim_front(utf8, " ");
+                                    utf::trim_front(utf8, " ");
                                     if (!utf8.empty() && utf8.front() == ':') // Grip width.
                                     {
                                         utf8.remove_prefix(1);
                                         if (auto param = utf::to_int(utf8))
                                         {
                                             w = std::abs(param.value());
-                                            utf_trim_front(utf8, " ");
+                                            utf::trim_front(utf8, " ");
                                         }
                                     }
                                 }
@@ -2868,7 +2859,7 @@ utility like ctags is used to locate the definitions.
                             auto slot2 = node->attach(slot::_2, add_node(add_node, utf8));
                             place->attach(node);
 
-                            utf_trim_front(utf8, ") ");
+                            utf::trim_front(utf8, ") ");
                         }
                         return place;
                     };
@@ -2911,7 +2902,7 @@ utility like ctags is used to locate the definitions.
                 {
                     boss.SUBMIT(tier::release, hids::events::mouse::button::dblclick::left, gear)
                     {
-                        boss.base::template riseup<tier::release>(e2::form::ui::toggle, gear);
+                        boss.base::template riseup<tier::release>(e2::form::maximize, gear);
                         gear.dismiss();
                     };
                     boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
@@ -3075,7 +3066,7 @@ utility like ctags is used to locate the definitions.
                 {
                     //todo rewrite
                     auto v = view{ p };
-                    auto name = utf_get_quote(v, '\"');
+                    auto name = utf::get_quote(v, '\"');
                     if (!name.empty())
                     {
                         menu_list[static_cast<id_t>(objs_config.size())];

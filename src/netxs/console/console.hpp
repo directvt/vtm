@@ -143,6 +143,7 @@ namespace netxs::events::userland
             SUBSET_XS( form )
             {
                 EVENT_XS( canvas   , sptr<console::core> ), // request global canvas.
+                EVENT_XS( maximize , input::hids         ), // request to toggle maximize/restore.
                 EVENT_XS( quit     , sptr<console::base> ), // request parent for destroy.
                 GROUP_XS( layout   , const twod          ),
                 GROUP_XS( draggable, bool                ), // signal to the form to enable draggablity for specified mouse button.
@@ -155,7 +156,6 @@ namespace netxs::events::userland
                 GROUP_XS( global   , twod                ),
                 GROUP_XS( state    , const twod          ),
                 GROUP_XS( animate  , id_t                ),
-                GROUP_XS( ui       , input::hids         ), // Window manager command pack.
 
                 SUBSET_XS( draggable )
                 {
@@ -340,23 +340,6 @@ namespace netxs::events::userland
                         EVENT_XS( lost    , input::hids     ), // release: lost keyboard focus.
                         EVENT_XS( handover, std::list<id_t> ), // request: Handover all available foci.
                         EVENT_XS( find    , id_t            ), // request: Check the focus.
-                    };
-                };
-                SUBSET_XS( ui )
-                {
-                    EVENT_XS( create  , input::hids ),
-                    EVENT_XS( close   , input::hids ),
-                    EVENT_XS( toggle  , input::hids ), // toggle window size: maximize/restore.
-                    EVENT_XS( swap    , input::hids ),
-                    EVENT_XS( rotate  , input::hids ), // change nested objects order. See tilimg manager (ui::fork).
-                    EVENT_XS( equalize, input::hids ),
-                    EVENT_XS( select  , input::hids ),
-                    GROUP_XS( split   , input::hids ),
-
-                    SUBSET_XS( split )
-                    {
-                        EVENT_XS( vt, input::hids ),
-                        EVENT_XS( hz, input::hids ),
                     };
                 };
             };
@@ -1551,7 +1534,7 @@ namespace netxs::console
             {
                 if (maximize)
                 {
-                    boss.SUBMIT_T(tier::release, e2::form::ui::toggle, maxs, gear)
+                    boss.SUBMIT_T(tier::release, e2::form::maximize, maxs, gear)
                     {
                         auto size = boss.base::size();
                         if (size.inside(gear.coord))
