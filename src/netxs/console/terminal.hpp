@@ -6,8 +6,6 @@
 
 #include "../ui/controls.hpp"
 
-#include <cassert>
-
 namespace netxs::events::userland
 {
     struct term

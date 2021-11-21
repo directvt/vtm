@@ -2599,8 +2599,8 @@ namespace netxs::console
                   skill::memo;
             page head_page; // title: Owner's caption header.
             page foot_page; // title: Owner's caption footer.
-            text head_name; // title: Preserve original header.
-            text foot_name; // title: Preserve original footer.
+            text head_text; // title: Preserve original header.
+            text foot_text; // title: Preserve original footer.
             twod head_size; // title: Header page size.
             twod foot_size; // title: Footer page size.
             bool head_live; // title: Handle header events.
@@ -2636,24 +2636,24 @@ namespace netxs::console
             void header(view newtext)
             {
                 head_page = newtext;
-                head_name = newtext;
+                head_text = newtext;
                 recalc(head_page, head_size);
-                boss.SIGNAL(tier::release, e2::form::prop::header, head_name);
+                boss.SIGNAL(tier::release, e2::form::prop::header, head_text);
                 /*
                 textline.link(boss.id);
-                boss.SIGNAL(tier::release, e2::form::prop::header, head_name);
+                boss.SIGNAL(tier::release, e2::form::prop::header, head_text);
                 boss.SIGNAL(tier::release, e2::form::state::header, textline);
                 */
             }
             void footer(view newtext)
             {
                 foot_page = newtext;
-                foot_name = newtext;
+                foot_text = newtext;
                 recalc(foot_page, foot_size);
-                boss.SIGNAL(tier::release, e2::form::prop::footer, foot_name);
+                boss.SIGNAL(tier::release, e2::form::prop::footer, foot_text);
                 /*
                 textline.link(boss.id);
-                boss.SIGNAL(tier::release, e2::form::prop::footer, foot_name);
+                boss.SIGNAL(tier::release, e2::form::prop::footer, foot_text);
                 boss.SIGNAL(tier::release, e2::form::state::footer, textline);
                 */
             }
@@ -2689,7 +2689,7 @@ namespace netxs::console
                     };
                     boss.SUBMIT_T(tier::request, e2::form::prop::header, memo, curtext)
                     {
-                        curtext = head_name;
+                        curtext = head_text;
                     };
                 }
                 if (foot_live)
@@ -2700,7 +2700,7 @@ namespace netxs::console
                     };
                     boss.SUBMIT_T(tier::request, e2::form::prop::footer, memo, curtext)
                     {
-                        curtext = foot_name;
+                        curtext = foot_text;
                     };
                 }
                 /*

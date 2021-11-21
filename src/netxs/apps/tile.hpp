@@ -1,10 +1,8 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#ifndef NETXS_TILINGWM_HPP
-#define NETXS_TILINGWM_HPP
-
-#include "../ui/controls.hpp"
+#ifndef NETXS_APP_TILE_HPP
+#define NETXS_APP_TILE_HPP
 
 namespace netxs::events::userland
 {
@@ -37,7 +35,7 @@ namespace netxs::events::userland
 
 namespace netxs::app
 {
-    // tilingwm: Built-in tiling window manager.
+    // tile: Built-in tiling window manager.
     using tile = netxs::events::userland::tile;
 
     //todo revise
@@ -718,4 +716,4 @@ namespace netxs::app
     };
 }
 
-#endif // NETXS_TILINGWM_HPP
+#endif // NETXS_APP_TILE_HPP

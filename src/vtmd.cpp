@@ -23,7 +23,7 @@
 //#define REGIONS
 
 #include "netxs/console/terminal.hpp"
-#include "netxs/apps/tile.hpp"
+#include "netxs/apps.hpp"
 #include "netxs/abstract/queue.hpp"
 
 #include <fstream>
