@@ -51,14 +51,14 @@ namespace netxs::app
     const static auto term_menu_bg = rgba{ 0x80404040 };
 
     //todo unify
-    auto build = [](auto custom_menu, auto create_app,
+    auto build = [](auto create_app,
         auto& envvar_data,
         auto& objs_map,
         auto& objs_config,
         auto& insts_count)
     {
         auto object = ui::fork::ctor(axis::Y);
-            auto menu = object->attach(slot::_1, custom_menu(true,
+            auto menu = object->attach(slot::_1, shared::custom_menu(true,
                 std::list{
                         //  Green                                  ?Even    Red
                         // ┌────┐  ┌────┐  ┌─┬──┐  ┌────┐  ┌─┬──┐  ┌─┬──┐  ┌────┐  // ┌─┐  ┌─┬─┐  ┌─┬─┐  ┌─┬─┐  
@@ -570,10 +570,10 @@ namespace netxs::app
                                     {
                                         insts_count++;
                                         #ifndef PROD
-                                            if (insts_count > max_count)
+                                            if (insts_count > APPS_MAX_COUNT)
                                             {
                                                 log("tile: inst: max count reached");
-                                                auto timeout = tempus::now() + del_timeout;
+                                                auto timeout = tempus::now() + APPS_DEL_TIMEOUT;
                                                 auto w_frame = ptr::shadow(host);
                                                 host->SUBMIT_BYVAL(tier::general, e2::tick, timestamp)
                                                 {
@@ -710,6 +710,22 @@ namespace netxs::app
             {
                 auto item = boss.pop_back();
                 if (item) fullscreen_item = item;
+            };
+            boss.SUBMIT(tier::release, e2::form::upon::created, gear)
+            {
+                if (auto gate_ptr = bell::getref(gear.id))
+                {
+                    auto& gate = *gate_ptr;
+                    auto menu_item_id = decltype(e2::data::changed)::type{};
+                    gate.SIGNAL(tier::request, e2::data::changed, menu_item_id);
+
+                    auto config = objs_config[menu_item_id];
+                    if (config.name == "Tile") // Reset the currently selected application to the previous one.
+                    {
+                        gate.SIGNAL(tier::preview, e2::data::changed, menu_item_id); // Get previous default;
+                        gate.SIGNAL(tier::release, e2::data::changed, menu_item_id); // Set current  default;
+                    }
+                }
             };
         });
         return object;

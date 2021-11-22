@@ -41,6 +41,12 @@ namespace netxs::console
     using namespace netxs::input;
     using drawfx = std::function<bool(face&, page const&)>;
     using registry_t = std::map<id_t, std::list<sptr<base>>>;
+    struct create_t
+    {
+        id_t menu_item_id{};
+        rect location;
+        sptr<base> frame;
+    };
 }
 
 namespace netxs::events::userland
@@ -197,6 +203,7 @@ namespace netxs::events::userland
                     EVENT_XS( wiped  , console::face       ), // event after wipe the canvas.
                     EVENT_XS( changed, twod                ), // event after resize, arg: diff bw old and new size.
                     EVENT_XS( dragged, input::hids         ), // event after drag.
+                    EVENT_XS( created, input::hids         ), // release: notify the instance of who created it.
                     GROUP_XS( vtree  , sptr<console::base> ), // visual tree events, arg: parent base_sptr.
                     GROUP_XS( scroll , rack                ), // event after scroll.
                     //EVENT_XS( created    , sptr<console::base> ), // event after itself creation, arg: itself bell_sptr.
@@ -222,6 +229,7 @@ namespace netxs::events::userland
                 SUBSET_XS( proceed )
                 {
                     EVENT_XS( create  , rect                ), // return coordinates of the new object placeholder.
+                    EVENT_XS( createat, console::create_t   ), // general: create an intance at the specified location and return sptr<base>.
                     EVENT_XS( createby, input::hids         ), // return gear with coordinates of the new object placeholder gear::slot.
                     EVENT_XS( destroy , console::base       ), // ??? bool return reference to the parent.
                     EVENT_XS( render  , console::drawfx     ), // ask children to render itself to the parent canvas, arg is a function drawfx to perform drawing.
@@ -4307,6 +4315,72 @@ namespace netxs::console
                 if (close)
                 {
                     close(reason);
+                }
+            };
+            //todo move it to the gate
+            SUBMIT(tier::release, e2::form::proceed::createby, gear)
+            {
+                static iota insts_count = 0;
+                if (auto gate_ptr = bell::getref(gear.id))
+                {
+                    auto& gate = *gate_ptr;
+                    auto location = gear.slot;
+                    if (gear.meta(hids::ANYCTRL))
+                    {
+                        log("gate: area copied to clipboard ", location);
+                        sptr<core> canvas_ptr;
+                        gate.SIGNAL(tier::request, e2::form::canvas, canvas_ptr);
+                        if (canvas_ptr)
+                        {
+                            auto& canvas = *canvas_ptr;
+                            auto data = canvas.meta(location);
+                            if (data.length())
+                            {
+                                gate.SIGNAL(tier::release, e2::command::cout, ansi::setbuf(data));
+                            }
+                        }
+                    }
+                    else
+                    {
+                        auto what = decltype(e2::form::proceed::createat)::type{};
+                        what.location = gear.slot;
+                        gate.SIGNAL(tier::request, e2::data::changed, what.menu_item_id);
+                        this->SIGNAL(tier::release, e2::form::proceed::createat, what);
+                        if (auto& frame = what.frame)
+                        {
+                            insts_count++;
+                            #ifndef PROD
+                                if (insts_count > APPS_MAX_COUNT)
+                                {
+                                    log("inst: max count reached");
+                                    auto timeout = tempus::now() + APPS_DEL_TIMEOUT;
+                                    auto w_frame = ptr::shadow(frame);
+                                    frame->SUBMIT_BYVAL(tier::general, e2::tick, timestamp)
+                                    {
+                                        if (timestamp > timeout)
+                                        {
+                                            log("inst: timebomb");
+                                            if (auto frame = w_frame.lock())
+                                            {
+                                                frame->base::detach();
+                                                log("inst: frame detached: ", insts_count);
+                                            }
+                                        }
+                                    };
+                                }
+                            #endif
+
+                            frame->SUBMIT(tier::release, e2::form::upon::vtree::detached, master)
+                            {
+                                insts_count--;
+                                log("inst: detached: ", insts_count);
+                            };
+
+                            gear.kb_focus_taken = faux;
+                            frame->SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
+                            frame->SIGNAL(tier::release, e2::form::upon::created, gear); // The Tile should change the menu item.
+                        }
+                    }
                 }
             };
         }

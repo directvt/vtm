@@ -3,13 +3,15 @@
 
 #define MONOTTY_VER "Monotty Desktopio v0.5.9999a"
 // Enable demo apps and assign Esc key to log off.
-//#define DEMO
+#define DEMO
 // Enable keyboard input and unassign Esc key.
-#define PROD
+//#define PROD
 
 // Tiling nesting max level.
 #ifndef PROD
     #define INHERITANCE_LIMIT 12
+    #define APPS_MAX_COUNT 20
+    #define APPS_DEL_TIMEOUT 1s
 #else
     #define INHERITANCE_LIMIT 30
 #endif
@@ -28,6 +30,7 @@
 
 #include <fstream>
 
+//todo remove
 using namespace std::placeholders;
 using namespace netxs::console;
 using namespace netxs;
@@ -1195,13 +1198,6 @@ utility like ctags is used to locate the definitions.
         truecolor += r_grut03;
         truecolor += wiki01;
 
-        //auto const highlight_color2 = tint::blackdk ;
-        //auto const highlightdk_color = tint::bluedk  ;
-        auto const highlight_color   = tint::bluelt  ;
-        auto const warning_color     = tint::yellowdk;
-        auto const danger_color      = tint::redlt   ;
-        auto const action_color      = tint::greenlt ;
-        auto background_color = cell{}.fgc(whitedk).bgc(0xFF000000 /* blackdk */);
         skin::setup(tone::kb_focus, 60);
         skin::setup(tone::brighter, 60);//120);
         //skin::setup(tone::shadower, 0);
@@ -1284,11 +1280,6 @@ utility like ctags is used to locate the definitions.
             objs_config[objs::Tile].data = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h()";
         #endif
 
-        static iota    max_count = 20;// 50;
-        static iota    max_vtm = 3;
-        static iota    vtm_count = 0;
-        static iota    tile_count = 0;
-        constexpr auto del_timeout = 1s;
 
         using slot = ui::slot;
         using axis = ui::axis;
@@ -1296,234 +1287,23 @@ utility like ctags is used to locate the definitions.
         using snap = ui::snap;
         using id_t = netxs::input::id_t;
 
-        const static auto c7 = cell{}.bgc(whitedk).fgc(blackdk);
-        const static auto c6 = cell{}.bgc(action_color).fgc(whitelt);
-        const static auto x6 = cell{ c6 }.bga(0x00).fga(0x00);
-        const static auto c5 = cell{}.bgc(danger_color).fgc(whitelt);
-        const static auto x5 = cell{ c5 }.bga(0x00).fga(0x00);
-        const static auto c4 = cell{}.bgc(highlight_color);
-        const static auto x4 = cell{ c4 }.bga(0x00);
-        const static auto c3 = cell{}.bgc(highlight_color).fgc(0xFFffffff);
-        const static auto x3 = cell{ c3 }.bga(0x00).fga(0x00);
-        const static auto c2 = cell{}.bgc(warning_color).fgc(whitelt);
-        const static auto x2 = cell{ c2 }.bga(0x00);
-        const static auto c1 = cell{}.bgc(danger_color).fgc(whitelt);
-        const static auto x1 = cell{ c1 }.bga(0x00);
-        const static auto x0 = cell{ c3 }.bgc(0xFF000000); //todo make it as desktop bg
-        const static auto term_menu_bg = rgba{ 0x80404040 };
 
-        auto scroll_bars = [](auto master)
-        {
-            auto scroll_bars = ui::fork::ctor();
-                auto scroll_down = scroll_bars->attach(slot::_1, ui::fork::ctor(axis::Y));
-                    auto hz = scroll_down->attach(slot::_2, ui::grip<axis::X>::ctor(master));
-                    auto vt = scroll_bars->attach(slot::_2, ui::grip<axis::Y>::ctor(master));
-            return scroll_bars;
-        };
-        auto scroll_bars_term = [](auto master)
-        {
-            auto scroll_bars = ui::fork::ctor();
-                auto scroll_head = scroll_bars->attach(slot::_1, ui::fork::ctor(axis::Y));
-                    auto hz = scroll_head->attach(slot::_1, ui::grip<axis::X>::ctor(master));
-                    auto vt = scroll_bars->attach(slot::_2, ui::grip<axis::Y>::ctor(master));
-            return scroll_bars;
-        };
+        //todo temp
+        const static auto c7 = app::shared::c7;
+        const static auto c6 = app::shared::c6;
+        const static auto x6 = app::shared::x6;
+        const static auto c5 = app::shared::c5;
+        const static auto x5 = app::shared::x5;
+        const static auto c4 = app::shared::c4;
+        const static auto x4 = app::shared::x4;
+        const static auto c3 = app::shared::c3;
+        const static auto x3 = app::shared::x3;
+        const static auto c2 = app::shared::c2;
+        const static auto x2 = app::shared::x2;
+        const static auto c1 = app::shared::c1;
+        const static auto x1 = app::shared::x1;
+        const static auto x0 = app::shared::x0;
 
-        // Menu bar (shrinkable on right-click).
-        auto custom_menu = [&](bool full_size, std::list<std::pair<text, std::function<void(ui::pads&)>>> menu_items)
-        {
-            auto menu_block = ui::park::ctor()
-                ->plugin<pro::limit>(twod{ -1, full_size ? 3 : 1 }, twod{ -1, full_size ? 3 : 1 })
-                ->invoke([](ui::park& boss)
-                {
-                    boss.SUBMIT(tier::release, hids::events::mouse::button::click::right, gear)
-                    {
-                        auto& limit = boss.plugins<pro::limit>();
-                        auto limits = limit.get();
-                        limits.min.y = limits.max.y = limits.min.y == 1 ? 3 : 1;
-                        limit.set(limits);
-                        boss.reflow();
-                        gear.dismiss();
-                    };
-                    boss.base::broadcast->SUBMIT(tier::release, e2::form::prop::menusize, size)
-                    {
-                        auto& limit = boss.plugins<pro::limit>();
-                        auto limits = limit.get();
-                        switch (size)
-                        {
-                            default:
-                            case 2: limits.min.y = limits.max.y = 3; break;
-                            case 1: limits.min.y = limits.max.y = 1; break;
-                            case 0: limits.min.y = limits.max.y = 0; break;
-                        }
-                        limit.set(limits);
-                        boss.reflow();
-                    };
-                });
-            auto menu_area = menu_block->attach(snap::stretch, snap::center, ui::fork::ctor())
-                                       ->active();
-                auto inner_pads = dent{ 1,2,1,1 };
-                auto menu_list = menu_area->attach(slot::_1, ui::fork::ctor());
-                                          
-                    menu_list->attach(slot::_1, ui::pads::ctor(inner_pads, dent{ 0 }))
-                             ->plugin<pro::fader>(x3, c3, 150ms)
-                             ->invoke([&](ui::pads& boss)
-                                {
-                                    boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
-                                    {
-                                        boss.base::template riseup<tier::release>(e2::form::maximize, gear);
-                                        gear.dismiss();
-                                    };
-                                })
-                            ->attach(ui::item::ctor(" ≡", faux, true));
-                    auto scrl_list = menu_list->attach(slot::_2, ui::rail::ctor(axes::ONLY_X, axes::ONLY_X))
-                                              ->attach(ui::list::ctor(axis::X));
-                for (auto& body : menu_items) scrl_list->attach(ui::pads::ctor(inner_pads, dent{ 1 }))
-                                                       ->plugin<pro::fader>(x3, c3, 150ms)
-                                                       ->invoke(body.second)
-                                                       ->attach(ui::item::ctor(body.first, faux, true));
-                menu_area->attach(slot::_2, ui::pads::ctor(dent{ 2,2,1,1 }, dent{}))
-                         ->plugin<pro::fader>(x1, c1, 150ms)
-                         ->invoke([&](auto& boss)
-                            {
-                                boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
-                                {
-                                    boss.base::template riseup<tier::release>(e2::form::quit, boss.This());
-                                    gear.dismiss();
-                                };
-                            })
-                         ->attach(ui::item::ctor("×"));
-            return menu_block;
-        };
-
-        auto main_menu = [&]()
-        {
-            auto items = std::list
-            {
-                std::pair<text, std::function<void(ui::pads&)>>{ ansi::und(true).add("F").nil().add("ile"), [&](auto& boss){ } },
-                std::pair<text, std::function<void(ui::pads&)>>{ ansi::und(true).add("E").nil().add("dit"), [&](auto& boss){ } },
-                std::pair<text, std::function<void(ui::pads&)>>{ ansi::und(true).add("V").nil().add("iew"), [&](auto& boss){ } },
-                std::pair<text, std::function<void(ui::pads&)>>{ ansi::und(true).add("D").nil().add("ata"), [&](auto& boss){ } },
-                std::pair<text, std::function<void(ui::pads&)>>{ ansi::und(true).add("H").nil().add("elp"), [&](auto& boss){ } },
-            };
-            return custom_menu(true, items);
-        };
-
-        auto terminal_menu = [&](bool full_size)
-        {
-            auto items = std::list
-            {
-            #ifdef DEMO
-                std::pair<text, std::function<void(ui::pads&)>>{ "T1",
-                [](ui::pads& boss)
-                {
-                    boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
-                    {
-                        auto data = "ls /bin\n"s;
-                        boss.base::broadcast->SIGNAL(tier::preview, app::term::events::data::out, data);
-                        gear.dismiss(true);
-                    };
-                }},
-                std::pair<text, std::function<void(ui::pads&)>>{ "T2",
-                [](ui::pads& boss)
-                {
-                    boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
-                    {
-                        auto data = "ping -c 3 127.0.0.1 | ccze -A\n"s;
-                        boss.base::broadcast->SIGNAL(tier::preview, app::term::events::data::out, data);
-                        gear.dismiss(true);
-                    };
-                }},
-                std::pair<text, std::function<void(ui::pads&)>>{ "T3",
-                [](ui::pads& boss)
-                {
-                    boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
-                    {
-                        auto data = "curl wttr.in\n"s;
-                        boss.base::broadcast->SIGNAL(tier::preview, app::term::events::data::out, data);
-                        gear.dismiss(true);
-                    };
-                }},
-            #endif
-            #ifdef PROD
-                std::pair<text, std::function<void(ui::pads&)>>{ "Clear",
-                [](ui::pads& boss)
-                {
-                    boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
-                    {
-                        boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, app::term::commands::ui::clear);
-                        gear.dismiss(true);
-                    };
-                }},
-            #endif
-                std::pair<text, std::function<void(ui::pads&)>>{ "Reset",
-                [](ui::pads& boss)
-                {
-                    boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
-                    {
-                        boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, app::term::commands::ui::reset);
-                        gear.dismiss(true);
-                    };
-                }},
-                std::pair<text, std::function<void(ui::pads&)>>{ "=─",
-                [](ui::pads& boss)
-                {
-                    boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
-                    {
-                        boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, app::term::commands::ui::left);
-                        gear.dismiss(true);
-                    };
-                    boss.base::broadcast->SUBMIT(tier::release, app::term::events::layout::align, align)
-                    {
-                        //todo unify, get boss base colors, don't use x3
-                        boss.color(align == bias::left ? 0xFF00ff00 : x3.fgc(), x3.bgc());
-                    };
-                }},
-                std::pair<text, std::function<void(ui::pads&)>>{ "─=─",
-                [](ui::pads& boss)
-                {
-                    boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
-                    {
-                        boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, app::term::commands::ui::center);
-                        gear.dismiss(true);
-                    };
-                    boss.base::broadcast->SUBMIT(tier::release, app::term::events::layout::align, align)
-                    {
-                        //todo unify, get boss base colors, don't use x3
-                        boss.color(align == bias::center ? 0xFF00ff00 : x3.fgc(), x3.bgc());
-                    };
-                }},
-                std::pair<text, std::function<void(ui::pads&)>>{ "─=",
-                [](ui::pads& boss)
-                {
-                    boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
-                    {
-                        boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, app::term::commands::ui::right);
-                        gear.dismiss(true);
-                    };
-                    boss.base::broadcast->SUBMIT(tier::release, app::term::events::layout::align, align)
-                    {
-                        //todo unify, get boss base colors, don't use x3
-                        boss.color(align == bias::right ? 0xFF00ff00 : x3.fgc(), x3.bgc());
-                    };
-                }},
-                std::pair<text, std::function<void(ui::pads&)>>{ "Wrap",
-                [](ui::pads& boss)
-                {
-                    boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
-                    {
-                        boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, app::term::commands::ui::togglewrp);
-                        gear.dismiss(true);
-                    };
-                    boss.base::broadcast->SUBMIT(tier::release, app::term::events::layout::wrapln, wrapln)
-                    {
-                        //todo unify, get boss base colors, don't use x3
-                        boss.color(wrapln == wrap::on ? 0xFF00ff00 : x3.fgc(), x3.bgc());
-                    };
-                }},
-            };
-            return custom_menu(full_size, items);
-        };
 
         auto create_app = [&, insts_count = 0](auto&& create_app, auto window, auto type, view data) mutable -> void
         {
@@ -1538,7 +1318,7 @@ utility like ctags is used to locate the definitions.
                           ->template plugin<pro::cache>();
                     auto object0 = window->attach(ui::fork::ctor(axis::Y))
                                          ->colors(whitelt, 0xA0db3700);
-                        auto menu = object0->attach(slot::_1, custom_menu(true, {}));
+                        auto menu = object0->attach(slot::_1, app::shared::custom_menu(true, {}));
                         auto test_stat_area = object0->attach(slot::_2, ui::fork::ctor(axis::Y));
                             auto layers = test_stat_area->attach(slot::_1, ui::cake::ctor());
                                 auto scroll = layers->attach(ui::rail::ctor())
@@ -1614,7 +1394,7 @@ utility like ctags is used to locate the definitions.
                           ->template plugin<pro::cache>();
                     auto object = window->attach(ui::fork::ctor(axis::Y))
                                         ->colors(whitelt, 0xA01f0fc4);
-                        auto menu = object->attach(slot::_1, custom_menu(true, {}));
+                        auto menu = object->attach(slot::_1, app::shared::custom_menu(true, {}));
                         auto test_stat_area = object->attach(slot::_2, ui::fork::ctor(axis::Y));
                             auto layers = test_stat_area->attach(slot::_1, ui::cake::ctor());
                                 auto scroll = layers->attach(ui::rail::ctor())
@@ -1653,7 +1433,7 @@ utility like ctags is used to locate the definitions.
                     auto object = window->attach(ui::fork::ctor(axis::Y))
                                         ->colors(whitelt, 0);
                         auto menu_object = object->attach(slot::_1, ui::fork::ctor(axis::Y));
-                            menu_object->attach(slot::_1, custom_menu(true, {}));
+                            menu_object->attach(slot::_1, app::shared::custom_menu(true, {}));
                             menu_object->attach(slot::_2, ui::post::ctor())
                                        ->template plugin<pro::limit>(twod{ 37,-1 }, twod{ -1,-1 })
                                        ->upload(appstore_head)
@@ -1671,7 +1451,7 @@ utility like ctags is used to locate the definitions.
                                 items->attach(ui::post::ctor())
                                      ->upload(desktopio_body)
                                      ->template plugin<pro::grade>();
-                        layers->attach(scroll_bars(scroll));
+                        layers->attach(app::shared::scroll_bars(scroll));
                     break;
                 }
                 case Calc:
@@ -1693,7 +1473,7 @@ utility like ctags is used to locate the definitions.
                           });
                     auto object = window->attach(ui::fork::ctor(axis::Y))
                                         ->colors(whitelt, 0);
-                        auto menu = object->attach(slot::_1, main_menu());
+                        auto menu = object->attach(slot::_1, app::shared::main_menu());
                         auto all_rail = object->attach(slot::_2, ui::rail::ctor());
                         auto all_stat = all_rail->attach(ui::fork::ctor(axis::Y))
                                                 ->template plugin<pro::limit>(twod{ -1,-1 },twod{ 136,102 });
@@ -1760,7 +1540,7 @@ utility like ctags is used to locate the definitions.
                                                             ->upload(ansi::wrp(wrap::off).add(" + "));
                                         auto pad = plus_pad->attach(slot::_2, ui::mock::ctor())
                                                            ->template plugin<pro::limit>(twod{ 1,1 }, twod{ 1,1 });
-                            layers->attach(scroll_bars(scroll));
+                            layers->attach(app::shared::scroll_bars(scroll));
                     break;
                 }
                 case Text:
@@ -1780,7 +1560,7 @@ utility like ctags is used to locate the definitions.
                           });
                     auto object = window->attach(ui::fork::ctor(axis::Y))
                                         ->colors(whitelt, 0xA05f1a00);
-                        auto menu = object->attach(slot::_1, main_menu());
+                        auto menu = object->attach(slot::_1, app::shared::main_menu());
                         auto body_area = object->attach(slot::_2, ui::fork::ctor(axis::Y));
                             auto fields = body_area->attach(slot::_1, ui::pads::ctor(dent{ 1,1 }));
                                 auto layers = fields->attach(ui::cake::ctor());
@@ -1791,13 +1571,13 @@ utility like ctags is used to locate the definitions.
                                                               ->colors(blackdk, whitelt)
                                                               ->upload(ansi::wrp(wrap::off).mgl(1)
                                                                 .add(topic3)
-                                                                .fgc(highlight_color)
+                                                                .fgc(app::shared::highlight_color)
                                                                 .add("From Wikipedia, the free encyclopedia"));
                             auto status_line = body_area->attach(slot::_2, ui::post::ctor())
                                                         ->template plugin<pro::limit>(twod{ 1,1 }, twod{ -1,1 })
                                                         ->upload(ansi::wrp(wrap::off).mgl(1).mgr(1).jet(bias::right).fgc(whitedk)
                                                            .add("INS  Sel: 0:0  Col: 26  Ln: 2/148").nil());
-                                layers->attach(scroll_bars(scroll));
+                                layers->attach(app::shared::scroll_bars(scroll));
                     break;
                 }
                 case vtm:
@@ -1806,14 +1586,14 @@ utility like ctags is used to locate the definitions.
                           ->template plugin<pro::acryl>()
                           ->template plugin<pro::cache>();
                     auto object = window->attach(ui::fork::ctor(axis::Y))
-                                        ->colors(whitelt, term_menu_bg);
-                        auto menu = object->attach(slot::_1, custom_menu(faux, {}));
+                                        ->colors(whitelt, app::shared::term_menu_bg);
+                        auto menu = object->attach(slot::_1, app::shared::custom_menu(faux, {}));
                         auto layers = object->attach(slot::_2, ui::cake::ctor())
                                             ->template plugin<pro::limit>(dot_11, twod{ 400,200 });
                             auto scroll = layers->attach(ui::rail::ctor());
-                            if (vtm_count < max_vtm)
+                            if (app::shared::vtm_count < app::shared::max_vtm)
                             {
-                                auto c = &vtm_count; (*c)++;
+                                auto c = &app::shared::vtm_count; (*c)++;
                                 scroll->attach(app::term::ctor("vtm"))
                                       ->colors(whitelt, blackdk)
                                       ->SUBMIT_BYVAL(tier::release, e2::dtor, item_id)
@@ -1831,7 +1611,7 @@ utility like ctags is used to locate the definitions.
                                         .nil().wrp(wrap::on)
                                         .add("Reached the limit of recursive connections, destroy existing recursive instances to create new ones."));
                             }
-                        layers->attach(scroll_bars(scroll));
+                        layers->attach(app::shared::scroll_bars(scroll));
                     break;
                 }
                 case Far:
@@ -1840,14 +1620,14 @@ utility like ctags is used to locate the definitions.
                           ->template plugin<pro::acryl>()
                           ->template plugin<pro::cache>();
                     auto object = window->attach(ui::fork::ctor(axis::Y))
-                                        ->colors(whitelt, term_menu_bg);
-                        auto menu = object->attach(slot::_1, custom_menu(true, {}));
+                                        ->colors(whitelt, app::shared::term_menu_bg);
+                        auto menu = object->attach(slot::_1, app::shared::custom_menu(true, {}));
                         auto layers = object->attach(slot::_2, ui::cake::ctor())
                                             ->template plugin<pro::limit>(dot_11, twod{ 400,200 });
                             auto scroll = layers->attach(ui::rail::ctor());
                             scroll->attach(app::term::ctor("far"))
                                   ->colors(whitelt, blackdk);
-                        layers->attach(scroll_bars_term(scroll));
+                        layers->attach(app::shared::scroll_bars_term(scroll));
                     break;
                 }
                 case MC:
@@ -1856,8 +1636,8 @@ utility like ctags is used to locate the definitions.
                           ->template plugin<pro::acryl>()
                           ->template plugin<pro::cache>();
                     auto object = window->attach(ui::fork::ctor(axis::Y))
-                                        ->colors(whitelt, term_menu_bg);
-                        auto menu = object->attach(slot::_1, custom_menu(faux, {}));
+                                        ->colors(whitelt, app::shared::term_menu_bg);
+                        auto menu = object->attach(slot::_1, app::shared::custom_menu(faux, {}));
                         auto layers = object->attach(slot::_2, ui::cake::ctor())
                                             ->template plugin<pro::limit>(dot_11, twod{ 400,200 });
                             auto scroll = layers->attach(ui::rail::ctor())
@@ -1890,7 +1670,7 @@ utility like ctags is used to locate the definitions.
                             #endif
 
                             inst->colors(whitelt, blackdk);
-                        layers->attach(scroll_bars(scroll));
+                        layers->attach(app::shared::scroll_bars(scroll));
                     break;
                 }
                 case Bash:
@@ -1900,8 +1680,8 @@ utility like ctags is used to locate the definitions.
                           ->template plugin<pro::acryl>()
                           ->template plugin<pro::cache>();
                     auto object = window->attach(ui::fork::ctor(axis::Y))
-                                        ->colors(whitelt, term_menu_bg);
-                        auto menu = object->attach(slot::_1, terminal_menu(true));
+                                        ->colors(whitelt, app::shared::term_menu_bg);
+                        auto menu = object->attach(slot::_1, app::shared::terminal_menu(true));
                         auto term_stat_area = object->attach(slot::_2, ui::fork::ctor(axis::Y));
                             auto layers = term_stat_area->attach(slot::_1, ui::cake::ctor())
                                                         ->template plugin<pro::limit>(dot_11, twod{ 400,200 });
@@ -1946,8 +1726,8 @@ utility like ctags is used to locate the definitions.
                           ->template plugin<pro::acryl>()
                           ->template plugin<pro::cache>();
                     auto object = window->attach(ui::fork::ctor(axis::Y))
-                                        ->colors(whitelt, term_menu_bg);
-                        auto menu = object->attach(slot::_1, custom_menu(true,
+                                        ->colors(whitelt, app::shared::term_menu_bg);
+                        auto menu = object->attach(slot::_1, app::shared::custom_menu(true,
                             std::list{
                                     std::pair<text, std::function<void(ui::pads&)>>{ ansi::esc("C").und(true).add("l").nil().add("ear"),
                                     [](ui::pads& boss)
@@ -1986,8 +1766,8 @@ utility like ctags is used to locate the definitions.
                           ->template plugin<pro::acryl>()
                           ->template plugin<pro::cache>();
                     auto object = window->attach(ui::fork::ctor(axis::Y))
-                                        ->colors(whitelt, term_menu_bg);
-                        auto menu = object->attach(slot::_1, custom_menu(true,
+                                        ->colors(whitelt, app::shared::term_menu_bg);
+                        auto menu = object->attach(slot::_1, app::shared::custom_menu(true,
                             std::list{
                                     std::pair<text, std::function<void(ui::pads&)>>{ ansi::esc("C").und(true).add("l").nil().add("ear"),
                                     [](ui::pads& boss)
@@ -2045,8 +1825,8 @@ utility like ctags is used to locate the definitions.
                               boss.keybd.accept(true);
                           });
                     auto object = window->attach(ui::fork::ctor(axis::Y))
-                                        ->colors(whitelt, term_menu_bg);
-                        auto menu = object->attach(slot::_1, custom_menu(true,
+                                        ->colors(whitelt, app::shared::term_menu_bg);
+                        auto menu = object->attach(slot::_1, app::shared::custom_menu(true,
                             std::list{
                                     std::pair<text, std::function<void(ui::pads&)>>{ "Codepoints",
                                     [](ui::pads& boss)
@@ -2087,7 +1867,7 @@ utility like ctags is used to locate the definitions.
                             scroll->attach(base::create<post_logs>())
                                   ->colors(whitelt, blackdk);
                             #endif
-                        layers->attach(scroll_bars(scroll));
+                        layers->attach(app::shared::scroll_bars(scroll));
                     break;
                 }
                 case View:
@@ -2137,9 +1917,9 @@ utility like ctags is used to locate the definitions.
                 case Tile:
                 {
                     #ifndef PROD
-                        if (tile_count < max_vtm)
+                        if (app::shared::tile_count < APPS_MAX_COUNT)
                         {
-                            auto c = &tile_count; (*c)++;
+                            auto c = &app::shared::tile_count; (*c)++;
                             window->SUBMIT_BYVAL(tier::release, e2::dtor, item_id)
                                     {
                                         (*c)--;
@@ -2190,7 +1970,7 @@ utility like ctags is used to locate the definitions.
                           });
 
                     //todo revise/unify
-                    auto object = app::build(custom_menu, create_app,
+                    auto object = app::build(create_app,
                         envvar_data,
                         objs_map,
                         objs_config,
@@ -2202,8 +1982,11 @@ utility like ctags is used to locate the definitions.
             }
         };
 
-        auto create = [&](id_t menu_item_id, auto location) -> auto
+        world->SUBMIT(tier::release, e2::form::proceed::createat, what)
         {
+            auto menu_item_id = what.menu_item_id;
+            auto location = what.location;
+
             assert(menu_item_id < objs_config.size());
 
             auto config = objs_config[menu_item_id];
@@ -2258,86 +2041,8 @@ utility like ctags is used to locate the definitions.
             window->extend(location);
             create_app(create_app, window, config.type, config.data);
             world->branch(config.type, window);
-            return window;
-        };
 
-        auto creator = [&, insts_count = 0](id_t menu_item_id, rect area) mutable
-        {
-            insts_count++;
-            auto frame = create(menu_item_id, area);
-            #ifndef PROD
-            if (insts_count > max_count)
-            {
-                log("inst: max count reached");
-                auto timeout = tempus::now() + del_timeout;
-                auto w_frame = ptr::shadow(frame);
-                frame->SUBMIT_BYVAL(tier::general, e2::tick, timestamp)
-                {
-                    if (timestamp > timeout)
-                    {
-                        log("inst: timebomb");
-                        if (auto frame = w_frame.lock())
-                        {
-                            frame->base::detach();
-                            log("inst: frame detached: ", insts_count);
-                        }
-                    }
-                };
-            }
-            #endif
-
-            frame->SUBMIT(tier::release, e2::form::upon::vtree::detached, master)
-            {
-                insts_count--;
-                log("inst: detached: ", insts_count);
-            };
-            return frame;
-        };
-
-        world->SUBMIT(tier::release, e2::form::proceed::createby, gear)
-        {
-            auto location = gear.slot;
-            if (gear.meta(hids::ANYCTRL))
-            {
-                log("gate: area copied to clipboard ", location);
-                sptr<core> canvas_ptr;
-                if (auto gate_ptr = bell::getref(gear.id))
-                {
-                    auto& gate = *gate_ptr;
-                    gate.SIGNAL(tier::request, e2::form::canvas, canvas_ptr);
-                    if (canvas_ptr)
-                    {
-                        auto& canvas = *canvas_ptr;
-                        auto data = canvas.meta(location);
-                        if (data.length())
-                        {
-                            gate.SIGNAL(tier::release, e2::command::cout, ansi::setbuf(data));
-                        }
-                    }
-                }
-            }
-            else
-            {
-                //todo unify
-                if (auto gate_ptr = bell::getref(gear.id))
-                {
-                    auto& gate = *gate_ptr;
-                    iota data = 0;
-                    gate.SIGNAL(tier::request, e2::data::changed, data);
-                    auto current_default = static_cast<id_t>(data);
-                    auto frame = creator(current_default, location);
-
-                    gear.kb_focus_taken = faux;
-                    frame->SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
-
-                    auto config = objs_config[current_default];
-                    if (config.type == objs::Tile) // Reset the currently selected application to the previous one.
-                    {
-                        gate.SIGNAL(tier::preview, e2::data::changed, data); // Get previous default;
-                        gate.SIGNAL(tier::release, e2::data::changed, data); // Set current  default;
-                    }
-                }
-            }
+            what.frame = window;
         };
 
         // Init registry/menu list.
@@ -2398,6 +2103,13 @@ utility like ctags is used to locate the definitions.
             #endif
 
             #ifdef DEMO
+                auto creator = [&](id_t menu_item_id, rect area)
+                {
+                    auto what = decltype(e2::form::proceed::createat)::type{};
+                    what.menu_item_id = menu_item_id;
+                    what.location = area;
+                    world->SIGNAL(tier::release, e2::form::proceed::createat, what);
+                };
                 auto sub_pos = twod{ 12+17, 0 };
                 creator(find(objs::Test), { twod{ 22     , 1  } + sub_pos, { 70, 21 } });
                 creator(find(objs::Shop), { twod{ 4      , 6  } + sub_pos, { 82, 38 } });
@@ -2913,7 +2625,7 @@ utility like ctags is used to locate the definitions.
                                         auto shutdown = shutdown_area->attach(ui::item::ctor("× Shutdown"));
                             }
                     }
-                    client->color(background_color.fgc(), background_color.bgc());
+                    client->color(app::shared::background_color.fgc(), app::shared::background_color.bgc());
                     text header = username;
                     text footer = ansi::mgr(1).mgl(1).add(MONOTTY_VER);
                     client->SIGNAL(tier::release, e2::form::prop::name, header);

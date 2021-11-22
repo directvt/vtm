@@ -6,9 +6,9 @@
 
 namespace netxs::events::userland
 {
-    struct text
+    struct text_
     {
-        EVENTPACK( text, netxs::events::userland::root::custom )
+        EVENTPACK( text_, netxs::events::userland::root::custom )
         {
             GROUP_XS( ui, input::hids ),
 
@@ -30,11 +30,11 @@ namespace netxs::app
 {
     using namespace netxs::console;
 
-    struct text
-        : public ui::form<text>
+    struct text_
+        : public ui::form<text_>
     {
         // text: .
-        using events = netxs::events::userland::text;
+        using events = netxs::events::userland::text_;
         // ...
     };
 }
