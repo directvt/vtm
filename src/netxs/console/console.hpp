@@ -4344,7 +4344,9 @@ namespace netxs::console
                     {
                         auto what = decltype(e2::form::proceed::createat)::type{};
                         what.location = gear.slot;
-                        gate.SIGNAL(tier::request, e2::data::changed, what.menu_item_id);
+                        auto data = decltype(e2::data::changed)::type{};
+                        gate.SIGNAL(tier::request, e2::data::changed, data);
+                        what.menu_item_id = static_cast<id_t>(data);
                         this->SIGNAL(tier::release, e2::form::proceed::createat, what);
                         if (auto& frame = what.frame)
                         {

@@ -51,13 +51,63 @@ namespace netxs::app
     const static auto term_menu_bg = rgba{ 0x80404040 };
 
     //todo unify
-    auto build = [](auto create_app,
-        auto& envvar_data,
-        auto& objs_map,
-        auto& objs_config,
-        auto& insts_count)
+    auto build = [](auto create_app, auto window, view data)
     {
-        auto object = ui::fork::ctor(axis::Y);
+        #ifndef PROD
+            if (app::shared::tile_count < APPS_MAX_COUNT)
+            {
+                auto c = &app::shared::tile_count; (*c)++;
+                window->SUBMIT_BYVAL(tier::release, e2::dtor, item_id)
+                        {
+                            (*c)--;
+                            log("main: tile manager destoyed");
+                        };
+            }
+            else
+            {
+                create_app(create_app, window, Empty, "Reached the limit");
+                break;
+            }
+        #endif
+
+        view envvar_data;
+        text window_title;
+        auto a = data.find('=');
+        if (a != text::npos)
+        {
+            auto b = data.begin();
+            auto e = data.end();
+            auto t = b + a;
+            //auto envvar_name = view{ b, t }; //todo apple clang doesn't get it
+            auto envvar_name = view{ &(*b), (size_t)(t - b) };
+            log(" envvar_name=", envvar_name);
+            b = t + 1;
+            if (b != e)
+            {
+                //envvar_data = view{ b, e }; //todo apple clang doesn't get it
+                envvar_data = view{ &(*b), (size_t)(e - b) };
+                log(" envvar_data=", envvar_data);
+                auto menu_name = utf::get_quote(envvar_data, '\"');
+                window_title = utf::get_quote(envvar_data, '\"');
+                log(" menu_name=", menu_name);
+                log(" window_title=", window_title);
+                utf::trim_front(envvar_data, ", ");
+                log(" layout_data=", envvar_data);
+                //if (window_title.length()) window_title += '\n';
+            }
+        }
+        window->template unplug<pro::focus>() // Remove focus controller.
+                ->invoke([&](auto& boss)
+                {
+                    boss.SUBMIT_BYVAL(tier::release, e2::form::upon::vtree::attached, parent)
+                    {
+                        auto title = ansi::add(window_title);// + utf::debase(data));
+                        parent->base::riseup<tier::preview>(e2::form::prop::header, title);
+                    };
+                });
+
+
+        auto object = window->attach(ui::fork::ctor(axis::Y));
             auto menu = object->attach(slot::_1, shared::custom_menu(true,
                 std::list{
                         //  Green                                  ?Even    Red
@@ -543,6 +593,7 @@ namespace netxs::app
                     };
                     boss.SUBMIT(tier::release, e2::form::proceed::createby, gear)
                     {
+                        static iota insts_count = 0;
                         if (boss.count() == 1) // Create new apps at the empty slots only.
                         {
                             if (gear.meta(hids::ANYCTRL))
@@ -554,10 +605,10 @@ namespace netxs::app
                                 if (auto gate_ptr = bell::getref(gear.id))
                                 {
                                     auto& gate = *gate_ptr;
-                                    iota data = 0;
+                                    auto data = decltype(e2::data::changed)::type{};
                                     gate.SIGNAL(tier::request, e2::data::changed, data);
                                     auto current_default = static_cast<id_t>(data);
-                                    auto config = objs_config[current_default];
+                                    auto config = app::shared::objs_config[current_default];
 
                                     auto host = ui::cake::ctor()
                                                 ->plugin<pro::focus>();
@@ -622,7 +673,7 @@ namespace netxs::app
                 log(" node cmdline=", cmdline);
                 auto host = ui::cake::ctor()
                         ->plugin<pro::focus>();
-                create_app(create_app, host, objs_map["Term"], cmdline);
+                create_app(create_app, host, app::shared::objs_map["Term"], cmdline);
                 auto inst = box_with_title("Headless TE", host);
 
                 // empty_slot<veer>->(r0,f)place_holder<park>
@@ -650,7 +701,7 @@ namespace netxs::app
                 log(" app_id=", app_id, " app_title=", app_title, " app_data=", app_data);
                 auto host = ui::cake::ctor()
                         ->plugin<pro::focus>();
-                create_app(create_app, host, objs_map[app_id], app_data);
+                create_app(create_app, host, app::shared::objs_map[app_id], app_data);
                 auto app = box_with_title(app_title, host);
                 place->attach(app);
                 utf::trim_front(utf8, ") ");
@@ -719,7 +770,7 @@ namespace netxs::app
                     auto menu_item_id = decltype(e2::data::changed)::type{};
                     gate.SIGNAL(tier::request, e2::data::changed, menu_item_id);
 
-                    auto config = objs_config[menu_item_id];
+                    auto config = app::shared::objs_config[menu_item_id];
                     if (config.name == "Tile") // Reset the currently selected application to the previous one.
                     {
                         gate.SIGNAL(tier::preview, e2::data::changed, menu_item_id); // Get previous default;
@@ -728,7 +779,6 @@ namespace netxs::app
                 }
             };
         });
-        return object;
     };
 }
 

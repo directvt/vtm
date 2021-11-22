@@ -18,6 +18,48 @@ namespace netxs::app::shared
     using snap = ui::snap;
     using id_t = netxs::input::id_t;
 
+
+    #define TYPE_LIST                                                                                                 \
+    X(Term         , "Term"                  , ("Term \nBash/Zsh/CMD")                                         , "" ) \
+    X(Text         , "Text"                  , (ansi::jet(bias::center).add("Text Editor\n ~/Untitled 1.txt")) , "" ) \
+    X(Calc         , "Calc"                  , (ansi::jet(bias::right).add("Spreadsheet\n ~/Untitled 1.ods"))  , "" ) \
+    X(Shop         , "Shop"                  , ("Desktopio App Store")                                         , "" ) \
+    X(Logs         , "Logs"                  , ("Logs \nDebug output console")                                 , "" ) \
+    X(View         , "View"                  , (ansi::jet(bias::center).add("View \n Region 1"))               , "" ) \
+    X(Tile         , "Tile"                  , ("Tiling Window Manager")                                       , "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h()" ) \
+    X(PowerShell   , "pwsh PowerShell"       , ("Term \nPowerShell")                                           , "" ) \
+    X(CommandPrompt, "cmd Command Prompt"    , ("Term \nCommand Prompt")                                       , "" ) \
+    X(Bash         , "Bash/Zsh/CMD"          , ("Term \nBash/Zsh/CMD")                                         , "" ) \
+    X(Far          , "Far Manager"           , ("Term \nFar Manager")                                          , "" ) \
+    X(vtm          , "vtm (recursively)"     , ("Term \nvtm (recursively)")                                    , "" ) \
+    X(MC           , "mc  Midnight Commander", ("Term \nMidnight Commander")                                   , "" ) \
+    X(Truecolor    , "RGB Truecolor image"   , (ansi::jet(bias::right).add("True color ANSI/ASCII image test")), "" ) \
+    X(RefreshRate  , "FPS Refresh rate"      , ("Frame rate adjustment")                                       , "" ) \
+    X(Strobe       , "Strobe"                , (ansi::jet(bias::center).add("Strobe"))                         , "" ) \
+    X(Test         , "Test window"           , (ansi::jet(bias::center).add("Test Page"))                      , "" ) \
+    X(Empty        , "Empty test window"     , (ansi::mgl(1).mgr(1).add("Empty Instance \nid: "))              , "" )
+
+    #define X(a, b, c, d) a,
+    enum objs { TYPE_LIST };
+    #undef X
+
+    #define X(a, b, c, d)  { #a, a },
+    std::map<text, events::id_t> objs_map{ TYPE_LIST };
+    #undef X
+
+    struct menu_item
+    {
+        objs type;
+        text name;
+        text title;
+        text data;
+    };
+
+    #define X(a, b, c, d) { a, b, c, d },
+    std::vector<menu_item> objs_config{ TYPE_LIST };
+    #undef X
+    #undef TYPE_LIST
+
     //static iota    max_count = 20;// 50;
     static iota    max_vtm = 3;
     static iota    vtm_count = 0;

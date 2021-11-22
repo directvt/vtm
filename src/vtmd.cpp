@@ -5,7 +5,7 @@
 // Enable demo apps and assign Esc key to log off.
 #define DEMO
 // Enable keyboard input and unassign Esc key.
-//#define PROD
+#define PROD
 
 // Tiling nesting max level.
 #ifndef PROD
@@ -1212,75 +1212,6 @@ utility like ctags is used to locate the definitions.
 
         log("host: created");
 
-        world->SUBMIT(tier::general, e2::form::global::lucidity, alpha)
-        {
-            if (alpha == -1)
-            {
-                alpha = skin::shady();
-            }
-            else
-            {
-                alpha = std::clamp(alpha, 0, 255);
-                skin::setup(tone::lucidity, alpha);
-                world->SIGNAL(tier::preview, e2::form::global::lucidity, alpha);
-            }
-        };
-
-        #define TYPE_LIST                                                                                                 \
-        X(Term         , "Term"                  , ("Term \nBash/Zsh/CMD")                                         , "" ) \
-        X(Text         , "Text"                  , (ansi::jet(bias::center).add("Text Editor\n ~/Untitled 1.txt")) , "" ) \
-        X(Calc         , "Calc"                  , (ansi::jet(bias::right).add("Spreadsheet\n ~/Untitled 1.ods"))  , "" ) \
-        X(Shop         , "Shop"                  , ("Desktopio App Store")                                         , "" ) \
-        X(Logs         , "Logs"                  , ("Logs \nDebug output console")                                 , "" ) \
-        X(View         , "View"                  , (ansi::jet(bias::center).add("View \n Region 1"))               , "" ) \
-        X(Tile         , "Tile"                  , ("Tiling Window Manager")                                       , "" ) \
-        X(PowerShell   , "pwsh PowerShell"       , ("Term \nPowerShell")                                           , "" ) \
-        X(CommandPrompt, "cmd Command Prompt"    , ("Term \nCommand Prompt")                                       , "" ) \
-        X(Bash         , "Bash/Zsh/CMD"          , ("Term \nBash/Zsh/CMD")                                         , "" ) \
-        X(Far          , "Far Manager"           , ("Term \nFar Manager")                                          , "" ) \
-        X(vtm          , "vtm (recursively)"     , ("Term \nvtm (recursively)")                                    , "" ) \
-        X(MC           , "mc  Midnight Commander", ("Term \nMidnight Commander")                                   , "" ) \
-        X(Truecolor    , "RGB Truecolor image"   , (ansi::jet(bias::right).add("True color ANSI/ASCII image test")), "" ) \
-        X(RefreshRate  , "FPS Refresh rate"      , ("Frame rate adjustment")                                       , "" ) \
-        X(Strobe       , "Strobe"                , (ansi::jet(bias::center).add("Strobe"))                         , "" ) \
-        X(Test         , "Test window"           , (ansi::jet(bias::center).add("Test Page"))                      , "" ) \
-        X(Empty        , "Empty test window"     , (ansi::mgl(1).mgr(1).add("Empty Instance \nid: "))              , "" )
-
-        #define X(a, b, c, d) a,
-        enum objs { TYPE_LIST };
-        #undef X
-
-        #define X(a, b, c, d)  { #a, a },
-        std::map<text, events::id_t> objs_map{ TYPE_LIST };
-        #undef X
-
-        struct menu_item
-        {
-            objs type;
-            text name;
-            text title;
-            text data;
-        };
-
-        #define X(a, b, c, d) { a, b, c, d },
-        std::vector<menu_item> objs_config{ TYPE_LIST };
-        #undef X
-        #undef TYPE_LIST
-
-        #ifdef DEMO
-            #ifdef PROD
-                //objs_config[objs::Tile].data = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h1:1(v1:1(\"bash -c 'LC_ALL=en_US.UTF-8 mc -c -x; bash'\", h1:1(\"bash -c 'ls /bin | nl | ccze -A; bash'\", a(\"RefreshRate\",\"\",\"\"))), a(\"Calc\",\"app title\",\"app data\"))";
-                //objs_config[objs::Tile].data = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h1:1(v1:1(\"bash -c 'LC_ALL=en_US.UTF-8 mc -c -x; bash'\", h1:1(\"bash -c 'ls /bin | nl | ccze -A; bash'\", a(\"Text\",\"app title\",\"app data\"))), a(\"Calc\",\"app title\",\"app data\"))";
-                //objs_config[objs::Tile].data = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h1:1:1(v1:1:2(\"bash -c 'LC_ALL=en_US.UTF-8 mc -c -x -d; cat'\", h1:1:0(\"bash -c 'ls /bin | nl | ccze -A; bash'\", a(\"RefreshRate\",\"\",\"\"))), a(\"Calc\",\"\",\"\"))";
-                objs_config[objs::Tile].data = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h(v(\"bash -c 'LC_ALL=en_US.UTF-8 mc -c -x -d; cat'\", h(\"bash -c 'ls /bin | nl | ccze -A; bash'\", a(\"RefreshRate\",\"\",\"\"))), a(\"Calc\",\"\",\"\"))";
-            #else
-                objs_config[objs::Tile].data = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h1:1(v1:1(\"bash -c 'LC_ALL=en_US.UTF-8 mc -c -x -d; cat'\", h1:1(\"bash -c 'ls /bin | nl | ccze -A; bash'\", a(\"RefreshRate\",\"\",\"\"))), a(\"Calc\",\"\",\"\"))";
-            #endif
-        #else
-            objs_config[objs::Tile].data = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h()";
-        #endif
-
-
         using slot = ui::slot;
         using axis = ui::axis;
         using axes = ui::axes;
@@ -1304,14 +1235,13 @@ utility like ctags is used to locate the definitions.
         const static auto x1 = app::shared::x1;
         const static auto x0 = app::shared::x0;
 
-
-        auto create_app = [&, insts_count = 0](auto&& create_app, auto window, auto type, view data) mutable -> void
+        auto create_app = [&](auto&& create_app, auto window, auto type, view data) mutable -> void
         {
             //todo use XAML for that
             switch (type)
             {
                 default:
-                case Test:
+                case app::shared::objs::Test:
                 {
                     window->template plugin<pro::track>()
                           ->template plugin<pro::acryl>()
@@ -1361,7 +1291,7 @@ utility like ctags is used to locate the definitions.
                             b[{5, 1}].alpha(0);
                     break;
                 }
-                case Strobe:
+                case app::shared::objs::Strobe:
                 {
                     auto strob = window->attach(ui::mock::ctor());
                     auto strob_shadow = ptr::shadow(strob);
@@ -1377,7 +1307,7 @@ utility like ctags is used to locate the definitions.
                     };
                     break;
                 }
-                case RefreshRate:
+                case app::shared::objs::RefreshRate:
                 {
                     window->attach(ui::stem_rate<tier::general, decltype(e2::config::fps)>::ctor("Set frame rate", 1, 200, "fps"))
                           ->colors(0xFFFFFFFF, bluedk)
@@ -1387,7 +1317,7 @@ utility like ctags is used to locate the definitions.
                           });
                     break;
                 }
-                case Truecolor:
+                case app::shared::objs::Truecolor:
                 {
                     window->template plugin<pro::track>()
                           ->template plugin<pro::acryl>()
@@ -1407,7 +1337,7 @@ utility like ctags is used to locate the definitions.
                                     auto hz = test_stat_area->attach(slot::_2, ui::grip<axis::X>::ctor(scroll));
                     break;
                 }
-                case Empty:
+                case app::shared::objs::Empty:
                 {
                     window->template plugin<pro::track>()
                           ->template plugin<pro::acryl>()
@@ -1424,7 +1354,7 @@ utility like ctags is used to locate the definitions.
                                         ->colors(0,0); //todo mouse tracking
                     break;
                 }
-                case Shop:
+                case app::shared::objs::Shop:
                 {
                     window->colors(whitelt, 0x60000000)
                           ->template plugin<pro::track>()
@@ -1454,7 +1384,7 @@ utility like ctags is used to locate the definitions.
                         layers->attach(app::shared::scroll_bars(scroll));
                     break;
                 }
-                case Calc:
+                case app::shared::objs::Calc:
                 {
                     window->colors(whitelt, 0x601A5f00)
                           ->template plugin<pro::limit>(twod{ 10,7 },twod{ -1,-1 })
@@ -1543,7 +1473,7 @@ utility like ctags is used to locate the definitions.
                             layers->attach(app::shared::scroll_bars(scroll));
                     break;
                 }
-                case Text:
+                case app::shared::objs::Text:
                 {
                     window->template plugin<pro::track>()
                           ->template plugin<pro::acryl>()
@@ -1580,7 +1510,7 @@ utility like ctags is used to locate the definitions.
                                 layers->attach(app::shared::scroll_bars(scroll));
                     break;
                 }
-                case vtm:
+                case app::shared::objs::vtm:
                 {
                     window->template plugin<pro::track>()
                           ->template plugin<pro::acryl>()
@@ -1614,7 +1544,7 @@ utility like ctags is used to locate the definitions.
                         layers->attach(app::shared::scroll_bars(scroll));
                     break;
                 }
-                case Far:
+                case app::shared::objs::Far:
                 {
                     window->template plugin<pro::track>()
                           ->template plugin<pro::acryl>()
@@ -1630,7 +1560,7 @@ utility like ctags is used to locate the definitions.
                         layers->attach(app::shared::scroll_bars_term(scroll));
                     break;
                 }
-                case MC:
+                case app::shared::objs::MC:
                 {
                     window->template plugin<pro::track>()
                           ->template plugin<pro::acryl>()
@@ -1673,8 +1603,8 @@ utility like ctags is used to locate the definitions.
                         layers->attach(app::shared::scroll_bars(scroll));
                     break;
                 }
-                case Bash:
-                case Term:
+                case app::shared::objs::Bash:
+                case app::shared::objs::Term:
                 {
                     window->template plugin<pro::track>()
                           ->template plugin<pro::acryl>()
@@ -1720,7 +1650,7 @@ utility like ctags is used to locate the definitions.
                                 auto hz = term_stat_area->attach(slot::_2, ui::grip<axis::X>::ctor(scroll));
                     break;
                 }
-                case PowerShell:
+                case app::shared::objs::PowerShell:
                 {
                     window->template plugin<pro::track>()
                           ->template plugin<pro::acryl>()
@@ -1760,7 +1690,7 @@ utility like ctags is used to locate the definitions.
                                 auto hz = term_stat_area->attach(slot::_2, ui::grip<axis::X>::ctor(scroll));
                     break;
                 }
-                case CommandPrompt:
+                case app::shared::objs::CommandPrompt:
                 {
                     window->template plugin<pro::track>()
                           ->template plugin<pro::acryl>()
@@ -1815,7 +1745,7 @@ utility like ctags is used to locate the definitions.
                             auto hz = term_stat_area->attach(slot::_2, ui::grip<axis::X>::ctor(scroll));
                     break;
                 }
-                case Logs:
+                case app::shared::objs::Logs:
                 {
                     window->template plugin<pro::track>()
                           ->template plugin<pro::acryl>()
@@ -1870,7 +1800,7 @@ utility like ctags is used to locate the definitions.
                         layers->attach(app::shared::scroll_bars(scroll));
                     break;
                 }
-                case View:
+                case app::shared::objs::View:
                 {
                     window->template unplug<pro::align>()
                           ->invoke([&](auto& boss)
@@ -1914,69 +1844,9 @@ utility like ctags is used to locate the definitions.
                           });
                     break;
                 }
-                case Tile:
+                case app::shared::objs::Tile:
                 {
-                    #ifndef PROD
-                        if (app::shared::tile_count < APPS_MAX_COUNT)
-                        {
-                            auto c = &app::shared::tile_count; (*c)++;
-                            window->SUBMIT_BYVAL(tier::release, e2::dtor, item_id)
-                                    {
-                                        (*c)--;
-                                        log("main: tile manager destoyed");
-                                    };
-                        }
-                        else
-                        {
-                            create_app(create_app, window, Empty, "Reached the limit");
-                            break;
-                        }
-                    #endif
-
-                    view envvar_data;
-                    text window_title;
-                    auto a = data.find('=');
-                    if (a != text::npos)
-                    {
-                        auto b = data.begin();
-                        auto e = data.end();
-                        auto t = b + a;
-                        //auto envvar_name = view{ b, t }; //todo apple clang doesn't get it
-                        auto envvar_name = view{ &(*b), (size_t)(t - b) };
-                        log(" envvar_name=", envvar_name);
-                        b = t + 1;
-                        if (b != e)
-                        {
-                            //envvar_data = view{ b, e }; //todo apple clang doesn't get it
-                            envvar_data = view{ &(*b), (size_t)(e - b) };
-                            log(" envvar_data=", envvar_data);
-                            auto menu_name = utf::get_quote(envvar_data, '\"');
-                            window_title = utf::get_quote(envvar_data, '\"');
-                            log(" menu_name=", menu_name);
-                            log(" window_title=", window_title);
-                            utf::trim_front(envvar_data, ", ");
-                            log(" layout_data=", envvar_data);
-                            //if (window_title.length()) window_title += '\n';
-                        }
-                    }
-                    window->template unplug<pro::focus>() // Remove focus controller.
-                          ->invoke([&](auto& boss)
-                          {
-                              boss.SUBMIT_BYVAL(tier::release, e2::form::upon::vtree::attached, parent)
-                              {
-                                    auto title = ansi::add(window_title);// + utf::debase(data));
-                                    parent->base::riseup<tier::preview>(e2::form::prop::header, title);
-                              };
-                          });
-
-                    //todo revise/unify
-                    auto object = app::build(create_app,
-                        envvar_data,
-                        objs_map,
-                        objs_config,
-                        insts_count
-                        );
-                    window->attach(object);
+                    app::build(create_app, window, data);
                     break;
                 }
             }
@@ -1987,9 +1857,9 @@ utility like ctags is used to locate the definitions.
             auto menu_item_id = what.menu_item_id;
             auto location = what.location;
 
-            assert(menu_item_id < objs_config.size());
+            assert(menu_item_id < app::shared::objs_config.size());
 
-            auto config = objs_config[menu_item_id];
+            auto config = app::shared::objs_config[menu_item_id];
             sptr<ui::cake> window = ui::cake::ctor()
                 ->plugin<pro::title>(config.title)
                 ->plugin<pro::limit>(dot_11, twod{ 400,200 }) //todo unify, set via config
@@ -2040,9 +1910,23 @@ utility like ctags is used to locate the definitions.
 
             window->extend(location);
             create_app(create_app, window, config.type, config.data);
+            log(" world create type=", config.type);
             world->branch(config.type, window);
 
             what.frame = window;
+        };
+        world->SUBMIT(tier::general, e2::form::global::lucidity, alpha)
+        {
+            if (alpha == -1)
+            {
+                alpha = skin::shady();
+            }
+            else
+            {
+                alpha = std::clamp(alpha, 0, 255);
+                skin::setup(tone::lucidity, alpha);
+                world->SIGNAL(tier::preview, e2::form::global::lucidity, alpha);
+            }
         };
 
         // Init registry/menu list.
@@ -2050,14 +1934,14 @@ utility like ctags is used to locate the definitions.
             sptr<registry_t> menu_list_ptr;
             world->SIGNAL(tier::request, e2::bindings::list::apps, menu_list_ptr);
             auto& menu_list = *menu_list_ptr;
-            auto b = objs_config.begin();
-            auto e = objs_config.end();
+            auto b = app::shared::objs_config.begin();
+            auto e = app::shared::objs_config.end();
             auto find = [&](auto type_id)
             {
                 //auto iter = std::find_if(b, e, [&](auto& item){ return item.first == type_id; });
                 //return iter != e ? std::distance(b, iter) : 0;
                 iota i = 0;
-                for (auto& a : objs_config)
+                for (auto& a : app::shared::objs_config)
                 {
                     if (a.type == type_id) break;
                     ++i;
@@ -2065,23 +1949,32 @@ utility like ctags is used to locate the definitions.
                 return i;
             };
             #ifdef DEMO
-                for (auto i = objs_config.size(); i-- != 0;)
+                #ifdef PROD
+                    //objs_config[objs::Tile].data = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h1:1(v1:1(\"bash -c 'LC_ALL=en_US.UTF-8 mc -c -x; bash'\", h1:1(\"bash -c 'ls /bin | nl | ccze -A; bash'\", a(\"RefreshRate\",\"\",\"\"))), a(\"Calc\",\"app title\",\"app data\"))";
+                    //objs_config[objs::Tile].data = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h1:1(v1:1(\"bash -c 'LC_ALL=en_US.UTF-8 mc -c -x; bash'\", h1:1(\"bash -c 'ls /bin | nl | ccze -A; bash'\", a(\"Text\",\"app title\",\"app data\"))), a(\"Calc\",\"app title\",\"app data\"))";
+                    //objs_config[objs::Tile].data = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h1:1:1(v1:1:2(\"bash -c 'LC_ALL=en_US.UTF-8 mc -c -x -d; cat'\", h1:1:0(\"bash -c 'ls /bin | nl | ccze -A; bash'\", a(\"RefreshRate\",\"\",\"\"))), a(\"Calc\",\"\",\"\"))";
+                    app::shared::objs_config[app::shared::objs::Tile].data = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h(v(\"bash -c 'LC_ALL=en_US.UTF-8 mc -c -x -d; cat'\", h(\"bash -c 'ls /bin | nl | ccze -A; bash'\", a(\"RefreshRate\",\"\",\"\"))), a(\"Calc\",\"\",\"\"))";
+                #else
+                    app::shared::objs_config[app::shared::objs::Tile].data = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h1:1(v1:1(\"bash -c 'LC_ALL=en_US.UTF-8 mc -c -x -d; cat'\", h1:1(\"bash -c 'ls /bin | nl | ccze -A; bash'\", a(\"RefreshRate\",\"\",\"\"))), a(\"Calc\",\"\",\"\"))";
+                #endif
+
+                for (auto i = app::shared::objs_config.size(); i-- != 0;)
                     menu_list[static_cast<id_t>(i)];
             #else
                 #ifdef _WIN32
-                    menu_list[find(objs::CommandPrompt)];
-                    menu_list[find(objs::PowerShell)];
-                    menu_list[find(objs::Tile)];
-                    menu_list[find(objs::Logs)];
-                    menu_list[find(objs::View)];
-                    menu_list[find(objs::RefreshRate)];
+                    menu_list[find(app::shared::objs::CommandPrompt)];
+                    menu_list[find(app::shared::objs::PowerShell)];
+                    menu_list[find(app::shared::objs::Tile)];
+                    menu_list[find(app::shared::objs::Logs)];
+                    menu_list[find(app::shared::objs::View)];
+                    menu_list[find(app::shared::objs::RefreshRate)];
                 #else
-                    menu_list[find(objs::Term)];
-                    menu_list[find(objs::Tile)];
-                    menu_list[find(objs::Logs)];
-                    menu_list[find(objs::View)];
-                    menu_list[find(objs::RefreshRate)];
-                    menu_list[find(objs::vtm)];
+                    menu_list[find(app::shared::objs::Term)];
+                    menu_list[find(app::shared::objs::Tile)];
+                    menu_list[find(app::shared::objs::Logs)];
+                    menu_list[find(app::shared::objs::View)];
+                    menu_list[find(app::shared::objs::RefreshRate)];
+                    menu_list[find(app::shared::objs::vtm)];
                 #endif
                 // Add custom commands to the menu.
                 for (auto& p : tiling_profiles)
@@ -2091,13 +1984,13 @@ utility like ctags is used to locate the definitions.
                     auto name = utf::get_quote(v, '\"');
                     if (!name.empty())
                     {
-                        menu_list[static_cast<id_t>(objs_config.size())];
+                        menu_list[static_cast<id_t>(app::shared::objs_config.size())];
                         auto m = menu_item{};
-                        m.type = objs::Tile;
+                        m.type = app::shared::objs::Tile;
                         m.name = text{ name };
                         m.title = text{ name }; // Use the same title as the menu label.
                         m.data = text{ p };
-                        objs_config.push_back(m);
+                        app::shared::objs_config.push_back(m);
                     }
                 }
             #endif
@@ -2111,23 +2004,23 @@ utility like ctags is used to locate the definitions.
                     world->SIGNAL(tier::release, e2::form::proceed::createat, what);
                 };
                 auto sub_pos = twod{ 12+17, 0 };
-                creator(find(objs::Test), { twod{ 22     , 1  } + sub_pos, { 70, 21 } });
-                creator(find(objs::Shop), { twod{ 4      , 6  } + sub_pos, { 82, 38 } });
-                creator(find(objs::Calc), { twod{ 15     , 15 } + sub_pos, { 65, 23 } });
-                creator(find(objs::Text), { twod{ 30     , 22 } + sub_pos, { 59, 26 } });
-                creator(find(objs::MC),   { twod{ 49     , 28 } + sub_pos, { 63, 22 } });
-                creator(find(objs::Term), { twod{ 34     , 38 } + sub_pos, { 64, 16 } });
-                creator(find(objs::Term), { twod{ 44 + 85, 35 } + sub_pos, { 64, 15 } });
-                creator(find(objs::Term), { twod{ 40 + 85, 42 } + sub_pos, { 64, 15 } });
-                creator(find(objs::Tile), { twod{ 40 + 85,-10 } + sub_pos, {160, 42 } });
+                creator(find(app::shared::objs::Test), { twod{ 22     , 1  } + sub_pos, { 70, 21 } });
+                creator(find(app::shared::objs::Shop), { twod{ 4      , 6  } + sub_pos, { 82, 38 } });
+                creator(find(app::shared::objs::Calc), { twod{ 15     , 15 } + sub_pos, { 65, 23 } });
+                creator(find(app::shared::objs::Text), { twod{ 30     , 22 } + sub_pos, { 59, 26 } });
+                creator(find(app::shared::objs::MC),   { twod{ 49     , 28 } + sub_pos, { 63, 22 } });
+                creator(find(app::shared::objs::Term), { twod{ 34     , 38 } + sub_pos, { 64, 16 } });
+                creator(find(app::shared::objs::Term), { twod{ 44 + 85, 35 } + sub_pos, { 64, 15 } });
+                creator(find(app::shared::objs::Term), { twod{ 40 + 85, 42 } + sub_pos, { 64, 15 } });
+                creator(find(app::shared::objs::Tile), { twod{ 40 + 85,-10 } + sub_pos, {160, 42 } });
 
-                creator(find(objs::View), { twod{ 0, 7 } + twod{ -120, 60 }, { 120, 52 } });
-                creator(find(objs::View), { twod{ 0,-1 } + sub_pos, { 120, 52 } });
+                creator(find(app::shared::objs::View), { twod{ 0, 7 } + twod{ -120, 60 }, { 120, 52 } });
+                creator(find(app::shared::objs::View), { twod{ 0,-1 } + sub_pos, { 120, 52 } });
 
                 sub_pos = twod{-120, 60};
-                creator(find(objs::Truecolor),   { twod{ 20, 15 } + sub_pos, { 70, 30 } });
-                creator(find(objs::Logs),        { twod{ 52, 33 } + sub_pos, { 45, 12 } });
-                creator(find(objs::RefreshRate), { twod{ 60, 41 } + sub_pos, { 35, 10 } });
+                creator(find(app::shared::objs::Truecolor),   { twod{ 20, 15 } + sub_pos, { 70, 30 } });
+                creator(find(app::shared::objs::Logs),        { twod{ 52, 33 } + sub_pos, { 45, 12 } });
+                creator(find(app::shared::objs::RefreshRate), { twod{ 60, 41 } + sub_pos, { 35, 10 } });
             #endif
 
         }
@@ -2203,25 +2096,25 @@ utility like ctags is used to locate the definitions.
                     // Taskbar Layout (PoC)
 
                     #ifdef _WIN32
-                        auto current_default = objs::CommandPrompt;
-                        //auto current_default = objs::PowerShell;
+                        auto current_default = app::shared::objs::CommandPrompt;
+                        //auto current_default = app::shared::objs::PowerShell;
                     #else
-                        auto current_default = objs::Term;
+                        auto current_default = app::shared::objs::Term;
                     #endif
                     auto previous_default = current_default;
 
+                    //todo unify
                     client->SUBMIT(tier::request, e2::data::changed, data)
                     {
                         data = current_default;
                     };
-                    //todo unify
                     client->SUBMIT(tier::preview, e2::data::changed, data)
                     {
                         data = previous_default;
                     };
                     client->SUBMIT(tier::release, e2::data::changed, data)
                     {
-                        auto new_default = static_cast<objs>(data);
+                        auto new_default = static_cast<app::shared::objs>(data);
                         if (current_default != new_default)
                         {
                             previous_default = current_default;
@@ -2301,7 +2194,7 @@ utility like ctags is used to locate the definitions.
                         for (auto const& [class_id, inst_ptr_list] : *apps_map)
                         {
                             auto inst_id  = class_id;
-                            auto obj_desc = objs_config[class_id].name;
+                            auto obj_desc = app::shared::objs_config[class_id].name;
                             if (inst_ptr_list.size())
                             {
                                 auto selected = class_id == current_default;
@@ -2372,7 +2265,7 @@ utility like ctags is used to locate the definitions.
                         for (auto const& [class_id, inst_ptr_list] : *apps_map)
                         {
                             auto id = class_id;
-                            auto obj_desc = objs_config[class_id].name;
+                            auto obj_desc = app::shared::objs_config[class_id].name;
 
                             auto selected = class_id == current_default;
                             auto item_area = menuitems->attach(ui::pads::ctor(dent{ 0,0,0,1 }, dent{ 0,0,1,0 }))
