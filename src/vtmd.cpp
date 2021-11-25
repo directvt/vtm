@@ -1235,7 +1235,7 @@ utility like ctags is used to locate the definitions.
         const static auto x1 = app::shared::x1;
         const static auto x0 = app::shared::x0;
 
-        auto create_app = [&](auto&& create_app, auto window, auto type, view data) mutable -> void
+        auto create_app = [&](auto&& create_app, auto type, view data) mutable -> sptr<base>
         {
             //todo use XAML for that
             switch (type)
@@ -1243,7 +1243,9 @@ utility like ctags is used to locate the definitions.
                 default:
                 case app::shared::objs::Test:
                 {
-                    window->template plugin<pro::track>()
+                    auto window = ui::cake::ctor();
+                    window->template plugin<pro::focus>()
+                          ->template plugin<pro::track>()
                           ->template plugin<pro::acryl>()
                           ->template plugin<pro::cache>();
                     auto object0 = window->attach(ui::fork::ctor(axis::Y))
@@ -1289,11 +1291,14 @@ utility like ctags is used to locate the definitions.
                             b.grad(rgba{ 0xFFFFFF00 }, rgba{ 0x40FFFFFF });
                             b[{5, 0}].alpha(0);
                             b[{5, 1}].alpha(0);
+                    return window;
                     break;
                 }
                 case app::shared::objs::Strobe:
                 {
-                    auto strob = window->attach(ui::mock::ctor());
+                    auto window = ui::cake::ctor();
+                    auto strob = window->template plugin<pro::focus>()
+                          ->attach(ui::mock::ctor());
                     auto strob_shadow = ptr::shadow(strob);
                     bool stobe_state = true;
                     strob->SUBMIT_BYVAL(tier::general, e2::tick, now)
@@ -1305,21 +1310,27 @@ utility like ctags is used to locate the definitions.
                             strob->deface();
                         }
                     };
+                    return window;
                     break;
                 }
                 case app::shared::objs::RefreshRate:
                 {
-                    window->attach(ui::stem_rate<tier::general, decltype(e2::config::fps)>::ctor("Set frame rate", 1, 200, "fps"))
+                    auto window = ui::cake::ctor();
+                    window->template plugin<pro::focus>()
+                          ->attach(ui::stem_rate<tier::general, decltype(e2::config::fps)>::ctor("Set frame rate", 1, 200, "fps"))
                           ->colors(0xFFFFFFFF, bluedk)
                           ->invoke([&](auto& boss)
                           {
                               boss.keybd.accept(true);
                           });
+                    return window;
                     break;
                 }
                 case app::shared::objs::Truecolor:
                 {
-                    window->template plugin<pro::track>()
+                    auto window = ui::cake::ctor();
+                    window->template plugin<pro::focus>()
+                          ->template plugin<pro::track>()
                           ->template plugin<pro::acryl>()
                           ->template plugin<pro::cache>();
                     auto object = window->attach(ui::fork::ctor(axis::Y))
@@ -1335,11 +1346,14 @@ utility like ctags is used to locate the definitions.
                                 auto scroll_bars = layers->attach(ui::fork::ctor());
                                     auto vt = scroll_bars->attach(slot::_2, ui::grip<axis::Y>::ctor(scroll));
                                     auto hz = test_stat_area->attach(slot::_2, ui::grip<axis::X>::ctor(scroll));
+                    return window;
                     break;
                 }
                 case app::shared::objs::Empty:
                 {
-                    window->template plugin<pro::track>()
+                    auto window = ui::cake::ctor();
+                    window->template plugin<pro::focus>()
+                          ->template plugin<pro::track>()
                           ->template plugin<pro::acryl>()
                           ->invoke([&](auto& boss)
                           {
@@ -1352,11 +1366,14 @@ utility like ctags is used to locate the definitions.
                           });
                     auto object = window->attach(ui::mock::ctor())
                                         ->colors(0,0); //todo mouse tracking
+                    return window;
                     break;
                 }
                 case app::shared::objs::Shop:
                 {
-                    window->colors(whitelt, 0x60000000)
+                    auto window = ui::cake::ctor();
+                    window->template plugin<pro::focus>()
+                          ->colors(whitelt, 0x60000000)
                           ->template plugin<pro::track>()
                           ->template plugin<pro::acryl>()
                           ->template plugin<pro::cache>();
@@ -1382,11 +1399,14 @@ utility like ctags is used to locate the definitions.
                                      ->upload(desktopio_body)
                                      ->template plugin<pro::grade>();
                         layers->attach(app::shared::scroll_bars(scroll));
+                    return window;
                     break;
                 }
                 case app::shared::objs::Calc:
                 {
-                    window->colors(whitelt, 0x601A5f00)
+                    auto window = ui::cake::ctor();
+                    window->template plugin<pro::focus>()
+                          ->colors(whitelt, 0x601A5f00)
                           ->template plugin<pro::limit>(twod{ 10,7 },twod{ -1,-1 })
                           ->template plugin<pro::track>()
                           ->template plugin<pro::acryl>()
@@ -1471,11 +1491,14 @@ utility like ctags is used to locate the definitions.
                                         auto pad = plus_pad->attach(slot::_2, ui::mock::ctor())
                                                            ->template plugin<pro::limit>(twod{ 1,1 }, twod{ 1,1 });
                             layers->attach(app::shared::scroll_bars(scroll));
+                    return window;
                     break;
                 }
                 case app::shared::objs::Text:
                 {
-                    window->template plugin<pro::track>()
+                    auto window = ui::cake::ctor();
+                    window->template plugin<pro::focus>()
+                          ->template plugin<pro::track>()
                           ->template plugin<pro::acryl>()
                           ->template plugin<pro::cache>()
                           ->invoke([&](auto& boss)
@@ -1508,11 +1531,14 @@ utility like ctags is used to locate the definitions.
                                                         ->upload(ansi::wrp(wrap::off).mgl(1).mgr(1).jet(bias::right).fgc(whitedk)
                                                            .add("INS  Sel: 0:0  Col: 26  Ln: 2/148").nil());
                                 layers->attach(app::shared::scroll_bars(scroll));
+                    return window;
                     break;
                 }
                 case app::shared::objs::vtm:
                 {
-                    window->template plugin<pro::track>()
+                    auto window = ui::cake::ctor();
+                    window->template plugin<pro::focus>()
+                          ->template plugin<pro::track>()
                           ->template plugin<pro::acryl>()
                           ->template plugin<pro::cache>();
                     auto object = window->attach(ui::fork::ctor(axis::Y))
@@ -1542,11 +1568,14 @@ utility like ctags is used to locate the definitions.
                                         .add("Reached the limit of recursive connections, destroy existing recursive instances to create new ones."));
                             }
                         layers->attach(app::shared::scroll_bars(scroll));
+                    return window;
                     break;
                 }
                 case app::shared::objs::Far:
                 {
-                    window->template plugin<pro::track>()
+                    auto window = ui::cake::ctor();
+                    window->template plugin<pro::focus>()
+                          ->template plugin<pro::track>()
                           ->template plugin<pro::acryl>()
                           ->template plugin<pro::cache>();
                     auto object = window->attach(ui::fork::ctor(axis::Y))
@@ -1558,11 +1587,14 @@ utility like ctags is used to locate the definitions.
                             scroll->attach(app::term::ctor("far"))
                                   ->colors(whitelt, blackdk);
                         layers->attach(app::shared::scroll_bars_term(scroll));
+                    return window;
                     break;
                 }
                 case app::shared::objs::MC:
                 {
-                    window->template plugin<pro::track>()
+                    auto window = ui::cake::ctor();
+                    window->template plugin<pro::focus>()
+                          ->template plugin<pro::track>()
                           ->template plugin<pro::acryl>()
                           ->template plugin<pro::cache>();
                     auto object = window->attach(ui::fork::ctor(axis::Y))
@@ -1601,12 +1633,15 @@ utility like ctags is used to locate the definitions.
 
                             inst->colors(whitelt, blackdk);
                         layers->attach(app::shared::scroll_bars(scroll));
+                    return window;
                     break;
                 }
                 case app::shared::objs::Bash:
                 case app::shared::objs::Term:
                 {
-                    window->template plugin<pro::track>()
+                    auto window = ui::cake::ctor();
+                    window->template plugin<pro::focus>()
+                          ->template plugin<pro::track>()
                           ->template plugin<pro::acryl>()
                           ->template plugin<pro::cache>();
                     auto object = window->attach(ui::fork::ctor(axis::Y))
@@ -1648,11 +1683,14 @@ utility like ctags is used to locate the definitions.
                             auto scroll_bars = layers->attach(ui::fork::ctor());
                                 auto vt = scroll_bars->attach(slot::_2, ui::grip<axis::Y>::ctor(scroll));
                                 auto hz = term_stat_area->attach(slot::_2, ui::grip<axis::X>::ctor(scroll));
+                    return window;
                     break;
                 }
                 case app::shared::objs::PowerShell:
                 {
-                    window->template plugin<pro::track>()
+                    auto window = ui::cake::ctor();
+                    window->template plugin<pro::focus>()
+                          ->template plugin<pro::track>()
                           ->template plugin<pro::acryl>()
                           ->template plugin<pro::cache>();
                     auto object = window->attach(ui::fork::ctor(axis::Y))
@@ -1688,11 +1726,14 @@ utility like ctags is used to locate the definitions.
                             auto scroll_bars = layers->attach(ui::fork::ctor());
                                 auto vt = scroll_bars->attach(slot::_2, ui::grip<axis::Y>::ctor(scroll));
                                 auto hz = term_stat_area->attach(slot::_2, ui::grip<axis::X>::ctor(scroll));
+                    return window;
                     break;
                 }
                 case app::shared::objs::CommandPrompt:
                 {
-                    window->template plugin<pro::track>()
+                    auto window = ui::cake::ctor();
+                    window->template plugin<pro::focus>()
+                          ->template plugin<pro::track>()
                           ->template plugin<pro::acryl>()
                           ->template plugin<pro::cache>();
                     auto object = window->attach(ui::fork::ctor(axis::Y))
@@ -1743,11 +1784,14 @@ utility like ctags is used to locate the definitions.
                         auto scroll_bars = layers->attach(ui::fork::ctor());
                             auto vt = scroll_bars->attach(slot::_2, ui::grip<axis::Y>::ctor(scroll));
                             auto hz = term_stat_area->attach(slot::_2, ui::grip<axis::X>::ctor(scroll));
+                    return window;
                     break;
                 }
                 case app::shared::objs::Logs:
                 {
-                    window->template plugin<pro::track>()
+                    auto window = ui::cake::ctor();
+                    window->template plugin<pro::focus>()
+                          ->template plugin<pro::track>()
                           ->template plugin<pro::acryl>()
                           ->template plugin<pro::cache>()
                           ->invoke([&](auto& boss)
@@ -1798,34 +1842,31 @@ utility like ctags is used to locate the definitions.
                                   ->colors(whitelt, blackdk);
                             #endif
                         layers->attach(app::shared::scroll_bars(scroll));
+                    return window;
                     break;
                 }
                 case app::shared::objs::View:
                 {
-                    window->template unplug<pro::align>()
-                          ->invoke([&](auto& boss)
+                    auto window = ui::cake::ctor();
+                    window->invoke([&](auto& boss)
                           {
-                              auto outer = dent{ 2,2,1,1 };
-                              auto inner = dent{ -4,-4,-2,-2 };
-                              auto& sizer = boss.template plugins<pro::sizer>();
-                              sizer.props(outer, inner);
-                              boss.SIGNAL(tier::preview, e2::form::prop::zorder, Z_order::backmost);
-                              boss.SUBMIT(tier::release, hids::events::mouse::button::dblclick::left, gear)
-                              {
-                                  auto& sizer = boss.template plugins<pro::sizer>();
-                                  auto [outer, inner] = sizer.get_props();
-                                  auto actual_rect = rect{ dot_00, boss.base::size() } + outer;
-                                  if (actual_rect.hittest(gear.coord))
-                                  {
-                                      if (auto gate_ptr = bell::getref(gear.id))
-                                      {
-                                          rect viewport;
-                                          gate_ptr->SIGNAL(tier::request, e2::form::prop::viewport, viewport);
-                                          boss.base::extend(viewport);
-                                      }
-                                      gear.dismiss();
-                                  }
-                              };
+                              //todo reimplement (tiling/window)
+                              //boss.SUBMIT(tier::release, hids::events::mouse::button::dblclick::left, gear)
+                              //{
+                              //    auto outer = decltype(e2::config::plugins::sizer::outer)::type{};
+                              //    boss.base::template riseup<tier::request>(e2::config::plugins::sizer::outer, outer);
+                              //    auto actual_rect = rect{ dot_00, boss.base::size() } + outer;
+                              //    if (actual_rect.hittest(gear.coord))
+                              //    {
+                              //        if (auto gate_ptr = bell::getref(gear.id))
+                              //        {
+                              //            rect viewport;
+                              //            gate_ptr->SIGNAL(tier::request, e2::form::prop::viewport, viewport);
+                              //            boss.base::extend(viewport);
+                              //        }
+                              //        gear.dismiss();
+                              //    }
+                              //};
                               boss.SUBMIT(tier::release, e2::render::prerender, parent_canvas)
                               {
                                   rgba title_fg_color = 0xFFffffff;
@@ -1840,13 +1881,21 @@ utility like ctags is used to locate the definitions.
                                   static iota i = 0; i++;
                                   auto title = ansi::jet(bias::center).add("View \n Region ", i);
                                   boss.base::template riseup<tier::preview>(e2::form::prop::header, title);
+                                  
+                                  auto outer = dent{ 2,2,1,1 };
+                                  auto inner = dent{ -4,-4,-2,-2 };
+                                  boss.base::template riseup<tier::release>(e2::config::plugins::sizer::outer, outer);
+                                  boss.base::template riseup<tier::release>(e2::config::plugins::sizer::inner, inner);
+                                  boss.base::template riseup<tier::release>(e2::config::plugins::align, faux);
+                                  boss.base::template riseup<tier::preview>(e2::form::prop::zorder, Z_order::backmost);
                               };
                           });
+                    return window;
                     break;
                 }
                 case app::shared::objs::Tile:
                 {
-                    app::build(create_app, window, data);
+                    return app::build(create_app, data);
                     break;
                 }
             }
@@ -1867,7 +1916,6 @@ utility like ctags is used to locate the definitions.
                 ->plugin<pro::frame>()
                 ->plugin<pro::light>()
                 ->plugin<pro::align>()
-                ->plugin<pro::focus>()
                 ->invoke([&](ui::cake& boss)
                 {
                     boss.SUBMIT(tier::release, hids::events::mouse::button::dblclick::left, gear)
@@ -1909,7 +1957,7 @@ utility like ctags is used to locate the definitions.
                 });
 
             window->extend(location);
-            create_app(create_app, window, config.type, config.data);
+            window->attach(create_app(create_app, config.type, config.data));
             log(" world create type=", config.type);
             world->branch(config.type, window);
 
@@ -1985,7 +2033,7 @@ utility like ctags is used to locate the definitions.
                     if (!name.empty())
                     {
                         menu_list[static_cast<id_t>(app::shared::objs_config.size())];
-                        auto m = menu_item{};
+                        auto m = app::shared::menu_item{};
                         m.type = app::shared::objs::Tile;
                         m.name = text{ name };
                         m.title = text{ name }; // Use the same title as the menu label.

@@ -110,11 +110,23 @@ namespace netxs::events::userland
                 EVENT_XS( broadcast, sptr<bell> ), // release: broadcast source changed.
                 EVENT_XS( fps      , iota       ), // request to set new fps, arg: new fps (iota); the value == -1 is used to request current fps.
                 GROUP_XS( caret    , period     ), // any kind of intervals property.
+                GROUP_XS( plugins  , iota       ),
 
                 SUBSET_XS( caret )
                 {
                     EVENT_XS( blink, period ), // caret blinking interval.
                     EVENT_XS( style, iota   ), // caret style: 0 - underline, 1 - box.
+                };
+                SUBSET_XS( plugins )
+                {
+                    EVENT_XS( align, bool ), // release: enable/disable align plugin.
+                    GROUP_XS( sizer, dent ), // configure sizer.
+
+                    SUBSET_XS( sizer )
+                    {
+                        EVENT_XS( inner, dent ), // release: set inner size; request: request unner size.
+                        EVENT_XS( outer, dent ), // release: set outer size; request: request outer size.
+                    };
                 };
             };
             SUBSET_XS( conio )
@@ -1337,6 +1349,25 @@ namespace netxs::console
                 {
                     items.dec(gear);
                 };
+                boss.SUBMIT_T(tier::release, e2::config::plugins::sizer::outer, memo, outer_rect)
+                {
+                    outer = outer_rect;
+                    width = outer - inner;
+                };
+                boss.SUBMIT_T(tier::release, e2::config::plugins::sizer::inner, memo, inner_rect)
+                {
+                    inner = inner_rect;
+                    width = outer - inner;
+                };
+                boss.SUBMIT_T(tier::request, e2::config::plugins::sizer::inner, memo, inner_rect)
+                {
+                    inner_rect = inner;
+                };
+                boss.SUBMIT_T(tier::request, e2::config::plugins::sizer::outer, memo, outer_rect)
+                {
+                    outer_rect = outer;
+                };
+
                 engage<sysmouse::left>();
             }
             // pro::sizer: Configuring the mouse button to operate.
@@ -1540,18 +1571,24 @@ namespace netxs::console
             align(base& boss, bool maximize = true) : skill{ boss },
                 weak{}
             {
-                if (maximize)
+                boss.SUBMIT_T(tier::release, e2::config::plugins::align, memo, set)
                 {
-                    boss.SUBMIT_T(tier::release, e2::form::maximize, maxs, gear)
+                    if (set)
                     {
-                        auto size = boss.base::size();
-                        if (size.inside(gear.coord))
+                        boss.SUBMIT_T(tier::release, e2::form::maximize, maxs, gear)
                         {
-                            if (seized(gear.id)) unbind();
-                            else                 follow(gear.id, dot_00);
-                        }
-                    };
-                }
+                            auto size = boss.base::size();
+                            if (size.inside(gear.coord))
+                            {
+                                if (seized(gear.id)) unbind();
+                                else                 follow(gear.id, dot_00);
+                            }
+                        };
+                    }
+                    else maxs.reset();
+                };
+
+                boss.SIGNAL(tier::release, e2::config::plugins::align, maximize);
             }
             ~align() { unbind(faux); }
 
@@ -4380,7 +4417,7 @@ namespace netxs::console
 
                             gear.kb_focus_taken = faux;
                             frame->SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
-                            frame->SIGNAL(tier::release, e2::form::upon::created, gear); // The Tile should change the menu item.
+                            frame->broadcast->SIGNAL(tier::release, e2::form::upon::created, gear); // The Tile should change the menu item.
                         }
                     }
                 }

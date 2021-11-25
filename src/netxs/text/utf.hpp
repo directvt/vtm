@@ -1377,7 +1377,19 @@ namespace netxs::utf
         }
         return head;
     };
-    auto get_quote(view& utf8, char delim)
+    auto trim_front(view& utf8, view delims)
+    {
+        auto head = utf8.begin();
+        auto tail = utf8.end();
+        while (head != tail)
+        {
+            auto c = *head;
+            if (delims.find(c) == text::npos) break;
+            ++head;
+        }
+        utf8.remove_prefix(std::distance(utf8.begin(), head));
+    };
+    auto get_quote(view& utf8, char delim, view skip = {})
     {
         auto head = utf8.begin();
         auto tail = utf8.end();
@@ -1397,19 +1409,8 @@ namespace netxs::utf
         utf8.remove_prefix(std::distance(head, stop) + 1);
         text str{ coor, stop }; 
         change(str, text{ "\\" } + delim, text{ 1, delim });
+        if (!skip.empty()) trim_front(utf8, skip);
         return str;
-    };
-    auto trim_front(view& utf8, view delims)
-    {
-        auto head = utf8.begin();
-        auto tail = utf8.end();
-        while (head != tail)
-        {
-            auto c = *head;
-            if (delims.find(c) == text::npos) break;
-            ++head;
-        }
-        utf8.remove_prefix(std::distance(utf8.begin(), head));
     };
 }
 

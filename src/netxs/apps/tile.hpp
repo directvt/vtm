@@ -51,25 +51,8 @@ namespace netxs::app
     const static auto term_menu_bg = rgba{ 0x80404040 };
 
     //todo unify
-    auto build = [](auto create_app, auto window, view data)
+    auto build = [](auto create_app, view data) -> sptr<base>
     {
-        #ifndef PROD
-            if (app::shared::tile_count < APPS_MAX_COUNT)
-            {
-                auto c = &app::shared::tile_count; (*c)++;
-                window->SUBMIT_BYVAL(tier::release, e2::dtor, item_id)
-                        {
-                            (*c)--;
-                            log("main: tile manager destoyed");
-                        };
-            }
-            else
-            {
-                create_app(create_app, window, Empty, "Reached the limit");
-                break;
-            }
-        #endif
-
         view envvar_data;
         text window_title;
         auto a = data.find('=');
@@ -88,125 +71,14 @@ namespace netxs::app
                 envvar_data = view{ &(*b), (size_t)(e - b) };
                 log(" envvar_data=", envvar_data);
                 auto menu_name = utf::get_quote(envvar_data, '\"');
-                window_title = utf::get_quote(envvar_data, '\"');
+                window_title   = utf::get_quote(envvar_data, '\"', ", ");
                 log(" menu_name=", menu_name);
                 log(" window_title=", window_title);
-                utf::trim_front(envvar_data, ", ");
                 log(" layout_data=", envvar_data);
                 //if (window_title.length()) window_title += '\n';
             }
         }
-        window->template unplug<pro::focus>() // Remove focus controller.
-                ->invoke([&](auto& boss)
-                {
-                    boss.SUBMIT_BYVAL(tier::release, e2::form::upon::vtree::attached, parent)
-                    {
-                        auto title = ansi::add(window_title);// + utf::debase(data));
-                        parent->base::riseup<tier::preview>(e2::form::prop::header, title);
-                    };
-                });
 
-
-        auto object = window->attach(ui::fork::ctor(axis::Y));
-            auto menu = object->attach(slot::_1, shared::custom_menu(true,
-                std::list{
-                        //  Green                                  ?Even    Red
-                        // ┌────┐  ┌────┐  ┌─┬──┐  ┌────┐  ┌─┬──┐  ┌─┬──┐  ┌────┐  // ┌─┐  ┌─┬─┐  ┌─┬─┐  ┌─┬─┐  
-                        // │Exec│  ├─┐  │  │ H  │  ├ V ─┤  │Swap│  │Fair│  │Shut│  // ├─┤  └─┴─┘  └<┴>┘  └>┴<┘  
-                        // └────┘  └─┴──┘  └─┴──┘  └────┘  └─┴──┘  └─┴──┘  └────┘  // └─┘                       
-                        std::pair<text, std::function<void(ui::pads&)>>{"  ┐└  ",//  ─┐  ", //"  ▀█  ",
-                        [](ui::pads& boss)
-                        {
-                            boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
-                            {
-                                gear.countdown = 1;
-                                boss.base::broadcast->SIGNAL(tier::preview, app::tile::ui::toggle, gear);
-                                //iota status = 1;
-                                //boss.base::broadcast->SIGNAL(tier::request, e2::command::custom, status);
-                                //boss.base::broadcast->SIGNAL(tier::preview, e2::command::custom, status == 2 ? 1/*show*/ : 2/*hide*/);
-                                gear.dismiss(true);
-                            };
-                            boss.base::broadcast->SUBMIT(tier::release, e2::command::custom, status)
-                            {
-                                //boss.color(status == 1 ? 0xFF00ff00 : x3.fgc(), x3.bgc());
-                            };
-                        }},
-                        std::pair<text, std::function<void(ui::pads&)>>{ "  +  ",
-                        [](ui::pads& boss)
-                        {
-                            boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
-                            {
-                                boss.base::broadcast->SIGNAL(tier::preview, app::tile::ui::create, gear);
-                                gear.dismiss(true);
-                            };
-                        }},
-                        std::pair<text, std::function<void(ui::pads&)>>{ " ::: ",
-                        [](ui::pads& boss)
-                        {
-                            boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
-                            {
-                                boss.base::broadcast->SIGNAL(tier::preview, app::tile::ui::select, gear);
-                                gear.dismiss(true);
-                            };
-                        }},
-                        std::pair<text, std::function<void(ui::pads&)>>{ "  │  ", // "  ║  ", - VGA Linux console doesn't support unicode glyphs
-                        [](ui::pads& boss)
-                        {
-                            boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
-                            {
-                                boss.base::broadcast->SIGNAL(tier::preview, app::tile::ui::split::hz, gear);
-                                gear.dismiss(true);
-                            };
-                        }},
-                        std::pair<text, std::function<void(ui::pads&)>>{  " ── ", // " ══ ", - VGA Linux console doesn't support unicode glyphs
-                        [](ui::pads& boss)
-                        {
-                            boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
-                            {
-                                boss.base::broadcast->SIGNAL(tier::preview, app::tile::ui::split::vt, gear);
-                                gear.dismiss(true);
-                            };
-                        }},
-                        std::pair<text, std::function<void(ui::pads&)>>{ "  ┌┘  ",
-                        [](ui::pads& boss)
-                        {
-                            boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
-                            {
-                                boss.base::broadcast->SIGNAL(tier::preview, app::tile::ui::rotate, gear);
-                                gear.dismiss(true);
-                            };
-                        }},
-                        std::pair<text, std::function<void(ui::pads&)>>{ " <-> ",
-                        [](ui::pads& boss)
-                        {
-                            boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
-                            {
-                                boss.base::broadcast->SIGNAL(tier::preview, app::tile::ui::swap, gear);
-                                gear.dismiss(true);
-                            };
-                        }},
-                        std::pair<text, std::function<void(ui::pads&)>>{ " >|< ",
-                        [](ui::pads& boss)
-                        {
-                            boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
-                            {
-                                boss.base::broadcast->SIGNAL(tier::preview, app::tile::ui::equalize, gear);
-                                gear.dismiss(true);
-                            };
-                        }},
-                        std::pair<text, std::function<void(ui::pads&)>>{ "  ×  ",
-                        [](ui::pads& boss)
-                        {
-                            boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
-                            {
-                                boss.base::broadcast->SIGNAL(tier::preview, app::tile::ui::close, gear);
-                                gear.dismiss(true);
-                            };
-                        }},
-                    }))
-                    ->colors(whitelt, term_menu_bg)
-                    ->template plugin<pro::track>()
-                    ->template plugin<pro::acryl>();
 
         auto mouse_actions = [](auto& boss)
         {
@@ -283,6 +155,7 @@ namespace netxs::app
         };
         auto box_with_title = [&](view title, auto branch)
         {
+            branch->base::broadcast->SIGNAL(tier::release, e2::form::prop::menusize, 1);
             return ui::fork::ctor(axis::Y)
                     ->plugin<pro::title>("", true, faux, true)
                     ->plugin<pro::limit>(twod{ 10,-1 }, twod{ -1,-1 })
@@ -311,11 +184,7 @@ namespace netxs::app
                                 };
                             };
                         }))
-                    ->branch(slot::_2, branch
-                        ->invoke([&](auto& boss)
-                        {
-                            boss.base::broadcast->SIGNAL(tier::release, e2::form::prop::menusize, 1);
-                        }));
+                    ->branch(slot::_2, branch);
         };
         auto pass_focus = [](auto& gear_id_list, auto& item_ptr)
         {
@@ -333,7 +202,7 @@ namespace netxs::app
         auto built_node = [&](auto tag, auto s1, auto s2, auto w)
         {
             auto node = tag == 'h' ? ui::fork::ctor(axis::X, w == -1 ? 2 : w, s1, s2)
-                                    : ui::fork::ctor(axis::Y, w == -1 ? 1 : w, s1, s2);
+                                   : ui::fork::ctor(axis::Y, w == -1 ? 1 : w, s1, s2);
             node->isroot(true, 1) // Set object kind to 1 to be different from others.
                 ->invoke([&](auto& boss)
                 {
@@ -610,9 +479,7 @@ namespace netxs::app
                                     auto current_default = static_cast<id_t>(data);
                                     auto config = app::shared::objs_config[current_default];
 
-                                    auto host = ui::cake::ctor()
-                                                ->plugin<pro::focus>();
-                                    create_app(create_app, host, current_default, config.data);
+                                    auto host = create_app(create_app, config.type, config.data);
                                     auto app = box_with_title(config.title, host);
                                     gear.remove_from_kb_focus(boss.back()); // Take focus from the empty slot.
                                     boss.attach(app);
@@ -671,10 +538,10 @@ namespace netxs::app
                 // add term
                 auto cmdline = utf::get_quote(utf8, '\"');
                 log(" node cmdline=", cmdline);
-                auto host = ui::cake::ctor()
-                        ->plugin<pro::focus>();
-                create_app(create_app, host, app::shared::objs_map["Term"], cmdline);
+
+                auto host = create_app(create_app, app::shared::objs_map["Term"], cmdline);
                 auto inst = box_with_title("Headless TE", host);
+                place->attach(inst);
 
                 // empty_slot<veer>->(r0,f)place_holder<park>
                 //                 ->(r0)box_with_title<fork>->title
@@ -683,8 +550,6 @@ namespace netxs::app
                 //                 ->(r1)node_split<fork>->slot_1 ...
                 //                                       ->slot_2 ...
                 //                                       ->(f)grip
-
-                place->attach(inst);
             }
             else if (tag == 'a')
             {
@@ -693,18 +558,14 @@ namespace netxs::app
                 utf::trim_front(utf8, " ");
                 if (utf8.empty() || utf8.front() != '(') return place;
                 utf8.remove_prefix(1);
-                auto app_id  = utf::get_quote(utf8, '\"');
-                utf::trim_front(utf8, ", ");
-                auto app_title = utf::get_quote(utf8, '\"');
-                utf::trim_front(utf8, ", ");
-                auto app_data = utf::get_quote(utf8, '\"');
+                auto app_id  = utf::get_quote(utf8, '\"', ", ");
+                auto app_title = utf::get_quote(utf8, '\"', ", ");
+                auto app_data = utf::get_quote(utf8, '\"', ") ");
                 log(" app_id=", app_id, " app_title=", app_title, " app_data=", app_data);
-                auto host = ui::cake::ctor()
-                        ->plugin<pro::focus>();
-                create_app(create_app, host, app::shared::objs_map[app_id], app_data);
-                auto app = box_with_title(app_title, host);
-                place->attach(app);
-                utf::trim_front(utf8, ") ");
+
+                auto host = create_app(create_app, app::shared::objs_map[app_id], app_data);
+                auto inst = box_with_title(app_title, host);
+                place->attach(inst);
             }
             else if (tag == 'h' || tag == 'v')
             {
@@ -746,39 +607,173 @@ namespace netxs::app
             }
             return place;
         };
-        auto host = object->attach(slot::_2, add_node(add_node, envvar_data));
-        host->invoke([&](auto& boss)
-        {
-            boss.SUBMIT(tier::release, e2::form::proceed::attach, fullscreen_item)
-            {
-                if (fullscreen_item)
-                {
-                    boss.attach(fullscreen_item);
-                    fullscreen_item.reset();
-                }
-            };
-            boss.SUBMIT(tier::release, e2::form::proceed::detach, fullscreen_item)
-            {
-                auto item = boss.pop_back();
-                if (item) fullscreen_item = item;
-            };
-            boss.SUBMIT(tier::release, e2::form::upon::created, gear)
-            {
-                if (auto gate_ptr = bell::getref(gear.id))
-                {
-                    auto& gate = *gate_ptr;
-                    auto menu_item_id = decltype(e2::data::changed)::type{};
-                    gate.SIGNAL(tier::request, e2::data::changed, menu_item_id);
 
-                    auto config = app::shared::objs_config[menu_item_id];
-                    if (config.name == "Tile") // Reset the currently selected application to the previous one.
+        auto object = ui::fork::ctor(axis::Y);
+
+        #ifndef PROD
+            if (app::shared::tile_count < APPS_MAX_COUNT)
+            {
+                auto c = &app::shared::tile_count; (*c)++;
+                object->SUBMIT_BYVAL(tier::release, e2::dtor, item_id)
+                {
+                    (*c)--;
+                    log("main: tile manager destoyed");
+                };
+            }
+            else
+            {
+                return create_app(create_app, app::shared::objs::Empty, "Reached the limit");
+            }
+        #endif
+
+        object->invoke([&](auto& boss)
+            {
+                auto oneoff = std::make_shared<hook>();
+                auto objs_config_ptr = &app::shared::objs_config;
+                boss.broadcast->SUBMIT_T_BYVAL(tier::release, e2::form::upon::created, *oneoff, gear)
+                {
+                    if (auto gate_ptr = bell::getref(gear.id))
                     {
-                        gate.SIGNAL(tier::preview, e2::data::changed, menu_item_id); // Get previous default;
-                        gate.SIGNAL(tier::release, e2::data::changed, menu_item_id); // Set current  default;
+                        auto& gate = *gate_ptr;
+                        auto& objs_config = *objs_config_ptr;
+                        auto menu_item_id = decltype(e2::data::changed)::type{};
+                        gate.SIGNAL(tier::request, e2::data::changed, menu_item_id);
+                        //todo unify
+                        auto config = objs_config[menu_item_id];
+                        if (config.name == "Tile") // Reset the currently selected application to the previous one.
+                        {
+                            gate.SIGNAL(tier::preview, e2::data::changed, menu_item_id); // Get previous default;
+                            gate.SIGNAL(tier::release, e2::data::changed, menu_item_id); // Set current  default;
+                        }
                     }
-                }
-            };
-        });
+                    oneoff.reset();
+                };
+                boss.SUBMIT_BYVAL(tier::release, e2::form::upon::vtree::attached, parent)
+                {
+                    auto title = ansi::add(window_title);// + utf::debase(data));
+                    log(" attached title=", window_title);
+                    parent->base::riseup<tier::preview>(e2::form::prop::header, title);
+                };
+            });
+
+        object->attach(slot::_1, shared::custom_menu(true,
+            std::list{
+                    //  Green                                  ?Even    Red
+                    // ┌────┐  ┌────┐  ┌─┬──┐  ┌────┐  ┌─┬──┐  ┌─┬──┐  ┌────┐  // ┌─┐  ┌─┬─┐  ┌─┬─┐  ┌─┬─┐  
+                    // │Exec│  ├─┐  │  │ H  │  ├ V ─┤  │Swap│  │Fair│  │Shut│  // ├─┤  └─┴─┘  └<┴>┘  └>┴<┘  
+                    // └────┘  └─┴──┘  └─┴──┘  └────┘  └─┴──┘  └─┴──┘  └────┘  // └─┘                       
+                    std::pair<text, std::function<void(ui::pads&)>>{"  ┐└  ",//  ─┐  ", //"  ▀█  ",
+                    [](ui::pads& boss)
+                    {
+                        boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
+                        {
+                            gear.countdown = 1;
+                            boss.base::broadcast->SIGNAL(tier::preview, app::tile::ui::toggle, gear);
+                            //iota status = 1;
+                            //boss.base::broadcast->SIGNAL(tier::request, e2::command::custom, status);
+                            //boss.base::broadcast->SIGNAL(tier::preview, e2::command::custom, status == 2 ? 1/*show*/ : 2/*hide*/);
+                            gear.dismiss(true);
+                        };
+                        boss.base::broadcast->SUBMIT(tier::release, e2::command::custom, status)
+                        {
+                            //boss.color(status == 1 ? 0xFF00ff00 : x3.fgc(), x3.bgc());
+                        };
+                    }},
+                    std::pair<text, std::function<void(ui::pads&)>>{ "  +  ",
+                    [](ui::pads& boss)
+                    {
+                        boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
+                        {
+                            boss.base::broadcast->SIGNAL(tier::preview, app::tile::ui::create, gear);
+                            gear.dismiss(true);
+                        };
+                    }},
+                    std::pair<text, std::function<void(ui::pads&)>>{ " ::: ",
+                    [](ui::pads& boss)
+                    {
+                        boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
+                        {
+                            boss.base::broadcast->SIGNAL(tier::preview, app::tile::ui::select, gear);
+                            gear.dismiss(true);
+                        };
+                    }},
+                    std::pair<text, std::function<void(ui::pads&)>>{ "  │  ", // "  ║  ", - VGA Linux console doesn't support unicode glyphs
+                    [](ui::pads& boss)
+                    {
+                        boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
+                        {
+                            boss.base::broadcast->SIGNAL(tier::preview, app::tile::ui::split::hz, gear);
+                            gear.dismiss(true);
+                        };
+                    }},
+                    std::pair<text, std::function<void(ui::pads&)>>{  " ── ", // " ══ ", - VGA Linux console doesn't support unicode glyphs
+                    [](ui::pads& boss)
+                    {
+                        boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
+                        {
+                            boss.base::broadcast->SIGNAL(tier::preview, app::tile::ui::split::vt, gear);
+                            gear.dismiss(true);
+                        };
+                    }},
+                    std::pair<text, std::function<void(ui::pads&)>>{ "  ┌┘  ",
+                    [](ui::pads& boss)
+                    {
+                        boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
+                        {
+                            boss.base::broadcast->SIGNAL(tier::preview, app::tile::ui::rotate, gear);
+                            gear.dismiss(true);
+                        };
+                    }},
+                    std::pair<text, std::function<void(ui::pads&)>>{ " <-> ",
+                    [](ui::pads& boss)
+                    {
+                        boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
+                        {
+                            boss.base::broadcast->SIGNAL(tier::preview, app::tile::ui::swap, gear);
+                            gear.dismiss(true);
+                        };
+                    }},
+                    std::pair<text, std::function<void(ui::pads&)>>{ " >|< ",
+                    [](ui::pads& boss)
+                    {
+                        boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
+                        {
+                            boss.base::broadcast->SIGNAL(tier::preview, app::tile::ui::equalize, gear);
+                            gear.dismiss(true);
+                        };
+                    }},
+                    std::pair<text, std::function<void(ui::pads&)>>{ "  ×  ",
+                    [](ui::pads& boss)
+                    {
+                        boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
+                        {
+                            boss.base::broadcast->SIGNAL(tier::preview, app::tile::ui::close, gear);
+                            gear.dismiss(true);
+                        };
+                    }},
+                }))
+                ->colors(whitelt, term_menu_bg)
+                ->template plugin<pro::track>()
+                ->template plugin<pro::acryl>();
+
+        object->attach(slot::_2, add_node(add_node, envvar_data))
+            ->invoke([&](auto& boss)
+            {
+                boss.SUBMIT(tier::release, e2::form::proceed::attach, fullscreen_item)
+                {
+                    if (fullscreen_item)
+                    {
+                        boss.attach(fullscreen_item);
+                        fullscreen_item.reset();
+                    }
+                };
+                boss.SUBMIT(tier::release, e2::form::proceed::detach, fullscreen_item)
+                {
+                    auto item = boss.pop_back();
+                    if (item) fullscreen_item = item;
+                };
+            });
+        return object;
     };
 }
 
