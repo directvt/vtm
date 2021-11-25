@@ -90,7 +90,7 @@ namespace netxs::app::shared
     const static auto x0 = cell{ c3 }.bgc(0xFF000000); //todo make it as desktop bg
     const static auto term_menu_bg = rgba{ 0x80404040 };
 
-    auto scroll_bars = [](auto master)
+    const auto scroll_bars = [](auto master)
     {
         auto scroll_bars = ui::fork::ctor();
             auto scroll_down = scroll_bars->attach(slot::_1, ui::fork::ctor(axis::Y));
@@ -98,7 +98,7 @@ namespace netxs::app::shared
                 auto vt = scroll_bars->attach(slot::_2, ui::grip<axis::Y>::ctor(master));
         return scroll_bars;
     };
-    auto scroll_bars_term = [](auto master)
+    const auto scroll_bars_term = [](auto master)
     {
         auto scroll_bars = ui::fork::ctor();
             auto scroll_head = scroll_bars->attach(slot::_1, ui::fork::ctor(axis::Y));
@@ -108,7 +108,7 @@ namespace netxs::app::shared
     };
 
     // Menu bar (shrinkable on right-click).
-    auto custom_menu = [&](bool full_size, std::list<std::pair<text, std::function<void(ui::pads&)>>> menu_items)
+    const auto custom_menu = [](bool full_size, std::list<std::pair<text, std::function<void(ui::pads&)>>> menu_items)
     {
         auto menu_block = ui::park::ctor()
             ->plugin<pro::limit>(twod{ -1, full_size ? 3 : 1 }, twod{ -1, full_size ? 3 : 1 })
@@ -174,7 +174,7 @@ namespace netxs::app::shared
         return menu_block;
     };
 
-    auto main_menu = [&]()
+    const auto main_menu = []()
     {
         auto items = std::list
         {
@@ -187,7 +187,7 @@ namespace netxs::app::shared
         return custom_menu(true, items);
     };
 
-    auto terminal_menu = [&](bool full_size)
+    const auto terminal_menu = [](bool full_size)
     {
         auto items = std::list
         {
@@ -302,6 +302,28 @@ namespace netxs::app::shared
         };
         return custom_menu(full_size, items);
     };
+
+    auto& get_creator()
+    {
+        static std::map<text, std::function<sptr<base>(view)>> creator_inst;
+        return creator_inst;
+    }
+    auto& creator(view app_type)
+    {
+        static std::function<sptr<base>(view)> empty =
+        [](view) -> sptr<base>
+        {
+            return ui::cake::ctor();
+        };
+        auto key = text{ app_type };
+        auto& map = get_creator();
+        const auto it = map.find(key);
+        if (it == map.end())
+            //return map["Empty"];
+            return empty;
+        else
+            return it->second;
+    }
 
 }
 
