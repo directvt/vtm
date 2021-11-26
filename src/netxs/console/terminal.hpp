@@ -30,16 +30,27 @@ namespace netxs::events::userland
     };
 }
 
-namespace netxs::app
+//todo split ui::term and app::term
+
+// terminal: Terminal Emulator.
+namespace netxs::app::term
 {
     using namespace netxs::console;
 
-    // terminal: Built-in terminal app.
-    struct term
+    using events = netxs::events::userland::term;
+}
+
+// terminal: Terminal UI control.
+namespace netxs::ui
+{
+    class term
         : public ui::form<term>
     {
-        using events = netxs::events::userland::term;
+        static constexpr iota def_length = 20000; // term: Default scrollback history length.
+        static constexpr iota def_growup = 0;     // term: Default scrollback history grow step.
+        static constexpr iota def_tablen = 8;     // term: Default tab length.
 
+    public:
         struct commands
         {
             struct erase
@@ -66,7 +77,7 @@ namespace netxs::app
             };
             struct ui
             {
-                enum : iota
+                enum commands : iota
                 {
                     right,
                     left,
@@ -92,11 +103,7 @@ namespace netxs::app
                 };
             };
         };
-
-private:
-        static constexpr iota def_length = 20000; // term: Default scrollback history length.
-        static constexpr iota def_growup = 0;     // term: Default scrollback history grow step.
-        static constexpr iota def_tablen = 8;     // term: Default tab length.
+    private:
 
         // term: VT-buffer status.
         struct term_state
@@ -3363,6 +3370,48 @@ private:
         }
 
     public:
+        void exec_cmd(commands::ui::commands cmd)
+        {
+            log("term: tier::preview, ui::commands, ", cmd);
+            scroll();
+            switch (cmd)
+            {
+                case commands::ui::left:
+                    target->style.jet(bias::left);
+                    break;
+                case commands::ui::center:
+                    target->style.jet(bias::center);
+                    break;
+                case commands::ui::right:
+                    target->style.jet(bias::right);
+                    break;
+                case commands::ui::togglewrp:
+                    target->style.wrp(target->style.wrp() == wrap::on ? wrap::off : wrap::on);
+                    break;
+                case commands::ui::reset:
+                    decstr();
+                    break;
+                case commands::ui::clear:
+                    target->ed(commands::erase::display::viewport);
+                    break;
+                default:
+                    break;
+            }
+            ondata("");
+        }
+        void data_in(view data)
+        {
+            log("term: app::term::data::in, ", utf::debase(data));
+            scroll();
+            ondata(data);
+        }
+        void data_out(view data)
+        {
+            log("term: app::term::data::out, ", utf::debase(data));
+            scroll();
+            ptycon.write(data);
+        }
+
        ~term(){ active = faux; }
         term(text command_line, iota max_scrollback_size = def_length, iota grow_step = def_growup)
         //term(text command_line, iota max_scrollback_size = 50, iota grow_step = 0)
@@ -3385,44 +3434,15 @@ private:
 
             base::broadcast->SUBMIT_T(tier::preview, app::term::events::cmd, bell::tracker, cmd)
             {
-                log("term: tier::preview, app::term::cmd, ", cmd);
-                scroll();
-                switch (cmd)
-                {
-                    case term::commands::ui::left:
-                        target->style.jet(bias::left);
-                        break;
-                    case term::commands::ui::center:
-                        target->style.jet(bias::center);
-                        break;
-                    case term::commands::ui::right:
-                        target->style.jet(bias::right);
-                        break;
-                    case term::commands::ui::togglewrp:
-                        target->style.wrp(target->style.wrp() == wrap::on ? wrap::off : wrap::on);
-                        break;
-                    case term::commands::ui::reset:
-                        decstr();
-                        break;
-                    case term::commands::ui::clear:
-                        target->ed(commands::erase::display::viewport);
-                        break;
-                    default:
-                        break;
-                }
-                ondata("");
+                exec_cmd(static_cast<commands::ui::commands>(cmd));
             };
             base::broadcast->SUBMIT_T(tier::preview, app::term::events::data::in, bell::tracker, data)
             {
-                log("term: app::term::data::in, ", utf::debase(data));
-                scroll();
-                ondata(data);
+                data_in(data);
             };
             base::broadcast->SUBMIT_T(tier::preview, app::term::events::data::out, bell::tracker, data)
             {
-                log("term: app::term::data::out, ", utf::debase(data));
-                scroll();
-                ptycon.write(data);
+                data_out(data);
             };
             SUBMIT(tier::release, e2::coor::set, new_coor)
             {

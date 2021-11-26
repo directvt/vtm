@@ -229,7 +229,7 @@ namespace netxs::app::shared
             {
                 boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                 {
-                    boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, app::term::commands::ui::clear);
+                    boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, ui::term::commands::ui::clear);
                     gear.dismiss(true);
                 };
             }},
@@ -239,7 +239,7 @@ namespace netxs::app::shared
             {
                 boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                 {
-                    boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, app::term::commands::ui::reset);
+                    boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, ui::term::commands::ui::reset);
                     gear.dismiss(true);
                 };
             }},
@@ -248,7 +248,7 @@ namespace netxs::app::shared
             {
                 boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                 {
-                    boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, app::term::commands::ui::left);
+                    boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, ui::term::commands::ui::left);
                     gear.dismiss(true);
                 };
                 boss.base::broadcast->SUBMIT(tier::release, app::term::events::layout::align, align)
@@ -262,7 +262,7 @@ namespace netxs::app::shared
             {
                 boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                 {
-                    boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, app::term::commands::ui::center);
+                    boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, ui::term::commands::ui::center);
                     gear.dismiss(true);
                 };
                 boss.base::broadcast->SUBMIT(tier::release, app::term::events::layout::align, align)
@@ -276,7 +276,7 @@ namespace netxs::app::shared
             {
                 boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                 {
-                    boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, app::term::commands::ui::right);
+                    boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, ui::term::commands::ui::right);
                     gear.dismiss(true);
                 };
                 boss.base::broadcast->SUBMIT(tier::release, app::term::events::layout::align, align)
@@ -290,7 +290,7 @@ namespace netxs::app::shared
             {
                 boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                 {
-                    boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, app::term::commands::ui::togglewrp);
+                    boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, ui::term::commands::ui::togglewrp);
                     gear.dismiss(true);
                 };
                 boss.base::broadcast->SUBMIT(tier::release, app::term::events::layout::wrapln, wrapln)

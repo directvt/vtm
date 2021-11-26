@@ -195,7 +195,7 @@ int main(int argc, char* argv[])
                             if (app::shared::vtm_count < app::shared::max_vtm)
                             {
                                 auto c = &app::shared::vtm_count; (*c)++;
-                                scroll->attach(app::term::ctor("vtm"))
+                                scroll->attach(ui::term::ctor("vtm"))
                                       ->colors(whitelt, blackdk)
                                       ->SUBMIT_BYVAL(tier::release, e2::dtor, item_id)
                                         {
@@ -229,7 +229,7 @@ int main(int argc, char* argv[])
                         auto layers = object->attach(slot::_2, ui::cake::ctor())
                                             ->template plugin<pro::limit>(dot_11, twod{ 400,200 });
                             auto scroll = layers->attach(ui::rail::ctor());
-                            scroll->attach(app::term::ctor("far"))
+                            scroll->attach(ui::term::ctor("far"))
                                   ->colors(whitelt, blackdk);
                         layers->attach(app::shared::scroll_bars_term(scroll));
                     return window;
@@ -254,25 +254,25 @@ int main(int argc, char* argv[])
 
                             #if defined(_WIN32)
 
-                                auto inst = scroll->attach(app::term::ctor("wsl mc"));
+                                auto inst = scroll->attach(ui::term::ctor("wsl mc"));
 
                             #elif defined(__linux__)
                                 #ifndef PROD
-                                    auto inst = scroll->attach(app::term::ctor("bash -c 'LC_ALL=en_US.UTF-8 mc -c -x -d'"));
+                                    auto inst = scroll->attach(ui::term::ctor("bash -c 'LC_ALL=en_US.UTF-8 mc -c -x -d'"));
                                 #else
-                                    auto inst = scroll->attach(app::term::ctor("bash -c 'LC_ALL=en_US.UTF-8 mc -c -x'"));
+                                    auto inst = scroll->attach(ui::term::ctor("bash -c 'LC_ALL=en_US.UTF-8 mc -c -x'"));
                                 #endif
                             #elif defined(__APPLE__)
 
-                                auto inst = scroll->attach(app::term::ctor("zsh -c 'LC_ALL=en_US.UTF-8 mc -c -x'"));
+                                auto inst = scroll->attach(ui::term::ctor("zsh -c 'LC_ALL=en_US.UTF-8 mc -c -x'"));
 
                             #elif defined(__FreeBSD__)
 
-                                auto inst = scroll->attach(app::term::ctor("csh -c 'LC_ALL=en_US.UTF-8 mc -c -x'"));
+                                auto inst = scroll->attach(ui::term::ctor("csh -c 'LC_ALL=en_US.UTF-8 mc -c -x'"));
 
                             #elif defined(__unix__)
 
-                                auto inst = scroll->attach(app::term::ctor("sh -c 'LC_ALL=en_US.UTF-8 mc -c -x'"));
+                                auto inst = scroll->attach(ui::term::ctor("sh -c 'LC_ALL=en_US.UTF-8 mc -c -x'"));
 
                             #endif
 
@@ -303,23 +303,23 @@ int main(int argc, char* argv[])
 
                                     #if defined(_WIN32)
 
-                                        auto inst = scroll->attach(app::term::ctor("bash -i"));
+                                        auto inst = scroll->attach(ui::term::ctor("bash -i"));
 
                                     #elif defined(__linux__)
 
-                                        auto inst = scroll->attach(app::term::ctor("bash -i"));
+                                        auto inst = scroll->attach(ui::term::ctor("bash -i"));
 
                                     #elif defined(__APPLE__)
 
-                                        auto inst = scroll->attach(app::term::ctor("zsh"));
+                                        auto inst = scroll->attach(ui::term::ctor("zsh"));
 
                                     #elif defined(__FreeBSD__)
 
-                                        auto inst = scroll->attach(app::term::ctor("csh"));
+                                        auto inst = scroll->attach(ui::term::ctor("csh"));
 
                                     #elif defined(__unix__)
 
-                                        auto inst = scroll->attach(app::term::ctor("sh"));
+                                        auto inst = scroll->attach(ui::term::ctor("sh"));
 
                                     #endif
 
@@ -347,7 +347,7 @@ int main(int argc, char* argv[])
                                     {
                                         boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                                         {
-                                            boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, app::term::commands::ui::clear);
+                                            boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, ui::term::commands::ui::clear);
                                             gear.dismiss(true);
                                         };
                                     }},
@@ -356,7 +356,7 @@ int main(int argc, char* argv[])
                                     {
                                         boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                                         {
-                                            boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, app::term::commands::ui::reset);
+                                            boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, ui::term::commands::ui::reset);
                                             gear.dismiss(true);
                                         };
                                     }},
@@ -366,7 +366,7 @@ int main(int argc, char* argv[])
                                                 ->template plugin<pro::limit>(dot_11, twod{ 400,200 });
                                 auto scroll = layers->attach(ui::rail::ctor())
                                                     ->colors(whitelt, 0xFF560000);
-                                    scroll->attach(app::term::ctor("powershell"))
+                                    scroll->attach(ui::term::ctor("powershell"))
                                           ->colors(whitelt, 0xFF562401);
                             auto scroll_bars = layers->attach(ui::fork::ctor());
                                 auto vt = scroll_bars->attach(slot::_2, ui::grip<axis::Y>::ctor(scroll));
@@ -390,7 +390,7 @@ int main(int argc, char* argv[])
                                     {
                                         boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                                         {
-                                            boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, app::term::commands::ui::clear);
+                                            boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, ui::term::commands::ui::clear);
                                             gear.dismiss(true);
                                         };
                                     }},
@@ -399,7 +399,7 @@ int main(int argc, char* argv[])
                                     {
                                         boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                                         {
-                                            boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, app::term::commands::ui::reset);
+                                            boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, ui::term::commands::ui::reset);
                                             gear.dismiss(true);
                                         };
                                     }},
@@ -413,15 +413,15 @@ int main(int argc, char* argv[])
                         #endif
 
                             #if defined(_WIN32)
-                                auto inst = scroll->attach(app::term::ctor("cmd"));
+                                auto inst = scroll->attach(ui::term::ctor("cmd"));
                             #elif defined(__linux__)
-                                auto inst = scroll->attach(app::term::ctor("bash -i"));
+                                auto inst = scroll->attach(ui::term::ctor("bash -i"));
                             #elif defined(__APPLE__)
-                                auto inst = scroll->attach(app::term::ctor("zsh"));
+                                auto inst = scroll->attach(ui::term::ctor("zsh"));
                             #elif defined(__FreeBSD__)
-                                auto inst = scroll->attach(app::term::ctor("csh"));
+                                auto inst = scroll->attach(ui::term::ctor("csh"));
                             #elif defined(__unix__)
-                                auto inst = scroll->attach(app::term::ctor("sh"));
+                                auto inst = scroll->attach(ui::term::ctor("sh"));
                             #endif
 
                                 inst->colors(whitelt, blackdk);
