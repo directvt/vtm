@@ -26,6 +26,7 @@ namespace netxs::events::userland
     };
 }
 
+// test: Test window.
 namespace netxs::app::test
 {
     using events = netxs::events::userland::test;

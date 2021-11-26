@@ -28,6 +28,7 @@ namespace netxs::events::userland
     };
 }
 
+// logs: ANSI-parser debugging tool.
 namespace netxs::app::logs
 {
     using events = netxs::events::userland::logs;
