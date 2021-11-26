@@ -36,7 +36,7 @@ namespace netxs::app::shared
     X(Truecolor    , "RGB Truecolor image"   , (ansi::jet(bias::right).add("True color ANSI/ASCII image test")), "" ) \
     X(RefreshRate  , "FPS Refresh rate"      , ("Frame rate adjustment")                                       , "" ) \
     X(Strobe       , "Strobe"                , (ansi::jet(bias::center).add("Strobe"))                         , "" ) \
-    X(Test         , "Test window"           , (ansi::jet(bias::center).add("Test Page"))                      , "" ) \
+    X(Test         , "Test"                  , (ansi::jet(bias::center).add("Test Page"))                      , "" ) \
     X(Empty        , "Empty test window"     , (ansi::mgl(1).mgr(1).add("Empty Instance \nid: "))              , "" )
 
     #define X(a, b, c, d) a,
@@ -303,16 +303,19 @@ namespace netxs::app::shared
         return custom_menu(full_size, items);
     };
 
+    using builder_t = std::function<sptr<base>(view)>;
+
     auto& get_creator()
     {
-        static std::map<text, std::function<sptr<base>(view)>> creator_inst;
+        static std::map<text, builder_t> creator_inst;
         return creator_inst;
     }
     auto& creator(view app_type)
     {
-        static std::function<sptr<base>(view)> empty =
+        static builder_t empty =
         [](view) -> sptr<base>
         {
+            //todo make a banner
             return ui::cake::ctor();
         };
         auto key = text{ app_type };
@@ -324,7 +327,13 @@ namespace netxs::app::shared
         else
             return it->second;
     }
-
+    struct initialize
+    {
+        initialize(view app_class, builder_t builder)
+        {
+            app::shared::get_creator()[text{ app_class }] = builder;
+        }
+    };
 }
 
 #include "apps/term.hpp"

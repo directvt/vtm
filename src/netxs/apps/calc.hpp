@@ -26,24 +26,20 @@ namespace netxs::events::userland
     };
 }
 
-namespace netxs::app
+// calc: Spreadsheet calculatpor.
+namespace netxs::app::calc
 {
-    using namespace ::netxs::console;
-
-    // calc: .
-    struct calc
-        //: public ui::form<calc>
+    using events = ::netxs::events::userland::calc;
+    
+    namespace
     {
-        using events = ::netxs::events::userland::calc;
-        
-        //using namespace netxs;
         using slot = ui::slot;
         using axis = ui::axis;
         using axes = ui::axes;
         using snap = ui::snap;
         using id_t = netxs::input::id_t;
-        
-        static auto get_text()
+
+        auto get_text = []()
         {
             static text cellatix_rows;
             static text cellatix_cols;
@@ -114,9 +110,8 @@ namespace netxs::app
                 }
             }
             return std::tuple{ cellatix_rows, cellatix_cols, cellatix_text };
-        }
-
-        static auto build(view)
+        };
+        auto build = [](view v)
         {
                     const static auto c7 = app::shared::c7;
                     const static auto c3 = app::shared::c3;
@@ -211,11 +206,10 @@ namespace netxs::app
                                                            ->template plugin<pro::limit>(twod{ 1,1 }, twod{ 1,1 });
                             layers->attach(app::shared::scroll_bars(scroll));
             return window;
-        }
-    };
+        };
+    }
 
-    auto& calc_creator = app::shared::get_creator();
-    auto& calc_d = calc_creator["Calc"] = calc::build;
+    app::shared::initialize builder{ "Calc", build };
 }
 
 #endif // NETXS_APP_CALC_HPP
