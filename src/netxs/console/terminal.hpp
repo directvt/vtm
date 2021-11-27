@@ -12,19 +12,12 @@ namespace netxs::events::userland
     {
         EVENTPACK( uiterm, netxs::events::userland::root::custom )
         {
-            EVENT_XS( cmd   , iota ),
             GROUP_XS( layout, iota ),
-            GROUP_XS( data  , iota ),
 
             SUBSET_XS( layout )
             {
                 EVENT_XS( align , bias ),
                 EVENT_XS( wrapln, wrap ),
-            };
-            SUBSET_XS( data )
-            {
-                EVENT_XS( in , view ),
-                EVENT_XS( out, view ),
             };
         };
     };
@@ -3425,18 +3418,6 @@ namespace netxs::ui
 
             form::keybd.accept(true); // Subscribe to keybd offers.
 
-            //base::broadcast->SUBMIT_T(tier::preview, ui::term::events::cmd, bell::tracker, cmd)
-            //{
-            //    exec_cmd(static_cast<commands::ui::commands>(cmd));
-            //};
-            //base::broadcast->SUBMIT_T(tier::preview, ui::term::events::data::in, bell::tracker, data)
-            //{
-            //    data_in(data);
-            //};
-            //base::broadcast->SUBMIT_T(tier::preview, ui::term::events::data::out, bell::tracker, data)
-            //{
-            //    data_out(data);
-            //};
             SUBMIT(tier::release, e2::coor::set, new_coor)
             {
                 //todo use tier::preview bcz approx viewport position can be corrected

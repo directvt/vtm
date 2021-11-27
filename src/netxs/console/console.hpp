@@ -40,10 +40,10 @@ namespace netxs::console
 
     using namespace netxs::input;
     using drawfx = std::function<bool(face&, page const&)>;
-    using registry_t = std::map<id_t, std::list<sptr<base>>>;
+    using registry_t = std::map<text, std::list<sptr<base>>>;
     struct create_t
     {
-        id_t menu_item_id{};
+        text menu_item_id;
         rect location;
         sptr<base> frame;
     };
@@ -146,7 +146,7 @@ namespace netxs::events::userland
             };
             SUBSET_XS( data )
             {
-                EVENT_XS( changed, iota            ), // return digest.
+                EVENT_XS( changed, utf::text       ), // release/preview/request: current menu item id(text).
                 EVENT_XS( request, iota            ),
                 EVENT_XS( disable, iota            ),
                 EVENT_XS( flush  , iota            ),
@@ -3181,7 +3181,7 @@ namespace netxs::console
 
             // pro::scene: Attach a new item to the scene.
             template<class S>
-            auto branch(id_t class_id, sptr<S> item)
+            auto branch(text const& class_id, sptr<S> item)
             {
                 items.append(item);
                 item->base::root(true);
@@ -3194,7 +3194,7 @@ namespace netxs::console
             // pro::scene: Create a new item of the specified subtype
             //             and attach it to the scene.
             template<class S, class ...Args>
-            auto attach(id_t class_id, Args&&... args)
+            auto attach(text const& class_id, Args&&... args)
             {
                 auto item = boss.indexer<bell>::create<S>(std::forward<Args>(args)...);
                 branch(class_id, item);
@@ -4235,13 +4235,13 @@ namespace netxs::console
     public:
         // host: Create a new item of the specified subtype and attach it.
         template<class T>
-        auto branch(id_t class_id, sptr<T> item_ptr)
+        auto branch(text const& class_id, sptr<T> item_ptr)
         {
             return scene.branch(class_id, item_ptr);
         }
         // host: Create a new item of the specified subtype and attach it.
         template<class T, class ...Args>
-        auto attach(id_t class_id, Args&&... args)
+        auto attach(text const& class_id, Args&&... args)
         {
             return scene.attach<T>(class_id, std::forward<Args>(args)...);
         }
@@ -4383,7 +4383,7 @@ namespace netxs::console
                         what.location = gear.slot;
                         auto data = decltype(e2::data::changed)::type{};
                         gate.SIGNAL(tier::request, e2::data::changed, data);
-                        what.menu_item_id = static_cast<id_t>(data);
+                        what.menu_item_id = data;
                         this->SIGNAL(tier::release, e2::form::proceed::createat, what);
                         if (auto& frame = what.frame)
                         {

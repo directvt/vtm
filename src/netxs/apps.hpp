@@ -28,37 +28,29 @@ namespace netxs::app::shared
     X(Shop         , "Shop"                  , ("Desktopio App Store")                                         , "" ) \
     X(Logs         , "Logs"                  , ("Logs \nDebug output console")                                 , "" ) \
     X(View         , "View"                  , (ansi::jet(bias::center).add("View \n Region 1"))               , "" ) \
-    X(Tile         , "Tile"                  , ("Tiling Window Manager")                                       , "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h()" ) \
+    X(Tile         , "Tiling Window Manager" , ("Tiling Window Manager")                                       , "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h()" ) \
     X(PowerShell   , "pwsh PowerShell"       , ("Term \nPowerShell")                                           , "" ) \
     X(CommandPrompt, "cmd Command Prompt"    , ("Term \nCommand Prompt")                                       , "" ) \
     X(Bash         , "Bash/Zsh/CMD"          , ("Term \nBash/Zsh/CMD")                                         , "" ) \
     X(Far          , "Far Manager"           , ("Term \nFar Manager")                                          , "" ) \
-    X(vtm          , "VTM"                   , ("Term \nvtm (recursively)")                                    , "" ) \
+    X(VTM          , "vtm (recursively)"     , ("Term \nvtm (recursively)")                                    , "" ) \
     X(MC           , "mc  Midnight Commander", ("Term \nMidnight Commander")                                   , "" ) \
     X(Truecolor    , "RGB Truecolor image"   , (ansi::jet(bias::right).add("True color ANSI/ASCII image test")), "" ) \
     X(RefreshRate  , "FPS Refresh rate"      , ("Frame rate adjustment")                                       , "" ) \
     X(Strobe       , "Strobe"                , (ansi::jet(bias::center).add("Strobe"))                         , "" ) \
-    X(Test         , "Test"                  , (ansi::jet(bias::center).add("Test Page"))                      , "" ) \
-    X(Empty        , "Empty"                 , (ansi::mgl(1).mgr(1).add("Empty Instance \nid: "))              , "" )
-
-    #define X(a, b, c, d) a,
-    enum objs { TYPE_LIST };
-    #undef X
-
-    #define X(a, b, c, d)  { #a, a },
-    std::map<text, events::id_t> objs_map{ TYPE_LIST };
-    #undef X
+    X(Test         , "Test Window"           , (ansi::jet(bias::center).add("Test Page"))                      , "" ) \
+    X(Empty        , "Empty Window"          , (ansi::mgl(1).mgr(1).add("Empty Instance \nid: "))              , "" )
 
     struct menu_item
     {
-        objs type;
+        text type;
         text name;
         text title;
         text data;
     };
 
-    #define X(a, b, c, d) { a, b, c, d },
-    std::vector<menu_item> objs_config{ TYPE_LIST };
+    #define X(a, b, c, d) { #a, { #a, b, c, d} },
+    std::map<text, menu_item> objs_config{ TYPE_LIST };
     #undef X
     #undef TYPE_LIST
 
@@ -656,16 +648,17 @@ namespace netxs::app::shared
             return window;
         };
 
-        app::shared::initialize builder_Strobe       { "Strobe"          , build_Strobe        };
-        app::shared::initialize builder_RefreshRate  { "FPS Refresh rate", build_RefreshRate   };
-        app::shared::initialize builder_Empty        { "Empty"           , build_Empty         };
-        app::shared::initialize builder_View         { "View"            , build_View          };
-        app::shared::initialize builder_Truecolor    { "Truecolor"       , build_Truecolor     };
-        app::shared::initialize builder_VTM          { "VTM"             , build_VTM           };
-        app::shared::initialize builder_Far          { "Far"             , build_Far           };
-        app::shared::initialize builder_MC           { "MC"              , build_MC            };
-        app::shared::initialize builder_PowerShell   { "PowerShell"      , build_PowerShell    };
-        app::shared::initialize builder_CommandPrompt{ "CommandPrompt"   , build_CommandPrompt };
+        app::shared::initialize builder_Strobe       { "Strobe"       , build_Strobe        };
+        app::shared::initialize builder_RefreshRate  { "RefreshRate"  , build_RefreshRate   };
+        app::shared::initialize builder_Empty        { "Empty"        , build_Empty         };
+        app::shared::initialize builder_View         { "View"         , build_View          };
+        app::shared::initialize builder_Truecolor    { "Truecolor"    , build_Truecolor     };
+        app::shared::initialize builder_VTM          { "VTM"          , build_VTM           };
+        app::shared::initialize builder_Far          { "Far"          , build_Far           };
+        app::shared::initialize builder_MC           { "MC"           , build_MC            };
+        app::shared::initialize builder_PowerShell   { "PowerShell"   , build_PowerShell    };
+        app::shared::initialize builder_CommandPrompt{ "CommandPrompt", build_CommandPrompt };
+        app::shared::initialize builder_Bash         { "Bash"         , app::term::build    };
     }
 }
 

@@ -434,14 +434,12 @@ namespace netxs::app::tile
                                 if (auto gate_ptr = bell::getref(gear.id))
                                 {
                                     auto& gate = *gate_ptr;
-                                    auto data = decltype(e2::data::changed)::type{};
-                                    gate.SIGNAL(tier::request, e2::data::changed, data);
-                                    auto current_default = static_cast<id_t>(data);
+                                    auto current_default = decltype(e2::data::changed)::type{};
+                                    gate.SIGNAL(tier::request, e2::data::changed, current_default);
                                     auto config = app::shared::objs_config[current_default];
 
-                                    auto& creator = app::shared::creator(config.name);
+                                    auto& creator = app::shared::creator(config.type);
                                     auto host = creator(config.data);
-                                    //auto host = create_app(create_app, config.type, config.data);
                                     auto app = box_with_title(config.title, host);
                                     gear.remove_from_kb_focus(boss.back()); // Take focus from the empty slot.
                                     boss.attach(app);
@@ -529,7 +527,6 @@ namespace netxs::app::tile
 
                 auto& creator = app::shared::creator(app_id);
                 auto host = creator(app_data);
-                //auto host = create_app(create_app, app::shared::objs_map[app_id], app_data);
                 auto inst = box_with_title(app_title, host);
                 place->attach(inst);
             }

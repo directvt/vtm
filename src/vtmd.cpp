@@ -126,123 +126,10 @@ int main(int argc, char* argv[])
         using snap = ui::snap;
         using id_t = netxs::input::id_t;
 
-        auto create_app = [&](auto&& create_app, auto type, view data) mutable -> sptr<base>
-        {
-            switch (type)
-            {
-                default:
-                case app::shared::objs::Test:
-                {
-                    auto& creator = app::shared::get_creator()["Test"];
-                    return creator(data);
-                    break;
-                }
-                case app::shared::objs::Strobe:
-                {
-                    auto& creator = app::shared::get_creator()["Strobe"];
-                    return creator(data);
-                    break;
-                }
-                case app::shared::objs::RefreshRate:
-                {
-                    auto& creator = app::shared::get_creator()["FPS Refresh rate"];
-                    return creator(data);
-                    break;
-                }
-                case app::shared::objs::Truecolor:
-                {
-                    auto& creator = app::shared::get_creator()["Truecolor"];
-                    return creator(data);
-                    break;
-                }
-                case app::shared::objs::Empty:
-                {
-                    auto& creator = app::shared::get_creator()["Empty"];
-                    return creator(data);
-                    break;
-                }
-                case app::shared::objs::Shop:
-                {
-                    auto& creator = app::shared::get_creator()["Shop"];
-                    return creator(data);
-                    break;
-                }
-                case app::shared::objs::Calc:
-                {
-                    auto& creator = app::shared::get_creator()["Calc"];
-                    return creator(data);
-                    break;
-                }
-                case app::shared::objs::Text:
-                {
-                    auto& creator = app::shared::get_creator()["Text"];
-                    return creator(data);
-                    break;
-                }
-                case app::shared::objs::vtm:
-                {
-                    auto& creator = app::shared::get_creator()["VTM"];
-                    return creator(data);
-                    break;
-                }
-                case app::shared::objs::Far:
-                {
-                    auto& creator = app::shared::get_creator()["Far"];
-                    return creator(data);
-                    break;
-                }
-                case app::shared::objs::MC:
-                {
-                    auto& creator = app::shared::get_creator()["MC"];
-                    return creator(data);
-                    break;
-                }
-                case app::shared::objs::Bash:
-                case app::shared::objs::Term:
-                {
-                    auto& creator = app::shared::get_creator()["Term"];
-                    return creator(data);
-                    break;
-                }
-                case app::shared::objs::PowerShell:
-                {
-                    auto& creator = app::shared::get_creator()["PowerShell"];
-                    return creator(data);
-                    break;
-                }
-                case app::shared::objs::CommandPrompt:
-                {
-                    auto& creator = app::shared::get_creator()["CommandPrompt"];
-                    return creator(data);
-                    break;
-                }
-                case app::shared::objs::Logs:
-                {
-                    auto& creator = app::shared::get_creator()["Logs"];
-                    return creator(data);
-                    break;
-                }
-                case app::shared::objs::View:
-                {
-                    auto& creator = app::shared::get_creator()["View"];
-                    return creator(data);
-                    break;
-                }
-                case app::shared::objs::Tile:
-                {
-                    auto& creator = app::shared::get_creator()["Tile"];
-                    return creator(data);
-                    break;
-                }
-            }
-        };
-
         world->SUBMIT(tier::release, e2::form::proceed::createat, what)
         {
             auto menu_item_id = what.menu_item_id;
             auto location = what.location;
-
-            assert(menu_item_id < app::shared::objs_config.size());
 
             auto config = app::shared::objs_config[menu_item_id];
             sptr<ui::cake> window = ui::cake::ctor()
@@ -293,8 +180,9 @@ int main(int argc, char* argv[])
                 });
 
             window->extend(location);
-            window->attach(create_app(create_app, config.type, config.data));
-            log(" world create type=", config.type);
+            auto& creator = app::shared::creator(config.type);
+            window->attach(creator(config.data));
+            log(" world create type: ", config.type);
             world->branch(config.type, window);
 
             what.frame = window;
@@ -320,45 +208,34 @@ int main(int argc, char* argv[])
             auto& menu_list = *menu_list_ptr;
             auto b = app::shared::objs_config.begin();
             auto e = app::shared::objs_config.end();
-            auto find = [&](auto type_id)
-            {
-                //auto iter = std::find_if(b, e, [&](auto& item){ return item.first == type_id; });
-                //return iter != e ? std::distance(b, iter) : 0;
-                iota i = 0;
-                for (auto& a : app::shared::objs_config)
-                {
-                    if (a.type == type_id) break;
-                    ++i;
-                }
-                return i;
-            };
+
             #ifdef DEMO
                 #ifdef PROD
-                    //objs_config[objs::Tile].data = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h1:1(v1:1(\"bash -c 'LC_ALL=en_US.UTF-8 mc -c -x; bash'\", h1:1(\"bash -c 'ls /bin | nl | ccze -A; bash'\", a(\"RefreshRate\",\"\",\"\"))), a(\"Calc\",\"app title\",\"app data\"))";
-                    //objs_config[objs::Tile].data = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h1:1(v1:1(\"bash -c 'LC_ALL=en_US.UTF-8 mc -c -x; bash'\", h1:1(\"bash -c 'ls /bin | nl | ccze -A; bash'\", a(\"Text\",\"app title\",\"app data\"))), a(\"Calc\",\"app title\",\"app data\"))";
-                    //objs_config[objs::Tile].data = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h1:1:1(v1:1:2(\"bash -c 'LC_ALL=en_US.UTF-8 mc -c -x -d; cat'\", h1:1:0(\"bash -c 'ls /bin | nl | ccze -A; bash'\", a(\"RefreshRate\",\"\",\"\"))), a(\"Calc\",\"\",\"\"))";
-                    app::shared::objs_config[app::shared::objs::Tile].data = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h(v(\"bash -c 'LC_ALL=en_US.UTF-8 mc -c -x -d; cat'\", h(\"bash -c 'ls /bin | nl | ccze -A; bash'\", a(\"RefreshRate\",\"\",\"\"))), a(\"Calc\",\"\",\"\"))";
+                    //app::shared::objs_config["Tile"].data = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h1:1(v1:1(\"bash -c 'LC_ALL=en_US.UTF-8 mc -c -x; bash'\", h1:1(\"bash -c 'ls /bin | nl | ccze -A; bash'\", a(\"RefreshRate\",\"\",\"\"))), a(\"Calc\",\"app title\",\"app data\"))";
+                    //app::shared::objs_config["Tile"].data = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h1:1(v1:1(\"bash -c 'LC_ALL=en_US.UTF-8 mc -c -x; bash'\", h1:1(\"bash -c 'ls /bin | nl | ccze -A; bash'\", a(\"Text\",\"app title\",\"app data\"))), a(\"Calc\",\"app title\",\"app data\"))";
+                    //app::shared::objs_config["Tile"].data = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h1:1:1(v1:1:2(\"bash -c 'LC_ALL=en_US.UTF-8 mc -c -x -d; cat'\", h1:1:0(\"bash -c 'ls /bin | nl | ccze -A; bash'\", a(\"RefreshRate\",\"\",\"\"))), a(\"Calc\",\"\",\"\"))";
+                    app::shared::objs_config["Tile"].data = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h(v(\"bash -c 'LC_ALL=en_US.UTF-8 mc -c -x -d; cat'\", h(\"bash -c 'ls /bin | nl | ccze -A; bash'\", a(\"RefreshRate\",\"\",\"\"))), a(\"Calc\",\"\",\"\"))";
                 #else
-                    app::shared::objs_config[app::shared::objs::Tile].data = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h1:1(v1:1(\"bash -c 'LC_ALL=en_US.UTF-8 mc -c -x -d; cat'\", h1:1(\"bash -c 'ls /bin | nl | ccze -A; bash'\", a(\"RefreshRate\",\"\",\"\"))), a(\"Calc\",\"\",\"\"))";
+                    app::shared::objs_config["Tile"].data = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h1:1(v1:1(\"bash -c 'LC_ALL=en_US.UTF-8 mc -c -x -d; cat'\", h1:1(\"bash -c 'ls /bin | nl | ccze -A; bash'\", a(\"RefreshRate\",\"\",\"\"))), a(\"Calc\",\"\",\"\"))";
                 #endif
 
-                for (auto i = app::shared::objs_config.size(); i-- != 0;)
-                    menu_list[static_cast<id_t>(i)];
+                for (auto& [app_name, app_data] : app::shared::objs_config)
+                    menu_list[app_name];
             #else
                 #ifdef _WIN32
-                    menu_list[find(app::shared::objs::CommandPrompt)];
-                    menu_list[find(app::shared::objs::PowerShell)];
-                    menu_list[find(app::shared::objs::Tile)];
-                    menu_list[find(app::shared::objs::Logs)];
-                    menu_list[find(app::shared::objs::View)];
-                    menu_list[find(app::shared::objs::RefreshRate)];
+                    menu_list["CommandPrompt"];
+                    menu_list["PowerShell"];
+                    menu_list["Tile"];
+                    menu_list["Logs"];
+                    menu_list["View"];
+                    menu_list["RefreshRate"];
                 #else
-                    menu_list[find(app::shared::objs::Term)];
-                    menu_list[find(app::shared::objs::Tile)];
-                    menu_list[find(app::shared::objs::Logs)];
-                    menu_list[find(app::shared::objs::View)];
-                    menu_list[find(app::shared::objs::RefreshRate)];
-                    menu_list[find(app::shared::objs::vtm)];
+                    menu_list["Term"];
+                    menu_list["Tile"];
+                    menu_list["Logs"];
+                    menu_list["View"];
+                    menu_list["RefreshRate"];
+                    menu_list["vtm"];
                 #endif
                 // Add custom commands to the menu.
                 for (auto& p : tiling_profiles)
@@ -368,19 +245,17 @@ int main(int argc, char* argv[])
                     auto name = utf::get_quote(v, '\"');
                     if (!name.empty())
                     {
-                        menu_list[static_cast<id_t>(app::shared::objs_config.size())];
-                        auto m = app::shared::menu_item{};
-                        m.type = app::shared::objs::Tile;
-                        m.name = text{ name };
-                        m.title = text{ name }; // Use the same title as the menu label.
+                        auto& m = app::shared::objs_config[name];
+                        m.type = "Tile";
+                        m.name = name;
+                        m.title = name; // Use the same title as the menu label.
                         m.data = text{ p };
-                        app::shared::objs_config.push_back(m);
                     }
                 }
             #endif
 
             #ifdef DEMO
-                auto creator = [&](id_t menu_item_id, rect area)
+                auto creator = [&](text const& menu_item_id, rect area)
                 {
                     auto what = decltype(e2::form::proceed::createat)::type{};
                     what.menu_item_id = menu_item_id;
@@ -388,23 +263,23 @@ int main(int argc, char* argv[])
                     world->SIGNAL(tier::release, e2::form::proceed::createat, what);
                 };
                 auto sub_pos = twod{ 12+17, 0 };
-                creator(find(app::shared::objs::Test), { twod{ 22     , 1  } + sub_pos, { 70, 21 } });
-                creator(find(app::shared::objs::Shop), { twod{ 4      , 6  } + sub_pos, { 82, 38 } });
-                creator(find(app::shared::objs::Calc), { twod{ 15     , 15 } + sub_pos, { 65, 23 } });
-                creator(find(app::shared::objs::Text), { twod{ 30     , 22 } + sub_pos, { 59, 26 } });
-                creator(find(app::shared::objs::MC),   { twod{ 49     , 28 } + sub_pos, { 63, 22 } });
-                creator(find(app::shared::objs::Term), { twod{ 34     , 38 } + sub_pos, { 64, 16 } });
-                creator(find(app::shared::objs::Term), { twod{ 44 + 85, 35 } + sub_pos, { 64, 15 } });
-                creator(find(app::shared::objs::Term), { twod{ 40 + 85, 42 } + sub_pos, { 64, 15 } });
-                creator(find(app::shared::objs::Tile), { twod{ 40 + 85,-10 } + sub_pos, {160, 42 } });
+                creator("Test", { twod{ 22     , 1  } + sub_pos, { 70, 21 } });
+                creator("Shop", { twod{ 4      , 6  } + sub_pos, { 82, 38 } });
+                creator("Calc", { twod{ 15     , 15 } + sub_pos, { 65, 23 } });
+                creator("Text", { twod{ 30     , 22 } + sub_pos, { 59, 26 } });
+                creator("MC",   { twod{ 49     , 28 } + sub_pos, { 63, 22 } });
+                creator("Term", { twod{ 34     , 38 } + sub_pos, { 64, 16 } });
+                creator("Term", { twod{ 44 + 85, 35 } + sub_pos, { 64, 15 } });
+                creator("Term", { twod{ 40 + 85, 42 } + sub_pos, { 64, 15 } });
+                creator("Tile", { twod{ 40 + 85,-10 } + sub_pos, {160, 42 } });
 
-                creator(find(app::shared::objs::View), { twod{ 0, 7 } + twod{ -120, 60 }, { 120, 52 } });
-                creator(find(app::shared::objs::View), { twod{ 0,-1 } + sub_pos, { 120, 52 } });
+                creator("View", { twod{ 0, 7 } + twod{ -120, 60 }, { 120, 52 } });
+                creator("View", { twod{ 0,-1 } + sub_pos, { 120, 52 } });
 
                 sub_pos = twod{-120, 60};
-                creator(find(app::shared::objs::Truecolor),   { twod{ 20, 15 } + sub_pos, { 70, 30 } });
-                creator(find(app::shared::objs::Logs),        { twod{ 52, 33 } + sub_pos, { 45, 12 } });
-                creator(find(app::shared::objs::RefreshRate), { twod{ 60, 41 } + sub_pos, { 35, 10 } });
+                creator("Truecolor",   { twod{ 20, 15 } + sub_pos, { 70, 30 } });
+                creator("Logs",        { twod{ 52, 33 } + sub_pos, { 45, 12 } });
+                creator("RefreshRate", { twod{ 60, 41 } + sub_pos, { 35, 10 } });
             #endif
 
         }
@@ -480,10 +355,10 @@ int main(int argc, char* argv[])
                     // Taskbar Layout (PoC)
 
                     #ifdef _WIN32
-                        auto current_default = app::shared::objs::CommandPrompt;
-                        //auto current_default = app::shared::objs::PowerShell;
+                        auto current_default = "CommandPrompt"s;
+                        //auto current_default = "PowerShell"s;
                     #else
-                        auto current_default = app::shared::objs::Term;
+                        auto current_default = "Term"s;
                     #endif
                     auto previous_default = current_default;
 
@@ -498,7 +373,7 @@ int main(int argc, char* argv[])
                     };
                     client->SUBMIT(tier::release, e2::data::changed, data)
                     {
-                        auto new_default = static_cast<app::shared::objs>(data);
+                        auto new_default = data;
                         if (current_default != new_default)
                         {
                             previous_default = current_default;
