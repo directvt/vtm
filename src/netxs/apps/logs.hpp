@@ -4,7 +4,7 @@
 #ifndef NETXS_APP_LOGS_HPP
 #define NETXS_APP_LOGS_HPP
 
-#include "netxs/abstract/queue.hpp"
+#include "../abstract/queue.hpp"
 
 namespace netxs::events::userland
 {
@@ -242,9 +242,6 @@ namespace netxs::app::logs
 
     namespace
     {
-        using slot = ui::slot;
-        using axis = ui::axis;
-
         auto build = [](view v)
         {
             const static auto x3 = app::shared::x3;

@@ -202,9 +202,6 @@ namespace netxs::app::shop
             return std::tuple{ appstore_head, appstore_body, desktopio_body };
         };
 
-        using slot = ui::slot;
-        using axis = ui::axis;
-
         auto build = [](view v)
         {
             const static auto c3 = app::shared::c3;

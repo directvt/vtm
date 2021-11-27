@@ -6,7 +6,7 @@
 
 #include "ui/controls.hpp"
 
-namespace netxs::app::shared
+namespace netxs::app
 {
     using namespace std::placeholders;
     using namespace netxs::console;
@@ -17,8 +17,10 @@ namespace netxs::app::shared
     using axes = ui::axes;
     using snap = ui::snap;
     using id_t = netxs::input::id_t;
+}
 
-
+namespace netxs::app::shared
+{
     #define TYPE_LIST                                                                                                 \
     X(Term         , "Term"                  , ("Term \nBash/Zsh/CMD")                                         , "" ) \
     X(Text         , "Text"                  , (ansi::jet(bias::center).add("Text Editor\n ~/Untitled 1.txt")) , "" ) \
@@ -31,7 +33,7 @@ namespace netxs::app::shared
     X(CommandPrompt, "cmd Command Prompt"    , ("Term \nCommand Prompt")                                       , "" ) \
     X(Bash         , "Bash/Zsh/CMD"          , ("Term \nBash/Zsh/CMD")                                         , "" ) \
     X(Far          , "Far Manager"           , ("Term \nFar Manager")                                          , "" ) \
-    X(vtm          , "vtm (recursively)"     , ("Term \nvtm (recursively)")                                    , "" ) \
+    X(vtm          , "VTM"                   , ("Term \nvtm (recursively)")                                    , "" ) \
     X(MC           , "mc  Midnight Commander", ("Term \nMidnight Commander")                                   , "" ) \
     X(Truecolor    , "RGB Truecolor image"   , (ansi::jet(bias::right).add("True color ANSI/ASCII image test")), "" ) \
     X(RefreshRate  , "FPS Refresh rate"      , ("Frame rate adjustment")                                       , "" ) \
@@ -187,122 +189,6 @@ namespace netxs::app::shared
         return custom_menu(true, items);
     };
 
-    const auto terminal_menu = [](bool full_size)
-    {
-        auto items = std::list
-        {
-        #ifdef DEMO
-            std::pair<text, std::function<void(ui::pads&)>>{ "T1",
-            [](ui::pads& boss)
-            {
-                boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
-                {
-                    auto data = "ls /bin\n"s;
-                    boss.base::broadcast->SIGNAL(tier::preview, app::term::events::data::out, data);
-                    gear.dismiss(true);
-                };
-            }},
-            std::pair<text, std::function<void(ui::pads&)>>{ "T2",
-            [](ui::pads& boss)
-            {
-                boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
-                {
-                    auto data = "ping -c 3 127.0.0.1 | ccze -A\n"s;
-                    boss.base::broadcast->SIGNAL(tier::preview, app::term::events::data::out, data);
-                    gear.dismiss(true);
-                };
-            }},
-            std::pair<text, std::function<void(ui::pads&)>>{ "T3",
-            [](ui::pads& boss)
-            {
-                boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
-                {
-                    auto data = "curl wttr.in\n"s;
-                    boss.base::broadcast->SIGNAL(tier::preview, app::term::events::data::out, data);
-                    gear.dismiss(true);
-                };
-            }},
-        #endif
-        #ifdef PROD
-            std::pair<text, std::function<void(ui::pads&)>>{ "Clear",
-            [](ui::pads& boss)
-            {
-                boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
-                {
-                    boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, ui::term::commands::ui::clear);
-                    gear.dismiss(true);
-                };
-            }},
-        #endif
-            std::pair<text, std::function<void(ui::pads&)>>{ "Reset",
-            [](ui::pads& boss)
-            {
-                boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
-                {
-                    boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, ui::term::commands::ui::reset);
-                    gear.dismiss(true);
-                };
-            }},
-            std::pair<text, std::function<void(ui::pads&)>>{ "=─",
-            [](ui::pads& boss)
-            {
-                boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
-                {
-                    boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, ui::term::commands::ui::left);
-                    gear.dismiss(true);
-                };
-                boss.base::broadcast->SUBMIT(tier::release, app::term::events::layout::align, align)
-                {
-                    //todo unify, get boss base colors, don't use x3
-                    boss.color(align == bias::left ? 0xFF00ff00 : x3.fgc(), x3.bgc());
-                };
-            }},
-            std::pair<text, std::function<void(ui::pads&)>>{ "─=─",
-            [](ui::pads& boss)
-            {
-                boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
-                {
-                    boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, ui::term::commands::ui::center);
-                    gear.dismiss(true);
-                };
-                boss.base::broadcast->SUBMIT(tier::release, app::term::events::layout::align, align)
-                {
-                    //todo unify, get boss base colors, don't use x3
-                    boss.color(align == bias::center ? 0xFF00ff00 : x3.fgc(), x3.bgc());
-                };
-            }},
-            std::pair<text, std::function<void(ui::pads&)>>{ "─=",
-            [](ui::pads& boss)
-            {
-                boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
-                {
-                    boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, ui::term::commands::ui::right);
-                    gear.dismiss(true);
-                };
-                boss.base::broadcast->SUBMIT(tier::release, app::term::events::layout::align, align)
-                {
-                    //todo unify, get boss base colors, don't use x3
-                    boss.color(align == bias::right ? 0xFF00ff00 : x3.fgc(), x3.bgc());
-                };
-            }},
-            std::pair<text, std::function<void(ui::pads&)>>{ "Wrap",
-            [](ui::pads& boss)
-            {
-                boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
-                {
-                    boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, ui::term::commands::ui::togglewrp);
-                    gear.dismiss(true);
-                };
-                boss.base::broadcast->SUBMIT(tier::release, app::term::events::layout::wrapln, wrapln)
-                {
-                    //todo unify, get boss base colors, don't use x3
-                    boss.color(wrapln == wrap::on ? 0xFF00ff00 : x3.fgc(), x3.bgc());
-                };
-            }},
-        };
-        return custom_menu(full_size, items);
-    };
-
     using builder_t = std::function<sptr<base>(view)>;
 
     auto& get_creator()
@@ -334,10 +220,21 @@ namespace netxs::app::shared
             app::shared::get_creator()[text{ app_class }] = builder;
         }
     };
+}
 
+#include "apps/term.hpp"
+#include "apps/tile.hpp"
+#include "apps/calc.hpp"
+#include "apps/text.hpp"
+#include "apps/shop.hpp"
+#include "apps/logs.hpp"
+#include "apps/test.hpp"
+
+namespace netxs::app::shared
+{
     namespace
     {
-        auto build_Strobe      = [](view v)
+        auto build_Strobe        = [](view v)
         {
             auto window = ui::cake::ctor();
             auto strob = window->template plugin<pro::focus>()
@@ -355,7 +252,7 @@ namespace netxs::app::shared
             };
             return window;
         };
-        auto build_RefreshRate = [](view v)
+        auto build_RefreshRate   = [](view v)
         {
             auto window = ui::cake::ctor();
             window->template plugin<pro::focus>()
@@ -367,7 +264,7 @@ namespace netxs::app::shared
                     });
             return window;
         };
-        auto build_Empty       = [](view v)
+        auto build_Empty         = [](view v)
         {
             auto window = ui::cake::ctor();
             window->template plugin<pro::focus>()
@@ -386,7 +283,7 @@ namespace netxs::app::shared
                                 ->colors(0,0); //todo mouse tracking
             return window;
         };
-        auto build_View        = [](view v)
+        auto build_View          = [](view v)
         {
             auto window = ui::cake::ctor();
             window->invoke([&](auto& boss)
@@ -433,7 +330,7 @@ namespace netxs::app::shared
                     });
             return window;
         };
-        auto build_Truecolor   = [](view v)
+        auto build_Truecolor     = [](view v)
         {
             #pragma region samples
                 //todo put all ansi art into external files
@@ -560,20 +457,216 @@ namespace netxs::app::shared
                             auto hz = test_stat_area->attach(slot::_2, ui::grip<axis::X>::ctor(scroll));
             return window;
         };
-        app::shared::initialize builder_Strobe      { "Strobe"          , build_Strobe      };
-        app::shared::initialize builder_RefreshRate { "FPS Refresh rate", build_RefreshRate };
-        app::shared::initialize builder_Empty       { "Empty"           , build_Empty       };
-        app::shared::initialize builder_View        { "View"            , build_View        };
-        app::shared::initialize builder_Truecolor   { "Truecolor"       , build_Truecolor   };
+        auto build_VTM           = [](view v)
+        {
+            auto window = ui::cake::ctor();
+            window->template plugin<pro::focus>()
+                    ->template plugin<pro::track>()
+                    ->template plugin<pro::acryl>()
+                    ->template plugin<pro::cache>();
+            auto object = window->attach(ui::fork::ctor(axis::Y))
+                                ->colors(whitelt, app::shared::term_menu_bg);
+                auto menu = object->attach(slot::_1, app::shared::custom_menu(faux, {}));
+                auto layers = object->attach(slot::_2, ui::cake::ctor())
+                                    ->template plugin<pro::limit>(dot_11, twod{ 400,200 });
+                    auto scroll = layers->attach(ui::rail::ctor());
+                    if (app::shared::vtm_count < app::shared::max_vtm)
+                    {
+                        auto c = &app::shared::vtm_count; (*c)++;
+                        scroll->attach(ui::term::ctor("vtm"))
+                                ->colors(whitelt, blackdk)
+                                ->SUBMIT_BYVAL(tier::release, e2::dtor, item_id)
+                                {
+                                    (*c)--;
+                                    log("main: vtm recursive conn destoyed");
+                                };
+                    }
+                    else
+                    {
+                        scroll->attach(ui::post::ctor())
+                                ->colors(whitelt, blackdk)
+                                ->upload(ansi::fgc(yellowlt).mgl(4).mgr(4).wrp(wrap::off)
+                                .add("\n\nconnection rejected\n\n")
+                                .nil().wrp(wrap::on)
+                                .add("Reached the limit of recursive connections, destroy existing recursive instances to create new ones."));
+                    }
+                layers->attach(app::shared::scroll_bars(scroll));
+            return window;
+        };
+        auto build_Far           = [](view v)
+        {
+            auto window = ui::cake::ctor();
+            window->template plugin<pro::focus>()
+                    ->template plugin<pro::track>()
+                    ->template plugin<pro::acryl>()
+                    ->template plugin<pro::cache>();
+            auto object = window->attach(ui::fork::ctor(axis::Y))
+                                ->colors(whitelt, app::shared::term_menu_bg);
+                auto menu = object->attach(slot::_1, app::shared::custom_menu(true, {}));
+                auto layers = object->attach(slot::_2, ui::cake::ctor())
+                                    ->template plugin<pro::limit>(dot_11, twod{ 400,200 });
+                    auto scroll = layers->attach(ui::rail::ctor());
+                    scroll->attach(ui::term::ctor("far"))
+                            ->colors(whitelt, blackdk);
+                layers->attach(app::shared::scroll_bars_term(scroll));
+            return window;
+        };
+        auto build_MC            = [](view v)
+        {
+            auto window = ui::cake::ctor();
+            window->template plugin<pro::focus>()
+                    ->template plugin<pro::track>()
+                    ->template plugin<pro::acryl>()
+                    ->template plugin<pro::cache>();
+            auto object = window->attach(ui::fork::ctor(axis::Y))
+                                ->colors(whitelt, app::shared::term_menu_bg);
+                auto menu = object->attach(slot::_1, app::shared::custom_menu(faux, {}));
+                auto layers = object->attach(slot::_2, ui::cake::ctor())
+                                    ->template plugin<pro::limit>(dot_11, twod{ 400,200 });
+                    auto scroll = layers->attach(ui::rail::ctor())
+                                        ->template plugin<pro::limit>(twod{ 10,1 }); // mc crashes when window is too small
+                    // -c -- force color support
+                    // -x -- force xtrem functionality
+
+                    #if defined(_WIN32)
+
+                        auto inst = scroll->attach(ui::term::ctor("wsl mc"));
+
+                    #elif defined(__linux__)
+                        #ifndef PROD
+                            auto inst = scroll->attach(ui::term::ctor("bash -c 'LC_ALL=en_US.UTF-8 mc -c -x -d'"));
+                        #else
+                            auto inst = scroll->attach(ui::term::ctor("bash -c 'LC_ALL=en_US.UTF-8 mc -c -x'"));
+                        #endif
+                    #elif defined(__APPLE__)
+
+                        auto inst = scroll->attach(ui::term::ctor("zsh -c 'LC_ALL=en_US.UTF-8 mc -c -x'"));
+
+                    #elif defined(__FreeBSD__)
+
+                        auto inst = scroll->attach(ui::term::ctor("csh -c 'LC_ALL=en_US.UTF-8 mc -c -x'"));
+
+                    #elif defined(__unix__)
+
+                        auto inst = scroll->attach(ui::term::ctor("sh -c 'LC_ALL=en_US.UTF-8 mc -c -x'"));
+
+                    #endif
+
+                    inst->colors(whitelt, blackdk);
+                layers->attach(app::shared::scroll_bars(scroll));
+            return window;
+        };
+        auto build_PowerShell    = [](view v)
+        {
+            auto window = ui::cake::ctor();
+            window->template plugin<pro::focus>()
+                    ->template plugin<pro::track>()
+                    ->template plugin<pro::acryl>()
+                    ->template plugin<pro::cache>();
+            auto object = window->attach(ui::fork::ctor(axis::Y))
+                                ->colors(whitelt, app::shared::term_menu_bg);
+                auto menu = object->attach(slot::_1, app::shared::custom_menu(true,
+                    std::list{
+                            std::pair<text, std::function<void(ui::pads&)>>{ ansi::esc("C").und(true).add("l").nil().add("ear"),
+                            [](ui::pads& boss)
+                            {
+                                boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
+                                {
+                                    boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, ui::term::commands::ui::clear);
+                                    gear.dismiss(true);
+                                };
+                            }},
+                            std::pair<text, std::function<void(ui::pads&)>>{ ansi::esc("R").und(true).add("e").nil().add("set"),
+                            [](ui::pads& boss)
+                            {
+                                boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
+                                {
+                                    boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, ui::term::commands::ui::reset);
+                                    gear.dismiss(true);
+                                };
+                            }},
+                        }));
+                auto term_stat_area = object->attach(slot::_2, ui::fork::ctor(axis::Y));
+                    auto layers = term_stat_area->attach(slot::_1, ui::cake::ctor())
+                                        ->template plugin<pro::limit>(dot_11, twod{ 400,200 });
+                        auto scroll = layers->attach(ui::rail::ctor())
+                                            ->colors(whitelt, 0xFF560000);
+                            scroll->attach(ui::term::ctor("powershell"))
+                                    ->colors(whitelt, 0xFF562401);
+                    auto scroll_bars = layers->attach(ui::fork::ctor());
+                        auto vt = scroll_bars->attach(slot::_2, ui::grip<axis::Y>::ctor(scroll));
+                        auto hz = term_stat_area->attach(slot::_2, ui::grip<axis::X>::ctor(scroll));
+            return window;
+        };
+        auto build_CommandPrompt = [](view v)
+        {
+            auto window = ui::cake::ctor();
+            window->template plugin<pro::focus>()
+                    ->template plugin<pro::track>()
+                    ->template plugin<pro::acryl>()
+                    ->template plugin<pro::cache>();
+            auto object = window->attach(ui::fork::ctor(axis::Y))
+                                ->colors(whitelt, app::shared::term_menu_bg);
+                auto menu = object->attach(slot::_1, app::shared::custom_menu(true,
+                    std::list{
+                            std::pair<text, std::function<void(ui::pads&)>>{ ansi::esc("C").und(true).add("l").nil().add("ear"),
+                            [](ui::pads& boss)
+                            {
+                                boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
+                                {
+                                    boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, ui::term::commands::ui::clear);
+                                    gear.dismiss(true);
+                                };
+                            }},
+                            std::pair<text, std::function<void(ui::pads&)>>{ ansi::esc("R").und(true).add("e").nil().add("set"),
+                            [](ui::pads& boss)
+                            {
+                                boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
+                                {
+                                    boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, ui::term::commands::ui::reset);
+                                    gear.dismiss(true);
+                                };
+                            }},
+                        }));
+                auto term_stat_area = object->attach(slot::_2, ui::fork::ctor(axis::Y));
+                    auto layers = term_stat_area->attach(slot::_1, ui::cake::ctor())
+                                        ->template plugin<pro::limit>(dot_11, twod{ 400,200 });
+                        auto scroll = layers->attach(ui::rail::ctor());
+                #ifdef DEMO
+                    scroll->template plugin<pro::limit>(twod{ 20,1 }); // mc crashes when window is too small
+                #endif
+
+                    #if defined(_WIN32)
+                        auto inst = scroll->attach(ui::term::ctor("cmd"));
+                    #elif defined(__linux__)
+                        auto inst = scroll->attach(ui::term::ctor("bash -i"));
+                    #elif defined(__APPLE__)
+                        auto inst = scroll->attach(ui::term::ctor("zsh"));
+                    #elif defined(__FreeBSD__)
+                        auto inst = scroll->attach(ui::term::ctor("csh"));
+                    #elif defined(__unix__)
+                        auto inst = scroll->attach(ui::term::ctor("sh"));
+                    #endif
+
+                        inst->colors(whitelt, blackdk);
+
+                auto scroll_bars = layers->attach(ui::fork::ctor());
+                    auto vt = scroll_bars->attach(slot::_2, ui::grip<axis::Y>::ctor(scroll));
+                    auto hz = term_stat_area->attach(slot::_2, ui::grip<axis::X>::ctor(scroll));
+            return window;
+        };
+
+        app::shared::initialize builder_Strobe       { "Strobe"          , build_Strobe        };
+        app::shared::initialize builder_RefreshRate  { "FPS Refresh rate", build_RefreshRate   };
+        app::shared::initialize builder_Empty        { "Empty"           , build_Empty         };
+        app::shared::initialize builder_View         { "View"            , build_View          };
+        app::shared::initialize builder_Truecolor    { "Truecolor"       , build_Truecolor     };
+        app::shared::initialize builder_VTM          { "VTM"             , build_VTM           };
+        app::shared::initialize builder_Far          { "Far"             , build_Far           };
+        app::shared::initialize builder_MC           { "MC"              , build_MC            };
+        app::shared::initialize builder_PowerShell   { "PowerShell"      , build_PowerShell    };
+        app::shared::initialize builder_CommandPrompt{ "CommandPrompt"   , build_CommandPrompt };
     }
 }
-
-#include "apps/term.hpp"
-#include "apps/tile.hpp"
-#include "apps/calc.hpp"
-#include "apps/text.hpp"
-#include "apps/shop.hpp"
-#include "apps/logs.hpp"
-#include "apps/test.hpp"
 
 #endif // NETXS_APPS_HPP

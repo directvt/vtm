@@ -33,12 +33,6 @@ namespace netxs::app::test
 
     namespace
     {
-        using slot = ui::slot;
-        using axis = ui::axis;
-        using axes = ui::axes;
-        using snap = ui::snap;
-        using id_t = netxs::input::id_t;
-
         enum test_topic_vars
         {
             object1,

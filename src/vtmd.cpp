@@ -181,255 +181,39 @@ int main(int argc, char* argv[])
                 }
                 case app::shared::objs::vtm:
                 {
-                    auto window = ui::cake::ctor();
-                    window->template plugin<pro::focus>()
-                          ->template plugin<pro::track>()
-                          ->template plugin<pro::acryl>()
-                          ->template plugin<pro::cache>();
-                    auto object = window->attach(ui::fork::ctor(axis::Y))
-                                        ->colors(whitelt, app::shared::term_menu_bg);
-                        auto menu = object->attach(slot::_1, app::shared::custom_menu(faux, {}));
-                        auto layers = object->attach(slot::_2, ui::cake::ctor())
-                                            ->template plugin<pro::limit>(dot_11, twod{ 400,200 });
-                            auto scroll = layers->attach(ui::rail::ctor());
-                            if (app::shared::vtm_count < app::shared::max_vtm)
-                            {
-                                auto c = &app::shared::vtm_count; (*c)++;
-                                scroll->attach(ui::term::ctor("vtm"))
-                                      ->colors(whitelt, blackdk)
-                                      ->SUBMIT_BYVAL(tier::release, e2::dtor, item_id)
-                                        {
-                                            (*c)--;
-                                            log("main: vtm recursive conn destoyed");
-                                        };
-                            }
-                            else
-                            {
-                                scroll->attach(ui::post::ctor())
-                                      ->colors(whitelt, blackdk)
-                                      ->upload(ansi::fgc(yellowlt).mgl(4).mgr(4).wrp(wrap::off)
-                                        .add("\n\nconnection rejected\n\n")
-                                        .nil().wrp(wrap::on)
-                                        .add("Reached the limit of recursive connections, destroy existing recursive instances to create new ones."));
-                            }
-                        layers->attach(app::shared::scroll_bars(scroll));
-                    return window;
+                    auto& creator = app::shared::get_creator()["VTM"];
+                    return creator(data);
                     break;
                 }
                 case app::shared::objs::Far:
                 {
-                    auto window = ui::cake::ctor();
-                    window->template plugin<pro::focus>()
-                          ->template plugin<pro::track>()
-                          ->template plugin<pro::acryl>()
-                          ->template plugin<pro::cache>();
-                    auto object = window->attach(ui::fork::ctor(axis::Y))
-                                        ->colors(whitelt, app::shared::term_menu_bg);
-                        auto menu = object->attach(slot::_1, app::shared::custom_menu(true, {}));
-                        auto layers = object->attach(slot::_2, ui::cake::ctor())
-                                            ->template plugin<pro::limit>(dot_11, twod{ 400,200 });
-                            auto scroll = layers->attach(ui::rail::ctor());
-                            scroll->attach(ui::term::ctor("far"))
-                                  ->colors(whitelt, blackdk);
-                        layers->attach(app::shared::scroll_bars_term(scroll));
-                    return window;
+                    auto& creator = app::shared::get_creator()["Far"];
+                    return creator(data);
                     break;
                 }
                 case app::shared::objs::MC:
                 {
-                    auto window = ui::cake::ctor();
-                    window->template plugin<pro::focus>()
-                          ->template plugin<pro::track>()
-                          ->template plugin<pro::acryl>()
-                          ->template plugin<pro::cache>();
-                    auto object = window->attach(ui::fork::ctor(axis::Y))
-                                        ->colors(whitelt, app::shared::term_menu_bg);
-                        auto menu = object->attach(slot::_1, app::shared::custom_menu(faux, {}));
-                        auto layers = object->attach(slot::_2, ui::cake::ctor())
-                                            ->template plugin<pro::limit>(dot_11, twod{ 400,200 });
-                            auto scroll = layers->attach(ui::rail::ctor())
-                                                ->template plugin<pro::limit>(twod{ 10,1 }); // mc crashes when window is too small
-                            // -c -- force color support
-                            // -x -- force xtrem functionality
-
-                            #if defined(_WIN32)
-
-                                auto inst = scroll->attach(ui::term::ctor("wsl mc"));
-
-                            #elif defined(__linux__)
-                                #ifndef PROD
-                                    auto inst = scroll->attach(ui::term::ctor("bash -c 'LC_ALL=en_US.UTF-8 mc -c -x -d'"));
-                                #else
-                                    auto inst = scroll->attach(ui::term::ctor("bash -c 'LC_ALL=en_US.UTF-8 mc -c -x'"));
-                                #endif
-                            #elif defined(__APPLE__)
-
-                                auto inst = scroll->attach(ui::term::ctor("zsh -c 'LC_ALL=en_US.UTF-8 mc -c -x'"));
-
-                            #elif defined(__FreeBSD__)
-
-                                auto inst = scroll->attach(ui::term::ctor("csh -c 'LC_ALL=en_US.UTF-8 mc -c -x'"));
-
-                            #elif defined(__unix__)
-
-                                auto inst = scroll->attach(ui::term::ctor("sh -c 'LC_ALL=en_US.UTF-8 mc -c -x'"));
-
-                            #endif
-
-                            inst->colors(whitelt, blackdk);
-                        layers->attach(app::shared::scroll_bars(scroll));
-                    return window;
+                    auto& creator = app::shared::get_creator()["MC"];
+                    return creator(data);
                     break;
                 }
                 case app::shared::objs::Bash:
                 case app::shared::objs::Term:
                 {
-                    auto window = ui::cake::ctor();
-                    window->template plugin<pro::focus>()
-                          ->template plugin<pro::track>()
-                          ->template plugin<pro::acryl>()
-                          ->template plugin<pro::cache>();
-                    auto object = window->attach(ui::fork::ctor(axis::Y))
-                                        ->colors(whitelt, app::shared::term_menu_bg);
-                        auto menu = object->attach(slot::_1, app::shared::terminal_menu(true));
-                        auto term_stat_area = object->attach(slot::_2, ui::fork::ctor(axis::Y));
-                            auto layers = term_stat_area->attach(slot::_1, ui::cake::ctor())
-                                                        ->template plugin<pro::limit>(dot_11, twod{ 400,200 });
-                                auto scroll = layers->attach(ui::rail::ctor());
-                                {
-                                    #ifdef DEMO
-                                        scroll->template plugin<pro::limit>(twod{ 20,1 }); // mc crashes when window is too small
-                                    #endif
-
-                                    #if defined(_WIN32)
-
-                                        auto inst = scroll->attach(ui::term::ctor("bash -i"));
-
-                                    #elif defined(__linux__)
-
-                                        auto inst = scroll->attach(ui::term::ctor("bash -i"));
-
-                                    #elif defined(__APPLE__)
-
-                                        auto inst = scroll->attach(ui::term::ctor("zsh"));
-
-                                    #elif defined(__FreeBSD__)
-
-                                        auto inst = scroll->attach(ui::term::ctor("csh"));
-
-                                    #elif defined(__unix__)
-
-                                        auto inst = scroll->attach(ui::term::ctor("sh"));
-
-                                    #endif
-
-                                    inst->colors(whitelt, blackdk);
-                                }
-                            auto scroll_bars = layers->attach(ui::fork::ctor());
-                                auto vt = scroll_bars->attach(slot::_2, ui::grip<axis::Y>::ctor(scroll));
-                                auto hz = term_stat_area->attach(slot::_2, ui::grip<axis::X>::ctor(scroll));
-                    return window;
+                    auto& creator = app::shared::get_creator()["Term"];
+                    return creator(data);
                     break;
                 }
                 case app::shared::objs::PowerShell:
                 {
-                    auto window = ui::cake::ctor();
-                    window->template plugin<pro::focus>()
-                          ->template plugin<pro::track>()
-                          ->template plugin<pro::acryl>()
-                          ->template plugin<pro::cache>();
-                    auto object = window->attach(ui::fork::ctor(axis::Y))
-                                        ->colors(whitelt, app::shared::term_menu_bg);
-                        auto menu = object->attach(slot::_1, app::shared::custom_menu(true,
-                            std::list{
-                                    std::pair<text, std::function<void(ui::pads&)>>{ ansi::esc("C").und(true).add("l").nil().add("ear"),
-                                    [](ui::pads& boss)
-                                    {
-                                        boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
-                                        {
-                                            boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, ui::term::commands::ui::clear);
-                                            gear.dismiss(true);
-                                        };
-                                    }},
-                                    std::pair<text, std::function<void(ui::pads&)>>{ ansi::esc("R").und(true).add("e").nil().add("set"),
-                                    [](ui::pads& boss)
-                                    {
-                                        boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
-                                        {
-                                            boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, ui::term::commands::ui::reset);
-                                            gear.dismiss(true);
-                                        };
-                                    }},
-                                }));
-                        auto term_stat_area = object->attach(slot::_2, ui::fork::ctor(axis::Y));
-                            auto layers = term_stat_area->attach(slot::_1, ui::cake::ctor())
-                                                ->template plugin<pro::limit>(dot_11, twod{ 400,200 });
-                                auto scroll = layers->attach(ui::rail::ctor())
-                                                    ->colors(whitelt, 0xFF560000);
-                                    scroll->attach(ui::term::ctor("powershell"))
-                                          ->colors(whitelt, 0xFF562401);
-                            auto scroll_bars = layers->attach(ui::fork::ctor());
-                                auto vt = scroll_bars->attach(slot::_2, ui::grip<axis::Y>::ctor(scroll));
-                                auto hz = term_stat_area->attach(slot::_2, ui::grip<axis::X>::ctor(scroll));
-                    return window;
+                    auto& creator = app::shared::get_creator()["PowerShell"];
+                    return creator(data);
                     break;
                 }
                 case app::shared::objs::CommandPrompt:
                 {
-                    auto window = ui::cake::ctor();
-                    window->template plugin<pro::focus>()
-                          ->template plugin<pro::track>()
-                          ->template plugin<pro::acryl>()
-                          ->template plugin<pro::cache>();
-                    auto object = window->attach(ui::fork::ctor(axis::Y))
-                                        ->colors(whitelt, app::shared::term_menu_bg);
-                        auto menu = object->attach(slot::_1, app::shared::custom_menu(true,
-                            std::list{
-                                    std::pair<text, std::function<void(ui::pads&)>>{ ansi::esc("C").und(true).add("l").nil().add("ear"),
-                                    [](ui::pads& boss)
-                                    {
-                                        boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
-                                        {
-                                            boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, ui::term::commands::ui::clear);
-                                            gear.dismiss(true);
-                                        };
-                                    }},
-                                    std::pair<text, std::function<void(ui::pads&)>>{ ansi::esc("R").und(true).add("e").nil().add("set"),
-                                    [](ui::pads& boss)
-                                    {
-                                        boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
-                                        {
-                                            boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, ui::term::commands::ui::reset);
-                                            gear.dismiss(true);
-                                        };
-                                    }},
-                                }));
-                        auto term_stat_area = object->attach(slot::_2, ui::fork::ctor(axis::Y));
-                            auto layers = term_stat_area->attach(slot::_1, ui::cake::ctor())
-                                                ->template plugin<pro::limit>(dot_11, twod{ 400,200 });
-                                auto scroll = layers->attach(ui::rail::ctor());
-                        #ifdef DEMO
-                            scroll->template plugin<pro::limit>(twod{ 20,1 }); // mc crashes when window is too small
-                        #endif
-
-                            #if defined(_WIN32)
-                                auto inst = scroll->attach(ui::term::ctor("cmd"));
-                            #elif defined(__linux__)
-                                auto inst = scroll->attach(ui::term::ctor("bash -i"));
-                            #elif defined(__APPLE__)
-                                auto inst = scroll->attach(ui::term::ctor("zsh"));
-                            #elif defined(__FreeBSD__)
-                                auto inst = scroll->attach(ui::term::ctor("csh"));
-                            #elif defined(__unix__)
-                                auto inst = scroll->attach(ui::term::ctor("sh"));
-                            #endif
-
-                                inst->colors(whitelt, blackdk);
-
-                        auto scroll_bars = layers->attach(ui::fork::ctor());
-                            auto vt = scroll_bars->attach(slot::_2, ui::grip<axis::Y>::ctor(scroll));
-                            auto hz = term_stat_area->attach(slot::_2, ui::grip<axis::X>::ctor(scroll));
-                    return window;
+                    auto& creator = app::shared::get_creator()["CommandPrompt"];
+                    return creator(data);
                     break;
                 }
                 case app::shared::objs::Logs:

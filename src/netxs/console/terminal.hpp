@@ -8,9 +8,9 @@
 
 namespace netxs::events::userland
 {
-    struct term
+    struct uiterm
     {
-        EVENTPACK( term, netxs::events::userland::root::custom )
+        EVENTPACK( uiterm, netxs::events::userland::root::custom )
         {
             EVENT_XS( cmd   , iota ),
             GROUP_XS( layout, iota ),
@@ -28,16 +28,7 @@ namespace netxs::events::userland
             };
         };
     };
-}
 
-//todo split ui::term and app::term
-
-// terminal: Terminal Emulator.
-namespace netxs::app::term
-{
-    using namespace netxs::console;
-
-    using events = netxs::events::userland::term;
 }
 
 // terminal: Terminal UI control.
@@ -51,6 +42,8 @@ namespace netxs::ui
         static constexpr iota def_tablen = 8;     // term: Default tab length.
 
     public:
+        using events = netxs::events::userland::uiterm;
+
         struct commands
         {
             struct erase
@@ -634,13 +627,13 @@ namespace netxs::ui
                 {
                     auto status = parser::style.wrp() == wrap::none ? deco::defwrp
                                                                     : parser::style.wrp();
-                    owner.base::broadcast->SIGNAL(tier::release, app::term::events::layout::wrapln, status);
+                    owner.SIGNAL(tier::release, ui::term::events::layout::wrapln, status);
                 }
                 if (parser::style.jet() != old_style.jet())
                 {
                     auto status = parser::style.jet() == bias::none ? bias::left
                                                                     : parser::style.jet();
-                    owner.base::broadcast->SIGNAL(tier::release, app::term::events::layout::align, status);
+                    owner.SIGNAL(tier::release, ui::term::events::layout::align, status);
                 }
             }
             // bufferbase: .
@@ -3432,18 +3425,18 @@ namespace netxs::ui
 
             form::keybd.accept(true); // Subscribe to keybd offers.
 
-            base::broadcast->SUBMIT_T(tier::preview, app::term::events::cmd, bell::tracker, cmd)
-            {
-                exec_cmd(static_cast<commands::ui::commands>(cmd));
-            };
-            base::broadcast->SUBMIT_T(tier::preview, app::term::events::data::in, bell::tracker, data)
-            {
-                data_in(data);
-            };
-            base::broadcast->SUBMIT_T(tier::preview, app::term::events::data::out, bell::tracker, data)
-            {
-                data_out(data);
-            };
+            //base::broadcast->SUBMIT_T(tier::preview, ui::term::events::cmd, bell::tracker, cmd)
+            //{
+            //    exec_cmd(static_cast<commands::ui::commands>(cmd));
+            //};
+            //base::broadcast->SUBMIT_T(tier::preview, ui::term::events::data::in, bell::tracker, data)
+            //{
+            //    data_in(data);
+            //};
+            //base::broadcast->SUBMIT_T(tier::preview, ui::term::events::data::out, bell::tracker, data)
+            //{
+            //    data_out(data);
+            //};
             SUBMIT(tier::release, e2::coor::set, new_coor)
             {
                 //todo use tier::preview bcz approx viewport position can be corrected

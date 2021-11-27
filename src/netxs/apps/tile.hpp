@@ -40,12 +40,6 @@ namespace netxs::app::tile
 
     namespace
     {
-        using slot = ui::slot;
-        using axis = ui::axis;
-        using axes = ui::axes;
-        using snap = ui::snap;
-        using id_t = netxs::input::id_t;
-
         auto mouse_actions = [](auto& boss)
         {
             boss.broadcast->SUBMIT_T(tier::preview, app::tile::events::ui::any, boss.tracker, gear)

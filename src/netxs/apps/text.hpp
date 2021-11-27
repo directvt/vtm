@@ -183,9 +183,6 @@ utility like ctags is used to locate the definitions.
 
 )";
 
-        using slot = ui::slot;
-        using axis = ui::axis;
-
         auto build = [](view v)
         {
             auto window = ui::cake::ctor();
