@@ -131,7 +131,7 @@ int main(int argc, char* argv[])
             auto menu_item_id = what.menu_item_id;
             auto location = what.location;
 
-            auto config = app::shared::objs_config[menu_item_id];
+            auto& config = app::shared::objs_config[menu_item_id];
             sptr<ui::cake> window = ui::cake::ctor()
                 ->plugin<pro::title>(config.title)
                 ->plugin<pro::limit>(dot_11, twod{ 400,200 }) //todo unify, set via config
@@ -184,6 +184,7 @@ int main(int argc, char* argv[])
             window->attach(creator(config.data));
             log(" world create type: ", config.type);
             world->branch(config.type, window);
+            window->broadcast->SIGNAL(tier::release, e2::form::upon::started, 1);
 
             what.frame = window;
         };

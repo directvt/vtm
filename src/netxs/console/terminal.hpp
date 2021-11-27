@@ -3397,7 +3397,20 @@ namespace netxs::ui
             scroll();
             ptycon.write(data);
         }
-
+        //todo temp
+        bool started = faux;
+        void start()
+        {
+            //todo move it to the another thread (slow init)
+            //initsz = base::size();
+            //std::thread{ [&]( )
+            //{
+                //todo async command queue
+                ptycon.start(cmdarg, initsz, [&](auto utf8_shadow) { ondata(utf8_shadow); },
+                                             [&](auto exit_reason) { onexit(exit_reason); } );
+                started = true;
+            //} }.detach();
+        }
        ~term(){ active = faux; }
         term(text command_line, iota max_scrollback_size = def_length, iota grow_step = def_growup)
         //term(text command_line, iota max_scrollback_size = 50, iota grow_step = 0)
@@ -3429,7 +3442,7 @@ namespace netxs::ui
             {
                 this->base::riseup<tier::request>(e2::form::prop::header, wtrack.get(ansi::OSC_TITLE));
 
-
+                //todo deprecated
                 this->SUBMIT_T(tier::release, e2::size::set, oneoff, new_sz)
                 {
                     if (new_sz.y > 0)
@@ -3463,19 +3476,19 @@ namespace netxs::ui
                             //std::thread{ [&]()
                             //{
                                 //todo async command queue
-                                ptycon.resize(initsz);
+                                if (started) ptycon.resize(initsz);
                             //} }.detach();
 
                             new_sz.y = console.get_basis() + new_sz.y;
                         };
 
                         //todo move it to the another thread (slow init)
-                        initsz = new_sz;
-                        //std::thread{ [&]( )
-                        //{
-                            //todo async command queue
-                            ptycon.start(cmdarg, initsz, [&](auto utf8_shadow) { ondata(utf8_shadow); },
-                                                         [&](auto exit_reason) { onexit(exit_reason); } );
+//                        initsz = new_sz;
+//                        //std::thread{ [&]( )
+//                        //{
+//                            //todo async command queue
+//                            ptycon.start(cmdarg, initsz, [&](auto utf8_shadow) { ondata(utf8_shadow); },
+//                                                         [&](auto exit_reason) { onexit(exit_reason); } );
                         //} }.detach();
                     }
                 };

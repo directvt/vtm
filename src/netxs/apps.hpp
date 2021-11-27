@@ -466,12 +466,19 @@ namespace netxs::app::shared
                     {
                         auto c = &app::shared::vtm_count; (*c)++;
                         scroll->attach(ui::term::ctor("vtm"))
-                                ->colors(whitelt, blackdk)
-                                ->SUBMIT_BYVAL(tier::release, e2::dtor, item_id)
-                                {
-                                    (*c)--;
-                                    log("main: vtm recursive conn destoyed");
-                                };
+                              ->colors(whitelt, blackdk)
+                              ->invoke([&](auto& boss)
+                              {
+                                  boss.SUBMIT_BYVAL(tier::release, e2::dtor, item_id)
+                                  {
+                                      (*c)--;
+                                      log("main: vtm recursive conn destoyed");
+                                  };
+                                  boss.base::broadcast->SUBMIT_T(tier::release, e2::form::upon::started, boss.bell::tracker, value)
+                                  {
+                                      boss.start();
+                                  };
+                              });
                     }
                     else
                     {
@@ -499,7 +506,14 @@ namespace netxs::app::shared
                                     ->template plugin<pro::limit>(dot_11, twod{ 400,200 });
                     auto scroll = layers->attach(ui::rail::ctor());
                     scroll->attach(ui::term::ctor("far"))
-                            ->colors(whitelt, blackdk);
+                          ->colors(whitelt, blackdk)
+                          ->invoke([&](auto& boss)
+                          {
+                              boss.base::broadcast->SUBMIT_T(tier::release, e2::form::upon::started, boss.bell::tracker, value)
+                              {
+                                  boss.start();
+                              };
+                          });
                 layers->attach(app::shared::scroll_bars_term(scroll));
             return window;
         };
@@ -544,7 +558,14 @@ namespace netxs::app::shared
 
                     #endif
 
-                    inst->colors(whitelt, blackdk);
+                    inst->colors(whitelt, blackdk)
+                        ->invoke([&](auto& boss)
+                        {
+                            boss.base::broadcast->SUBMIT_T(tier::release, e2::form::upon::started, boss.bell::tracker, value)
+                            {
+                                boss.start();
+                            };
+                        });
                 layers->attach(app::shared::scroll_bars(scroll));
             return window;
         };
@@ -584,7 +605,15 @@ namespace netxs::app::shared
                         auto scroll = layers->attach(ui::rail::ctor())
                                             ->colors(whitelt, 0xFF560000);
                             scroll->attach(ui::term::ctor("powershell"))
-                                    ->colors(whitelt, 0xFF562401);
+                                  ->colors(whitelt, 0xFF562401)
+                                  ->invoke([&](auto& boss)
+                                  {
+                                      boss.base::broadcast->SUBMIT_T(tier::release, e2::form::upon::started, boss.bell::tracker, value)
+                                      {
+                                          boss.start();
+                                      };
+                                  });
+
                     auto scroll_bars = layers->attach(ui::fork::ctor());
                         auto vt = scroll_bars->attach(slot::_2, ui::grip<axis::Y>::ctor(scroll));
                         auto hz = term_stat_area->attach(slot::_2, ui::grip<axis::X>::ctor(scroll));
@@ -640,7 +669,14 @@ namespace netxs::app::shared
                         auto inst = scroll->attach(ui::term::ctor("sh"));
                     #endif
 
-                        inst->colors(whitelt, blackdk);
+                        inst->colors(whitelt, blackdk)
+                            ->invoke([&](auto& boss)
+                            {
+                                boss.base::broadcast->SUBMIT_T(tier::release, e2::form::upon::started, boss.bell::tracker, value)
+                                {
+                                    boss.start();
+                                };
+                            });
 
                 auto scroll_bars = layers->attach(ui::fork::ctor());
                     auto vt = scroll_bars->attach(slot::_2, ui::grip<axis::Y>::ctor(scroll));

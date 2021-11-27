@@ -220,6 +220,10 @@ namespace netxs::app::term
                                     {
                                         boss.data_out(data);
                                     };
+                                    boss.base::broadcast->SUBMIT_T(tier::release, e2::form::upon::started, boss.bell::tracker, value)
+                                    {
+                                        boss.start();
+                                    };
                                 });
                         }
                     auto scroll_bars = layers->attach(ui::fork::ctor());

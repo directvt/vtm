@@ -216,6 +216,7 @@ namespace netxs::events::userland
                     EVENT_XS( changed, twod                ), // event after resize, arg: diff bw old and new size.
                     EVENT_XS( dragged, input::hids         ), // event after drag.
                     EVENT_XS( created, input::hids         ), // release: notify the instance of who created it.
+                    EVENT_XS( started, iota                ), // release: notify the instance is commissioned.
                     GROUP_XS( vtree  , sptr<console::base> ), // visual tree events, arg: parent base_sptr.
                     GROUP_XS( scroll , rack                ), // event after scroll.
                     //EVENT_XS( created    , sptr<console::base> ), // event after itself creation, arg: itself bell_sptr.
@@ -3189,16 +3190,6 @@ namespace netxs::console
                 item->SIGNAL(tier::release, e2::form::upon::vtree::attached, boss.base::This());
 
                 boss.SIGNAL(tier::release, e2::bindings::list::apps, app_registry);
-                return item;
-            }
-            // pro::scene: Create a new item of the specified subtype
-            //             and attach it to the scene.
-            template<class S, class ...Args>
-            auto attach(text const& class_id, Args&&... args)
-            {
-                auto item = boss.indexer<bell>::create<S>(std::forward<Args>(args)...);
-                branch(class_id, item);
-                return item;
             }
             // pro::scene: Create a new user of the specified subtype
             //             and invite him to the scene.
@@ -4237,13 +4228,7 @@ namespace netxs::console
         template<class T>
         auto branch(text const& class_id, sptr<T> item_ptr)
         {
-            return scene.branch(class_id, item_ptr);
-        }
-        // host: Create a new item of the specified subtype and attach it.
-        template<class T, class ...Args>
-        auto attach(text const& class_id, Args&&... args)
-        {
-            return scene.attach<T>(class_id, std::forward<Args>(args)...);
+            scene.branch(class_id, item_ptr);
         }
         //todo unify
         // host: .
