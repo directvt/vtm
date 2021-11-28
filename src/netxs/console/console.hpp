@@ -107,10 +107,11 @@ namespace netxs::events::userland
             };
             SUBSET_XS( config )
             {
-                EVENT_XS( broadcast, sptr<bell> ), // release: broadcast source changed.
-                EVENT_XS( fps      , iota       ), // request to set new fps, arg: new fps (iota); the value == -1 is used to request current fps.
-                GROUP_XS( caret    , period     ), // any kind of intervals property.
-                GROUP_XS( plugins  , iota       ),
+                EVENT_XS( whereami , sptr<console::base> ), // request: pointer to world object.
+                EVENT_XS( broadcast, sptr<bell>          ), // release: broadcast source changed.
+                EVENT_XS( fps      , iota                ), // request to set new fps, arg: new fps (iota); the value == -1 is used to request current fps.
+                GROUP_XS( caret    , period              ), // any kind of intervals property.
+                GROUP_XS( plugins  , iota                ),
 
                 SUBSET_XS( caret )
                 {
@@ -216,7 +217,7 @@ namespace netxs::events::userland
                     EVENT_XS( changed, twod                ), // event after resize, arg: diff bw old and new size.
                     EVENT_XS( dragged, input::hids         ), // event after drag.
                     EVENT_XS( created, input::hids         ), // release: notify the instance of who created it.
-                    EVENT_XS( started, iota                ), // release: notify the instance is commissioned.
+                    EVENT_XS( started, sptr<console::base> ), // release: notify the instance is commissioned. arg: visual root.
                     GROUP_XS( vtree  , sptr<console::base> ), // visual tree events, arg: parent base_sptr.
                     GROUP_XS( scroll , rack                ), // event after scroll.
                     //EVENT_XS( created    , sptr<console::base> ), // event after itself creation, arg: itself bell_sptr.
@@ -4253,6 +4254,10 @@ namespace netxs::console
             {
                 scene.redraw();
             };
+            SUBMIT(tier::general, e2::config::whereami, world_ptr)
+            {
+                world_ptr = This();
+            };
 
             //test
             //SUBMIT(tier::preview, bttn::click::left, gear)
@@ -5625,6 +5630,7 @@ again:
                     world->SIGNAL(tier::release, e2::form::proceed::create, region);
                 }
             };
+            //todo revise
             SUBMIT(tier::preview, e2::form::proceed::createby, gear)
             {
                 if (auto world = base::parent())
@@ -5791,6 +5797,7 @@ again:
         {
             uibar = item;
             item->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
+            //item->broadcast->SIGNAL(tier::release, e2::form::upon::started, This());
             return item;
         }
         // gate: Create a new item of the specified subtype and attach it.

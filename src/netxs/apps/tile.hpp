@@ -261,14 +261,14 @@ namespace netxs::app::tile
                             parent_memo.reset();
                         };
                     };
-                    boss.broadcast->SUBMIT_T(tier::release, e2::form::upon::started, boss.tracker, value)
+                    boss.broadcast->SUBMIT_T(tier::release, e2::form::upon::started, boss.tracker, root)
                     {
                         if (auto item_ptr = boss.back())
                         {
                             auto& item = *item_ptr;
                             if (item.base::root())
                             {
-                                item.broadcast->SIGNAL(tier::release, e2::form::upon::started, 1);
+                                item.broadcast->SIGNAL(tier::release, e2::form::upon::started, item_ptr);
                             }
                         }
                     };
@@ -485,7 +485,7 @@ namespace netxs::app::tile
                                             log("tile: inst: detached: ", insts_count, " id=", id);
                                         };
                                     }
-                                    app->broadcast->SIGNAL(tier::release, e2::form::upon::started, 1);
+                                    app->broadcast->SIGNAL(tier::release, e2::form::upon::started, app);
 
                                     //todo unify
                                     gear.kb_focus_taken = faux;
