@@ -186,20 +186,20 @@ utility like ctags is used to locate the definitions.
         auto build = [](view v)
         {
             auto window = ui::cake::ctor();
-            window->template plugin<pro::focus>()
-                    ->template plugin<pro::track>()
-                    ->template plugin<pro::acryl>()
-                    ->template plugin<pro::cache>()
-                    ->invoke([&](auto& boss)
-                    {
-                        boss.keybd.accept(true);
-                        boss.SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
-                        {
-                            static iota i = 0; i++;
-                            auto title = ansi::jet(bias::center).add("Text Editor\n ~/Untitled ", i, ".txt");
-                            boss.base::template riseup<tier::preview>(e2::form::prop::header, title);
-                        };
-                    });
+            window->plugin<pro::focus>()
+                  ->plugin<pro::track>()
+                  ->plugin<pro::acryl>()
+                  ->plugin<pro::cache>()
+                  ->invoke([&](auto& boss)
+                  {
+                      boss.keybd.accept(true);
+                      boss.SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
+                      {
+                          static iota i = 0; i++;
+                          auto title = ansi::jet(bias::center).add("Text Editor\n ~/Untitled ", i, ".txt");
+                          boss.base::template riseup<tier::preview>(e2::form::prop::header, title);
+                      };
+                  });
             auto object = window->attach(ui::fork::ctor(axis::Y))
                                 ->colors(whitelt, 0xA05f1a00);
                 auto menu = object->attach(slot::_1, app::shared::main_menu());
@@ -207,16 +207,16 @@ utility like ctags is used to locate the definitions.
                     auto fields = body_area->attach(slot::_1, ui::pads::ctor(dent{ 1,1 }));
                         auto layers = fields->attach(ui::cake::ctor());
                             auto scroll = layers->attach(ui::rail::ctor())
-                                                ->template plugin<pro::limit>(twod{ 4,3 }, twod{ -1,-1 });
+                                                ->plugin<pro::limit>(twod{ 4,3 }, twod{ -1,-1 });
                                 auto edit_box = scroll->attach(ui::post::ctor(true))
-                                                        ->template plugin<pro::caret>(true, twod{ 25,1 }, true)
-                                                        ->colors(blackdk, whitelt)
-                                                        ->upload(ansi::wrp(wrap::off).mgl(1)
-                                                        .add(topic3)
-                                                        .fgc(app::shared::highlight_color)
-                                                        .add("From Wikipedia, the free encyclopedia"));
+                                                      ->plugin<pro::caret>(true, twod{ 25,1 }, true)
+                                                      ->colors(blackdk, whitelt)
+                                                      ->upload(ansi::wrp(wrap::off).mgl(1)
+                                                      .add(topic3)
+                                                      .fgc(app::shared::highlight_color)
+                                                      .add("From Wikipedia, the free encyclopedia"));
                     auto status_line = body_area->attach(slot::_2, ui::post::ctor())
-                                                ->template plugin<pro::limit>(twod{ 1,1 }, twod{ -1,1 })
+                                                ->plugin<pro::limit>(twod{ 1,1 }, twod{ -1,1 })
                                                 ->upload(ansi::wrp(wrap::off).mgl(1).mgr(1).jet(bias::right).fgc(whitedk)
                                                     .add("INS  Sel: 0:0  Col: 26  Ln: 2/148").nil());
                         layers->attach(app::shared::scroll_bars(scroll));

@@ -159,20 +159,20 @@ namespace netxs::app::term
         auto build = [](view v)
         {
             auto window = ui::cake::ctor();
-            window->template plugin<pro::focus>()
-                  ->template plugin<pro::track>()
-                  ->template plugin<pro::acryl>()
-                  ->template plugin<pro::cache>();
+            window->plugin<pro::focus>()
+                  ->plugin<pro::track>()
+                  ->plugin<pro::acryl>()
+                  ->plugin<pro::cache>();
             auto object = window->attach(ui::fork::ctor(axis::Y))
                                 ->colors(whitelt, app::shared::term_menu_bg);
                 auto menu = object->attach(slot::_1, terminal_menu(true));
                 auto term_stat_area = object->attach(slot::_2, ui::fork::ctor(axis::Y));
                     auto layers = term_stat_area->attach(slot::_1, ui::cake::ctor())
-                                                ->template plugin<pro::limit>(dot_11, twod{ 400,200 });
+                                                ->plugin<pro::limit>(dot_11, twod{ 400,200 });
                         auto scroll = layers->attach(ui::rail::ctor());
                         {
                             #ifdef DEMO
-                                scroll->template plugin<pro::limit>(twod{ 20,1 }); // mc crashes when window is too small
+                                scroll->plugin<pro::limit>(twod{ 20,1 }); // mc crashes when window is too small
                             #endif
 
                             #if defined(_WIN32)

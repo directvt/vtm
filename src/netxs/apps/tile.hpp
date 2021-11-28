@@ -189,8 +189,8 @@ namespace netxs::app::tile
             return ui::park::ctor()
                 ->isroot(true)
                 ->colors(blacklt, app::shared::term_menu_bg)
-                ->template plugin<pro::limit>(dot_00, -dot_11)
-                ->template plugin<pro::focus>()
+                ->plugin<pro::limit>(dot_00, -dot_11)
+                ->plugin<pro::focus>()
                 ->invoke([&](auto& boss)
                 {
                     boss.keybd.accept(true);
@@ -756,8 +756,8 @@ namespace netxs::app::tile
                         }},
                     }))
                     ->colors(whitelt, app::shared::term_menu_bg)
-                    ->template plugin<pro::track>()
-                    ->template plugin<pro::acryl>();
+                    ->plugin<pro::track>()
+                    ->plugin<pro::acryl>();
 
             object->attach(slot::_2, add_node(add_node, envvar_data))
                 ->invoke([&](auto& boss)

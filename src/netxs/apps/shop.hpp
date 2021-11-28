@@ -209,32 +209,32 @@ namespace netxs::app::shop
 
             auto [appstore_head, appstore_body, desktopio_body] = get_text();
             auto window = ui::cake::ctor();
-            window->template plugin<pro::focus>()
-                    ->colors(whitelt, 0x60000000)
-                    ->template plugin<pro::track>()
-                    ->template plugin<pro::acryl>()
-                    ->template plugin<pro::cache>();
+            window->plugin<pro::focus>()
+                  ->colors(whitelt, 0x60000000)
+                  ->plugin<pro::track>()
+                  ->plugin<pro::acryl>()
+                  ->plugin<pro::cache>();
             auto object = window->attach(ui::fork::ctor(axis::Y))
                                 ->colors(whitelt, 0);
                 auto menu_object = object->attach(slot::_1, ui::fork::ctor(axis::Y));
                     menu_object->attach(slot::_1, app::shared::custom_menu(true, {}));
                     menu_object->attach(slot::_2, ui::post::ctor())
-                                ->template plugin<pro::limit>(twod{ 37,-1 }, twod{ -1,-1 })
-                                ->upload(appstore_head)
-                                ->active();
+                               ->plugin<pro::limit>(twod{ 37,-1 }, twod{ -1,-1 })
+                               ->upload(appstore_head)
+                               ->active();
                 auto layers = object->attach(slot::_2, ui::cake::ctor());
                     auto scroll = layers->attach(ui::rail::ctor())
                                         ->colors(whitedk, 0xFF0f0f0f)
-                                        ->template plugin<pro::limit>(twod{ -1,2 }, twod{ -1,-1 })
+                                        ->plugin<pro::limit>(twod{ -1,2 }, twod{ -1,-1 })
                                         ->config(true, true);
                         auto items = scroll->attach(ui::list::ctor());
                         for (auto& body : appstore_body) items->attach(ui::post::ctor())
-                                                                ->upload(body)
-                                                                ->template plugin<pro::grade>()
-                                                                ->template plugin<pro::fader>(x3, c3, 250ms);
+                                                              ->upload(body)
+                                                              ->plugin<pro::grade>()
+                                                              ->plugin<pro::fader>(x3, c3, 250ms);
                         items->attach(ui::post::ctor())
                                 ->upload(desktopio_body)
-                                ->template plugin<pro::grade>();
+                                ->plugin<pro::grade>();
                 layers->attach(app::shared::scroll_bars(scroll));
             return window;
         };

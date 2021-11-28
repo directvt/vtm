@@ -134,70 +134,70 @@ namespace netxs::app::calc
                 auto menu = object->attach(slot::_1, app::shared::main_menu());
                 auto all_rail = object->attach(slot::_2, ui::rail::ctor());
                 auto all_stat = all_rail->attach(ui::fork::ctor(axis::Y))
-                                        ->template plugin<pro::limit>(twod{ -1,-1 },twod{ 136,102 });
+                                        ->plugin<pro::limit>(twod{ -1,-1 },twod{ 136,102 });
                     auto func_body_pad = all_stat->attach(slot::_1, ui::pads::ctor(dent{ 1,1 }));
                         auto func_body = func_body_pad->attach(ui::fork::ctor(axis::Y));
                             auto func_line = func_body->attach(slot::_1, ui::fork::ctor());
                                 auto fx_sum = func_line->attach(slot::_1, ui::fork::ctor());
                                     auto fx = fx_sum->attach(slot::_1, ui::post::ctor())
-                                                    ->template plugin<pro::fader>(c7, c3, 150ms)
-                                                    ->template plugin<pro::limit>(twod{ 3,-1 }, twod{ 4,-1 })
+                                                    ->plugin<pro::fader>(c7, c3, 150ms)
+                                                    ->plugin<pro::limit>(twod{ 3,-1 }, twod{ 4,-1 })
                                                     ->upload(ansi::wrp(wrap::off).add(" Fx "));
                                 auto ellipsis = func_line->attach(slot::_2, ui::post::ctor())
-                                                            ->template plugin<pro::fader>(c7, c3, 150ms)
-                                                            ->template plugin<pro::limit>(twod{ -1,1 }, twod{ 3,-1 })
-                                                            ->upload(ansi::wrp(wrap::off).add(" … "));
+                                                         ->plugin<pro::fader>(c7, c3, 150ms)
+                                                         ->plugin<pro::limit>(twod{ -1,1 }, twod{ 3,-1 })
+                                                         ->upload(ansi::wrp(wrap::off).add(" … "));
                             auto body_area = func_body->attach(slot::_2, ui::fork::ctor(axis::Y));
                                 auto corner_cols = body_area->attach(slot::_1, ui::fork::ctor());
                                     auto corner = corner_cols->attach(slot::_1, ui::post::ctor())
-                                                                ->template plugin<pro::limit>(twod{ 4,1 }, twod{ 4,1 })
-                                                                ->upload(ansi::bgc(0xffffff - 0x1f1f1f).fgc(0).add("    "));
+                                                             ->plugin<pro::limit>(twod{ 4,1 }, twod{ 4,1 })
+                                                             ->upload(ansi::bgc(0xffffff - 0x1f1f1f).fgc(0).add("    "));
                                 auto rows_body = body_area->attach(slot::_2, ui::fork::ctor());
                                     auto layers = rows_body->attach(slot::_2, ui::cake::ctor());
                                     auto scroll = layers->attach(ui::rail::ctor())
-                                                        ->template plugin<pro::limit>(twod{ -1,1 }, twod{ -1,-1 })
+                                                        ->plugin<pro::limit>(twod{ -1,1 }, twod{ -1,-1 })
                                                         ->config(true, true);
                                         auto grid = scroll->attach(ui::post::ctor())
-                                                            ->colors(0xFF000000, 0xFFffffff)
-                                                            ->template plugin<pro::cell_highlight>()
-                                                            ->upload(cellatix_text);
+                                                          ->colors(0xFF000000, 0xFFffffff)
+                                                          ->plugin<pro::cell_highlight>()
+                                                          ->upload(cellatix_text);
                                     auto sum = fx_sum->attach(slot::_2, ui::post::ctor())
-                                                        ->colors(0, whitelt)
-                                                        ->upload(ansi::bgc(whitelt).fgc(blacklt)
-                                                        .add(" =SUM(").itc(true).fgc(reddk).add("select cells by dragging").itc(faux)
-                                                        .fgc(blacklt).add(")"))
-                                                        ->invoke([&](ui::post& boss)
-                                                        {
-                                                            grid->SUBMIT(tier::release, e2::data::text, data)
-                                                            {
-                                                            boss.upload(ansi::bgc(whitelt).fgc(blacklt).add(data));
-                                                            };
-                                                        });
+                                                     ->colors(0, whitelt)
+                                                     ->upload(ansi::bgc(whitelt).fgc(blacklt)
+                                                     .add(" =SUM(").itc(true).fgc(reddk).add("select cells by dragging").itc(faux)
+                                                     .fgc(blacklt).add(")"))
+                                                     ->invoke([&](ui::post& boss)
+                                                     {
+                                                         grid->SUBMIT(tier::release, e2::data::text, data)
+                                                         {
+                                                         boss.upload(ansi::bgc(whitelt).fgc(blacklt).add(data));
+                                                         };
+                                                     });
                                     auto cols_area = corner_cols->attach(slot::_2, ui::rail::ctor(axes::ONLY_X, axes::ONLY_X))
-                                                                ->template follow<axis::X>(scroll);
+                                                                ->follow<axis::X>(scroll);
                                         auto cols = cols_area->attach(ui::post::ctor())
-                                                                ->template plugin<pro::limit>(twod{ -1,1 }, twod{ -1,1 })
-                                                                ->upload(cellatix_cols); //todo grid  A  B  C ...
+                                                             ->plugin<pro::limit>(twod{ -1,1 }, twod{ -1,1 })
+                                                             ->upload(cellatix_cols); //todo grid  A  B  C ...
                                     auto rows_area = rows_body->attach(slot::_1, ui::rail::ctor(axes::ONLY_Y, axes::ONLY_Y))
-                                                                ->template follow<axis::Y>(scroll)
-                                                                ->template plugin<pro::limit>(twod{ 4,-1 }, twod{ 4,-1 });
+                                                              ->follow<axis::Y>(scroll)
+                                                              ->plugin<pro::limit>(twod{ 4,-1 }, twod{ 4,-1 });
                                         auto rows = rows_area->attach(ui::post::ctor())
-                                                                ->upload(cellatix_rows); //todo grid  1 \n 2 \n 3 \n ...
+                                                             ->upload(cellatix_rows); //todo grid  1 \n 2 \n 3 \n ...
                     auto stat_area = all_stat->attach(slot::_2, ui::rail::ctor())
-                                                ->template plugin<pro::limit>(twod{ -1,1 }, twod{ -1,1 })
-                                                ->template moveby<axis::X>(-5);
+                                             ->plugin<pro::limit>(twod{ -1,1 }, twod{ -1,1 })
+                                             ->moveby<axis::X>(-5);
                         auto sheet_plus = stat_area->attach(ui::fork::ctor());
                             auto sheet = sheet_plus->attach(slot::_1, ui::post::ctor())
-                                                    ->template plugin<pro::limit>(twod{ -1,-1 }, twod{ 13,-1 })
-                                                    ->upload(ansi::wrp(wrap::off).add("     ")
-                                                        .bgc(whitelt).fgc(blackdk).add(" Sheet1 "));
+                                                   ->plugin<pro::limit>(twod{ -1,-1 }, twod{ 13,-1 })
+                                                   ->upload(ansi::wrp(wrap::off).add("     ")
+                                                       .bgc(whitelt).fgc(blackdk).add(" Sheet1 "));
                             auto plus_pad = sheet_plus->attach(slot::_2, ui::fork::ctor());
                                 auto plus = plus_pad->attach(slot::_1, ui::post::ctor())
-                                                    ->template plugin<pro::fader>(c7, c3, 150ms)
-                                                    ->template plugin<pro::limit>(twod{ 3,-1 }, twod{ 3,-1 })
+                                                    ->plugin<pro::fader>(c7, c3, 150ms)
+                                                    ->plugin<pro::limit>(twod{ 3,-1 }, twod{ 3,-1 })
                                                     ->upload(ansi::wrp(wrap::off).add(" + "));
                                 auto pad = plus_pad->attach(slot::_2, ui::mock::ctor())
-                                                    ->template plugin<pro::limit>(twod{ 1,1 }, twod{ 1,1 });
+                                                   ->plugin<pro::limit>(twod{ 1,1 }, twod{ 1,1 });
                     layers->attach(app::shared::scroll_bars(scroll));
             return window;
         };

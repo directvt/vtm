@@ -229,8 +229,8 @@ namespace netxs::app::shared
         auto build_Strobe        = [](view v)
         {
             auto window = ui::cake::ctor();
-            auto strob = window->template plugin<pro::focus>()
-                    ->attach(ui::mock::ctor());
+            auto strob = window->plugin<pro::focus>()
+                               ->attach(ui::mock::ctor());
             auto strob_shadow = ptr::shadow(strob);
             bool stobe_state = true;
             strob->SUBMIT_BYVAL(tier::general, e2::tick, now)
@@ -247,30 +247,30 @@ namespace netxs::app::shared
         auto build_RefreshRate   = [](view v)
         {
             auto window = ui::cake::ctor();
-            window->template plugin<pro::focus>()
-                    ->attach(ui::stem_rate<tier::general, decltype(e2::config::fps)>::ctor("Set frame rate", 1, 200, "fps"))
-                    ->colors(0xFFFFFFFF, bluedk)
-                    ->invoke([&](auto& boss)
-                    {
-                        boss.keybd.accept(true);
-                    });
+            window->plugin<pro::focus>()
+                  ->attach(ui::stem_rate<tier::general, decltype(e2::config::fps)>::ctor("Set frame rate", 1, 200, "fps"))
+                  ->colors(0xFFFFFFFF, bluedk)
+                  ->invoke([&](auto& boss)
+                  {
+                      boss.keybd.accept(true);
+                  });
             return window;
         };
         auto build_Empty         = [](view v)
         {
             auto window = ui::cake::ctor();
-            window->template plugin<pro::focus>()
-                    ->template plugin<pro::track>()
-                    ->template plugin<pro::acryl>()
-                    ->invoke([&](auto& boss)
-                    {
-                        boss.SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
-                        {
-                            static iota i = 0; i++;
-                            auto title = ansi::mgl(1).mgr(1).add("Empty Instance \nid: ", parent->id);
-                            boss.base::template riseup<tier::preview>(e2::form::prop::header, title);
-                        };
-                    });
+            window->plugin<pro::focus>()
+                  ->plugin<pro::track>()
+                  ->plugin<pro::acryl>()
+                  ->invoke([&](auto& boss)
+                  {
+                      boss.SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
+                      {
+                          static iota i = 0; i++;
+                          auto title = ansi::mgl(1).mgr(1).add("Empty Instance \nid: ", parent->id);
+                          boss.base::template riseup<tier::preview>(e2::form::prop::header, title);
+                      };
+                  });
             auto object = window->attach(ui::mock::ctor())
                                 ->colors(0,0); //todo mouse tracking
             return window;
@@ -430,10 +430,10 @@ namespace netxs::app::shared
             truecolor += wiki01;
 
             auto window = ui::cake::ctor();
-            window->template plugin<pro::focus>()
-                    ->template plugin<pro::track>()
-                    ->template plugin<pro::acryl>()
-                    ->template plugin<pro::cache>();
+            window->plugin<pro::focus>()
+                  ->plugin<pro::track>()
+                  ->plugin<pro::acryl>()
+                  ->plugin<pro::cache>();
             auto object = window->attach(ui::fork::ctor(axis::Y))
                                 ->colors(whitelt, 0xA01f0fc4);
                 auto menu = object->attach(slot::_1, app::shared::custom_menu(true, {}));
@@ -452,15 +452,15 @@ namespace netxs::app::shared
         auto build_VTM           = [](view v)
         {
             auto window = ui::cake::ctor();
-            window->template plugin<pro::focus>()
-                    ->template plugin<pro::track>()
-                    ->template plugin<pro::acryl>()
-                    ->template plugin<pro::cache>();
+            window->plugin<pro::focus>()
+                  ->plugin<pro::track>()
+                  ->plugin<pro::acryl>()
+                  ->plugin<pro::cache>();
             auto object = window->attach(ui::fork::ctor(axis::Y))
                                 ->colors(whitelt, app::shared::term_menu_bg);
                 auto menu = object->attach(slot::_1, app::shared::custom_menu(faux, {}));
                 auto layers = object->attach(slot::_2, ui::cake::ctor())
-                                    ->template plugin<pro::limit>(dot_11, twod{ 400,200 });
+                                    ->plugin<pro::limit>(dot_11, twod{ 400,200 });
                     auto scroll = layers->attach(ui::rail::ctor());
                     if (app::shared::vtm_count < app::shared::max_vtm)
                     {
@@ -483,11 +483,11 @@ namespace netxs::app::shared
                     else
                     {
                         scroll->attach(ui::post::ctor())
-                                ->colors(whitelt, blackdk)
-                                ->upload(ansi::fgc(yellowlt).mgl(4).mgr(4).wrp(wrap::off)
-                                .add("\n\nconnection rejected\n\n")
-                                .nil().wrp(wrap::on)
-                                .add("Reached the limit of recursive connections, destroy existing recursive instances to create new ones."));
+                              ->colors(whitelt, blackdk)
+                              ->upload(ansi::fgc(yellowlt).mgl(4).mgr(4).wrp(wrap::off)
+                                      .add("\n\nconnection rejected\n\n")
+                                      .nil().wrp(wrap::on)
+                                      .add("Reached the limit of recursive connections, destroy existing recursive instances to create new ones."));
                     }
                 layers->attach(app::shared::scroll_bars(scroll));
             return window;
@@ -495,15 +495,15 @@ namespace netxs::app::shared
         auto build_Far           = [](view v)
         {
             auto window = ui::cake::ctor();
-            window->template plugin<pro::focus>()
-                    ->template plugin<pro::track>()
-                    ->template plugin<pro::acryl>()
-                    ->template plugin<pro::cache>();
+            window->plugin<pro::focus>()
+                  ->plugin<pro::track>()
+                  ->plugin<pro::acryl>()
+                  ->plugin<pro::cache>();
             auto object = window->attach(ui::fork::ctor(axis::Y))
                                 ->colors(whitelt, app::shared::term_menu_bg);
                 auto menu = object->attach(slot::_1, app::shared::custom_menu(true, {}));
                 auto layers = object->attach(slot::_2, ui::cake::ctor())
-                                    ->template plugin<pro::limit>(dot_11, twod{ 400,200 });
+                                    ->plugin<pro::limit>(dot_11, twod{ 400,200 });
                     auto scroll = layers->attach(ui::rail::ctor());
                     scroll->attach(ui::term::ctor("far"))
                           ->colors(whitelt, blackdk)
@@ -520,17 +520,17 @@ namespace netxs::app::shared
         auto build_MC            = [](view v)
         {
             auto window = ui::cake::ctor();
-            window->template plugin<pro::focus>()
-                    ->template plugin<pro::track>()
-                    ->template plugin<pro::acryl>()
-                    ->template plugin<pro::cache>();
+            window->plugin<pro::focus>()
+                  ->plugin<pro::track>()
+                  ->plugin<pro::acryl>()
+                  ->plugin<pro::cache>();
             auto object = window->attach(ui::fork::ctor(axis::Y))
                                 ->colors(whitelt, app::shared::term_menu_bg);
                 auto menu = object->attach(slot::_1, app::shared::custom_menu(faux, {}));
                 auto layers = object->attach(slot::_2, ui::cake::ctor())
-                                    ->template plugin<pro::limit>(dot_11, twod{ 400,200 });
+                                    ->plugin<pro::limit>(dot_11, twod{ 400,200 });
                     auto scroll = layers->attach(ui::rail::ctor())
-                                        ->template plugin<pro::limit>(twod{ 10,1 }); // mc crashes when window is too small
+                                        ->plugin<pro::limit>(twod{ 10,1 }); // mc crashes when window is too small
                     // -c -- force color support
                     // -x -- force xtrem functionality
 
@@ -572,10 +572,10 @@ namespace netxs::app::shared
         auto build_PowerShell    = [](view v)
         {
             auto window = ui::cake::ctor();
-            window->template plugin<pro::focus>()
-                    ->template plugin<pro::track>()
-                    ->template plugin<pro::acryl>()
-                    ->template plugin<pro::cache>();
+            window->plugin<pro::focus>()
+                  ->plugin<pro::track>()
+                  ->plugin<pro::acryl>()
+                  ->plugin<pro::cache>();
             auto object = window->attach(ui::fork::ctor(axis::Y))
                                 ->colors(whitelt, app::shared::term_menu_bg);
                 auto menu = object->attach(slot::_1, app::shared::custom_menu(true,
@@ -601,7 +601,7 @@ namespace netxs::app::shared
                         }));
                 auto term_stat_area = object->attach(slot::_2, ui::fork::ctor(axis::Y));
                     auto layers = term_stat_area->attach(slot::_1, ui::cake::ctor())
-                                        ->template plugin<pro::limit>(dot_11, twod{ 400,200 });
+                                                ->plugin<pro::limit>(dot_11, twod{ 400,200 });
                         auto scroll = layers->attach(ui::rail::ctor())
                                             ->colors(whitelt, 0xFF560000);
                             scroll->attach(ui::term::ctor("powershell"))
@@ -622,10 +622,10 @@ namespace netxs::app::shared
         auto build_CommandPrompt = [](view v)
         {
             auto window = ui::cake::ctor();
-            window->template plugin<pro::focus>()
-                    ->template plugin<pro::track>()
-                    ->template plugin<pro::acryl>()
-                    ->template plugin<pro::cache>();
+            window->plugin<pro::focus>()
+                  ->plugin<pro::track>()
+                  ->plugin<pro::acryl>()
+                  ->plugin<pro::cache>();
             auto object = window->attach(ui::fork::ctor(axis::Y))
                                 ->colors(whitelt, app::shared::term_menu_bg);
                 auto menu = object->attach(slot::_1, app::shared::custom_menu(true,
@@ -651,10 +651,10 @@ namespace netxs::app::shared
                         }));
                 auto term_stat_area = object->attach(slot::_2, ui::fork::ctor(axis::Y));
                     auto layers = term_stat_area->attach(slot::_1, ui::cake::ctor())
-                                        ->template plugin<pro::limit>(dot_11, twod{ 400,200 });
+                                                ->plugin<pro::limit>(dot_11, twod{ 400,200 });
                         auto scroll = layers->attach(ui::rail::ctor());
                 #ifdef DEMO
-                    scroll->template plugin<pro::limit>(twod{ 20,1 }); // mc crashes when window is too small
+                    scroll->plugin<pro::limit>(twod{ 20,1 }); // mc crashes when window is too small
                 #endif
 
                     #if defined(_WIN32)

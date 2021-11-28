@@ -247,14 +247,14 @@ namespace netxs::app::logs
             const static auto x3 = app::shared::x3;
 
             auto window = ui::cake::ctor();
-            window->template plugin<pro::focus>()
-                    ->template plugin<pro::track>()
-                    ->template plugin<pro::acryl>()
-                    ->template plugin<pro::cache>()
-                    ->invoke([&](auto& boss)
-                    {
-                        boss.keybd.accept(true);
-                    });
+            window->plugin<pro::focus>()
+                  ->plugin<pro::track>()
+                  ->plugin<pro::acryl>()
+                  ->plugin<pro::cache>()
+                  ->invoke([&](auto& boss)
+                  {
+                      boss.keybd.accept(true);
+                  });
             auto object = window->attach(ui::fork::ctor(axis::Y))
                                 ->colors(whitelt, app::shared::term_menu_bg);
                 auto menu = object->attach(slot::_1, app::shared::custom_menu(true,
