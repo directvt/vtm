@@ -106,12 +106,13 @@ int main(int argc, char* argv[])
     }
 
     {
+        //todo unify
+        //skin::setup(tone::lucidity, 192);
+        //skin::setup(tone::shadower, 0);
         skin::setup(tone::kb_focus, 60);
         skin::setup(tone::brighter, 60);//120);
-        //skin::setup(tone::shadower, 0);
         skin::setup(tone::shadower, 180);//60);//40);// 20);
-        skin::setup(tone::shadow, 180);//5);
-        //skin::setup(tone::lucidity, 192);
+        skin::setup(tone::shadow  , 180);//5);
         skin::setup(tone::lucidity, 255);
         skin::setup(tone::selector, 48);
         skin::setup(tone::bordersz, dot_11);
@@ -128,10 +129,7 @@ int main(int argc, char* argv[])
 
         world->SUBMIT(tier::release, e2::form::proceed::createat, what)
         {
-            auto menu_item_id = what.menu_item_id;
-            auto location = what.location;
-
-            auto& config = app::shared::objs_config[menu_item_id];
+            auto& config = app::shared::objs_config[what.menu_item_id];
             sptr<ui::cake> window = ui::cake::ctor()
                 ->plugin<pro::title>(config.title)
                 ->plugin<pro::limit>(dot_11, twod{ 400,200 }) //todo unify, set via config
@@ -179,11 +177,11 @@ int main(int argc, char* argv[])
                     };
                 });
 
-            window->extend(location);
+            window->extend(what.location);
             auto& creator = app::shared::creator(config.type);
             window->attach(creator(config.data));
-            log(" world create type: ", config.type);
-            world->branch(config.type, window);
+            log(" world create type=", config.type, " menu_item_id=", what.menu_item_id);
+            world->branch(what.menu_item_id, window);
             window->broadcast->SIGNAL(tier::release, e2::form::upon::started, 1);
 
             what.frame = window;
@@ -202,88 +200,7 @@ int main(int argc, char* argv[])
             }
         };
 
-        // Init registry/menu list.
-        {
-            sptr<registry_t> menu_list_ptr;
-            world->SIGNAL(tier::request, e2::bindings::list::apps, menu_list_ptr);
-            auto& menu_list = *menu_list_ptr;
-            auto b = app::shared::objs_config.begin();
-            auto e = app::shared::objs_config.end();
-
-            #ifdef DEMO
-                #ifdef PROD
-                    //app::shared::objs_config["Tile"].data = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h1:1(v1:1(\"bash -c 'LC_ALL=en_US.UTF-8 mc -c -x; bash'\", h1:1(\"bash -c 'ls /bin | nl | ccze -A; bash'\", a(\"RefreshRate\",\"\",\"\"))), a(\"Calc\",\"app title\",\"app data\"))";
-                    //app::shared::objs_config["Tile"].data = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h1:1(v1:1(\"bash -c 'LC_ALL=en_US.UTF-8 mc -c -x; bash'\", h1:1(\"bash -c 'ls /bin | nl | ccze -A; bash'\", a(\"Text\",\"app title\",\"app data\"))), a(\"Calc\",\"app title\",\"app data\"))";
-                    //app::shared::objs_config["Tile"].data = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h1:1:1(v1:1:2(\"bash -c 'LC_ALL=en_US.UTF-8 mc -c -x -d; cat'\", h1:1:0(\"bash -c 'ls /bin | nl | ccze -A; bash'\", a(\"RefreshRate\",\"\",\"\"))), a(\"Calc\",\"\",\"\"))";
-                    app::shared::objs_config["Tile"].data = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h(v(\"bash -c 'LC_ALL=en_US.UTF-8 mc -c -x -d; cat'\", h(\"bash -c 'ls /bin | nl | ccze -A; bash'\", a(\"RefreshRate\",\"\",\"\"))), a(\"Calc\",\"\",\"\"))";
-                #else
-                    app::shared::objs_config["Tile"].data = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h1:1(v1:1(\"bash -c 'LC_ALL=en_US.UTF-8 mc -c -x -d; cat'\", h1:1(\"bash -c 'ls /bin | nl | ccze -A; bash'\", a(\"RefreshRate\",\"\",\"\"))), a(\"Calc\",\"\",\"\"))";
-                #endif
-
-                for (auto& [app_name, app_data] : app::shared::objs_config)
-                    menu_list[app_name];
-            #else
-                #ifdef _WIN32
-                    menu_list["CommandPrompt"];
-                    menu_list["PowerShell"];
-                    menu_list["Tile"];
-                    menu_list["Logs"];
-                    menu_list["View"];
-                    menu_list["RefreshRate"];
-                #else
-                    menu_list["Term"];
-                    menu_list["Tile"];
-                    menu_list["Logs"];
-                    menu_list["View"];
-                    menu_list["RefreshRate"];
-                    menu_list["vtm"];
-                #endif
-                // Add custom commands to the menu.
-                for (auto& p : tiling_profiles)
-                {
-                    //todo rewrite
-                    auto v = view{ p };
-                    auto name = utf::get_quote(v, '\"');
-                    if (!name.empty())
-                    {
-                        auto& m = app::shared::objs_config[name];
-                        m.type = "Tile";
-                        m.name = name;
-                        m.title = name; // Use the same title as the menu label.
-                        m.data = text{ p };
-                    }
-                }
-            #endif
-
-            #ifdef DEMO
-                auto creator = [&](text const& menu_item_id, rect area)
-                {
-                    auto what = decltype(e2::form::proceed::createat)::type{};
-                    what.menu_item_id = menu_item_id;
-                    what.location = area;
-                    world->SIGNAL(tier::release, e2::form::proceed::createat, what);
-                };
-                auto sub_pos = twod{ 12+17, 0 };
-                creator("Test", { twod{ 22     , 1  } + sub_pos, { 70, 21 } });
-                creator("Shop", { twod{ 4      , 6  } + sub_pos, { 82, 38 } });
-                creator("Calc", { twod{ 15     , 15 } + sub_pos, { 65, 23 } });
-                creator("Text", { twod{ 30     , 22 } + sub_pos, { 59, 26 } });
-                creator("MC",   { twod{ 49     , 28 } + sub_pos, { 63, 22 } });
-                creator("Term", { twod{ 34     , 38 } + sub_pos, { 64, 16 } });
-                creator("Term", { twod{ 44 + 85, 35 } + sub_pos, { 64, 15 } });
-                creator("Term", { twod{ 40 + 85, 42 } + sub_pos, { 64, 15 } });
-                creator("Tile", { twod{ 40 + 85,-10 } + sub_pos, {160, 42 } });
-
-                creator("View", { twod{ 0, 7 } + twod{ -120, 60 }, { 120, 52 } });
-                creator("View", { twod{ 0,-1 } + sub_pos, { 120, 52 } });
-
-                sub_pos = twod{-120, 60};
-                creator("Truecolor",   { twod{ 20, 15 } + sub_pos, { 70, 30 } });
-                creator("Logs",        { twod{ 52, 33 } + sub_pos, { 45, 12 } });
-                creator("RefreshRate", { twod{ 60, 41 } + sub_pos, { 35, 10 } });
-            #endif
-
-        }
+        app::shared::init_menu(world);
 
         world->SIGNAL(tier::general, e2::config::fps, 60);
 
@@ -330,7 +247,15 @@ int main(int argc, char* argv[])
                 _name = "[" + _name + ":" + std::to_string(usr_count++) + "]";
                 log("main: creating a new thread for user ", _name);
 
-                std::thread{ [=]
+                std::thread{ [=]    // _name
+                                    // _mode
+                                    // _region
+                                    // peer
+                                    // c_ip
+                                    // c_port
+                                    // world
+                                    // user_coor
+                                    // 
                 {
                     iota uibar_min_size = 4;
                     iota uibar_full_size = 32;
@@ -349,40 +274,15 @@ int main(int argc, char* argv[])
                         legacy_mode = mode.value();
                     }
                     auto client = world->invite<ui::gate>(username, legacy_mode);
+
+
+                    // Taskbar Layout (PoC)
                     auto client_shadow = ptr::shadow(client);
                     auto world_shadow = ptr::shadow(world);
                     auto my_id = client->id;
 
-                    // Taskbar Layout (PoC)
 
-                    #ifdef _WIN32
-                        auto current_default = "CommandPrompt"s;
-                        //auto current_default = "PowerShell"s;
-                    #else
-                        auto current_default = "Term"s;
-                    #endif
-                    auto previous_default = current_default;
-
-                    //todo unify
-                    client->SUBMIT(tier::request, e2::data::changed, data)
-                    {
-                        data = current_default;
-                    };
-                    client->SUBMIT(tier::preview, e2::data::changed, data)
-                    {
-                        data = previous_default;
-                    };
-                    client->SUBMIT(tier::release, e2::data::changed, data)
-                    {
-                        auto new_default = data;
-                        if (current_default != new_default)
-                        {
-                            previous_default = current_default;
-                            current_default = new_default;
-                        }
-                    };
-
-                    auto app_template = [&](auto& data_src, auto const& utf8)
+                    auto app_template = [](auto& data_src, auto const& utf8)
                     {
                         const static auto c4 = app::shared::c4;
                         const static auto x4 = app::shared::x4;
@@ -452,20 +352,20 @@ int main(int argc, char* argv[])
                                     auto app_close = app_close_area->attach(ui::item::ctor("  ×  ", faux));
                         return item_area;
                     };
+                    // app_template
                     auto apps_template = [&](auto& data_src, auto& apps_map)
                     {
                         const static auto c3 = app::shared::c3;
                         const static auto x3 = app::shared::x3;
 
                         auto apps = ui::list::ctor();
-                        //todo loops are not compatible with Declarative UI
+
                         for (auto const& [class_id, inst_ptr_list] : *apps_map)
                         {
                             auto inst_id  = class_id;
                             auto obj_desc = app::shared::objs_config[class_id].name;
                             if (inst_ptr_list.size())
                             {
-                                auto selected = class_id == current_default;
                                 auto item_area = apps->attach(ui::pads::ctor(dent{ 0,0,0,1 }, dent{ 0,0,1,0 }))
                                                     ->template plugin<pro::fader>(x3, c3, 0ms)
                                                     ->depend_on_collection(inst_ptr_list)
@@ -526,13 +426,17 @@ int main(int argc, char* argv[])
                         }
                         return apps;
                     };
+                    // client, world_shadow
                     auto menuitems_template = [&](auto& data_src, auto& apps_map)
                     {
                         const static auto c3 = app::shared::c3;
                         const static auto x3 = app::shared::x3;
 
                         auto menuitems = ui::list::ctor();
-                        //todo loops are not compatible with Declarative UI
+
+                        auto current_default = decltype(e2::data::changed)::type{};
+                        client->SIGNAL(tier::request, e2::data::changed, current_default);
+
                         for (auto const& [class_id, inst_ptr_list] : *apps_map)
                         {
                             auto id = class_id;
@@ -546,7 +450,7 @@ int main(int argc, char* argv[])
                                                         boss.mouse.take_all_events(faux);
                                                         boss.SUBMIT_BYVAL(tier::release, hids::events::mouse::button::click::left, gear)
                                                         {
-                                                            if (auto client = client_shadow.lock())
+                                                            if (auto client = bell::getref(gear.id))
                                                             {
                                                                 client->SIGNAL(tier::release, e2::data::changed, id);
                                                                 gear.dismiss();
@@ -591,6 +495,7 @@ int main(int argc, char* argv[])
                         }
                         return menuitems;
                     };
+                    // my_id = client->id
                     auto user_template = [&](auto& data_src, auto const& utf8)
                     {
                         const static auto c3 = app::shared::c3;
@@ -603,14 +508,58 @@ int main(int argc, char* argv[])
                                     .fgc4(data_src->id == my_id ? rgba::color256[whitelt] : 0x00).add(utf8), true));
                         return item_area;
                     };
+                    // user_template
                     auto branch_template = [&](auto& data_src, auto& usr_list)
                     {
                         auto users = ui::list::ctor()
                             ->attach_collection(e2::form::prop::name, *usr_list, user_template);
                         return users;
                     };
-                    {
-                    auto window = client->attach(ui::cake::ctor());
+
+                    auto window = ui::cake::ctor()
+                        ->invoke([](auto& boss)
+                        {
+                            #ifdef _WIN32
+                                auto current_default_sptr = std::make_shared<text>(app::shared::objs_lookup["CommandPrompt"]);
+                                //auto current_default = app::shared::objs_lookup["PowerShell"];
+                            #else
+                                auto current_default_sptr = std::make_shared<text>(app::shared::objs_lookup["Term"]);
+                            #endif
+                            auto previous_default_sptr = std::make_shared<text>(*current_default_sptr);
+                            auto subs_sptr = std::make_shared<subs>();
+
+                            boss.SUBMIT_BYVAL(tier::release, e2::form::upon::vtree::attached, parent)
+                            {
+                                parent->SIGNAL(tier::release, e2::data::changed, *current_default_sptr);
+
+                                parent->SUBMIT_T(tier::request, e2::data::changed, *subs_sptr, data)
+                                {
+                                    if (current_default_sptr) data = *current_default_sptr;
+                                };
+                                parent->SUBMIT_T(tier::preview, e2::data::changed, *subs_sptr, data)
+                                {
+                                    if (previous_default_sptr) data = *previous_default_sptr;
+                                };
+                                parent->SUBMIT_T(tier::release, e2::data::changed, *subs_sptr, data)
+                                {
+                                    if (previous_default_sptr && current_default_sptr)
+                                    {
+                                        auto new_default = data;
+                                        if (*current_default_sptr != new_default)
+                                        {
+                                            *previous_default_sptr = *current_default_sptr;
+                                            *current_default_sptr = new_default;
+                                        }
+                                    }
+                                };
+                                parent->SUBMIT_T(tier::release, e2::form::upon::vtree::detached, *subs_sptr, p)
+                                {
+                                    current_default_sptr.reset();
+                                    previous_default_sptr.reset();
+                                    subs_sptr.reset();
+                                };
+                            };
+                        });
                         auto taskbar_viewport = window->attach(ui::fork::ctor(axis::X))
                                                 ->invoke([&](auto& boss)
                                                 {
@@ -801,7 +750,8 @@ int main(int argc, char* argv[])
                                                               });
                                         auto shutdown = shutdown_area->attach(ui::item::ctor("× Shutdown"));
                             }
-                    }
+
+                    client->attach(window);
                     client->color(app::shared::background_color.fgc(), app::shared::background_color.bgc());
                     text header = username;
                     text footer = ansi::mgr(1).mgl(1).add(MONOTTY_VER);

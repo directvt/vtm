@@ -4208,6 +4208,7 @@ namespace netxs::console
         pro::robot robot{*this }; // host: Amination controller.
         pro::keybd keybd{*this }; // host: Keyboard controller.
         pro::mouse mouse{*this }; // host: Mouse controller.
+        //todo unpack pro::scene - it is not a plugin at all
         pro::scene scene{*this }; // host: Scene controller.
 
         using tick = quartz<events::reactor<>, e2::type>;

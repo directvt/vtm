@@ -49,7 +49,12 @@ namespace netxs::app::shared
         text data;
     };
 
-    #define X(a, b, c, d) { #a, { #a, b, c, d} },
+    //todo temp
+    #define X(a, b, c, d) { #a, b },
+    std::map<text, text> objs_lookup{ TYPE_LIST };
+    #undef X
+
+    #define X(a, b, c, d) { b, { #a, b, c, d} },
     std::map<text, menu_item> objs_config{ TYPE_LIST };
     #undef X
     #undef TYPE_LIST
@@ -188,7 +193,7 @@ namespace netxs::app::shared
         static std::map<text, builder_t> creator_inst;
         return creator_inst;
     }
-    auto& creator(view app_type)
+    auto& creator(view app_typename)
     {
         static builder_t empty =
         [](view) -> sptr<base>
@@ -196,7 +201,7 @@ namespace netxs::app::shared
             //todo make a banner
             return ui::cake::ctor();
         };
-        auto key = text{ app_type };
+        auto key = text{ app_typename };
         auto& map = get_creator();
         const auto it = map.find(key);
         if (it == map.end())
@@ -207,9 +212,9 @@ namespace netxs::app::shared
     }
     struct initialize
     {
-        initialize(view app_class, builder_t builder)
+        initialize(view app_typename, builder_t builder)
         {
-            app::shared::get_creator()[text{ app_class }] = builder;
+            app::shared::get_creator()[text{ app_typename }] = builder;
         }
     };
 }
@@ -696,6 +701,85 @@ namespace netxs::app::shared
         app::shared::initialize builder_CommandPrompt{ "CommandPrompt", build_CommandPrompt };
         app::shared::initialize builder_Bash         { "Bash"         , app::term::build    };
     }
+
+    auto init_menu = [](auto world) // Init registry/menu list.
+    {
+        sptr<registry_t> menu_list_ptr;
+        world->SIGNAL(tier::request, e2::bindings::list::apps, menu_list_ptr);
+        auto& menu_list = *menu_list_ptr;
+
+        #ifdef DEMO
+            #ifdef PROD
+                //app::shared::objs_config["Tiling Window Manager"].data = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h1:1(v1:1(\"bash -c 'LC_ALL=en_US.UTF-8 mc -c -x; bash'\", h1:1(\"bash -c 'ls /bin | nl | ccze -A; bash'\", a(\"RefreshRate\",\"\",\"\"))), a(\"Calc\",\"app title\",\"app data\"))";
+                //app::shared::objs_config["Tiling Window Manager"].data = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h1:1(v1:1(\"bash -c 'LC_ALL=en_US.UTF-8 mc -c -x; bash'\", h1:1(\"bash -c 'ls /bin | nl | ccze -A; bash'\", a(\"Text\",\"app title\",\"app data\"))), a(\"Calc\",\"app title\",\"app data\"))";
+                //app::shared::objs_config["Tiling Window Manager"].data = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h1:1:1(v1:1:2(\"bash -c 'LC_ALL=en_US.UTF-8 mc -c -x -d; cat'\", h1:1:0(\"bash -c 'ls /bin | nl | ccze -A; bash'\", a(\"RefreshRate\",\"\",\"\"))), a(\"Calc\",\"\",\"\"))";
+                app::shared::objs_config[objs_lookup["Tile"]].data = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h(v(\"bash -c 'LC_ALL=en_US.UTF-8 mc -c -x -d; cat'\", h(\"bash -c 'ls /bin | nl | ccze -A; bash'\", a(\"RefreshRate\",\"\",\"\"))), a(\"Calc\",\"\",\"\"))";
+            #else
+                app::shared::objs_config[objs_lookup["Tile"]].data = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h1:1(v1:1(\"bash -c 'LC_ALL=en_US.UTF-8 mc -c -x -d; cat'\", h1:1(\"bash -c 'ls /bin | nl | ccze -A; bash'\", a(\"RefreshRate\",\"\",\"\"))), a(\"Calc\",\"\",\"\"))";
+            #endif
+
+            for (auto& [menu_item_id, app_data] : app::shared::objs_config)
+                menu_list[menu_item_id];
+        #else
+            #ifdef _WIN32
+                menu_list[objs_lookup["CommandPrompt"]];
+                menu_list[objs_lookup["PowerShell"]];
+                menu_list[objs_lookup["Tile"]];
+                menu_list[objs_lookup["Logs"]];
+                menu_list[objs_lookup["View"]];
+                menu_list[objs_lookup["RefreshRate"]];
+            #else
+                menu_list[objs_lookup["Term"]];
+                menu_list[objs_lookup["Tile"]];
+                menu_list[objs_lookup["Logs"]];
+                menu_list[objs_lookup["View"]];
+                menu_list[objs_lookup["RefreshRate"]];
+                menu_list[objs_lookup["VTM"]];
+            #endif
+            // Add custom commands to the menu.
+            for (auto& p : tiling_profiles)
+            {
+                //todo rewrite
+                auto v = view{ p };
+                auto name = utf::get_quote(v, '\"');
+                if (!name.empty())
+                {
+                    auto& m = app::shared::objs_config[name];
+                    m.type = "Tile";
+                    m.name = name;
+                    m.title = name; // Use the same title as the menu label.
+                    m.data = text{ p };
+                }
+            }
+        #endif
+
+        #ifdef DEMO
+            auto creator = [&](text const& menu_item_id, rect area)
+            {
+                auto what = decltype(e2::form::proceed::createat)::type{};
+                what.menu_item_id = menu_item_id;
+                what.location = area;
+                world->SIGNAL(tier::release, e2::form::proceed::createat, what);
+            };
+            auto sub_pos = twod{ 12+17, 0 };
+            creator(objs_lookup["Test"], { twod{ 22     , 1  } + sub_pos, { 70, 21 } });
+            creator(objs_lookup["Shop"], { twod{ 4      , 6  } + sub_pos, { 82, 38 } });
+            creator(objs_lookup["Calc"], { twod{ 15     , 15 } + sub_pos, { 65, 23 } });
+            creator(objs_lookup["Text"], { twod{ 30     , 22 } + sub_pos, { 59, 26 } });
+            creator(objs_lookup["MC"  ], { twod{ 49     , 28 } + sub_pos, { 63, 22 } });
+            creator(objs_lookup["Term"], { twod{ 34     , 38 } + sub_pos, { 64, 16 } });
+            creator(objs_lookup["Term"], { twod{ 44 + 85, 35 } + sub_pos, { 64, 15 } });
+            creator(objs_lookup["Term"], { twod{ 40 + 85, 42 } + sub_pos, { 64, 15 } });
+            creator(objs_lookup["Tile"], { twod{ 40 + 85,-10 } + sub_pos, {160, 42 } });
+            creator(objs_lookup["View"], { twod{ 0, 7 } + twod{ -120, 60 }, { 120, 52 } });
+            creator(objs_lookup["View"], { twod{ 0,-1 } + sub_pos, { 120, 52 } });
+
+            sub_pos = twod{-120, 60};
+            creator(objs_lookup["Truecolor"  ], { twod{ 20, 15 } + sub_pos, { 70, 30 } });
+            creator(objs_lookup["Logs"       ], { twod{ 52, 33 } + sub_pos, { 45, 12 } });
+            creator(objs_lookup["RefreshRate"], { twod{ 60, 41 } + sub_pos, { 35, 10 } });
+        #endif
+    };
 }
 
 #endif // NETXS_APPS_HPP
