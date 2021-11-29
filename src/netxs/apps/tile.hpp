@@ -40,7 +40,7 @@ namespace netxs::app::tile
 
     namespace
     {
-        auto mouse_actions = [](auto& boss)
+        auto bcast_forward = [](auto& boss)
         {
             boss.broadcast->SUBMIT_T(tier::preview, app::tile::events::ui::any, boss.tracker, gear)
             {
@@ -84,6 +84,9 @@ namespace netxs::app::tile
                     }
                 }
             };
+        };
+        auto mouse_actions = [](auto& boss)
+        {
             boss.SUBMIT(tier::release, hids::events::mouse::button::dblclick::left, gear)
             {
                 boss.base::template riseup<tier::release>(e2::form::maximize, gear);
@@ -123,6 +126,7 @@ namespace netxs::app::tile
                     ->active()
                     ->invoke([&](auto& boss)
                     {
+                        bcast_forward(boss);
                         mouse_actions(boss);
                         select_all(boss);
                     })
@@ -166,6 +170,7 @@ namespace netxs::app::tile
             node->isroot(true, 1) // Set object kind to 1 to be different from others.
                 ->invoke([&](auto& boss)
                 {
+                    bcast_forward(boss);
                     mouse_actions(boss);
                     boss.SUBMIT(tier::release, app::tile::events::ui::swap    , gear) { boss.swap();       };
                     boss.SUBMIT(tier::release, app::tile::events::ui::rotate  , gear) { boss.rotate();     };
@@ -194,6 +199,7 @@ namespace netxs::app::tile
                 ->invoke([&](auto& boss)
                 {
                     boss.keybd.accept(true);
+                    bcast_forward(boss);
                     mouse_actions(boss);
                     select_all(boss);
                     boss.SUBMIT(tier::release, hids::events::mouse::button::click::right, gear)
@@ -525,6 +531,14 @@ namespace netxs::app::tile
                 //                 ->(r1)node_split<fork>->slot_1 ...
                 //                                       ->slot_2 ...
                 //                                       ->(f)grip
+
+                // empty_slot<veer>->(r0,f,m)place_holder<park>
+                //                 ->(r0,m)box_with_title<fork>->title   (tiling manager)
+                //                                             ->object->menu
+                //                                                     ->empty_slot<veer>->(r0,f,m)place_holder<park>
+                //                                                                       ->(r0)box_with_title<fork>->title
+                //                                                                                                 ->(f)cake->app
+
             }
             else if (tag == 'a')
             {
@@ -611,7 +625,9 @@ namespace netxs::app::tile
                 }
             }
 
-            auto object = ui::fork::ctor(axis::Y);
+            auto object = ui::fork::ctor(axis::Y)
+                //->plugin<pro::focus>()
+                ;
 
             #ifndef PROD
                 if (app::shared::tile_count < APPS_MAX_COUNT)
@@ -631,6 +647,8 @@ namespace netxs::app::tile
 
             object->invoke([&](auto& boss)
                 {
+                    //boss.keybd.accept(true);
+
                     auto oneoff = std::make_shared<hook>();
                     auto objs_config_ptr = &app::shared::objs_config;
                     boss.broadcast->SUBMIT_T_BYVAL(tier::release, e2::form::upon::created, *oneoff, gear)
@@ -643,7 +661,7 @@ namespace netxs::app::tile
                             gate.SIGNAL(tier::request, e2::data::changed, menu_item_id);
                             //todo unify
                             auto config = objs_config[menu_item_id];
-                            if (config.name == "Tile") // Reset the currently selected application to the previous one.
+                            if (config.type == "Tile") // Reset the currently selected application to the previous one.
                             {
                                 gate.SIGNAL(tier::preview, e2::data::changed, menu_item_id); // Get previous default;
                                 gate.SIGNAL(tier::release, e2::data::changed, menu_item_id); // Set current  default;
@@ -670,6 +688,7 @@ namespace netxs::app::tile
                         {
                             boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                             {
+                                log(" base::broadcast->id=", boss.base::broadcast->id);
                                 gear.countdown = 1;
                                 boss.base::broadcast->SIGNAL(tier::preview, app::tile::events::ui::toggle, gear);
                                 //iota status = 1;

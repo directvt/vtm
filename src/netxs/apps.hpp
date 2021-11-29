@@ -737,21 +737,31 @@ namespace netxs::app::shared
                 menu_list[objs_lookup["RefreshRate"]];
                 menu_list[objs_lookup["VTM"]];
             #endif
+
             // Add custom commands to the menu.
-            for (auto& p : tiling_profiles)
+            // vtm: Get user defined tiling layouts.
+            auto tiling_profiles = os::get_envars("VTM_PROFILE");
+            if (auto size = tiling_profiles.size())
             {
-                //todo rewrite
-                auto v = view{ p };
-                auto name = utf::get_quote(v, '\"');
-                if (!name.empty())
+                iota i = 0;
+                log("main: tiling profile", size > 1 ? "s":"", " found");
+                for (auto& p : tiling_profiles)
                 {
-                    auto& m = app::shared::objs_config[name];
-                    m.type = "Tile";
-                    m.name = name;
-                    m.title = name; // Use the same title as the menu label.
-                    m.data = text{ p };
+                    log(" ", i++, ". profile: ", utf::debase(p));
+                    //todo rewrite
+                    auto v = view{ p };
+                    auto name = utf::get_quote(v, '\"');
+                    if (!name.empty())
+                    {
+                        auto& m = app::shared::objs_config[name];
+                        m.type = "Tile";
+                        m.name = name;
+                        m.title = name; // Use the same title as the menu label.
+                        m.data = text{ p };
+                    }
                 }
             }
+
         #endif
 
         #ifdef DEMO

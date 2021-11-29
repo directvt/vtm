@@ -93,18 +93,6 @@ int main(int argc, char* argv[])
         if (config.empty()) config = "empty config";
     }
 
-    // vtm: Get user defined tiling layouts.
-    auto tiling_profiles = os::get_envars("VTM_PROFILE");
-    if (auto size = tiling_profiles.size())
-    {
-        iota i = 0;
-        log("main: tiling profile", size > 1 ? "s":"", " found");
-        for (auto& p : tiling_profiles)
-        {
-            log(" ", i++, ". profile: ", utf::debase(p));
-        }
-    }
-
     {
         //todo unify
         //skin::setup(tone::lucidity, 192);
