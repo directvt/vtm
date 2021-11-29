@@ -273,8 +273,8 @@ int main(int argc, char* argv[])
                     }
                     auto client = world->invite<ui::gate>(username, legacy_mode);
 
-                    auto& menu_creator = app::shared::creator("Sidemenu");
-                    auto sidemenu = menu_creator(ansi::add(client->id));
+                    auto& menu_creator = app::shared::creator("Desk");
+                    auto sidemenu = menu_creator(ansi::esc(client->id));
             
                     client->attach(sidemenu);
                     client->color(app::shared::background_color.fgc(), app::shared::background_color.bgc());

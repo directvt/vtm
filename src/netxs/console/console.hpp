@@ -147,6 +147,7 @@ namespace netxs::events::userland
             };
             SUBSET_XS( data )
             {
+                //todo revise (see app::desk)
                 EVENT_XS( changed, utf::text       ), // release/preview/request: current menu item id(text).
                 EVENT_XS( request, iota            ),
                 EVENT_XS( disable, iota            ),
