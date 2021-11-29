@@ -989,7 +989,7 @@ namespace netxs::ui
                               0);
             auto height = cover.width() ? cover.height() + 1
                                         : 0;
-            width.y = height + (beyond ? width.y : 0); //todo unify (text editor)
+            width.y = height + (beyond ? width.y - 1 : 0); //todo unify (text editor)
         }
         void recalc(twod const& size)
         {
