@@ -39,6 +39,14 @@ using namespace netxs;
 
 int main(int argc, char* argv[])
 {
+
+    netxs::imap<text,std::list<int>> p;
+    for(auto& [k,v]: p)
+    {
+        log(k,v.size());
+    }
+
+
     // Initialize global logger.
     netxs::logger::logger logger(
         [](auto const& utf8)

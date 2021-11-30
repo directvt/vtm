@@ -40,7 +40,7 @@ namespace netxs::console
 
     using namespace netxs::input;
     using drawfx = std::function<bool(face&, page const&)>;
-    using registry_t = std::map<text, std::list<sptr<base>>>;
+    using registry_t = netxs::imap<text, std::list<sptr<base>>>;
     struct create_t
     {
         text menu_item_id;
@@ -328,7 +328,7 @@ namespace netxs::events::userland
                     EVENT_XS( brush     , const cell  ), // set form brush/color.
                     EVENT_XS( fullscreen, bool        ), // set fullscreen flag.
                     EVENT_XS( viewport  , rect        ), // request: return form actual viewport.
-                    EVENT_XS( menusize  , iota        ), // release: set menu height: 0 - hide, 1 - slim, 2 - full.
+                    EVENT_XS( menusize  , iota        ), // release: set menu height.
                 };
                 SUBSET_XS( global )
                 {

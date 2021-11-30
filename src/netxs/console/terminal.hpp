@@ -3426,8 +3426,8 @@ namespace netxs::ui
         {
             cmdarg = command_line;
             target = &normal;
-            cursor.style(commands::cursor::def_style);
-            //cursor.style(commands::cursor::steady_box);
+            //cursor.style(commands::cursor::def_style); // default=blinking_box
+            cursor.style(commands::cursor::blinking_underline);
 
             form::keybd.accept(true); // Subscribe to keybd offers.
 

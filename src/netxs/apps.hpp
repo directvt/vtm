@@ -126,13 +126,7 @@ namespace netxs::app::shared
                 {
                     auto& limit = boss.plugins<pro::limit>();
                     auto limits = limit.get();
-                    switch (size)
-                    {
-                        default:
-                        case 2: limits.min.y = limits.max.y = 3; break;
-                        case 1: limits.min.y = limits.max.y = 1; break;
-                        case 0: limits.min.y = limits.max.y = 0; break;
-                    }
+                    limits.min.y = limits.max.y = std::max(0, size);
                     limit.set(limits);
                     boss.reflow();
                 };
@@ -723,6 +717,7 @@ namespace netxs::app::shared
                 menu_list[menu_item_id];
         #else
             #ifdef _WIN32
+                menu_list[objs_lookup["Term"]];
                 menu_list[objs_lookup["CommandPrompt"]];
                 menu_list[objs_lookup["PowerShell"]];
                 menu_list[objs_lookup["Tile"]];
