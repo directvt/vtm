@@ -4,7 +4,7 @@
 #define MONOTTY_VER "Monotty Desktopio v0.5.9999a"
 
 // Enable demo apps and assign Esc key to log off.
-#define DEMO
+//#define DEMO
 
 // Enable keyboard input and unassign Esc key.
 #define PROD
@@ -118,14 +118,14 @@ int main(int argc, char* argv[])
         world->SUBMIT(tier::release, e2::form::proceed::createat, what)
         {
             auto& config = app::shared::objs_config[what.menu_item_id];
-            sptr<ui::cake> window = ui::cake::ctor()
+            auto  window = ui::cake::ctor()
                 ->plugin<pro::title>(config.title)
                 ->plugin<pro::limit>(dot_11, twod{ 400,200 }) //todo unify, set via config
                 ->plugin<pro::sizer>()
                 ->plugin<pro::frame>()
                 ->plugin<pro::light>()
                 ->plugin<pro::align>()
-                ->invoke([&](ui::cake& boss)
+                ->invoke([&](auto& boss)
                 {
                     boss.SUBMIT(tier::release, hids::events::mouse::button::dblclick::left, gear)
                     {
@@ -262,7 +262,7 @@ int main(int argc, char* argv[])
                     auto client = world->invite<ui::gate>(username, legacy_mode);
 
                     auto& menu_creator = app::shared::creator("Desk");
-                    auto sidemenu = menu_creator(ansi::esc(client->id));
+                    auto sidemenu = menu_creator(utf::concat(client->id, ";", user, ";", path));
             
                     client->attach(sidemenu);
                     client->color(app::shared::background_color.fgc(), app::shared::background_color.bgc());

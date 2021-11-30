@@ -48,7 +48,7 @@ namespace netxs::app::tile
                 boss.broadcast->SIGNAL(tier::request, e2::form::state::keybd::find, gear_id);
                 if (gear_id)
                 {
-                    if (auto deed = boss.broadcast->bell::protos<tier::preview>())
+                    if (auto deed = boss.broadcast->bell::template protos<tier::preview>()) //todo "template" keyword is required by FreeBSD clang 11.0.1
                     {
                         switch (deed)
                         {

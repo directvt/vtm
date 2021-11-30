@@ -184,7 +184,19 @@ namespace netxs::app::desk
             auto window = ui::cake::ctor();
 
             auto my_id = id_t{};
-            if (auto value = utf::to_int(v)) my_id = value.value();
+
+            auto user_info = utf::divide(v, ";");
+            if (user_info.size() < 3) return window;
+            auto& user_id___view = user_info[0];
+            auto& user_name_view = user_info[1];
+            auto& user_path_view = user_info[2];
+
+            log("desk: user_id=", user_id___view, " user_name=", user_name_view, " user_path=", user_path_view);
+
+            auto user = text{ user_name_view };
+            auto path = text{ user_path_view };
+
+            if (auto value = utf::to_int(user_id___view)) my_id = value.value();
             else return window;
 
             if (auto client = bell::getref(my_id))
