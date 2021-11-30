@@ -55,7 +55,7 @@ namespace netxs::app::shared
     #undef X
 
     #define X(a, b, c, d) { b, { #a, b, c, d} },
-    std::map<text, menu_item> objs_config{ TYPE_LIST };
+    netxs::imap<text, menu_item> objs_config{ TYPE_LIST };
     #undef X
     #undef TYPE_LIST
 

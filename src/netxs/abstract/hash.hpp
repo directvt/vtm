@@ -59,6 +59,7 @@ namespace netxs
         struct iter
         {
             using it_t = decltype(IMAP{}.forward.begin());
+            using iota = std::iterator_traits<it_t>::difference_type;
 
             IMAP& buff;
             it_t  addr;
@@ -70,8 +71,8 @@ namespace netxs
 
             auto  operator -  (iota n)        const { return iter<IMAP>{ buff, addr - n };         }
             auto  operator +  (iota n)        const { return iter<IMAP>{ buff, addr + n };         }
-            auto  operator ++ (iota)                { return iter<IMAP>{ buff, addr++   };         }
-            auto  operator -- (iota)                { return iter<IMAP>{ buff, addr--   };         }
+            auto  operator ++ (int)                 { return iter<IMAP>{ buff, addr++   };         }
+            auto  operator -- (int)                 { return iter<IMAP>{ buff, addr--   };         }
             auto& operator ++ ()                    {                        ++addr; return *this; }
             auto& operator -- ()                    {                        --addr; return *this; }
             auto  operator -> ()                    { return buff.storage.find(addr->second);      }
@@ -91,17 +92,28 @@ namespace netxs
         auto&  front()       { return storage[          forward.begin()->second]; }
         //todo implement erase and friends
         // ...
-        auto& operator[] (KEY const& key)
+        template<class K>
+        auto& at(K&& key)
         {
-            auto [iter, anew] = storage.try_emplace(key);
+            auto [iter, anew] = storage.try_emplace(std::forward<K>(key));
             if (anew)
             {
-                forward[counter] = key;
-                reverse[key    ] = counter;
+                auto& new_key = iter->first;
+                forward[counter] = new_key;
+                reverse[new_key] = counter;
                 counter++;
             }
 
             return iter->second;
+        }
+        template<class K>
+        auto& operator[] (K&& key) { return at(std::forward<K>(key)); }
+
+        imap()
+        { }
+        imap(std::initializer_list<std::pair<KEY, VAL>> list)
+        {
+            for (auto& [key, val] : list) at(key) = val;
         }
     };
 }

@@ -27,26 +27,15 @@
 // Highlight region ownership.
 //#define REGIONS
 
-#include "netxs/console/terminal.hpp"
 #include "netxs/apps.hpp"
 
-#include <fstream>
+#include <fstream> // Get current config from vtm.conf.
 
-//todo remove
-using namespace std::placeholders;
 using namespace netxs::console;
 using namespace netxs;
 
 int main(int argc, char* argv[])
 {
-
-    netxs::imap<text,std::list<int>> p;
-    for(auto& [k,v]: p)
-    {
-        log(k,v.size());
-    }
-
-
     // Initialize global logger.
     netxs::logger::logger logger(
         [](auto const& utf8)
@@ -93,15 +82,13 @@ int main(int argc, char* argv[])
     }
 
     //todo Get current config from vtm.conf.
-    text config;
+    utf::text config;
     {
         std::ifstream conf;
         conf.open("vtm.conf");
         if (conf.is_open()) std::getline(conf, config);
         if (config.empty()) config = "empty config";
-    }
 
-    {
         //todo unify
         //skin::setup(tone::lucidity, 192);
         //skin::setup(tone::shadower, 0);
@@ -112,167 +99,161 @@ int main(int argc, char* argv[])
         skin::setup(tone::lucidity, 255);
         skin::setup(tone::selector, 48);
         skin::setup(tone::bordersz, dot_11);
+    }
 
-        auto world = base::create<host>([&](auto reason) { os::exit(0, reason); });
+    auto world = base::create<host>([&](auto reason) { os::exit(0, reason); });
 
-        log("host: created");
+    log("host: created");
 
-        using slot = ui::slot;
-        using axis = ui::axis;
-        using axes = ui::axes;
-        using snap = ui::snap;
-        using id_t = netxs::input::id_t;
-
-        world->SUBMIT(tier::release, e2::form::proceed::createat, what)
-        {
-            auto& config = app::shared::objs_config[what.menu_item_id];
-            auto  window = ui::cake::ctor()
-                ->plugin<pro::title>(config.title)
-                ->plugin<pro::limit>(dot_11, twod{ 400,200 }) //todo unify, set via config
-                ->plugin<pro::sizer>()
-                ->plugin<pro::frame>()
-                ->plugin<pro::light>()
-                ->plugin<pro::align>()
-                ->invoke([&](auto& boss)
-                {
-                    boss.SUBMIT(tier::release, hids::events::mouse::button::dblclick::left, gear)
-                    {
-                        boss.base::template riseup<tier::release>(e2::form::maximize, gear);
-                        gear.dismiss();
-                    };
-                    boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
-                    {
-                        auto& area = boss.base::area();
-                        if (!area.size.inside(gear.coord))
-                        {
-                            auto center = area.coor + (area.size / 2);
-                            bell::getref(gear.id)->
-                                SIGNAL(tier::release, e2::form::layout::shift, center);
-                        }
-                        boss.base::deface();
-                    };
-                    boss.SUBMIT(tier::release, hids::events::mouse::button::click::leftright, gear)
-                    {
-                        auto backup = boss.This();
-                        boss.base::detach();
-                        gear.dismiss();
-                    };
-                    boss.SUBMIT(tier::release, hids::events::mouse::button::click::middle, gear)
-                    {
-                        auto backup = boss.This();
-                        boss.base::detach();
-                        gear.dismiss();
-                    };
-                    boss.SUBMIT(tier::release, e2::form::proceed::detach, backup)
-                    {
-                        boss.base::detach(); // The object kills itself.
-                    };
-                    boss.SUBMIT(tier::release, e2::form::quit, nested_item)
-                    {
-                        if (nested_item) boss.base::detach(); // The object kills itself.
-                    };
-                });
-
-            window->extend(what.location);
-            auto& creator = app::shared::creator(config.type);
-            window->attach(creator(config.data));
-            log(" world create type=", config.type, " menu_item_id=", what.menu_item_id);
-            world->branch(what.menu_item_id, window);
-            window->broadcast->SIGNAL(tier::release, e2::form::upon::started, world);
-
-            what.frame = window;
-        };
-        world->SUBMIT(tier::general, e2::form::global::lucidity, alpha)
-        {
-            if (alpha == -1)
+    world->SUBMIT(tier::release, e2::form::proceed::createat, what)
+    {
+        auto& config = app::shared::objs_config[what.menu_item_id];
+        auto  window = ui::cake::ctor()
+            ->plugin<pro::title>(config.title)
+            ->plugin<pro::limit>(dot_11, twod{ 400,200 }) //todo unify, set via config
+            ->plugin<pro::sizer>()
+            ->plugin<pro::frame>()
+            ->plugin<pro::light>()
+            ->plugin<pro::align>()
+            ->invoke([&](auto& boss)
             {
-                alpha = skin::shady();
+                boss.SUBMIT(tier::release, hids::events::mouse::button::dblclick::left, gear)
+                {
+                    boss.base::template riseup<tier::release>(e2::form::maximize, gear);
+                    gear.dismiss();
+                };
+                boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
+                {
+                    auto& area = boss.base::area();
+                    if (!area.size.inside(gear.coord))
+                    {
+                        auto center = area.coor + (area.size / 2);
+                        bell::getref(gear.id)->SIGNAL(tier::release, e2::form::layout::shift, center);
+                    }
+                    boss.base::deface();
+                };
+                boss.SUBMIT(tier::release, hids::events::mouse::button::click::leftright, gear)
+                {
+                    auto backup = boss.This();
+                    boss.base::detach();
+                    gear.dismiss();
+                };
+                boss.SUBMIT(tier::release, hids::events::mouse::button::click::middle, gear)
+                {
+                    auto backup = boss.This();
+                    boss.base::detach();
+                    gear.dismiss();
+                };
+                boss.SUBMIT(tier::release, e2::form::proceed::detach, backup)
+                {
+                    boss.base::detach(); // The object kills itself.
+                };
+                boss.SUBMIT(tier::release, e2::form::quit, nested_item)
+                {
+                    if (nested_item) boss.base::detach(); // The object kills itself.
+                };
+            });
+
+        window->extend(what.location);
+        auto& creator = app::shared::creator(config.type);
+        window->attach(creator(config.data));
+        log(" world create type=", config.type, " menu_item_id=", what.menu_item_id);
+        world->branch(what.menu_item_id, window);
+        window->broadcast->SIGNAL(tier::release, e2::form::upon::started, world);
+
+        what.frame = window;
+    };
+    world->SUBMIT(tier::general, e2::form::global::lucidity, alpha)
+    {
+        if (alpha == -1)
+        {
+            alpha = skin::shady();
+        }
+        else
+        {
+            alpha = std::clamp(alpha, 0, 255);
+            skin::setup(tone::lucidity, alpha);
+            world->SIGNAL(tier::preview, e2::form::global::lucidity, alpha);
+        }
+    };
+
+    app::shared::init_menu(world);
+
+    world->SIGNAL(tier::general, e2::config::fps, 60);
+
+    iota usr_count = 0;
+    auto user = os::user();
+    auto path = utf::concat("monotty_", user);
+    log("user: ", user);
+    log("pipe: ", path);
+
+    if (auto link = os::ipc::open<os::server>(path))
+    {
+        log("sock: listening socket ", link);
+
+        while (auto peer = link->meet())
+        {
+            if (!peer->cred(user))
+            {
+                log("sock: other users are not allowed to the session, abort");
+                continue;
             }
-            else
+
+            auto _region = peer->line(';');
+            auto _ip     = peer->line(';');
+            auto _user   = peer->line(';');
+            auto _name   = peer->line(';');
+            auto _mode   = peer->line(';');
+            log("peer: region= ", _region,
+                    ", ip= "    , _ip,
+                    ", user= "  , _user,
+                    ", name= "  , _name,
+                    ", mode= "  , _mode);
+            text c_ip;
+            text c_port;
+            auto c_info = utf::divide(_ip, " ");
+            if (c_info.size() > 0) c_ip   = c_info[0];
+            if (c_info.size() > 1) c_port = c_info[1];
+
+            utf::change(_ip, " ", ":");
+
+            //todo Move user's viewport to the last saved position
+            auto user_coor = twod{};
+
+            //todo distinguish users by config, enumerate if no config
+            _name = "[" + _name + ":" + std::to_string(usr_count++) + "]";
+            log("main: creating a new thread for user ", _name);
+
+            std::thread{ [=]    // _name
+                                // _mode
+                                // _region
+                                // peer
+                                // c_ip
+                                // c_port
+                                // world
+                                // user_coor
+                                // 
             {
-                alpha = std::clamp(alpha, 0, 255);
-                skin::setup(tone::lucidity, alpha);
-                world->SIGNAL(tier::preview, e2::form::global::lucidity, alpha);
-            }
-        };
+                log("user: session name ", peer);
 
-        app::shared::init_menu(world);
+                #ifndef PROD
+                    auto username = "[User." + utf::remain(c_ip) + ":" + c_port + "]";
+                #else
+                    auto username = _name;
+                #endif
 
-        world->SIGNAL(tier::general, e2::config::fps, 60);
-
-        iota usr_count = 0;
-        auto user = os::user();
-        auto path = utf::concat("monotty_", user);
-        log("user: ", user);
-        log("pipe: ", path);
-
-        if (auto link = os::ipc::open<os::server>(path))
-        {
-            log("sock: listening socket ", link);
-
-            while (auto peer = link->meet())
-            {
-                if (!peer->cred(user))
-                {
-                    log("sock: other users are not allowed to the session, abort");
-                    continue;
-                }
-
-                auto _region = peer->line(';');
-                auto _ip     = peer->line(';');
-                auto _user   = peer->line(';');
-                auto _name   = peer->line(';');
-                auto _mode   = peer->line(';');
-                log("peer: region= ", _region,
-                        ", ip= "    , _ip,
-                        ", user= "  , _user,
-                        ", name= "  , _name,
-                        ", mode= "  , _mode);
-                text c_ip;
-                text c_port;
-                auto c_info = utf::divide(_ip, " ");
-                if (c_info.size() > 0) c_ip   = c_info[0];
-                if (c_info.size() > 1) c_port = c_info[1];
-
-                utf::change(_ip, " ", ":");
-
-                //todo Move user's viewport to the last saved position
-                auto user_coor = twod{};
-
-                //todo distinguish users by config, enumerate if no config
-                _name = "[" + _name + ":" + std::to_string(usr_count++) + "]";
-                log("main: creating a new thread for user ", _name);
-
-                std::thread{ [=]    // _name
-                                    // _mode
-                                    // _region
-                                    // peer
-                                    // c_ip
-                                    // c_port
-                                    // world
-                                    // user_coor
-                                    // 
-                {
-                    log("user: session name ", peer);
-
-                    #ifndef PROD
-                        auto username = "[User." + utf::remain(c_ip) + ":" + c_port + "]";
-                    #else
-                        auto username = _name;
-                    #endif
-
-                    auto lock = std::make_unique<events::sync>();
-                    iota legacy_mode = os::legacy::clean;
+                auto lock = std::make_unique<events::sync>();
+                    auto legacy_mode = os::legacy::clean;
                     if (auto mode = utf::to_int(view(_mode)))
                     {
                         legacy_mode = mode.value();
                     }
                     auto client = world->invite<ui::gate>(username, legacy_mode);
 
-                    auto& menu_creator = app::shared::creator("Desk");
-                    auto sidemenu = menu_creator(utf::concat(client->id, ";", user, ";", path));
+                    auto& menu_builder = app::shared::creator("Desk");
+                    auto deskmenu = menu_builder(utf::concat(client->id, ";", user, ";", path));
             
-                    client->attach(sidemenu);
+                    client->attach(deskmenu);
                     client->color(app::shared::background_color.fgc(), app::shared::background_color.bgc());
                     text header = username;
                     text footer = ansi::mgr(1).mgl(1).add(MONOTTY_VER);
@@ -280,29 +261,31 @@ int main(int argc, char* argv[])
                     client->SIGNAL(tier::preview, e2::form::prop::header, header);
                     client->SIGNAL(tier::preview, e2::form::prop::footer, footer);
                     client->base::moveby(user_coor);
-                    lock.reset();
-                    log("user: new gate for ", peer);
+                lock.reset();
+                log("user: new gate for ", peer);
 
+                client->proceed(peer,
                     #ifndef PROD
-                    client->proceed(peer, _region);
+                        _region
                     #else
-                    client->proceed(peer, username);
+                        username
                     #endif
+                );
 
-                    lock = std::unique_ptr<events::sync>();
+                lock = std::make_unique<events::sync>();
                     log("user: ", peer, " has logged out");
                     client->detach();
                     log("user: ", peer, " is diconnected");
                     log("user: client.use_count() ", client.use_count());
                     client.reset();
-                    lock.reset();
-                } }.detach();
+                lock.reset();
+            } }.detach();
 
-                log("main: new thread constructed for ", peer);
-            }
-
-            world->SIGNAL(tier::general, e2::config::fps, 0);
+            log("main: new thread constructed for ", peer);
         }
+
+        world->SIGNAL(tier::general, e2::config::fps, 0);
     }
+
     os::exit(0, "bye!");
 }
