@@ -202,11 +202,11 @@ namespace netxs::app::term
                                 {
                                     boss.SUBMIT(tier::release, ui::term::events::layout::wrapln, status)
                                     {
-                                        boss.base::broadcast->SIGNAL(tier::release, ui::term::events::layout::wrapln, status);
+                                        boss.base::broadcast->SIGNAL(tier::release, app::term::events::layout::wrapln, status);
                                     };
                                     boss.SUBMIT(tier::release, ui::term::events::layout::align, status)
                                     {
-                                        boss.base::broadcast->SIGNAL(tier::release, ui::term::events::layout::align, status);
+                                        boss.base::broadcast->SIGNAL(tier::release, app::term::events::layout::align, status);
                                     };
                                     boss.base::broadcast->SUBMIT_T(tier::preview, app::term::events::cmd, boss.bell::tracker, cmd)
                                     {

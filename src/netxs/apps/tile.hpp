@@ -44,9 +44,9 @@ namespace netxs::app::tile
         {
             boss.broadcast->SUBMIT_T(tier::preview, app::tile::events::ui::any, boss.tracker, gear)
             {
-                auto gear_id = gear.id;
-                boss.broadcast->SIGNAL(tier::request, e2::form::state::keybd::find, gear_id);
-                if (gear_id)
+                auto gear_test = decltype(e2::form::state::keybd::find)::type{ gear.id, 0 };
+                boss.broadcast->SIGNAL(tier::request, e2::form::state::keybd::find, gear_test);
+                if (gear_test.second)
                 {
                     if (auto deed = boss.broadcast->bell::template protos<tier::preview>()) //todo "template" keyword is required by FreeBSD clang 11.0.1
                     {
@@ -775,8 +775,13 @@ namespace netxs::app::tile
                         }},
                     }))
                     ->colors(whitelt, app::shared::term_menu_bg)
+                    ->plugin<pro::focus>()
                     ->plugin<pro::track>()
-                    ->plugin<pro::acryl>();
+                    ->plugin<pro::acryl>()
+                    ->invoke([](auto& boss)
+                    {
+                        boss.keybd.accept(true);
+                    });
 
             object->attach(slot::_2, add_node(add_node, envvar_data))
                 ->invoke([&](auto& boss)

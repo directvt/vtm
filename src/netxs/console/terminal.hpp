@@ -3428,6 +3428,7 @@ namespace netxs::ui
             target = &normal;
             //cursor.style(commands::cursor::def_style); // default=blinking_box
             cursor.style(commands::cursor::blinking_underline);
+            cursor.show(); //todo revise (possible bug)
 
             form::keybd.accept(true); // Subscribe to keybd offers.
 

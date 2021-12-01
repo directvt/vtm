@@ -41,6 +41,7 @@ namespace netxs::console
     using namespace netxs::input;
     using drawfx = std::function<bool(face&, page const&)>;
     using registry_t = netxs::imap<text, std::list<sptr<base>>>;
+    using focus_test_t = std::pair<id_t, iota>;
     struct create_t
     {
         text menu_item_id;
@@ -359,10 +360,10 @@ namespace netxs::events::userland
 
                     SUBSET_XS( keybd )
                     {
-                        EVENT_XS( got     , input::hids     ), // release: got  keyboard focus.
-                        EVENT_XS( lost    , input::hids     ), // release: lost keyboard focus.
-                        EVENT_XS( handover, std::list<id_t> ), // request: Handover all available foci.
-                        EVENT_XS( find    , id_t            ), // request: Check the focus.
+                        EVENT_XS( got     , input::hids           ), // release: got  keyboard focus.
+                        EVENT_XS( lost    , input::hids           ), // release: lost keyboard focus.
+                        EVENT_XS( handover, std::list<id_t>       ), // request: Handover all available foci.
+                        EVENT_XS( find    , console::focus_test_t ), // request: Check the focus.
                     };
                 };
             };
@@ -3487,10 +3488,12 @@ namespace netxs::console
             focus(base& boss)
                 : skill{ boss }
             {
-                boss.broadcast->SUBMIT_T(tier::request, e2::form::state::keybd::find, memo, gear_id)
+                boss.broadcast->SUBMIT_T(tier::request, e2::form::state::keybd::find, memo, gear_test)
                 {
-                    gear_id = find(gear_id) ? gear_id
-                                            : decltype(gear_id){};
+                    if (find(gear_test.first))
+                    {
+                        gear_test.second++;
+                    }
                 };
                 boss.broadcast->SUBMIT_T(tier::request, e2::form::state::keybd::handover, memo, gear_id_list)
                 {
