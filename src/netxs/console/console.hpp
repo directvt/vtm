@@ -927,7 +927,7 @@ namespace netxs::console
                     //todo revise
                     //parent_shadow.reset();
                 }
-                parent_ptr->base::reflow();
+                if (parent_ptr) parent_ptr->base::reflow(); //todo too expensive
             };
 
             // Propagate form events down to the visual branch.
@@ -3987,7 +3987,7 @@ namespace netxs::console
             auto branch(text const& class_id, sptr<S> item)
             {
                 items.append(item);
-                item->base::root(true);
+                item->base::root(true); //todo move it to the window creator (main)
                 (*app_registry)[class_id].push_back(item);
                 item->SIGNAL(tier::release, e2::form::upon::vtree::attached, boss.base::This());
 
