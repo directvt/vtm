@@ -18,7 +18,7 @@ int main(int argc, char* argv[])
 
     if (argc > 1)
     {
-        auto error = utf::text{ "block explicit bash command invocation " };
+        auto error = utf::text{ "block explicit shell command invocation " };
         error += "{" + name +", " + host + "}";
         for (auto i = 1; i < argc; i++)
         {

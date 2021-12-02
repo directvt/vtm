@@ -230,6 +230,12 @@ namespace netxs::os
         return val ? text{ val }
                    : text{};
     }
+    static text get_shell()
+    {
+        auto shell = os::get_env("SHELL");
+        return shell.ends_with("vtm") ? "bash"
+                                      : shell;
+    }
     //system: Get list of envvars using wildcard.
     static auto get_envars(text&& var)
     {

@@ -28,7 +28,8 @@ namespace netxs::app::shared
     X(Shop         , "Shop"                  , ("Desktopio App Store")                                         , "" ) \
     X(Logs         , "Logs"                  , ("Logs \nDebug output console")                                 , "" ) \
     X(View         , "View"                  , (ansi::jet(bias::center).add("View \n Region 1"))               , "" ) \
-    X(Tile         , "Tiling Window Manager" , ("Tiling Window Manager")                                       , "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h()" ) \
+    X(Tile         , "Tile"                  , ("Tiling Window Manager")                                       , "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h()" ) \
+    X(RefreshRate  , "Settings"              , ("Settings: Frame Rate Limit")                                  , "" ) \
     X(PowerShell   , "pwsh PowerShell"       , ("Term \nPowerShell")                                           , "" ) \
     X(CommandPrompt, "cmd Command Prompt"    , ("Term \nCommand Prompt")                                       , "" ) \
     X(Bash         , "Bash/Zsh/CMD"          , ("Term \nBash/Zsh/CMD")                                         , "" ) \
@@ -36,7 +37,6 @@ namespace netxs::app::shared
     X(VTM          , "vtm (recursively)"     , ("Term \nvtm (recursively)")                                    , "" ) \
     X(MC           , "mc  Midnight Commander", ("Term \nMidnight Commander")                                   , "" ) \
     X(Truecolor    , "RGB Truecolor image"   , (ansi::jet(bias::right).add("True color ANSI/ASCII image test")), "" ) \
-    X(RefreshRate  , "FPS Refresh rate"      , ("Frame rate adjustment")                                       , "" ) \
     X(Strobe       , "Strobe"                , (ansi::jet(bias::center).add("Strobe"))                         , "" ) \
     X(Test         , "Test Window"           , (ansi::jet(bias::center).add("Test Page"))                      , "" ) \
     X(Empty        , "Empty Window"          , (ansi::mgl(1).mgr(1).add("Empty Instance \nid: "))              , "" )
@@ -248,7 +248,7 @@ namespace netxs::app::shared
         {
             auto window = ui::cake::ctor();
             window->plugin<pro::focus>()
-                  ->attach(ui::stem_rate<tier::general, decltype(e2::config::fps)>::ctor("Set frame rate", 1, 200, "fps"))
+                  ->attach(ui::stem_rate<tier::general, decltype(e2::config::fps)>::ctor("Set frame rate limit", 1, 200, "fps"))
                   ->colors(0xFFFFFFFF, bluedk)
                   ->invoke([&](auto& boss)
                   {
@@ -538,24 +538,13 @@ namespace netxs::app::shared
 
                         auto inst = scroll->attach(ui::term::ctor("wsl mc"));
 
-                    #elif defined(__linux__)
+                    #else
+                        auto shell = os::get_shell();
                         #ifndef PROD
-                            auto inst = scroll->attach(ui::term::ctor("bash -c 'LC_ALL=en_US.UTF-8 mc -c -x -d'"));
+                            auto inst = scroll->attach(ui::term::ctor(shell + " -c 'LC_ALL=en_US.UTF-8 mc -c -x -d'"));
                         #else
-                            auto inst = scroll->attach(ui::term::ctor("bash -c 'LC_ALL=en_US.UTF-8 mc -c -x'"));
+                            auto inst = scroll->attach(ui::term::ctor(shell + " -c 'LC_ALL=en_US.UTF-8 mc -c -x'"));
                         #endif
-                    #elif defined(__APPLE__)
-
-                        auto inst = scroll->attach(ui::term::ctor("zsh -c 'LC_ALL=en_US.UTF-8 mc -c -x'"));
-
-                    #elif defined(__FreeBSD__)
-
-                        auto inst = scroll->attach(ui::term::ctor("csh -c 'LC_ALL=en_US.UTF-8 mc -c -x'"));
-
-                    #elif defined(__unix__)
-
-                        auto inst = scroll->attach(ui::term::ctor("sh -c 'LC_ALL=en_US.UTF-8 mc -c -x'"));
-
                     #endif
 
                     inst->colors(whitelt, blackdk)
@@ -659,14 +648,9 @@ namespace netxs::app::shared
 
                     #if defined(_WIN32)
                         auto inst = scroll->attach(ui::term::ctor("cmd"));
-                    #elif defined(__linux__)
-                        auto inst = scroll->attach(ui::term::ctor("bash -i"));
-                    #elif defined(__APPLE__)
-                        auto inst = scroll->attach(ui::term::ctor("zsh"));
-                    #elif defined(__FreeBSD__)
-                        auto inst = scroll->attach(ui::term::ctor("csh"));
-                    #elif defined(__unix__)
-                        auto inst = scroll->attach(ui::term::ctor("sh"));
+                    #else
+                        auto shell = os::get_shell();
+                        auto inst = scroll->attach(ui::term::ctor(shell + " -i"));
                     #endif
 
                         inst->colors(whitelt, blackdk)
@@ -704,13 +688,11 @@ namespace netxs::app::shared
         auto& menu_list = *menu_list_ptr;
 
         #ifdef DEMO
+            auto shell = os::get_shell();
             #ifdef PROD
-                //app::shared::objs_config["Tiling Window Manager"].data = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h1:1(v1:1(\"bash -c 'LC_ALL=en_US.UTF-8 mc -c -x; bash'\", h1:1(\"bash -c 'ls /bin | nl | ccze -A; bash'\", a(\"RefreshRate\",\"\",\"\"))), a(\"Calc\",\"app title\",\"app data\"))";
-                //app::shared::objs_config["Tiling Window Manager"].data = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h1:1(v1:1(\"bash -c 'LC_ALL=en_US.UTF-8 mc -c -x; bash'\", h1:1(\"bash -c 'ls /bin | nl | ccze -A; bash'\", a(\"Text\",\"app title\",\"app data\"))), a(\"Calc\",\"app title\",\"app data\"))";
-                //app::shared::objs_config["Tiling Window Manager"].data = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h1:1:1(v1:1:2(\"bash -c 'LC_ALL=en_US.UTF-8 mc -c -x -d; cat'\", h1:1:0(\"bash -c 'ls /bin | nl | ccze -A; bash'\", a(\"RefreshRate\",\"\",\"\"))), a(\"Calc\",\"\",\"\"))";
-                app::shared::objs_config[objs_lookup["Tile"]].data = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h(v(\"bash -c 'LC_ALL=en_US.UTF-8 mc -c -x -d; cat'\", h(\"bash -c 'ls /bin | nl | ccze -A; bash'\", a(\"RefreshRate\",\"\",\"\"))), a(\"Calc\",\"\",\"\"))";
+                app::shared::objs_config[objs_lookup["Tile"]].data = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h(v(\"" + shell + " -c 'LC_ALL=en_US.UTF-8 mc -c -x -d; cat'\", h(\"" + shell + " -c 'ls /bin | nl | ccze -A; " + shell + "'\", a(\"RefreshRate\",\"\",\"\"))), a(\"Calc\",\"\",\"\"))";
             #else
-                app::shared::objs_config[objs_lookup["Tile"]].data = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h1:1(v1:1(\"bash -c 'LC_ALL=en_US.UTF-8 mc -c -x -d; cat'\", h1:1(\"bash -c 'ls /bin | nl | ccze -A; bash'\", a(\"RefreshRate\",\"\",\"\"))), a(\"Calc\",\"\",\"\"))";
+                app::shared::objs_config[objs_lookup["Tile"]].data = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h1:1(v1:1(\"" + shell + " -c 'LC_ALL=en_US.UTF-8 mc -c -x -d; cat'\", h1:1(\"" + shell + " -c 'ls /bin | nl | ccze -A; " + shell + "'\", a(\"RefreshRate\",\"\",\"\"))), a(\"Calc\",\"\",\"\"))";
             #endif
 
             for (auto& [menu_item_id, app_data] : app::shared::objs_config)
@@ -730,7 +712,6 @@ namespace netxs::app::shared
                 menu_list[objs_lookup["Logs"]];
                 menu_list[objs_lookup["View"]];
                 menu_list[objs_lookup["RefreshRate"]];
-                menu_list[objs_lookup["VTM"]];
             #endif
 
             // Add custom commands to the menu.

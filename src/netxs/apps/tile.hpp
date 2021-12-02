@@ -48,11 +48,11 @@ namespace netxs::app::tile
                 auto shadow = ptr::shadow(boss.This());
                 parent->broadcast->SUBMIT_T_BYVAL(tier::release, app::tile::events::ui::any, *parent_memo, gear)
                 {
-                    if (auto boss_ptr = shadow.lock())
-                    if (auto parent = boss_ptr->parent())
-                    if (auto deed = parent->broadcast->bell::template protos<tier::release>()) //todo "template" keyword is required by FreeBSD clang 11.0.1
+                    if (auto master = shadow.lock())
+                    if (auto parent = master->parent())
+                    if (auto action = parent->broadcast->bell::template protos<tier::release>()) //todo "template" keyword is required by FreeBSD clang 11.0.1
                     {
-                        boss_ptr->broadcast->bell::template signal<tier::release>(deed, gear);
+                        master->broadcast->bell::template signal<tier::release>(action, gear);
                     }
                 };
                 boss.SUBMIT_T_BYVAL(tier::release, e2::form::upon::vtree::detached, *parent_memo, parent)

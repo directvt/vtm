@@ -177,23 +177,12 @@ namespace netxs::app::term
 
                             #if defined(_WIN32)
 
-                                auto inst = scroll->attach(ui::term::ctor("bash -i"));
+                                auto inst = scroll->attach(ui::term::ctor("cmd"));
 
-                            #elif defined(__linux__)
+                            #else
 
-                                auto inst = scroll->attach(ui::term::ctor("bash -i"));
-
-                            #elif defined(__APPLE__)
-
-                                auto inst = scroll->attach(ui::term::ctor("zsh"));
-
-                            #elif defined(__FreeBSD__)
-
-                                auto inst = scroll->attach(ui::term::ctor("csh"));
-
-                            #elif defined(__unix__)
-
-                                auto inst = scroll->attach(ui::term::ctor("sh"));
+                                auto shell = os::get_shell();
+                                auto inst = scroll->attach(ui::term::ctor(shell + " -i"));
 
                             #endif
 
