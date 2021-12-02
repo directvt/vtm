@@ -40,6 +40,27 @@ namespace netxs::app::tile
 
     namespace
     {
+        auto bcast_onsplit = [](auto& boss)
+        {
+            boss.SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
+            {
+                auto parent_memo = std::make_shared<subs>();
+                auto shadow = ptr::shadow(boss.This());
+                parent->broadcast->SUBMIT_T_BYVAL(tier::release, app::tile::events::ui::any, *parent_memo, gear)
+                {
+                    if (auto boss_ptr = shadow.lock())
+                    if (auto parent = boss_ptr->parent())
+                    if (auto deed = parent->broadcast->bell::template protos<tier::release>()) //todo "template" keyword is required by FreeBSD clang 11.0.1
+                    {
+                        boss_ptr->broadcast->bell::template signal<tier::release>(deed, gear);
+                    }
+                };
+                boss.SUBMIT_T_BYVAL(tier::release, e2::form::upon::vtree::detached, *parent_memo, parent)
+                {
+                    parent_memo.reset();
+                };
+            };
+        };
         auto bcast_forward = [](auto& boss)
         {
             boss.SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
@@ -171,15 +192,18 @@ namespace netxs::app::tile
         {
             auto node = tag == 'h' ? ui::fork::ctor(axis::X, w == -1 ? 2 : w, s1, s2)
                                    : ui::fork::ctor(axis::Y, w == -1 ? 1 : w, s1, s2);
-            node->isroot(faux, 1) // Set object kind to 1 to be different from others.
+            node->isroot(true, 1) // Set object kind to 1 to be different from others. See empty_slot::select.
                 ->invoke([&](auto& boss)
                 {
                     mouse_actions(boss);
+                    bcast_onsplit(boss);
                     boss.SUBMIT(tier::release, app::tile::events::ui::swap    , gear) { boss.swap();       };
                     boss.SUBMIT(tier::release, app::tile::events::ui::rotate  , gear) { boss.rotate();     };
                     boss.SUBMIT(tier::release, app::tile::events::ui::equalize, gear) { boss.config(1, 1); };
                 });
-                auto grip = node->attach(slot::_I, ui::mock::ctor())
+                auto grip = node->attach(slot::_I,
+                                ui::mock::ctor()
+                                ->isroot(true)
                                 ->template plugin<pro::mover>()
                                 ->template plugin<pro::focus>()
                                 //->template plugin<pro::shade<cell::shaders::xlight>>() //todo apple clang doesn't get it
@@ -187,9 +211,10 @@ namespace netxs::app::tile
                                 ->invoke([&](auto& boss)
                                 {
                                     boss.keybd.accept(true);
-                                    //todo implement
+                                    bcast_forward(boss);
+                                    //todo implement keydb support
                                 })
-                                ->active();
+                                ->active());
             return node;
         };
         auto place_holder = []()
@@ -479,13 +504,17 @@ namespace netxs::app::tile
                         auto& item =*boss.back();
                         if (item.base::root())
                         {
-                            //todo unify
-                            gear.force_group_focus = true;
-                            gear.kb_focus_taken = faux;
-                            gear.combine_focus = true;
-                            item.SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
-                            gear.combine_focus = faux;
-                            gear.force_group_focus = faux;
+                            if (item.base::kind() != 1)
+                            {
+                                //todo unify
+                                gear.force_group_focus = true;
+                                gear.kb_focus_taken = faux;
+                                gear.combine_focus = true;
+                                item.SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
+                                gear.combine_focus = faux;
+                                gear.force_group_focus = faux;
+                            }
+                            else item.SIGNAL(tier::release, hids::events::upevent::kbannul, gear); // Exclude grips.
                         }
                     };
                 })
