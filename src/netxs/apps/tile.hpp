@@ -45,14 +45,14 @@ namespace netxs::app::tile
             boss.SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
             {
                 auto parent_memo = std::make_shared<subs>();
-                parent->broadcast->SUBMIT_T(tier::preview, app::tile::events::ui::any, *parent_memo, gear)
+                parent->broadcast->SUBMIT_T(tier::release, app::tile::events::ui::any, *parent_memo, gear)
                 {
                     auto gear_test = decltype(e2::form::state::keybd::find)::type{ gear.id, 0 };
                     boss.broadcast->SIGNAL(tier::request, e2::form::state::keybd::find, gear_test);
                     if (gear_test.second)
                     {
                         if (auto parent = boss.parent())
-                        if (auto deed = parent->broadcast->bell::template protos<tier::preview>()) //todo "template" keyword is required by FreeBSD clang 11.0.1
+                        if (auto deed = parent->broadcast->bell::template protos<tier::release>()) //todo "template" keyword is required by FreeBSD clang 11.0.1
                         {
                             switch (deed)
                             {
@@ -75,7 +75,7 @@ namespace netxs::app::tile
                                         boss.SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
 
                                         boss.template riseup<tier::release>(e2::form::maximize, gear);
-                                        //todo parent_memo is resetted here (pop_back), undefined behavior from here
+                                        //todo parent_memo is reset by the empty slot here (pop_back), undefined behavior from here
                                     }
                                     break;
                                 case app::tile::events::ui::swap.id:
@@ -474,7 +474,7 @@ namespace netxs::app::tile
                             }
                         }
                     };
-                    boss.broadcast->SUBMIT_T(tier::preview, app::tile::events::ui::select, boss.tracker, gear)
+                    boss.broadcast->SUBMIT_T(tier::release, app::tile::events::ui::select, boss.tracker, gear)
                     {
                         auto& item =*boss.back();
                         if (item.base::root())
@@ -646,6 +646,7 @@ namespace netxs::app::tile
                         log(" attached title=", window_title);
                         parent->base::riseup<tier::preview>(e2::form::prop::header, title);
                     };
+
                 });
 
             object->attach(slot::_1, app::shared::custom_menu(true,
@@ -761,6 +762,31 @@ namespace netxs::app::tile
                     {
                         auto item = boss.pop_back();
                         if (item) fullscreen_item = item;
+                    };
+                    boss.broadcast->SUBMIT_T(tier::preview, app::tile::events::ui::any, boss.tracker, gear)
+                    {
+                        if (auto deed = boss.broadcast->bell::template protos<tier::preview>()) //todo "template" keyword is required by FreeBSD clang 11.0.1
+                        {
+                            if (boss.count() > 2 && deed != app::tile::events::ui::toggle.id) // Restore the window before any action if maximized.
+                            {
+                                auto gear_state = gear.state();
+                                auto& item =*boss.back();
+                                if (item.base::root()) // Pass focus to the maximized window.
+                                {
+                                    //todo unify
+                                    gear.force_group_focus = true;
+                                    gear.kb_focus_taken = faux;
+                                    gear.combine_focus = true;
+                                    item.SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
+                                    gear.combine_focus = faux;
+                                    gear.force_group_focus = faux;
+                                }
+                                gear.countdown = 1;
+                                boss.base::broadcast->SIGNAL(tier::release, app::tile::events::ui::toggle, gear);
+                                gear.state(gear_state);
+                            }
+                            boss.broadcast->bell::template signal<tier::release>(deed, gear);
+                        }
                     };
                 });
             return object;
