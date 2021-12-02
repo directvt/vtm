@@ -110,7 +110,7 @@ namespace netxs::app::logs
                 if (show_codepoints)
                 {
                     yield.wrp(wrap::off).add("STDOUT: codepoints").eol();
-                    auto f = [&](unsigned cp, view utf8, iota wide)
+                    auto f = [&](auto cp, view utf8, iota wide)
                     {
                         yield.fgc(ansi::blackdk);
                         if (wide)
@@ -126,16 +126,14 @@ namespace netxs::app::logs
                             .fgc().bgc();
                         if (++w == max_col) { w = 0; yield.eol(); }
                     };
-                    auto s = [&](utf::prop const& traits, view const& utf8)
+                    auto iter = utf::cpit(shadow);
+                    while (iter)
                     {
-                        f(traits.control, "", 0);
-                        return utf8;
-                    };
-                    auto y = [&](utf::frag const& cluster)
-                    {
-                        f(cluster.attr.cdpoint, cluster.text, cluster.attr.ucwidth);
-                    };
-                    utf::decode<faux>(s, y, shadow);
+                        auto cp = iter.take();
+                        if (cp.correct) f(cp.cdpoint, view(iter.textptr, cp.utf8len)      , cp.ucwidth);
+                        else            f(cp.cdpoint, utf::REPLACEMENT_CHARACTER_UTF8_VIEW, 1         );
+                        iter.step();
+                    }
                     yield.wrp(deco::defwrp).eol();
                 }
                 yield.eol();

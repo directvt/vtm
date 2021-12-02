@@ -131,8 +131,8 @@ WCWIDTHS = {'zerowidth' : ['zero', 'non-printable' ],
             'fullwidth' : ['wide', 'fullwidth'     ]}
 
 # classification: https://www.unicode.org/emoji/charts/emoji-variants.html
-CUSTOMIZE = [ ( 0xFE0E, WCWIDTHS['fullwidth'][0], 'Nonspacing_Mark' ) , # VS15 Emoji presentation
-              ( 0xFE0F, WCWIDTHS['fullwidth'][0], 'Nonspacing_Mark' ) ] # VS16 Text  presentation
+CUSTOMIZE = [ ( 0xFE0E, WCWIDTHS['zerowidth'][0], 'Nonspacing_Mark' ) , # VS15 Emoji presentation
+              ( 0xFE0F, WCWIDTHS['zerowidth'][0], 'Nonspacing_Mark' ) ] # VS16 Text  presentation
 
 #             ( codepoint, wcwidth, category, breakclass )
 #CUSTOMIZE = [ ( 0x0000, WCWIDTHS['halfwidth'], 'Unassigned',     'Other'     ) , # transparency (the termxs project)
@@ -341,7 +341,7 @@ HEADER_BASE = r'''
     #define faux (false)
 #endif
 
-namespace utils::{module}
+namespace netxs::{module}
 {{
     namespace {wclass}
     {{
