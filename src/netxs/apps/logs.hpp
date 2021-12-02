@@ -134,7 +134,7 @@ namespace netxs::app::logs
                         else            f(cp.cdpoint, utf::REPLACEMENT_CHARACTER_UTF8_VIEW, 1         );
                         iter.step();
                     }
-                    yield.wrp(deco::defwrp).eol();
+                    yield.eol().wrp(deco::defwrp);
                 }
                 yield.eol();
                 return page{ yield };

@@ -9,14 +9,15 @@
 // Enable keyboard input and unassign Esc key.
 #define PROD
 
-// Tiling nesting max level.
+// Tiling limits.
 #ifndef PROD
     #define INHERITANCE_LIMIT 12
-    #define APPS_MAX_COUNT 20
-    #define APPS_DEL_TIMEOUT 1s
+    #define APPS_MAX_COUNT    20
+    #define TILE_MAX_COUNT    2
 #else
     #define INHERITANCE_LIMIT 30
 #endif
+#define APPS_DEL_TIMEOUT  1s
 
 // Enable to show debug overlay.
 //#define DEBUG_OVERLAY

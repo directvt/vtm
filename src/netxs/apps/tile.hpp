@@ -193,6 +193,7 @@ namespace netxs::app::tile
             auto node = tag == 'h' ? ui::fork::ctor(axis::X, w == -1 ? 2 : w, s1, s2)
                                    : ui::fork::ctor(axis::Y, w == -1 ? 1 : w, s1, s2);
             node->isroot(true, 1) // Set object kind to 1 to be different from others. See empty_slot::select.
+                ->template plugin<pro::limit>(dot_00)
                 ->invoke([&](auto& boss)
                 {
                     mouse_actions(boss);
@@ -316,6 +317,15 @@ namespace netxs::app::tile
                                 //todo revise
                                 if (boss.back()->base::kind() == 0) // Preventing the splitter from maximizing.
                                 {
+                                    //todo unify
+                                    // Pass the focus to the maximized window.
+                                    gear.force_group_focus = faux;
+                                    gear.kb_focus_taken = faux;
+                                    gear.combine_focus = true;
+                                    boss.back()->SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
+                                    gear.combine_focus = faux;
+                                    gear.force_group_focus = faux;
+
                                     auto fullscreen_item = boss.pop_back();
                                     if (fullscreen_item)
                                     {
@@ -625,12 +635,10 @@ namespace netxs::app::tile
                 }
             }
 
-            auto object = ui::fork::ctor(axis::Y)
-                //->plugin<pro::focus>()
-                ;
+            auto object = ui::fork::ctor(axis::Y);
 
             #ifndef PROD
-                if (app::shared::tile_count < APPS_MAX_COUNT)
+                if (app::shared::tile_count < TILE_MAX_COUNT)
                 {
                     auto c = &app::shared::tile_count; (*c)++;
                     object->SUBMIT_BYVAL(tier::release, e2::dtor, item_id)
@@ -641,14 +649,15 @@ namespace netxs::app::tile
                 }
                 else
                 {
-                    return create_app(create_app, app::shared::objs::Empty, "Reached the limit");
+                    auto& creator = app::shared::creator("Empty");
+                    object->attach(slot::_1, creator(""));
+                    app::shared::app_limit(object, "Reached The Limit");
+                    return object;
                 }
             #endif
 
             object->invoke([&](auto& boss)
                 {
-                    //boss.keybd.accept(true);
-
                     auto oneoff = std::make_shared<hook>();
                     auto objs_config_ptr = &app::shared::objs_config;
                     boss.broadcast->SUBMIT_T_BYVAL(tier::release, e2::form::upon::created, *oneoff, gear)
@@ -675,7 +684,6 @@ namespace netxs::app::tile
                         log(" attached title=", window_title);
                         parent->base::riseup<tier::preview>(e2::form::prop::header, title);
                     };
-
                 });
 
             object->attach(slot::_1, app::shared::custom_menu(true,

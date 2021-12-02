@@ -89,6 +89,27 @@ namespace netxs::app::shared
     const static auto x0 = cell{ c3 }.bgc(0xFF000000); //todo make it as desktop bg
     const static auto term_menu_bg = rgba{ 0x80404040 };
 
+    const auto app_limit = [](auto boss, text title)
+    {
+        log("app_limit: max count reached");
+        auto timeout = tempus::now() + APPS_DEL_TIMEOUT;
+        auto shadow = ptr::shadow(boss);
+        boss->SUBMIT_BYVAL(tier::general, e2::tick, timestamp)
+        {
+            if (timestamp > timeout)
+            {
+                if (auto boss = shadow.lock())
+                {
+                    log("app_limit: detached");
+                    boss->base::template riseup<tier::release>(e2::form::quit, boss);
+                }
+            }
+        };
+        boss->SUBMIT_BYVAL(tier::release, e2::form::upon::vtree::attached, parent)
+        {
+            parent->base::riseup<tier::preview>(e2::form::prop::header, title);
+        };
+    };
     const auto scroll_bars = [](auto master)
     {
         auto scroll_bars = ui::fork::ctor();
@@ -734,6 +755,7 @@ namespace netxs::app::shared
                         m.name = name;
                         m.title = name; // Use the same title as the menu label.
                         m.data = text{ p };
+                        menu_list[name];
                     }
                 }
             }
