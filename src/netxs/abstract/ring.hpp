@@ -42,8 +42,8 @@ namespace netxs::generics
             { }
             auto  operator -  (iota n)        const {      return iter<RING>{ buff, buff.mod(addr - n) };                 }
             auto  operator +  (iota n)        const {      return iter<RING>{ buff, buff.mod(addr + n) };                 }
-            auto  operator ++ (iota)                { auto temp = iter<RING>{ buff, addr }; buff.inc(addr); return temp;  }
-            auto  operator -- (iota)                { auto temp = iter<RING>{ buff, addr }; buff.dec(addr); return temp;  }
+            auto  operator ++ (int)                 { auto temp = iter<RING>{ buff, addr }; buff.inc(addr); return temp;  }
+            auto  operator -- (int)                 { auto temp = iter<RING>{ buff, addr }; buff.dec(addr); return temp;  }
             auto& operator ++ ()                    {                                       buff.inc(addr); return *this; }
             auto& operator -- ()                    {                                       buff.dec(addr); return *this; }
             auto& operator *  ()                    { return buff.buff[addr];                                             }
