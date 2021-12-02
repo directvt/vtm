@@ -22,7 +22,7 @@ namespace netxs::app
 namespace netxs::app::shared
 {
     #define TYPE_LIST                                                                                                 \
-    X(Term         , "Term"                  , ("Term \nBash/Zsh/CMD")                                         , "" ) \
+    X(Term         , "Term"                  , ("Term")                                                        , "" ) \
     X(Text         , "Text"                  , (ansi::jet(bias::center).add("Text Editor\n ~/Untitled 1.txt")) , "" ) \
     X(Calc         , "Calc"                  , (ansi::jet(bias::right).add("Spreadsheet\n ~/Untitled 1.ods"))  , "" ) \
     X(Shop         , "Shop"                  , ("Desktopio App Store")                                         , "" ) \

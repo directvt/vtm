@@ -59,7 +59,7 @@ namespace netxs
         struct iter
         {
             using it_t = decltype(IMAP{}.forward.begin());
-            using iota = std::iterator_traits<it_t>::difference_type;
+            using iota = typename std::iterator_traits<it_t>::difference_type; //todo "typename" keyword is required by FreeBSD clang 11.0.1
 
             IMAP& buff;
             it_t  addr;

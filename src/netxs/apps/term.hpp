@@ -171,9 +171,7 @@ namespace netxs::app::term
                                                 ->plugin<pro::limit>(dot_11, twod{ 400,200 });
                         auto scroll = layers->attach(ui::rail::ctor());
                         {
-                            #ifdef DEMO
-                                scroll->plugin<pro::limit>(twod{ 20,1 }); // mc crashes when window is too small
-                            #endif
+                            scroll->plugin<pro::limit>(twod{ 10,1 }); // mc crashes when window is too small
 
                             #if defined(_WIN32)
 
