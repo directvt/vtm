@@ -188,33 +188,36 @@ namespace netxs::app::logs
                 clear();
                 gear.dismiss();
             };
-            broadcast->SUBMIT(tier::request, e2::command::custom, status)
+            SUBMIT_AND_RUN(tier::release, e2::config::broadcast::reinit, bcast, broadcast)
             {
-                switch (status)
+                bcast->SUBMIT_T(tier::request, e2::command::custom, bcastsubs, status)
                 {
-                    case 1:
-                        status = worker->show_codepoints ? 1 : 2;
-                        break;
-                    default:
-                        break;
-                }
-            };
-            broadcast->SUBMIT(tier::preview, e2::command::custom, cmd_id)
-            {
-                switch (cmd_id)
+                    switch (status)
+                    {
+                        case 1:
+                            status = worker->show_codepoints ? 1 : 2;
+                            break;
+                        default:
+                            break;
+                    }
+                };
+                bcast->SUBMIT_T(tier::preview, e2::command::custom, bcastsubs, cmd_id)
                 {
-                    case 0:
-                        clear();
-                        break;
-                    case 1:
-                    case 2:
-                        itsme = true;
-                        worker->enable_codepoints(cmd_id == 1 ? true : faux);
-                        itsme = faux;
-                        break;
-                    default:
-                        break;
-                }
+                    switch (cmd_id)
+                    {
+                        case 0:
+                            clear();
+                            break;
+                        case 1:
+                        case 2:
+                            itsme = true;
+                            worker->enable_codepoints(cmd_id == 1 ? true : faux);
+                            itsme = faux;
+                            break;
+                        default:
+                            break;
+                    }
+                };
             };
             broadcast->SIGNAL(tier::release, e2::command::custom, worker->show_codepoints ? 1 : 2);
             SUBMIT(tier::preview, e2::size::set, newsize)
@@ -267,10 +270,13 @@ namespace netxs::app::logs
                                     boss.base::broadcast->SIGNAL(tier::preview, e2::command::custom, status == 2 ? 1/*show*/ : 2/*hide*/);
                                     gear.dismiss(true);
                                 };
-                                boss.base::broadcast->SUBMIT(tier::release, e2::command::custom, status)
+                                boss.SUBMIT_AND_RUN(tier::release, e2::config::broadcast::reinit, bcast, boss.broadcast)
                                 {
-                                    //todo unify, get boss base colors, don't use x3
-                                    boss.color(status == 1 ? 0xFF00ff00 : x3.fgc(), x3.bgc());
+                                    bcast->SUBMIT_T(tier::release, e2::command::custom, boss.bcastsubs, status)
+                                    {
+                                        //todo unify, get boss base colors, don't use x3
+                                        boss.color(status == 1 ? 0xFF00ff00 : x3.fgc(), x3.bgc());
+                                    };
                                 };
                             }},
                             std::pair<text, std::function<void(ui::pads&)>>{ "Clear",

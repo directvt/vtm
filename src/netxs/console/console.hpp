@@ -109,10 +109,10 @@ namespace netxs::events::userland
             SUBSET_XS( config )
             {
                 EVENT_XS( whereami , sptr<console::base> ), // request: pointer to world object.
-                EVENT_XS( broadcast, sptr<bell>          ), // release: broadcast source changed.
                 EVENT_XS( fps      , iota                ), // request to set new fps, arg: new fps (iota); the value == -1 is used to request current fps.
                 GROUP_XS( caret    , period              ), // any kind of intervals property.
                 GROUP_XS( plugins  , iota                ),
+                GROUP_XS( broadcast, sptr<bell>          ), // release: broadcast source changed.
 
                 SUBSET_XS( caret )
                 {
@@ -129,6 +129,11 @@ namespace netxs::events::userland
                         EVENT_XS( inner, dent ), // release: set inner size; request: request unner size.
                         EVENT_XS( outer, dent ), // release: set outer size; request: request outer size.
                     };
+                };
+                SUBSET_XS( broadcast )
+                {
+                    EVENT_XS( attached, sptr<bell> ), // release: broadcast source changed when attached.
+                    EVENT_XS( reinit  , sptr<bell> ), // release: broadcast source changed when detached.
                 };
             };
             SUBSET_XS( conio )
@@ -857,6 +862,7 @@ namespace netxs::console
         iota object_kind = {};
 
     public:
+        subs       bcastsubs;
         sptr<bell> broadcast = std::make_shared<bell>(); // base: Broadcast bus.
                                                          //        On attach the broadcast is merged with parent (bell::merge).
                                                          //        On detach the broadcast is duplicated from parent (bell::reset).
@@ -870,7 +876,7 @@ namespace netxs::console
             if (parent_bus != broadcast) // Reattaching is allowed within the same visual tree.
             {
                 parent_bus->merge(broadcast);
-                broadcast->SIGNAL(tier::release, e2::config::broadcast, parent_bus);
+                broadcast->SIGNAL(tier::release, e2::config::broadcast::attached, parent_bus);
             }
         }
 
@@ -884,9 +890,13 @@ namespace netxs::console
             SUBMIT(tier::release, e2::size::set, new_size) { square.size = new_size; };
             SUBMIT(tier::request, e2::size::set, size_var) { size_var = square.size; };
 
-            broadcast->SUBMIT_T(tier::release, e2::config::broadcast, bell::tracker, new_broadcast)
+            //SUBMIT_T(tier::release, e2::config::broadcast::reinit, bell::tracker, old_broadcast)
+            SUBMIT_AND_RUN(tier::release, e2::config::broadcast::reinit, bcast, this->broadcast)
             {
-                broadcast = new_broadcast;
+                bcast->SUBMIT_T(tier::release, e2::config::broadcast::attached, bcastsubs, new_broadcast)
+                {
+                    broadcast = new_broadcast;
+                };
             };
            /*
             * Only visual_root can be reattached multiple times!
@@ -897,6 +907,10 @@ namespace netxs::console
                 {
                     auto bcast_backup = broadcast;
                     base::switch_to_bus(parent_ptr->base::broadcast);
+                    parent_ptr->SUBMIT_T(tier::release, e2::config::broadcast::reinit, bcastsubs, broadcast)
+                    {
+                        this->SIGNAL(tier::release, e2::config::broadcast::reinit, broadcast);
+                    };
                 }
                 parent_shadow = parent_ptr;
                 // Propagate form events up to the visual branch.
@@ -926,6 +940,12 @@ namespace netxs::console
                     kb_token.reset();
                     //todo revise
                     //parent_shadow.reset();
+                    if (!visual_root)
+                    {
+                        bcastsubs.clear();
+                        broadcast = std::make_shared<bell>();
+                        this->SIGNAL(tier::release, e2::config::broadcast::reinit, broadcast);
+                    }
                 }
                 if (parent_ptr) parent_ptr->base::reflow(); //todo too expensive
             };
@@ -3488,31 +3508,35 @@ namespace netxs::console
             focus(base& boss)
                 : skill{ boss }
             {
-                boss.broadcast->SUBMIT_T(tier::request, e2::form::state::keybd::find, memo, gear_test)
+                boss.SUBMIT_AND_RUN(tier::release, e2::config::broadcast::reinit, bcast, boss.broadcast)
                 {
-                    if (find(gear_test.first))
+                    //todo how to reset boss.bcastsubs on ui::form::unplug?
+                    bcast->SUBMIT_T(tier::request, e2::form::state::keybd::find, boss.bcastsubs, gear_test)
                     {
-                        gear_test.second++;
-                    }
-                };
-                boss.broadcast->SUBMIT_T(tier::request, e2::form::state::keybd::handover, memo, gear_id_list)
-                {
-                    if (pool.size())
-                    {
-                        auto This = boss.This();
-                        auto head = gear_id_list.end();
-                        gear_id_list.insert(head, pool.begin(), pool.end());
-                        auto tail = gear_id_list.end();
-                        while (head != tail)
+                        if (find(gear_test.first))
                         {
-                            auto gear_id = *head++;
-                            if (auto gate_ptr = bell::getref(gear_id))
-                            {
-                                gate_ptr->SIGNAL(tier::preview, e2::form::proceed::unfocus, This);
-                            }
+                            gear_test.second++;
                         }
-                        boss.base::deface();
-                    }
+                    };
+                    bcast->SUBMIT_T(tier::request, e2::form::state::keybd::handover, boss.bcastsubs, gear_id_list)
+                    {
+                        if (pool.size())
+                        {
+                            auto This = boss.This();
+                            auto head = gear_id_list.end();
+                            gear_id_list.insert(head, pool.begin(), pool.end());
+                            auto tail = gear_id_list.end();
+                            while (head != tail)
+                            {
+                                auto gear_id = *head++;
+                                if (auto gate_ptr = bell::getref(gear_id))
+                                {
+                                    gate_ptr->SIGNAL(tier::preview, e2::form::proceed::unfocus, This);
+                                }
+                            }
+                            boss.base::deface();
+                        }
+                    };
                 };
                 boss.SUBMIT_T(tier::release, e2::form::state::keybd::got, memo, gear)
                 {

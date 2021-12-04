@@ -340,9 +340,12 @@ namespace netxs::app::desk
                     auto taskbar_viewport = window->attach(ui::fork::ctor(axis::X))
                                             ->invoke([](auto& boss)
                                             {
-                                                boss.broadcast->SUBMIT(tier::request, e2::form::prop::viewport, viewport)
+                                                boss.SUBMIT_AND_RUN(tier::release, e2::config::broadcast::reinit, bcast, boss.broadcast)
                                                 {
-                                                    viewport = boss.base::area();
+                                                    bcast->SUBMIT_T(tier::request, e2::form::prop::viewport, boss.bcastsubs, viewport)
+                                                    {
+                                                        viewport = boss.base::area();
+                                                    };
                                                 };
                                             });
                     auto taskbar = taskbar_viewport->attach(slot::_1, ui::fork::ctor(axis::Y))
@@ -394,11 +397,15 @@ namespace netxs::app::desk
                                                     else timer.actify(faux, MENU_TIMEOUT, apply);
                                                 }
                                             };
-                                            boss.broadcast->SUBMIT_T_BYVAL(tier::request, e2::form::prop::viewport, boss.tracker, viewport)
+                                            auto& size_inst = *size_config; // Its lifetime eq boss livetime (sptr is captured by boss.SUBMIT_BYVAL).
+                                            boss.SUBMIT_AND_RUN(tier::release, e2::config::broadcast::reinit, bcast, boss.broadcast)
                                             {
-                                                auto& [uibar_full_size, uibar_min_size] = *size_config;
-                                                viewport.coor.x += uibar_min_size;
-                                                viewport.size.x -= uibar_min_size;
+                                                bcast->SUBMIT_T(tier::request, e2::form::prop::viewport, boss.bcastsubs, viewport)
+                                                {
+                                                    auto& [uibar_full_size, uibar_min_size] = size_inst;
+                                                    viewport.coor.x += uibar_min_size;
+                                                    viewport.size.x -= uibar_min_size;
+                                                };
                                             };
                                         });
                         auto apps_users = taskbar->attach(slot::_1, ui::fork::ctor(axis::Y, 0, 100));

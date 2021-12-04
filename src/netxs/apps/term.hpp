@@ -102,10 +102,13 @@ namespace netxs::app::term
                     boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, ui::term::commands::ui::left);
                     gear.dismiss(true);
                 };
-                boss.base::broadcast->SUBMIT(tier::release, app::term::events::layout::align, align)
+                boss.SUBMIT_AND_RUN(tier::release, e2::config::broadcast::reinit, bcast, boss.broadcast)
                 {
-                    //todo unify, get boss base colors, don't use x3
-                    boss.color(align == bias::left ? 0xFF00ff00 : x3.fgc(), x3.bgc());
+                    bcast->SUBMIT_T(tier::release, app::term::events::layout::align, boss.bcastsubs, align)
+                    {
+                        //todo unify, get boss base colors, don't use x3
+                        boss.color(align == bias::left ? 0xFF00ff00 : x3.fgc(), x3.bgc());
+                    };
                 };
             }},
             std::pair<text, std::function<void(ui::pads&)>>{ "─=─",
@@ -116,10 +119,13 @@ namespace netxs::app::term
                     boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, ui::term::commands::ui::center);
                     gear.dismiss(true);
                 };
-                boss.base::broadcast->SUBMIT(tier::release, app::term::events::layout::align, align)
+                boss.SUBMIT_AND_RUN(tier::release, e2::config::broadcast::reinit, bcast, boss.broadcast)
                 {
-                    //todo unify, get boss base colors, don't use x3
-                    boss.color(align == bias::center ? 0xFF00ff00 : x3.fgc(), x3.bgc());
+                    bcast->SUBMIT_T(tier::release, app::term::events::layout::align, boss.bcastsubs, align)
+                    {
+                        //todo unify, get boss base colors, don't use x3
+                        boss.color(align == bias::center ? 0xFF00ff00 : x3.fgc(), x3.bgc());
+                    };
                 };
             }},
             std::pair<text, std::function<void(ui::pads&)>>{ "─=",
@@ -130,10 +136,13 @@ namespace netxs::app::term
                     boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, ui::term::commands::ui::right);
                     gear.dismiss(true);
                 };
-                boss.base::broadcast->SUBMIT(tier::release, app::term::events::layout::align, align)
+                boss.SUBMIT_AND_RUN(tier::release, e2::config::broadcast::reinit, bcast, boss.broadcast)
                 {
-                    //todo unify, get boss base colors, don't use x3
-                    boss.color(align == bias::right ? 0xFF00ff00 : x3.fgc(), x3.bgc());
+                    bcast->SUBMIT_T(tier::release, app::term::events::layout::align, boss.bcastsubs, align)
+                    {
+                        //todo unify, get boss base colors, don't use x3
+                        boss.color(align == bias::right ? 0xFF00ff00 : x3.fgc(), x3.bgc());
+                    };
                 };
             }},
             std::pair<text, std::function<void(ui::pads&)>>{ "Wrap",
@@ -144,10 +153,13 @@ namespace netxs::app::term
                     boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, ui::term::commands::ui::togglewrp);
                     gear.dismiss(true);
                 };
-                boss.base::broadcast->SUBMIT(tier::release, app::term::events::layout::wrapln, wrapln)
+                boss.SUBMIT_AND_RUN(tier::release, e2::config::broadcast::reinit, bcast, boss.broadcast)
                 {
-                    //todo unify, get boss base colors, don't use x3
-                    boss.color(wrapln == wrap::on ? 0xFF00ff00 : x3.fgc(), x3.bgc());
+                    bcast->SUBMIT_T(tier::release, app::term::events::layout::wrapln, boss.bcastsubs, wrapln)
+                    {
+                        //todo unify, get boss base colors, don't use x3
+                        boss.color(wrapln == wrap::on ? 0xFF00ff00 : x3.fgc(), x3.bgc());
+                    };
                 };
             }},
         };
@@ -195,21 +207,24 @@ namespace netxs::app::term
                                     {
                                         boss.base::broadcast->SIGNAL(tier::release, app::term::events::layout::align, status);
                                     };
-                                    boss.base::broadcast->SUBMIT_T(tier::preview, app::term::events::cmd, boss.bell::tracker, cmd)
+                                    boss.SUBMIT_AND_RUN(tier::release, e2::config::broadcast::reinit, bcast, boss.broadcast)
                                     {
-                                        boss.exec_cmd(static_cast<ui::term::commands::ui::commands>(cmd));
-                                    };
-                                    boss.base::broadcast->SUBMIT_T(tier::preview, app::term::events::data::in, boss.bell::tracker, data)
-                                    {
-                                        boss.data_in(data);
-                                    };
-                                    boss.base::broadcast->SUBMIT_T(tier::preview, app::term::events::data::out, boss.bell::tracker, data)
-                                    {
-                                        boss.data_out(data);
-                                    };
-                                    boss.base::broadcast->SUBMIT_T(tier::release, e2::form::upon::started, boss.bell::tracker, root)
-                                    {
-                                        boss.start();
+                                        bcast->SUBMIT_T(tier::preview, app::term::events::cmd, boss.bcastsubs, cmd)
+                                        {
+                                            boss.exec_cmd(static_cast<ui::term::commands::ui::commands>(cmd));
+                                        };
+                                        bcast->SUBMIT_T(tier::preview, app::term::events::data::in, boss.bcastsubs, data)
+                                        {
+                                            boss.data_in(data);
+                                        };
+                                        bcast->SUBMIT_T(tier::preview, app::term::events::data::out, boss.bcastsubs, data)
+                                        {
+                                            boss.data_out(data);
+                                        };
+                                        bcast->SUBMIT_T(tier::release, e2::form::upon::started, boss.bcastsubs, root)
+                                        {
+                                            boss.start();
+                                        };
                                     };
                                 });
                         }

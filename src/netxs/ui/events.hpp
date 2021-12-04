@@ -316,6 +316,8 @@ namespace netxs::events
     #define SIGNAL_GLOBAL(        event,        param) bell::template signal_global(decltype( event )::id, static_cast<typename decltype( event )::type &&>(param))
     #define SUBMIT_GLOBAL(        event, token, param) bell::template submit_global<decltype( event )>( token ) = [&] (typename decltype( event )::type &&  param)
 
+    #define SUBMIT_AND_RUN(level, event, param, arg) bell::template submit2<level,decltype( event )>( arg ) = [&] (typename decltype( event )::type &&  param)
+
     #define EVENTPACK( name, base ) using _group_type = name; \
                                     static constexpr auto _counter_base = __COUNTER__; \
                                     public: static constexpr auto any = type_clue<_group_type, decltype(base)::type, decltype(base)::id>
@@ -359,6 +361,15 @@ namespace netxs::events
         fwd_reactor  release;
 
         template<tier TIER, class EVENT>
+        struct submit_helper2
+        {
+            using type = typename EVENT::type;
+            bell& owner;
+            type& p;
+            submit_helper2(bell& owner, type& p) : owner{ owner }, p{p} { }
+            template<class F> void operator=(F h) { owner.submit<TIER, EVENT>(h); h(static_cast<type&&>(p));  }
+        };
+        template<tier TIER, class EVENT>
         struct submit_helper
         {
             bell& owner;
@@ -390,6 +401,8 @@ namespace netxs::events
             request.merge(s.request);
             release.merge(s.release);
         }
+        template<tier TIER, class EVENT> auto submit2(typename EVENT::type & p) { return submit_helper2<TIER, EVENT>(*this, p);                 }
+
         template<tier TIER, class EVENT> auto submit()             { return submit_helper      <TIER, EVENT>(*this);                 }
         template<tier TIER, class EVENT> auto submit(hook& token)  { return submit_helper_token<TIER, EVENT>(*this, token);          }
         template<tier TIER, class EVENT> auto submit(subs& tokens) { return submit_helper_token<TIER, EVENT>(*this, tokens.extra()); }
