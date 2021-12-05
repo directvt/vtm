@@ -317,6 +317,7 @@ namespace netxs::events
     #define SIGNAL_GLOBAL(        event,        param) bell::template signal_global(decltype( event )::id, static_cast<typename decltype( event )::type &&>(param))
     #define SUBMIT_GLOBAL(        event, token, param) bell::template submit_global<decltype( event )>( token ) = [&] (typename decltype( event )::type &&  param)
 
+    //todo deprecated?
     #define SUBMIT_AND_RUN_T(level, event, token, param, arg) bell::template submit2<level,decltype( event )>( arg, token ) = [&] (typename decltype( event )::type && param)
     #define SUBMIT_AND_RUN(  level, event,        param, arg) bell::template submit2<level,decltype( event )>( arg        ) = [&] (typename decltype( event )::type && param)
 
@@ -369,7 +370,7 @@ namespace netxs::events
         rev_reactor  preview;
         rev_reactor  anycast;
 
-        //todo deprecated
+        //todo deprecated?
         template<tier TIER, class EVENT>
         struct submit_helper2
         {
@@ -379,7 +380,7 @@ namespace netxs::events
             submit_helper2(bell& owner, type& p) : owner{ owner }, p{p} { }
             template<class F> void operator=(F h) { owner.submit<TIER, EVENT>(h); h(static_cast<type&&>(p));  }
         };
-        //todo deprecated
+        //todo deprecated?
         template<tier TIER, class EVENT>
         struct submit_helper2_token
         {
@@ -418,17 +419,7 @@ namespace netxs::events
         };
 
     public:
-        //todo deprecated
-        void merge(sptr<bell> source_ptr)
-        {
-            auto& s = *source_ptr;
-            tracker.merge(s.tracker); //todo deprecate tokens copying
-            preview.merge(s.preview);
-            request.merge(s.request);
-            release.merge(s.release);
-        }
-
-        //todo deprecated
+        //todo deprecated?
         template<tier TIER, class EVENT> auto submit2(typename EVENT::type & p)               { return submit_helper2      <TIER, EVENT>(*this, p);                 }
         template<tier TIER, class EVENT> auto submit2(typename EVENT::type & p, subs& tokens) { return submit_helper2_token<TIER, EVENT>(*this, p, tokens.extra()); }
 

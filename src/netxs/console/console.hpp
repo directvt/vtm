@@ -113,8 +113,6 @@ namespace netxs::events::userland
                 EVENT_XS( fps      , iota                ), // request to set new fps, arg: new fps (iota); the value == -1 is used to request current fps.
                 GROUP_XS( caret    , period              ), // any kind of intervals property.
                 GROUP_XS( plugins  , iota                ),
-                //todo deprecated
-                GROUP_XS( broadcast, sptr<bell>          ), // release: broadcast source changed.
 
                 SUBSET_XS( caret )
                 {
@@ -131,12 +129,6 @@ namespace netxs::events::userland
                         EVENT_XS( inner, dent ), // release: set inner size; request: request unner size.
                         EVENT_XS( outer, dent ), // release: set outer size; request: request outer size.
                     };
-                };
-                //todo deprecated
-                SUBSET_XS( broadcast )
-                {
-                    EVENT_XS( attached, sptr<bell> ), // release: broadcast source changed when attached.
-                    EVENT_XS( reinit  , sptr<bell> ), // release: broadcast source changed when detached.
                 };
             };
             SUBSET_XS( conio )
@@ -866,28 +858,10 @@ namespace netxs::console
         iota object_kind = {};
 
     public:
-        //todo deprecated
-        subs       bcastsubs;
-        //todo deprecated
-        sptr<bell> broadcast = std::make_shared<bell>(); // base: Broadcast bus.
-                                                         //        On attach the broadcast is merged with parent (bell::merge).
-                                                         //        On detach the broadcast is duplicated from parent (bell::reset).
         side oversz; // base: Oversize, margin.
         twod anchor; // base: Object balance point. Center point for any transform (on preview).
 
     protected:
-        bool is_attached() const { return kb_token.operator bool(); }
-
-        //todo deprecated
-        void switch_to_bus(sptr<bell> parent_bus)
-        {
-            if (parent_bus != broadcast) // Reattaching is allowed within the same visual tree.
-            {
-                parent_bus->merge(broadcast);
-                broadcast->SIGNAL(tier::release, e2::config::broadcast::attached, parent_bus);
-            }
-        }
-
         virtual ~base() = default;
         base()
         {
@@ -898,34 +872,19 @@ namespace netxs::console
             SUBMIT(tier::release, e2::size::set, new_size) { square.size = new_size; };
             SUBMIT(tier::request, e2::size::set, size_var) { size_var = square.size; };
 
-            //todo deprecated
-            //SUBMIT_T(tier::release, e2::config::broadcast::reinit, bell::tracker, old_broadcast)
-            SUBMIT_AND_RUN(tier::release, e2::config::broadcast::reinit, bcast, this->broadcast)
+            SUBMIT(tier::release, e2::cascade, proc)
             {
-                bcast->SUBMIT_T(tier::release, e2::config::broadcast::attached, bcastsubs, new_broadcast)
-                {
-                    broadcast = new_broadcast;
-                };
+                auto keepon = proc(*this);
+                //if (keepon)
+                //...
             };
-           /*
-            * Only visual_root can be reattached multiple times!
-            */
             SUBMIT(tier::release, e2::form::upon::vtree::attached, parent_ptr)
             {
                 if (!visual_root)
                 {
                     parent_ptr->SUBMIT_T(tier::release, e2::cascade, cascade_token, proc)
                     {
-                        auto keepon = proc(*this);
-                        if (keepon) this->SIGNAL(tier::release, e2::cascade, proc);
-                    };
-
-                    //todo deprecated
-                    auto bcast_backup = broadcast;
-                    base::switch_to_bus(parent_ptr->base::broadcast);
-                    parent_ptr->SUBMIT_T(tier::release, e2::config::broadcast::reinit, bcastsubs, broadcast)
-                    {
-                        this->SIGNAL(tier::release, e2::config::broadcast::reinit, broadcast);
+                        this->SIGNAL(tier::release, e2::cascade, proc);
                     };
                 }
                 parent_shadow = parent_ptr;
@@ -956,15 +915,6 @@ namespace netxs::console
                 {
                     kb_token.reset();
                     cascade_token.reset();
-                    //todo revise
-                    //parent_shadow.reset();
-                    if (!visual_root)
-                    {
-                        //todo deprecated
-                        bcastsubs.clear();
-                        broadcast = std::make_shared<bell>();
-                        this->SIGNAL(tier::release, e2::config::broadcast::reinit, broadcast);
-                    }
                 }
                 if (parent_ptr) parent_ptr->base::reflow(); //todo too expensive
             };
@@ -3562,6 +3512,7 @@ namespace netxs::console
                 };
                 boss.SUBMIT_T(tier::release, e2::form::state::keybd::got, memo, gear)
                 {
+                    log(" boss.id=", boss.id);
                     pool.push_back(gear.id);
                     boss.base::deface();
                 };

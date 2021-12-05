@@ -97,27 +97,6 @@ namespace netxs::app::tile
 
     namespace
     {
-        auto bcast_onsplit = [](auto& boss)
-        {
-            boss.SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
-            {
-                auto parent_memo = std::make_shared<subs>();
-                auto shadow = ptr::shadow(boss.This());
-                parent->SUBMIT_T_BYVAL(tier::anycast, app::tile::events::ui::any, *parent_memo, gear)
-                {
-                    if (auto master = shadow.lock())
-                    if (auto parent = master->parent())
-                    if (auto action = parent->bell::template protos<tier::anycast>()) //todo "template" keyword is required by FreeBSD clang 11.0.1
-                    {
-                        master->bell::template signal<tier::anycast>(action, gear);
-                    }
-                };
-                boss.SUBMIT_T_BYVAL(tier::release, e2::form::upon::vtree::detached, *parent_memo, parent)
-                {
-                    parent_memo.reset();
-                };
-            };
-        };
         auto bcast_forward = [](auto& boss)
         {
             boss.SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
@@ -177,7 +156,6 @@ namespace netxs::app::tile
                 boss.SUBMIT_T_BYVAL(tier::release, e2::form::upon::vtree::detached, *parent_memo, parent)
                 {
                     parent_memo.reset();
-                    //parent_bcast_memo.reset();
                 };
             };
         };
@@ -249,12 +227,11 @@ namespace netxs::app::tile
         {
             auto node = tag == 'h' ? ui::fork::ctor(axis::X, w == -1 ? 2 : w, s1, s2)
                                    : ui::fork::ctor(axis::Y, w == -1 ? 1 : w, s1, s2);
-            node->isroot(true, 1) // Set object kind to 1 to be different from others. See empty_slot::select.
+            node->isroot(faux, 1) // Set object kind to 1 to be different from others. See empty_slot::select.
                 ->template plugin<pro::limit>(dot_00)
                 ->invoke([&](auto& boss)
                 {
                     mouse_actions(boss);
-                    bcast_onsplit(boss);
                     boss.SUBMIT(tier::release, app::tile::events::ui::swap    , gear) { boss.swap();       };
                     boss.SUBMIT(tier::release, app::tile::events::ui::rotate  , gear) { boss.rotate();     };
                     boss.SUBMIT(tier::release, app::tile::events::ui::equalize, gear) { boss.config(1, 1); };
@@ -879,7 +856,7 @@ namespace netxs::app::tile
                                 boss.SIGNAL(tier::anycast, app::tile::events::ui::toggle, gear);
                                 gear.state(gear_state);
                             }
-                            boss.bell::template signal<tier::anycast>(deed, gear);
+                            //boss.bell::template signal<tier::anycast>(deed, gear);
                         }
                     };
                 });
