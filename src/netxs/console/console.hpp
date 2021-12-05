@@ -61,6 +61,7 @@ namespace netxs::events::userland
     {
         using type = netxs::events::type;
         static constexpr auto dtor = netxs::events::userland::root::dtor;
+        static constexpr auto cascade = netxs::events::userland::root::cascade;
 
         EVENTPACK( e2, netxs::events::userland::root::base )
         {
@@ -859,9 +860,11 @@ namespace netxs::console
         bool invalid = true; // base: Should the object be redrawn.
         bool visual_root = faux; // Whether the size is tied to the size of the clients.
         hook kb_token;
+        hook cascade_token;
         iota object_kind = {};
 
     public:
+        //todo deprecated
         subs       bcastsubs;
         sptr<bell> broadcast = std::make_shared<bell>(); // base: Broadcast bus.
                                                          //        On attach the broadcast is merged with parent (bell::merge).
@@ -871,6 +874,8 @@ namespace netxs::console
 
     protected:
         bool is_attached() const { return kb_token.operator bool(); }
+
+        //todo deprecated
         void switch_to_bus(sptr<bell> parent_bus)
         {
             if (parent_bus != broadcast) // Reattaching is allowed within the same visual tree.
@@ -890,6 +895,7 @@ namespace netxs::console
             SUBMIT(tier::release, e2::size::set, new_size) { square.size = new_size; };
             SUBMIT(tier::request, e2::size::set, size_var) { size_var = square.size; };
 
+            //todo deprecated
             //SUBMIT_T(tier::release, e2::config::broadcast::reinit, bell::tracker, old_broadcast)
             SUBMIT_AND_RUN(tier::release, e2::config::broadcast::reinit, bcast, this->broadcast)
             {
@@ -905,6 +911,13 @@ namespace netxs::console
             {
                 if (!visual_root)
                 {
+                    parent_ptr->SUBMIT_T(tier::release, e2::cascade, cascade_token, proc)
+                    {
+                        auto keepon = proc(*this);
+                        if (keepon) this->SIGNAL(tier::release, e2::cascade, proc);
+                    };
+
+                    //todo deprecated
                     auto bcast_backup = broadcast;
                     base::switch_to_bus(parent_ptr->base::broadcast);
                     parent_ptr->SUBMIT_T(tier::release, e2::config::broadcast::reinit, bcastsubs, broadcast)
@@ -915,6 +928,7 @@ namespace netxs::console
                 parent_shadow = parent_ptr;
                 // Propagate form events up to the visual branch.
                 // Exec after all subscriptions.
+                //todo implement via e2::cascade
                 parent_ptr->SUBMIT_T(tier::release, hids::events::upevent::any, kb_token, gear)
                 {
                     if (auto parent_ptr = parent_shadow.lock())
@@ -938,10 +952,12 @@ namespace netxs::console
                 if (this->bell::protos<tier::release>(e2::form::upon::vtree::detached))
                 {
                     kb_token.reset();
+                    cascade_token.reset();
                     //todo revise
                     //parent_shadow.reset();
                     if (!visual_root)
                     {
+                        //todo deprecated
                         bcastsubs.clear();
                         broadcast = std::make_shared<bell>();
                         this->SIGNAL(tier::release, e2::config::broadcast::reinit, broadcast);
@@ -1118,6 +1134,13 @@ namespace netxs::console
             {
                 parent_ptr->global(coor);
             }
+        }
+        // base: Recursively find the root of the visual tree.
+        bell& gettop() override
+        {
+            auto parent_ptr = parent();
+            if (!visual_root && parent_ptr) return parent_ptr->gettop();
+            else                            return *this;
         }
         // base: Invoke a lambda with parent as a parameter.
         // Usage example:

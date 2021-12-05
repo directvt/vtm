@@ -32,6 +32,7 @@ namespace netxs::events
         preview, // events: Run reverse handlers with fixed a param intended to change. Preserve subscription order.
         general, // events: Run forwrad handlers for all objects. Preserve subscription order.
         request, // events: Run forwrad a handler that provides the current value of the param. To avoid being overridden, the handler should be the only one. Preserve subscription order.
+        anycast, // events: Run reverse handlers along the entire visual tree. Preserve subscription order.
     };
 
     template<class V> struct _globals { static std::recursive_mutex              mutex; };
@@ -316,7 +317,8 @@ namespace netxs::events
     #define SIGNAL_GLOBAL(        event,        param) bell::template signal_global(decltype( event )::id, static_cast<typename decltype( event )::type &&>(param))
     #define SUBMIT_GLOBAL(        event, token, param) bell::template submit_global<decltype( event )>( token ) = [&] (typename decltype( event )::type &&  param)
 
-    #define SUBMIT_AND_RUN(level, event, param, arg) bell::template submit2<level,decltype( event )>( arg ) = [&] (typename decltype( event )::type &&  param)
+    #define SUBMIT_AND_RUN_T(level, event, token, param, arg) bell::template submit2<level,decltype( event )>( arg, token ) = [&] (typename decltype( event )::type && param)
+    #define SUBMIT_AND_RUN(  level, event,        param, arg) bell::template submit2<level,decltype( event )>( arg        ) = [&] (typename decltype( event )::type && param)
 
     #define EVENTPACK( name, base ) using _group_type = name; \
                                     static constexpr auto _counter_base = __COUNTER__; \
@@ -327,6 +329,10 @@ namespace netxs::events
     #define  INDEX_XS(  ... )       }; template<auto N> static constexpr \
                                     auto _ = std::get<N>( std::tuple{ __VA_ARGS__ } ); \
                                     private: static constexpr auto _dummy = { 777
+
+    class bell;
+    using ftor = std::function<bool(bell&)>;
+
     //todo unify seeding
     namespace userland
     {
@@ -335,17 +341,19 @@ namespace netxs::events
             static constexpr auto root_event = type_clue<root, void, 0>{};
             EVENTPACK( root, root_event )
             {
-                EVENT_XS( dtor  , const id_t ),
-                EVENT_XS( base  , root ),
-                EVENT_XS( hids  , root ),
-                EVENT_XS( custom, root ),
+                EVENT_XS( dtor   , const id_t ),
+                EVENT_XS( cascade, ftor ),
+                EVENT_XS( base   , root ),
+                EVENT_XS( hids   , root ),
+                EVENT_XS( custom , root ),
             };
         };
     }
 
     // events: Event x-mitter.
-    struct bell : public indexer<bell>
+    class bell : public indexer<bell>
     {
+    public:
         static constexpr auto noid = std::numeric_limits<id_t>::max();
         subs tracker;
 
@@ -356,10 +364,12 @@ namespace netxs::events
         template<class V> struct _globals { static fwd_reactor general; };
 
         fwd_reactor& general{ _globals<void>::general };
-        rev_reactor  preview;
-        fwd_reactor  request;
         fwd_reactor  release;
+        fwd_reactor  request;
+        rev_reactor  preview;
+        rev_reactor  anycast;
 
+        //todo deprecated
         template<tier TIER, class EVENT>
         struct submit_helper2
         {
@@ -368,6 +378,21 @@ namespace netxs::events
             type& p;
             submit_helper2(bell& owner, type& p) : owner{ owner }, p{p} { }
             template<class F> void operator=(F h) { owner.submit<TIER, EVENT>(h); h(static_cast<type&&>(p));  }
+        };
+        //todo deprecated
+        template<tier TIER, class EVENT>
+        struct submit_helper2_token
+        {
+            using type = typename EVENT::type;
+            bell& owner;
+            type& p;
+            hook& token;
+            submit_helper2_token(bell& owner, type& p, hook& token)
+                : owner{ owner },
+                  p{p},
+                  token{ token }
+            { }
+            template<class F> void operator=(F h) { owner.submit<TIER, EVENT>(token, h); h(static_cast<type&&>(p));  }
         };
         template<tier TIER, class EVENT>
         struct submit_helper
@@ -393,6 +418,7 @@ namespace netxs::events
         };
 
     public:
+        //todo deprecated
         void merge(sptr<bell> source_ptr)
         {
             auto& s = *source_ptr;
@@ -401,7 +427,10 @@ namespace netxs::events
             request.merge(s.request);
             release.merge(s.release);
         }
-        template<tier TIER, class EVENT> auto submit2(typename EVENT::type & p) { return submit_helper2<TIER, EVENT>(*this, p);                 }
+
+        //todo deprecated
+        template<tier TIER, class EVENT> auto submit2(typename EVENT::type & p)               { return submit_helper2      <TIER, EVENT>(*this, p);                 }
+        template<tier TIER, class EVENT> auto submit2(typename EVENT::type & p, subs& tokens) { return submit_helper2_token<TIER, EVENT>(*this, p, tokens.extra()); }
 
         template<tier TIER, class EVENT> auto submit()             { return submit_helper      <TIER, EVENT>(*this);                 }
         template<tier TIER, class EVENT> auto submit(hook& token)  { return submit_helper_token<TIER, EVENT>(*this, token);          }
@@ -412,7 +441,8 @@ namespace netxs::events
                  if constexpr (TIER == tier::preview) tracker.admit(preview.subscribe(EVENT::id, handler));
             else if constexpr (TIER == tier::general) tracker.admit(general.subscribe(EVENT::id, handler));
             else if constexpr (TIER == tier::request) tracker.admit(request.subscribe(EVENT::id, handler));
-            else                                      tracker.admit(release.subscribe(EVENT::id, handler));
+            else if constexpr (TIER == tier::release) tracker.admit(release.subscribe(EVENT::id, handler));
+            else                                      tracker.admit(anycast.subscribe(EVENT::id, handler));
         }
         template<tier TIER, class EVENT>
         void submit(hook& token, std::function<void(typename EVENT::type &&)> handler)
@@ -420,7 +450,8 @@ namespace netxs::events
                  if constexpr (TIER == tier::preview) token = preview.subscribe(EVENT::id, handler);
             else if constexpr (TIER == tier::general) token = general.subscribe(EVENT::id, handler);
             else if constexpr (TIER == tier::request) token = request.subscribe(EVENT::id, handler);
-            else                                      token = release.subscribe(EVENT::id, handler);
+            else if constexpr (TIER == tier::release) token = release.subscribe(EVENT::id, handler);
+            else                                      token = anycast.subscribe(EVENT::id, handler);
         }
         template<tier TIER, class F>
         auto signal(type event, F&& data)
@@ -428,7 +459,17 @@ namespace netxs::events
                  if constexpr (TIER == tier::preview) return preview.notify(event, std::forward<F>(data));
             else if constexpr (TIER == tier::general) return general.notify(event, std::forward<F>(data));
             else if constexpr (TIER == tier::request) return request.notify(event, std::forward<F>(data));
-            else                                      return release.notify(event, std::forward<F>(data));
+            else if constexpr (TIER == tier::release) return release.notify(event, std::forward<F>(data));
+            else            /* TIER == tier::anycast */
+            {
+                auto& root = gettop();
+                ftor  proc = [&](bell& boss) -> bool
+                {
+                    boss.anycast.notify(event, std::forward<F>(data));
+                    return true;
+                };
+                return root.release.notify(userland::root::cascade, proc);
+            }
         }
         template<class EVENT> static auto submit_global(hook& token)           { return submit_helper_token_global<EVENT>(token); }
         template<class F>     static auto signal_global(type  event, F&& data) { return _globals<void>::general.notify(event, std::forward<F>(data)); }
@@ -439,7 +480,8 @@ namespace netxs::events
                  if constexpr (TIER == tier::preview) return preview.queue.empty() ? type{} : preview.queue.back();
             else if constexpr (TIER == tier::general) return general.queue.empty() ? type{} : general.queue.back();
             else if constexpr (TIER == tier::request) return request.queue.empty() ? type{} : request.queue.back();
-            else                                      return release.queue.empty() ? type{} : release.queue.back();
+            else if constexpr (TIER == tier::release) return release.queue.empty() ? type{} : release.queue.back();
+            else                                      return anycast.queue.empty() ? type{} : anycast.queue.back();
         }
         template<tier TIER, class EVENT> auto protos(EVENT) { return bell::protos<TIER>() == EVENT::id; }
         template<tier TIER>
@@ -448,7 +490,8 @@ namespace netxs::events
                  if constexpr (TIER == tier::preview) return preview;
             else if constexpr (TIER == tier::general) return general;
             else if constexpr (TIER == tier::request) return request;
-            else                                      return release;
+            else if constexpr (TIER == tier::release) return release;
+            else                                      return anycast;
         }
         template<tier TIER>
         void expire()
@@ -456,12 +499,14 @@ namespace netxs::events
                  if constexpr (TIER == tier::preview) return preview.stop();
             else if constexpr (TIER == tier::general) return general.stop();
             else if constexpr (TIER == tier::request) return request.stop();
-            else                                      return release.stop();
+            else if constexpr (TIER == tier::release) return release.stop();
+            else                                      return anycast.stop();
         }
 
        ~bell() { sync lock; SIGNAL(tier::release, userland::root::dtor, id); }
 
-        virtual void global(twod& coor) { } // bell: Recursively calculate global coordinate.
+        virtual void  global(twod& coor) { } // bell: Recursively calculate global coordinate.
+        virtual bell& gettop() { return *this; } // bell: Recursively find the root of the visual tree.
     };
 
     template<class T> bell::fwd_reactor bell::_globals<T>::general;

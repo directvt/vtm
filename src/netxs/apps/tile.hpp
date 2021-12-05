@@ -65,62 +65,68 @@ namespace netxs::app::tile
         {
             boss.SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
             {
-                auto parent_memo = std::make_shared<subs>();
-                parent->broadcast->SUBMIT_T(tier::release, app::tile::events::ui::any, *parent_memo, gear)
+                auto parent_memo       = std::make_shared<subs>();
+                auto parent_bcast_memo = std::make_shared<subs>();
+                parent->SUBMIT_AND_RUN_T(tier::release, e2::config::broadcast::reinit, *parent_memo, bcast, parent->broadcast)
                 {
-                    auto gear_test = decltype(e2::form::state::keybd::find)::type{ gear.id, 0 };
-                    boss.broadcast->SIGNAL(tier::request, e2::form::state::keybd::find, gear_test);
-                    if (gear_test.second)
+                    parent_bcast_memo->clear();
+                    bcast->SUBMIT_T(tier::release, app::tile::events::ui::any, *parent_bcast_memo, gear)
                     {
-                        if (auto parent = boss.parent())
-                        if (auto deed = parent->broadcast->bell::template protos<tier::release>()) //todo "template" keyword is required by FreeBSD clang 11.0.1
+                        auto gear_test = decltype(e2::form::state::keybd::find)::type{ gear.id, 0 };
+                        boss.broadcast->SIGNAL(tier::request, e2::form::state::keybd::find, gear_test);
+                        if (gear_test.second)
                         {
-                            switch (deed)
+                            if (auto parent = boss.parent())
+                            if (auto deed = parent->broadcast->bell::template protos<tier::release>()) //todo "template" keyword is required by FreeBSD clang 11.0.1
                             {
-                                case app::tile::events::ui::create.id:
-                                    gear.force_group_focus = true;
-                                    boss.template riseup<tier::release>(e2::form::proceed::createby, gear);
-                                    gear.force_group_focus = faux;
-                                    break;
-                                case app::tile::events::ui::close.id:
-                                    boss.template riseup<tier::release>(e2::form::quit, boss.This());
-                                    break;
-                                case app::tile::events::ui::toggle.id:
-                                    if (boss.base::kind() == 0) // Only apps can be maximized.
-                                    if (gear.countdown > 0)
-                                    {
-                                        gear.countdown--;
-                                        // Removing multifocus - The only one can be maximized if several are selected.
+                                switch (deed)
+                                {
+                                    case app::tile::events::ui::create.id:
+                                        gear.force_group_focus = true;
+                                        boss.template riseup<tier::release>(e2::form::proceed::createby, gear);
                                         gear.force_group_focus = faux;
-                                        gear.kb_focus_taken = faux;
-                                        boss.SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
+                                        break;
+                                    case app::tile::events::ui::close.id:
+                                        boss.template riseup<tier::release>(e2::form::quit, boss.This());
+                                        break;
+                                    case app::tile::events::ui::toggle.id:
+                                        if (boss.base::kind() == 0) // Only apps can be maximized.
+                                        if (gear.countdown > 0)
+                                        {
+                                            gear.countdown--;
+                                            // Removing multifocus - The only one can be maximized if several are selected.
+                                            gear.force_group_focus = faux;
+                                            gear.kb_focus_taken = faux;
+                                            boss.SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
 
-                                        boss.template riseup<tier::release>(e2::form::maximize, gear);
-                                        //todo parent_memo is reset by the empty slot here (pop_back), undefined behavior from here
-                                    }
-                                    break;
-                                case app::tile::events::ui::swap.id:
-                                    boss.template riseup<tier::release>(app::tile::events::ui::swap, gear);
-                                    break;
-                                case app::tile::events::ui::rotate.id:
-                                    boss.template riseup<tier::release>(app::tile::events::ui::rotate, gear);
-                                    break;
-                                case app::tile::events::ui::equalize.id:
-                                    boss.template riseup<tier::release>(app::tile::events::ui::equalize, gear);
-                                    break;
-                                case app::tile::events::ui::split::vt.id:
-                                    boss.template riseup<tier::release>(app::tile::events::ui::split::vt, gear);
-                                    break;
-                                case app::tile::events::ui::split::hz.id:
-                                    boss.template riseup<tier::release>(app::tile::events::ui::split::hz, gear);
-                                    break;
+                                            boss.template riseup<tier::release>(e2::form::maximize, gear);
+                                            //todo parent_memo is reset by the empty slot here (pop_back), undefined behavior from here
+                                        }
+                                        break;
+                                    case app::tile::events::ui::swap.id:
+                                        boss.template riseup<tier::release>(app::tile::events::ui::swap, gear);
+                                        break;
+                                    case app::tile::events::ui::rotate.id:
+                                        boss.template riseup<tier::release>(app::tile::events::ui::rotate, gear);
+                                        break;
+                                    case app::tile::events::ui::equalize.id:
+                                        boss.template riseup<tier::release>(app::tile::events::ui::equalize, gear);
+                                        break;
+                                    case app::tile::events::ui::split::vt.id:
+                                        boss.template riseup<tier::release>(app::tile::events::ui::split::vt, gear);
+                                        break;
+                                    case app::tile::events::ui::split::hz.id:
+                                        boss.template riseup<tier::release>(app::tile::events::ui::split::hz, gear);
+                                        break;
+                                }
                             }
                         }
-                    }
+                    };
                 };
                 boss.SUBMIT_T_BYVAL(tier::release, e2::form::upon::vtree::detached, *parent_memo, parent)
                 {
                     parent_memo.reset();
+                    parent_bcast_memo.reset();
                 };
             };
         };
@@ -515,7 +521,7 @@ namespace netxs::app::tile
                                                 };
                                             }
                                         #endif
-                                        host->SUBMIT(tier::release, netxs::events::userland::root::dtor, id)
+                                        host->SUBMIT(tier::release, e2::dtor, id)
                                         {
                                             insts_count--;
                                             log("tile: inst: detached: ", insts_count, " id=", id);
