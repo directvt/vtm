@@ -113,6 +113,7 @@ namespace netxs::events::userland
                 EVENT_XS( fps      , iota                ), // request to set new fps, arg: new fps (iota); the value == -1 is used to request current fps.
                 GROUP_XS( caret    , period              ), // any kind of intervals property.
                 GROUP_XS( plugins  , iota                ),
+                //todo deprecated
                 GROUP_XS( broadcast, sptr<bell>          ), // release: broadcast source changed.
 
                 SUBSET_XS( caret )
@@ -131,6 +132,7 @@ namespace netxs::events::userland
                         EVENT_XS( outer, dent ), // release: set outer size; request: request outer size.
                     };
                 };
+                //todo deprecated
                 SUBSET_XS( broadcast )
                 {
                     EVENT_XS( attached, sptr<bell> ), // release: broadcast source changed when attached.
@@ -866,6 +868,7 @@ namespace netxs::console
     public:
         //todo deprecated
         subs       bcastsubs;
+        //todo deprecated
         sptr<bell> broadcast = std::make_shared<bell>(); // base: Broadcast bus.
                                                          //        On attach the broadcast is merged with parent (bell::merge).
                                                          //        On detach the broadcast is duplicated from parent (bell::reset).
@@ -3531,35 +3534,31 @@ namespace netxs::console
             focus(base& boss)
                 : skill{ boss }
             {
-                boss.SUBMIT_AND_RUN(tier::release, e2::config::broadcast::reinit, bcast, boss.broadcast)
+                boss.SUBMIT_T(tier::anycast, e2::form::state::keybd::find, memo, gear_test)
                 {
-                    //todo how to reset boss.bcastsubs on ui::form::unplug?
-                    bcast->SUBMIT_T(tier::request, e2::form::state::keybd::find, boss.bcastsubs, gear_test)
+                    if (find(gear_test.first))
                     {
-                        if (find(gear_test.first))
-                        {
-                            gear_test.second++;
-                        }
-                    };
-                    bcast->SUBMIT_T(tier::request, e2::form::state::keybd::handover, boss.bcastsubs, gear_id_list)
+                        gear_test.second++;
+                    }
+                };
+                boss.SUBMIT_T(tier::anycast, e2::form::state::keybd::handover, memo, gear_id_list)
+                {
+                    if (pool.size())
                     {
-                        if (pool.size())
+                        auto This = boss.This();
+                        auto head = gear_id_list.end();
+                        gear_id_list.insert(head, pool.begin(), pool.end());
+                        auto tail = gear_id_list.end();
+                        while (head != tail)
                         {
-                            auto This = boss.This();
-                            auto head = gear_id_list.end();
-                            gear_id_list.insert(head, pool.begin(), pool.end());
-                            auto tail = gear_id_list.end();
-                            while (head != tail)
+                            auto gear_id = *head++;
+                            if (auto gate_ptr = bell::getref(gear_id))
                             {
-                                auto gear_id = *head++;
-                                if (auto gate_ptr = bell::getref(gear_id))
-                                {
-                                    gate_ptr->SIGNAL(tier::preview, e2::form::proceed::unfocus, This);
-                                }
+                                gate_ptr->SIGNAL(tier::preview, e2::form::proceed::unfocus, This);
                             }
-                            boss.base::deface();
                         }
-                    };
+                        boss.base::deface();
+                    }
                 };
                 boss.SUBMIT_T(tier::release, e2::form::state::keybd::got, memo, gear)
                 {
@@ -4207,7 +4206,7 @@ namespace netxs::console
 
                             gear.kb_focus_taken = faux;
                             frame->SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
-                            frame->broadcast->SIGNAL(tier::release, e2::form::upon::created, gear); // The Tile should change the menu item.
+                            frame->SIGNAL(tier::anycast, e2::form::upon::created, gear); // The Tile should change the menu item.
                         }
                     }
                 }
@@ -5414,7 +5413,7 @@ again:
             };
             SUBMIT(tier::request, e2::form::prop::viewport, viewport)
             {
-                broadcast->SIGNAL(tier::request, e2::form::prop::viewport, viewport);
+                this->SIGNAL(tier::anycast, e2::form::prop::viewport, viewport);
                 viewport.coor += base::coor();
             };
             //todo unify creation (delete simple create wo gear)
@@ -5593,7 +5592,7 @@ again:
         {
             uibar = item;
             item->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
-            //item->broadcast->SIGNAL(tier::release, e2::form::upon::started, This());
+            //item->SIGNAL(tier::anycast, e2::form::upon::started, This());
             return item;
         }
         // gate: Create a new item of the specified subtype and attach it.

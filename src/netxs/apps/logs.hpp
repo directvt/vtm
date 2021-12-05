@@ -12,17 +12,13 @@ namespace netxs::events::userland
     {
         EVENTPACK( logs, netxs::events::userland::root::custom )
         {
-            GROUP_XS( ui, input::hids ),
+            GROUP_XS( codepoints, iota ),
 
-            SUBSET_XS( ui )
+            SUBSET_XS( codepoints )
             {
-                EVENT_XS( create  , input::hids ),
-                GROUP_XS( split   , input::hids ),
-
-                SUBSET_XS( split )
-                {
-                    EVENT_XS( hz, input::hids ),
-                };
+                EVENT_XS( release, iota ),
+                EVENT_XS( preview, iota ),
+                EVENT_XS( request, iota ),
             };
         };
     };
@@ -73,7 +69,7 @@ namespace netxs::app::logs
                 auto msg = ansi::bgc(s ? greendk : yellowdk).fgc(whitelt)
                     .add(" show codepoints: ", s ? "on":"off", "\n").nil();
                 SIGNAL(tier::general, e2::debug::logs, msg);
-                SIGNAL(tier::release, e2::command::custom, s ? 1 : 2);
+                SIGNAL(tier::release, events::codepoints::release, s ? 1 : 2);
             }
             void worker()
             {
@@ -188,38 +184,35 @@ namespace netxs::app::logs
                 clear();
                 gear.dismiss();
             };
-            SUBMIT_AND_RUN(tier::release, e2::config::broadcast::reinit, bcast, broadcast)
+            SUBMIT(tier::anycast, events::codepoints::request, status)
             {
-                bcast->SUBMIT_T(tier::request, e2::command::custom, bcastsubs, status)
+                switch (status)
                 {
-                    switch (status)
-                    {
-                        case 1:
-                            status = worker->show_codepoints ? 1 : 2;
-                            break;
-                        default:
-                            break;
-                    }
-                };
-                bcast->SUBMIT_T(tier::preview, e2::command::custom, bcastsubs, cmd_id)
-                {
-                    switch (cmd_id)
-                    {
-                        case 0:
-                            clear();
-                            break;
-                        case 1:
-                        case 2:
-                            itsme = true;
-                            worker->enable_codepoints(cmd_id == 1 ? true : faux);
-                            itsme = faux;
-                            break;
-                        default:
-                            break;
-                    }
-                };
+                    case 1:
+                        status = worker->show_codepoints ? 1 : 2;
+                        break;
+                    default:
+                        break;
+                }
             };
-            broadcast->SIGNAL(tier::release, e2::command::custom, worker->show_codepoints ? 1 : 2);
+            SUBMIT(tier::anycast, events::codepoints::preview, cmd_id)
+            {
+                switch (cmd_id)
+                {
+                    case 0:
+                        clear();
+                        break;
+                    case 1:
+                    case 2:
+                        itsme = true;
+                        worker->enable_codepoints(cmd_id == 1 ? true : faux);
+                        itsme = faux;
+                        break;
+                    default:
+                        break;
+                }
+            };
+            SIGNAL(tier::anycast, events::codepoints::release, worker->show_codepoints ? 1 : 2);
             SUBMIT(tier::preview, e2::size::set, newsize)
             {
                 caret.coor(flow::cp());
@@ -229,9 +222,9 @@ namespace netxs::app::logs
                 topic += utf8;
                 update();
             };
-            worker->SUBMIT_T(tier::release, e2::command::custom, token, status)
+            worker->SUBMIT_T(tier::release, events::codepoints::release, token, status)
             {
-                broadcast->SIGNAL(tier::release, e2::command::custom, status);
+                this->SIGNAL(tier::anycast, events::codepoints::release, status);
             };
             worker->SUBMIT_T(tier::release, e2::debug::parsed, token, parsed_page)
             {
@@ -266,17 +259,14 @@ namespace netxs::app::logs
                                 boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                                 {
                                     iota status = 1;
-                                    boss.base::broadcast->SIGNAL(tier::request, e2::command::custom, status);
-                                    boss.base::broadcast->SIGNAL(tier::preview, e2::command::custom, status == 2 ? 1/*show*/ : 2/*hide*/);
+                                    boss.SIGNAL(tier::anycast, app::logs::events::codepoints::request, status);
+                                    boss.SIGNAL(tier::anycast, app::logs::events::codepoints::preview, status == 2 ? 1/*show*/ : 2/*hide*/);
                                     gear.dismiss(true);
                                 };
-                                boss.SUBMIT_AND_RUN(tier::release, e2::config::broadcast::reinit, bcast, boss.broadcast)
+                                boss.SUBMIT(tier::anycast, app::logs::events::codepoints::release, status)
                                 {
-                                    bcast->SUBMIT_T(tier::release, e2::command::custom, boss.bcastsubs, status)
-                                    {
-                                        //todo unify, get boss base colors, don't use x3
-                                        boss.color(status == 1 ? 0xFF00ff00 : x3.fgc(), x3.bgc());
-                                    };
+                                    //todo unify, get boss base colors, don't use x3
+                                    boss.color(status == 1 ? 0xFF00ff00 : x3.fgc(), x3.bgc());
                                 };
                             }},
                             std::pair<text, std::function<void(ui::pads&)>>{ "Clear",
@@ -284,7 +274,7 @@ namespace netxs::app::logs
                             {
                                 boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                                 {
-                                    boss.base::broadcast->SIGNAL(tier::preview, e2::command::custom, 0);
+                                    boss.SIGNAL(tier::anycast, app::logs::events::codepoints::preview, 0);
                                     gear.dismiss(true);
                                 };
                             }},

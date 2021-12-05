@@ -468,7 +468,7 @@ namespace netxs::events
                     boss.anycast.notify(event, std::forward<F>(data));
                     return true;
                 };
-                return root.release.notify(userland::root::cascade, proc);
+                return root.release.notify(userland::root::cascade.id, proc);
             }
         }
         template<class EVENT> static auto submit_global(hook& token)           { return submit_helper_token_global<EVENT>(token); }

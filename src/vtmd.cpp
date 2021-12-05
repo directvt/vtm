@@ -160,7 +160,7 @@ int main(int argc, char* argv[])
         window->attach(creator(config.data));
         log(" world create type=", config.type, " menu_item_id=", what.menu_item_id);
         world->branch(what.menu_item_id, window);
-        window->broadcast->SIGNAL(tier::release, e2::form::upon::started, world);
+        window->SIGNAL(tier::anycast, e2::form::upon::started, world);
 
         what.frame = window;
     };
