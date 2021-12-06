@@ -4,7 +4,7 @@
 #define MONOTTY_VER "Monotty Desktopio v0.5.9999b"
 
 // Enable demo apps and assign Esc key to log off.
-//#define DEMO
+#define DEMO
 
 // Enable keyboard input and unassign Esc key.
 #define PROD

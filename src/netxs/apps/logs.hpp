@@ -212,7 +212,10 @@ namespace netxs::app::logs
                         break;
                 }
             };
-            SIGNAL(tier::anycast, events::codepoints::release, worker->show_codepoints ? 1 : 2);
+            SUBMIT(tier::anycast, e2::form::upon::started, root)
+            {
+                this->SIGNAL(tier::anycast, events::codepoints::release, worker->show_codepoints ? 1 : 2);
+            };
             SUBMIT(tier::preview, e2::size::set, newsize)
             {
                 caret.coor(flow::cp());
