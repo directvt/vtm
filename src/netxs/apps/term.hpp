@@ -173,17 +173,9 @@ namespace netxs::app::term
                         {
                             scroll->plugin<pro::limit>(twod{ 10,1 }); // mc crashes when window is too small
 
-                            #if defined(_WIN32)
-
-                                auto inst = scroll->attach(ui::term::ctor("cmd"));
-
-                            #else
-
-                                auto shell = os::get_shell();
-                                auto inst = scroll->attach(ui::term::ctor(shell + " -i"));
-
-                            #endif
-
+                            auto shell = os::get_shell();
+                            auto inst = scroll->attach(ui::term::ctor(v.empty() ? shell + " -i"
+                                                                                : text{ v }));
                             inst->colors(whitelt, blackdk)
                                 ->invoke([](auto& boss)
                                 {

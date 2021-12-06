@@ -28,15 +28,15 @@ namespace netxs::app::shared
     X(Shop         , "Shop"                  , ("Desktopio App Store")                                         , "" ) \
     X(Logs         , "Logs"                  , ("Logs \nDebug output console")                                 , "" ) \
     X(View         , "View"                  , (ansi::jet(bias::center).add("View \n Region 1"))               , "" ) \
-    X(Tile         , "Tile"                  , ("Tiling Window Manager")                                       , "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h()" ) \
+    X(Tile         , "Tile"                  , ("Tiling Window Manager")                                       , "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h(a(\"Term\" ,\"\" ,\"\"), a(\"Term\" ,\"\" ,\"\"))" ) \
     X(Settings     , "Settings"              , ("Settings: Frame Rate Limit")                                  , "" ) \
-    X(PowerShell   , "pwsh PowerShell"       , ("Term \nPowerShell")                                           , "" ) \
-    X(CommandPrompt, "cmd Command Prompt"    , ("Term \nCommand Prompt")                                       , "" ) \
+    X(PowerShell   , "PowerShell"            , ("Term \nPowerShell")                                           , "" ) \
+    X(CommandPrompt, "Command Prompt"        , ("Term \nCommand Prompt")                                       , "" ) \
     X(Bash         , "Bash/Zsh/CMD"          , ("Term \nBash/Zsh/CMD")                                         , "" ) \
     X(Far          , "Far Manager"           , ("Term \nFar Manager")                                          , "" ) \
     X(VTM          , "vtm (recursively)"     , ("Term \nvtm (recursively)")                                    , "" ) \
     X(MC           , "mc  Midnight Commander", ("Term \nMidnight Commander")                                   , "" ) \
-    X(Truecolor    , "RGB Truecolor image"   , (ansi::jet(bias::right).add("True color ANSI/ASCII image test")), "" ) \
+    X(Truecolor    , "Truecolor image"       , (ansi::jet(bias::right).add("True color ANSI/ASCII image test")), "" ) \
     X(Strobe       , "Strobe"                , (ansi::jet(bias::center).add("Strobe"))                         , "" ) \
     X(Test         , "Test Window"           , (ansi::jet(bias::center).add("Test Page"))                      , "" ) \
     X(Empty        , "Empty Window"          , (ansi::mgl(1).mgr(1).add("Empty Instance \nid: "))              , "" )
