@@ -3426,6 +3426,16 @@ namespace netxs::ui
                               + 0xFF000000;
                 }
             }
+            else if (property == "104")
+            {
+                //todo reset the list of colors: ESC ] 104; 1; 2; 3 ST
+                if (auto value = utf::to_int(txt))
+                {
+                    auto n = value.value();
+                    clr256[n] = rgba::color256[n];
+                }
+                else std::copy(std::begin(rgba::color256), std::end(rgba::color256), std::begin(clr256));
+            }
         }
         void fgc(tint c) { target->brush.fgc(clr256[c]); }
         void bgc(tint c) { target->brush.bgc(clr256[c]); }
