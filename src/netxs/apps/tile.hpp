@@ -343,20 +343,17 @@ namespace netxs::app::tile
                     boss.SUBMIT(tier::anycast, app::tile::events::ui::select, gear)
                     {
                         auto& item =*boss.back();
-                        if (item.base::root())
+                        if (item.base::kind() != 1)
                         {
-                            if (item.base::kind() != 1)
-                            {
-                                //todo unify
-                                gear.force_group_focus = true;
-                                gear.kb_focus_taken = faux;
-                                gear.combine_focus = true;
-                                item.SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
-                                gear.combine_focus = faux;
-                                gear.force_group_focus = faux;
-                            }
-                            else item.SIGNAL(tier::release, hids::events::upevent::kbannul, gear); // Exclude grips.
+                            //todo unify
+                            gear.force_group_focus = true;
+                            gear.kb_focus_taken = faux;
+                            gear.combine_focus = true;
+                            item.SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
+                            gear.combine_focus = faux;
+                            gear.force_group_focus = faux;
                         }
+                        else item.SIGNAL(tier::release, hids::events::upevent::kbannul, gear); // Exclude grips.
                     };
                     boss.SUBMIT_BYVAL(tier::release, e2::form::maximize, gear)
                     {
@@ -425,25 +422,21 @@ namespace netxs::app::tile
                                     log(" depth=", depth);
                                     if (depth > INHERITANCE_LIMIT) return;
 
-                                    if (boss.back()->base::root())
+                                    auto heading = deed == app::tile::events::ui::split::vt.id;
+                                    auto newnode = built_node(heading ? 'v':'h', 1, 1, heading ? 1 : 2);
+                                    auto empty_1 = empty_slot(empty_slot);
+                                    auto empty_2 = empty_slot(empty_slot);
+                                    auto curitem = boss.pop_back(); // In order to preserve all foci.
+                                    gate_ptr->SIGNAL(tier::preview, e2::form::proceed::focus,   empty_1);
+                                    gate_ptr->SIGNAL(tier::preview, e2::form::proceed::unfocus, curitem);
+                                    if (boss.empty())
                                     {
-                                        auto heading = deed == app::tile::events::ui::split::vt.id;
-                                        auto newnode = built_node(heading ? 'v':'h', 1, 1, heading ? 1 : 2);
-                                        auto empty_1 = empty_slot(empty_slot);
-                                        auto empty_2 = empty_slot(empty_slot);
-                                        auto curitem = boss.pop_back(); // In order to preserve all foci.
-                                        gate_ptr->SIGNAL(tier::preview, e2::form::proceed::focus,   empty_1);
-                                        gate_ptr->SIGNAL(tier::preview, e2::form::proceed::unfocus, curitem);
-                                        if (boss.empty())
-                                        {
-                                            boss.attach(place_holder());
-                                            empty_2->pop_back();
-                                        }
-                                        auto slot_1 = newnode->attach(slot::_1, empty_1);
-                                        auto slot_2 = newnode->attach(slot::_2, empty_2->branch(curitem));
-                                        boss.attach(newnode);
+                                        boss.attach(place_holder());
+                                        empty_2->pop_back();
                                     }
-                                    else log(" empty_slot split: defective structure, count=", boss.count());
+                                    auto slot_1 = newnode->attach(slot::_1, empty_1);
+                                    auto slot_2 = newnode->attach(slot::_2, empty_2->branch(curitem));
+                                    boss.attach(newnode);
                                 }
                             }
                         }

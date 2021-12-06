@@ -861,85 +861,6 @@ namespace netxs::console
         side oversz; // base: Oversize, margin.
         twod anchor; // base: Object balance point. Center point for any transform (on preview).
 
-    protected:
-        virtual ~base() = default;
-        base()
-        {
-            SUBMIT(tier::request, e2::depth, depth) { depth++; };
-
-            SUBMIT(tier::release, e2::coor::set, new_coor) { square.coor = new_coor; };
-            SUBMIT(tier::request, e2::coor::set, coor_var) { coor_var = square.coor; };
-            SUBMIT(tier::release, e2::size::set, new_size) { square.size = new_size; };
-            SUBMIT(tier::request, e2::size::set, size_var) { size_var = square.size; };
-
-            SUBMIT(tier::release, e2::cascade, proc)
-            {
-                auto keepon = proc(*this);
-                //if (keepon)
-                //...
-            };
-            SUBMIT(tier::release, e2::form::upon::vtree::attached, parent_ptr)
-            {
-                if (!visual_root)
-                {
-                    parent_ptr->SUBMIT_T(tier::release, e2::cascade, cascade_token, proc)
-                    {
-                        this->SIGNAL(tier::release, e2::cascade, proc);
-                    };
-                }
-                parent_shadow = parent_ptr;
-                // Propagate form events up to the visual branch.
-                // Exec after all subscriptions.
-                //todo implement via e2::cascade
-                parent_ptr->SUBMIT_T(tier::release, hids::events::upevent::any, kb_token, gear)
-                {
-                    if (auto parent_ptr = parent_shadow.lock())
-                    {
-                        if (gear.focus_taken()) //todo unify, upevent::kbannul using it
-                        {
-                            parent_ptr->bell::expire<tier::release>();
-                        }
-                        else
-                        {
-                            if (auto deed = parent_ptr->bell::protos<tier::release>())
-                            {
-                                this->bell::signal<tier::release>(deed, gear);
-                            }
-                        }
-                    }
-                };
-            };
-            SUBMIT(tier::release, e2::form::upon::vtree::any, parent_ptr)
-            {
-                if (this->bell::protos<tier::release>(e2::form::upon::vtree::detached))
-                {
-                    kb_token.reset();
-                    cascade_token.reset();
-                }
-                if (parent_ptr) parent_ptr->base::reflow(); //todo too expensive
-            };
-
-            // Propagate form events down to the visual branch.
-            // Exec after all subscriptions.
-            SUBMIT(tier::release, hids::events::notify::any, gear)
-            {
-                if (auto parent_ptr = parent_shadow.lock())
-                {
-                    if (auto deed = this->bell::protos<tier::release>())
-                    {
-                        parent_ptr->bell::signal<tier::release>(deed, gear);
-                    }
-                }
-                //strike();
-            };
-            SUBMIT(tier::release, e2::render::any, parent_canvas)
-            {
-                if (base::brush.wdt())
-                    parent_canvas.fill([&](cell& c) { c.fusefull(base::brush); });
-            };
-        }
-
-    public:
         template<class T = base>
         auto  This()       { return std::static_pointer_cast<std::remove_reference_t<T>>(shared_from_this()); }
         auto& coor() const { return square.coor; }
@@ -1089,11 +1010,11 @@ namespace netxs::console
             }
         }
         // base: Recursively find the root of the visual tree.
-        bell& gettop() override
+        sptr<bell> gettop() override
         {
             auto parent_ptr = parent();
             if (!visual_root && parent_ptr) return parent_ptr->gettop();
-            else                            return *this;
+            else                            return This();
         }
         // base: Invoke a lambda with parent as a parameter.
         // Usage example:
@@ -1130,6 +1051,85 @@ namespace netxs::console
                     });
                 }
             }
+        }
+
+    protected:
+        virtual ~base() = default;
+        base()
+        {
+            SUBMIT(tier::request, e2::depth, depth) { depth++; };
+
+            SUBMIT(tier::release, e2::coor::set, new_coor) { square.coor = new_coor; };
+            SUBMIT(tier::request, e2::coor::set, coor_var) { coor_var = square.coor; };
+            SUBMIT(tier::release, e2::size::set, new_size) { square.size = new_size; };
+            SUBMIT(tier::request, e2::size::set, size_var) { size_var = square.size; };
+
+            SUBMIT(tier::release, e2::cascade, proc)
+            {
+                auto backup = This();
+                auto keepon = proc(backup);
+                if (!keepon) this->bell::expire<tier::release>();
+            };
+            SUBMIT(tier::release, e2::form::upon::vtree::attached, parent_ptr)
+            {
+                if (!visual_root)
+                {
+                    parent_ptr->SUBMIT_T(tier::release, e2::cascade, cascade_token, proc)
+                    {
+                        auto backup = This();
+                        backup->SIGNAL(tier::release, e2::cascade, proc);
+                    };
+                }
+                parent_shadow = parent_ptr;
+                // Propagate form events up to the visual branch.
+                // Exec after all subscriptions.
+                //todo implement via e2::cascade
+                parent_ptr->SUBMIT_T(tier::release, hids::events::upevent::any, kb_token, gear)
+                {
+                    if (auto parent_ptr = parent_shadow.lock())
+                    {
+                        if (gear.focus_taken()) //todo unify, upevent::kbannul using it
+                        {
+                            parent_ptr->bell::expire<tier::release>();
+                        }
+                        else
+                        {
+                            if (auto deed = parent_ptr->bell::protos<tier::release>())
+                            {
+                                this->bell::signal<tier::release>(deed, gear);
+                            }
+                        }
+                    }
+                };
+            };
+            SUBMIT(tier::release, e2::form::upon::vtree::any, parent_ptr)
+            {
+                if (this->bell::protos<tier::release>(e2::form::upon::vtree::detached))
+                {
+                    kb_token.reset();
+                    cascade_token.reset();
+                }
+                if (parent_ptr) parent_ptr->base::reflow(); //todo too expensive
+            };
+
+            // Propagate form events down to the visual branch.
+            // Exec after all subscriptions.
+            SUBMIT(tier::release, hids::events::notify::any, gear)
+            {
+                if (auto parent_ptr = parent_shadow.lock())
+                {
+                    if (auto deed = this->bell::protos<tier::release>())
+                    {
+                        parent_ptr->bell::signal<tier::release>(deed, gear);
+                    }
+                }
+                //strike();
+            };
+            SUBMIT(tier::release, e2::render::any, parent_canvas)
+            {
+                if (base::brush.wdt())
+                    parent_canvas.fill([&](cell& c) { c.fusefull(base::brush); });
+            };
         }
     };
 

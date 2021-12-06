@@ -332,7 +332,7 @@ namespace netxs::events
                                     private: static constexpr auto _dummy = { 777
 
     class bell;
-    using ftor = std::function<bool(bell&)>;
+    using ftor = std::function<bool(sptr<bell>)>;
 
     //todo unify seeding
     namespace userland
@@ -453,13 +453,13 @@ namespace netxs::events
             else if constexpr (TIER == tier::release) return release.notify(event, std::forward<F>(data));
             else            /* TIER == tier::anycast */
             {
-                auto& root = gettop();
-                ftor  proc = [&](bell& boss) -> bool
+                auto root = gettop();
+                ftor proc = [&](auto boss_ptr) -> bool
                 {
-                    boss.anycast.notify(event, std::forward<F>(data));
+                    boss_ptr->anycast.notify(event, std::forward<F>(data));
                     return true;
                 };
-                return root.release.notify(userland::root::cascade.id, proc);
+                return root->release.notify(userland::root::cascade.id, proc);
             }
         }
         template<class EVENT> static auto submit_global(hook& token)           { return submit_helper_token_global<EVENT>(token); }
@@ -497,7 +497,7 @@ namespace netxs::events
        ~bell() { sync lock; SIGNAL(tier::release, userland::root::dtor, id); }
 
         virtual void  global(twod& coor) { } // bell: Recursively calculate global coordinate.
-        virtual bell& gettop() { return *this; } // bell: Recursively find the root of the visual tree.
+        virtual sptr<bell> gettop() { return sptr<bell>(this, noop{}); } // bell: Recursively find the root of the visual tree.
     };
 
     template<class T> bell::fwd_reactor bell::_globals<T>::general;
