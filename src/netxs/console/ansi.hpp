@@ -132,8 +132,8 @@ namespace netxs::ansi
     static const auto OSC_LABEL        = "1"   ; // Set icon label.
     static const auto OSC_TITLE        = "2"   ; // Set title.
     static const auto OSC_XPROP        = "3"   ; // Set xprop.
-    static const auto OSC_LINUX_COLOR  = "P"   ; // Set 16/256 colors palette. (Linux console)
-    static const auto OSC_SET_PALETTE  = "4"   ; // Set 16/256 colors palette.
+    static const auto OSC_LINUX_COLOR  = "P"   ; // Set 16 colors palette. (Linux console)
+    static const auto OSC_SET_PALETTE  = "4"   ; // Set 256 colors palette.
     static const auto OSC_SET_FGCOLOR  = "10"  ; // Set fg color.
     static const auto OSC_SET_BGCOLOR  = "11"  ; // Set bg color.
     static const auto OSC_RESET_COLOR  = "104" ; // Reset color N to default palette. Without params all palette reset.

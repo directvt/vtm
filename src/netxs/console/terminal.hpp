@@ -421,6 +421,39 @@ namespace netxs::ui
                 vt.csier.table_hash [CSI_HSH_RCP] = VT_PROC{ p->na("CSI n # Q  Pop  current palette colors onto stack. n default is 0."); }; // CSI n # Q  Pop  current palette colors onto stack. n default is 0.
                 vt.csier.table_excl [CSI_EXL_RST] = VT_PROC{ p->owner.decstr( ); }; // CSI ! p  Soft terminal reset (DECSTR)
 
+                vt.csier.table[CSI_SGR][SGR_FG_BLK   ] = VT_PROC{ p->owner.fgc(tint::blackdk  ); };
+                vt.csier.table[CSI_SGR][SGR_FG_RED   ] = VT_PROC{ p->owner.fgc(tint::reddk    ); };
+                vt.csier.table[CSI_SGR][SGR_FG_GRN   ] = VT_PROC{ p->owner.fgc(tint::greendk  ); };
+                vt.csier.table[CSI_SGR][SGR_FG_YLW   ] = VT_PROC{ p->owner.fgc(tint::yellowdk ); };
+                vt.csier.table[CSI_SGR][SGR_FG_BLU   ] = VT_PROC{ p->owner.fgc(tint::bluedk   ); };
+                vt.csier.table[CSI_SGR][SGR_FG_MGT   ] = VT_PROC{ p->owner.fgc(tint::magentadk); };
+                vt.csier.table[CSI_SGR][SGR_FG_CYN   ] = VT_PROC{ p->owner.fgc(tint::cyandk   ); };
+                vt.csier.table[CSI_SGR][SGR_FG_WHT   ] = VT_PROC{ p->owner.fgc(tint::whitedk  ); };
+                vt.csier.table[CSI_SGR][SGR_FG_BLK_LT] = VT_PROC{ p->owner.fgc(tint::blacklt  ); };
+                vt.csier.table[CSI_SGR][SGR_FG_RED_LT] = VT_PROC{ p->owner.fgc(tint::redlt    ); };
+                vt.csier.table[CSI_SGR][SGR_FG_GRN_LT] = VT_PROC{ p->owner.fgc(tint::greenlt  ); };
+                vt.csier.table[CSI_SGR][SGR_FG_YLW_LT] = VT_PROC{ p->owner.fgc(tint::yellowlt ); };
+                vt.csier.table[CSI_SGR][SGR_FG_BLU_LT] = VT_PROC{ p->owner.fgc(tint::bluelt   ); };
+                vt.csier.table[CSI_SGR][SGR_FG_MGT_LT] = VT_PROC{ p->owner.fgc(tint::magentalt); };
+                vt.csier.table[CSI_SGR][SGR_FG_CYN_LT] = VT_PROC{ p->owner.fgc(tint::cyanlt   ); };
+                vt.csier.table[CSI_SGR][SGR_FG_WHT_LT] = VT_PROC{ p->owner.fgc(tint::whitelt  ); };
+                vt.csier.table[CSI_SGR][SGR_BG_BLK   ] = VT_PROC{ p->owner.bgc(tint::blackdk  ); };
+                vt.csier.table[CSI_SGR][SGR_BG_RED   ] = VT_PROC{ p->owner.bgc(tint::reddk    ); };
+                vt.csier.table[CSI_SGR][SGR_BG_GRN   ] = VT_PROC{ p->owner.bgc(tint::greendk  ); };
+                vt.csier.table[CSI_SGR][SGR_BG_YLW   ] = VT_PROC{ p->owner.bgc(tint::yellowdk ); };
+                vt.csier.table[CSI_SGR][SGR_BG_BLU   ] = VT_PROC{ p->owner.bgc(tint::bluedk   ); };
+                vt.csier.table[CSI_SGR][SGR_BG_MGT   ] = VT_PROC{ p->owner.bgc(tint::magentadk); };
+                vt.csier.table[CSI_SGR][SGR_BG_CYN   ] = VT_PROC{ p->owner.bgc(tint::cyandk   ); };
+                vt.csier.table[CSI_SGR][SGR_BG_WHT   ] = VT_PROC{ p->owner.bgc(tint::whitedk  ); };
+                vt.csier.table[CSI_SGR][SGR_BG_BLK_LT] = VT_PROC{ p->owner.bgc(tint::blacklt  ); };
+                vt.csier.table[CSI_SGR][SGR_BG_RED_LT] = VT_PROC{ p->owner.bgc(tint::redlt    ); };
+                vt.csier.table[CSI_SGR][SGR_BG_GRN_LT] = VT_PROC{ p->owner.bgc(tint::greenlt  ); };
+                vt.csier.table[CSI_SGR][SGR_BG_YLW_LT] = VT_PROC{ p->owner.bgc(tint::yellowlt ); };
+                vt.csier.table[CSI_SGR][SGR_BG_BLU_LT] = VT_PROC{ p->owner.bgc(tint::bluelt   ); };
+                vt.csier.table[CSI_SGR][SGR_BG_MGT_LT] = VT_PROC{ p->owner.bgc(tint::magentalt); };
+                vt.csier.table[CSI_SGR][SGR_BG_CYN_LT] = VT_PROC{ p->owner.bgc(tint::cyanlt   ); };
+                vt.csier.table[CSI_SGR][SGR_BG_WHT_LT] = VT_PROC{ p->owner.bgc(tint::whitelt  ); };
+
                 vt.csier.table[CSI_CUU] = VT_PROC{ p->up ( q(1)); };  // CSI n A  (CUU)
                 vt.csier.table[CSI_CUD] = VT_PROC{ p->dn ( q(1)); };  // CSI n B  (CUD)
                 vt.csier.table[CSI_CUF] = VT_PROC{ p->cuf( q(1)); };  // CSI n C  (CUF)
@@ -3074,6 +3107,7 @@ namespace netxs::ui
         };
 
         using buffer_ptr = bufferbase*;
+        using palette_t = std::remove_const_t<decltype(rgba::color256)>;
 
         pro::caret cursor; // term: Text cursor controller.
         term_state status; // term: Screen buffer status info.
@@ -3091,6 +3125,8 @@ namespace netxs::ui
         bool       active; // term: Terminal lifetime.
         bool       decckm; // term: Cursor keys Application(true)/ANSI(faux) mode.
         bool       bpmode; // term: Bracketed paste mode.
+        palette_t  clr256; // term: Custom terminal palette.
+
 
         // term: Soft terminal reset (DECSTR).
         void decstr()
@@ -3365,7 +3401,34 @@ namespace netxs::ui
         void set_colors(text const& property, view txt)
         {
             log(" OSC=", property, " DATA=", txt, " HEX=", utf::to_hex(txt));
+            if (property == "P")
+            {
+                if (txt.length() >= 7)
+                {
+                    auto to_byte = [](char c) -> byte
+                    {
+                        if (c >= '0' && c <= '9') return c - '0';
+                        if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+                        if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+                        return 0;
+                    };
+                    auto head = txt.begin();
+                    auto n  = to_byte(*head++);
+                    auto r1 = to_byte(*head++);
+                    auto r2 = to_byte(*head++);
+                    auto g1 = to_byte(*head++);
+                    auto g2 = to_byte(*head++);
+                    auto b1 = to_byte(*head++);
+                    auto b2 = to_byte(*head++);
+                    clr256[n] = (r1 << 4 ) + (r2      )
+                              + (g1 << 12) + (g2 << 8 )
+                              + (b1 << 20) + (b2 << 16)
+                              + 0xFF000000;
+                }
+            }
         }
+        void fgc(tint c) { target->brush.fgc(clr256[c]); }
+        void bgc(tint c) { target->brush.bgc(clr256[c]); }
 
     public:
         void exec_cmd(commands::ui::commands cmd)
@@ -3436,6 +3499,7 @@ namespace netxs::ui
               decckm{  faux },
               bpmode{  faux }
         {
+            std::copy(std::begin(rgba::color256), std::end(rgba::color256), std::begin(clr256));
             cmdarg = command_line;
             target = &normal;
             //cursor.style(commands::cursor::def_style); // default=blinking_box
