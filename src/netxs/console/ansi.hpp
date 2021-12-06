@@ -128,13 +128,20 @@ namespace netxs::ansi
     static const iota W32_FOCUS_EVENT = 10004;
     static const iota W32_FINAL_EVENT = 10005; // for quick recognition.
 
-    static const auto OSC_LABEL_TITLE  = "0" ; // Set icon label and title.
-    static const auto OSC_LABEL        = "1" ; // Set icon label.
-    static const auto OSC_TITLE        = "2" ; // Set title.
-    static const auto OSC_XPROP        = "3" ; // Set xprop.
-    static const auto OSC_CLIPBRD      = "52"; // Set clipboard.
-    static const auto OSC_TITLE_REPORT = "l" ; // Get terminal window title.
-    static const auto OSC_LABEL_REPORT = "L" ; // Get terminal window icon label.
+    static const auto OSC_LABEL_TITLE  = "0"   ; // Set icon label and title.
+    static const auto OSC_LABEL        = "1"   ; // Set icon label.
+    static const auto OSC_TITLE        = "2"   ; // Set title.
+    static const auto OSC_XPROP        = "3"   ; // Set xprop.
+    static const auto OSC_LINUX_COLOR  = "P"   ; // Set 16/256 colors palette. (Linux console)
+    static const auto OSC_SET_PALETTE  = "4"   ; // Set 16/256 colors palette.
+    static const auto OSC_SET_FGCOLOR  = "10"  ; // Set fg color.
+    static const auto OSC_SET_BGCOLOR  = "11"  ; // Set bg color.
+    static const auto OSC_RESET_COLOR  = "104" ; // Reset color N to default palette. Without params all palette reset.
+    static const auto OSC_RESET_FGCLR  = "110" ; // Reset fg color to default.
+    static const auto OSC_RESET_BGCLR  = "111" ; // Reset bg color to default.
+    static const auto OSC_CLIPBRD      = "52"  ; // Set clipboard.
+    static const auto OSC_TITLE_REPORT = "l"   ; // Get terminal window title.
+    static const auto OSC_LABEL_REPORT = "L"   ; // Get terminal window icon label.
 
     static const iota SGR_RST       = 0;
     static const iota SGR_SAV       = 10;
@@ -1251,10 +1258,28 @@ namespace netxs::ansi
             // ESC ] I ; _text_ ST  Set icon to file.
             // ESC ] l ; _text_ ST  Set window title.
             // ESC ] L ; _text_ ST  Set window icon label.
+            //
+            // ESC ] P Nrrggbb  Set N (hex) of 16color palette to rrggbb (hex).
 
             // Find ST and ';', if no ST or no ';' when drop
             if (ascii)
             {
+                if (ascii.front() == 'P') // OSC_LINUX_COLOR  Set linux console 16 colors palette.
+                {
+                    assert(ascii.length() >= 8);
+                    auto& oscer = _glb<T>::vt_parser.oscer;
+                    text cmd = OSC_LINUX_COLOR;
+                    if (auto it = oscer.find(cmd); it != oscer.end())
+                    {
+                        auto size = 7; // Nrrggbb
+                        auto data = ascii.substr(1, size);
+                        auto proc = (*it).second;
+                        proc(data, client);
+                    }
+                    ascii.remove_prefix(8); // PNrrggbb
+                    return;
+                }
+
                 auto base = ascii.data();
                 auto head = base;
                 auto tail = head + ascii.length();
@@ -1521,6 +1546,21 @@ namespace netxs::ansi
                     // test OSC: ESC ] ... BEL
                     else if (c == ']')
                     {
+                        // test OSC: ESC ] P Nrrggbb
+                        auto step = start + 1;
+                        if (step < crop.size() && crop[step] == 'P')
+                        {
+                            if (crop.size() < step + 8)
+                            {
+                                crop = crop.substr(0, size);
+                            }
+                            else
+                            {
+                                utf::purify(crop);
+                            }
+                            return crop;
+                        }
+
                         // find BEL
                         while (++start < crop.size())
                         {

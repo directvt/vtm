@@ -481,6 +481,13 @@ namespace netxs::ui
                 vt.oscer[OSC_LABEL]       = VT_PROC{ p->owner.wtrack.set(OSC_LABEL,       q); };
                 vt.oscer[OSC_TITLE]       = VT_PROC{ p->owner.wtrack.set(OSC_TITLE,       q); };
                 vt.oscer[OSC_XPROP]       = VT_PROC{ p->owner.wtrack.set(OSC_XPROP,       q); };
+                vt.oscer[OSC_LINUX_COLOR] = VT_PROC{ p->owner.set_colors(OSC_LINUX_COLOR, q); };
+                vt.oscer[OSC_SET_PALETTE] = VT_PROC{ p->owner.set_colors(OSC_SET_PALETTE, q); };
+                vt.oscer[OSC_SET_FGCOLOR] = VT_PROC{ p->owner.set_colors(OSC_SET_FGCOLOR, q); };
+                vt.oscer[OSC_SET_BGCOLOR] = VT_PROC{ p->owner.set_colors(OSC_SET_BGCOLOR, q); };
+                vt.oscer[OSC_RESET_COLOR] = VT_PROC{ p->owner.set_colors(OSC_RESET_COLOR, q); };
+                vt.oscer[OSC_RESET_FGCLR] = VT_PROC{ p->owner.set_colors(OSC_RESET_FGCLR, q); };
+                vt.oscer[OSC_RESET_BGCLR] = VT_PROC{ p->owner.set_colors(OSC_RESET_BGCLR, q); };
 
                 // Log all unimplemented CSI commands.
                 for (auto i = 0; i < 0x100; ++i)
@@ -3353,6 +3360,11 @@ namespace netxs::ui
                     this->base::riseup<tier::release>(e2::form::quit, This());
                 };
             }
+        }
+
+        void set_colors(text const& property, view txt)
+        {
+            log(" OSC=", property, " DATA=", txt, " HEX=", utf::to_hex(txt));
         }
 
     public:

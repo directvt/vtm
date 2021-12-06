@@ -9,6 +9,7 @@
 #include <limits>
 #include <cmath>
 #include <cfenv>
+#include <cassert>
 
 #ifndef faux
     #define faux (false)
