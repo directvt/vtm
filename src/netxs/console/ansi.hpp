@@ -768,6 +768,8 @@ namespace netxs::ansi
         void reset(cell const& c) { *this = fresh = c;      }
         auto busy() const         { return  fresh != *this; } // mark: Is the marker modified.
         void  sav()               { spare.set(*this);       } // mark: Save current SGR attributes.
+        void  sfg(rgba c)         { spare.fgc(c);           } // mark: Set default foreground color.
+        void  sbg(rgba c)         { spare.bgc(c);           } // mark: Set default background color.
         void  nil()               { this->set(spare);       } // mark: Restore saved SGR attributes.
         void  rfg()               { this->fgc(spare.fgc()); } // mark: Reset SGR Foreground color.
         void  rbg()               { this->bgc(spare.bgc()); } // mark: Reset SGR Background color.
