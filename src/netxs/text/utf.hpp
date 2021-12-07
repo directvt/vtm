@@ -1364,6 +1364,59 @@ namespace netxs::utf
 
         return buff;
     }
+
+    template<class ITER>
+    auto find_char(ITER head, ITER tail, char delim)
+    {
+        while (head != tail)
+        {
+            auto c = *head;
+                 if (c == delim) break;
+            else if (c == '\\' && head != tail) ++head;
+            ++head;
+        }
+        return head;
+    };
+    template<class P>
+    void trim_front_if(view& utf8, P pred)
+    {
+        auto head = utf8.begin();
+        auto tail = utf8.end();
+        while (head != tail)
+        {
+            auto c = *head;
+            if (pred(c)) break;
+            ++head;
+        }
+        utf8.remove_prefix(std::distance(utf8.begin(), head));
+    };
+    void trim_front(view& utf8, view delims)
+    {
+        trim_front_if(utf8, [&](char c){ return delims.find(c) == text::npos; });
+    };
+    auto get_quote(view& utf8, char delim, view skip = {})
+    {
+        auto head = utf8.begin();
+        auto tail = utf8.end();
+        auto coor = find_char(head, tail, delim);
+        if (std::distance(coor, tail) < 2)
+        {
+            utf8 = view{};
+            return text{};
+        }
+        ++coor;
+        auto stop = find_char(coor, tail, delim);
+        if (stop == tail)
+        {
+            utf8 = view{};
+            return text{};
+        }
+        utf8.remove_prefix(std::distance(head, stop) + 1);
+        text str{ coor, stop }; 
+        change(str, text{ "\\" } + delim, text{ 1, delim });
+        if (!skip.empty()) trim_front(utf8, skip);
+        return str;
+    };
 }
 
 #endif // NETXS_UTF_HPP

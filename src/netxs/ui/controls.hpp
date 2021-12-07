@@ -270,9 +270,25 @@ namespace netxs::ui
         ~fork()
         {
             events::sync lock;
-            if (client_1) client_1->base::detach();
-            if (client_2) client_2->base::detach();
-            if (splitter) splitter->base::detach();
+            auto empty = decltype(e2::form::upon::vtree::detached)::type{};
+            if (client_1)
+            {
+                auto item_ptr = client_1;
+                client_1.reset();
+                item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, empty);
+            }
+            if (client_2)
+            {
+                auto item_ptr = client_2;
+                client_2.reset();
+                item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, empty);
+            }
+            if (splitter)
+            {
+                auto item_ptr = splitter;
+                splitter.reset();
+                item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, empty);
+            }
         }
         fork(axis alignment = axis::X, iota thickness = 0, iota s1 = 1, iota s2 = 1)
             : maxpos{ 0 },
@@ -498,10 +514,12 @@ namespace netxs::ui
         ~list()
         {
             events::sync lock;
+            auto empty = decltype(e2::form::upon::vtree::detached)::type{};
             while (subset.size())
             {
-                subset.back().first->base::detach();
+                auto item_ptr = subset.back().first;
                 subset.pop_back();
+                item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, empty);
             }
         }
         list(axis orientation = axis::Y)
@@ -571,6 +589,20 @@ namespace netxs::ui
                 }
             };
         }
+        // list: Remove the last nested object. Return the object refrence.
+        auto pop_back() -> sptr<base>
+        {
+            if (subset.size())
+            {
+                auto item = std::prev(subset.end());
+                auto item_ptr = item->first;
+                auto backup = This();
+                subset.erase(item);
+                item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, backup);
+                return item_ptr;
+            }
+            return {};
+        }
         // list: Attach specified item.
         template<class T>
         auto attach(sptr<T> item)
@@ -620,10 +652,12 @@ namespace netxs::ui
         ~cake()
         {
             events::sync lock;
+            auto empty = decltype(e2::form::upon::vtree::detached)::type{};
             while (subset.size())
             {
-                subset.back()->base::detach();
+                auto item_ptr = subset.back();
                 subset.pop_back();
+                item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, empty);
             }
         }
         cake()
@@ -652,6 +686,20 @@ namespace netxs::ui
                     parent_canvas.render(client, basis);
                 }
             };
+        }
+        // cake: Remove the last nested object. Return the object refrence.
+        auto pop_back() -> sptr<base>
+        {
+            if (subset.size())
+            {
+                auto item = std::prev(subset.end());
+                auto item_ptr = *item;
+                auto backup = This();
+                subset.erase(item);
+                item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, backup);
+                return item_ptr;
+            }
+            return {};
         }
         // cake: Create a new item of the specified subtype and attach it.
         template<class T>
@@ -714,10 +762,12 @@ namespace netxs::ui
         ~park()
         {
             events::sync lock;
+            auto empty = decltype(e2::form::upon::vtree::detached)::type{};
             while (subset.size())
             {
-                subset.back().ptr->base::detach();
+                auto item_ptr = subset.back().ptr;
                 subset.pop_back();
+                item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, empty);
             }
         }
         park()
@@ -744,6 +794,20 @@ namespace netxs::ui
                     parent_canvas.render(client.ptr, basis);
                 }
             };
+        }
+        // park: Remove the last nested object. Return the object refrence.
+        auto pop_back() -> sptr<base>
+        {
+            if (subset.size())
+            {
+                auto item = std::prev(subset.end());
+                auto item_ptr = item->ptr;
+                auto backup = This();
+                subset.erase(item);
+                item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, backup);
+                return item_ptr;
+            }
+            return {};
         }
         // park: Create a new item of the specified subtype and attach it.
         template<class T>
@@ -778,10 +842,12 @@ namespace netxs::ui
         ~veer()
         {
             events::sync lock;
+            auto empty = decltype(e2::form::upon::vtree::detached)::type{};
             while (subset.size())
             {
-                subset.back()->base::detach();
+                auto item_ptr = subset.back();
                 subset.pop_back();
+                item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, empty);
             }
         }
         veer()
@@ -824,7 +890,7 @@ namespace netxs::ui
         {
             return subset.empty();
         }
-        // veer: Remove the last object. Return subset size and the object refrence.
+        // veer: Remove the last object. Return the object refrence.
         auto pop_back() -> sptr<base>
         {
             if (subset.size())
@@ -989,7 +1055,7 @@ namespace netxs::ui
                               0);
             auto height = cover.width() ? cover.height() + 1
                                         : 0;
-            width.y = height + (beyond ? width.y : 0); //todo unify (text editor)
+            width.y = height + (beyond ? width.y - 1 : 0); //todo unify (text editor)
         }
         void recalc(twod const& size)
         {
@@ -1196,9 +1262,16 @@ namespace netxs::ui
 
             return This();
         }
-        //todo should we detach client in dtor?
-        //~rail...
-
+        ~rail()
+        {
+            if (client)
+            {
+                auto empty = decltype(e2::form::upon::vtree::detached)::type{};
+                auto item = client;
+                client.reset();
+                item->SIGNAL(tier::release, e2::form::upon::vtree::detached, empty);
+            }
+        }
         rail(axes allow_to_scroll = axes::ALL, axes allow_to_capture = axes::ALL)
             : permit{ allow_to_scroll  },
               siezed{ allow_to_capture }
@@ -1911,6 +1984,16 @@ namespace netxs::ui
     public:
         sptr<base> client;
 
+        ~pads()
+        {
+            if (client)
+            {
+                auto empty = decltype(e2::form::upon::vtree::detached)::type{};
+                auto item = client;
+                client.reset();
+                item->SIGNAL(tier::release, e2::form::upon::vtree::detached, empty);
+            }
+        }
         pads(dent const& padding_value = {}, dent const& margins_value = {})
             : padding{ padding_value },
               margins{ margins_value }

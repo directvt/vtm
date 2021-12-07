@@ -8,7 +8,6 @@
 #include "../text/logger.hpp"
 #include "../abstract/ring.hpp"
 
-#include <cassert>
 #include <span>
 
 namespace netxs::console
@@ -1440,13 +1439,13 @@ namespace netxs::console
     {
         using list = std::list<sptr<para>>;
         using iter = list::iterator;
-        using imap = std::map<iota, wptr<para>>;
+        using pmap = std::map<iota, wptr<para>>;
 
     public:
         ui32 index = {};              // page: Current paragraph id.
         list batch = { std::make_shared<para>(index) }; // page: Paragraph list.
         iter layer = batch.begin();   // page: Current paragraph.
-        imap parts;                   // page: Paragraph index.
+        pmap parts;                   // page: Paragraph index.
 
         //todo use ring
         iota limit = std::numeric_limits<iota>::max(); // page: Paragraphs number limit.

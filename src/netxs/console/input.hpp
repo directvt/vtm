@@ -697,11 +697,27 @@ namespace netxs::input
         //todo unify
         rect slot; // slot for pro::maker and e2::createby.
 
-        bool kb_focus_taken = faux;
         //todo unify
+        bool kb_focus_taken = faux;
         bool force_group_focus = faux;
         bool combine_focus = faux;
         iota countdown = 0;
+
+        auto state()
+        {
+            return std::tuple{ force_group_focus, 
+                               kb_focus_taken,
+                               combine_focus,
+                               countdown };
+        }
+        template<class T>
+        void state(T const& s)
+        {
+            force_group_focus = std::get<0>(s);
+            kb_focus_taken    = std::get<1>(s);
+            combine_focus     = std::get<2>(s);
+            countdown         = std::get<3>(s);
+        }
 
         enum modifiers : uint32_t
         {

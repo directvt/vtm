@@ -6,41 +6,36 @@
 
 #include "../ui/controls.hpp"
 
-#include <cassert>
-
 namespace netxs::events::userland
 {
-    struct term
+    struct uiterm
     {
-        EVENTPACK( term, netxs::events::userland::root::custom )
+        EVENTPACK( uiterm, netxs::events::userland::root::custom )
         {
-            EVENT_XS( cmd   , iota ),
             GROUP_XS( layout, iota ),
-            GROUP_XS( data  , iota ),
 
             SUBSET_XS( layout )
             {
                 EVENT_XS( align , bias ),
                 EVENT_XS( wrapln, wrap ),
             };
-            SUBSET_XS( data )
-            {
-                EVENT_XS( in , view ),
-                EVENT_XS( out, view ),
-            };
         };
     };
+
 }
 
-namespace netxs::app
+// terminal: Terminal UI control.
+namespace netxs::ui
 {
-    using namespace netxs::console;
-
-    // terminal: Built-in terminal app.
-    struct term
+    class term
         : public ui::form<term>
     {
-        using events = netxs::events::userland::term;
+        static constexpr iota def_length = 20000; // term: Default scrollback history length.
+        static constexpr iota def_growup = 0;     // term: Default scrollback history grow step.
+        static constexpr iota def_tablen = 8;     // term: Default tab length.
+
+    public:
+        using events = netxs::events::userland::uiterm;
 
         struct commands
         {
@@ -68,7 +63,7 @@ namespace netxs::app
             };
             struct ui
             {
-                enum : iota
+                enum commands : iota
                 {
                     right,
                     left,
@@ -94,11 +89,7 @@ namespace netxs::app
                 };
             };
         };
-
-private:
-        static constexpr iota def_length = 20000; // term: Default scrollback history length.
-        static constexpr iota def_growup = 0;     // term: Default scrollback history grow step.
-        static constexpr iota def_tablen = 8;     // term: Default tab length.
+    private:
 
         // term: VT-buffer status.
         struct term_state
@@ -415,6 +406,121 @@ private:
             }
         };
 
+        // term: Terminal 16/256 color palette tracking functionality.
+        struct c_tracking
+        {
+            using pals = std::remove_const_t<decltype(rgba::color256)>;
+            using func = std::unordered_map<text, std::function<void(view)>>;
+
+            term& owner; // c_tracking: Terminal object reference.
+            pals  color; // c_tracking: 16/256 colors palette.
+            func  procs; // c_tracking: Handlers.
+
+            void reset()
+            {
+                std::copy(std::begin(rgba::color256), std::end(rgba::color256), std::begin(color));
+            }
+            auto to_byte(char c)
+            {
+                if (c >= '0' && c <= '9') return c - '0';
+                if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+                if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+                                          return 0;
+            }
+
+            c_tracking(term& owner)
+                : owner{ owner }
+            {
+                reset();
+                procs[ansi::OSC_LINUX_COLOR] = [&](view data) // ESC ] P Nrrggbb
+                {
+                    if (data.length() >= 7)
+                    {
+                        auto n  = to_byte(data[0]);
+                        auto r1 = to_byte(data[1]);
+                        auto r2 = to_byte(data[2]);
+                        auto g1 = to_byte(data[3]);
+                        auto g2 = to_byte(data[4]);
+                        auto b1 = to_byte(data[5]);
+                        auto b2 = to_byte(data[6]);
+                        color[n] = (r1 << 4 ) + (r2      )
+                                 + (g1 << 12) + (g2 << 8 )
+                                 + (b1 << 20) + (b2 << 16)
+                                 + 0xFF000000;
+                    }
+                };
+                procs[ansi::OSC_RESET_COLOR] = [&](view data) // ESC ] 104 ; 0; 1;...
+                {
+                    auto empty = true;
+                    while(data.length())
+                    {
+                        utf::trim_front_if(data, [](char c){ return c >= '0' && c <= '9'; });
+                        if (auto value = utf::to_int(data))
+                        {
+                            auto n = value.value();
+                            color[n] = rgba::color256[n];
+                            empty = faux;
+                        }
+                    }
+                    if (empty) reset();
+                };
+                procs[ansi::OSC_SET_PALETTE] = [&](view data) // ESC ] 4 ; 0;rgb:00/00/00;1;rgb:00/00/00;...
+                {
+                    while (data.length())
+                    {
+                        utf::trim_front(data, " ;");
+                        if (auto value = utf::to_int(data))
+                        {
+                            auto n = value.value();
+                            utf::trim_front(data, " ;");
+                            if (data.length() >= 12 && data.starts_with("rgb:"))
+                            {
+                                auto r1 = to_byte(data[ 4]);
+                                auto r2 = to_byte(data[ 5]);
+                                auto g1 = to_byte(data[ 7]);
+                                auto g2 = to_byte(data[ 8]);
+                                auto b1 = to_byte(data[10]);
+                                auto b2 = to_byte(data[11]);
+                                color[n] = (r1 << 4 ) + (r2      )
+                                         + (g1 << 12) + (g2 << 8 )
+                                         + (b1 << 20) + (b2 << 16)
+                                         + 0xFF000000;
+                                data.remove_prefix(12); // rgb:00/00/00
+                            }
+                            else
+                            {
+                                //todo impl request "?"
+                                log(" OSC=", ansi::OSC_SET_PALETTE, " unsupported format DATA=", utf::to_hex(data));
+                                break;
+                            }
+                        }
+                    }
+                };
+                procs[ansi::OSC_LINUX_RESET] = [&](view data) // ESC ] R
+                {
+                    reset();
+                };
+                //todo implement
+                //procs[ansi::OSC_SET_FGCOLOR] = [&](view data) { };
+                //procs[ansi::OSC_SET_BGCOLOR] = [&](view data) { };
+                //procs[ansi::OSC_RESET_COLOR] = [&](view data) { };
+                //procs[ansi::OSC_RESET_FGCLR] = [&](view data) { };
+                //procs[ansi::OSC_RESET_BGCLR] = [&](view data) { };
+            }
+
+            void set(text const& property, view data)
+            {
+                auto proc = procs.find(property);
+                if (proc != procs.end())
+                {
+                    proc->second(data);
+                }
+                else log(" Not supported: OSC=", property, " DATA=", data, " HEX=", utf::to_hex(data));
+            }
+            void fgc(tint c) { owner.target->brush.fgc(color[c]); }
+            void bgc(tint c) { owner.target->brush.bgc(color[c]); }
+        };
+
         // term: Generic terminal buffer.
         struct bufferbase
             : public ansi::parser
@@ -429,6 +535,39 @@ private:
                 vt.csier.table_hash [CSI_HSH_SCP] = VT_PROC{ p->na("CSI n # P  Push current palette colors onto stack. n default is 0."); }; // CSI n # P  Push current palette colors onto stack. n default is 0.
                 vt.csier.table_hash [CSI_HSH_RCP] = VT_PROC{ p->na("CSI n # Q  Pop  current palette colors onto stack. n default is 0."); }; // CSI n # Q  Pop  current palette colors onto stack. n default is 0.
                 vt.csier.table_excl [CSI_EXL_RST] = VT_PROC{ p->owner.decstr( ); }; // CSI ! p  Soft terminal reset (DECSTR)
+
+                vt.csier.table[CSI_SGR][SGR_FG_BLK   ] = VT_PROC{ p->owner.ctrack.fgc(tint::blackdk  ); };
+                vt.csier.table[CSI_SGR][SGR_FG_RED   ] = VT_PROC{ p->owner.ctrack.fgc(tint::reddk    ); };
+                vt.csier.table[CSI_SGR][SGR_FG_GRN   ] = VT_PROC{ p->owner.ctrack.fgc(tint::greendk  ); };
+                vt.csier.table[CSI_SGR][SGR_FG_YLW   ] = VT_PROC{ p->owner.ctrack.fgc(tint::yellowdk ); };
+                vt.csier.table[CSI_SGR][SGR_FG_BLU   ] = VT_PROC{ p->owner.ctrack.fgc(tint::bluedk   ); };
+                vt.csier.table[CSI_SGR][SGR_FG_MGT   ] = VT_PROC{ p->owner.ctrack.fgc(tint::magentadk); };
+                vt.csier.table[CSI_SGR][SGR_FG_CYN   ] = VT_PROC{ p->owner.ctrack.fgc(tint::cyandk   ); };
+                vt.csier.table[CSI_SGR][SGR_FG_WHT   ] = VT_PROC{ p->owner.ctrack.fgc(tint::whitedk  ); };
+                vt.csier.table[CSI_SGR][SGR_FG_BLK_LT] = VT_PROC{ p->owner.ctrack.fgc(tint::blacklt  ); };
+                vt.csier.table[CSI_SGR][SGR_FG_RED_LT] = VT_PROC{ p->owner.ctrack.fgc(tint::redlt    ); };
+                vt.csier.table[CSI_SGR][SGR_FG_GRN_LT] = VT_PROC{ p->owner.ctrack.fgc(tint::greenlt  ); };
+                vt.csier.table[CSI_SGR][SGR_FG_YLW_LT] = VT_PROC{ p->owner.ctrack.fgc(tint::yellowlt ); };
+                vt.csier.table[CSI_SGR][SGR_FG_BLU_LT] = VT_PROC{ p->owner.ctrack.fgc(tint::bluelt   ); };
+                vt.csier.table[CSI_SGR][SGR_FG_MGT_LT] = VT_PROC{ p->owner.ctrack.fgc(tint::magentalt); };
+                vt.csier.table[CSI_SGR][SGR_FG_CYN_LT] = VT_PROC{ p->owner.ctrack.fgc(tint::cyanlt   ); };
+                vt.csier.table[CSI_SGR][SGR_FG_WHT_LT] = VT_PROC{ p->owner.ctrack.fgc(tint::whitelt  ); };
+                vt.csier.table[CSI_SGR][SGR_BG_BLK   ] = VT_PROC{ p->owner.ctrack.bgc(tint::blackdk  ); };
+                vt.csier.table[CSI_SGR][SGR_BG_RED   ] = VT_PROC{ p->owner.ctrack.bgc(tint::reddk    ); };
+                vt.csier.table[CSI_SGR][SGR_BG_GRN   ] = VT_PROC{ p->owner.ctrack.bgc(tint::greendk  ); };
+                vt.csier.table[CSI_SGR][SGR_BG_YLW   ] = VT_PROC{ p->owner.ctrack.bgc(tint::yellowdk ); };
+                vt.csier.table[CSI_SGR][SGR_BG_BLU   ] = VT_PROC{ p->owner.ctrack.bgc(tint::bluedk   ); };
+                vt.csier.table[CSI_SGR][SGR_BG_MGT   ] = VT_PROC{ p->owner.ctrack.bgc(tint::magentadk); };
+                vt.csier.table[CSI_SGR][SGR_BG_CYN   ] = VT_PROC{ p->owner.ctrack.bgc(tint::cyandk   ); };
+                vt.csier.table[CSI_SGR][SGR_BG_WHT   ] = VT_PROC{ p->owner.ctrack.bgc(tint::whitedk  ); };
+                vt.csier.table[CSI_SGR][SGR_BG_BLK_LT] = VT_PROC{ p->owner.ctrack.bgc(tint::blacklt  ); };
+                vt.csier.table[CSI_SGR][SGR_BG_RED_LT] = VT_PROC{ p->owner.ctrack.bgc(tint::redlt    ); };
+                vt.csier.table[CSI_SGR][SGR_BG_GRN_LT] = VT_PROC{ p->owner.ctrack.bgc(tint::greenlt  ); };
+                vt.csier.table[CSI_SGR][SGR_BG_YLW_LT] = VT_PROC{ p->owner.ctrack.bgc(tint::yellowlt ); };
+                vt.csier.table[CSI_SGR][SGR_BG_BLU_LT] = VT_PROC{ p->owner.ctrack.bgc(tint::bluelt   ); };
+                vt.csier.table[CSI_SGR][SGR_BG_MGT_LT] = VT_PROC{ p->owner.ctrack.bgc(tint::magentalt); };
+                vt.csier.table[CSI_SGR][SGR_BG_CYN_LT] = VT_PROC{ p->owner.ctrack.bgc(tint::cyanlt   ); };
+                vt.csier.table[CSI_SGR][SGR_BG_WHT_LT] = VT_PROC{ p->owner.ctrack.bgc(tint::whitelt  ); };
 
                 vt.csier.table[CSI_CUU] = VT_PROC{ p->up ( q(1)); };  // CSI n A  (CUU)
                 vt.csier.table[CSI_CUD] = VT_PROC{ p->dn ( q(1)); };  // CSI n B  (CUD)
@@ -490,6 +629,14 @@ private:
                 vt.oscer[OSC_LABEL]       = VT_PROC{ p->owner.wtrack.set(OSC_LABEL,       q); };
                 vt.oscer[OSC_TITLE]       = VT_PROC{ p->owner.wtrack.set(OSC_TITLE,       q); };
                 vt.oscer[OSC_XPROP]       = VT_PROC{ p->owner.wtrack.set(OSC_XPROP,       q); };
+                vt.oscer[OSC_LINUX_COLOR] = VT_PROC{ p->owner.ctrack.set(OSC_LINUX_COLOR, q); };
+                vt.oscer[OSC_LINUX_RESET] = VT_PROC{ p->owner.ctrack.set(OSC_LINUX_RESET, q); };
+                vt.oscer[OSC_SET_PALETTE] = VT_PROC{ p->owner.ctrack.set(OSC_SET_PALETTE, q); };
+                vt.oscer[OSC_SET_FGCOLOR] = VT_PROC{ p->owner.ctrack.set(OSC_SET_FGCOLOR, q); };
+                vt.oscer[OSC_SET_BGCOLOR] = VT_PROC{ p->owner.ctrack.set(OSC_SET_BGCOLOR, q); };
+                vt.oscer[OSC_RESET_COLOR] = VT_PROC{ p->owner.ctrack.set(OSC_RESET_COLOR, q); };
+                vt.oscer[OSC_RESET_FGCLR] = VT_PROC{ p->owner.ctrack.set(OSC_RESET_FGCLR, q); };
+                vt.oscer[OSC_RESET_BGCLR] = VT_PROC{ p->owner.ctrack.set(OSC_RESET_BGCLR, q); };
 
                 // Log all unimplemented CSI commands.
                 for (auto i = 0; i < 0x100; ++i)
@@ -629,13 +776,13 @@ private:
                 {
                     auto status = parser::style.wrp() == wrap::none ? deco::defwrp
                                                                     : parser::style.wrp();
-                    owner.base::broadcast->SIGNAL(tier::release, app::term::events::layout::wrapln, status);
+                    owner.SIGNAL(tier::release, ui::term::events::layout::wrapln, status);
                 }
                 if (parser::style.jet() != old_style.jet())
                 {
                     auto status = parser::style.jet() == bias::none ? bias::left
                                                                     : parser::style.jet();
-                    owner.base::broadcast->SIGNAL(tier::release, app::term::events::layout::align, status);
+                    owner.SIGNAL(tier::release, ui::term::events::layout::align, status);
                 }
             }
             // bufferbase: .
@@ -3082,6 +3229,7 @@ private:
         w_tracking wtrack; // term: Terminal title tracking object.
         f_tracking ftrack; // term: Keyboard focus tracking object.
         m_tracking mtrack; // term: VT-style mouse tracking object.
+        c_tracking ctrack; // term: Custom terminal palette tracking object.
         scroll_buf normal; // term: Normal    screen buffer.
         alt_screen altbuf; // term: Alternate screen buffer.
         buffer_ptr target; // term: Current   screen buffer pointer.
@@ -3365,6 +3513,61 @@ private:
         }
 
     public:
+        void exec_cmd(commands::ui::commands cmd)
+        {
+            log("term: tier::preview, ui::commands, ", cmd);
+            scroll();
+            switch (cmd)
+            {
+                case commands::ui::left:
+                    target->style.jet(bias::left);
+                    break;
+                case commands::ui::center:
+                    target->style.jet(bias::center);
+                    break;
+                case commands::ui::right:
+                    target->style.jet(bias::right);
+                    break;
+                case commands::ui::togglewrp:
+                    target->style.wrp(target->style.wrp() == wrap::on ? wrap::off : wrap::on);
+                    break;
+                case commands::ui::reset:
+                    decstr();
+                    break;
+                case commands::ui::clear:
+                    target->ed(commands::erase::display::viewport);
+                    break;
+                default:
+                    break;
+            }
+            ondata("");
+        }
+        void data_in(view data)
+        {
+            log("term: app::term::data::in, ", utf::debase(data));
+            scroll();
+            ondata(data);
+        }
+        void data_out(view data)
+        {
+            log("term: app::term::data::out, ", utf::debase(data));
+            scroll();
+            ptycon.write(data);
+        }
+        //todo temp
+        bool started = faux;
+        void start()
+        {
+            //todo move it to the another thread (slow init)
+            //initsz = base::size();
+            //std::thread{ [&]( )
+            //{
+                //todo async command queue
+                ptycon.start(cmdarg, initsz, [&](auto utf8_shadow) { ondata(utf8_shadow); },
+                                             [&](auto exit_reason) { onexit(exit_reason); } );
+                started = true;
+            //} }.detach();
+        }
        ~term(){ active = faux; }
         term(text command_line, iota max_scrollback_size = def_length, iota grow_step = def_growup)
         //term(text command_line, iota max_scrollback_size = 50, iota grow_step = 0)
@@ -3374,58 +3577,19 @@ private:
               mtrack{ *this },
               ftrack{ *this },
               wtrack{ *this },
+              ctrack{ *this },
               active{  true },
               decckm{  faux },
               bpmode{  faux }
         {
             cmdarg = command_line;
             target = &normal;
-            cursor.style(commands::cursor::def_style);
-            //cursor.style(commands::cursor::steady_box);
+            //cursor.style(commands::cursor::def_style); // default=blinking_box
+            cursor.style(commands::cursor::blinking_underline);
+            cursor.show(); //todo revise (possible bug)
 
             form::keybd.accept(true); // Subscribe to keybd offers.
 
-            base::broadcast->SUBMIT_T(tier::preview, app::term::events::cmd, bell::tracker, cmd)
-            {
-                log("term: tier::preview, app::term::cmd, ", cmd);
-                scroll();
-                switch (cmd)
-                {
-                    case term::commands::ui::left:
-                        target->style.jet(bias::left);
-                        break;
-                    case term::commands::ui::center:
-                        target->style.jet(bias::center);
-                        break;
-                    case term::commands::ui::right:
-                        target->style.jet(bias::right);
-                        break;
-                    case term::commands::ui::togglewrp:
-                        target->style.wrp(target->style.wrp() == wrap::on ? wrap::off : wrap::on);
-                        break;
-                    case term::commands::ui::reset:
-                        decstr();
-                        break;
-                    case term::commands::ui::clear:
-                        target->ed(commands::erase::display::viewport);
-                        break;
-                    default:
-                        break;
-                }
-                ondata("");
-            };
-            base::broadcast->SUBMIT_T(tier::preview, app::term::events::data::in, bell::tracker, data)
-            {
-                log("term: app::term::data::in, ", utf::debase(data));
-                scroll();
-                ondata(data);
-            };
-            base::broadcast->SUBMIT_T(tier::preview, app::term::events::data::out, bell::tracker, data)
-            {
-                log("term: app::term::data::out, ", utf::debase(data));
-                scroll();
-                ptycon.write(data);
-            };
             SUBMIT(tier::release, e2::coor::set, new_coor)
             {
                 //todo use tier::preview bcz approx viewport position can be corrected
@@ -3437,7 +3601,7 @@ private:
             {
                 this->base::riseup<tier::request>(e2::form::prop::header, wtrack.get(ansi::OSC_TITLE));
 
-
+                //todo deprecated
                 this->SUBMIT_T(tier::release, e2::size::set, oneoff, new_sz)
                 {
                     if (new_sz.y > 0)
@@ -3471,19 +3635,19 @@ private:
                             //std::thread{ [&]()
                             //{
                                 //todo async command queue
-                                ptycon.resize(initsz);
+                                if (started) ptycon.resize(initsz);
                             //} }.detach();
 
                             new_sz.y = console.get_basis() + new_sz.y;
                         };
 
                         //todo move it to the another thread (slow init)
-                        initsz = new_sz;
-                        //std::thread{ [&]( )
-                        //{
-                            //todo async command queue
-                            ptycon.start(cmdarg, initsz, [&](auto utf8_shadow) { ondata(utf8_shadow); },
-                                                         [&](auto exit_reason) { onexit(exit_reason); } );
+//                        initsz = new_sz;
+//                        //std::thread{ [&]( )
+//                        //{
+//                            //todo async command queue
+//                            ptycon.start(cmdarg, initsz, [&](auto utf8_shadow) { ondata(utf8_shadow); },
+//                                                         [&](auto exit_reason) { onexit(exit_reason); } );
                         //} }.detach();
                     }
                 };

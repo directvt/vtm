@@ -6,6 +6,8 @@
 
 #include <type_traits>
 #include <optional>
+#include <unordered_map>
+#include <map>
 
 namespace netxs
 {
@@ -43,5 +45,76 @@ namespace netxs
         else
             return it->second;
     }
+
+    // hash: Map that keeps the insertion order.
+    template<class KEY, class VAL>
+    class imap
+    {
+        std::unordered_map<KEY, VAL> storage{};
+        std::unordered_map<KEY, int> reverse{};
+        std::map          <int, KEY> forward{};
+        int                          counter{};
+
+        template<class IMAP>
+        struct iter
+        {
+            using it_t = decltype(IMAP{}.forward.begin());
+            using iota = typename std::iterator_traits<it_t>::difference_type; //todo "typename" keyword is required by FreeBSD clang 11.0.1
+
+            IMAP& buff;
+            it_t  addr;
+
+            iter(IMAP& buff, it_t&& addr)
+              : buff{ buff },
+                addr{ addr }
+            { }
+
+            auto  operator -  (iota n)        const { return iter<IMAP>{ buff, addr - n };         }
+            auto  operator +  (iota n)        const { return iter<IMAP>{ buff, addr + n };         }
+            auto  operator ++ (int)                 { return iter<IMAP>{ buff, addr++   };         }
+            auto  operator -- (int)                 { return iter<IMAP>{ buff, addr--   };         }
+            auto& operator ++ ()                    {                        ++addr; return *this; }
+            auto& operator -- ()                    {                        --addr; return *this; }
+            auto  operator -> ()                    { return buff.storage.find(addr->second);      }
+            auto& operator *  ()                    { return *(this->operator->());                }
+            auto  operator != (iter const& m) const { return addr != m.addr;                       }
+            auto  operator == (iter const& m) const { return addr == m.addr;                       }
+        };
+
+    public:
+        auto   begin()       { return iter<      imap>{ *this, forward.begin() }; }
+        auto     end()       { return iter<      imap>{ *this, forward.end()   }; }
+        auto   begin() const { return iter<const imap>{ *this, forward.begin() }; }
+        auto     end() const { return iter<const imap>{ *this, forward.end()   }; }
+        auto& length() const { return forward.size();                             }
+        auto&   size() const { return forward.size();                             }
+        auto&   back()       { return storage[std::prev(forward.end()) ->second]; }
+        auto&  front()       { return storage[          forward.begin()->second]; }
+        //todo implement erase and friends
+        // ...
+        template<class K>
+        auto& at(K&& key)
+        {
+            auto [iter, anew] = storage.try_emplace(std::forward<K>(key));
+            if (anew)
+            {
+                auto& new_key = iter->first;
+                forward[counter] = new_key;
+                reverse[new_key] = counter;
+                counter++;
+            }
+
+            return iter->second;
+        }
+        template<class K>
+        auto& operator[] (K&& key) { return at(std::forward<K>(key)); }
+
+        imap()
+        { }
+        imap(std::initializer_list<std::pair<KEY, VAL>> list)
+        {
+            for (auto& [key, val] : list) at(key) = val;
+        }
+    };
 }
 #endif // NETXS_HASH_HPP
