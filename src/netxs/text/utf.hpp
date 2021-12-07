@@ -1377,17 +1377,22 @@ namespace netxs::utf
         }
         return head;
     };
-    auto trim_front(view& utf8, view delims)
+    template<class P>
+    void trim_front_if(view& utf8, P pred)
     {
         auto head = utf8.begin();
         auto tail = utf8.end();
         while (head != tail)
         {
             auto c = *head;
-            if (delims.find(c) == text::npos) break;
+            if (pred(c)) break;
             ++head;
         }
         utf8.remove_prefix(std::distance(utf8.begin(), head));
+    };
+    void trim_front(view& utf8, view delims)
+    {
+        trim_front_if(utf8, [&](char c){ return delims.find(c) == text::npos; });
     };
     auto get_quote(view& utf8, char delim, view skip = {})
     {

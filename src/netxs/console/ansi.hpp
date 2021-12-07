@@ -133,6 +133,7 @@ namespace netxs::ansi
     static const auto OSC_TITLE        = "2"   ; // Set title.
     static const auto OSC_XPROP        = "3"   ; // Set xprop.
     static const auto OSC_LINUX_COLOR  = "P"   ; // Set 16 colors palette. (Linux console)
+    static const auto OSC_LINUX_RESET  = "R"   ; // Reset 16/256 colors palette. (Linux console)
     static const auto OSC_SET_PALETTE  = "4"   ; // Set 256 colors palette.
     static const auto OSC_SET_FGCOLOR  = "10"  ; // Set fg color.
     static const auto OSC_SET_BGCOLOR  = "11"  ; // Set bg color.
@@ -1264,10 +1265,11 @@ namespace netxs::ansi
             // Find ST and ';', if no ST or no ';' when drop
             if (ascii)
             {
-                if (ascii.front() == 'P') // OSC_LINUX_COLOR  Set linux console 16 colors palette.
+                auto& oscer = _glb<T>::vt_parser.oscer;
+                auto c = ascii.front();
+                if (c == 'P') // OSC_LINUX_COLOR  Set linux console 16 colors palette.
                 {
                     assert(ascii.length() >= 8);
-                    auto& oscer = _glb<T>::vt_parser.oscer;
                     text cmd = OSC_LINUX_COLOR;
                     if (auto it = oscer.find(cmd); it != oscer.end())
                     {
@@ -1279,6 +1281,18 @@ namespace netxs::ansi
                     ascii.remove_prefix(8); // PNrrggbb
                     return;
                 }
+                else if (c == 'R') // OSC_LINUX_RESET  Reset linux console 16/256 colors palette.
+                {
+                    text cmd = OSC_LINUX_RESET;
+                    if (auto it = oscer.find(cmd); it != oscer.end())
+                    {
+                        auto data = view{};
+                        auto proc = (*it).second;
+                        proc(data, client);
+                    }
+                    ascii.remove_prefix(1); // R
+                    return;
+                }
 
                 auto base = ascii.data();
                 auto head = base;
@@ -1286,7 +1300,6 @@ namespace netxs::ansi
                 auto delm = tail; // Semicolon ';' position
                 auto exec = [&](auto pad)
                 {
-                    auto& oscer = _glb<T>::vt_parser.oscer;
                     text cmd(base, delm);
                     ++delm;
                     auto size = head - delm;
@@ -1548,17 +1561,26 @@ namespace netxs::ansi
                     {
                         // test OSC: ESC ] P Nrrggbb
                         auto step = start + 1;
-                        if (step < crop.size() && crop[step] == 'P')
+                        if (step < crop.size())
                         {
-                            if (crop.size() < step + 8)
+                            auto c = crop[step];
+                            if(c == 'P') // Set linux console palette.
                             {
-                                crop = crop.substr(0, size);
+                                if (crop.size() < step + 8)
+                                {
+                                    crop = crop.substr(0, size);
+                                }
+                                else
+                                {
+                                    utf::purify(crop);
+                                }
+                                return crop;
                             }
-                            else
+                            else if(c == 'R') // Reset linux console palette.
                             {
                                 utf::purify(crop);
+                                return crop;
                             }
-                            return crop;
                         }
 
                         // find BEL
