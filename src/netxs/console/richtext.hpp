@@ -8,7 +8,6 @@
 #include "../text/logger.hpp"
 #include "../abstract/ring.hpp"
 
-#include <cassert>
 #include <span>
 
 namespace netxs::console

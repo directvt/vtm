@@ -6,8 +6,6 @@
 
 #include "../math/intmath.hpp"
 
-#include <cassert>
-
 namespace netxs::generics
 {
     template<class vect, bool USE_UNDOCK = faux>

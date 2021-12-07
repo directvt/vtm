@@ -28,15 +28,15 @@ namespace netxs::app::shared
     X(Shop         , "Shop"                  , ("Desktopio App Store")                                         , "" ) \
     X(Logs         , "Logs"                  , ("Logs \nDebug output console")                                 , "" ) \
     X(View         , "View"                  , (ansi::jet(bias::center).add("View \n Region 1"))               , "" ) \
-    X(Tile         , "Tile"                  , ("Tiling Window Manager")                                       , "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h()" ) \
-    X(RefreshRate  , "Settings"              , ("Settings: Frame Rate Limit")                                  , "" ) \
-    X(PowerShell   , "pwsh PowerShell"       , ("Term \nPowerShell")                                           , "" ) \
-    X(CommandPrompt, "cmd Command Prompt"    , ("Term \nCommand Prompt")                                       , "" ) \
+    X(Tile         , "Tile"                  , ("Tiling Window Manager")                                       , "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h(a(\"Term\" ,\"\" ,\"\"), a(\"Term\" ,\"\" ,\"\"))" ) \
+    X(Settings     , "Settings"              , ("Settings: Frame Rate Limit")                                  , "" ) \
+    X(PowerShell   , "PowerShell"            , ("Term \nPowerShell")                                           , "" ) \
+    X(CommandPrompt, "Command Prompt"        , ("Term \nCommand Prompt")                                       , "" ) \
     X(Bash         , "Bash/Zsh/CMD"          , ("Term \nBash/Zsh/CMD")                                         , "" ) \
     X(Far          , "Far Manager"           , ("Term \nFar Manager")                                          , "" ) \
     X(VTM          , "vtm (recursively)"     , ("Term \nvtm (recursively)")                                    , "" ) \
     X(MC           , "mc  Midnight Commander", ("Term \nMidnight Commander")                                   , "" ) \
-    X(Truecolor    , "RGB Truecolor image"   , (ansi::jet(bias::right).add("True color ANSI/ASCII image test")), "" ) \
+    X(Truecolor    , "Truecolor image"       , (ansi::jet(bias::right).add("True color ANSI/ASCII image test")), "" ) \
     X(Strobe       , "Strobe"                , (ansi::jet(bias::center).add("Strobe"))                         , "" ) \
     X(Test         , "Test Window"           , (ansi::jet(bias::center).add("Test Page"))                      , "" ) \
     X(Empty        , "Empty Window"          , (ansi::mgl(1).mgr(1).add("Empty Instance \nid: "))              , "" )
@@ -143,7 +143,7 @@ namespace netxs::app::shared
                     boss.reflow();
                     gear.dismiss();
                 };
-                boss.base::broadcast->SUBMIT(tier::release, e2::form::prop::menusize, size)
+                boss.SUBMIT(tier::anycast, e2::form::prop::menusize, size)
                 {
                     auto& limit = boss.plugins<pro::limit>();
                     auto limits = limit.get();
@@ -265,7 +265,7 @@ namespace netxs::app::shared
             };
             return window;
         };
-        auto build_RefreshRate   = [](view v)
+        auto build_Settings      = [](view v)
         {
             auto window = ui::cake::ctor();
             window->plugin<pro::focus>()
@@ -495,7 +495,7 @@ namespace netxs::app::shared
                                       (*c)--;
                                       log("main: vtm recursive conn destoyed");
                                   };
-                                  boss.base::broadcast->SUBMIT_T(tier::release, e2::form::upon::started, boss.bell::tracker, root)
+                                  boss.SUBMIT(tier::anycast, e2::form::upon::started, root)
                                   {
                                       boss.start();
                                   };
@@ -530,10 +530,10 @@ namespace netxs::app::shared
                           ->colors(whitelt, blackdk)
                           ->invoke([&](auto& boss)
                           {
-                              boss.base::broadcast->SUBMIT_T(tier::release, e2::form::upon::started, boss.bell::tracker, root)
-                              {
-                                  boss.start();
-                              };
+                            boss.SUBMIT(tier::anycast, e2::form::upon::started, root)
+                            {
+                                boss.start();
+                            };
                           });
                 layers->attach(app::shared::scroll_bars_term(scroll));
             return window;
@@ -571,7 +571,7 @@ namespace netxs::app::shared
                     inst->colors(whitelt, blackdk)
                         ->invoke([&](auto& boss)
                         {
-                            boss.base::broadcast->SUBMIT_T(tier::release, e2::form::upon::started, boss.bell::tracker, root)
+                            boss.SUBMIT(tier::anycast, e2::form::upon::started, root)
                             {
                                 boss.start();
                             };
@@ -595,7 +595,7 @@ namespace netxs::app::shared
                             {
                                 boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                                 {
-                                    boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, ui::term::commands::ui::clear);
+                                    boss.SIGNAL(tier::anycast, app::term::events::cmd, ui::term::commands::ui::clear);
                                     gear.dismiss(true);
                                 };
                             }},
@@ -604,7 +604,7 @@ namespace netxs::app::shared
                             {
                                 boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                                 {
-                                    boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, ui::term::commands::ui::reset);
+                                    boss.SIGNAL(tier::anycast, app::term::events::cmd, ui::term::commands::ui::reset);
                                     gear.dismiss(true);
                                 };
                             }},
@@ -618,10 +618,10 @@ namespace netxs::app::shared
                                   ->colors(whitelt, 0xFF562401)
                                   ->invoke([&](auto& boss)
                                   {
-                                      boss.base::broadcast->SUBMIT_T(tier::release, e2::form::upon::started, boss.bell::tracker, root)
-                                      {
-                                          boss.start();
-                                      };
+                                    boss.SUBMIT(tier::anycast, e2::form::upon::started, root)
+                                    {
+                                        boss.start();
+                                    };
                                   });
 
                     auto scroll_bars = layers->attach(ui::fork::ctor());
@@ -645,7 +645,7 @@ namespace netxs::app::shared
                             {
                                 boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                                 {
-                                    boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, ui::term::commands::ui::clear);
+                                    boss.SIGNAL(tier::anycast, app::term::events::cmd, ui::term::commands::ui::clear);
                                     gear.dismiss(true);
                                 };
                             }},
@@ -654,7 +654,7 @@ namespace netxs::app::shared
                             {
                                 boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                                 {
-                                    boss.base::broadcast->SIGNAL(tier::preview, app::term::events::cmd, ui::term::commands::ui::reset);
+                                    boss.SIGNAL(tier::anycast, app::term::events::cmd, ui::term::commands::ui::reset);
                                     gear.dismiss(true);
                                 };
                             }},
@@ -677,7 +677,7 @@ namespace netxs::app::shared
                         inst->colors(whitelt, blackdk)
                             ->invoke([&](auto& boss)
                             {
-                                boss.base::broadcast->SUBMIT_T(tier::release, e2::form::upon::started, boss.bell::tracker, root)
+                                boss.SUBMIT(tier::anycast, e2::form::upon::started, root)
                                 {
                                     boss.start();
                                 };
@@ -690,7 +690,7 @@ namespace netxs::app::shared
         };
 
         app::shared::initialize builder_Strobe       { "Strobe"       , build_Strobe        };
-        app::shared::initialize builder_RefreshRate  { "RefreshRate"  , build_RefreshRate   };
+        app::shared::initialize builder_Settings     { "Settings"     , build_Settings      };
         app::shared::initialize builder_Empty        { "Empty"        , build_Empty         };
         app::shared::initialize builder_View         { "View"         , build_View          };
         app::shared::initialize builder_Truecolor    { "Truecolor"    , build_Truecolor     };
@@ -711,9 +711,9 @@ namespace netxs::app::shared
         #ifdef DEMO
             auto shell = os::get_shell();
             #ifdef PROD
-                app::shared::objs_config[objs_lookup["Tile"]].data = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h(v(\"" + shell + " -c 'LC_ALL=en_US.UTF-8 mc -c -x -d; cat'\", h(\"" + shell + " -c 'ls /bin | nl | ccze -A; " + shell + "'\", a(\"RefreshRate\",\"\",\"\"))), a(\"Calc\",\"\",\"\"))";
+                app::shared::objs_config[objs_lookup["Tile"]].data = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h(v(\"" + shell + " -c 'LC_ALL=en_US.UTF-8 mc -c -x -d; cat'\", h(\"" + shell + " -c 'ls /bin | nl | ccze -A; " + shell + "'\", a(\"Settings\",\"\",\"\"))), a(\"Calc\",\"\",\"\"))";
             #else
-                app::shared::objs_config[objs_lookup["Tile"]].data = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h1:1(v1:1(\"" + shell + " -c 'LC_ALL=en_US.UTF-8 mc -c -x -d; cat'\", h1:1(\"" + shell + " -c 'ls /bin | nl | ccze -A; " + shell + "'\", a(\"RefreshRate\",\"\",\"\"))), a(\"Calc\",\"\",\"\"))";
+                app::shared::objs_config[objs_lookup["Tile"]].data = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h1:1(v1:1(\"" + shell + " -c 'LC_ALL=en_US.UTF-8 mc -c -x -d; cat'\", h1:1(\"" + shell + " -c 'ls /bin | nl | ccze -A; " + shell + "'\", a(\"Settings\",\"\",\"\"))), a(\"Calc\",\"\",\"\"))";
             #endif
 
             for (auto& [menu_item_id, app_data] : app::shared::objs_config)
@@ -726,13 +726,13 @@ namespace netxs::app::shared
                 menu_list[objs_lookup["Tile"]];
                 menu_list[objs_lookup["Logs"]];
                 menu_list[objs_lookup["View"]];
-                menu_list[objs_lookup["RefreshRate"]];
+                menu_list[objs_lookup["Settings"]];
             #else
                 menu_list[objs_lookup["Term"]];
                 menu_list[objs_lookup["Tile"]];
                 menu_list[objs_lookup["Logs"]];
                 menu_list[objs_lookup["View"]];
-                menu_list[objs_lookup["RefreshRate"]];
+                menu_list[objs_lookup["Settings"]];
             #endif
 
             // Add custom commands to the menu.
@@ -786,7 +786,7 @@ namespace netxs::app::shared
             sub_pos = twod{-120, 60};
             creator(objs_lookup["Truecolor"  ], { twod{ 20, 15 } + sub_pos, { 70, 30 } });
             creator(objs_lookup["Logs"       ], { twod{ 52, 33 } + sub_pos, { 45, 12 } });
-            creator(objs_lookup["RefreshRate"], { twod{ 60, 41 } + sub_pos, { 35, 10 } });
+            creator(objs_lookup["Settings"   ], { twod{ 60, 41 } + sub_pos, { 35, 10 } });
         #endif
     };
 }

@@ -340,7 +340,7 @@ namespace netxs::app::desk
                     auto taskbar_viewport = window->attach(ui::fork::ctor(axis::X))
                                             ->invoke([](auto& boss)
                                             {
-                                                boss.broadcast->SUBMIT(tier::request, e2::form::prop::viewport, viewport)
+                                                boss.SUBMIT(tier::anycast, e2::form::prop::viewport, viewport)
                                                 {
                                                     viewport = boss.base::area();
                                                 };
@@ -394,7 +394,7 @@ namespace netxs::app::desk
                                                     else timer.actify(faux, MENU_TIMEOUT, apply);
                                                 }
                                             };
-                                            boss.broadcast->SUBMIT_T_BYVAL(tier::request, e2::form::prop::viewport, boss.tracker, viewport)
+                                            boss.SUBMIT_BYVAL(tier::anycast, e2::form::prop::viewport, viewport)
                                             {
                                                 auto& [uibar_full_size, uibar_min_size] = *size_config;
                                                 viewport.coor.x += uibar_min_size;
