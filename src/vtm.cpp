@@ -120,8 +120,9 @@ int main(int argc, char* argv[])
         auto link = os::ipc::open<os::client>(path, 10s, [&]()
                     {
                         log("main: new desktop environment for user ", user);
-                        auto binary = os::current_module_file();
-                        return os::exec(binary, "-d");
+                        auto binary = view{ argv[0] };
+                        utf::trim_front(binary, "-"); // Sometimes "-" appears before executable.
+                        return os::exec(text{ binary }, "-d");
                     });
         if (!link) os::exit(-1, "main: desktop server connection error");
 
