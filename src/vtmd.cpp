@@ -52,7 +52,9 @@ int main(int argc, char* argv[])
                 case 'd': daemon = true; break;
                 default:
                     banner();
-                    log("Usage:\n\t", argv[0], " [OPTION...]\n\n\t-d\tRun as a daemon.\n\t-s\tRun server in an interactive mode.\n");
+                    log("Usage:\n\t", argv[0], " [OPTION...]\n\n"s
+                                             + "\t-d\tRun as a daemon.\n"s
+                                             + "\t-s\tRun server in an interactive mode.\n"s);
                     os::exit(1);
             }
         }
@@ -126,9 +128,7 @@ int main(int argc, char* argv[])
                                .bpmode(faux)
                                .load_title());
 
-        // Pause to complete consuming/receiving buffered input (e.g. mouse tracking)
-        // that has just been canceled.
-        std::this_thread::sleep_for(200ms);
+        std::this_thread::sleep_for(200ms); // Pause to complete consuming/receiving buffered input (e.g. mouse tracking) that has just been canceled.
         os::exit(0);
     }
     
