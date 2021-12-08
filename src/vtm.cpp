@@ -37,12 +37,12 @@ using namespace netxs;
 
 int main(int argc, char* argv[])
 {
-    bool server = faux;
-    bool daemon = faux;
-    auto banner = [&]() { log(MONOTTY_VER); };
-    {
-        netxs::logger::logger logger([&](auto&& data) { std::cout << data; });
+    netxs::logger::logger logger([&](auto&& data) { os::syslog(data); });
 
+    auto banner = [&]() { log(MONOTTY_VER); };
+    auto server = faux;
+    auto daemon = faux;
+    {
         auto getopt = os::args{ argc, argv };
         while (getopt)
         {
@@ -51,6 +51,28 @@ int main(int argc, char* argv[])
                 case 's': server = true; break;
                 case 'd': daemon = true; break;
                 default:
+                    #ifndef PROD
+
+                        if (os::get_env("SHELL").ends_with("vtm"))
+                        {
+                            auto error = utf::text{ "main: interactive server is not allowed in demo mode" };
+                            if (argc > 1)
+                            {
+                                auto host = os::get_env("SSH_CLIENT");
+                                auto name = os::get_env("USER");
+                                error += "\nblock explicit shell command invocation {" + name + ", " + host + "}";
+                                for (auto i = 1; i < argc; i++)
+                                {
+                                    error += '\n';
+                                    error += utf::text(argv[i]);
+                                }
+                            }
+                            os::start_log("vtm");
+                            os::exit(1, error);
+                        }
+
+                    #endif
+
                     banner();
                     log("Usage:\n\n ", argv[0], " [OPTION...]\n\n"s
                                     + " No arguments\tRun client, auto start server if is not started.\n"s
@@ -75,11 +97,10 @@ int main(int argc, char* argv[])
 
     if (!server)
     {
+        os::start_log("vtm");
+
         auto host = os::get_env("SSH_CLIENT");
         auto name = os::get_env("USER");
-
-        os::start_log("vtm");
-        netxs::logger::logger logger([&](auto&& data) { os::syslog(data); });
 
         // Demo: Get current region from "~/.config/vtm/settings.ini".
         utf::text spot;
@@ -99,19 +120,17 @@ int main(int argc, char* argv[])
         auto link = os::ipc::open<os::client>(path, 10s, [&]()
                     {
                         log("main: new desktop environment for user ", user);
-                        return os::exec(argv[0], "-d");
+                        auto binary = os::current_module_file();
+                        return os::exec(binary, "-d");
                     });
-
         if (!link) os::exit(-1, "main: desktop server connection error");
 
         auto mode = os::legacy_mode();
-
         link->send(utf::concat(spot, ";",
                                host, ";",
                                name, ";",
                                user, ";",
                                mode, ";"));
-
         auto gate = os::tty::proxy(link);
         gate.ignite();
         gate.output(ansi::esc{}.save_title()
@@ -121,7 +140,6 @@ int main(int argc, char* argv[])
                                .bpmode(true)
                                .setutf(true));
         gate.splice(mode);
-
         gate.output(ansi::esc{}.scrn_reset()
                                .vmouse(faux)
                                .cursor(true)
@@ -133,24 +151,6 @@ int main(int argc, char* argv[])
         os::exit(0);
     }
     
-    if (os::get_env("SHELL").ends_with("vtm"))
-    {
-        auto error = utf::text{ "main: interactive server is not allowed in demo mode" };
-        if (argc > 1)
-        {
-            auto host = os::get_env("SSH_CLIENT");
-            auto name = os::get_env("USER");
-            error += "\nblock explicit shell command invocation ";
-            error += "{" + name +", " + host + "}";
-            for (auto i = 1; i < argc; i++)
-            {
-                error += '\n';
-                error += utf::text(argv[i]);
-            }
-        }
-        os::exit(1, error);
-    }
-
     netxs::logger::logger srv_logger( [=](auto const& utf8)
     {
         static text buff;
