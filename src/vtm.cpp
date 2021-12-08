@@ -52,9 +52,10 @@ int main(int argc, char* argv[])
                 case 'd': daemon = true; break;
                 default:
                     banner();
-                    log("Usage:\n\t", argv[0], " [OPTION...]\n\n"s
-                                             + "\t-d\tRun as a daemon.\n"s
-                                             + "\t-s\tRun server in an interactive mode.\n"s);
+                    log("Usage:\n\n ", argv[0], " [OPTION...]\n\n"s
+                                    + " No arguments\tRun client, auto start server if is not started.\n"s
+                                             + "\t-d\tRun server in background.\n"s
+                                             + "\t-s\tRun server in interactive mode.\n"s);
                     os::exit(1);
             }
         }
