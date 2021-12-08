@@ -1,7 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#define MONOTTY_VER "Monotty Desktopio v0.5.9999c"
+#define MONOTTY_VER "Monotty Desktopio v0.5.9999d"
 
 // Enable demo apps and assign Esc key to log off.
 //#define DEMO
@@ -37,52 +37,136 @@ using namespace netxs;
 
 int main(int argc, char* argv[])
 {
-    // Initialize global logger.
-    netxs::logger::logger logger(
-        [](auto const& utf8)
-        {
-            static text buff;
-            os::syslog(utf8);
-            if (auto sync = events::try_sync{})
-            {
-                if (buff.size())
-                {
-                    SIGNAL_GLOBAL(e2::debug::logs, view{ buff });
-                    buff.clear();
-                }
-                SIGNAL_GLOBAL(e2::debug::logs, view{ utf8 });
-            }
-            else buff += utf8;
-        });
-
+    bool server = faux;
+    bool daemon = faux;
+    auto banner = [&]() { log(MONOTTY_VER); };
     {
-        auto banner = [&]() { log(MONOTTY_VER"\nDesktop Environment Server"); };
-        bool daemon = faux;
+        netxs::logger::logger logger([&](auto&& data) { std::cout << data; });
+
         auto getopt = os::args{ argc, argv };
         while (getopt)
         {
             switch (getopt.next())
             {
-                case 'd':
-                    daemon = true;
-                    break;
+                case 's': server = true; break;
+                case 'd': daemon = true; break;
                 default:
                     banner();
-                    log("Usage:\n\t", argv[0], " [ -d ]\n\n\t-d\tRun as a daemon.");
+                    log("Usage:\n\t", argv[0], " [OPTION...]\n\n\t-d\tRun as a daemon.\n\t-s\tRun server in an interactive mode.\n");
                     os::exit(1);
             }
         }
 
-        if (daemon && !os::daemonize(argv[0]))
+        if (daemon)
         {
-            banner();
-            os::exit(1, "main: failed to daemonize");
+            if (!os::daemonize(argv[0]))
+            {
+                banner();
+                os::exit(1, "main: failed to daemonize");
+            }
+            else server = true;
         }
-
-        banner();
     }
 
-    //todo Get current config from vtm.conf.
+    banner();
+
+    if (!server)
+    {
+        auto host = os::get_env("SSH_CLIENT");
+        auto name = os::get_env("USER");
+
+        os::start_log("vtm");
+        netxs::logger::logger logger([&](auto&& data) { os::syslog(data); });
+
+        // Demo: Get current region from "~/.config/vtm/settings.ini".
+        utf::text spot;
+        {
+            std::ifstream config;
+            config.open("vtm.conf");
+
+            if (config.is_open())
+                std::getline(config, spot);
+
+            if (spot.empty())
+                spot = "unknown region";
+        }
+
+        auto user = os::user();
+        auto path = utf::concat("monotty_", user); //todo unify, use vtm.conf
+        auto link = os::ipc::open<os::client>(path, 10s, [&]()
+                    {
+                        log("main: new desktop environment for user ", user);
+                        return os::exec(argv[0], "-d");
+                    });
+
+        if (!link) os::exit(-1, "main: desktop server connection error");
+
+        auto mode = os::legacy_mode();
+
+        link->send(utf::concat(spot, ";",
+                               host, ";",
+                               name, ";",
+                               user, ";",
+                               mode, ";"));
+
+        auto gate = os::tty::proxy(link);
+        gate.ignite();
+        gate.output(ansi::esc{}.save_title()
+                               .altbuf(true)
+                               .vmouse(true)
+                               .cursor(faux)
+                               .bpmode(true)
+                               .setutf(true));
+        gate.splice(mode);
+
+        gate.output(ansi::esc{}.scrn_reset()
+                               .vmouse(faux)
+                               .cursor(true)
+                               .altbuf(faux)
+                               .bpmode(faux)
+                               .load_title());
+
+        // Pause to complete consuming/receiving buffered input (e.g. mouse tracking)
+        // that has just been canceled.
+        std::this_thread::sleep_for(200ms);
+        os::exit(0);
+    }
+    
+    if (os::get_env("SHELL").ends_with("vtm"))
+    {
+        auto error = utf::text{ "main: interactive server is not allowed in demo mode" };
+        if (argc > 1)
+        {
+            auto host = os::get_env("SSH_CLIENT");
+            auto name = os::get_env("USER");
+            error += "\nblock explicit shell command invocation ";
+            error += "{" + name +", " + host + "}";
+            for (auto i = 1; i < argc; i++)
+            {
+                error += '\n';
+                error += utf::text(argv[i]);
+            }
+        }
+        os::exit(1, error);
+    }
+
+    netxs::logger::logger srv_logger( [=](auto const& utf8)
+    {
+        static text buff;
+        os::syslog(utf8);
+        if (auto sync = events::try_sync{})
+        {
+            if (buff.size())
+            {
+                SIGNAL_GLOBAL(e2::debug::logs, view{ buff });
+                buff.clear();
+            }
+            SIGNAL_GLOBAL(e2::debug::logs, view{ utf8 });
+        }
+        else buff += utf8;
+    });
+
+    //todo Get current config from "~/.config/vtm/settings.ini".
     utf::text config;
     {
         std::ifstream conf;
