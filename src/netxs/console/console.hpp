@@ -3512,7 +3512,6 @@ namespace netxs::console
                 };
                 boss.SUBMIT_T(tier::release, e2::form::state::keybd::got, memo, gear)
                 {
-                    log(" boss.id=", boss.id);
                     pool.push_back(gear.id);
                     boss.base::deface();
                 };

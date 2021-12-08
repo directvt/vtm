@@ -427,6 +427,30 @@ namespace netxs::ui
                 if (c >= 'a' && c <= 'f') return c - 'a' + 10;
                                           return 0;
             }
+            std::optional<ui32> record(view& data) // ; rgb:00/00/00
+            {
+                //todo implement request "?"
+                utf::trim_front(data, " ;");
+                if (data.length() >= 12 && data.starts_with("rgb:"))
+                {
+                    auto r1 = to_byte(data[ 4]);
+                    auto r2 = to_byte(data[ 5]);
+                    auto g1 = to_byte(data[ 7]);
+                    auto g2 = to_byte(data[ 8]);
+                    auto b1 = to_byte(data[10]);
+                    auto b2 = to_byte(data[11]);
+                    data.remove_prefix(12); // rgb:00/00/00
+                    return { (r1 << 4 ) + (r2      )
+                           + (g1 << 12) + (g2 << 8 )
+                           + (b1 << 20) + (b2 << 16)
+                           + 0xFF000000 };
+                }
+                return {};
+            }
+            void notsupported(text const& property, view data)
+            {
+                log(" Not supported: OSC=", property, " DATA=", data, " SIZE=", data.length(), " HEX=", utf::to_hex(data));
+            }
 
             c_tracking(term& owner)
                 : owner{ owner }
@@ -455,9 +479,9 @@ namespace netxs::ui
                     while(data.length())
                     {
                         utf::trim_front_if(data, [](char c){ return c >= '0' && c <= '9'; });
-                        if (auto value = utf::to_int(data))
+                        if (auto v = utf::to_int(data))
                         {
-                            auto n = value.value();
+                            auto n = std::clamp(v.value(), 0, 255);
                             color[n] = rgba::color256[n];
                             empty = faux;
                         }
@@ -466,46 +490,59 @@ namespace netxs::ui
                 };
                 procs[ansi::OSC_SET_PALETTE] = [&](view data) // ESC ] 4 ; 0;rgb:00/00/00;1;rgb:00/00/00;...
                 {
+                    auto fails = faux;
                     while (data.length())
                     {
                         utf::trim_front(data, " ;");
-                        if (auto value = utf::to_int(data))
+                        if (auto v = utf::to_int(data))
                         {
-                            auto n = value.value();
-                            utf::trim_front(data, " ;");
-                            if (data.length() >= 12 && data.starts_with("rgb:"))
+                            auto n = std::clamp(v.value(), 0, 255);
+                            if (auto r = record(data))
                             {
-                                auto r1 = to_byte(data[ 4]);
-                                auto r2 = to_byte(data[ 5]);
-                                auto g1 = to_byte(data[ 7]);
-                                auto g2 = to_byte(data[ 8]);
-                                auto b1 = to_byte(data[10]);
-                                auto b2 = to_byte(data[11]);
-                                color[n] = (r1 << 4 ) + (r2      )
-                                         + (g1 << 12) + (g2 << 8 )
-                                         + (b1 << 20) + (b2 << 16)
-                                         + 0xFF000000;
-                                data.remove_prefix(12); // rgb:00/00/00
+                                color[n] = r.value();
                             }
                             else
                             {
-                                //todo impl request "?"
-                                log(" OSC=", ansi::OSC_SET_PALETTE, " unsupported format DATA=", utf::to_hex(data));
+                                fails = true;
                                 break;
                             }
                         }
+                        else
+                        {
+                            fails = true;
+                            break;
+                        }
                     }
+                    if (fails) notsupported(ansi::OSC_SET_PALETTE, data);
                 };
                 procs[ansi::OSC_LINUX_RESET] = [&](view data) // ESC ] R
                 {
                     reset();
                 };
-                //todo implement
-                //procs[ansi::OSC_SET_FGCOLOR] = [&](view data) { };
-                //procs[ansi::OSC_SET_BGCOLOR] = [&](view data) { };
-                //procs[ansi::OSC_RESET_COLOR] = [&](view data) { };
-                //procs[ansi::OSC_RESET_FGCLR] = [&](view data) { };
-                //procs[ansi::OSC_RESET_BGCLR] = [&](view data) { };
+                procs[ansi::OSC_SET_FGCOLOR] = [&](view data) // ESC ] 10 ;rgb:00/00/00
+                {
+                    if (auto r = record(data))
+                    {
+                        owner.target->brush.sfg(r.value());
+                    }
+                    else notsupported(ansi::OSC_SET_FGCOLOR, data);
+                };
+                procs[ansi::OSC_SET_BGCOLOR] = [&](view data) // ESC ] 11 ;rgb:00/00/00
+                {
+                    if (auto r = record(data))
+                    {
+                        owner.target->brush.sbg(r.value());
+                    }
+                    else notsupported(ansi::OSC_SET_BGCOLOR, data);
+                };
+                procs[ansi::OSC_RESET_FGCLR] = [&](view data)
+                {
+                    owner.target->brush.sfg(0);
+                };
+                procs[ansi::OSC_RESET_BGCLR] = [&](view data)
+                {
+                    owner.target->brush.sbg(0);
+                };
             }
 
             void set(text const& property, view data)

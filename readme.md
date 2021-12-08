@@ -85,12 +85,13 @@ powershell ../src/install/install.ps1
 
 ---
 
-# Command Line Options
+# Command Line Options `vtm(.exe)`
 
-Module               | Options
----------------------|--------------------------------------
-`vtm(.exe)` client   | No arguments
-`vtmd(.exe)` server  | `[ -d ]` run in background
+Option       | Description
+-------------|-------------------------------------------------------
+No arguments | Run client (auto start server if is not started)
+` -d `       | Run server in background
+` -s `       | Run server in interactive mode
 
 # User Interface
 

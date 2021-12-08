@@ -285,13 +285,11 @@ namespace netxs::os
     }
     static auto legacy_mode()
     {
-        auto vga16colors = {
+        auto vga16colors = { // https://github.com//termstandard/colors
             "ansi",
             "linux",
-            "xterm",
             "xterm-color",
-            "dvtm",
-            "tmux",
+            "dvtm", //todo track: https://github.com/martanne/dvtm/issues/10
             "fbcon",
         };
         auto vga256colors = {
