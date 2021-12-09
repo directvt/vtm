@@ -20,9 +20,9 @@ namespace netxs::ui
     enum axes
     {
         NONE   = 0,
-        ONLY_X = 1 << 0,
-        ONLY_Y = 1 << 1,
-        ALL    = (ONLY_X | ONLY_Y),
+        X_ONLY = 1 << 0,
+        Y_ONLY = 1 << 1,
+        ALL    = (X_ONLY | Y_ONLY),
     };
     enum snap
     {
@@ -1320,7 +1320,7 @@ namespace netxs::ui
             SUBMIT(tier::release, hids::events::mouse::scroll::any, gear)
             {
                 auto dir = gear.whldt > 0;
-                if (permit == axes::ONLY_X || gear.meta(hids::ANYCTRL |
+                if (permit == axes::X_ONLY || gear.meta(hids::ANYCTRL |
                                                         hids::SHIFT ))
                      wheels<X>(dir);
                 else wheels<Y>(dir);
@@ -1334,8 +1334,8 @@ namespace netxs::ui
                 auto dy = ds.y * 2;
                 auto vt = std::abs(dx) < std::abs(dy);
 
-                if (((siezed & axes::ONLY_X) && !vt) ||
-                    ((siezed & axes::ONLY_Y) &&  vt))
+                if (((siezed & axes::X_ONLY) && !vt) ||
+                    ((siezed & axes::Y_ONLY) &&  vt))
                 {
                     if (gear.capture(bell::id))
                     {
@@ -1352,8 +1352,8 @@ namespace netxs::ui
                 if (gear.captured(bell::id))
                 {
                     auto delta = gear.mouse::delta.get();
-                    if (permit & axes::ONLY_X) scroll<X>(delta.x);
-                    if (permit & axes::ONLY_Y) scroll<Y>(delta.y);
+                    if (permit & axes::X_ONLY) scroll<X>(delta.x);
+                    if (permit & axes::Y_ONLY) scroll<Y>(delta.y);
                     gear.dismiss();
                 }
             };
@@ -1381,8 +1381,8 @@ namespace netxs::ui
                     auto  cycle = datetime::round<iota>(v0.dT);
                     auto  limit = datetime::round<iota>(STOPPING_TIME);
 
-                    if (permit & axes::ONLY_X) actify<X>(quadratic{ speed.x, cycle, limit, start });
-                    if (permit & axes::ONLY_Y) actify<Y>(quadratic{ speed.y, cycle, limit, start });
+                    if (permit & axes::X_ONLY) actify<X>(quadratic{ speed.x, cycle, limit, start });
+                    if (permit & axes::Y_ONLY) actify<Y>(quadratic{ speed.y, cycle, limit, start });
 
                     base::deface();
                     gear.release();
