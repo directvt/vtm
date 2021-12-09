@@ -104,8 +104,8 @@ No arguments | Run client (auto start server)
     <th colspan="2">Desktop</th>
   </tr>
   <tr>
-    <th>App list</th>
-    <th>Running app list</th>
+    <th>App group</th>
+    <th>Running app</th>
     <th>User list</th>
     <th>≡ Menu</th>
     <th>Menu bar</th>
@@ -122,7 +122,7 @@ No arguments | Run client (auto start server)
   </tr>
   <tr>
     <th>LeftClick</th>
-    <td>Set default app</td>
+    <td>Run app</td>
     <td>Go to app</td>
     <td></td>
     <td>Maximize/restore</td>
@@ -138,15 +138,14 @@ No arguments | Run client (auto start server)
   </tr>
   <tr>
     <th>double LeftClick</th>
-    <td>Run app</td>
-    <td colspan="2"></td>
+    <td colspan="3"></td>
     <td></td>
     <td colspan="2">Maximize/restore app window</td>
     <td colspan="3"></td>
   </tr>
   <tr>
     <th>RightClick</th>
-    <td></td>
+    <td>Set default app</td>
     <td>Center app window</td>
     <td colspan="1"></td>
     <td colspan="2">Toggle menu height</td>

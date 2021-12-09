@@ -378,12 +378,12 @@ namespace netxs::app::calc
                                                          boss.upload(ansi::bgc(whitelt).fgc(blacklt).add(data));
                                                          };
                                                      });
-                                    auto cols_area = corner_cols->attach(slot::_2, ui::rail::ctor(axes::ONLY_X, axes::ONLY_X))
+                                    auto cols_area = corner_cols->attach(slot::_2, ui::rail::ctor(axes::X_ONLY, axes::X_ONLY))
                                                                 ->follow<axis::X>(scroll);
                                         auto cols = cols_area->attach(ui::post::ctor())
                                                              ->plugin<pro::limit>(twod{ -1,1 }, twod{ -1,1 })
                                                              ->upload(cellatix_cols); //todo grid  A  B  C ...
-                                    auto rows_area = rows_body->attach(slot::_1, ui::rail::ctor(axes::ONLY_Y, axes::ONLY_Y))
+                                    auto rows_area = rows_body->attach(slot::_1, ui::rail::ctor(axes::Y_ONLY, axes::Y_ONLY))
                                                               ->follow<axis::Y>(scroll)
                                                               ->plugin<pro::limit>(twod{ 4,-1 }, twod{ 4,-1 });
                                         auto rows = rows_area->attach(ui::post::ctor())

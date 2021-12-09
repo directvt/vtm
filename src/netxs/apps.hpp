@@ -168,7 +168,7 @@ namespace netxs::app::shared
                                 };
                             })
                         ->attach(ui::item::ctor(" ≡", faux, true));
-                auto scrl_list = menu_list->attach(slot::_2, ui::rail::ctor(axes::ONLY_X, axes::ONLY_X))
+                auto scrl_list = menu_list->attach(slot::_2, ui::rail::ctor(axes::X_ONLY, axes::X_ONLY))
                                             ->attach(ui::list::ctor(axis::X));
             for (auto& body : menu_items) scrl_list->attach(ui::pads::ctor(inner_pads, dent{ 1 }))
                                                     ->plugin<pro::fader>(x3, c3, 150ms)
