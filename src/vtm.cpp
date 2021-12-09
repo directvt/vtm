@@ -37,10 +37,10 @@ using namespace netxs;
 
 int main(int argc, char* argv[])
 {
-    netxs::logger::logger logger([&](auto&& data) { os::syslog(data); });
+    netxs::logger logger([&](auto&& data) { os::syslog(data); });
 
     auto banner = [&]() { log(MONOTTY_VER); };
-    auto server = faux;
+    auto client = true;
     auto daemon = faux;
     {
         auto getopt = os::args{ argc, argv };
@@ -48,7 +48,7 @@ int main(int argc, char* argv[])
         {
             switch (getopt.next())
             {
-                case 's': server = true; break;
+                case 's': client = faux; break;
                 case 'd': daemon = true; break;
                 default:
                     #ifndef PROD
@@ -89,13 +89,13 @@ int main(int argc, char* argv[])
                 banner();
                 os::exit(1, "main: failed to daemonize");
             }
-            else server = true;
+            else client = faux;
         }
     }
 
     banner();
 
-    if (!server)
+    if (client)
     {
         os::start_log("vtm");
 
@@ -152,10 +152,9 @@ int main(int argc, char* argv[])
         os::exit(0);
     }
     
-    netxs::logger::logger srv_logger( [=](auto const& utf8)
+    netxs::logger srv_logger( [=](auto const& utf8)
     {
         static text buff;
-        os::syslog(utf8);
         if (auto sync = events::try_sync{})
         {
             if (buff.size())

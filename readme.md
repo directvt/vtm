@@ -89,7 +89,7 @@ powershell ../src/install/install.ps1
 
 Option       | Description
 -------------|-------------------------------------------------------
-No arguments | Run client (auto start server if is not started)
+No arguments | Run client (auto start server)
 ` -d `       | Run server in background
 ` -s `       | Run server in interactive mode
 
