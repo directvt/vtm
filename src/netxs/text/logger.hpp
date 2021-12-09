@@ -4,14 +4,14 @@
 // Usage (C++17) 2013
 //
 // Two (or more) log targets example:
-// utils::logger logger( [&](auto& a) { ipc.write_message(a); }, //  1st logger proc
+// netxs::logger logger( [&](auto& a) { ipc.write_message(a); }, //  1st logger proc
 //                       file_write,                             //  2nd logger proc
 //                       ...);                                   //  Nth logger proc
 //
 // User defined formatter example:
-// utils::logger::custom(   [](auto& p, auto& v)
+// netxs::logger::custom( [](auto& p, auto& v)
 // {
-//      return utils::current_short_date_time_with_ms() + "  " + utils::concat(p, std::string("."), std::string("> ")) + v + '\n';
+//      return netxs::current_short_date_time_with_ms() + "  " + utf::concat(p, text("."), text("> ")) + v + '\n';
 // });
 //
 // Automatic prompt changing example:
@@ -19,7 +19,7 @@
 //      AUTO_PROMPT;                                // auto prompt
 //      ...code...
 //      {
-//          utils::logger::prompt p("subprompt");   // nested prompt
+//          netxs::logger::prompt p("subprompt");   // nested prompt
 //          ...code...
 //      }
 //      ...code...
@@ -40,195 +40,178 @@
 
 #define AUTO_PROMPT const netxs::logger::prompt __func__##_auto_prompt(__func__)
 
-namespace netxs::logger
+namespace netxs
 {
-    using namespace std;
-    using loggers_set = unordered_map<size_t, vector<function<void(string const&) > >>;
-    using func = function< string(vector<string> const&, string const&) >;
-
     class logger
     {
+        using text = std::string;
+        using flux = std::stringstream;
+        using vect = std::vector<text>;
+        using lock = std::recursive_mutex;
+        using depo = std::unordered_map<size_t, std::vector<std::function<void(text const&)>>>;
+        using func = std::function<text(vect const&, text const&)>;
+        using delegates = std::vector<std::function<void(text const&)>>;
+
+        delegates writers;
+        size_t    token;
+
         template<class VOID>
-        struct _globals
+        struct globals
         {
-            static  vector<string> _prompt;
-            static            func _formatter;
-            static    stringstream _builder;
-            static recursive_mutex _mutex;
-            static          string _buffer;
-            static            bool _enabled;
-            static     loggers_set _all_writers;
-        };
+            static vect prompt;
+            static func formatter;
+            static flux builder;
+            static lock mutex;
+            static text buffer;
+            static bool enabled;
+            static depo all_writers;
 
-        using _g = _globals<void>;
-
-    public:
-        static void custom(func formatter)
-        {
-            unique_lock<recursive_mutex> lock(_g::_mutex);
-            _g::_formatter = formatter;
-        }
-
-        static void enabled(bool allowed)
-        {
-            unique_lock<recursive_mutex> lock(_g::_mutex);
-            _g::_enabled = allowed;
-        }
-
-        struct prompt
-        {
-            prompt(std::string const& new_prompt)
+            static auto form(text const& value)
             {
-                unique_lock<recursive_mutex> lock(_g::_mutex);
-                if (new_prompt.size())
+                if (formatter)
                 {
-                    _g::_prompt.push_back(new_prompt);
+                    return formatter(prompt, value);
+                }
+                else
+                {
+                    text result;
+                    if (prompt.size())
+                    {
+                        result = prompt.back() + '>' + ' ';
+                    }
+                    result += value + '\n';
+                    return result;
                 }
             }
-
-            ~prompt()
+            static void flush(bool prompted)
             {
-                unique_lock<recursive_mutex> lock(_g::_mutex);
-                if (_g::_prompt.size())
+                if (enabled)
                 {
-                    _g::_prompt.pop_back();
+                    if (prompted) buffer += form(builder.str());
+                    else          buffer +=      builder.str();
+
+                    if (all_writers.size())
+                    {
+                        for (auto& subset : all_writers)
+                        {
+                            for (auto& writer : subset.second)
+                            {
+                                writer(buffer);
+                            }
+                        }
+                        buffer.clear();
+                    }
                 }
+                builder.str(text{});
+                builder.clear();
+            }
+            static auto checkin(delegates& writers)
+            {
+                auto hash = reinterpret_cast<size_t>(writers.data());
+                all_writers[hash] = writers;
+                if (builder.tellg() > 0)
+                {
+                    flush(false);
+                }
+                return hash;
+            }
+            static void checkout(size_t token)
+            {
+                all_writers.erase(token);
             }
         };
 
+        using g = globals<void>;
+
+        static auto guard()
+        {
+            return std::unique_lock<lock>(g::mutex);
+        }
         template <class T>
-        logger(T writer)
+        void add(T&& writer)
         {
-            std::unique_lock<std::recursive_mutex> lock(_g::_mutex);
-            _add(writer);
+            writers.push_back(std::forward<T>(writer));
+            token = g::checkin(writers);
         }
         template<class T, class ...Args>
-        logger(T writer, Args&&... args)
+        void add(T&& writer, Args&&... args)
         {
-            std::unique_lock<std::recursive_mutex> lock(_g::_mutex);
-            _writers.push_back(writer);
-            _add(std::forward<Args>(args)...);
+            writers.push_back(std::forward<T>(writer));
+            add(std::forward<Args>(args)...);
+        }
+
+    public:
+        struct prompt
+        {
+            prompt(text const& new_prompt)
+            {
+                auto sync = guard();
+                if (new_prompt.size())
+                {
+                    g::prompt.push_back(new_prompt);
+                }
+            }
+            ~prompt()
+            {
+                auto sync = guard();
+                if (g::prompt.size())
+                {
+                    g::prompt.pop_back();
+                }
+            }
+        };
+
+        template<class ...Args>
+        logger(Args&&... args)
+        {
+            auto sync = guard();
+            add(std::forward<Args>(args)...);
         }
         ~logger()
         {
-            std::unique_lock<std::recursive_mutex> lock(_g::_mutex);
-            _checkout(_token);
-            _writers.clear();
+            auto sync = guard();
+            g::checkout(token);
+            writers.clear();
         }
 
+        static void custom(func formatter)
+        {
+            auto sync = guard();
+            g::formatter = formatter;
+        }
+        static void enabled(bool allowed)
+        {
+            auto sync = guard();
+            g::enabled = allowed;
+        }
         template <class T>
         static void feed(T&& entity)
         {
-            std::unique_lock<std::recursive_mutex> lock(_g::_mutex);
-            _g::_builder << entity;
-            _flush(true);
+            auto sync = guard();
+            g::builder << std::forward<T>(entity);
+            g::flush(true);
         }
         static void feed(bool prompted)
         {
-            std::unique_lock<std::recursive_mutex> lock(_g::_mutex);
-            _flush(prompted);
+            auto sync = guard();
+            g::flush(prompted);
         }
         template<class T, class ...Args>
         static void feed(T&& entity, Args&&... args)
         {
-            std::unique_lock<std::recursive_mutex> lock(_g::_mutex);
-            _g::_builder << entity;
+            auto sync = guard();
+            g::builder << std::forward<T>(entity);
             feed(std::forward<Args>(args)...);
         }
-
-    private:
-        template<class T>
-        using delegates = std::vector< std::function< void(T const&) > >;
-
-        delegates<std::string> _writers;
-                        size_t _token;
-
-        size_t _checkin(delegates<string>& writers)
-        {
-            auto hash = reinterpret_cast<size_t>(writers.data());
-            _g::_all_writers[hash] = writers;
-
-            return hash;
-        }
-        void _checkout(size_t token)
-        {
-            _g::_all_writers.erase(token);
-        }
-
-        static string _form(string const& value)
-        {
-            if (_g::_formatter)
-            {
-                return _g::_formatter(_g::_prompt, value);
-            }
-            else
-            {
-                string result;
-                if (_g::_prompt.size())
-                {
-                    result = _g::_prompt.back() + '>' + ' ';
-                }
-                result += value + '\n';
-                return result;
-            }
-        }
-
-        static void _flush(bool prompted)
-        {
-            if (_g::_enabled)
-            {
-                if (prompted)
-                {
-                    _g::_buffer += _form(_g::_builder.str());
-                }
-                else
-                {
-                    _g::_buffer += _g::_builder.str();
-                }
-
-                if (_g::_all_writers.size())
-                {
-                    for (auto& subset : _g::_all_writers)
-                    {
-                        for (auto writer : subset.second)
-                        {
-                            writer(_g::_buffer);
-                        }
-                    }
-                    _g::_buffer.clear();
-                }
-            }
-
-            _g::_builder.str(string());
-            _g::_builder.clear();
-        }
-
-        template <class T>
-        void _add(T&& writer)
-        {
-            _writers.push_back(writer);
-            _token = _checkin(_writers);
-            if (_g::_builder.tellg() > 0)
-            {
-                _flush(false);
-            }
-        }
-        template<class T, class ...Args>
-        void _add(T writer, Args&&... args)
-        {
-            _writers.push_back(writer);
-            _add(std::forward<Args>(args)...);
-        }
-
     };
 
-    template<class T> bool                     logger::_globals<T>::_enabled{ true };
-    template<class T> std::string              logger::_globals<T>::_buffer;
-    template<class T> std::stringstream        logger::_globals<T>::_builder;
-    template<class T> std::recursive_mutex     logger::_globals<T>::_mutex;
-    template<class T> std::vector<std::string> logger::_globals<T>::_prompt;
-    template<class T> loggers_set              logger::_globals<T>::_all_writers;
-    template<class T> func                     logger::_globals<T>::_formatter;
+    template<class T> bool         logger::globals<T>::enabled{ true };
+    template<class T> logger::text logger::globals<T>::buffer;
+    template<class T> logger::flux logger::globals<T>::builder;
+    template<class T> logger::lock logger::globals<T>::mutex;
+    template<class T> logger::vect logger::globals<T>::prompt;
+    template<class T> logger::depo logger::globals<T>::all_writers;
+    template<class T> logger::func logger::globals<T>::formatter;
 }
 
 namespace
@@ -236,21 +219,14 @@ namespace
     template<class ...Args>
     void Z(Args&&... args)
     {
-        netxs::logger::logger::feed(std::forward<Args>(args)...);
+        netxs::logger::feed(std::forward<Args>(args)...);
     }
 
     template<class ...Args>
     void log(Args&&... args)
     {
-        netxs::logger::logger::feed(std::forward<Args>(args)...);
+        netxs::logger::feed(std::forward<Args>(args)...);
     }
-
-    //todo revise
-    //template<>
-    //void Z(bool args)
-    //{
-    //	utils::logger::logger::feed(args);
-    //}
 }
 
 #endif // NETXS_LOGGER_HPP
