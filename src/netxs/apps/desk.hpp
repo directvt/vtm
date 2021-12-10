@@ -112,10 +112,11 @@ namespace netxs::app::desk
                     };
                 });
 
-            for (auto const& [class_id, inst_ptr_list] : *apps_map)
+            for (auto const& [class_id, stat_inst_ptr_list] : *apps_map)
             {
+                auto& [state, inst_ptr_list] = stat_inst_ptr_list;
                 auto inst_id  = class_id;
-                auto obj_desc = app::shared::objs_config[class_id].name;
+                auto obj_desc = app::shared::objs_config[class_id].label;
                 auto item_area = apps->attach(ui::pads::ctor(dent{ 0,0,0,1 }, dent{ 0,0,1,0 }))
                                      ->template plugin<pro::fader>(x3, c3, 0ms)
                                      ->invoke([&](auto& boss)
@@ -184,6 +185,7 @@ namespace netxs::app::desk
                                          //   }
                                          //};
                                      });
+                if (!state) item_area->depend_on_collection(inst_ptr_list);
                         auto block = item_area->attach(ui::fork::ctor(axis::Y));
                             auto head_area = block->attach(slot::_1, ui::pads::ctor(dent{ 0,0,0,0 }, dent{ 0,0,1,1 }));
                                 auto head = head_area->attach(ui::item::ctor(obj_desc, true))

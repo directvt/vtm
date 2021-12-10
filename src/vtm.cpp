@@ -106,7 +106,7 @@ int main(int argc, char* argv[])
         utf::text spot;
         {
             std::ifstream config;
-            config.open("vtm.conf");
+            config.open("~/.config/vtm/config.ini");
 
             if (config.is_open())
                 std::getline(config, spot);
@@ -168,12 +168,12 @@ int main(int argc, char* argv[])
     });
 
     //todo Get current config from "~/.config/vtm/settings.ini".
-    utf::text config;
+    utf::text config_data;
     {
         std::ifstream conf;
-        conf.open("vtm.conf");
-        if (conf.is_open()) std::getline(conf, config);
-        if (config.empty()) config = "empty config";
+        conf.open("~/.config/vtm/config.ini");
+        if (conf.is_open()) std::getline(conf, config_data);
+        if (config_data.empty()) config_data = "empty config";
 
         //todo unify
         //skin::setup(tone::lucidity, 192);
@@ -241,10 +241,10 @@ int main(int argc, char* argv[])
             });
 
         window->extend(what.location);
-        auto& creator = app::shared::creator(config.type);
-        window->attach(creator(config.data));
-        log(" world create type=", config.type, " menu_item_id=", what.menu_item_id);
-        world->branch(what.menu_item_id, window);
+        auto& creator = app::shared::creator(config.group);
+        window->attach(creator(config.param));
+        log(" world create type=", config.group, " menu_item_id=", what.menu_item_id);
+        world->branch(what.menu_item_id, window, config.fixed);
         window->SIGNAL(tier::anycast, e2::form::upon::started, world);
 
         what.frame = window;
@@ -338,14 +338,21 @@ int main(int argc, char* argv[])
 
                     auto& menu_builder = app::shared::creator("Desk");
                     auto deskmenu = menu_builder(utf::concat(client->id, ";", user, ";", path));
+                    auto& fone_builder = app::shared::creator("Fone");
+                    auto bkground = fone_builder(
+                    #ifndef PROD
+                        "Shop;Demo;"
+                    #else
+                        "HeadlessTerm;Demo;ssh demo@netxs.online"
+                    #endif
+                    );
             
                     client->attach(deskmenu);
+                    client->ground(bkground);
                     client->color(app::shared::background_color.fgc(), app::shared::background_color.bgc());
                     text header = username;
-                    text footer = ansi::mgr(1).mgl(1).add(MONOTTY_VER);
                     client->SIGNAL(tier::release, e2::form::prop::name, header);
                     client->SIGNAL(tier::preview, e2::form::prop::header, header);
-                    client->SIGNAL(tier::preview, e2::form::prop::footer, footer);
                     client->base::moveby(user_coor);
                 lock.reset();
                 log("user: new gate for ", peer);
