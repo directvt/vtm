@@ -28,63 +28,6 @@ namespace netxs::events::userland
                     EVENT_XS( vt, input::hids ),
                     EVENT_XS( hz, input::hids ),
                 };
-
-
-//                GROUP_XS( preview, input::hids ),
-//                GROUP_XS( release, input::hids ),
-//                GROUP_XS( request, input::hids ),
-//
-//                SUBSET_XS( preview )
-//                {
-//                    EVENT_XS( create  , input::hids ),
-//                    EVENT_XS( close   , input::hids ),
-//                    EVENT_XS( toggle  , input::hids ), // toggle window size: maximize/restore.
-//                    EVENT_XS( swap    , input::hids ),
-//                    EVENT_XS( rotate  , input::hids ), // change nested objects order. See tilimg manager (ui::fork).
-//                    EVENT_XS( equalize, input::hids ),
-//                    EVENT_XS( select  , input::hids ),
-//                    GROUP_XS( split   , input::hids ),
-//
-//                    SUBSET_XS( split )
-//                    {
-//                        EVENT_XS( vt, input::hids ),
-//                        EVENT_XS( hz, input::hids ),
-//                    };
-//                };
-//                SUBSET_XS( release )
-//                {
-//                    EVENT_XS( create  , input::hids ),
-//                    EVENT_XS( close   , input::hids ),
-//                    EVENT_XS( toggle  , input::hids ), // toggle window size: maximize/restore.
-//                    EVENT_XS( swap    , input::hids ),
-//                    EVENT_XS( rotate  , input::hids ), // change nested objects order. See tilimg manager (ui::fork).
-//                    EVENT_XS( equalize, input::hids ),
-//                    EVENT_XS( select  , input::hids ),
-//                    GROUP_XS( split   , input::hids ),
-//
-//                    SUBSET_XS( split )
-//                    {
-//                        EVENT_XS( vt, input::hids ),
-//                        EVENT_XS( hz, input::hids ),
-//                    };
-//                };
-//                SUBSET_XS( request )
-//                {
-//                    EVENT_XS( create  , input::hids ),
-//                    EVENT_XS( close   , input::hids ),
-//                    EVENT_XS( toggle  , input::hids ), // toggle window size: maximize/restore.
-//                    EVENT_XS( swap    , input::hids ),
-//                    EVENT_XS( rotate  , input::hids ), // change nested objects order. See tilimg manager (ui::fork).
-//                    EVENT_XS( equalize, input::hids ),
-//                    EVENT_XS( select  , input::hids ),
-//                    GROUP_XS( split   , input::hids ),
-//
-//                    SUBSET_XS( split )
-//                    {
-//                        EVENT_XS( vt, input::hids ),
-//                        EVENT_XS( hz, input::hids ),
-//                    };
-//                };
             };
         };
     };
@@ -189,6 +132,37 @@ namespace netxs::app::tile
                     {
                         bcast_forward(boss);
                         mouse_actions(boss);
+
+                        boss.SIGNAL(tier::release, e2::form::draggable::left, true);
+
+                        auto boss_shadow = ptr::shadow(boss.This());
+                        auto branch_shadow = ptr::shadow(branch);
+                        boss.SUBMIT_BYVAL(tier::release, e2::form::drag::start::left, gear)
+                        {
+                            if (auto boss = boss_shadow.lock())
+                            if (auto branch = branch_shadow.lock())
+                            {
+                                //menu_id
+                                //app title
+                                auto what = decltype(e2::form::proceed::createfrom)::type{};
+                                what.menu_item_id = "Term";//menu_item_id;
+                                what.location = branch->area();
+                                what.location.coor = dot_00;
+                                branch->global(what.location.coor);
+                                what.location.coor = -what.location.coor;
+                                what.object = branch;
+                                boss->SIGNAL(tier::preview, e2::form::proceed::detach, branch);
+                                branch->moveto(dot_00);
+                                auto world_ptr = decltype(e2::config::whereami)::type{};
+                                SIGNAL_GLOBAL(e2::config::whereami, world_ptr);
+                                world_ptr->SIGNAL(tier::release, e2::form::proceed::createfrom, what);
+                                gear.kb_focus_taken = faux;
+                                gear.force_group_focus = faux;
+                                gear.combine_focus = true;
+                                what.object->SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
+                                boss->base::template riseup<tier::release>(e2::form::quit, boss);
+                            }
+                        };
                     })
                     //->branch(slot::_1, ui::post_fx<cell::shaders::contrast>::ctor()) //todo apple clang doesn't get it
                     ->branch(slot::_1, ui::post_fx::ctor()

@@ -47,7 +47,7 @@ namespace netxs::console
         using sptr = netxs::sptr<base>;
         text menu_item_id;
         rect location;
-        sptr frame;
+        sptr object;
     };
 }
 
@@ -247,6 +247,7 @@ namespace netxs::events::userland
                 {
                     EVENT_XS( create  , rect                ), // return coordinates of the new object placeholder.
                     EVENT_XS( createat, console::create_t   ), // general: create an intance at the specified location and return sptr<base>.
+                    EVENT_XS( createfrom, console::create_t   ), // general: attach spcified intance and return sptr<base>.
                     EVENT_XS( createby, input::hids         ), // return gear with coordinates of the new object placeholder gear::slot.
                     EVENT_XS( destroy , console::base       ), // ??? bool return reference to the parent.
                     EVENT_XS( render  , console::drawfx     ), // ask children to render itself to the parent canvas, arg is a function drawfx to perform drawing.
@@ -4136,7 +4137,7 @@ namespace netxs::console
                         gate.SIGNAL(tier::request, e2::data::changed, data);
                         what.menu_item_id = data;
                         this->SIGNAL(tier::release, e2::form::proceed::createat, what);
-                        if (auto& frame = what.frame)
+                        if (auto& frame = what.object)
                         {
                             insts_count++;
                             #ifndef PROD

@@ -4,7 +4,7 @@
 #define MONOTTY_VER "Monotty Desktopio v0.5.9999f"
 
 // Enable demo apps and assign Esc key to log off.
-//#define DEMO
+#define DEMO
 
 // Enable keyboard input and unassign Esc key.
 #define PROD
@@ -191,17 +191,16 @@ int main(int argc, char* argv[])
 
     log("host: created");
 
-    world->SUBMIT(tier::release, e2::form::proceed::createat, what)
+    auto base_window = [](auto title)
     {
-        auto& config = app::shared::objs_config[what.menu_item_id];
-        auto  window = ui::cake::ctor()
-            ->plugin<pro::title>(config.title)
+        return ui::cake::ctor()
+            ->plugin<pro::title>(title)
             ->plugin<pro::limit>(dot_11, twod{ 400,200 }) //todo unify, set via config
             ->plugin<pro::sizer>()
             ->plugin<pro::frame>()
             ->plugin<pro::light>()
             ->plugin<pro::align>()
-            ->invoke([&](auto& boss)
+            ->invoke([](auto& boss)
             {
                 boss.SUBMIT(tier::release, hids::events::mouse::button::dblclick::left, gear)
                 {
@@ -239,6 +238,12 @@ int main(int argc, char* argv[])
                     if (nested_item) boss.base::detach(); // The object kills itself.
                 };
             });
+    };
+
+    world->SUBMIT(tier::release, e2::form::proceed::createat, what)
+    {
+        auto& config = app::shared::objs_config[what.menu_item_id];
+        auto window = base_window(config.title);
 
         window->extend(what.location);
         auto& creator = app::shared::creator(config.group);
@@ -247,7 +252,20 @@ int main(int argc, char* argv[])
         world->branch(what.menu_item_id, window, config.fixed);
         window->SIGNAL(tier::anycast, e2::form::upon::started, world);
 
-        what.frame = window;
+        what.object = window;
+    };
+    world->SUBMIT(tier::release, e2::form::proceed::createfrom, what)
+    {
+        auto& config = app::shared::objs_config[what.menu_item_id];
+        auto window = base_window(config.title);
+
+        window->extend(what.location);
+        window->attach(what.object);
+        log(" world attach type=", config.group, " menu_item_id=", what.menu_item_id);
+        world->branch(what.menu_item_id, window, config.fixed);
+        //window->SIGNAL(tier::anycast, e2::form::upon::started, world);
+
+        what.object = window;
     };
     world->SUBMIT(tier::general, e2::form::global::lucidity, alpha)
     {
