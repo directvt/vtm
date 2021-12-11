@@ -93,6 +93,29 @@ namespace netxs
         //todo implement erase and friends
         // ...
         template<class K>
+        auto erase(K&& key )
+        {
+            iota test = 0;
+            auto iter = storage.find(std::forward<K>(key));
+            if (iter != storage.end())
+            {
+                test++;
+                auto& my_key = iter->first;
+                auto counter_it = reverse.find(my_key);
+                auto number = counter_it->second;
+                reverse.erase(counter_it);
+                forward.erase(number);
+                storage.erase(iter);
+            }
+            return test;
+        }
+        template<class K>
+        auto contains(K&& key )
+        {
+            auto iter = storage.find(std::forward<K>(key));
+            return iter != storage.end();
+        }
+        template<class K>
         auto& at(K&& key)
         {
             auto [iter, anew] = storage.try_emplace(std::forward<K>(key));

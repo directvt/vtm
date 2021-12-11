@@ -94,6 +94,7 @@ namespace netxs::app::term
                     gear.dismiss(true);
                 };
             }},
+        #ifdef DEMO 
             std::pair<text, std::function<void(ui::pads&)>>{ "=─",
             [](ui::pads& boss)
             {
@@ -136,6 +137,7 @@ namespace netxs::app::term
                     boss.color(align == bias::right ? 0xFF00ff00 : x3.fgc(), x3.bgc());
                 };
             }},
+        #endif
             std::pair<text, std::function<void(ui::pads&)>>{ "Wrap",
             [](ui::pads& boss)
             {

@@ -39,14 +39,15 @@ namespace netxs::console
     class site;
 
     using namespace netxs::input;
-    using drawfx = std::function<bool(face&, page const&)>;
-    using registry_t = netxs::imap<text, std::list<sptr<base>>>;
+    using drawfx = std::pair<bool, std::function<void(face&, sptr<base>)>>;
+    using registry_t = netxs::imap<text, std::pair<bool, std::list<sptr<base>>>>;
     using focus_test_t = std::pair<id_t, iota>;
     struct create_t
     {
+        using sptr = netxs::sptr<base>;
         text menu_item_id;
         rect location;
-        sptr<base> frame;
+        sptr frame;
     };
 }
 
@@ -786,7 +787,7 @@ namespace netxs::console
 
         // face: Render nested object to the canvas using renderproc. TRIM = trim viewport to the client area.
         template<bool TRIM = true, class T>
-        void render(sptr<T> nested_ptr, twod const& basis)
+        void render(sptr<T> nested_ptr, twod const& basis = {})
         {
             if (nested_ptr)
             {
@@ -3878,19 +3879,14 @@ namespace netxs::console
                 app_registry{ std::make_shared<registry_t>() },
                 usr_registry{ std::make_shared<std::list<sptr<base>>>() }
             {
-                paint = [&](face& canvas, page const& titles) -> bool
+                paint.second = [&](face& canvas, sptr<base> background)
                 {
-                    if (edges.size())
-                    {
-                        canvas.wipe(boss.id);
-                        canvas.output(titles);
-                        //todo revise
-                        if (users.size() > 1) users.prerender(canvas); // Draw backpane for spectators
-                        items.render    (canvas); // Draw objects of the world
-                        users.postrender(canvas); // Draw spectator's mouse pointers
-                        return true;
-                    }
-                    else return faux;
+                    canvas.wipe(boss.id);
+                    canvas.render(background);
+                    //todo revise
+                    if (users.size() > 1) users.prerender(canvas); // Draw backpane for spectators
+                    items.render    (canvas); // Draw objects of the world
+                    users.postrender(canvas); // Draw spectator's mouse pointers
                 };
 
                 boss.SUBMIT_T(tier::preview, e2::form::proceed::detach, memo, item_ptr)
@@ -3902,14 +3898,19 @@ namespace netxs::console
                     //todo unify
                     bool found = faux;
                     // Remove from active app registry.
-                    for (auto& [class_id, app_list] : *app_registry)
+                    for (auto& [class_id, fxd_app_list] : *app_registry)
                     {
+                        auto& [fixed, app_list] = fxd_app_list;
                         auto head = app_list.begin();
                         auto tail = app_list.end();
                         auto iter = std::find_if(head, tail, [&](auto& c) { return c == item_ptr; });
                         if (iter != tail)
                         {
                             app_list.erase(iter);
+                            if (app_list.empty() && !fixed)
+                            {
+                                app_registry->erase(class_id);
+                            }
                             found = true;
                             break;
                         }
@@ -3966,6 +3967,7 @@ namespace netxs::console
             // scene: .
             void redraw()
             {
+                paint.first = edges.size();
                 boss.SIGNAL(tier::release, e2::form::proceed::render, paint);
                 edges.clear();
             }
@@ -3980,11 +3982,13 @@ namespace netxs::console
 
             // scene: Attach a new item to the scene.
             template<class S>
-            auto branch(text const& class_id, sptr<S> item)
+            auto branch(text const& class_id, sptr<S> item, bool fixed = true)
             {
                 items.append(item);
                 item->base::root(true); //todo move it to the window creator (main)
-                (*app_registry)[class_id].push_back(item);
+                auto& [stat, list] = (*app_registry)[class_id];
+                stat = fixed;
+                list.push_back(item);
                 item->SIGNAL(tier::release, e2::form::upon::vtree::attached, boss.base::This());
 
                 boss.SIGNAL(tier::release, e2::bindings::list::apps, app_registry);
@@ -4025,9 +4029,9 @@ namespace netxs::console
     public:
         // host: Create a new item of the specified subtype and attach it.
         template<class T>
-        auto branch(text const& class_id, sptr<T> item_ptr)
+        auto branch(text const& class_id, sptr<T> item_ptr, bool fixed = true)
         {
-            scene.branch(class_id, item_ptr);
+            scene.branch(class_id, item_ptr, fixed);
         }
         //todo unify
         // host: .
@@ -5211,9 +5215,8 @@ again:
         iota legacy = os::legacy::clean;
 
     public:
-        // todo unify
-        page watermark;
         sptr<base> uibar; // gate: Local UI overlay, UI bar/taskbar/sidebar.
+        sptr<base> background; // gate: Local UI background.
 
         // Main loop.
         void proceed(os::xipc media /*session socket*/, text title)
@@ -5286,33 +5289,34 @@ again:
                 world->SUBMIT_T(tier::release, e2::form::proceed::render, token, render_scene)
                 {
                     auto stamp = tempus::now();
-                    if (render_scene(cache.canvas, watermark) || !yield) // Put the world to the my canvas.
-                    {
-                        // Update objects under mouse cursor.
-                        //input.fire(hids::events::mouse::hover);
-                        #ifdef DEBUG_OVERLAY
-                            debug.bypass = true;
-                            //input.fire(hids::events::mouse::hover);
-                            input.fire(hids::events::mouse::move.id);
-                            debug.bypass = faux;
-                        #else
-                            input.fire(hids::events::mouse::move.id);
-                        #endif
 
-                        // Draw debug overlay, maker, titles, etc.
-                        this->SIGNAL(tier::release, e2::postrender, cache.canvas);
-                        #ifdef DEBUG_OVERLAY
-                            if ((yield = paint.commit(cache.canvas)))
-                            {
-                                auto& watch = yield.value().first;
-                                auto& delta = yield.value().second;
-                                debug.update(watch, delta);
-                            }
-                            debug.update(stamp);
-                        #else
-                            yield = paint.commit(cache.canvas); // Try output my canvas to the my console.
-                        #endif
-                    }
+                    if (render_scene.first) render_scene.second(cache.canvas, background); // Put the world to the my canvas.
+                    else if (yield) return;
+
+                    // Update objects under mouse cursor.
+                    //input.fire(hids::events::mouse::hover);
+                    #ifdef DEBUG_OVERLAY
+                        debug.bypass = true;
+                        //input.fire(hids::events::mouse::hover);
+                        input.fire(hids::events::mouse::move.id);
+                        debug.bypass = faux;
+                    #else
+                        input.fire(hids::events::mouse::move.id);
+                    #endif
+
+                    // Draw debug overlay, maker, titles, etc.
+                    this->SIGNAL(tier::release, e2::postrender, cache.canvas);
+                    #ifdef DEBUG_OVERLAY
+                        if ((yield = paint.commit(cache.canvas)))
+                        {
+                            auto& watch = yield.value().first;
+                            auto& delta = yield.value().second;
+                            debug.update(watch, delta);
+                        }
+                        debug.update(stamp);
+                    #else
+                        yield = paint.commit(cache.canvas); // Try output my canvas to the my console.
+                    #endif
                 };
 
                 conio.session(title);
@@ -5346,12 +5350,6 @@ again:
                                 base::moveby(-x);
                                 base::deface();
                              });
-            };
-
-            //todo unify (use uibar)
-            SUBMIT(tier::preview, e2::form::prop::footer, newfooter)
-            {
-                watermark = ansi::cup(dot_00).rlf(feed::rev).jet(bias::right).add(newfooter);
             };
             SUBMIT(tier::release, e2::form::prop::fullscreen, state)
             {
@@ -5460,6 +5458,7 @@ again:
             SUBMIT(tier::release, e2::size::set, newsz)
             {
                 if (uibar) uibar->base::resize(newsz);
+                if (background) background->base::resize(newsz);
             };
             SUBMIT(tier::release, e2::render::prerender, parent_canvas)
             {
@@ -5469,7 +5468,6 @@ again:
                 {
                     auto area = base::area();
                     area.coor-= parent_canvas.area().coor;
-
                     //todo revise
                     auto mark = skin::color(tone::shadow);
                     mark.bga(mark.bga() / 2);
@@ -5542,7 +5540,6 @@ again:
         {
             uibar = item;
             item->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
-            //item->SIGNAL(tier::anycast, e2::form::upon::started, This());
             return item;
         }
         // gate: Create a new item of the specified subtype and attach it.
@@ -5550,6 +5547,14 @@ again:
         auto attach(Args&&... args)
         {
             return attach(base::create<T>(std::forward<Args>(args)...));
+        }
+        // gate: Attach background object.
+        template<class T>
+        auto ground(sptr<T> item)
+        {
+            background = item;
+            item->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
+            return item;
         }
     };
 }

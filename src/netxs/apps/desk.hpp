@@ -112,10 +112,11 @@ namespace netxs::app::desk
                     };
                 });
 
-            for (auto const& [class_id, inst_ptr_list] : *apps_map)
+            for (auto const& [class_id, stat_inst_ptr_list] : *apps_map)
             {
+                auto& [state, inst_ptr_list] = stat_inst_ptr_list;
                 auto inst_id  = class_id;
-                auto obj_desc = app::shared::objs_config[class_id].name;
+                auto obj_desc = app::shared::objs_config[class_id].label;
                 auto item_area = apps->attach(ui::pads::ctor(dent{ 0,0,0,1 }, dent{ 0,0,1,0 }))
                                      ->template plugin<pro::fader>(x3, c3, 0ms)
                                      ->invoke([&](auto& boss)
@@ -184,6 +185,7 @@ namespace netxs::app::desk
                                          //   }
                                          //};
                                      });
+                if (!state) item_area->depend_on_collection(inst_ptr_list);
                         auto block = item_area->attach(ui::fork::ctor(axis::Y));
                             auto head_area = block->attach(slot::_1, ui::pads::ctor(dent{ 0,0,0,0 }, dent{ 0,0,1,1 }));
                                 auto head = head_area->attach(ui::item::ctor(obj_desc, true))
@@ -434,8 +436,10 @@ namespace netxs::app::desk
                             const static auto c1 = app::shared::c1;
                             const static auto x1 = app::shared::x1;
 
-                            auto bttns_area = taskbar->attach(slot::_2, ui::rail::ctor(axes::X_ONLY))
-                                                     ->plugin<pro::limit>(twod{ -1, 3 }, twod{ -1, 3 });
+                            auto bttns_cake = taskbar->attach(slot::_2, ui::cake::ctor());
+                            auto bttns_area = bttns_cake->attach(ui::rail::ctor(axes::X_ONLY))
+                                                        ->plugin<pro::limit>(twod{ -1, 3 }, twod{ -1, 3 });
+                                bttns_cake->attach(app::shared::underlined_hz_scrollbars(bttns_area));
                             auto bttns = bttns_area->attach(ui::fork::ctor(axis::X))
                                                    ->plugin<pro::limit>(twod{ uibar_full_size, 3 }, twod{ -1, 3 });
                                 auto disconnect_park = bttns->attach(slot::_1, ui::park::ctor())
