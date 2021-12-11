@@ -3217,6 +3217,7 @@ namespace netxs::console
             iota transit;
             cell c1;
             cell c2;
+            cell c2_orig;
             bool fake = faux;
 
             //todo use lambda
@@ -3238,6 +3239,7 @@ namespace netxs::console
                 fade{ fade_out },
                 c1 { default_state },
                 c2 { highlighted_state },
+                c2_orig { highlighted_state },
                 transit{ 0 }
             {
                 boss.base::color(c1.fgc(), c1.bgc());
@@ -3245,8 +3247,14 @@ namespace netxs::console
                 {
                     if (!fake)
                     {
-                        c1.fgc(brush.fgc());
-                        c1.bgc(brush.bgc());
+                        auto& fgc = brush.fgc();
+                        auto& bgc = brush.bgc();
+                        c1.fgc(fgc);
+                        c1.bgc(bgc);
+                        if (brush.fga()) c2.fgc(fgc);
+                        else             c2.fgc(c2_orig.fgc());
+                        if (brush.bga()) c2.bgc(bgc);
+                        else             c2.bgc(c2_orig.bgc());
                         work(transit);
                     }
                 };
