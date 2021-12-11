@@ -121,6 +121,31 @@ namespace netxs::app::shared
                 auto vt = scroll_bars->attach(slot::_2, ui::grip<axis::Y>::ctor(master));
         return scroll_bars;
     };
+    const auto underlined_hz_scrollbars = [](auto master)
+    {
+        auto area = ui::park::ctor();
+        auto grip = ui::grip_fx<axis::X>::ctor(master);
+        area->branch(snap::stretch, snap::tail, grip)
+            ->invoke([&](auto& boss)
+            {
+                area->visible(grip, faux);
+                auto boss_shadow = ptr::shadow(boss.This());
+                auto park_shadow = ptr::shadow(area);
+                auto grip_shadow = ptr::shadow(grip);
+                master->SUBMIT_BYVAL(tier::release, e2::form::state::mouse, active)
+                {
+                    if (auto park_ptr = park_shadow.lock())
+                    if (auto grip_ptr = grip_shadow.lock())
+                    if (auto boss_ptr = boss_shadow.lock())
+                    {
+                        auto& boss = *boss_ptr;
+                        park_ptr->visible(grip_ptr, active);
+                        boss_ptr->base::deface();
+                    }
+                };
+            });
+        return area;
+    };
     const auto scroll_bars_term = [](auto master)
     {
         auto scroll_bars = ui::fork::ctor();
@@ -133,30 +158,8 @@ namespace netxs::app::shared
     // Menu bar (shrinkable on right-click).
     const auto custom_menu = [](bool full_size, std::list<std::pair<text, std::function<void(ui::pads&)>>> menu_items)
     {
-        auto menu_block = ui::park::ctor()
-            ->plugin<pro::limit>(twod{ -1, full_size ? 3 : 1 }, twod{ -1, full_size ? 3 : 1 })
-            ->invoke([](ui::park& boss)
-            {
-                boss.SUBMIT(tier::release, hids::events::mouse::button::click::right, gear)
-                {
-                    auto& limit = boss.plugins<pro::limit>();
-                    auto limits = limit.get();
-                    limits.min.y = limits.max.y = limits.min.y == 1 ? 3 : 1;
-                    limit.set(limits);
-                    boss.reflow();
-                    gear.dismiss();
-                };
-                boss.SUBMIT(tier::anycast, e2::form::prop::menusize, size)
-                {
-                    auto& limit = boss.plugins<pro::limit>();
-                    auto limits = limit.get();
-                    limits.min.y = limits.max.y = std::max(0, size);
-                    limit.set(limits);
-                    boss.reflow();
-                };
-            });
-        auto menu_area = menu_block->attach(snap::stretch, snap::center, ui::fork::ctor())
-                                   ->active();
+        auto menu_area = ui::fork::ctor()
+                        ->active();
             auto inner_pads = dent{ 1,2,1,1 };
             auto menu_list = menu_area->attach(slot::_1, ui::fork::ctor());
                                         
@@ -171,8 +174,16 @@ namespace netxs::app::shared
                              };
                          })
                          ->attach(ui::item::ctor(" ≡", faux, true));
-                auto scrl_list = menu_list->attach(slot::_2, ui::rail::ctor(axes::X_ONLY, axes::X_ONLY))
-                                          ->attach(ui::list::ctor(axis::X));
+
+                auto scrl_area = menu_list->attach(slot::_2, ui::cake::ctor());
+                auto scrl_rail = scrl_area->attach(ui::rail::ctor(axes::X_ONLY, axes::X_ONLY));
+                auto scrl_list = scrl_rail->attach(ui::list::ctor(axis::X));
+
+                auto scroll_hint = ui::park::ctor();
+                auto hints = scroll_hint->attach(snap::stretch, snap::tail, ui::grip_fx<axis::X>::ctor(scrl_rail));
+
+                auto scrl_grip = scrl_area->attach(scroll_hint);
+
             for (auto& body : menu_items) scrl_list->attach(ui::pads::ctor(inner_pads, dent{ 1 }))
                                                    ->plugin<pro::fader>(x3, c3, 150ms)
                                                    ->invoke(body.second)
@@ -188,6 +199,77 @@ namespace netxs::app::shared
                          };
                      })
                      ->attach(ui::item::ctor("×"));
+
+        auto menu_block = ui::park::ctor()
+            ->plugin<pro::limit>(twod{ -1, full_size ? 3 : 1 }, twod{ -1, full_size ? 3 : 1 })
+            ->invoke([&](ui::park& boss)
+            {
+                scroll_hint->visible(hints, faux);
+                auto boss_shadow = ptr::shadow(boss.This());
+                auto park_shadow = ptr::shadow(scroll_hint);
+                auto grip_shadow = ptr::shadow(hints);
+                boss.SUBMIT_BYVAL(tier::release, hids::events::mouse::button::click::right, gear)
+                {
+                    if (auto park_ptr = park_shadow.lock())
+                    if (auto grip_ptr = grip_shadow.lock())
+                    if (auto boss_ptr = boss_shadow.lock())
+                    {
+                        auto& boss = *boss_ptr;
+                        auto& limit = boss.plugins<pro::limit>();
+                        auto limits = limit.get();
+                        if (limits.min.y == 1)
+                        {
+                            park_ptr->config(grip_ptr, snap::stretch, snap::tail);
+                            limits.min.y = limits.max.y = 3;
+                        }
+                        else
+                        {
+                            park_ptr->config(grip_ptr, snap::stretch, snap::center);
+                            limits.min.y = limits.max.y = 1;
+                        }
+                        limit.set(limits);
+                        boss.reflow();
+                        gear.dismiss();
+                    }
+                };
+                boss.SUBMIT_BYVAL(tier::anycast, e2::form::prop::menusize, size)
+                {
+                    if (auto park_ptr = park_shadow.lock())
+                    if (auto grip_ptr = grip_shadow.lock())
+                    if (auto boss_ptr = boss_shadow.lock())
+                    {
+                        auto& boss = *boss_ptr;
+                        auto& limit = boss.plugins<pro::limit>();
+                        auto limits = limit.get();
+                        limits.min.y = limits.max.y = std::max(0, size);
+                        //todo too hacky
+                        if (limits.min.y == 3)
+                        {
+                            park_ptr->config(grip_ptr, snap::stretch, snap::tail);
+                        }
+                        else
+                        {
+                            park_ptr->config(grip_ptr, snap::stretch, snap::center);
+                        }
+                        limit.set(limits);
+                        boss.reflow();
+                    }
+                };
+                //todo revise
+                if (menu_items.size()) // Show scrolling hint only if elements exist.
+                boss.SUBMIT_BYVAL(tier::release, e2::form::state::mouse, active)
+                {
+                    if (auto park_ptr = park_shadow.lock())
+                    if (auto grip_ptr = grip_shadow.lock())
+                    if (auto boss_ptr = boss_shadow.lock())
+                    {
+                        park_ptr->visible(grip_ptr, active);
+                        boss_ptr->base::deface();
+                    }
+                };
+            });
+        menu_block->attach(snap::stretch, snap::center, menu_area);
+
         return menu_block;
     };
 

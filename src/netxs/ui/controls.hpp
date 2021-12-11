@@ -733,6 +733,7 @@ namespace netxs::ui
             sptr<base> ptr;
             snap       hz;
             snap       vt;
+            bool       on;
         };
         std::list<type> subset;
 
@@ -791,7 +792,7 @@ namespace netxs::ui
                 auto& basis = base::coor();
                 for (auto& client : subset)
                 {
-                    parent_canvas.render(client.ptr, basis);
+                    if (client.on) parent_canvas.render(client.ptr, basis);
                 }
             };
         }
@@ -809,11 +810,33 @@ namespace netxs::ui
             }
             return {};
         }
+        // park: Configure specified object.
+        void config(sptr<base> item_ptr, snap new_hz, snap new_vt)
+        {
+            if (!item_ptr) return;
+            auto head = subset.begin();
+            auto tail = subset.end();
+            auto item = std::find_if(head, tail, [&](auto& c){ return c.ptr == item_ptr; });
+            if (item != tail)
+            {
+                item->hz = new_hz;
+                item->vt = new_vt;
+            }
+        }
+        // park: Make specified object visible or not.
+        void visible(sptr<base> item_ptr, bool is_visible)
+        {
+            if (!item_ptr) return;
+            auto head = subset.begin();
+            auto tail = subset.end();
+            auto item = std::find_if(head, tail, [&](auto& c){ return c.ptr == item_ptr; });
+            if (item != tail) item->on = is_visible;
+        }
         // park: Create a new item of the specified subtype and attach it.
         template<class T>
         auto attach(snap hz, snap vt, sptr<T> item)
         {
-            subset.push_back({ item, hz, vt });
+            subset.push_back({ item, hz, vt, true });
             item->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
             return item;
         }
@@ -1969,6 +1992,385 @@ namespace netxs::ui
                     }
                     //parent_canvas.fill(handle, [&](cell& c) { c.fusefull(bright); });
                     parent_canvas.fill(handle, [&](cell& c) { c.link(bell::id).xlight(); });
+                }
+            };
+        }
+    };
+
+    // controls: Scroll bar.
+    //template<axis AXIS, auto drawfx = noop{}> //todo apple clang doesn't get it
+    //class grip_fx
+    //    : public flow, public form<grip_fx<AXIS, drawfx>>
+    template<axis AXIS>
+    class grip_fx // rename to roll?
+        : public form<grip_fx<AXIS>>
+    {
+        //pro::mouse mouse{*this }; // grip: Mouse events controller.
+        pro::timer timer{*this }; // grip: Minimize by timeout.
+        pro::limit limit{*this }; // grip: Size limits.
+
+        using wptr = netxs::wptr<base>;
+        using sptr = netxs::sptr<base>;
+        using form = ui::form<grip_fx<AXIS>>;
+
+        enum activity
+        {
+            mouse_leave = 0, // faux
+            mouse_hover = 1, // true
+            pager_first = 10,
+            pager_next  = 11,
+        };
+
+        template<auto N> static constexpr
+        //auto events = e2::form::upon::scroll::_<N>; //todo clang 11.0.1 doesn't support this.
+        auto events() { return e2::form::upon::scroll::_<N>; }
+
+        static inline auto  xy(twod const& p) { return AXIS == axis::X ? p.x : p.y; }
+        static inline auto  yx(twod const& p) { return AXIS == axis::Y ? p.x : p.y; }
+        static inline auto& xy(twod&       p) { return AXIS == axis::X ? p.x : p.y; }
+        static inline auto& yx(twod&       p) { return AXIS == axis::Y ? p.x : p.y; }
+
+        struct math
+        {
+            rack  master_inf = {};                         // math: Master scroll info.
+            iota& master_len = xy(master_inf.region);      // math: Master len.
+            iota& master_pos = xy(master_inf.window.coor); // math: Master viewport pos.
+            iota& master_box = xy(master_inf.window.size); // math: Master viewport len.
+            iota  scroll_len = 0; // math: Scrollbar len.
+            iota  scroll_pos = 0; // math: Scrollbar grip pos.
+            iota  scroll_box = 0; // math: Scrollbar grip len.
+            iota   m         = 0; // math: Master max pos.
+            iota   s         = 0; // math: Scroll max pos.
+            double r         = 1; // math: Scroll/master len ratio.
+
+            iota  cursor_pos = 0; // math: Mouse cursor position.
+
+            // math: Calc scroll to master metrics.
+            void s_to_m()
+            {
+                auto scroll_center = scroll_pos + scroll_box / 2.0;
+                auto master_center = scroll_len ? scroll_center / r
+                                                : 0;
+                master_pos = (iota)std::round(master_center - master_box / 2.0);
+
+                // Reset to extreme positions.
+                if (scroll_pos == 0 && master_pos > 0) master_pos = 0;
+                if (scroll_pos == s && master_pos < m) master_pos = m;
+            }
+            // math: Calc master to scroll metrics.
+            void m_to_s()
+            {
+                r = (double)scroll_len / master_len;
+                auto master_middle = master_pos + master_box / 2.0;
+                auto scroll_middle = master_middle * r;
+                scroll_box = std::max(1, (iota)(master_box * r));
+                scroll_pos = (iota)std::round(scroll_middle - scroll_box / 2.0);
+
+                // Don't place the grip behind the scrollbar.
+                if (scroll_pos >= scroll_len) scroll_pos = scroll_len - 1;
+
+                // Extreme positions are always closed last.
+                s = scroll_len - scroll_box;
+                m = master_len - master_box;
+
+                if (scroll_len > 2) // Two-row hight is not suitable for this type of aligning.
+                {
+                    if (scroll_pos == 0 && master_pos > 0) scroll_pos = 1;
+                    if (scroll_pos == s && master_pos < m) scroll_pos = s - 1;
+                }
+            }
+            void update(rack const& scinfo)
+            {
+                master_inf = scinfo;
+                m_to_s();
+            }
+            void resize(twod const& new_size)
+            {
+                scroll_len = xy(new_size);
+                m_to_s();
+            }
+            void stepby(iota delta)
+            {
+                scroll_pos = std::clamp(scroll_pos + delta, 0, s);
+                s_to_m();
+            }
+            void commit(rect& handle)
+            {
+                xy(handle.coor)+= scroll_pos;
+                xy(handle.size) = scroll_box;
+            }
+            auto inside(iota coor)
+            {
+                if (coor >= scroll_pos + scroll_box) return 1; // Below the grip.
+                if (coor >= scroll_pos)              return 0; // Inside the grip.
+                                                     return-1; // Above the grip.
+            }
+            void pager(iota dir)
+            {
+                master_pos += master_box * dir;
+                m_to_s();
+            }
+            auto follow()
+            {
+                auto dir = scroll_len > 2 ? inside(cursor_pos)
+                                          : cursor_pos > 0 ? 1 // Don't stop to follow over
+                                                           :-1;//    box on small scrollbar.
+                if (dir)
+                {
+                    pager(dir);
+                    return true;
+                }
+                return faux;
+            }
+        };
+
+        wptr boss;
+        hook memo;
+        iota thin; // grip: Scrollbar thickness.
+        iota init; // grip: Handle base width.
+        math calc; // grip: Scrollbar calculator.
+        bool wide; // grip: Is the scrollbar active.
+        iota mult; // grip: Vertical bar width multiplier.
+
+        bool on_pager = faux;
+
+        template<class EVENT = decltype(events<AXIS>())>
+        void send(EVENT)
+        {
+            if (auto master = this->boss.lock())
+            {
+                master->SIGNAL(tier::preview, EVENT{}, calc.master_inf);
+            }
+        }
+        void gohome()
+        {
+            send(events<AXIS + 2>());
+        }
+        void config(iota width)
+        {
+            thin = width;
+            auto lims = twod{ xy({ -1,thin }), yx({ -1,thin }) };
+            limit.set(lims, lims);
+        }
+        void giveup(hids& gear)
+        {
+            if (on_pager) gear.dismiss();
+            else
+            {
+                if (gear.captured(bell::id))
+                {
+                    //if (this->form<grip<AXIS>>::template protos<tier::release>(hids::events::mouse::button::drag::cancel::right))
+                    if (this->form::template protos<tier::release>(hids::events::mouse::button::drag::cancel::right))
+                    {
+                        gohome();
+                    }
+                    base::deface();
+                    gear.release();
+                    gear.dismiss();
+                }
+            }
+        }
+        auto pager_repeat()
+        {
+            if (on_pager && calc.follow())
+            {
+                send(events<AXIS>());
+            }
+            return on_pager;
+        }
+    public:
+        grip_fx(sptr boss, iota thickness = 1, iota multiplier = 2)
+            : boss{ boss       },
+              thin{ thickness  },
+              wide{ faux       },
+              init{ thickness  },
+              mult{ multiplier }
+        {
+            config(thin);
+
+            boss->SUBMIT_T(tier::release, events<AXIS>(), memo, scinfo)
+            {
+                calc.update(scinfo);
+                base::deface();
+            };
+
+            SUBMIT(tier::release, e2::size::set, new_size)
+            {
+                calc.resize(new_size);
+            };
+
+            using bttn = hids::events::mouse::button;
+            SUBMIT(tier::release, hids::events::mouse::scroll::any, gear)
+            {
+                if (gear.whldt)
+                {
+                    auto dir = gear.whldt < 0 ? 1 : -1;
+                    calc.pager(dir);
+                    send(events<AXIS>());
+                    gear.dismiss();
+                }
+            };
+            SUBMIT(tier::release, hids::events::mouse::move, gear)
+            {
+                calc.cursor_pos = xy(gear.mouse::coord);
+            };
+            SUBMIT(tier::release, hids::events::mouse::button::dblclick::left, gear)
+            {
+                gear.dismiss(); // Do not pass double clicks outside.
+            };
+            SUBMIT(tier::release, hids::events::mouse::button::down::any, gear)
+            {
+                if (!on_pager)
+                if (this->form::template protos<tier::release>(bttn::down::left) ||
+                    this->form::template protos<tier::release>(bttn::down::right))
+                if (auto dir = calc.inside(xy(gear.mouse::coord)))
+                {
+                    if (gear.capture(bell::id))
+                    {
+                        on_pager = true;
+                        pager_repeat();
+                        gear.dismiss();
+
+                        timer.actify(activity::pager_first, REPEAT_DELAY, [&](auto p)
+                        {
+                            if (pager_repeat())
+                            {
+                                timer.actify(activity::pager_next, REPEAT_RATE, [&](auto d)
+                                {
+                                    return pager_repeat(); // Repeat until on_pager.
+                                });
+                            }
+                            return faux; // One shot call (first).
+                        });
+                    }
+                }
+            };
+            SUBMIT(tier::release, hids::events::mouse::button::up::any, gear)
+            {
+                if (on_pager && gear.captured(bell::id))
+                {
+                    if (this->form::template protos<tier::release>(bttn::up::left) ||
+                        this->form::template protos<tier::release>(bttn::up::right))
+                    {
+                        gear.release();
+                        gear.dismiss();
+                        on_pager = faux;
+                        timer.pacify(activity::pager_first);
+                        timer.pacify(activity::pager_next);
+                    }
+                }
+            };
+            SUBMIT(tier::release, hids::events::mouse::button::up::right, gear)
+            {
+                //if (!gear.captured(bell::id)) //todo why?
+                {
+                    gohome();
+                    gear.dismiss();
+                }
+            };
+
+            SUBMIT(tier::release, hids::events::mouse::button::drag::start::any, gear)
+            {
+                if (on_pager) gear.dismiss();
+                else
+                {
+                    if (gear.capture(bell::id))
+                    {
+                        gear.dismiss();
+                    }
+                }
+            };
+            SUBMIT(tier::release, hids::events::mouse::button::drag::pull::any, gear)
+            {
+                if (on_pager) gear.dismiss();
+                else
+                {
+                    if (gear.captured(bell::id))
+                    {
+                        if (auto delta = xy(gear.mouse::delta.get()))
+                        {
+                            calc.stepby(delta);
+                            send(events<AXIS>());
+                            gear.dismiss();
+                        }
+                    }
+                }
+            };
+            SUBMIT(tier::release, hids::events::mouse::button::drag::cancel::any, gear)
+            {
+                giveup(gear);
+            };
+            SUBMIT(tier::general, hids::events::die, gear)
+            {
+                giveup(gear);
+            };
+            SUBMIT(tier::release, hids::events::mouse::button::drag::stop::any, gear)
+            {
+                if (on_pager) gear.dismiss();
+                else
+                {
+                    if (gear.captured(bell::id))
+                    {
+                        if (this->form::template protos<tier::release>(bttn::drag::stop::right))
+                        {
+                            gohome();
+                        }
+                        base::deface();
+                        gear.release();
+                        gear.dismiss();
+                    }
+                }
+            };
+            SUBMIT(tier::release, e2::form::state::mouse, active)
+            {
+                auto apply = [&](auto active)
+                {
+                    wide = active;
+                    if (AXIS == axis::Y && mult) config(active ? init * mult // Make vertical scrollbar
+                                                               : init);      // wider on hover.
+                    base::reflow();
+                    return faux; // One shot call.
+                };
+
+                timer.pacify(activity::mouse_leave);
+
+                if (active) apply(activity::mouse_hover);
+                else timer.actify(activity::mouse_leave, ACTIVE_TIMEOUT, apply);
+            };
+            //SUBMIT(tier::release, hids::events::mouse::move, gear)
+            //{
+            //	auto apply = [&](auto active)
+            //	{
+            //		wide = active;
+            //		if (AXIS == axis::Y) config(active ? init * 2 // Make vertical scrollbar
+            //		                                   : init);   //  wider on hover
+            //		base::reflow();
+            //		return faux; // One shot call
+            //	};
+            //
+            //	timer.pacify(activity::mouse_leave);
+            //	apply(activity::mouse_hover);
+            //	timer.template actify<activity::mouse_leave>(ACTIVE_TIMEOUT, apply);
+            //};
+            SUBMIT(tier::release, e2::render::any, parent_canvas)
+            {
+                auto region = parent_canvas.view();
+                auto object = parent_canvas.full();
+                auto handle = region;
+
+                calc.commit(handle);
+
+                auto& handle_len = xy(handle.size);
+                auto& region_len = xy(region.size);
+                auto& object_len = xy(object.size);
+
+                handle = region.clip(handle);
+                handle_len = std::max(1, handle_len);
+
+                if (object_len && handle_len != region_len) // Show only if it is oversized.
+                {
+                    //parent_canvas.fill(handle, [](cell& c) { c.und(!c.und()); });
+                    parent_canvas.fill(handle, [](cell& c) { c.und(true); });
                 }
             };
         }
