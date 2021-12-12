@@ -46,6 +46,7 @@ namespace netxs::console
     {
         using sptr = netxs::sptr<base>;
         text menu_item_id;
+        text title;
         rect location;
         sptr object;
     };

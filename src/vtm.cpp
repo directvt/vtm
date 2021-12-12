@@ -4,7 +4,7 @@
 #define MONOTTY_VER "Monotty Desktopio v0.5.9999f"
 
 // Enable demo apps and assign Esc key to log off.
-#define DEMO
+//#define DEMO
 
 // Enable keyboard input and unassign Esc key.
 #define PROD
@@ -194,12 +194,12 @@ int main(int argc, char* argv[])
     auto base_window = [](auto title)
     {
         return ui::cake::ctor()
-            ->plugin<pro::title>(title)
-            ->plugin<pro::limit>(dot_11, twod{ 400,200 }) //todo unify, set via config
-            ->plugin<pro::sizer>()
-            ->plugin<pro::frame>()
-            ->plugin<pro::light>()
-            ->plugin<pro::align>()
+            ->template plugin<pro::title>(title) //todo "template": gcc complains on ubuntu 18.04
+            ->template plugin<pro::limit>(dot_11, twod{ 400,200 }) //todo unify, set via config
+            ->template plugin<pro::sizer>()
+            ->template plugin<pro::frame>()
+            ->template plugin<pro::light>()
+            ->template plugin<pro::align>()
             ->invoke([](auto& boss)
             {
                 boss.SUBMIT(tier::release, hids::events::mouse::button::dblclick::left, gear)
@@ -257,7 +257,7 @@ int main(int argc, char* argv[])
     world->SUBMIT(tier::release, e2::form::proceed::createfrom, what)
     {
         auto& config = app::shared::objs_config[what.menu_item_id];
-        auto window = base_window(config.title);
+        auto window = base_window(what.title);
 
         window->extend(what.location);
         window->attach(what.object);
