@@ -194,6 +194,7 @@ int main(int argc, char* argv[])
     auto base_window = [](auto title)
     {
         return ui::cake::ctor()
+            ->template plugin<pro::d_n_d>()
             ->template plugin<pro::title>(title) //todo "template": gcc complains on ubuntu 18.04
             ->template plugin<pro::limit>(dot_11, twod{ 400,200 }) //todo unify, set via config
             ->template plugin<pro::sizer>()

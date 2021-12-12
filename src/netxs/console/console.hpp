@@ -256,11 +256,19 @@ namespace netxs::events::userland
                     EVENT_XS( detach  , sptr<console::base> ), // order to detach a child, tier::release - kill itself, tier::preview - detach the child specified in args, arg is a child sptr.
                     EVENT_XS( focus   , sptr<console::base> ), // order to set focus to the specified object, arg is a object sptr.
                     EVENT_XS( unfocus , sptr<console::base> ), // order to unset focus on the specified object, arg is a object sptr.
-                    EVENT_XS( swap    , sptr<console::base> ), // order to relace existing client. See tiling manager empty slot.
+                    EVENT_XS( swap    , sptr<console::base> ), // order to replce existing client. See tiling manager empty slot.
+                    GROUP_XS( d_n_d   , sptr<console::base> ), // drag&drop functionality. See tiling manager empty slot and pro::d_n_d.
                     //EVENT_XS( commit     , iota                     ), // order to output the targets, arg is a frame number.
                     //EVENT_XS( multirender, vector<shared_ptr<face>> ), // ask children to render itself to the set of canvases, arg is an array of the face sptrs.
                     //EVENT_XS( draw       , face                     ), // ????  order to render itself to the canvas.
                     //EVENT_XS( checkin    , face_sptr                ), // order to register an output client canvas.
+
+                    SUBSET_XS(d_n_d)
+                    {
+                        EVENT_XS(ask  , sptr<console::base>),
+                        EVENT_XS(drop , sptr<console::base>),
+                        EVENT_XS(abort, sptr<console::base>),
+                    };
                 };
                 SUBSET_XS( cursor )
                 {
@@ -3579,6 +3587,114 @@ namespace netxs::console
                         parent_canvas.cage(area, dot_21, fill);
                     }
                 };
+            }
+        };
+
+        // pro: Drag&drop functionality.
+        class d_n_d
+            : public skill
+        {
+            using skill::boss,
+                  skill::memo;
+
+            id_t under;
+            bool drags;
+            twod coord;
+            wptr<base> target_shadow;
+
+        public:
+            d_n_d(base&&) = delete;
+            d_n_d(base& boss)
+                : skill{ boss },
+                  drags{ faux },
+                  under{      }
+            {
+                boss.SUBMIT_T(tier::release, hids::events::mouse::button::drag::start::left, memo, gear)
+                {
+                    drags = true;
+                    coord = gear.coord;
+                    under = {};
+                };
+                boss.SUBMIT_T(tier::release, hids::events::mouse::button::drag::pull::left, memo, gear)
+                {
+                    coord = gear.coord - gear.delta.get();
+                };
+                boss.SUBMIT_T(tier::release, hids::events::mouse::button::drag::stop::left, memo, gear)
+                {
+                    drags = faux;
+                    if (auto target = target_shadow.lock())
+                    {
+                        //todo
+                        target->SIGNAL(tier::release, e2::form::proceed::d_n_d::drop, boss.This());
+                    }
+                    target_shadow.reset();
+                    under = {};
+                    //todo make boss opaque
+                };
+                boss.SUBMIT_T(tier::release, hids::events::mouse::button::drag::cancel::left, memo, gear)
+                {
+                    drags = faux;
+                    if (auto target = target_shadow.lock())
+                    {
+                        //todo
+                        target->SIGNAL(tier::release, e2::form::proceed::d_n_d::abort, boss.This());
+                    }
+                    target_shadow.reset();
+                    under = {};
+                    //todo make boss opaque
+                };
+                boss.SUBMIT_T(tier::release, e2::render::prerender, memo, parent_canvas)
+                {
+                    // Detect object under the boss.
+                    if (drags)
+                    {
+                        auto full = parent_canvas.face::full();
+                        auto size = parent_canvas.core::size();
+                        auto coor = full.coor + coord;
+                        if (size.inside(coor))
+                        {
+                            auto& c = parent_canvas[coor];
+                            auto new_under = c.link();
+                            if (under != new_under)
+                            {
+                                auto target = decltype(e2::form::proceed::d_n_d::ask)::type{};
+                                if (auto old_target = std::dynamic_pointer_cast<base>(bell::getref(under)))
+                                {
+                                    old_target->riseup<tier::release>(e2::form::proceed::d_n_d::abort, target);
+                                }
+                                if (auto new_target = std::dynamic_pointer_cast<base>(bell::getref(new_under)))
+                                {
+                                    new_target->riseup<tier::release>(e2::form::proceed::d_n_d::ask, target);
+                                }
+                                if (target)
+                                {
+                                    //todo make boss transluent on success
+                                }
+                                else
+                                {
+                                    //todo make boss opaque
+                                }
+                                target_shadow = target;
+                                under = new_under;
+                            }
+                        }
+                    }
+                };
+                //boss.SUBMIT_T(tier::release, e2::postrender, memo, parent_canvas)
+                //{
+                //    // detect object under the boss
+                //    if (drags)
+                //    {
+                //        auto full = parent_canvas.face::full();
+                //        auto size = parent_canvas.core::size();
+                //        auto coor = full.coor + coord;
+                //        if (size.inside(coor))
+                //        {
+                //            auto& c = parent_canvas[coor];
+                //            c.bgc(reddk);
+                //        }
+                //    }
+                //};
             }
         };
     }
