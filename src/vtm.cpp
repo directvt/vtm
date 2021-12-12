@@ -191,7 +191,7 @@ int main(int argc, char* argv[])
 
     log("host: created");
 
-    auto base_window = [](auto title)
+    auto base_window = [](auto title, auto menu_item_id)
     {
         return ui::cake::ctor()
             ->template plugin<pro::d_n_d>()
@@ -201,8 +201,23 @@ int main(int argc, char* argv[])
             ->template plugin<pro::frame>()
             ->template plugin<pro::light>()
             ->template plugin<pro::align>()
-            ->invoke([](auto& boss)
+            ->invoke([&](auto& boss)
             {
+                auto shadow = ptr::shadow(boss.This());
+                boss.SUBMIT_BYVAL(tier::preview, e2::form::proceed::d_n_d::drop, what)
+                {
+                    if (auto boss_ptr = shadow.lock())
+                    if (auto object = boss_ptr->pop_back())
+                    {
+                        auto& boss = *boss_ptr;
+                        auto target = what.object;
+                        what.menu_item_id = menu_item_id;
+                        what.object = object;
+                        what.title = boss.template plugins<pro::title>().header();
+                        target->SIGNAL(tier::release, e2::form::proceed::d_n_d::drop, what);
+                        boss.base::detach(); // The object kills itself.
+                    }
+                };
                 boss.SUBMIT(tier::release, hids::events::mouse::button::dblclick::left, gear)
                 {
                     boss.base::template riseup<tier::release>(e2::form::maximize, gear);
@@ -244,7 +259,7 @@ int main(int argc, char* argv[])
     world->SUBMIT(tier::release, e2::form::proceed::createat, what)
     {
         auto& config = app::shared::objs_config[what.menu_item_id];
-        auto window = base_window(config.title);
+        auto window = base_window(config.title, what.menu_item_id);
 
         window->extend(what.location);
         auto& creator = app::shared::creator(config.group);
@@ -258,7 +273,7 @@ int main(int argc, char* argv[])
     world->SUBMIT(tier::release, e2::form::proceed::createfrom, what)
     {
         auto& config = app::shared::objs_config[what.menu_item_id];
-        auto window = base_window(what.title);
+        auto window = base_window(what.title, what.menu_item_id);
 
         window->extend(what.location);
         window->attach(what.object);

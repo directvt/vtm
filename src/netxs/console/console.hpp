@@ -256,7 +256,7 @@ namespace netxs::events::userland
                     EVENT_XS( detach  , sptr<console::base> ), // order to detach a child, tier::release - kill itself, tier::preview - detach the child specified in args, arg is a child sptr.
                     EVENT_XS( focus   , sptr<console::base> ), // order to set focus to the specified object, arg is a object sptr.
                     EVENT_XS( unfocus , sptr<console::base> ), // order to unset focus on the specified object, arg is a object sptr.
-                    EVENT_XS( swap    , sptr<console::base> ), // order to replce existing client. See tiling manager empty slot.
+                    EVENT_XS( swap    , sptr<console::base> ), // order to replace existing client. See tiling manager empty slot.
                     GROUP_XS( d_n_d   , sptr<console::base> ), // drag&drop functionality. See tiling manager empty slot and pro::d_n_d.
                     //EVENT_XS( commit     , iota                     ), // order to output the targets, arg is a frame number.
                     //EVENT_XS( multirender, vector<shared_ptr<face>> ), // ask children to render itself to the set of canvases, arg is an array of the face sptrs.
@@ -266,7 +266,7 @@ namespace netxs::events::userland
                     SUBSET_XS(d_n_d)
                     {
                         EVENT_XS(ask  , sptr<console::base>),
-                        EVENT_XS(drop , sptr<console::base>),
+                        EVENT_XS(drop , console::create_t  ),
                         EVENT_XS(abort, sptr<console::base>),
                     };
                 };
@@ -2689,6 +2689,10 @@ namespace netxs::console
                 if (head_live) recalc(head_page, head_size);
                 if (foot_live) recalc(foot_page, foot_size);
             }
+            auto& header()
+            {
+                return head_text;
+            }
             void header(view newtext)
             {
                 head_page = newtext;
@@ -3624,8 +3628,9 @@ namespace netxs::console
                     drags = faux;
                     if (auto target = target_shadow.lock())
                     {
-                        //todo
-                        target->SIGNAL(tier::release, e2::form::proceed::d_n_d::drop, boss.This());
+                        auto what = decltype(e2::form::proceed::d_n_d::drop)::type{};
+                        what.object = target;
+                        boss.SIGNAL(tier::preview, e2::form::proceed::d_n_d::drop, what);
                     }
                     target_shadow.reset();
                     under = {};
@@ -3636,7 +3641,6 @@ namespace netxs::console
                     drags = faux;
                     if (auto target = target_shadow.lock())
                     {
-                        //todo
                         target->SIGNAL(tier::release, e2::form::proceed::d_n_d::abort, boss.This());
                     }
                     target_shadow.reset();
@@ -3680,21 +3684,6 @@ namespace netxs::console
                         }
                     }
                 };
-                //boss.SUBMIT_T(tier::release, e2::postrender, memo, parent_canvas)
-                //{
-                //    // detect object under the boss
-                //    if (drags)
-                //    {
-                //        auto full = parent_canvas.face::full();
-                //        auto size = parent_canvas.core::size();
-                //        auto coor = full.coor + coord;
-                //        if (size.inside(coor))
-                //        {
-                //            auto& c = parent_canvas[coor];
-                //            c.bgc(reddk);
-                //        }
-                //    }
-                //};
             }
         };
     }

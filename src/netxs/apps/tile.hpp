@@ -276,7 +276,7 @@ namespace netxs::app::tile
                         auto count = boss.count();
                         if (count == 1) // Only empty slot available.
                         {
-                            log(" d_n_d: abort boss.id=", boss.id);
+                            //log(" d_n_d: abort boss.id=", boss.id);
                             //todo unify
                             boss.back()->color(blacklt, app::shared::term_menu_bg);
                         }
@@ -286,7 +286,7 @@ namespace netxs::app::tile
                         auto count = boss.count();
                         if (count == 1) // Only empty slot available.
                         {
-                            log(" d_n_d: ask boss.id=", boss.id);
+                            //log(" d_n_d: ask boss.id=", boss.id);
                             //todo unify
                             auto fg = app::shared::c3.fgc();
                             auto bg = app::shared::c3.bgc();
@@ -296,19 +296,15 @@ namespace netxs::app::tile
                             target = boss.This();
                         }
                     };
-                    boss.SUBMIT(tier::release, e2::form::proceed::d_n_d::drop, target)
+                    boss.SUBMIT(tier::release, e2::form::proceed::d_n_d::drop, what)
                     {
                         auto count = boss.count();
                         if (count == 1) // Only empty slot available.
                         {
-                            log(" d_n_d: drop boss.id=", boss.id);
+                            //log(" d_n_d: drop boss.id=", boss.id);
                             //todo unify
-                            //boss.back()->color(blacklt, app::shared::term_menu_bg);
-                            auto fg = app::shared::c5.fgc();
-                            auto bg = app::shared::c5.bgc();
-                            fg.alpha(0x70);
-                            bg.alpha(0x70);
-                            boss.back()->color(fg, bg);
+                            boss.back()->color(blacklt, app::shared::term_menu_bg);
+                            boss.attach(box_with_title(what.title, what.object, what.menu_item_id));
                         }
                     };
                     boss.SUBMIT(tier::release, e2::form::proceed::swap, item_ptr)
