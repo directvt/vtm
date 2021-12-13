@@ -133,6 +133,8 @@ namespace netxs::app::tile
                         bcast_forward(boss);
                         mouse_actions(boss);
 
+                        if (branch->size() != dot_00) boss.resize(branch->size() + dot_01);
+
                         auto master_shadow = ptr::shadow(boss.This());
                         auto branch_shadow = ptr::shadow(branch);
                         boss.SUBMIT_BYVAL(tier::release, hids::events::mouse::button::drag::start::left, gear)
