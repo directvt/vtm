@@ -3630,11 +3630,30 @@ namespace netxs::console
         {
             using skill::boss,
                   skill::memo;
+            using wptr = netxs::wptr<base>;
 
             id_t under;
             bool drags;
             twod coord;
-            wptr<base> target_shadow;
+            wptr cover;
+
+            void proceed(bool keep)
+            {
+                drags = faux;
+                boss.SIGNAL(tier::anycast, e2::form::prop::lucidity, 0xFF); // Make target opaque.
+                if (auto object = cover.lock())
+                {
+                    if (keep)
+                    {
+                        auto what = decltype(e2::form::proceed::d_n_d::drop)::type{};
+                        what.object = object;
+                        boss.SIGNAL(tier::preview, e2::form::proceed::d_n_d::drop, what);
+                    }
+                    else object->SIGNAL(tier::release, e2::form::proceed::d_n_d::abort, boss.This());
+                }
+                cover.reset();
+                under = {};
+            }
 
         public:
             d_n_d(base&&) = delete;
@@ -3645,7 +3664,8 @@ namespace netxs::console
             {
                 boss.SUBMIT_T(tier::release, hids::events::mouse::button::drag::start::left, memo, gear)
                 {
-                    if (boss.size().inside(gear.coord))
+                    if (boss.size().inside(gear.coord)
+                    && !gear.meta())
                     {
                         drags = true;
                         coord = gear.coord;
@@ -3655,33 +3675,19 @@ namespace netxs::console
                 boss.SUBMIT_T(tier::release, hids::events::mouse::button::drag::pull::left, memo, gear)
                 {
                     if (!drags) return;
-                    coord = gear.coord - gear.delta.get();
+                    if (gear.meta()) proceed(faux);
+                    else             coord = gear.coord - gear.delta.get();
                 };
                 boss.SUBMIT_T(tier::release, hids::events::mouse::button::drag::stop::left, memo, gear)
                 {
                     if (!drags) return;
-                    drags = faux;
-                    boss.SIGNAL(tier::anycast, e2::form::prop::lucidity, 0xFF); // Make opaque.
-                    if (auto target = target_shadow.lock())
-                    {
-                        auto what = decltype(e2::form::proceed::d_n_d::drop)::type{};
-                        what.object = target;
-                        boss.SIGNAL(tier::preview, e2::form::proceed::d_n_d::drop, what);
-                    }
-                    target_shadow.reset();
-                    under = {};
+                    if (gear.meta()) proceed(faux);
+                    else             proceed(true);
                 };
                 boss.SUBMIT_T(tier::release, hids::events::mouse::button::drag::cancel::left, memo, gear)
                 {
                     if (!drags) return;
-                    drags = faux;
-                    boss.SIGNAL(tier::anycast, e2::form::prop::lucidity, 0xFF); // Make target opaque.
-                    if (auto target = target_shadow.lock())
-                    {
-                        target->SIGNAL(tier::release, e2::form::proceed::d_n_d::abort, boss.This());
-                    }
-                    target_shadow.reset();
-                    under = {};
+                    proceed(faux);
                 };
                 boss.SUBMIT_T(tier::release, e2::render::prerender, memo, parent_canvas)
                 {
@@ -3695,24 +3701,18 @@ namespace netxs::console
                         auto new_under = c.link();
                         if (under != new_under)
                         {
-                            auto target = decltype(e2::form::proceed::d_n_d::ask)::type{};
-                            if (auto old_target = std::dynamic_pointer_cast<base>(bell::getref(under)))
+                            auto object = decltype(e2::form::proceed::d_n_d::ask)::type{};
+                            if (auto old_object = std::dynamic_pointer_cast<base>(bell::getref(under)))
                             {
-                                old_target->riseup<tier::release>(e2::form::proceed::d_n_d::abort, target);
+                                old_object->riseup<tier::release>(e2::form::proceed::d_n_d::abort, object);
                             }
-                            if (auto new_target = std::dynamic_pointer_cast<base>(bell::getref(new_under)))
+                            if (auto new_object = std::dynamic_pointer_cast<base>(bell::getref(new_under)))
                             {
-                                new_target->riseup<tier::release>(e2::form::proceed::d_n_d::ask, target);
+                                new_object->riseup<tier::release>(e2::form::proceed::d_n_d::ask, object);
                             }
-                            if (target)
-                            {
-                                boss.SIGNAL(tier::anycast, e2::form::prop::lucidity, 0x80); // Make transluent on success.
-                            }
-                            else
-                            {
-                                boss.SIGNAL(tier::anycast, e2::form::prop::lucidity, 0xFF); // Make opaque.
-                            }
-                            target_shadow = target;
+                            boss.SIGNAL(tier::anycast, e2::form::prop::lucidity, object ? 0x80
+                                                                                        : 0xFF); // Make it semi-transparent on success and opaque otherwise.
+                            cover = object;
                             under = new_under;
                         }
                     }

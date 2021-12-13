@@ -133,7 +133,7 @@ namespace netxs::app::tile
                         bcast_forward(boss);
                         mouse_actions(boss);
 
-                        if (branch->size() != dot_00) boss.resize(branch->size() + dot_01);
+                        if (branch->size() != dot_00) boss.resize(branch->size() + dot_01/*approx title height*/);
 
                         auto master_shadow = ptr::shadow(boss.This());
                         auto branch_shadow = ptr::shadow(branch);
@@ -281,7 +281,6 @@ namespace netxs::app::tile
                         auto count = boss.count();
                         if (count == 1) // Only empty slot available.
                         {
-                            //log(" d_n_d: abort boss.id=", boss.id);
                             //todo unify
                             boss.back()->color(blacklt, app::shared::term_menu_bg);
                         }
@@ -291,7 +290,6 @@ namespace netxs::app::tile
                         auto count = boss.count();
                         if (count == 1) // Only empty slot available.
                         {
-                            //log(" d_n_d: ask boss.id=", boss.id);
                             //todo unify
                             auto fg = app::shared::c3.fgc();
                             auto bg = app::shared::c3.bgc();
@@ -306,7 +304,6 @@ namespace netxs::app::tile
                         auto count = boss.count();
                         if (count == 1) // Only empty slot available.
                         {
-                            //log(" d_n_d: drop boss.id=", boss.id);
                             //todo unify
                             boss.back()->color(blacklt, app::shared::term_menu_bg);
                             boss.attach(box_with_title(what.header, what.footer, what.object, what.menuid));
