@@ -354,6 +354,7 @@ namespace netxs::app::shared
         {
             auto window = ui::cake::ctor();
             window->plugin<pro::focus>()
+                  ->plugin<pro::cache>()
                   ->attach(ui::stem_rate<tier::general, decltype(e2::config::fps)>::ctor("Set frame rate limit", 1, 200, "fps"))
                   ->colors(0xFFFFFFFF, bluedk)
                   ->invoke([&](auto& boss)

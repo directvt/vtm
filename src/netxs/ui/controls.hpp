@@ -2862,6 +2862,7 @@ namespace netxs::ui
             {
                 if (base::ruined())
                 {
+                    base::ruined(faux); // The object may be invalidated again during rendering. (see pro::d_n_d)
                     canvas.wipe(base::color());
                     canvas.output(topic);
                     auto cp = canvas.cp();
@@ -2869,7 +2870,6 @@ namespace netxs::ui
                     cp.y -= 3;
                     grip_ctl->base::moveto(cp);
                     canvas.render(grip_ctl, base::coor());
-                    base::ruined(faux);
                 }
                 parent_canvas.fill(canvas, cell::shaders::fusefull);
             };

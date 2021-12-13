@@ -341,10 +341,12 @@ namespace netxs::events::userland
                     EVENT_XS( fullscreen, bool        ), // set fullscreen flag.
                     EVENT_XS( viewport  , rect        ), // request: return form actual viewport.
                     EVENT_XS( menusize  , iota        ), // release: set menu height.
+                    EVENT_XS( lucidity  , iota        ), // set or request window transparency, iota: 0-255, -1 to request.
                 };
                 SUBSET_XS( global )
                 {
                     //EVENT_XS( ctxmenu , twod ), // request context menu at specified coords.
+                    //deprecated - use tier::anycast
                     EVENT_XS( lucidity, iota ), // set or request global window transparency, iota: 0-255, -1 to request.
                     //GROUP_XS( object,      ), // global scene objects events
                     //GROUP_XS( user  ,      ), // global scene users events
@@ -1523,13 +1525,20 @@ namespace netxs::console
             using list = socks<sock>;
             using skill::boss,
                   skill::memo;
-            list items;
+
+            list items; // track: .
+            bool alive; // track: Is active.
 
         public:
             track(base&&) = delete;
             track(base& boss)
-                : skill{ boss }
+                : skill{ boss },
+                  alive{ true }
             {
+                boss.SUBMIT_T(tier::anycast, e2::form::prop::lucidity, memo, lucidity)
+                {
+                    if (lucidity != -1) alive = lucidity == 0xFF;
+                };
                 boss.SUBMIT_T(tier::release, hids::events::mouse::move, memo, gear)
                 {
                     items.take(gear).calc(boss, gear.coord);
@@ -1544,6 +1553,7 @@ namespace netxs::console
                 };
                 boss.SUBMIT_T(tier::release, e2::render::prerender, memo, parent_canvas)
                 {
+                    if (!alive) return;
                     auto full = parent_canvas.full();
                     auto view = parent_canvas.view();
                     auto mark = cell{}.bgc(0xFFffffff);
@@ -3359,6 +3369,7 @@ namespace netxs::console
                   skill::memo;
 
             sptr<face> coreface;
+            byte       lucidity;
 
         public:
             face& canvas; // cache: Bitmap cache.
@@ -3366,11 +3377,21 @@ namespace netxs::console
             cache(base&&) = delete;
             cache(base& boss, bool rendered = true)
                 : skill{ boss },
-                  canvas{*(coreface = std::make_shared<face>())}
+                  canvas{*(coreface = std::make_shared<face>())},
+                  lucidity{ 0xFF }
             {
                 canvas.link(boss.bell::id);
                 canvas.move(boss.base::coor());
                 canvas.size(boss.base::size());
+                boss.SUBMIT_T(tier::anycast, e2::form::prop::lucidity, memo, value)
+                {
+                    if (value == -1) value = lucidity;
+                    else
+                    {
+                        lucidity = value;
+                        //boss.deface();
+                    }
+                };
                 boss.SUBMIT_T(tier::release, e2::form::upon::vtree::attached, memo, parent_ptr)
                 {
                     boss.SIGNAL(tier::general, e2::form::canvas, canvas.shared_from_this());
@@ -3385,10 +3406,11 @@ namespace netxs::console
                         if (boss.base::ruined())
                         {
                             canvas.wipe();
-                            boss.SIGNAL(tier::release, e2::render::any, canvas);
                             boss.base::ruined(faux);
+                            boss.SIGNAL(tier::release, e2::render::any, canvas);
                         }
-                        parent_canvas.fill(canvas, cell::shaders::fusefull);
+                        if (lucidity == 0xFF) parent_canvas.fill(canvas, cell::shaders::fusefull);
+                        else                  parent_canvas.fill(canvas, cell::shaders::transparent(lucidity));
                         boss.bell::expire<tier::release>();
                     };
                 }
@@ -3403,15 +3425,22 @@ namespace netxs::console
                   skill::memo;
 
             iota width; // acryl: Blur radius.
+            bool alive; // acryl: Is active.
 
         public:
             acryl(base&&) = delete;
             acryl(base& boss, iota size = 5)
                 : skill{ boss },
-                  width{ size }
+                  width{ size },
+                  alive{ true }
             {
+                boss.SUBMIT_T(tier::anycast, e2::form::prop::lucidity, memo, lucidity)
+                {
+                    if (lucidity != -1) alive = lucidity == 0xFF;
+                };
                 boss.SUBMIT_T(tier::release, e2::render::prerender, memo, parent_canvas)
                 {
+                    if (!alive) return;
                     auto brush = boss.base::color();
                     if (brush.wdt()) parent_canvas.blur(width, [&](cell& c) { c.fuse(brush); });
                     else             parent_canvas.blur(width);
@@ -3626,6 +3655,7 @@ namespace netxs::console
                 boss.SUBMIT_T(tier::release, hids::events::mouse::button::drag::stop::left, memo, gear)
                 {
                     drags = faux;
+                    boss.SIGNAL(tier::anycast, e2::form::prop::lucidity, 0xFF); // Make opaque.
                     if (auto target = target_shadow.lock())
                     {
                         auto what = decltype(e2::form::proceed::d_n_d::drop)::type{};
@@ -3634,18 +3664,17 @@ namespace netxs::console
                     }
                     target_shadow.reset();
                     under = {};
-                    //todo make boss opaque
                 };
                 boss.SUBMIT_T(tier::release, hids::events::mouse::button::drag::cancel::left, memo, gear)
                 {
                     drags = faux;
+                    boss.SIGNAL(tier::anycast, e2::form::prop::lucidity, 0xFF); // Make target opaque.
                     if (auto target = target_shadow.lock())
                     {
                         target->SIGNAL(tier::release, e2::form::proceed::d_n_d::abort, boss.This());
                     }
                     target_shadow.reset();
                     under = {};
-                    //todo make boss opaque
                 };
                 boss.SUBMIT_T(tier::release, e2::render::prerender, memo, parent_canvas)
                 {
@@ -3672,11 +3701,11 @@ namespace netxs::console
                                 }
                                 if (target)
                                 {
-                                    //todo make boss transluent on success
+                                    boss.SIGNAL(tier::anycast, e2::form::prop::lucidity, 0x80); // Make transluent on success.
                                 }
                                 else
                                 {
-                                    //todo make boss opaque
+                                    boss.SIGNAL(tier::anycast, e2::form::prop::lucidity, 0xFF); // Make opaque.
                                 }
                                 target_shadow = target;
                                 under = new_under;
@@ -4083,8 +4112,8 @@ namespace netxs::console
             void redraw()
             {
                 paint.first = edges.size();
-                boss.SIGNAL(tier::release, e2::form::proceed::render, paint);
                 edges.clear();
+                boss.SIGNAL(tier::release, e2::form::proceed::render, paint);
             }
             // scene: Mark dirty region.
             void denote(rect const& updateregion)
