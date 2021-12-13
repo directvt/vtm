@@ -269,9 +269,9 @@ namespace netxs::ui::atoms
             else if (alpha)
             {
                 auto inverse = 256 - alpha;
-                chan.r = (c.chan.r * alpha + chan.r * inverse) >> 8,
-                chan.g = (c.chan.g * alpha + chan.g * inverse) >> 8,
-                chan.b = (c.chan.b * alpha + chan.b * inverse) >> 8,
+                chan.r = (c.chan.r * alpha + chan.r * inverse) >> 8;
+                chan.g = (c.chan.g * alpha + chan.g * inverse) >> 8;
+                chan.b = (c.chan.b * alpha + chan.b * inverse) >> 8;
                 chan.a = (c.chan.a * alpha + chan.a * inverse) >> 8;
             }
         }
