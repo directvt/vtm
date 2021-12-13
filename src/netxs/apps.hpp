@@ -943,8 +943,8 @@ namespace netxs::app::shared
             auto creator = [&](text const& menu_item_id, rect area)
             {
                 auto what = decltype(e2::form::proceed::createat)::type{};
-                what.menu_item_id = menu_item_id;
-                what.location = area;
+                what.menuid = menu_item_id;
+                what.square = area;
                 world->SIGNAL(tier::release, e2::form::proceed::createat, what);
             };
             auto sub_pos = twod{ 12+17, 0 };

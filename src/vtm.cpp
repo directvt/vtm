@@ -191,11 +191,11 @@ int main(int argc, char* argv[])
 
     log("host: created");
 
-    auto base_window = [](auto title, auto menu_item_id)
+    auto base_window = [](auto title, auto footer, auto menu_item_id)
     {
         return ui::cake::ctor()
             ->template plugin<pro::d_n_d>()
-            ->template plugin<pro::title>(title) //todo "template": gcc complains on ubuntu 18.04
+            ->template plugin<pro::title>(title, footer) //todo "template": gcc complains on ubuntu 18.04
             ->template plugin<pro::limit>(dot_11, twod{ 400,200 }) //todo unify, set via config
             ->template plugin<pro::sizer>()
             ->template plugin<pro::frame>()
@@ -211,9 +211,10 @@ int main(int argc, char* argv[])
                     {
                         auto& boss = *boss_ptr;
                         auto target = what.object;
-                        what.menu_item_id = menu_item_id;
+                        what.menuid = menu_item_id;
                         what.object = object;
-                        what.title = boss.template plugins<pro::title>().header();
+                        what.header = boss.template plugins<pro::title>().header();
+                        what.footer = boss.template plugins<pro::title>().footer();
                         target->SIGNAL(tier::release, e2::form::proceed::d_n_d::drop, what);
                         boss.base::detach(); // The object kills itself.
                     }
@@ -258,27 +259,27 @@ int main(int argc, char* argv[])
 
     world->SUBMIT(tier::release, e2::form::proceed::createat, what)
     {
-        auto& config = app::shared::objs_config[what.menu_item_id];
-        auto window = base_window(config.title, what.menu_item_id);
+        auto& config = app::shared::objs_config[what.menuid];
+        auto window = base_window(config.title, "", what.menuid);
 
-        window->extend(what.location);
+        window->extend(what.square);
         auto& creator = app::shared::creator(config.group);
         window->attach(creator(config.param));
-        log(" world create type=", config.group, " menu_item_id=", what.menu_item_id);
-        world->branch(what.menu_item_id, window, config.fixed);
+        log(" world: create type=", config.group, " menu_item_id=", what.menuid);
+        world->branch(what.menuid, window, config.fixed);
         window->SIGNAL(tier::anycast, e2::form::upon::started, world);
 
         what.object = window;
     };
     world->SUBMIT(tier::release, e2::form::proceed::createfrom, what)
     {
-        auto& config = app::shared::objs_config[what.menu_item_id];
-        auto window = base_window(what.title, what.menu_item_id);
+        auto& config = app::shared::objs_config[what.menuid];
+        auto window = base_window(what.header, what.footer, what.menuid);
 
-        window->extend(what.location);
+        window->extend(what.square);
         window->attach(what.object);
-        log(" world attach type=", config.group, " menu_item_id=", what.menu_item_id);
-        world->branch(what.menu_item_id, window, config.fixed);
+        log(" world: attach type=", config.group, " menu_item_id=", what.menuid);
+        world->branch(what.menuid, window, config.fixed);
         //window->SIGNAL(tier::anycast, e2::form::upon::started, world);
 
         what.object = window;

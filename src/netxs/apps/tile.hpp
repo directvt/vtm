@@ -120,11 +120,11 @@ namespace netxs::app::tile
                 gear.dismiss();
             };
         };
-        auto box_with_title = [](view title, auto branch, auto menu_item_id)
+        auto box_with_title = [](view title, view footer, auto branch, auto menu_item_id)
         {
             branch->SIGNAL(tier::anycast, e2::form::prop::menusize, 1);
             return ui::fork::ctor(axis::Y)
-                    ->plugin<pro::title>("", true, faux, true)
+                    ->plugin<pro::title>(""/*not used here*/, footer, true, faux, true)
                     ->plugin<pro::limit>(twod{ 10,-1 }, twod{ -1,-1 })
                     ->isroot(true)
                     ->active()
@@ -137,21 +137,24 @@ namespace netxs::app::tile
                         auto branch_shadow = ptr::shadow(branch);
                         boss.SUBMIT_BYVAL(tier::release, hids::events::mouse::button::drag::start::left, gear)
                         {
-                            if (auto master_ptr = master_shadow.lock())
                             if (auto branch_ptr = branch_shadow.lock())
+                            if (branch_ptr->area().hittest(gear.coord))
+                            if (auto master_ptr = master_shadow.lock())
                             {
                                 auto& master = *master_ptr;
                                 auto& branch = *branch_ptr;
                                 // Take current title.
                                 auto what = decltype(e2::form::proceed::createfrom)::type{};
-                                what.menu_item_id = menu_item_id;
-                                master.SIGNAL(tier::request, e2::form::prop::header, what.title);
-                                if (what.title.empty()) what.title = menu_item_id;
+                                what.menuid = menu_item_id;
+                                master.SIGNAL(tier::request, e2::form::prop::header, what.header);
+                                master.SIGNAL(tier::request, e2::form::prop::footer, what.footer);
+                                if (what.header.empty()) what.header = menu_item_id;
                                  
                                 // Take coor and detach from the tiling wm.
-                                what.location.size = branch.base::size();
-                                branch.global(what.location.coor);
-                                what.location.coor = -what.location.coor;
+                                gear.coord -= branch.base::coor(); // Localize mouse coor.
+                                what.square.size = branch.base::size();
+                                branch.global(what.square.coor);
+                                what.square.coor = -what.square.coor;
                                 what.object = branch_ptr;
                                 master.SIGNAL(tier::preview, e2::form::proceed::detach, branch_ptr);
                                 branch.moveto(dot_00);
@@ -162,8 +165,8 @@ namespace netxs::app::tile
                                 world_ptr->SIGNAL(tier::release, e2::form::proceed::createfrom, what);
 
                                 // Pass unique focus.
-                                //todo unify
                                 auto& object = *what.object;
+                                //todo unify
                                 gear.kb_focus_taken = faux;
                                 gear.force_group_focus = faux;
                                 gear.combine_focus = true;
@@ -304,7 +307,7 @@ namespace netxs::app::tile
                             //log(" d_n_d: drop boss.id=", boss.id);
                             //todo unify
                             boss.back()->color(blacklt, app::shared::term_menu_bg);
-                            boss.attach(box_with_title(what.title, what.object, what.menu_item_id));
+                            boss.attach(box_with_title(what.header, what.footer, what.object, what.menuid));
                         }
                     };
                     boss.SUBMIT(tier::release, e2::form::proceed::swap, item_ptr)
@@ -536,7 +539,7 @@ namespace netxs::app::tile
 
                                     auto& creator = app::shared::creator(config.group);
                                     auto host = creator(config.param);
-                                    auto app = box_with_title(config.title, host, current_default);
+                                    auto app = box_with_title(config.title, "", host, current_default);
                                     gear.remove_from_kb_focus(boss.back()); // Take focus from the empty slot.
                                     boss.attach(app);
 
@@ -599,7 +602,7 @@ namespace netxs::app::tile
                 auto menu_item_id = "Term"s;
                 auto& creator = app::shared::creator(menu_item_id);
                 auto host = creator(cmdline);
-                auto inst = box_with_title("Headless TE", host, menu_item_id);
+                auto inst = box_with_title("Headless TE", "", host, menu_item_id);
                 place->attach(inst);
             }
             else if (tag == 'a')
@@ -616,7 +619,7 @@ namespace netxs::app::tile
 
                 auto& creator = app::shared::creator(app_id);
                 auto host = creator(app_data);
-                auto inst = box_with_title(app_title, host, app_id);
+                auto inst = box_with_title(app_title, "", host, app_id);
                 place->attach(inst);
             }
             else if (tag == 'h' || tag == 'v')

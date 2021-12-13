@@ -45,9 +45,10 @@ namespace netxs::console
     struct create_t
     {
         using sptr = netxs::sptr<base>;
-        text menu_item_id;
-        text title;
-        rect location;
+        text menuid;
+        text header;
+        text footer;
+        rect square;
         sptr object;
     };
 }
@@ -2699,10 +2700,8 @@ namespace netxs::console
                 if (head_live) recalc(head_page, head_size);
                 if (foot_live) recalc(foot_page, foot_size);
             }
-            auto& header()
-            {
-                return head_text;
-            }
+            auto& header() { return head_text; }
+            auto& footer() { return foot_text; }
             void header(view newtext)
             {
                 head_page = newtext;
@@ -2793,14 +2792,16 @@ namespace netxs::console
             {
                 init();
             }
-            title(base& boss, view title, bool visible = true, bool on_header = true,
-                                                               bool on_footer = true)
+            title(base& boss, view title, view foots = {}, bool visible = true,
+                                                           bool on_header = true,
+                                                           bool on_footer = true)
                 : skill{ boss },
                   head_live{ on_header },
                   foot_live{ on_footer }
             {
                 init();
                 header(title);
+                footer(foots);
                 live = visible;
                 //footer(ansi::jet(bias::right) + "test\nmultiline\nfooter");
             }
@@ -3644,16 +3645,21 @@ namespace netxs::console
             {
                 boss.SUBMIT_T(tier::release, hids::events::mouse::button::drag::start::left, memo, gear)
                 {
-                    drags = true;
-                    coord = gear.coord;
-                    under = {};
+                    if (boss.size().inside(gear.coord))
+                    {
+                        drags = true;
+                        coord = gear.coord;
+                        under = {};
+                    }
                 };
                 boss.SUBMIT_T(tier::release, hids::events::mouse::button::drag::pull::left, memo, gear)
                 {
+                    if (!drags) return;
                     coord = gear.coord - gear.delta.get();
                 };
                 boss.SUBMIT_T(tier::release, hids::events::mouse::button::drag::stop::left, memo, gear)
                 {
+                    if (!drags) return;
                     drags = faux;
                     boss.SIGNAL(tier::anycast, e2::form::prop::lucidity, 0xFF); // Make opaque.
                     if (auto target = target_shadow.lock())
@@ -3667,6 +3673,7 @@ namespace netxs::console
                 };
                 boss.SUBMIT_T(tier::release, hids::events::mouse::button::drag::cancel::left, memo, gear)
                 {
+                    if (!drags) return;
                     drags = faux;
                     boss.SIGNAL(tier::anycast, e2::form::prop::lucidity, 0xFF); // Make target opaque.
                     if (auto target = target_shadow.lock())
@@ -3678,38 +3685,35 @@ namespace netxs::console
                 };
                 boss.SUBMIT_T(tier::release, e2::render::prerender, memo, parent_canvas)
                 {
-                    // Detect object under the boss.
-                    if (drags)
+                    if (!drags) return;
+                    auto full = parent_canvas.face::full();
+                    auto size = parent_canvas.core::size();
+                    auto coor = full.coor + coord;
+                    if (size.inside(coor))
                     {
-                        auto full = parent_canvas.face::full();
-                        auto size = parent_canvas.core::size();
-                        auto coor = full.coor + coord;
-                        if (size.inside(coor))
+                        auto& c = parent_canvas[coor];
+                        auto new_under = c.link();
+                        if (under != new_under)
                         {
-                            auto& c = parent_canvas[coor];
-                            auto new_under = c.link();
-                            if (under != new_under)
+                            auto target = decltype(e2::form::proceed::d_n_d::ask)::type{};
+                            if (auto old_target = std::dynamic_pointer_cast<base>(bell::getref(under)))
                             {
-                                auto target = decltype(e2::form::proceed::d_n_d::ask)::type{};
-                                if (auto old_target = std::dynamic_pointer_cast<base>(bell::getref(under)))
-                                {
-                                    old_target->riseup<tier::release>(e2::form::proceed::d_n_d::abort, target);
-                                }
-                                if (auto new_target = std::dynamic_pointer_cast<base>(bell::getref(new_under)))
-                                {
-                                    new_target->riseup<tier::release>(e2::form::proceed::d_n_d::ask, target);
-                                }
-                                if (target)
-                                {
-                                    boss.SIGNAL(tier::anycast, e2::form::prop::lucidity, 0x80); // Make transluent on success.
-                                }
-                                else
-                                {
-                                    boss.SIGNAL(tier::anycast, e2::form::prop::lucidity, 0xFF); // Make opaque.
-                                }
-                                target_shadow = target;
-                                under = new_under;
+                                old_target->riseup<tier::release>(e2::form::proceed::d_n_d::abort, target);
                             }
+                            if (auto new_target = std::dynamic_pointer_cast<base>(bell::getref(new_under)))
+                            {
+                                new_target->riseup<tier::release>(e2::form::proceed::d_n_d::ask, target);
+                            }
+                            if (target)
+                            {
+                                boss.SIGNAL(tier::anycast, e2::form::prop::lucidity, 0x80); // Make transluent on success.
+                            }
+                            else
+                            {
+                                boss.SIGNAL(tier::anycast, e2::form::prop::lucidity, 0xFF); // Make opaque.
+                            }
+                            target_shadow = target;
+                            under = new_under;
                         }
                     }
                 };
@@ -4267,10 +4271,10 @@ namespace netxs::console
                     else
                     {
                         auto what = decltype(e2::form::proceed::createat)::type{};
-                        what.location = gear.slot;
+                        what.square = gear.slot;
                         auto data = decltype(e2::data::changed)::type{};
                         gate.SIGNAL(tier::request, e2::data::changed, data);
-                        what.menu_item_id = data;
+                        what.menuid = data;
                         this->SIGNAL(tier::release, e2::form::proceed::createat, what);
                         if (auto& frame = what.object)
                         {
