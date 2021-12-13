@@ -354,6 +354,7 @@ namespace netxs::app::shared
         {
             auto window = ui::cake::ctor();
             window->plugin<pro::focus>()
+                  ->plugin<pro::cache>()
                   ->attach(ui::stem_rate<tier::general, decltype(e2::config::fps)>::ctor("Set frame rate limit", 1, 200, "fps"))
                   ->colors(0xFFFFFFFF, bluedk)
                   ->invoke([&](auto& boss)
@@ -942,8 +943,8 @@ namespace netxs::app::shared
             auto creator = [&](text const& menu_item_id, rect area)
             {
                 auto what = decltype(e2::form::proceed::createat)::type{};
-                what.menu_item_id = menu_item_id;
-                what.location = area;
+                what.menuid = menu_item_id;
+                what.square = area;
                 world->SIGNAL(tier::release, e2::form::proceed::createat, what);
             };
             auto sub_pos = twod{ 12+17, 0 };

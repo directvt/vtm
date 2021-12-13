@@ -235,6 +235,8 @@ No arguments | Run client (auto start server)
    - Serves for quick navigation through the desktop space using cyclic selection (left click on group title) in the `View` group on the taskbar.
 
  - `▀▄ Tile`
+   - Supports Drag and Drop for panes (like tabs in a browser).
+   - Use any modifier (`Ctrl` or `Alt`) while pane dragging to disable drag&drop mode.
    - Tiling window manager preconfigurable using environment variable `VTM_PROFILE...`.  
      ```
      # Configuration example:

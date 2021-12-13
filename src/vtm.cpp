@@ -191,18 +191,34 @@ int main(int argc, char* argv[])
 
     log("host: created");
 
-    world->SUBMIT(tier::release, e2::form::proceed::createat, what)
+    auto base_window = [](auto title, auto footer, auto menu_item_id)
     {
-        auto& config = app::shared::objs_config[what.menu_item_id];
-        auto  window = ui::cake::ctor()
-            ->plugin<pro::title>(config.title)
-            ->plugin<pro::limit>(dot_11, twod{ 400,200 }) //todo unify, set via config
-            ->plugin<pro::sizer>()
-            ->plugin<pro::frame>()
-            ->plugin<pro::light>()
-            ->plugin<pro::align>()
+        return ui::cake::ctor()
+            ->template plugin<pro::d_n_d>()
+            ->template plugin<pro::title>(title, footer) //todo "template": gcc complains on ubuntu 18.04
+            ->template plugin<pro::limit>(dot_11, twod{ 400,200 }) //todo unify, set via config
+            ->template plugin<pro::sizer>()
+            ->template plugin<pro::frame>()
+            ->template plugin<pro::light>()
+            ->template plugin<pro::align>()
             ->invoke([&](auto& boss)
             {
+                auto shadow = ptr::shadow(boss.This());
+                boss.SUBMIT_BYVAL(tier::preview, e2::form::proceed::d_n_d::drop, what)
+                {
+                    if (auto boss_ptr = shadow.lock())
+                    if (auto object = boss_ptr->pop_back())
+                    {
+                        auto& boss = *boss_ptr;
+                        auto target = what.object;
+                        what.menuid = menu_item_id;
+                        what.object = object;
+                        what.header = boss.template plugins<pro::title>().header();
+                        what.footer = boss.template plugins<pro::title>().footer();
+                        target->SIGNAL(tier::release, e2::form::proceed::d_n_d::drop, what);
+                        boss.base::detach(); // The object kills itself.
+                    }
+                };
                 boss.SUBMIT(tier::release, hids::events::mouse::button::dblclick::left, gear)
                 {
                     boss.base::template riseup<tier::release>(e2::form::maximize, gear);
@@ -239,15 +255,34 @@ int main(int argc, char* argv[])
                     if (nested_item) boss.base::detach(); // The object kills itself.
                 };
             });
+    };
 
-        window->extend(what.location);
+    world->SUBMIT(tier::release, e2::form::proceed::createat, what)
+    {
+        auto& config = app::shared::objs_config[what.menuid];
+        auto window = base_window(config.title, "", what.menuid);
+
+        window->extend(what.square);
         auto& creator = app::shared::creator(config.group);
         window->attach(creator(config.param));
-        log(" world create type=", config.group, " menu_item_id=", what.menu_item_id);
-        world->branch(what.menu_item_id, window, config.fixed);
+        log(" world: create type=", config.group, " menu_item_id=", what.menuid);
+        world->branch(what.menuid, window, config.fixed);
         window->SIGNAL(tier::anycast, e2::form::upon::started, world);
 
-        what.frame = window;
+        what.object = window;
+    };
+    world->SUBMIT(tier::release, e2::form::proceed::createfrom, what)
+    {
+        auto& config = app::shared::objs_config[what.menuid];
+        auto window = base_window(what.header, what.footer, what.menuid);
+
+        window->extend(what.square);
+        window->attach(what.object);
+        log(" world: attach type=", config.group, " menu_item_id=", what.menuid);
+        world->branch(what.menuid, window, config.fixed);
+        //window->SIGNAL(tier::anycast, e2::form::upon::started, world);
+
+        what.object = window;
     };
     world->SUBMIT(tier::general, e2::form::global::lucidity, alpha)
     {

@@ -28,63 +28,6 @@ namespace netxs::events::userland
                     EVENT_XS( vt, input::hids ),
                     EVENT_XS( hz, input::hids ),
                 };
-
-
-//                GROUP_XS( preview, input::hids ),
-//                GROUP_XS( release, input::hids ),
-//                GROUP_XS( request, input::hids ),
-//
-//                SUBSET_XS( preview )
-//                {
-//                    EVENT_XS( create  , input::hids ),
-//                    EVENT_XS( close   , input::hids ),
-//                    EVENT_XS( toggle  , input::hids ), // toggle window size: maximize/restore.
-//                    EVENT_XS( swap    , input::hids ),
-//                    EVENT_XS( rotate  , input::hids ), // change nested objects order. See tilimg manager (ui::fork).
-//                    EVENT_XS( equalize, input::hids ),
-//                    EVENT_XS( select  , input::hids ),
-//                    GROUP_XS( split   , input::hids ),
-//
-//                    SUBSET_XS( split )
-//                    {
-//                        EVENT_XS( vt, input::hids ),
-//                        EVENT_XS( hz, input::hids ),
-//                    };
-//                };
-//                SUBSET_XS( release )
-//                {
-//                    EVENT_XS( create  , input::hids ),
-//                    EVENT_XS( close   , input::hids ),
-//                    EVENT_XS( toggle  , input::hids ), // toggle window size: maximize/restore.
-//                    EVENT_XS( swap    , input::hids ),
-//                    EVENT_XS( rotate  , input::hids ), // change nested objects order. See tilimg manager (ui::fork).
-//                    EVENT_XS( equalize, input::hids ),
-//                    EVENT_XS( select  , input::hids ),
-//                    GROUP_XS( split   , input::hids ),
-//
-//                    SUBSET_XS( split )
-//                    {
-//                        EVENT_XS( vt, input::hids ),
-//                        EVENT_XS( hz, input::hids ),
-//                    };
-//                };
-//                SUBSET_XS( request )
-//                {
-//                    EVENT_XS( create  , input::hids ),
-//                    EVENT_XS( close   , input::hids ),
-//                    EVENT_XS( toggle  , input::hids ), // toggle window size: maximize/restore.
-//                    EVENT_XS( swap    , input::hids ),
-//                    EVENT_XS( rotate  , input::hids ), // change nested objects order. See tilimg manager (ui::fork).
-//                    EVENT_XS( equalize, input::hids ),
-//                    EVENT_XS( select  , input::hids ),
-//                    GROUP_XS( split   , input::hids ),
-//
-//                    SUBSET_XS( split )
-//                    {
-//                        EVENT_XS( vt, input::hids ),
-//                        EVENT_XS( hz, input::hids ),
-//                    };
-//                };
             };
         };
     };
@@ -177,11 +120,11 @@ namespace netxs::app::tile
                 gear.dismiss();
             };
         };
-        auto box_with_title = [](view title, auto branch)
+        auto box_with_title = [](view title, view footer, auto branch, auto menu_item_id)
         {
             branch->SIGNAL(tier::anycast, e2::form::prop::menusize, 1);
             return ui::fork::ctor(axis::Y)
-                    ->plugin<pro::title>("", true, faux, true)
+                    ->plugin<pro::title>(""/*not used here*/, footer, true, faux, true)
                     ->plugin<pro::limit>(twod{ 10,-1 }, twod{ -1,-1 })
                     ->isroot(true)
                     ->active()
@@ -189,6 +132,57 @@ namespace netxs::app::tile
                     {
                         bcast_forward(boss);
                         mouse_actions(boss);
+
+                        if (branch->size() != dot_00) boss.resize(branch->size() + dot_01/*approx title height*/);
+
+                        auto master_shadow = ptr::shadow(boss.This());
+                        auto branch_shadow = ptr::shadow(branch);
+                        boss.SUBMIT_BYVAL(tier::release, hids::events::mouse::button::drag::start::left, gear)
+                        {
+                            if (auto branch_ptr = branch_shadow.lock())
+                            if (branch_ptr->area().hittest(gear.coord))
+                            if (auto master_ptr = master_shadow.lock())
+                            {
+                                auto& master = *master_ptr;
+                                auto& branch = *branch_ptr;
+                                // Take current title.
+                                auto what = decltype(e2::form::proceed::createfrom)::type{};
+                                what.menuid = menu_item_id;
+                                master.SIGNAL(tier::request, e2::form::prop::header, what.header);
+                                master.SIGNAL(tier::request, e2::form::prop::footer, what.footer);
+                                if (what.header.empty()) what.header = menu_item_id;
+                                 
+                                // Take coor and detach from the tiling wm.
+                                gear.coord -= branch.base::coor(); // Localize mouse coor.
+                                what.square.size = branch.base::size();
+                                branch.global(what.square.coor);
+                                what.square.coor = -what.square.coor;
+                                what.object = branch_ptr;
+                                master.SIGNAL(tier::preview, e2::form::proceed::detach, branch_ptr);
+                                branch.moveto(dot_00);
+
+                                // Attach to the world.
+                                auto world_ptr = decltype(e2::config::whereami)::type{};
+                                SIGNAL_GLOBAL(e2::config::whereami, world_ptr);
+                                world_ptr->SIGNAL(tier::release, e2::form::proceed::createfrom, what);
+
+                                // Pass unique focus.
+                                auto& object = *what.object;
+                                //todo unify
+                                gear.kb_focus_taken = faux;
+                                gear.force_group_focus = faux;
+                                gear.combine_focus = true;
+                                object.SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
+
+                                // Destroy placeholder.
+                                master.base::template riseup<tier::release>(e2::form::quit, master_ptr);
+
+                                // Handover mouse input.
+                                master.SIGNAL(tier::release, hids::events::notify::mouse::leave,             gear);
+                                object.SIGNAL(tier::release, hids::events::notify::mouse::enter,             gear);
+                                object.SIGNAL(tier::release, hids::events::mouse::button::drag::start::left, gear);
+                            }
+                        };
                     })
                     //->branch(slot::_1, ui::post_fx<cell::shaders::contrast>::ctor()) //todo apple clang doesn't get it
                     ->branch(slot::_1, ui::post_fx::ctor()
@@ -282,6 +276,39 @@ namespace netxs::app::tile
                 ->invoke([&](auto& boss)
                 {
                     auto shadow = ptr::shadow(boss.This());
+                    boss.SUBMIT(tier::release, e2::form::proceed::d_n_d::abort, target)
+                    {
+                        auto count = boss.count();
+                        if (count == 1) // Only empty slot available.
+                        {
+                            //todo unify
+                            boss.back()->color(blacklt, app::shared::term_menu_bg);
+                        }
+                    };
+                    boss.SUBMIT(tier::release, e2::form::proceed::d_n_d::ask, target)
+                    {
+                        auto count = boss.count();
+                        if (count == 1) // Only empty slot available.
+                        {
+                            //todo unify
+                            auto fg = app::shared::c3.fgc();
+                            auto bg = app::shared::c3.bgc();
+                            fg.alpha(0x70);
+                            bg.alpha(0x70);
+                            boss.back()->color(fg, bg);
+                            target = boss.This();
+                        }
+                    };
+                    boss.SUBMIT(tier::release, e2::form::proceed::d_n_d::drop, what)
+                    {
+                        auto count = boss.count();
+                        if (count == 1) // Only empty slot available.
+                        {
+                            //todo unify
+                            boss.back()->color(blacklt, app::shared::term_menu_bg);
+                            boss.attach(box_with_title(what.header, what.footer, what.object, what.menuid));
+                        }
+                    };
                     boss.SUBMIT(tier::release, e2::form::proceed::swap, item_ptr)
                     {
                         auto count = boss.count();
@@ -511,7 +538,7 @@ namespace netxs::app::tile
 
                                     auto& creator = app::shared::creator(config.group);
                                     auto host = creator(config.param);
-                                    auto app = box_with_title(config.title, host);
+                                    auto app = box_with_title(config.title, "", host, current_default);
                                     gear.remove_from_kb_focus(boss.back()); // Take focus from the empty slot.
                                     boss.attach(app);
 
@@ -566,15 +593,15 @@ namespace netxs::app::tile
             utf::trim_front(utf8, ", ");
             if (utf8.empty()) return place;
             auto tag = utf8.front();
-            if (tag == '\"')
+            if (tag == '\"') //todo deprecated - use a("Term"...
             {
                 // add term
                 auto cmdline = utf::get_quote(utf8, '\"');
                 log(" node cmdline=", cmdline);
-
-                auto& creator = app::shared::creator("Term");
+                auto menu_item_id = "Term"s;
+                auto& creator = app::shared::creator(menu_item_id);
                 auto host = creator(cmdline);
-                auto inst = box_with_title("Headless TE", host);
+                auto inst = box_with_title("Headless TE", "", host, menu_item_id);
                 place->attach(inst);
             }
             else if (tag == 'a')
@@ -591,7 +618,7 @@ namespace netxs::app::tile
 
                 auto& creator = app::shared::creator(app_id);
                 auto host = creator(app_data);
-                auto inst = box_with_title(app_title, host);
+                auto inst = box_with_title(app_title, "", host, app_id);
                 place->attach(inst);
             }
             else if (tag == 'h' || tag == 'v')
