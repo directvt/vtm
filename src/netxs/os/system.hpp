@@ -240,6 +240,14 @@ namespace netxs::os
                                           : shell;
         #endif
     }
+    static text homepath()
+    {
+        #if defined(_WIN32)
+            return os::get_env("HOMEDRIVE") + os::get_env("HOMEPATH");
+        #else
+            return os::get_env("HOME");
+        #endif
+    }
     //system: Get list of envvars using wildcard.
     static auto get_envars(text&& var)
     {
