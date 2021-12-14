@@ -461,8 +461,8 @@ namespace netxs::app::tile
                                         boss.attach(place_holder());
                                         empty_2->pop_back();
                                     }
-                                    auto slot_1 = newnode->attach(slot::_1, empty_1);
-                                    auto slot_2 = newnode->attach(slot::_2, empty_2->branch(curitem));
+                                    auto slot_2 = newnode->attach(slot::_1, empty_2->branch(curitem));
+                                    auto slot_1 = newnode->attach(slot::_2, empty_1);
                                     boss.attach(newnode);
                                 }
                             }
