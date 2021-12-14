@@ -191,11 +191,11 @@ int main(int argc, char* argv[])
 
     log("host: created");
 
-    auto base_window = [](auto title, auto footer, auto menu_item_id)
+    auto base_window = [](auto header, auto footer, auto menu_item_id)
     {
         return ui::cake::ctor()
             ->template plugin<pro::d_n_d>()
-            ->template plugin<pro::title>(title, footer) //todo "template": gcc complains on ubuntu 18.04
+            ->template plugin<pro::title>(header, footer) //todo "template": gcc complains on ubuntu 18.04
             ->template plugin<pro::limit>(dot_11, twod{ 400,200 }) //todo unify, set via config
             ->template plugin<pro::sizer>()
             ->template plugin<pro::frame>()
@@ -213,8 +213,9 @@ int main(int argc, char* argv[])
                         auto target = what.object;
                         what.menuid = menu_item_id;
                         what.object = object;
-                        what.header = boss.template plugins<pro::title>().header();
-                        what.footer = boss.template plugins<pro::title>().footer();
+                        auto& title = boss.template plugins<pro::title>();
+                        what.header = title.header();
+                        what.footer = title.footer();
                         target->SIGNAL(tier::release, e2::form::proceed::d_n_d::drop, what);
                         boss.base::detach(); // The object kills itself.
                     }

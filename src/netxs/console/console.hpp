@@ -819,6 +819,7 @@ namespace netxs::console
             object_area.coor+= parent_area.coor;
 
             auto nested_view = canvas_view.clip(object_area);
+            //todo revise: why whole canvas is not used
             if (TRIM ? nested_view : canvas_view)
             {
                 auto canvas_coor = core::coor();

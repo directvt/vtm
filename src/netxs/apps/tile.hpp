@@ -10,7 +10,8 @@ namespace netxs::events::userland
     {
         EVENTPACK( tile, netxs::events::userland::root::custom )
         {
-            GROUP_XS( ui, input::hids ), // Window manager command pack.
+            EVENT_XS( enlist, view        ),
+            GROUP_XS( ui    , input::hids ), // Window manager command pack.
 
             SUBSET_XS( ui )
             {
@@ -33,6 +34,88 @@ namespace netxs::events::userland
     };
 }
 
+
+namespace netxs::console
+{
+    // console: Template modules for the base class behavior extension.
+    namespace pro
+    {
+        // pro: Right-side item list.
+        class items
+            : public skill
+        {
+            //struct link
+            //{
+            //    using wptr = netxs::wptr<base>;
+            //    wptr object;
+            //    text header;
+            //    rich render;
+            //    subs tokens;
+            //};
+
+            //using list = std::list<link>;
+            //using roll = std::list<std::pair<sptr<base>, iota>>;
+            using events = netxs::events::userland::tile;
+            using skill::boss,
+                  skill::memo;
+
+            //list links;
+            sptr<ui::roll> client;
+            //roll subset;
+
+        public:
+            items(base&&) = delete;
+            items(base& boss)
+                : skill{ boss }
+            {
+                client = ui::roll::ctor();
+
+                client->SIGNAL(tier::release, e2::form::upon::vtree::attached, boss.This());
+
+                boss.SUBMIT_T(tier::release, e2::size::set, memo, newsz)
+                {
+                    if (client)
+                    {
+                        auto new_coor = twod{ newsz.x + 2/*resize grip width*/, 0 };
+                        auto new_size = twod{ client->size().x, newsz.y };
+                        client->SIGNAL(tier::release, e2::coor::set, new_coor);
+                        client->SIGNAL(tier::preview, e2::size::set, new_size);
+                        client->SIGNAL(tier::release, e2::size::set, new_size);
+                    }
+                };
+                boss.SUBMIT_T(tier::release, events::enlist, memo, header)
+                {
+                    client->attach(ui::pads::ctor(dent{ 1,1, 0, 0 }, dent{}))
+                          ->plugin<pro::fader>(app::shared::x3, app::shared::c3, 150ms)
+                          ->attach(ui::item::ctor(header));
+                };
+                boss.SUBMIT_T(tier::release, e2::render::any, memo, parent_canvas)
+                {
+                    auto& basis = boss.base::coor();
+                    if (client)
+                    {
+                        auto canvas_view = parent_canvas.core::view();
+                        auto canvas_area = parent_canvas.core::area();
+                        canvas_area.coor = dot_00;
+                        parent_canvas.core::view(canvas_area);
+                        parent_canvas.render<faux>(client, basis);
+                        parent_canvas.core::view(canvas_view);
+                    }
+                };
+            }
+            ~items()
+            {
+                if (client)
+                {
+                    netxs::events::sync lock;
+                    auto empty = decltype(e2::form::upon::vtree::detached)::type{};
+                    client->SIGNAL(tier::release, e2::form::upon::vtree::detached, empty);
+                }
+            }
+        };
+    }
+}
+
 // tile: Tiling window manager.
 namespace netxs::app::tile
 {
@@ -40,7 +123,7 @@ namespace netxs::app::tile
 
     namespace
     {
-        auto bcast_forward = [](auto& boss)
+        auto anycasting = [](auto& boss)
         {
             boss.SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
             {
@@ -102,7 +185,7 @@ namespace netxs::app::tile
                 };
             };
         };
-        auto mouse_actions = [](auto& boss)
+        auto mouse_subs = [](auto& boss)
         {
             boss.SUBMIT(tier::release, hids::events::mouse::button::dblclick::left, gear)
             {
@@ -120,7 +203,7 @@ namespace netxs::app::tile
                 gear.dismiss();
             };
         };
-        auto box_with_title = [](view title, view footer, auto branch, auto menu_item_id)
+        auto app_window = [](view header, view footer, auto branch, auto menu_item_id)
         {
             branch->SIGNAL(tier::anycast, e2::form::prop::menusize, 1);
             return ui::fork::ctor(axis::Y)
@@ -130,8 +213,8 @@ namespace netxs::app::tile
                     ->active()
                     ->invoke([&](auto& boss)
                     {
-                        bcast_forward(boss);
-                        mouse_actions(boss);
+                        anycasting(boss);
+                        mouse_subs(boss);
 
                         if (branch->size() != dot_00) boss.resize(branch->size() + dot_01/*approx title height*/);
 
@@ -186,15 +269,28 @@ namespace netxs::app::tile
                     })
                     //->branch(slot::_1, ui::post_fx<cell::shaders::contrast>::ctor()) //todo apple clang doesn't get it
                     ->branch(slot::_1, ui::post_fx::ctor()
-                        ->upload(title)
+                        ->upload(header)
                         ->invoke([&](auto& boss)
                         {
                             auto shadow = ptr::shadow(boss.This());
+                            boss.SUBMIT_BYVAL(tier::anycast, e2::form::upon::started, root)
+                            {
+                                if (auto boss_ptr = shadow.lock())
+                                {
+                                    //todo use ui::form::attach_element
+                                    boss_ptr->riseup<tier::release>(events::enlist, header);
+                                }
+                            };
                             boss.SUBMIT_BYVAL(tier::release, e2::form::upon::vtree::attached, parent)
                             {
                                 parent->SUBMIT_BYVAL(tier::preview, e2::form::prop::header, newtext)
                                 {
-                                    if (auto ptr = shadow.lock()) ptr->upload(newtext);
+                                    if (auto boss_ptr = shadow.lock())
+                                    {
+                                        boss_ptr->upload(newtext);
+                                        //todo use ui::form::attach_element
+                                        boss_ptr->riseup<tier::release>(events::enlist, newtext);
+                                    }
                                 };
                                 parent->SUBMIT_BYVAL(tier::request, e2::form::prop::header, curtext)
                                 {
@@ -217,15 +313,15 @@ namespace netxs::app::tile
                 }
             }
         };
-        auto built_node = [](auto tag, auto s1, auto s2, auto w)
+        auto built_node = [](auto tag, auto slot1, auto slot2, auto grip_width)
         {
-            auto node = tag == 'h' ? ui::fork::ctor(axis::X, w == -1 ? 2 : w, s1, s2)
-                                   : ui::fork::ctor(axis::Y, w == -1 ? 1 : w, s1, s2);
+            auto node = tag == 'h' ? ui::fork::ctor(axis::X, grip_width == -1 ? 2 : grip_width, slot1, slot2)
+                                   : ui::fork::ctor(axis::Y, grip_width == -1 ? 1 : grip_width, slot1, slot2);
             node->isroot(faux, 1) // Set object kind to 1 to be different from others. See empty_slot::select.
                 ->template plugin<pro::limit>(dot_00)
                 ->invoke([&](auto& boss)
                 {
-                    mouse_actions(boss);
+                    mouse_subs(boss);
                     boss.SUBMIT(tier::release, app::tile::events::ui::swap    , gear) { boss.swap();       };
                     boss.SUBMIT(tier::release, app::tile::events::ui::rotate  , gear) { boss.rotate();     };
                     boss.SUBMIT(tier::release, app::tile::events::ui::equalize, gear) { boss.config(1, 1); };
@@ -240,13 +336,13 @@ namespace netxs::app::tile
                                 ->invoke([&](auto& boss)
                                 {
                                     boss.keybd.accept(true);
-                                    bcast_forward(boss);
+                                    anycasting(boss);
                                     //todo implement keydb support
                                 })
                                 ->active());
             return node;
         };
-        auto place_holder = []()
+        auto empty_pane = []()
         {
             return ui::park::ctor()
                 ->isroot(true, 2)
@@ -256,8 +352,8 @@ namespace netxs::app::tile
                 ->invoke([&](auto& boss)
                 {
                     boss.keybd.accept(true);
-                    bcast_forward(boss);
-                    mouse_actions(boss);
+                    anycasting(boss);
+                    mouse_subs(boss);
                     boss.SUBMIT(tier::release, hids::events::mouse::button::click::right, gear)
                     {
                         boss.base::template riseup<tier::release>(e2::form::proceed::createby, gear);
@@ -306,7 +402,7 @@ namespace netxs::app::tile
                         {
                             //todo unify
                             boss.back()->color(blacklt, app::shared::term_menu_bg);
-                            boss.attach(box_with_title(what.header, what.footer, what.object, what.menuid));
+                            boss.attach(app_window(what.header, what.footer, what.object, what.menuid));
                         }
                     };
                     boss.SUBMIT(tier::release, e2::form::proceed::swap, item_ptr)
@@ -458,7 +554,7 @@ namespace netxs::app::tile
                                     gate_ptr->SIGNAL(tier::preview, e2::form::proceed::unfocus, curitem);
                                     if (boss.empty())
                                     {
-                                        boss.attach(place_holder());
+                                        boss.attach(empty_pane());
                                         empty_1->pop_back();
                                     }
                                     auto slot_1 = newnode->attach(slot::_1, empty_1->branch(curitem));
@@ -538,7 +634,7 @@ namespace netxs::app::tile
 
                                     auto& creator = app::shared::creator(config.group);
                                     auto host = creator(config.param);
-                                    auto app = box_with_title(config.title, "", host, current_default);
+                                    auto app = app_window(config.title, "", host, current_default);
                                     gear.remove_from_kb_focus(boss.back()); // Take focus from the empty slot.
                                     boss.attach(app);
 
@@ -584,10 +680,10 @@ namespace netxs::app::tile
                 })
                 ->branch
                 (
-                    place_holder()
+                    empty_pane()
                 );
         };
-        auto add_node = [](auto&& add_node, view& utf8) -> sptr<ui::veer>
+        auto parse_data = [](auto&& parse_data, view& utf8) -> sptr<ui::veer>
         {
             auto place = empty_slot(empty_slot);
             utf::trim_front(utf8, ", ");
@@ -601,7 +697,7 @@ namespace netxs::app::tile
                 auto menu_item_id = "Term"s;
                 auto& creator = app::shared::creator(menu_item_id);
                 auto host = creator(cmdline);
-                auto inst = box_with_title("Headless TE", "", host, menu_item_id);
+                auto inst = app_window("Headless TE", "", host, menu_item_id);
                 place->attach(inst);
             }
             else if (tag == 'a')
@@ -618,7 +714,7 @@ namespace netxs::app::tile
 
                 auto& creator = app::shared::creator(app_id);
                 auto host = creator(app_data);
-                auto inst = box_with_title(app_title, "", host, app_id);
+                auto inst = app_window(app_title, "", host, app_id);
                 place->attach(inst);
             }
             else if (tag == 'h' || tag == 'v')
@@ -653,15 +749,15 @@ namespace netxs::app::tile
                 if (utf8.empty() || utf8.front() != '(') return place;
                 utf8.remove_prefix(1);
                 auto node = built_node(tag, s1, s2, w);
-                auto slot1 = node->attach(slot::_1, add_node(add_node, utf8));
-                auto slot2 = node->attach(slot::_2, add_node(add_node, utf8));
+                auto slot1 = node->attach(slot::_1, parse_data(parse_data, utf8));
+                auto slot2 = node->attach(slot::_2, parse_data(parse_data, utf8));
                 place->attach(node);
 
                 utf::trim_front(utf8, ") ");
             }
             return place;
         };
-        auto build = [](view data) -> sptr<base>
+        auto build_inst = [](view data) -> sptr<base>
         {
             view envvar_data;
             text window_title;
@@ -689,7 +785,8 @@ namespace netxs::app::tile
                 }
             }
 
-            auto object = ui::fork::ctor(axis::Y);
+            auto object = ui::fork::ctor(axis::Y)
+                        ->plugin<pro::items>();
 
             #ifndef PROD
                 if (app::shared::tile_count < TILE_MAX_COUNT)
@@ -838,7 +935,7 @@ namespace netxs::app::tile
                         boss.keybd.accept(true);
                     });
 
-            object->attach(slot::_2, add_node(add_node, envvar_data))
+            object->attach(slot::_2, parse_data(parse_data, envvar_data))
                 ->invoke([&](auto& boss)
                 {
                     boss.SUBMIT(tier::release, e2::form::proceed::attach, fullscreen_item)
@@ -876,7 +973,6 @@ namespace netxs::app::tile
                                 boss.SIGNAL(tier::anycast, app::tile::events::ui::toggle, gear);
                                 gear.state(gear_state);
                             }
-                            //boss.bell::template signal<tier::anycast>(deed, gear);
                         }
                     };
                 });
@@ -884,7 +980,7 @@ namespace netxs::app::tile
         };
     }
 
-    app::shared::initialize builder{ "Tile", build };
+    app::shared::initialize builder{ "Tile", build_inst };
 }
 
 #endif // NETXS_APP_TILE_HPP
