@@ -1,7 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#define MONOTTY_VER "Monotty Desktopio v0.5.9999f"
+#define MONOTTY_VER "Monotty Desktopio v0.5.9999g"
 
 // Enable demo apps and assign Esc key to log off.
 //#define DEMO
@@ -106,7 +106,7 @@ int main(int argc, char* argv[])
         utf::text spot;
         {
             std::ifstream config;
-            config.open("~/.config/vtm/config.ini");
+            config.open(os::homepath() + "/.config/vtm/settings.ini");
 
             if (config.is_open())
                 std::getline(config, spot);
@@ -170,9 +170,9 @@ int main(int argc, char* argv[])
     //todo Get current config from "~/.config/vtm/settings.ini".
     utf::text config_data;
     {
-        std::ifstream conf;
-        conf.open("~/.config/vtm/config.ini");
-        if (conf.is_open()) std::getline(conf, config_data);
+        std::ifstream config;
+        config.open(os::homepath() + "/.config/vtm/settings.ini");
+        if (config.is_open()) std::getline(config, config_data);
         if (config_data.empty()) config_data = "empty config";
 
         //todo unify

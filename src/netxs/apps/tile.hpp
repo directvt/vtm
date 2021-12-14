@@ -454,15 +454,15 @@ namespace netxs::app::tile
                                     auto empty_1 = empty_slot(empty_slot);
                                     auto empty_2 = empty_slot(empty_slot);
                                     auto curitem = boss.pop_back(); // In order to preserve all foci.
-                                    gate_ptr->SIGNAL(tier::preview, e2::form::proceed::focus,   empty_1);
+                                    gate_ptr->SIGNAL(tier::preview, e2::form::proceed::focus,   empty_2);
                                     gate_ptr->SIGNAL(tier::preview, e2::form::proceed::unfocus, curitem);
                                     if (boss.empty())
                                     {
                                         boss.attach(place_holder());
-                                        empty_2->pop_back();
+                                        empty_1->pop_back();
                                     }
-                                    auto slot_1 = newnode->attach(slot::_1, empty_1);
-                                    auto slot_2 = newnode->attach(slot::_2, empty_2->branch(curitem));
+                                    auto slot_1 = newnode->attach(slot::_1, empty_1->branch(curitem));
+                                    auto slot_2 = newnode->attach(slot::_2, empty_2);
                                     boss.attach(newnode);
                                 }
                             }
