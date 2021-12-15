@@ -141,7 +141,9 @@ namespace netxs::ui
         auto depend(sptr<base> master_ptr)
         {
             auto& master = *master_ptr;
-            master.SUBMIT_T(tier::release, e2::form::upon::vtree::detached, memomap[master.id], parent_ptr)
+            //todo test leaks
+            //master.SUBMIT_T(tier::release, e2::form::upon::vtree::detached, memomap[master.id], parent_ptr)
+            master.SUBMIT_T(tier::release, e2::dtor, memomap[master.id], id)
             {
                 auto backup = This();
                 memomap.erase(master.id);
@@ -777,7 +779,7 @@ namespace netxs::ui
                 auto backup = This();
                 auto pos = subset.erase(item);
                 old_item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, backup);
-                subset.insert(pos, std::pair{ new_item_ptr, 0 });
+                subset.insert(pos, std::pair{ new_item_ptr, dot_00 });
                 new_item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::attached, backup);
             }
         }

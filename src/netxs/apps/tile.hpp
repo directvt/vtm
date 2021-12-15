@@ -10,8 +10,8 @@ namespace netxs::events::userland
     {
         EVENTPACK( tile, netxs::events::userland::root::custom )
         {
-            EVENT_XS( enlist, view        ),
-            GROUP_XS( ui    , input::hids ), // Window manager command pack.
+            EVENT_XS( enlist, sptr<console::base> ),
+            GROUP_XS( ui    , input::hids         ), // Window manager command pack.
 
             SUBSET_XS( ui )
             {
@@ -34,92 +34,88 @@ namespace netxs::events::userland
     };
 }
 
-
-namespace netxs::console
-{
-    // console: Template modules for the base class behavior extension.
-    namespace pro
-    {
-        // pro: Right-side item list.
-        class items
-            : public skill
-        {
-            //struct link
-            //{
-            //    using wptr = netxs::wptr<base>;
-            //    wptr object;
-            //    text header;
-            //    rich render;
-            //    subs tokens;
-            //};
-
-            //using list = std::list<link>;
-            //using roll = std::list<std::pair<sptr<base>, iota>>;
-            using events = netxs::events::userland::tile;
-            using skill::boss,
-                  skill::memo;
-
-            //list links;
-            sptr<ui::roll> client;
-            //roll subset;
-
-        public:
-            items(base&&) = delete;
-            items(base& boss)
-                : skill{ boss }
-            {
-                client = ui::roll::ctor();
-
-                client->SIGNAL(tier::release, e2::form::upon::vtree::attached, boss.This());
-
-                boss.SUBMIT_T(tier::release, e2::size::set, memo, newsz)
-                {
-                    if (client)
-                    {
-                        auto new_coor = twod{ newsz.x + 2/*resize grip width*/, 0 };
-                        auto new_size = twod{ client->size().x, newsz.y };
-                        client->SIGNAL(tier::release, e2::coor::set, new_coor);
-                        client->SIGNAL(tier::preview, e2::size::set, new_size);
-                        client->SIGNAL(tier::release, e2::size::set, new_size);
-                    }
-                };
-                boss.SUBMIT_T(tier::release, events::enlist, memo, header)
-                {
-                    client->attach(ui::pads::ctor(dent{ 1,1, 0, 0 }, dent{}))
-                          ->plugin<pro::fader>(app::shared::x3, app::shared::c3, 150ms)
-                          ->attach(ui::item::ctor(header));
-                };
-                boss.SUBMIT_T(tier::release, e2::render::any, memo, parent_canvas)
-                {
-                    auto& basis = boss.base::coor();
-                    if (client)
-                    {
-                        auto canvas_view = parent_canvas.core::view();
-                        auto canvas_area = parent_canvas.core::area();
-                        canvas_area.coor = dot_00;
-                        parent_canvas.core::view(canvas_area);
-                        parent_canvas.render<faux>(client, basis);
-                        parent_canvas.core::view(canvas_view);
-                    }
-                };
-            }
-            ~items()
-            {
-                if (client)
-                {
-                    netxs::events::sync lock;
-                    auto empty = decltype(e2::form::upon::vtree::detached)::type{};
-                    client->SIGNAL(tier::release, e2::form::upon::vtree::detached, empty);
-                }
-            }
-        };
-    }
-}
-
 // tile: Tiling window manager.
 namespace netxs::app::tile
 {
     using events = netxs::events::userland::tile;
+
+    // tile: Right-side item list.
+    class items
+        : public pro::skill
+    {
+        using skill::boss,
+              skill::memo;
+
+        sptr<ui::roll> client;
+
+    public:
+        items(base&&) = delete;
+        items(base& boss)
+            : skill{ boss }
+        {
+            client = ui::roll::ctor();
+
+            client->SIGNAL(tier::release, e2::form::upon::vtree::attached, boss.This());
+
+            boss.SUBMIT_T(tier::release, e2::size::set, memo, newsz)
+            {
+                if (client)
+                {
+                    auto new_coor = twod{ newsz.x + 2/*resize grip width*/, 0 };
+                    auto new_size = twod{ client->size().x, newsz.y };
+                    client->SIGNAL(tier::release, e2::coor::set, new_coor);
+                    client->SIGNAL(tier::preview, e2::size::set, new_size);
+                    client->SIGNAL(tier::release, e2::size::set, new_size);
+                }
+            };
+            boss.SUBMIT_T(tier::release, events::enlist, memo, object)
+            {
+                auto label = [](auto data_src_sptr, auto header)
+                {
+                    return ui::pads::ctor(dent{ 1, 1, 0, 0 }, dent{})
+                            ->plugin<pro::fader>(app::shared::x3, app::shared::c3, 150ms)
+                            ->branch(ui::item::ctor(header))
+                            ->invoke([&](auto& boss)
+                                {
+                                    auto boss_shadow = ptr::shadow(boss.This());
+                                    auto data_shadow = ptr::shadow(data_src_sptr);
+                                    boss.SUBMIT_BYVAL(tier::release, hids::events::mouse::button::any, gear)
+                                    {
+                                        if (auto boss_ptr = boss_shadow.lock())
+                                        if (auto data_ptr = data_shadow.lock())
+                                        {
+                                            auto deed = boss_ptr->bell::template protos<tier::release>(); //todo "template" keyword is required by FreeBSD clang 11.0.1
+                                            data_ptr->template signal<tier::release>(deed, gear); //todo "template" keyword is required by gcc
+                                        }
+                                    };
+                                });
+                };
+                client->attach_element(e2::form::prop::header, object, label);
+            };
+            boss.SUBMIT_T(tier::release, e2::render::any, memo, parent_canvas)
+            {
+                auto& basis = boss.base::coor();
+                if (client)
+                {
+                    auto canvas_view = parent_canvas.core::view();
+                    auto canvas_area = parent_canvas.core::area();
+                    canvas_area.coor = dot_00;
+                    parent_canvas.core::view(canvas_area);
+                    parent_canvas.render<faux>(client, basis);
+                    parent_canvas.core::view(canvas_view);
+                }
+            };
+        }
+        ~items()
+        {
+            if (client)
+            {
+                netxs::events::sync lock;
+                auto empty = decltype(e2::form::upon::vtree::detached)::type{};
+                client->SIGNAL(tier::release, e2::form::upon::vtree::detached, empty);
+            }
+        }
+    };
 
     namespace
     {
@@ -266,21 +262,19 @@ namespace netxs::app::tile
                                 object.SIGNAL(tier::release, hids::events::mouse::button::drag::start::left, gear);
                             }
                         };
+
+                        boss.SUBMIT(tier::anycast, e2::form::upon::started, root)
+                        {
+                            boss.template riseup<tier::release>(events::enlist, boss.This()); //todo "template" keyword is required by gcc
+                        };
                     })
                     //->branch(slot::_1, ui::post_fx<cell::shaders::contrast>::ctor()) //todo apple clang doesn't get it
-                    ->branch(slot::_1, ui::post_fx::ctor()
+                    ->branch(slot::_1,
+                        ui::post_fx::ctor()
                         ->upload(header)
                         ->invoke([&](auto& boss)
                         {
                             auto shadow = ptr::shadow(boss.This());
-                            boss.SUBMIT_BYVAL(tier::anycast, e2::form::upon::started, root)
-                            {
-                                if (auto boss_ptr = shadow.lock())
-                                {
-                                    //todo use ui::form::attach_element
-                                    boss_ptr->riseup<tier::release>(events::enlist, header);
-                                }
-                            };
                             boss.SUBMIT_BYVAL(tier::release, e2::form::upon::vtree::attached, parent)
                             {
                                 parent->SUBMIT_BYVAL(tier::preview, e2::form::prop::header, newtext)
@@ -288,8 +282,7 @@ namespace netxs::app::tile
                                     if (auto boss_ptr = shadow.lock())
                                     {
                                         boss_ptr->upload(newtext);
-                                        //todo use ui::form::attach_element
-                                        boss_ptr->riseup<tier::release>(events::enlist, newtext);
+                                        boss_ptr->parent()->SIGNAL(tier::release, e2::form::prop::header, newtext);
                                     }
                                 };
                                 parent->SUBMIT_BYVAL(tier::request, e2::form::prop::header, curtext)
@@ -402,7 +395,9 @@ namespace netxs::app::tile
                         {
                             //todo unify
                             boss.back()->color(blacklt, app::shared::term_menu_bg);
-                            boss.attach(app_window(what.header, what.footer, what.object, what.menuid));
+                            auto app = app_window(what.header, what.footer, what.object, what.menuid);
+                            boss.attach(app);
+                            app->SIGNAL(tier::anycast, e2::form::upon::started, app);
                         }
                     };
                     boss.SUBMIT(tier::release, e2::form::proceed::swap, item_ptr)
@@ -786,7 +781,7 @@ namespace netxs::app::tile
             }
 
             auto object = ui::fork::ctor(axis::Y)
-                        ->plugin<pro::items>();
+                        ->plugin<items>();
 
             #ifndef PROD
                 if (app::shared::tile_count < TILE_MAX_COUNT)
