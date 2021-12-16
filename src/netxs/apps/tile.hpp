@@ -224,6 +224,10 @@ namespace netxs::app::tile
                             {
                                 auto& master = *master_ptr;
                                 auto& branch = *branch_ptr;
+
+                                // Reset restoring callback.
+                                master.SIGNAL(tier::release, e2::form::restore, decltype(e2::form::restore)::type{});
+
                                 // Take current title.
                                 auto what = decltype(e2::form::proceed::createfrom)::type{};
                                 what.menuid = menu_item_id;
@@ -473,19 +477,31 @@ namespace netxs::app::tile
                         }
                         else item.SIGNAL(tier::release, hids::events::upevent::kbannul, gear); // Exclude grips.
                     };
+                    hook oneoff; // One-time return ticket.
                     boss.SUBMIT_BYVAL(tier::release, e2::form::maximize, gear)
                     {
                         if (auto boss_ptr = shadow.lock())
                         {
-                            auto& boss =*boss_ptr;
+                            auto& boss = *boss_ptr;
                             auto count = boss.count();
+                            if (count > 2) // It is a root.
+                            {
+                                auto item_ptr = boss.pop_back();
+                                item_ptr->SIGNAL(tier::release, e2::form::restore, item_ptr);
+                                return;
+                            }
+                            if (oneoff)
+                            {
+                                boss.riseup<tier::release>(e2::form::proceed::attach, decltype(e2::form::proceed::attach)::type{});
+                                return;
+                            }
                             if (count > 1) // Preventing the empty slot from maximizing.
                             {
                                 //todo revise
                                 if (boss.back()->base::kind() == 0) // Preventing the splitter from maximizing.
                                 {
-                                    //todo unify
                                     // Pass the focus to the maximized window.
+                                    //todo unify
                                     gear.force_group_focus = faux;
                                     gear.kb_focus_taken = faux;
                                     gear.combine_focus = true;
@@ -496,29 +512,16 @@ namespace netxs::app::tile
                                     auto fullscreen_item = boss.pop_back();
                                     if (fullscreen_item)
                                     {
-                                        // One-time return ticket.
-                                        auto oneoff = std::make_shared<hook>();
-                                        fullscreen_item->SUBMIT_T_BYVAL(tier::release, e2::form::maximize, *oneoff, gear)
+                                        fullscreen_item->SUBMIT_T(tier::release, e2::form::restore, oneoff, item_ptr)
                                         {
-                                            if (auto boss_ptr = shadow.lock())
+                                            if (item_ptr)
                                             {
-                                                auto& boss = *boss_ptr;
-                                                using type = decltype(e2::form::proceed::detach)::type;
-                                                type fullscreen_item;
-                                                boss.base::template riseup<tier::release>(e2::form::proceed::detach, fullscreen_item);
-                                                if (fullscreen_item)
-                                                {
-                                                    boss.attach(fullscreen_item);
-                                                    boss.base::reflow();
-                                                }
+                                                boss.attach(item_ptr);
+                                                boss.base::reflow();
                                             }
                                             oneoff.reset();
                                         };
                                         boss.base::template riseup<tier::release>(e2::form::proceed::attach, fullscreen_item);
-                                        if (fullscreen_item) // Unsuccessful maximization. Attach it back.
-                                        {
-                                            boss.attach(fullscreen_item);
-                                        }
                                         boss.base::reflow();
                                     }
                                 }
@@ -935,16 +938,18 @@ namespace netxs::app::tile
                 {
                     boss.SUBMIT(tier::release, e2::form::proceed::attach, fullscreen_item)
                     {
+                        if (boss.count() > 2)
+                        {
+                            auto item_ptr = boss.pop_back();
+                            item_ptr->SIGNAL(tier::release, e2::form::restore, item_ptr);
+                        }
+
                         if (fullscreen_item)
                         {
                             boss.attach(fullscreen_item);
                             fullscreen_item.reset();
                         }
-                    };
-                    boss.SUBMIT(tier::release, e2::form::proceed::detach, fullscreen_item)
-                    {
-                        auto item = boss.pop_back();
-                        if (item) fullscreen_item = item;
+                        else log("fullscreen_item is empty");
                     };
                     boss.SUBMIT(tier::anycast, app::tile::events::ui::any, gear)
                     {
@@ -952,21 +957,8 @@ namespace netxs::app::tile
                         {
                             if (boss.count() > 2 && deed != app::tile::events::ui::toggle.id) // Restore the window before any action if maximized.
                             {
-                                auto gear_state = gear.state();
-                                auto& item =*boss.back();
-                                if (item.base::root()) // Pass focus to the maximized window.
-                                {
-                                    //todo unify
-                                    gear.force_group_focus = true;
-                                    gear.kb_focus_taken = faux;
-                                    gear.combine_focus = true;
-                                    item.SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
-                                    gear.combine_focus = faux;
-                                    gear.force_group_focus = faux;
-                                }
-                                gear.countdown = 1;
-                                boss.SIGNAL(tier::anycast, app::tile::events::ui::toggle, gear);
-                                gear.state(gear_state);
+                                auto item_ptr = boss.pop_back();
+                                item_ptr->SIGNAL(tier::release, e2::form::restore, item_ptr);
                             }
                         }
                     };

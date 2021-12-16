@@ -168,6 +168,7 @@ namespace netxs::events::userland
             {
                 EVENT_XS( canvas   , sptr<console::core> ), // request global canvas.
                 EVENT_XS( maximize , input::hids         ), // request to toggle maximize/restore.
+                EVENT_XS( restore  , sptr<console::base> ), // request to toggle restore.
                 EVENT_XS( quit     , sptr<console::base> ), // request parent for destroy.
                 GROUP_XS( layout   , const twod          ),
                 GROUP_XS( draggable, bool                ), // signal to the form to enable draggablity for specified mouse button.
