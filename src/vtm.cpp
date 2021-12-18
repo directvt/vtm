@@ -281,7 +281,7 @@ int main(int argc, char* argv[])
         window->attach(what.object);
         log(" world: attach type=", config.group, " menu_item_id=", what.menuid);
         world->branch(what.menuid, window, config.fixed);
-        //window->SIGNAL(tier::anycast, e2::form::upon::started, world);
+        window->SIGNAL(tier::anycast, e2::form::upon::started, world);
 
         what.object = window;
     };
