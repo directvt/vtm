@@ -74,7 +74,7 @@ namespace netxs::app::tile
                 {
                     return ui::pads::ctor(dent{ 1, 1, 0, 0 }, dent{})
                             ->plugin<pro::fader>(app::shared::x3, app::shared::c3, 150ms)
-                            ->branch(ui::item::ctor(header))
+                            ->branch(ui::item::ctor(header.empty() ? "- no title -" : header))
                             ->invoke([&](auto& boss)
                                 {
                                     auto boss_shadow = ptr::shadow(boss.This());
