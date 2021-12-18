@@ -141,7 +141,9 @@ namespace netxs::ui
         auto depend(sptr<base> master_ptr)
         {
             auto& master = *master_ptr;
-            master.SUBMIT_T(tier::release, e2::form::upon::vtree::detached, memomap[master.id], parent_ptr)
+            //todo test leaks
+            //master.SUBMIT_T(tier::release, e2::form::upon::vtree::detached, memomap[master.id], parent_ptr)
+            master.SUBMIT_T(tier::release, e2::dtor, memomap[master.id], id)
             {
                 auto backup = This();
                 memomap.erase(master.id);
@@ -506,8 +508,8 @@ namespace netxs::ui
     class list
         : public form<list>
     {
-        using roll = std::list<std::pair<sptr<base>, iota>>;
-        roll subset;
+        using book = std::list<std::pair<sptr<base>, iota>>;
+        book subset;
         bool updown; // list: List orientation, true: vertical(default), faux: horizontal.
 
     public:
@@ -637,6 +639,147 @@ namespace netxs::ui
                 auto pos = subset.erase(item);
                 old_item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, backup);
                 subset.insert(pos, std::pair{ new_item_ptr, 0 });
+                new_item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::attached, backup);
+            }
+        }
+    };
+    //todo temp solution
+    class roll
+        : public form<roll>
+    {
+        using book = std::list<std::pair<sptr<base>, twod>>;
+        book subset;
+        bool updown; // list: List orientation, true: vertical(default), faux: horizontal.
+
+    public:
+        ~roll()
+        {
+            events::sync lock;
+            auto empty = decltype(e2::form::upon::vtree::detached)::type{};
+            while (subset.size())
+            {
+                auto item_ptr = subset.back().first;
+                subset.pop_back();
+                item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, empty);
+            }
+        }
+        roll(axis orientation = axis::Y)
+            : updown{ orientation == axis::Y }
+        {
+            SUBMIT(tier::preview, e2::size::set, new_sz)
+            {
+                iota  height;
+                auto& y_size = updown ? new_sz.y : new_sz.x;
+                auto& x_size = updown ? new_sz.x : new_sz.y;
+                auto  x_temp = x_size;
+                auto  y_temp = y_size;
+
+                auto meter = [&]() {
+                    height = 0;
+                    for (auto& client : subset)
+                    {
+                        y_size = 0;
+                        client.first->SIGNAL(tier::preview, e2::size::set, new_sz);
+                        client.second = { x_size, y_size };
+                        if (x_size > x_temp) x_temp = x_size;
+                        x_size = x_temp;
+                        height += y_size;
+                    }
+                };
+                meter();// if (x_temp != x_size) meter();
+                y_size = height;
+            };
+            SUBMIT(tier::release, e2::size::set, new_sz)
+            {
+                //todo optimize avoid SIGNAL if size/coor is unchanged
+                auto& y_size = updown ? new_sz.y : new_sz.x;
+                auto& x_size = updown ? new_sz.x : new_sz.y;
+                twod  new_xy;
+                auto& y_coor = updown ? new_xy.y : new_xy.x;
+                auto& x_coor = updown ? new_xy.x : new_xy.y;
+
+                auto  found = faux;
+                for (auto& client : subset)
+                {
+                    y_size = client.second.y;
+                    if (client.first)
+                    {
+                        auto& entry = *client.first;
+                        if (!found)
+                        {
+                            // todo optimize: use the only one axis to hittest
+                            // todo detect client during preview, use wptr
+                            auto& anker = entry.base::area();
+                            if (anker.hittest(base::anchor))
+                            {
+                                found = true;
+                                base::anchor += new_xy - anker.coor;
+                            }
+                        }
+
+                        entry.SIGNAL(tier::release, e2::coor::set, new_xy);
+                        entry.SIGNAL(tier::release, e2::size::set, client.second);
+                    }
+                    y_coor+= client.second.y;
+                }
+            };
+            SUBMIT(tier::release, e2::render::any, parent_canvas)
+            {
+                auto& basis = base::coor();
+                for (auto& client : subset)
+                {
+                    parent_canvas.render(client.first, basis);
+                }
+            };
+        }
+        // list: Remove the last nested object. Return the object refrence.
+        auto pop_back() -> sptr<base>
+        {
+            if (subset.size())
+            {
+                auto item = std::prev(subset.end());
+                auto item_ptr = item->first;
+                auto backup = This();
+                subset.erase(item);
+                item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, backup);
+                return item_ptr;
+            }
+            return {};
+        }
+        // list: Attach specified item.
+        template<class T>
+        auto attach(sptr<T> item)
+        {
+            subset.push_front({ item, dot_00 });
+            item->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
+            return item;
+        }
+        // list: Remove nested object.
+        void remove(sptr<base> item_ptr)
+        {
+            auto head = subset.begin();
+            auto tail = subset.end();
+            auto item = std::find_if(head, tail, [&](auto& c){ return c.first == item_ptr; });
+            if (item != tail)
+            {
+                auto backup = This();
+                subset.erase(item);
+                item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, backup);
+            }
+        }
+        // list: Update nested object.
+        template<class T, class S>
+        void update(T old_item_ptr, S new_item_ptr)
+        {
+            auto head = subset.begin();
+            auto tail = subset.end();
+            auto item = std::find_if(head, tail, [&](auto& c){ return c.first == old_item_ptr; });
+            if (item != tail)
+            {
+                auto backup = This();
+                auto pos = subset.erase(item);
+                old_item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, backup);
+                subset.insert(pos, std::pair{ new_item_ptr, dot_00 });
                 new_item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::attached, backup);
             }
         }

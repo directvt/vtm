@@ -237,6 +237,11 @@ No arguments | Run client (auto start server)
  - `▀▄ Tile`
    - Supports Drag and Drop for panes (like tabs in a browser).
    - Use any modifier (`Ctrl` or `Alt`) while pane dragging to disable drag&drop mode.
+   - List of panes (outside the right side of the window)
+     - `LeftClick` -- Set exclusive focus (highlighted by color)
+     - `Ctrl+LeftClick` -- Set group focus (highlighted by color)
+     - `double LeftClick` -- Maxixmize/restore
+     - `Left+Right or MiddleClick` -- Terminate application
    - Tiling window manager preconfigurable using environment variable `VTM_PROFILE...`.  
      ```
      # Configuration example:

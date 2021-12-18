@@ -39,7 +39,7 @@ namespace netxs::app::shared
     X(Truecolor    , "Truecolor image"       , (ansi::jet(bias::right).add("True color ANSI/ASCII image test")), "" ) \
     X(Strobe       , "Strobe"                , (ansi::jet(bias::center).add("Strobe"))                         , "" ) \
     X(Test         , "Test Window"           , (ansi::jet(bias::center).add("Test Page"))                      , "" ) \
-    X(Empty        , "Empty Window"          , (ansi::mgl(1).mgr(1).add("Empty Instance \nid: "))              , "" )
+    X(Empty        , "Empty Window"          , (ansi::add("Empty Instance \nid: "))                            , "" )
 
     struct menu_item
     {
@@ -336,6 +336,10 @@ namespace netxs::app::shared
         {
             auto window = ui::cake::ctor();
             auto strob = window->plugin<pro::focus>()
+                               ->invoke([](auto& boss)
+                                {
+                                    boss.keybd.accept(true);
+                                })
                                ->attach(ui::mock::ctor());
             auto strob_shadow = ptr::shadow(strob);
             bool stobe_state = true;
@@ -371,10 +375,11 @@ namespace netxs::app::shared
                   ->plugin<pro::acryl>()
                   ->invoke([&](auto& boss)
                   {
+                      boss.keybd.accept(true);
                       boss.SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
                       {
                           static iota i = 0; i++;
-                          auto title = ansi::mgl(1).mgr(1).add("Empty Instance \nid: ", parent->id);
+                          auto title = ansi::add("Empty Instance \nid: ", parent->id);
                           boss.base::template riseup<tier::preview>(e2::form::prop::header, title);
                       };
                   });
@@ -540,7 +545,11 @@ namespace netxs::app::shared
             window->plugin<pro::focus>()
                   ->plugin<pro::track>()
                   ->plugin<pro::acryl>()
-                  ->plugin<pro::cache>();
+                  ->plugin<pro::cache>()
+                  ->invoke([](auto& boss)
+                    {
+                        boss.keybd.accept(true);
+                    });
             auto object = window->attach(ui::fork::ctor(axis::Y))
                                 ->colors(whitelt, 0xA01f0fc4);
                 auto menu = object->attach(slot::_1, app::shared::custom_menu(true, {}));
@@ -888,9 +897,9 @@ namespace netxs::app::shared
         #ifdef DEMO
             auto shell = os::get_shell();
             #ifdef PROD
-                app::shared::objs_config[objs_lookup["Tile"]].param = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h(v(\"" + shell + " -c 'LC_ALL=en_US.UTF-8 mc -c -x -d; cat'\", h(\"" + shell + " -c 'ls /bin | nl | ccze -A; " + shell + "'\", a(\"Settings\",\"\",\"\"))), a(\"Calc\",\"\",\"\"))";
+                app::shared::objs_config[objs_lookup["Tile"]].param = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h(v(\"" + shell + " -c 'LC_ALL=en_US.UTF-8 mc -c -x -d; cat'\", h(\"" + shell + " -c 'ls /bin | nl | ccze -A; " + shell + "'\", a(\"Settings\",\"Settings\",\"\"))), a(\"Calc\",\"\",\"\"))";
             #else
-                app::shared::objs_config[objs_lookup["Tile"]].param = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h1:1(v1:1(\"" + shell + " -c 'LC_ALL=en_US.UTF-8 mc -c -x -d; cat'\", h1:1(\"" + shell + " -c 'ls /bin | nl | ccze -A; " + shell + "'\", a(\"Settings\",\"\",\"\"))), a(\"Calc\",\"\",\"\"))";
+                app::shared::objs_config[objs_lookup["Tile"]].param = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h1:1(v1:1(\"" + shell + " -c 'LC_ALL=en_US.UTF-8 mc -c -x -d; cat'\", h1:1(\"" + shell + " -c 'ls /bin | nl | ccze -A; " + shell + "'\", a(\"Settings\",\"Settings\",\"\"))), a(\"Calc\",\"\",\"\"))";
             #endif
 
             for (auto& [menu_item_id, app_data] : app::shared::objs_config)

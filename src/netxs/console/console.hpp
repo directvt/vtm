@@ -168,6 +168,7 @@ namespace netxs::events::userland
             {
                 EVENT_XS( canvas   , sptr<console::core> ), // request global canvas.
                 EVENT_XS( maximize , input::hids         ), // request to toggle maximize/restore.
+                EVENT_XS( restore  , sptr<console::base> ), // request to toggle restore.
                 EVENT_XS( quit     , sptr<console::base> ), // request parent for destroy.
                 GROUP_XS( layout   , const twod          ),
                 GROUP_XS( draggable, bool                ), // signal to the form to enable draggablity for specified mouse button.
@@ -819,6 +820,7 @@ namespace netxs::console
             object_area.coor+= parent_area.coor;
 
             auto nested_view = canvas_view.clip(object_area);
+            //todo revise: why whole canvas is not used
             if (TRIM ? nested_view : canvas_view)
             {
                 auto canvas_coor = core::coor();
@@ -3563,14 +3565,26 @@ namespace netxs::console
                         boss.base::deface();
                     }
                 };
+                boss.SUBMIT_T(tier::anycast, e2::form::highlight::any, memo, state)
+                {
+                    state = !pool.empty();
+                    boss.template riseup<tier::preview>(e2::form::highlight::any, state);
+                };
+                boss.SUBMIT_T(tier::anycast, e2::form::upon::started, memo, root)
+                {
+                    auto state = !pool.empty();
+                    boss.template riseup<tier::preview>(e2::form::highlight::any, state);
+                };
                 boss.SUBMIT_T(tier::release, e2::form::state::keybd::got, memo, gear)
                 {
+                    boss.template riseup<tier::preview>(e2::form::highlight::any, true);
                     pool.push_back(gear.id);
                     boss.base::deface();
                 };
                 boss.SUBMIT_T(tier::release, e2::form::state::keybd::lost, memo, gear)
                 {
                     assert(!pool.empty());
+                    boss.template riseup<tier::preview>(e2::form::highlight::any, faux);
 
                     if (!pool.empty())
                     {
@@ -3687,7 +3701,10 @@ namespace netxs::console
                 boss.SUBMIT_T(tier::release, hids::events::mouse::button::drag::cancel::left, memo, gear)
                 {
                     if (!drags) return;
-                    proceed(faux);
+                    //todo revise (panoramic scrolling with left + right)
+                    //proceed(faux);
+                    if (gear.meta()) proceed(faux);
+                    else             proceed(true);
                 };
                 boss.SUBMIT_T(tier::release, e2::render::prerender, memo, parent_canvas)
                 {

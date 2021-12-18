@@ -213,7 +213,11 @@ namespace netxs::app::shop
                   ->colors(whitelt, 0x60000000)
                   ->plugin<pro::track>()
                   ->plugin<pro::acryl>()
-                  ->plugin<pro::cache>();
+                  ->plugin<pro::cache>()
+                  ->invoke([](auto& boss)
+                  {
+                        boss.keybd.accept(true);
+                  });
             auto object = window->attach(ui::fork::ctor(axis::Y))
                                 ->colors(whitelt, 0);
                 auto menu_object = object->attach(slot::_1, ui::fork::ctor(axis::Y));

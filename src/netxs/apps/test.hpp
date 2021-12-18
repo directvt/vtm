@@ -421,7 +421,11 @@ namespace netxs::app::test
                 ->plugin<pro::focus>()
                 ->plugin<pro::track>()
                 ->plugin<pro::acryl>()
-                ->plugin<pro::cache>();
+                ->plugin<pro::cache>()
+                ->invoke([](auto& boss)
+                {
+                    boss.keybd.accept(true);
+                });
             auto object0 = window->attach(ui::fork::ctor(axis::Y))
                                  ->colors(whitelt, 0xA0db3700);
                 auto menu = object0->attach(slot::_1, app::shared::custom_menu(true, {}));
