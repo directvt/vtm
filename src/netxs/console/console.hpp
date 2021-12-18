@@ -3701,7 +3701,10 @@ namespace netxs::console
                 boss.SUBMIT_T(tier::release, hids::events::mouse::button::drag::cancel::left, memo, gear)
                 {
                     if (!drags) return;
-                    proceed(faux);
+                    //todo revise (panoramic scrolling with left + right)
+                    //proceed(faux);
+                    if (gear.meta()) proceed(faux);
+                    else             proceed(true);
                 };
                 boss.SUBMIT_T(tier::release, e2::render::prerender, memo, parent_canvas)
                 {
