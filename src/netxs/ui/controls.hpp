@@ -750,7 +750,7 @@ namespace netxs::ui
         template<class T>
         auto attach(sptr<T> item)
         {
-            subset.push_back({ item, dot_00 });
+            subset.push_front({ item, dot_00 });
             item->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
             return item;
         }

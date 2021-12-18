@@ -3565,14 +3565,26 @@ namespace netxs::console
                         boss.base::deface();
                     }
                 };
+                boss.SUBMIT_T(tier::anycast, e2::form::highlight::any, memo, state)
+                {
+                    state = !pool.empty();
+                    boss.template riseup<tier::preview>(e2::form::highlight::any, state);
+                };
+                boss.SUBMIT_T(tier::anycast, e2::form::upon::started, memo, root)
+                {
+                    auto state = !pool.empty();
+                    boss.template riseup<tier::preview>(e2::form::highlight::any, state);
+                };
                 boss.SUBMIT_T(tier::release, e2::form::state::keybd::got, memo, gear)
                 {
+                    boss.template riseup<tier::preview>(e2::form::highlight::any, true);
                     pool.push_back(gear.id);
                     boss.base::deface();
                 };
                 boss.SUBMIT_T(tier::release, e2::form::state::keybd::lost, memo, gear)
                 {
                     assert(!pool.empty());
+                    boss.template riseup<tier::preview>(e2::form::highlight::any, faux);
 
                     if (!pool.empty())
                     {

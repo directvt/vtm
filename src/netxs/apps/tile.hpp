@@ -79,6 +79,19 @@ namespace netxs::app::tile
                                 {
                                     auto boss_shadow = ptr::shadow(boss.This());
                                     auto data_shadow = ptr::shadow(data_src_sptr);
+
+                                    boss.SUBMIT_BYVAL(tier::release, e2::form::upon::vtree::attached, parent)
+                                    {
+                                        if (auto data_ptr = data_shadow.lock())
+                                        {
+                                            auto state = decltype(e2::form::highlight::any)::type{};
+                                            data_ptr->SIGNAL(tier::anycast, e2::form::highlight::any, state);
+                                        }
+                                    };
+                                    data_src_sptr->SUBMIT_T(tier::preview, e2::form::highlight::any, boss.tracker, state)
+                                    {
+                                        boss.color(state ? 0xFF00ff00 : app::shared::x3.fgc(), app::shared::x3.bgc());
+                                    };
                                     boss.SUBMIT_BYVAL(tier::release, hids::events::mouse::button::any, gear)
                                     {
                                         if (auto boss_ptr = boss_shadow.lock())
@@ -492,7 +505,7 @@ namespace netxs::app::tile
                             }
                             if (oneoff)
                             {
-                                boss.riseup<tier::release>(e2::form::proceed::attach, decltype(e2::form::proceed::attach)::type{});
+                                boss.template riseup<tier::release>(e2::form::proceed::attach, decltype(e2::form::proceed::attach)::type{}); //todo "template" is required by gcc
                                 return;
                             }
                             if (count > 1) // Preventing the empty slot from maximizing.
