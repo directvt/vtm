@@ -43,15 +43,18 @@ namespace netxs::app::tile
     class items
         : public pro::skill
     {
+        using depth_t = decltype(e2::depth)::type;
         using skill::boss,
               skill::memo;
 
         sptr<ui::roll> client;
+        depth_t        depth;
 
     public:
         items(base&&) = delete;
         items(base& boss)
-            : skill{ boss }
+            : skill{ boss },
+              depth{ 0    }
         {
             client = ui::roll::ctor();
 
@@ -70,46 +73,55 @@ namespace netxs::app::tile
             };
             boss.SUBMIT_T(tier::release, events::enlist, memo, object)
             {
+                if (!client) return;
                 auto label = [](auto data_src_sptr, auto header)
                 {
                     return ui::pads::ctor(dent{ 1, 1, 0, 0 }, dent{})
-                            ->plugin<pro::fader>(app::shared::x3, app::shared::c3, 150ms)
-                            ->branch(ui::item::ctor(header.empty() ? "- no title -" : header))
-                            ->invoke([&](auto& boss)
-                                {
-                                    auto boss_shadow = ptr::shadow(boss.This());
-                                    auto data_shadow = ptr::shadow(data_src_sptr);
+                        ->plugin<pro::fader>(app::shared::x3, app::shared::c3, 150ms)
+                        ->branch(ui::item::ctor(header.empty() ? "- no title -" : header))
+                        ->invoke([&](auto& boss)
+                        {
+                            auto boss_shadow = ptr::shadow(boss.This());
+                            auto data_shadow = ptr::shadow(data_src_sptr);
 
-                                    boss.SUBMIT_BYVAL(tier::release, e2::form::upon::vtree::attached, parent)
-                                    {
-                                        if (auto data_ptr = data_shadow.lock())
-                                        {
-                                            auto state = decltype(e2::form::highlight::any)::type{};
-                                            data_ptr->SIGNAL(tier::anycast, e2::form::highlight::any, state);
-                                        }
-                                    };
-                                    data_src_sptr->SUBMIT_T(tier::preview, e2::form::highlight::any, boss.tracker, state)
-                                    {
-                                        boss.color(state ? 0xFF00ff00 : app::shared::x3.fgc(), app::shared::x3.bgc());
-                                    };
-                                    boss.SUBMIT_BYVAL(tier::release, hids::events::mouse::button::any, gear)
-                                    {
-                                        if (auto boss_ptr = boss_shadow.lock())
-                                        if (auto data_ptr = data_shadow.lock())
-                                        {
-                                            auto deed = boss_ptr->bell::template protos<tier::release>(); //todo "template" keyword is required by FreeBSD clang 11.0.1
-                                            data_ptr->template signal<tier::release>(deed, gear); //todo "template" keyword is required by gcc
-                                        }
-                                    };
-                                });
+                            boss.SUBMIT_T_BYVAL(tier::release, e2::form::upon::vtree::attached, boss.tracker, parent)
+                            {
+                                if (auto data_ptr = data_shadow.lock())
+                                {
+                                    auto state = decltype(e2::form::highlight::any)::type{};
+                                    data_ptr->SIGNAL(tier::anycast, e2::form::highlight::any, state);
+                                }
+                            };
+                            data_src_sptr->SUBMIT_T(tier::preview, e2::form::highlight::any, boss.tracker, state)
+                            {
+                                boss.color(state ? 0xFF00ff00 : app::shared::x3.fgc(), app::shared::x3.bgc());
+                            };
+                            boss.SUBMIT_T_BYVAL(tier::release, hids::events::mouse::button::any, boss.tracker, gear)
+                            {
+                                if (auto boss_ptr = boss_shadow.lock())
+                                if (auto data_ptr = data_shadow.lock())
+                                {
+                                    auto deed = boss_ptr->bell::template protos<tier::release>(); //todo "template" keyword is required by FreeBSD clang 11.0.1
+                                    data_ptr->template signal<tier::release>(deed, gear); //todo "template" keyword is required by gcc
+                                }
+                            };
+                            boss.SUBMIT_T_BYVAL(tier::release, e2::form::state::mouse, boss.tracker, active)
+                            {
+                                if (auto data_ptr = data_shadow.lock())
+                                {
+                                    data_ptr->SIGNAL(tier::release, e2::form::highlight::any, active);
+                                }
+                            };
+                        });
                 };
                 client->attach_element(e2::form::prop::header, object, label);
             };
             boss.SUBMIT_T(tier::release, e2::render::any, memo, parent_canvas)
             {
-                auto& basis = boss.base::coor();
-                if (client)
+                //todo magic numbers
+                if (depth < 4 && client)
                 {
+                    auto& basis = boss.base::coor();
                     auto canvas_view = parent_canvas.core::view();
                     auto canvas_area = parent_canvas.core::area();
                     canvas_area.coor = dot_00;
@@ -117,6 +129,13 @@ namespace netxs::app::tile
                     parent_canvas.render<faux>(client, basis);
                     parent_canvas.core::view(canvas_view);
                 }
+            };
+            boss.SUBMIT_T(tier::anycast, e2::form::upon::started, memo, root)
+            {
+                client->clear();
+                depth = 0;
+                boss.base::template riseup<tier::request>(e2::depth, depth, true);
+                log(" start depth=", depth);
             };
         }
         ~items()
@@ -218,6 +237,7 @@ namespace netxs::app::tile
             return ui::fork::ctor(axis::Y)
                     ->plugin<pro::title>(""/*not used here*/, footer, true, faux, true)
                     ->plugin<pro::limit>(twod{ 10,-1 }, twod{ -1,-1 })
+                    ->plugin<pro::light>()
                     ->isroot(true)
                     ->active()
                     ->invoke([&](auto& boss)
@@ -704,6 +724,7 @@ namespace netxs::app::tile
             {
                 // add term
                 auto cmdline = utf::get_quote(utf8, '\"');
+                if (cmdline.empty()) return place;
                 log(" node cmdline=", cmdline);
                 auto menu_item_id = "Term"s;
                 auto& creator = app::shared::creator(menu_item_id);
@@ -719,6 +740,7 @@ namespace netxs::app::tile
                 if (utf8.empty() || utf8.front() != '(') return place;
                 utf8.remove_prefix(1);
                 auto app_id  = utf::get_quote(utf8, '\"', ", ");
+                if (app_id.empty()) return place;
                 auto app_title = utf::get_quote(utf8, '\"', ", ");
                 auto app_data = utf::get_quote(utf8, '\"', ") ");
                 log(" app_id=", app_id, " app_title=", app_title, " app_data=", app_data);

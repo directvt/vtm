@@ -652,6 +652,16 @@ namespace netxs::ui
         bool updown; // list: List orientation, true: vertical(default), faux: horizontal.
 
     public:
+        void clear()
+        {
+            auto backup = This();
+            while (subset.size())
+            {
+                auto item_ptr = subset.back().first;
+                subset.pop_back();
+                item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, backup);
+            }
+        }
         ~roll()
         {
             events::sync lock;
