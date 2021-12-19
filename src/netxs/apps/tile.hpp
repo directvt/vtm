@@ -84,7 +84,7 @@ namespace netxs::app::tile
                             auto boss_shadow = ptr::shadow(boss.This());
                             auto data_shadow = ptr::shadow(data_src_sptr);
 
-                            boss.SUBMIT_BYVAL(tier::release, e2::form::upon::vtree::attached, parent)
+                            boss.SUBMIT_T_BYVAL(tier::release, e2::form::upon::vtree::attached, boss.tracker, parent)
                             {
                                 if (auto data_ptr = data_shadow.lock())
                                 {
@@ -96,13 +96,20 @@ namespace netxs::app::tile
                             {
                                 boss.color(state ? 0xFF00ff00 : app::shared::x3.fgc(), app::shared::x3.bgc());
                             };
-                            boss.SUBMIT_BYVAL(tier::release, hids::events::mouse::button::any, gear)
+                            boss.SUBMIT_T_BYVAL(tier::release, hids::events::mouse::button::any, boss.tracker, gear)
                             {
                                 if (auto boss_ptr = boss_shadow.lock())
                                 if (auto data_ptr = data_shadow.lock())
                                 {
                                     auto deed = boss_ptr->bell::template protos<tier::release>(); //todo "template" keyword is required by FreeBSD clang 11.0.1
                                     data_ptr->template signal<tier::release>(deed, gear); //todo "template" keyword is required by gcc
+                                }
+                            };
+                            boss.SUBMIT_T_BYVAL(tier::release, e2::form::state::mouse, boss.tracker, active)
+                            {
+                                if (auto data_ptr = data_shadow.lock())
+                                {
+                                    data_ptr->SIGNAL(tier::release, e2::form::highlight::any, active);
                                 }
                             };
                         });
@@ -230,6 +237,7 @@ namespace netxs::app::tile
             return ui::fork::ctor(axis::Y)
                     ->plugin<pro::title>(""/*not used here*/, footer, true, faux, true)
                     ->plugin<pro::limit>(twod{ 10,-1 }, twod{ -1,-1 })
+                    ->plugin<pro::light>()
                     ->isroot(true)
                     ->active()
                     ->invoke([&](auto& boss)
@@ -716,6 +724,7 @@ namespace netxs::app::tile
             {
                 // add term
                 auto cmdline = utf::get_quote(utf8, '\"');
+                if (cmdline.empty()) return place;
                 log(" node cmdline=", cmdline);
                 auto menu_item_id = "Term"s;
                 auto& creator = app::shared::creator(menu_item_id);
@@ -731,6 +740,7 @@ namespace netxs::app::tile
                 if (utf8.empty() || utf8.front() != '(') return place;
                 utf8.remove_prefix(1);
                 auto app_id  = utf::get_quote(utf8, '\"', ", ");
+                if (app_id.empty()) return place;
                 auto app_title = utf::get_quote(utf8, '\"', ", ");
                 auto app_data = utf::get_quote(utf8, '\"', ") ");
                 log(" app_id=", app_id, " app_title=", app_title, " app_data=", app_data);

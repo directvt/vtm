@@ -899,7 +899,7 @@ namespace netxs::app::shared
             #ifdef PROD
                 app::shared::objs_config[objs_lookup["Tile"]].param = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h(v(\"" + shell + " -c 'LC_ALL=en_US.UTF-8 mc -c -x -d; cat'\", h(\"" + shell + " -c 'ls /bin | nl | ccze -A; " + shell + "'\", a(\"Settings\",\"Settings\",\"\"))), a(\"Calc\",\"\",\"\"))";
             #else
-                app::shared::objs_config[objs_lookup["Tile"]].param = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h1:1(v1:1(\"" + shell + " -c 'LC_ALL=en_US.UTF-8 mc -c -x -d; cat'\", h1:1(\"" + shell + " -c 'ls /bin | nl | ccze -A; " + shell + "'\", a(\"Settings\",\"Settings\",\"\"))), a(\"Calc\",\"\",\"\"))";
+                app::shared::objs_config[objs_lookup["Tile"]].param = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h1:1(v1:1(\"" + shell + " -c 'LC_ALL=en_US.UTF-8 mc -c -x -d; cat'\", h1:1(\"\",\"" + shell + " -c 'ls /bin | nl | ccze -A; " + shell + "'\")), a(\"Calc\",\"\",\"\"))";
             #endif
 
             for (auto& [menu_item_id, app_data] : app::shared::objs_config)
@@ -957,6 +957,7 @@ namespace netxs::app::shared
                 world->SIGNAL(tier::release, e2::form::proceed::createat, what);
             };
             auto sub_pos = twod{ 12+17, 0 };
+            creator(objs_lookup["Tile"], { twod{ 40 + 85,-10 } + sub_pos, {160, 42 } });
             creator(objs_lookup["Test"], { twod{ 22     , 1  } + sub_pos, { 70, 21 } });
             creator(objs_lookup["Shop"], { twod{ 4      , 6  } + sub_pos, { 82, 38 } });
             creator(objs_lookup["Calc"], { twod{ 15     , 15 } + sub_pos, { 65, 23 } });
@@ -965,7 +966,6 @@ namespace netxs::app::shared
             creator(objs_lookup["Term"], { twod{ 34     , 38 } + sub_pos, { 64, 16 } });
             creator(objs_lookup["Term"], { twod{ 44 + 85, 35 } + sub_pos, { 64, 15 } });
             creator(objs_lookup["Term"], { twod{ 40 + 85, 42 } + sub_pos, { 64, 15 } });
-            creator(objs_lookup["Tile"], { twod{ 40 + 85,-10 } + sub_pos, {160, 42 } });
             creator(objs_lookup["View"], { twod{ 0, 7 } + twod{ -120, 60 }, { 120, 52 } });
             creator(objs_lookup["View"], { twod{ 0,-1 } + sub_pos, { 120, 52 } });
 
