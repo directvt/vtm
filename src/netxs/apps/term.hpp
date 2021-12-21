@@ -173,7 +173,7 @@ namespace netxs::app::term
                                                 ->plugin<pro::limit>(dot_11, twod{ 400,200 });
                         auto scroll = layers->attach(ui::rail::ctor());
                         {
-                            scroll->plugin<pro::limit>(twod{ 10,1 }); // mc crashes when window is too small
+                            scroll->plugin<pro::limit>(twod{ 12,1 }); // mc crashes when window is too small
 
                             auto shell = os::get_shell();
                             auto inst = scroll->attach(ui::term::ctor(v.empty() ? shell + " -i"
