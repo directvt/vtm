@@ -42,6 +42,7 @@ namespace netxs::console
     using drawfx = std::pair<bool, std::function<void(face&, sptr<base>)>>;
     using registry_t = netxs::imap<text, std::pair<bool, std::list<sptr<base>>>>;
     using focus_test_t = std::pair<id_t, iota>;
+    using functor = std::function<void(sptr<base>)>;
     struct create_t
     {
         using sptr = netxs::sptr<base>;
@@ -65,6 +66,7 @@ namespace netxs::events::userland
         using type = netxs::events::type;
         static constexpr auto dtor = netxs::events::userland::root::dtor;
         static constexpr auto cascade = netxs::events::userland::root::cascade;
+        static constexpr auto cleanup = netxs::events::userland::root::cleanup;
 
         EVENTPACK( e2, netxs::events::userland::root::base )
         {
@@ -259,6 +261,7 @@ namespace netxs::events::userland
                     EVENT_XS( focus   , sptr<console::base> ), // order to set focus to the specified object, arg is a object sptr.
                     EVENT_XS( unfocus , sptr<console::base> ), // order to unset focus on the specified object, arg is a object sptr.
                     EVENT_XS( swap    , sptr<console::base> ), // order to replace existing client. See tiling manager empty slot.
+                    EVENT_XS( functor , console::functor    ), // exec functor (see pro::focus).
                     GROUP_XS( d_n_d   , sptr<console::base> ), // drag&drop functionality. See tiling manager empty slot and pro::d_n_d.
                     //EVENT_XS( commit     , iota                     ), // order to output the targets, arg is a frame number.
                     //EVENT_XS( multirender, vector<shared_ptr<face>> ), // ask children to render itself to the set of canvases, arg is an array of the face sptrs.
@@ -3547,6 +3550,10 @@ namespace netxs::console
             focus(base& boss)
                 : skill{ boss }
             {
+                boss.SUBMIT_T(tier::anycast, e2::form::proceed::functor, memo, proc)
+                {
+                    proc(boss.This());
+                };
                 boss.SUBMIT_T(tier::anycast, e2::form::state::keybd::find, memo, gear_test)
                 {
                     if (find(gear_test.first))

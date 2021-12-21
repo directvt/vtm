@@ -4,12 +4,18 @@
 #ifndef NETXS_APP_TILE_HPP
 #define NETXS_APP_TILE_HPP
 
+namespace netxs::app::tile
+{
+    using backups = std::list<sptr<ui::veer>>;
+}
+
 namespace netxs::events::userland
 {
     struct tile
     {
         EVENTPACK( tile, netxs::events::userland::root::custom )
         {
+            EVENT_XS( backup, app::tile::backups  ),
             EVENT_XS( enlist, sptr<console::base> ),
             GROUP_XS( ui    , input::hids         ), // Window manager command pack.
 
@@ -708,6 +714,11 @@ namespace netxs::app::tile
                             }
                         }
                     };
+
+                    boss.SUBMIT(tier::release, events::backup, empty_slot_list)
+                    {
+                        empty_slot_list.push_back(boss.This());
+                    };
                 })
                 ->branch
                 (
@@ -990,6 +1001,29 @@ namespace netxs::app::tile
                     {
                         if (auto deed = boss.bell::template protos<tier::anycast>()) //todo "template" keyword is required by FreeBSD clang 11.0.1
                         {
+                            //if (deed == app::tile::events::ui::swap.id)
+                            //{
+                            //    // focus count by tier::general
+                            //    // if count > 1
+                            //    //      swap them cyclically
+                            //    //      template bell::expire<tier::anycast>()
+                            //    // if count == 0
+                            //    //      template bell::expire<tier::anycast>()
+                            //    // 
+                            //    backups empty_slot_list;
+                            //    auto proc = decltype(e2::form::proceed::functor)::type{[&](sptr<base> boss_ptr)
+                            //    {
+                            //        if (boss_ptr) boss_ptr->riseup<tier::release>(events::backup, empty_slot_list);
+                            //    }};
+                            //    boss.SIGNAL(tier::anycast, e2::form::proceed::functor, proc);
+                            //    auto i = 0;
+                            //    log(" empty_slot_list size=", empty_slot_list.size());
+                            //    for (auto& s : empty_slot_list)
+                            //    {
+                            //        log(" i=",i++, " slot count=", s->count());
+                            //    }
+                            //}
+                            //else
                             if (boss.count() > 2 && deed != app::tile::events::ui::toggle.id) // Restore the window before any action if maximized.
                             {
                                 auto item_ptr = boss.pop_back();
