@@ -15,8 +15,8 @@ Text-based desktop environment inside your terminal*
 
 # Demo
 
-<a href="https://www.youtube.com/watch?v=FzmtPCxoPeA">
-  <img align="right" width="400" alt="Demo on YouTube" src="https://user-images.githubusercontent.com/11535558/127660289-25e71ef1-d17d-42d1-b79e-00e570056fe4.gif">
+<a href="https://www.youtube.com/watch?v=kofkoxGjFWQ">
+  <img align="right" width="400" alt="Demo on YouTube" src="https://user-images.githubusercontent.com/11535558/146906370-c9705579-1bbb-4e9e-8977-47312f551cc8.gif">
 </a>
 
 ### Live SSH
