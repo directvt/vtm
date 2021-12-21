@@ -921,6 +921,14 @@ namespace netxs::console
             SIGNAL(tier::release, e2::size::set, new_size);
             return square.size - old_size;
         }
+        // base: Resize the form, and return the new size.
+        auto& resize(iota x, iota y)
+        {
+            auto new_size = twod{ x,y };
+            SIGNAL(tier::preview, e2::size::set, new_size);
+            SIGNAL(tier::release, e2::size::set, new_size);
+            return size();
+        }
         // base: Resize the form relative the center point.
         //       Return center point offset.
         //       The object is responsible for correcting

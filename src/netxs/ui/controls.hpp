@@ -15,6 +15,11 @@ namespace netxs::ui
     using namespace netxs::ui::atoms;
     using namespace netxs::console;
 
+    enum sort
+    {
+         forward,
+         reverse,
+    };
     enum slot : id_t { _1, _2, _I };
     enum axis : id_t { X, Y };
     enum axes
@@ -32,7 +37,7 @@ namespace netxs::ui
         stretch,
         center,
     };
-    // controls: base UI control.
+    // controls: base UI element.
     template<class T>
     class form
         : public base
@@ -203,7 +208,7 @@ namespace netxs::ui
         }
     };
 
-    // controls: Splitter control.
+    // controls: Splitter.
     class fork
         : public form<fork>
     {
@@ -504,152 +509,14 @@ namespace netxs::ui
         }
     };
 
-    // controls: Vertical/horizontal list control.
+    // controls: Vertical/horizontal list.
     class list
         : public form<list>
-    {
-        using book = std::list<std::pair<sptr<base>, iota>>;
-        book subset;
-        bool updown; // list: List orientation, true: vertical(default), faux: horizontal.
-
-    public:
-        ~list()
-        {
-            events::sync lock;
-            auto empty = decltype(e2::form::upon::vtree::detached)::type{};
-            while (subset.size())
-            {
-                auto item_ptr = subset.back().first;
-                subset.pop_back();
-                item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, empty);
-            }
-        }
-        list(axis orientation = axis::Y)
-            : updown{ orientation == axis::Y }
-        {
-            SUBMIT(tier::preview, e2::size::set, new_sz)
-            {
-                iota  height;
-                auto& y_size = updown ? new_sz.y : new_sz.x;
-                auto& x_size = updown ? new_sz.x : new_sz.y;
-                auto  x_temp = x_size;
-                auto  y_temp = y_size;
-
-                auto meter = [&]() {
-                    height = 0;
-                    for (auto& client : subset)
-                    {
-                        y_size = 0;
-                        client.first->SIGNAL(tier::preview, e2::size::set, new_sz);
-                        client.second = y_size;
-                        height += y_size;
-                    }
-                };
-                meter(); if (x_temp != x_size) meter();
-                y_size = height;
-            };
-            SUBMIT(tier::release, e2::size::set, new_sz)
-            {
-                //todo optimize avoid SIGNAL if size/coor is unchanged
-                auto& y_size = updown ? new_sz.y : new_sz.x;
-                auto& x_size = updown ? new_sz.x : new_sz.y;
-                twod  new_xy;
-                auto& y_coor = updown ? new_xy.y : new_xy.x;
-                auto& x_coor = updown ? new_xy.x : new_xy.y;
-
-                auto  found = faux;
-                for (auto& client : subset)
-                {
-                    y_size = client.second;
-                    if (client.first)
-                    {
-                        auto& entry = *client.first;
-                        if (!found)
-                        {
-                            // todo optimize: use the only one axis to hittest
-                            // todo detect client during preview, use wptr
-                            auto& anker = entry.base::area();
-                            if (anker.hittest(base::anchor))
-                            {
-                                found = true;
-                                base::anchor += new_xy - anker.coor;
-                            }
-                        }
-
-                        entry.SIGNAL(tier::release, e2::coor::set, new_xy);
-                        entry.SIGNAL(tier::release, e2::size::set, new_sz);
-                    }
-                    y_coor+= client.second;
-                }
-            };
-            SUBMIT(tier::release, e2::render::any, parent_canvas)
-            {
-                auto& basis = base::coor();
-                for (auto& client : subset)
-                {
-                    parent_canvas.render(client.first, basis);
-                }
-            };
-        }
-        // list: Remove the last nested object. Return the object refrence.
-        auto pop_back() -> sptr<base>
-        {
-            if (subset.size())
-            {
-                auto item = std::prev(subset.end());
-                auto item_ptr = item->first;
-                auto backup = This();
-                subset.erase(item);
-                item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, backup);
-                return item_ptr;
-            }
-            return {};
-        }
-        // list: Attach specified item.
-        template<class T>
-        auto attach(sptr<T> item)
-        {
-            subset.push_back({ item, 0 });
-            item->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
-            return item;
-        }
-        // list: Remove nested object.
-        void remove(sptr<base> item_ptr)
-        {
-            auto head = subset.begin();
-            auto tail = subset.end();
-            auto item = std::find_if(head, tail, [&](auto& c){ return c.first == item_ptr; });
-            if (item != tail)
-            {
-                auto backup = This();
-                subset.erase(item);
-                item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, backup);
-            }
-        }
-        // list: Update nested object.
-        template<class T, class S>
-        void update(T old_item_ptr, S new_item_ptr)
-        {
-            auto head = subset.begin();
-            auto tail = subset.end();
-            auto item = std::find_if(head, tail, [&](auto& c){ return c.first == old_item_ptr; });
-            if (item != tail)
-            {
-                auto backup = This();
-                auto pos = subset.erase(item);
-                old_item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, backup);
-                subset.insert(pos, std::pair{ new_item_ptr, 0 });
-                new_item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::attached, backup);
-            }
-        }
-    };
-    //todo temp solution
-    class roll
-        : public form<roll>
     {
         using book = std::list<std::pair<sptr<base>, twod>>;
         book subset;
         bool updown; // list: List orientation, true: vertical(default), faux: horizontal.
+        sort lineup; // list: Attachment order.
 
     public:
         void clear()
@@ -662,7 +529,7 @@ namespace netxs::ui
                 item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, backup);
             }
         }
-        ~roll()
+        ~list()
         {
             events::sync lock;
             auto empty = decltype(e2::form::upon::vtree::detached)::type{};
@@ -673,8 +540,9 @@ namespace netxs::ui
                 item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, empty);
             }
         }
-        roll(axis orientation = axis::Y)
-            : updown{ orientation == axis::Y }
+        list(axis orientation = axis::Y, sort attach_order = sort::forward)
+            : updown{ orientation == axis::Y },
+              lineup{ attach_order }
         {
             SUBMIT(tier::preview, e2::size::set, new_sz)
             {
@@ -684,7 +552,8 @@ namespace netxs::ui
                 auto  x_temp = x_size;
                 auto  y_temp = y_size;
 
-                auto meter = [&]() {
+                auto meter = [&]()
+                {
                     height = 0;
                     for (auto& client : subset)
                     {
@@ -696,12 +565,11 @@ namespace netxs::ui
                         height += y_size;
                     }
                 };
-                meter();// if (x_temp != x_size) meter();
+                meter(); if (x_temp != x_size) meter();
                 y_size = height;
             };
             SUBMIT(tier::release, e2::size::set, new_sz)
             {
-                //todo optimize avoid SIGNAL if size/coor is unchanged
                 auto& y_size = updown ? new_sz.y : new_sz.x;
                 auto& x_size = updown ? new_sz.x : new_sz.y;
                 twod  new_xy;
@@ -726,11 +594,14 @@ namespace netxs::ui
                                 base::anchor += new_xy - anker.coor;
                             }
                         }
-
                         entry.SIGNAL(tier::release, e2::coor::set, new_xy);
-                        entry.SIGNAL(tier::release, e2::size::set, client.second);
+                        auto& sz_y = updown ? client.second.y : client.second.x;
+                        auto& sz_x = updown ? client.second.x : client.second.y;
+                        auto& size = entry.resize(sz_x, sz_y);
+                        sz_x = size.x;
+                        sz_y = size.y;
+                        y_coor += client.second.y;
                     }
-                    y_coor+= client.second.y;
                 }
             };
             SUBMIT(tier::release, e2::render::any, parent_canvas)
@@ -760,7 +631,8 @@ namespace netxs::ui
         template<class T>
         auto attach(sptr<T> item)
         {
-            subset.push_front({ item, dot_00 });
+            if (lineup == sort::forward) subset.push_back ({ item, dot_00 });
+            else                         subset.push_front({ item, dot_00 });
             item->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
             return item;
         }
@@ -877,7 +749,7 @@ namespace netxs::ui
         }
     };
 
-    // controls: Align form controls.
+    // controls: Form aligner.
     class park
         : public form<park>
     {
@@ -1767,12 +1639,11 @@ namespace netxs::ui
         }
     };
 
-    // controls: Scroll bar.
+    // controls: Scrollbar.
     template<axis AXIS>
-    class grip // rename to roll?
+    class grip
         : public form<grip<AXIS>>
     {
-        //pro::mouse mouse{*this }; // grip: Mouse events controller.
         pro::timer timer{*this }; // grip: Minimize by timeout.
         pro::limit limit{*this }; // grip: Size limits.
 
@@ -2621,7 +2492,7 @@ namespace netxs::ui
         : public form<mock>
     { };
 
-    // controls: Menu label.
+    // controls: Menu item.
     class item
         : public form<item>
     {
@@ -2681,7 +2552,7 @@ namespace netxs::ui
         }
     };
 
-    // controls: Edit control.
+    // controls: Textedit box.
     class edit
         : public form<edit>
     {

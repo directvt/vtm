@@ -47,7 +47,7 @@ namespace netxs::app::tile
         using skill::boss,
               skill::memo;
 
-        sptr<ui::roll> client;
+        sptr<ui::list> client;
         depth_t        depth;
 
     public:
@@ -56,7 +56,7 @@ namespace netxs::app::tile
             : skill{ boss },
               depth{ 0    }
         {
-            client = ui::roll::ctor();
+            client = ui::list::ctor(axis::Y, ui::sort::reverse);
 
             client->SIGNAL(tier::release, e2::form::upon::vtree::attached, boss.This());
 
