@@ -42,6 +42,7 @@ namespace netxs::console
     using drawfx = std::pair<bool, std::function<void(face&, sptr<base>)>>;
     using registry_t = netxs::imap<text, std::pair<bool, std::list<sptr<base>>>>;
     using focus_test_t = std::pair<id_t, iota>;
+    using functor = std::function<void(sptr<base>)>;
     struct create_t
     {
         using sptr = netxs::sptr<base>;
@@ -65,6 +66,7 @@ namespace netxs::events::userland
         using type = netxs::events::type;
         static constexpr auto dtor = netxs::events::userland::root::dtor;
         static constexpr auto cascade = netxs::events::userland::root::cascade;
+        static constexpr auto cleanup = netxs::events::userland::root::cleanup;
 
         EVENTPACK( e2, netxs::events::userland::root::base )
         {
@@ -259,6 +261,7 @@ namespace netxs::events::userland
                     EVENT_XS( focus   , sptr<console::base> ), // order to set focus to the specified object, arg is a object sptr.
                     EVENT_XS( unfocus , sptr<console::base> ), // order to unset focus on the specified object, arg is a object sptr.
                     EVENT_XS( swap    , sptr<console::base> ), // order to replace existing client. See tiling manager empty slot.
+                    EVENT_XS( functor , console::functor    ), // exec functor (see pro::focus).
                     GROUP_XS( d_n_d   , sptr<console::base> ), // drag&drop functionality. See tiling manager empty slot and pro::d_n_d.
                     //EVENT_XS( commit     , iota                     ), // order to output the targets, arg is a frame number.
                     //EVENT_XS( multirender, vector<shared_ptr<face>> ), // ask children to render itself to the set of canvases, arg is an array of the face sptrs.
@@ -920,6 +923,14 @@ namespace netxs::console
             SIGNAL(tier::preview, e2::size::set, new_size);
             SIGNAL(tier::release, e2::size::set, new_size);
             return square.size - old_size;
+        }
+        // base: Resize the form, and return the new size.
+        auto& resize(iota x, iota y)
+        {
+            auto new_size = twod{ x,y };
+            SIGNAL(tier::preview, e2::size::set, new_size);
+            SIGNAL(tier::release, e2::size::set, new_size);
+            return size();
         }
         // base: Resize the form relative the center point.
         //       Return center point offset.
@@ -3539,12 +3550,17 @@ namespace netxs::console
             focus(base& boss)
                 : skill{ boss }
             {
+                boss.SUBMIT_T(tier::general, e2::form::proceed::functor, memo, proc)
+                {
+                    if (pool.size()) proc(boss.This());
+                };
                 boss.SUBMIT_T(tier::anycast, e2::form::state::keybd::find, memo, gear_test)
                 {
-                    if (find(gear_test.first))
-                    {
-                        gear_test.second++;
-                    }
+                    if (find(gear_test.first)) gear_test.second++;
+                };
+                boss.SUBMIT_T(tier::request, e2::form::state::keybd::find, memo, gear_test)
+                {
+                    if (find(gear_test.first)) gear_test.second++;
                 };
                 boss.SUBMIT_T(tier::anycast, e2::form::state::keybd::handover, memo, gear_id_list)
                 {
@@ -3752,7 +3768,7 @@ namespace netxs::console
         // host: Provides functionality for the scene objects manipulations.
         class hall
         {
-            class node // scene: Helper-class for the pro::scene. Adapter for the object that going to be attached to the scene.
+            class node // hall: Helper-class for the pro::scene. Adapter for the object that going to be attached to the scene.
             {
                 struct ward
                 {
@@ -3913,7 +3929,7 @@ namespace netxs::console
                 }
             };
 
-            class list // scene: Helper-class for the pro::scene. List of objects that can be reordered, etc.
+            class list // hall: Helper-class. List of objects that can be reordered, etc.
             {
                 std::list<sptr<node>> items;
 
@@ -4030,10 +4046,10 @@ namespace netxs::console
 
             base& boss;
             subs  memo;
-            area edges; // scene: wrecked regions history
-            proc paint; // scene: Render all child items to the specified canvas
-            list items; // scene: Child visual tree
-            list users; // scene: Scene spectators
+            area edges; // hall: Wrecked regions history.
+            proc paint; // hall: Render all child items to the specified canvas.
+            list items; // hall: Child visual tree.
+            list users; // hall: Scene spectators.
 
             sptr<registry_t>            app_registry;
             sptr<std::list<sptr<base>>> usr_registry;
@@ -4049,9 +4065,9 @@ namespace netxs::console
                     canvas.wipe(boss.id);
                     canvas.render(background);
                     //todo revise
-                    if (users.size() > 1) users.prerender(canvas); // Draw backpane for spectators
-                    items.render    (canvas); // Draw objects of the world
-                    users.postrender(canvas); // Draw spectator's mouse pointers
+                    if (users.size() > 1) users.prerender(canvas); // Draw backpane for spectators.
+                    items.render    (canvas); // Draw objects of the world.
+                    users.postrender(canvas); // Draw spectator's mouse pointers.
                 };
 
                 boss.SUBMIT_T(tier::preview, e2::form::proceed::detach, memo, item_ptr)
@@ -4113,14 +4129,14 @@ namespace netxs::console
                     app_list = app_registry;
                 };
 
-                // scene: Proceed request for available objects (next)
+                // hall: Proceed request for available objects (next)
                 boss.SUBMIT_T(tier::request, e2::form::proceed::attach, memo, next)
                 {
                     if (items)
                         if (auto next_ptr = items.rotate_next())
                             next = next_ptr->object;
                 };
-                // scene: Proceed request for available objects (prev)
+                // hall: Proceed request for available objects (prev)
                 boss.SUBMIT_T(tier::request, e2::form::proceed::detach, memo, prev)
                 {
                     if (items)
@@ -4129,14 +4145,14 @@ namespace netxs::console
                 };
             }
 
-            // scene: .
+            // hall: .
             void redraw()
             {
                 paint.first = edges.size();
                 edges.clear();
                 boss.SIGNAL(tier::release, e2::form::proceed::render, paint);
             }
-            // scene: Mark dirty region.
+            // hall: Mark dirty region.
             void denote(rect const& updateregion)
             {
                 if (updateregion)
@@ -4145,7 +4161,7 @@ namespace netxs::console
                 }
             }
 
-            // scene: Attach a new item to the scene.
+            // hall: Attach a new item to the scene.
             template<class S>
             auto branch(text const& class_id, sptr<S> item, bool fixed = true)
             {
@@ -4158,7 +4174,7 @@ namespace netxs::console
 
                 boss.SIGNAL(tier::release, e2::bindings::list::apps, app_registry);
             }
-            // scene: Create a new user of the specified subtype and invite him to the scene.
+            // hall: Create a new user of the specified subtype and invite him to the scene.
             template<class S, class ...Args>
             auto invite(Args&&... args)
             {

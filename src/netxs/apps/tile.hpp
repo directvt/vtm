@@ -4,13 +4,20 @@
 #ifndef NETXS_APP_TILE_HPP
 #define NETXS_APP_TILE_HPP
 
+namespace netxs::app::tile
+{
+    using backups = std::list<sptr<ui::veer>>;
+}
+
 namespace netxs::events::userland
 {
     struct tile
     {
         EVENTPACK( tile, netxs::events::userland::root::custom )
         {
+            EVENT_XS( backup, app::tile::backups  ),
             EVENT_XS( enlist, sptr<console::base> ),
+            EVENT_XS( delist, bool                ),
             GROUP_XS( ui    , input::hids         ), // Window manager command pack.
 
             SUBSET_XS( ui )
@@ -47,7 +54,7 @@ namespace netxs::app::tile
         using skill::boss,
               skill::memo;
 
-        sptr<ui::roll> client;
+        sptr<ui::list> client;
         depth_t        depth;
 
     public:
@@ -56,7 +63,7 @@ namespace netxs::app::tile
             : skill{ boss },
               depth{ 0    }
         {
-            client = ui::roll::ctor();
+            client = ui::list::ctor(axis::Y, ui::sort::reverse);
 
             client->SIGNAL(tier::release, e2::form::upon::vtree::attached, boss.This());
 
@@ -95,6 +102,10 @@ namespace netxs::app::tile
                             data_src_sptr->SUBMIT_T(tier::preview, e2::form::highlight::any, boss.tracker, state)
                             {
                                 boss.color(state ? 0xFF00ff00 : app::shared::x3.fgc(), app::shared::x3.bgc());
+                            };
+                            data_src_sptr->SUBMIT_T(tier::release, events::delist, boss.tracker, object)
+                            {
+                                boss.detach(); // Destroy itself.
                             };
                             boss.SUBMIT_T_BYVAL(tier::release, hids::events::mouse::button::any, boss.tracker, gear)
                             {
@@ -189,7 +200,10 @@ namespace netxs::app::tile
                                     }
                                     break;
                                 case app::tile::events::ui::swap.id:
-                                    boss.template riseup<tier::release>(app::tile::events::ui::swap, gear);
+                                    if (gear.countdown > 0)
+                                    {
+                                        boss.template riseup<tier::release>(app::tile::events::ui::swap, gear);
+                                    }
                                     break;
                                 case app::tile::events::ui::rotate.id:
                                     boss.template riseup<tier::release>(app::tile::events::ui::rotate, gear);
@@ -708,6 +722,16 @@ namespace netxs::app::tile
                             }
                         }
                     };
+
+                    boss.SUBMIT(tier::release, events::backup, empty_slot_list)
+                    {
+                        if (boss.count())
+                        if (auto item_ptr = boss.back())
+                        if (item_ptr->base::root())
+                        {
+                            empty_slot_list.push_back(boss.This());
+                        }
+                    };
                 })
                 ->branch
                 (
@@ -994,6 +1018,70 @@ namespace netxs::app::tile
                             {
                                 auto item_ptr = boss.pop_back();
                                 item_ptr->SIGNAL(tier::release, e2::form::restore, item_ptr);
+                            }
+
+                            if (deed == app::tile::events::ui::swap.id)
+                            {
+                                backups empty_slot_list;
+                                auto proc = decltype(e2::form::proceed::functor)::type{[&](sptr<base> item_ptr)
+                                {
+                                    auto gear_test = decltype(e2::form::state::keybd::find)::type{ gear.id, 0 };
+                                    item_ptr->SIGNAL(tier::request, e2::form::state::keybd::find, gear_test);
+                                    if (gear_test.second)
+                                    {
+                                        item_ptr->riseup<tier::release>(events::backup, empty_slot_list);
+                                    }
+                                }};
+                                boss.SIGNAL(tier::general, e2::form::proceed::functor, proc);
+                                auto slots_count = empty_slot_list.size();
+                                log("tile: slots count=", slots_count);
+                                if (slots_count >= 2) // Swap selected panes cyclically.
+                                {
+                                    using slot = sptr<base>;
+                                    log("tile: Swap slots cyclically");
+                                    auto i = 0;
+                                    slot emp_slot;
+                                    slot app_slot;
+                                    slot emp_next;
+                                    slot app_next;
+                                    for (auto& s : empty_slot_list)
+                                    {
+                                        if (s->count() == 1) // empty only
+                                        {
+                                            app_next.reset();
+                                            emp_next = s->pop_back();
+                                        }
+                                        else if (s->count() == 2) // empty + app
+                                        {
+                                            if (auto app = s->back())
+                                            {
+                                                app->SIGNAL(tier::release, events::delist, true);
+                                            }
+                                            app_next = s->pop_back();
+                                            emp_next = s->pop_back();
+                                        }
+                                        if (emp_slot) s->attach(emp_slot);
+                                        if (app_slot)
+                                        {
+                                            s->attach(app_slot);
+                                            app_slot->template riseup<tier::release>(events::enlist, app_slot);
+                                        }
+                                        std::swap(emp_slot, emp_next);
+                                        std::swap(app_slot, app_next);
+                                    }
+                                    auto& s = empty_slot_list.front();
+                                    if (emp_slot) s->attach(emp_slot);
+                                    if (app_slot)
+                                    {
+                                        s->attach(app_slot);
+                                        app_slot->template riseup<tier::release>(events::enlist, app_slot);
+                                    }
+                                    gear.countdown = 0; // Interrupt swapping.
+                                }
+                                else // Swap panes in split.
+                                {
+                                    gear.countdown = 1;
+                                }
                             }
                         }
                     };

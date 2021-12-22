@@ -1,7 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#define MONOTTY_VER "Monotty Desktopio v0.5.9999g"
+#define MONOTTY_VER "Monotty Desktopio v0.5.9999h"
 
 // Enable demo apps and assign Esc key to log off.
 //#define DEMO
@@ -191,6 +191,11 @@ int main(int argc, char* argv[])
 
     log("host: created");
 
+    world->SUBMIT(tier::general, e2::cleanup, counter)
+    {
+        world->router<tier::general>().cleanup(counter.ref_count, counter.del_count);
+    };
+
     auto base_window = [](auto header, auto footer, auto menu_item_id)
     {
         return ui::cake::ctor()
@@ -255,6 +260,18 @@ int main(int argc, char* argv[])
                 {
                     if (nested_item) boss.base::detach(); // The object kills itself.
                 };
+                boss.SUBMIT(tier::release, e2::dtor, p)
+                {
+                    auto start = tempus::now();
+                    auto counter = decltype(e2::cleanup)::type{};
+                    SIGNAL_GLOBAL(e2::cleanup, counter);
+                    auto stop = tempus::now() - start;
+                    log("world: Garbage collection",
+                    "\n\ttime ", utf::format(stop.count()), "ns",
+                    "\n\tobjs ", counter.obj_count,
+                    "\n\trefs ", counter.ref_count,
+                    "\n\tdels ", counter.del_count);
+                };
             });
     };
 
@@ -266,7 +283,7 @@ int main(int argc, char* argv[])
         window->extend(what.square);
         auto& creator = app::shared::creator(config.group);
         window->attach(creator(config.param));
-        log(" world: create type=", config.group, " menu_item_id=", what.menuid);
+        log("world: create type=", config.group, " menu_item_id=", what.menuid);
         world->branch(what.menuid, window, config.fixed);
         window->SIGNAL(tier::anycast, e2::form::upon::started, world);
 
@@ -279,7 +296,7 @@ int main(int argc, char* argv[])
 
         window->extend(what.square);
         window->attach(what.object);
-        log(" world: attach type=", config.group, " menu_item_id=", what.menuid);
+        log("world: attach type=", config.group, " menu_item_id=", what.menuid);
         world->branch(what.menuid, window, config.fixed);
         window->SIGNAL(tier::anycast, e2::form::upon::started, world);
 
