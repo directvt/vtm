@@ -17,6 +17,7 @@ namespace netxs::events::userland
         {
             EVENT_XS( backup, app::tile::backups  ),
             EVENT_XS( enlist, sptr<console::base> ),
+            EVENT_XS( delist, bool                ),
             GROUP_XS( ui    , input::hids         ), // Window manager command pack.
 
             SUBSET_XS( ui )
@@ -101,6 +102,10 @@ namespace netxs::app::tile
                             data_src_sptr->SUBMIT_T(tier::preview, e2::form::highlight::any, boss.tracker, state)
                             {
                                 boss.color(state ? 0xFF00ff00 : app::shared::x3.fgc(), app::shared::x3.bgc());
+                            };
+                            data_src_sptr->SUBMIT_T(tier::release, events::delist, boss.tracker, object)
+                            {
+                                boss.detach(); // Destroy itself.
                             };
                             boss.SUBMIT_T_BYVAL(tier::release, hids::events::mouse::button::any, boss.tracker, gear)
                             {
@@ -1048,18 +1053,29 @@ namespace netxs::app::tile
                                         }
                                         else if (s->count() == 2) // empty + app
                                         {
+                                            if (auto app = s->back())
+                                            {
+                                                app->SIGNAL(tier::release, events::delist, true);
+                                            }
                                             app_next = s->pop_back();
                                             emp_next = s->pop_back();
                                         }
                                         if (emp_slot) s->attach(emp_slot);
-                                        if (app_slot) s->attach(app_slot);
+                                        if (app_slot)
+                                        {
+                                            s->attach(app_slot);
+                                            app_slot->template riseup<tier::release>(events::enlist, app_slot);
+                                        }
                                         std::swap(emp_slot, emp_next);
                                         std::swap(app_slot, app_next);
                                     }
                                     auto& s = empty_slot_list.front();
                                     if (emp_slot) s->attach(emp_slot);
-                                    if (app_slot) s->attach(app_slot);
-
+                                    if (app_slot)
+                                    {
+                                        s->attach(app_slot);
+                                        app_slot->template riseup<tier::release>(events::enlist, app_slot);
+                                    }
                                     gear.countdown = 0; // Interrupt swapping.
                                 }
                                 else // Swap panes in split.
