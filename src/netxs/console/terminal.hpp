@@ -3272,12 +3272,12 @@ namespace netxs::ui
         buffer_ptr target; // term: Current   screen buffer pointer.
         os::ptydev ptycon; // term: PTY device.
         text       cmdarg; // term: Startup command line arguments.
-        twod       initsz; // term: Initial PTY size (pty inited in the parallel thread).
         hook       oneoff; // term: One-shot token for the first resize and shutdown events.
         twod       origin; // term: Viewport position.
         bool       active; // term: Terminal lifetime.
         bool       decckm; // term: Cursor keys Application(true)/ANSI(faux) mode.
         bool       bpmode; // term: Bracketed paste mode.
+        bool       cmdrun; // term: Is term::start() executed.
 
         // term: Soft terminal reset (DECSTR).
         void decstr()
@@ -3591,21 +3591,22 @@ namespace netxs::ui
             scroll();
             ptycon.write(data);
         }
-        //todo temp
-        bool started = faux;
         void start()
         {
-            if (!started)
+            if (!cmdrun)
             {
-            //todo move it to the another thread (slow init)
-            //initsz = base::size();
-            //std::thread{ [&]( )
-            //{
-                //todo async command queue
-                ptycon.start(cmdarg, initsz, [&](auto utf8_shadow) { ondata(utf8_shadow); },
-                                             [&](auto exit_reason) { onexit(exit_reason); } );
-                started = true;
-            //} }.detach();
+                cmdrun = true;
+                std::thread{ [&, initsz = target->panel]()
+                {
+                    ptycon.start(cmdarg, initsz, [&](auto utf8_shadow) { ondata(utf8_shadow); },
+                                                 [&](auto exit_reason) { onexit(exit_reason); } );
+                    netxs::events::sync guard;
+                    auto new_sz = target->panel;
+                    if (initsz != new_sz)
+                    {
+                        ptycon.resize(new_sz);
+                    }
+                }}.detach();
             }
         }
        ~term(){ active = faux; }
@@ -3620,16 +3621,20 @@ namespace netxs::ui
               ctrack{ *this },
               active{  true },
               decckm{  faux },
-              bpmode{  faux }
+              bpmode{  faux },
+              cmdrun{  faux }
         {
             cmdarg = command_line;
             target = &normal;
             //cursor.style(commands::cursor::def_style); // default=blinking_box
             cursor.style(commands::cursor::blinking_underline);
             cursor.show(); //todo revise (possible bug)
-
             form::keybd.accept(true); // Subscribe to keybd offers.
 
+            SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
+            {
+                this->base::riseup<tier::request>(e2::form::prop::header, wtrack.get(ansi::OSC_TITLE));
+            };
             SUBMIT(tier::release, e2::coor::set, new_coor)
             {
                 //todo use tier::preview bcz approx viewport position can be corrected
@@ -3637,60 +3642,28 @@ namespace netxs::ui
                 origin.y = -target->set_slide(-origin.y);
                 //preview: new_coor = origin;
             };
-            SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
+            SUBMIT(tier::preview, e2::size::set, new_size)
             {
-                this->base::riseup<tier::request>(e2::form::prop::header, wtrack.get(ansi::OSC_TITLE));
+                auto& console = *target;
+                new_size = std::max(new_size, dot_11);
 
-                //todo deprecated
-                this->SUBMIT_T(tier::release, e2::size::set, oneoff, new_sz)
+                auto force_basis = console.force_basis();
+                console.resize_viewport(new_size);
+
+                if (!force_basis)
                 {
-                    if (new_sz.y > 0)
+                    auto slide = -console.get_slide();
+                    if (origin.y != slide)
                     {
-                        oneoff.reset();
-
-                        auto& console = *target;
-                        new_sz = std::max(new_sz, dot_11);
-                        console.resize_viewport(new_sz);
-
-                        this->SUBMIT(tier::preview, e2::size::set, new_sz)
-                        {
-                            auto& console = *target;
-                            new_sz = std::max(new_sz, dot_11);
-
-                            auto force_basis = console.force_basis();
-                            console.resize_viewport(new_sz);
-
-                            if (!force_basis)
-                            {
-                                auto slide = -console.get_slide();
-                                if (origin.y != slide)
-                                {
-                                    origin.y = slide;
-                                    this->SIGNAL(tier::release, e2::coor::set, origin);
-                                }
-                            }
-                            else scroll();
-
-                            initsz = new_sz;
-                            //std::thread{ [&]()
-                            //{
-                                //todo async command queue
-                                if (started) ptycon.resize(initsz);
-                            //} }.detach();
-
-                            new_sz.y = console.get_basis() + new_sz.y;
-                        };
-
-                        //todo move it to the another thread (slow init)
-//                        initsz = new_sz;
-//                        //std::thread{ [&]( )
-//                        //{
-//                            //todo async command queue
-//                            ptycon.start(cmdarg, initsz, [&](auto utf8_shadow) { ondata(utf8_shadow); },
-//                                                         [&](auto exit_reason) { onexit(exit_reason); } );
-                        //} }.detach();
+                        origin.y = slide;
+                        this->SIGNAL(tier::release, e2::coor::set, origin);
                     }
-                };
+                }
+                else scroll();
+
+                if (ptycon) ptycon.resize(new_size);
+
+                new_size.y += console.get_basis();
             };
             SUBMIT(tier::release, hids::events::keybd::any, gear)
             {

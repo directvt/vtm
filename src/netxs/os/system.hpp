@@ -2391,20 +2391,26 @@ namespace netxs::os
 
         #endif
 
-        os::ipc                   termlink;
-        testy<twod>               termsize;
-        std::thread               stdinput;
-        std::function<void(view)> receiver;
-        std::function<void(iota)> shutdown;
+        os::ipc                   termlink{};
+        testy<twod>               termsize{};
+        std::thread               stdinput{};
+        std::function<void(view)> receiver{};
+        std::function<void(iota)> shutdown{};
+        std::mutex                blockade{};
+        text                      tempbuff{};
+        bool                      isactive{};
 
     public:
         ~ptydev()
         {
+            std::unique_lock guard{ blockade };
+
             log("ptydev: dtor started");
             if (termlink) wait_child();
             if (stdinput.joinable())
             {
                 log("ptydev: input thread joining");
+                //todo deadlock on wsl with tiling ~50 terms
                 stdinput.join();
             }
             #if defined(_WIN32)
@@ -2417,11 +2423,13 @@ namespace netxs::os
             #endif
         }
         
-        operator bool () { return termlink; }
+        operator bool () { return isactive; }
 
         void start(text cmdline, twod winsz, std::function<void(view)> input_hndl
                                            , std::function<void(iota)> shutdown_hndl)
         {
+            std::unique_lock guard{ blockade };
+
             receiver = input_hndl;
             shutdown = shutdown_hndl;
             log("ptydev: new process: ", cmdline);
@@ -2576,6 +2584,7 @@ namespace netxs::os
             #endif
 
             stdinput = std::thread([&] { read_socket_thread(); });
+            isactive = true;
         }
 
         iota wait_child()
@@ -2640,7 +2649,7 @@ namespace netxs::os
         }
         void resize(twod const& newsize)
         {
-            if (termsize(newsize) && termlink)
+            if (termsize(newsize) && isactive && termlink)
             {
                 #if defined(_WIN32)
 
@@ -2662,7 +2671,16 @@ namespace netxs::os
         }
         void write(view data)
         {
-            termlink.send<true>(data);
+            if (isactive && termlink)
+            {
+                if (tempbuff.size())
+                {
+                    termlink.send<true>(tempbuff);
+                    tempbuff = {};
+                }
+                termlink.send<true>(data);
+            }
+            else tempbuff += data;
         }
     };
 }

@@ -76,12 +76,12 @@ namespace netxs::app::logs
                 while (alive)
                 {
                     auto utf8 = queue.pop();
-                    bool not_procesed = true;
-                    while (not_procesed && alive)
+                    bool processed = faux;
+                    while (!processed && alive)
                     {
                         if (auto lock = netxs::events::try_sync())
                         {
-                            not_procesed = faux;
+                            processed = true;
                             auto shadow = view{ utf8 };
                             auto parsed = read(shadow);
                             SIGNAL(tier::release, e2::debug::parsed, parsed);
