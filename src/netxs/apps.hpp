@@ -897,9 +897,9 @@ namespace netxs::app::shared
         #ifdef DEMO
             auto shell = os::get_shell();
             #ifdef PROD
-                app::shared::objs_config[objs_lookup["Tile"]].param = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h(v(\"" + shell + " -c 'LC_ALL=en_US.UTF-8 mc -c -x -d; cat'\", h(\"" + shell + " -c 'ls /bin | nl | ccze -A; " + shell + "'\", a(\"Settings\",\"Settings\",\"\"))), a(\"Calc\",\"\",\"\"))";
+                app::shared::objs_config[objs_lookup["Tile"]].param = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h(v(a(\"MC\",\"\",\"\"), h(\"" + shell + " -c 'ls /bin | nl | ccze -A; " + shell + "'\", a(\"Settings\",\"Settings\",\"\"))), a(\"Calc\",\"\",\"\"))";
             #else
-                app::shared::objs_config[objs_lookup["Tile"]].param = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h1:1(v1:1(\"" + shell + " -c 'LC_ALL=en_US.UTF-8 mc -c -x -d; cat'\", h1:1(\"\",\"" + shell + " -c 'ls /bin | nl | ccze -A; " + shell + "'\")), a(\"Calc\",\"\",\"\"))";
+                app::shared::objs_config[objs_lookup["Tile"]].param = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h1:1(v1:1(a(\"MC\",\"\",\"\"), h1:1(\"\",\"" + shell + " -c 'ls /bin | nl | ccze -A; " + shell + "'\")), a(\"Calc\",\"\",\"\"))";
             #endif
 
             for (auto& [menu_item_id, app_data] : app::shared::objs_config)

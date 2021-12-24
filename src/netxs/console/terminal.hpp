@@ -3272,12 +3272,11 @@ namespace netxs::ui
         buffer_ptr target; // term: Current   screen buffer pointer.
         os::ptydev ptycon; // term: PTY device.
         text       cmdarg; // term: Startup command line arguments.
-        hook       oneoff; // term: One-shot token for the first resize and shutdown events.
+        hook       oneoff; // term: One-shot token for start and shutdown events.
         twod       origin; // term: Viewport position.
         bool       active; // term: Terminal lifetime.
         bool       decckm; // term: Cursor keys Application(true)/ANSI(faux) mode.
         bool       bpmode; // term: Bracketed paste mode.
-        bool       cmdrun; // term: Is term::start() executed.
 
         // term: Soft terminal reset (DECSTR).
         void decstr()
@@ -3541,10 +3540,11 @@ namespace netxs::ui
             else
             {
                 log("term: submit for destruction on next frame/tick");
-                SUBMIT_T(tier::general, e2::tick, oneoff, t)
+                SUBMIT_GLOBAL(e2::tick, oneoff, t)
                 {
+                    auto backup = This();
+                    this->base::riseup<tier::release>(e2::form::quit, backup);
                     oneoff.reset();
-                    this->base::riseup<tier::release>(e2::form::quit, This());
                 };
             }
         }
@@ -3593,20 +3593,21 @@ namespace netxs::ui
         }
         void start()
         {
-            if (!cmdrun)
+            static auto unique = decltype(e2::tick)::type{}; // Eliminate concurrent start actions.
+
+            if (!ptycon && !oneoff)
             {
-                cmdrun = true;
-                std::thread{ [&, initsz = target->panel]()
+                SUBMIT_GLOBAL(e2::tick, oneoff, timer)
                 {
-                    ptycon.start(cmdarg, initsz, [&](auto utf8_shadow) { ondata(utf8_shadow); },
-                                                 [&](auto exit_reason) { onexit(exit_reason); } );
-                    netxs::events::sync guard;
-                    auto new_sz = target->panel;
-                    if (initsz != new_sz)
+                    if (unique != timer)
                     {
-                        ptycon.resize(new_sz);
+                        auto initsz = target->panel;
+                        ptycon.start(cmdarg, initsz, [&](auto utf8_shadow) { ondata(utf8_shadow); },
+                                                     [&](auto exit_reason) { onexit(exit_reason); } );
+                        unique = timer;
+                        oneoff.reset();
                     }
-                }}.detach();
+                };
             }
         }
        ~term(){ active = faux; }
@@ -3621,8 +3622,7 @@ namespace netxs::ui
               ctrack{ *this },
               active{  true },
               decckm{  faux },
-              bpmode{  faux },
-              cmdrun{  faux }
+              bpmode{  faux }
         {
             cmdarg = command_line;
             target = &normal;
