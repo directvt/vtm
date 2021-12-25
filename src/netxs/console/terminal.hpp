@@ -1359,6 +1359,7 @@ namespace netxs::ui
             {
                 using ring::ring;
                 using type = line::type;
+                using maps = std::map<iota, iota>[type::count];
 
                 iota caret{}; // buff: Current line caret horizontal position.
                 iota vsize{}; // buff: Scrollback vertical size (height).
@@ -1368,6 +1369,7 @@ namespace netxs::ui
                 bool dirty{}; // buff: Indicator that not all available cells have been counted (lazy counting).
                 iota basis{}; // buff: Working area basis. Vertical position of O(0, 0) in the scrollback.
                 iota slide{}; // buff: Viewport vertical position in the scrollback.
+                maps sizes{}; // buff: Line length accounting database.
 
             id_t anchor_id{}; // the nearest id to the slide
             iota anchor_dy{}; // distance to the slide.
@@ -1377,29 +1379,26 @@ namespace netxs::ui
                 static constexpr id_t threshold = 1000;
                 static constexpr ui64 lnpadding = 40; // Padding to improve accuracy.
 
-                //todo optimize for large lines, use std::unordered_map<iota, iota>
-                // buff: Line length accounting database.
-                struct maxs : public std::vector<iota>
-                {
-                    iota max = 0;
-                    maxs() : std::vector<iota>(1) { }
-                    void prev_max() { while (max > 0 && !at(--max)); }
-                }
-                lens[type::count];
-
-                // buff: Decrease the height.
+                // buff: Decrease height.
                 void dec_height(iota& vsize, type kind, iota size)
                 {
                     if (size > width && kind == type::autowrap) vsize -= (size + width - 1) / width;
                     else                                        vsize -= 1;
                 }
-                // buff: Increase the height.
+                // buff: Increase height.
                 void add_height(iota& vsize, type kind, iota size)
                 {
                     if (size > width && kind == type::autowrap) vsize += (size + width - 1) / width;
                     else                                        vsize += 1;
                 }
-                // buff: Recalc the height for unlimited scrollback without using reflow.
+                // buff: Return max line length of the specified type.
+                template<auto N>
+                auto max()
+                {
+                    return sizes[N].empty() ? 0
+                                            : sizes[N].rbegin()->first;
+                }
+                // buff: Recalculate unlimited scrollback height without reflow.
                 void set_width(iota new_width)
                 {
                     vsize = 0;
@@ -1408,28 +1407,48 @@ namespace netxs::ui
                                        type::rghtside,
                                        type::centered })
                     {
-                        auto& cur_lens = lens[kind];
-                        auto head = cur_lens.begin();
-                        auto tail = head + cur_lens.max + 1;
-                        do vsize += *head++;
-                        while (head != tail);
-                    }
-                    auto kind = type::autowrap;
-                    auto& cur_lens = lens[kind];
-                    auto head = cur_lens.begin();
-                    auto tail = head + cur_lens.max + 1;
-                    auto c = 0;
-                    auto h = 1;
-                    do
-                    {
-                        if (auto count = *head++) vsize += h * count;
-                        if (++c > width)
+                        for (auto [size, pool] : sizes[kind])
                         {
-                            c = 1;
-                            ++h;
+                            assert(pool > 0);
+                            vsize += pool;
                         }
                     }
-                    while (head != tail);
+                    auto kind = type::autowrap;
+                    for (auto [size, pool] : sizes[kind])
+                    {
+                        if (size > width) vsize += pool * ((size + width - 1) / width);
+                        else              vsize += pool;
+                    }
+                }
+                // buff: Register new line.
+                void invite(type& kind, iota& size, type new_kind, iota new_size)
+                {
+                    ++sizes[new_kind][new_size];
+                    add_height(vsize, new_kind, new_size);
+                    size = new_size;
+                    kind = new_kind;
+                }
+                // buff: Refresh scrollback height.
+                void recalc(type& kind, iota& size, type new_kind, iota new_size)
+                {
+                    if (size != new_size
+                     || kind != new_kind)
+                    {
+                        undock(kind, size);
+                        ++sizes[new_kind][new_size];
+                        add_height(vsize, new_kind, new_size);
+                        size = new_size;
+                        kind = new_kind;
+                    }
+                }
+                // buff: Discard the specified metrics.
+                void undock(type kind, iota size)
+                {
+                    auto& lens = sizes[kind];
+                    auto  iter = lens.find(size); assert(iter != lens.end());
+                    auto  pool = --(*iter).second;
+                    if (pool == 0) lens.erase(iter);
+                    dec_height(vsize, kind, size);
                 }
                 // buff: Check buffer size.
                 void check_size(twod const new_size)
@@ -1440,58 +1459,6 @@ namespace netxs::ui
                         static constexpr auto BOTTOM_ANCHORED = true;
                         ring::resize<BOTTOM_ANCHORED>(new_size.y, ring::step);
                     }
-                }
-                // buff: Register new line.
-                void invite(type& kind, iota& size, type new_kind, iota new_size)
-                {
-                    auto& new_lens = lens[new_kind];
-                    if (new_lens.size() <= new_size) new_lens.resize(new_size * 2 + 1);
-
-                    ++new_lens[new_size];
-                    add_height(vsize, new_kind, new_size);
-                    if (new_lens.max < new_size) new_lens.max = new_size;
-
-                    size = new_size;
-                    kind = new_kind;
-                }
-                // buff: Refresh scrollback height.
-                void recalc(type& kind, iota& size, type new_kind, iota new_size)
-                {
-                    if (size != new_size
-                     || kind != new_kind)
-                    {
-                        auto& new_lens = lens[new_kind];
-                        if (new_lens.size() <= new_size) new_lens.resize(new_size * 2 + 1);
-
-                        if (new_size <  size
-                         || new_kind != kind)
-                        {
-                            undock(kind, size);
-                        }
-                        else
-                        {
-                            --lens[kind][size];
-                            dec_height(vsize, kind, size);
-                        }
-
-                        ++new_lens[new_size];
-                        add_height(vsize, new_kind, new_size);
-                        if (new_lens.max < new_size) new_lens.max = new_size;
-
-                        size = new_size;
-                        kind = new_kind;
-                    }
-                }
-                // buff: Discard the specified metrics.
-                void undock(type kind, iota size)
-                {
-                    auto& cur_lens =       lens[kind];
-                    auto cur_count = --cur_lens[size];
-                    if (size == cur_lens.max && cur_count == 0)
-                    {
-                        cur_lens.prev_max();
-                    }
-                    dec_height(vsize, kind, size);
                 }
                 // buff: Push back the specified line.
                 void invite(line& l)
@@ -1537,7 +1504,6 @@ namespace netxs::ui
                 // buff: Remove information about the specified line from accounting.
                 void undock_base_back (line& l) override { undock(l._kind, l._size); }
                 // buff: Return an item position in the scrollback using its id.
-                template<auto N> auto max() { return lens[N].max; }
                 auto index_by_id(ui32 id)
                 {
                     //No need to disturb distant objects, it may already be in the swap.
@@ -1554,7 +1520,7 @@ namespace netxs::ui
                 {
                     return ring::at(index_by_id(id));
                 }
-                // buff: Refresh the scrollback size in cells, starting at the specified index.
+                // buff: Refresh scrollback size in cells, starting at the specified index.
                 void recalc_size(iota taken_index)
                 {
                     auto head = begin() + std::max(0, taken_index);
@@ -3650,7 +3616,8 @@ namespace netxs::ui
                 auto force_basis = console.force_basis();
                 console.resize_viewport(new_size);
 
-                if (!force_basis)
+                if (force_basis) scroll();
+                else
                 {
                     auto slide = -console.get_slide();
                     if (origin.y != slide)
@@ -3659,9 +3626,8 @@ namespace netxs::ui
                         this->SIGNAL(tier::release, e2::coor::set, origin);
                     }
                 }
-                else scroll();
 
-                if (ptycon) ptycon.resize(new_size);
+                ptycon.resize(new_size);
 
                 new_size.y += console.get_basis();
             };
