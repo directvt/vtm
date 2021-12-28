@@ -1420,7 +1420,7 @@ namespace netxs::ui
                         else              vsize += pool;
                     }
                 }
-                // buff: Register new line.
+                // buff: Register a new line.
                 void invite(type& kind, iota& size, type new_kind, iota new_size)
                 {
                     ++sizes[new_kind][new_size];
@@ -1460,13 +1460,13 @@ namespace netxs::ui
                         ring::resize<BOTTOM_ANCHORED>(new_size.y, ring::step);
                     }
                 }
-                // buff: Push back the specified line.
+                // buff: Push the specified line back.
                 void invite(line& l)
                 {
                     dirty = true;
                     invite(l._kind, l._size, l.style.get_kind(), l.length());
                 }
-                // buff: Push back the new line.
+                // buff: Push a new line back.
                 template<class ...Args>
                 auto& invite(Args&&... args)
                 {
@@ -1475,7 +1475,7 @@ namespace netxs::ui
                     invite(l._kind, l._size, l.style.get_kind(), l.length());
                     return l;
                 }
-                // buff: Insert the new line at the specified position.
+                // buff: Insert a new line at the specified position.
                 template<class ...Args>
                 auto& insert(iota at, Args&&... args)
                 {
@@ -1484,7 +1484,7 @@ namespace netxs::ui
                     invite(l._kind, l._size, l.style.get_kind(), l.length());
                     return l;
                 }
-                // buff: Remove the specified line info from accounting and update the metrics based on the scrollback height.
+                // buff: Remove specified line info from accounting and update metrics based on scroll height.
                 void undock_base_front(line& l) override
                 {
                     auto kind = l._kind;
@@ -1503,7 +1503,7 @@ namespace netxs::ui
                 }
                 // buff: Remove information about the specified line from accounting.
                 void undock_base_back (line& l) override { undock(l._kind, l._size); }
-                // buff: Return an item position in the scrollback using its id.
+                // buff: Return the item position in the scrollback using its id.
                 auto index_by_id(ui32 id)
                 {
                     //No need to disturb distant objects, it may already be in the swap.
@@ -1515,7 +1515,7 @@ namespace netxs::ui
                 {
                     return begin() + index_by_id(id);
                 }
-                // buff: Return an item reference using its id.
+                // buff: Return the item reference using its id.
                 auto& item_by_id(ui32 id)
                 {
                     return ring::at(index_by_id(id));
@@ -1540,7 +1540,7 @@ namespace netxs::ui
                     dirty = faux;
                     //log( " recalc_size taken_index=", taken_index);
                 }
-                // buff: Return the scrollback size in cells.
+                // buff: Return scrollback size in cells.
                 auto get_size_in_cells()
                 {
                     auto& endln = back();
@@ -1562,7 +1562,7 @@ namespace netxs::ui
                     }
                     return accum;
                 }
-                // buff: Refresh metrics due to the specified modified line.
+                // buff: Refresh metrics due to modified line.
                 void recalc(line& l)
                 {
                     recalc(l._kind, l._size, l.style.get_kind(), l.length());

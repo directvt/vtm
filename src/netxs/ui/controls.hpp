@@ -1263,9 +1263,7 @@ namespace netxs::ui
     {
         pro::robot robot{*this }; // rail: Animation controller.
 
-        template<auto N> static constexpr
-        //auto events = e2::form::upon::scroll::_<N>; //todo clang 11.0.1 doesn't support this.
-        auto events() { return e2::form::upon::scroll::_<N>; }
+        using upon = e2::form::upon;
 
         bool strict[2] = { true, true }; // rail: Don't allow overscroll.
         bool manual[2] = { true, true }; // rail: Manaul scrolling (no auto align).
@@ -1301,7 +1299,7 @@ namespace netxs::ui
         template<axis AXIS>
         auto follow(sptr<base> master = {})
         {
-            if (master) master->SUBMIT_T(tier::release, events<AXIS>(), fasten, master_scinfo)
+            if (master) master->SUBMIT_T(tier::release, upon::scroll::bycoor::_<AXIS>, fasten, master_scinfo)
             {
                 AXIS == axis::X ? scroll<X>(scinfo.window.coor.x - master_scinfo.window.coor.x)
                                 : scroll<Y>(scinfo.window.coor.y - master_scinfo.window.coor.y);
@@ -1332,18 +1330,14 @@ namespace netxs::ui
                     auto& item = *client;
                     switch (this->bell::protos<tier::preview>())
                     {
-                        case events<X>().id:
-                            scroll<X>(scinfo.window.coor.x - info.window.coor.x);
-                            break;
-                        case events<Y>().id:
-                            scroll<Y>(scinfo.window.coor.y - info.window.coor.y);
-                            break;
-                        case events<X + 2>().id:
-                            cancel<X, true>();
-                            break;
-                        case events<Y + 2>().id:
-                            cancel<Y, true>();
-                            break;
+                        case upon::scroll::bycoor::x.id: scroll<X>(scinfo.window.coor.x - info.window.coor.x); break;
+                        case upon::scroll::bycoor::y.id: scroll<Y>(scinfo.window.coor.y - info.window.coor.y); break;
+                        case upon::scroll::bystep::x.id: scroll<X>(info.vector); break;
+                        case upon::scroll::bystep::y.id: scroll<Y>(info.vector); break;
+                        case upon::scroll::bypage::x.id: scroll<X>(info.vector * scinfo.window.size.x); break;
+                        case upon::scroll::bypage::y.id: scroll<Y>(info.vector * scinfo.window.size.y); break;
+                        case upon::scroll::cancel::x.id: cancel<X, true>(); break;
+                        case upon::scroll::cancel::y.id: cancel<Y, true>(); break;
                     }
                 }
             };
@@ -1580,7 +1574,7 @@ namespace netxs::ui
                 scinfo.region = block.size;
                 scinfo.window.coor =-block.coor; // Viewport.
                 scinfo.window.size = frame;      //
-                SIGNAL(tier::release, events<AXIS>(), scinfo);
+                SIGNAL(tier::release, upon::scroll::bycoor::_<AXIS>, scinfo);
 
                 block.coor += basis; // Client origin basis.
                 locked = true;
@@ -1610,8 +1604,8 @@ namespace netxs::ui
             {
                 scinfo.region = {};
                 scinfo.window.coor = {};
-                this->SIGNAL(tier::release, events<axis::X>(), scinfo);
-                this->SIGNAL(tier::release, events<axis::Y>(), scinfo);
+                this->SIGNAL(tier::release, upon::scroll::bycoor::_<axis::X>, scinfo);
+                this->SIGNAL(tier::release, upon::scroll::bycoor::_<axis::Y>, scinfo);
                 tokens.clear();
                 fasten.clear();
             };
@@ -1650,6 +1644,7 @@ namespace netxs::ui
         using wptr = netxs::wptr<base>;
         using sptr = netxs::sptr<base>;
         using form = ui::form<grip<AXIS>>;
+        using upon = e2::form::upon;
 
         enum activity
         {
@@ -1658,10 +1653,6 @@ namespace netxs::ui
             pager_first = 10,
             pager_next  = 11,
         };
-
-        template<auto N> static constexpr
-        //auto events = e2::form::upon::scroll::_<N>; //todo clang 11.0.1 doesn't support this.
-        auto events() { return e2::form::upon::scroll::_<N>; }
 
         static inline auto  xy(twod const& p) { return AXIS == axis::X ? p.x : p.y; }
         static inline auto  yx(twod const& p) { return AXIS == axis::Y ? p.x : p.y; }
@@ -1674,6 +1665,7 @@ namespace netxs::ui
             iota& master_len = xy(master_inf.region);      // math: Master len.
             iota& master_pos = xy(master_inf.window.coor); // math: Master viewport pos.
             iota& master_box = xy(master_inf.window.size); // math: Master viewport len.
+            iota& master_dir =    master_inf.vector ;      // math: Master scroll direction.
             iota  scroll_len = 0; // math: Scrollbar len.
             iota  scroll_pos = 0; // math: Scrollbar grip pos.
             iota  scroll_box = 0; // math: Scrollbar grip len.
@@ -1743,22 +1735,16 @@ namespace netxs::ui
                 if (coor >= scroll_pos)              return 0; // Inside the grip.
                                                      return-1; // Above the grip.
             }
-            void pager(iota dir)
-            {
-                master_pos += master_box * dir;
-                m_to_s();
-            }
             auto follow()
             {
                 auto dir = scroll_len > 2 ? inside(cursor_pos)
                                           : cursor_pos > 0 ? 1 // Don't stop to follow over
                                                            :-1;//    box on small scrollbar.
-                if (dir)
-                {
-                    pager(dir);
-                    return true;
-                }
-                return faux;
+                return dir;
+            }
+            void setdir(iota dir)
+            {
+                master_dir = -dir;
             }
         };
 
@@ -1772,17 +1758,13 @@ namespace netxs::ui
 
         bool on_pager = faux;
 
-        template<class EVENT = decltype(events<AXIS>())>
-        void send(EVENT)
+        template<class EVENT>
+        void send()
         {
             if (auto master = this->boss.lock())
             {
-                master->SIGNAL(tier::preview, EVENT{}, calc.master_inf);
+                master->SIGNAL(tier::preview, EVENT::template _<AXIS>, calc.master_inf);
             }
-        }
-        void gohome()
-        {
-            send(events<AXIS + 2>());
         }
         void config(iota width)
         {
@@ -1797,10 +1779,9 @@ namespace netxs::ui
             {
                 if (gear.captured(bell::id))
                 {
-                    //if (this->form<grip<AXIS>>::template protos<tier::release>(hids::events::mouse::button::drag::cancel::right))
                     if (this->form::template protos<tier::release>(hids::events::mouse::button::drag::cancel::right))
                     {
-                        gohome();
+                        send<upon::scroll::cancel>();
                     }
                     base::deface();
                     gear.release();
@@ -1808,14 +1789,21 @@ namespace netxs::ui
                 }
             }
         }
+        void pager(iota dir)
+        {
+            calc.setdir(dir);
+            send<upon::scroll::bypage>();
+        }
         auto pager_repeat()
         {
-            if (on_pager && calc.follow())
+            if (on_pager)
             {
-                send(events<AXIS>());
+                auto dir = calc.follow();
+                pager(dir);
             }
             return on_pager;
         }
+
     public:
         grip(sptr boss, iota thickness = 1, iota multiplier = 2)
             : boss{ boss       },
@@ -1826,7 +1814,7 @@ namespace netxs::ui
         {
             config(thin);
 
-            boss->SUBMIT_T(tier::release, events<AXIS>(), memo, scinfo)
+            boss->SUBMIT_T(tier::release, upon::scroll::bycoor::_<AXIS>, memo, scinfo)
             {
                 calc.update(scinfo);
                 base::deface();
@@ -1843,8 +1831,7 @@ namespace netxs::ui
                 if (gear.whldt)
                 {
                     auto dir = gear.whldt < 0 ? 1 : -1;
-                    calc.pager(dir);
-                    send(events<AXIS>());
+                    pager(dir);
                     gear.dismiss();
                 }
             };
@@ -1902,7 +1889,7 @@ namespace netxs::ui
             {
                 //if (!gear.captured(bell::id)) //todo why?
                 {
-                    gohome();
+                    send<upon::scroll::cancel>();
                     gear.dismiss();
                 }
             };
@@ -1928,7 +1915,7 @@ namespace netxs::ui
                         if (auto delta = xy(gear.mouse::delta.get()))
                         {
                             calc.stepby(delta);
-                            send(events<AXIS>());
+                            send<upon::scroll::bycoor>();
                             gear.dismiss();
                         }
                     }
@@ -1951,7 +1938,7 @@ namespace netxs::ui
                     {
                         if (this->form::template protos<tier::release>(bttn::drag::stop::right))
                         {
-                            gohome();
+                            send<upon::scroll::cancel>();
                         }
                         base::deface();
                         gear.release();
@@ -2029,13 +2016,13 @@ namespace netxs::ui
     class grip_fx // rename to roll?
         : public form<grip_fx<AXIS>>
     {
-        //pro::mouse mouse{*this }; // grip: Mouse events controller.
         pro::timer timer{*this }; // grip: Minimize by timeout.
         pro::limit limit{*this }; // grip: Size limits.
 
         using wptr = netxs::wptr<base>;
         using sptr = netxs::sptr<base>;
         using form = ui::form<grip_fx<AXIS>>;
+        using upon = e2::form::upon;
 
         enum activity
         {
@@ -2044,10 +2031,6 @@ namespace netxs::ui
             pager_first = 10,
             pager_next  = 11,
         };
-
-        template<auto N> static constexpr
-        //auto events = e2::form::upon::scroll::_<N>; //todo clang 11.0.1 doesn't support this.
-        auto events() { return e2::form::upon::scroll::_<N>; }
 
         static inline auto  xy(twod const& p) { return AXIS == axis::X ? p.x : p.y; }
         static inline auto  yx(twod const& p) { return AXIS == axis::Y ? p.x : p.y; }
@@ -2060,6 +2043,7 @@ namespace netxs::ui
             iota& master_len = xy(master_inf.region);      // math: Master len.
             iota& master_pos = xy(master_inf.window.coor); // math: Master viewport pos.
             iota& master_box = xy(master_inf.window.size); // math: Master viewport len.
+            iota& master_dir =    master_inf.vector ;      // math: Master scroll direction.
             iota  scroll_len = 0; // math: Scrollbar len.
             iota  scroll_pos = 0; // math: Scrollbar grip pos.
             iota  scroll_box = 0; // math: Scrollbar grip len.
@@ -2129,22 +2113,16 @@ namespace netxs::ui
                 if (coor >= scroll_pos)              return 0; // Inside the grip.
                                                      return-1; // Above the grip.
             }
-            void pager(iota dir)
-            {
-                master_pos += master_box * dir;
-                m_to_s();
-            }
             auto follow()
             {
                 auto dir = scroll_len > 2 ? inside(cursor_pos)
                                           : cursor_pos > 0 ? 1 // Don't stop to follow over
                                                            :-1;//    box on small scrollbar.
-                if (dir)
-                {
-                    pager(dir);
-                    return true;
-                }
-                return faux;
+                return dir;
+            }
+            void setdir(iota dir)
+            {
+                master_dir = -dir;
             }
         };
 
@@ -2158,17 +2136,13 @@ namespace netxs::ui
 
         bool on_pager = faux;
 
-        template<class EVENT = decltype(events<AXIS>())>
-        void send(EVENT)
+        template<class EVENT>
+        void send()
         {
             if (auto master = this->boss.lock())
             {
-                master->SIGNAL(tier::preview, EVENT{}, calc.master_inf);
+                master->SIGNAL(tier::preview, EVENT::template _<AXIS>, calc.master_inf);
             }
-        }
-        void gohome()
-        {
-            send(events<AXIS + 2>());
         }
         void config(iota width)
         {
@@ -2183,10 +2157,9 @@ namespace netxs::ui
             {
                 if (gear.captured(bell::id))
                 {
-                    //if (this->form<grip<AXIS>>::template protos<tier::release>(hids::events::mouse::button::drag::cancel::right))
                     if (this->form::template protos<tier::release>(hids::events::mouse::button::drag::cancel::right))
                     {
-                        gohome();
+                        send<upon::scroll::cancel>();
                     }
                     base::deface();
                     gear.release();
@@ -2194,11 +2167,17 @@ namespace netxs::ui
                 }
             }
         }
+        void pager(iota dir)
+        {
+            calc.setdir(dir);
+            send<upon::scroll::bypage>();
+        }
         auto pager_repeat()
         {
-            if (on_pager && calc.follow())
+            if (on_pager)
             {
-                send(events<AXIS>());
+                auto dir = calc.follow();
+                pager(dir);
             }
             return on_pager;
         }
@@ -2212,7 +2191,7 @@ namespace netxs::ui
         {
             config(thin);
 
-            boss->SUBMIT_T(tier::release, events<AXIS>(), memo, scinfo)
+            boss->SUBMIT_T(tier::release, upon::scroll::bycoor::_<AXIS>, memo, scinfo)
             {
                 calc.update(scinfo);
                 base::deface();
@@ -2229,8 +2208,7 @@ namespace netxs::ui
                 if (gear.whldt)
                 {
                     auto dir = gear.whldt < 0 ? 1 : -1;
-                    calc.pager(dir);
-                    send(events<AXIS>());
+                    pager(dir);
                     gear.dismiss();
                 }
             };
@@ -2288,7 +2266,7 @@ namespace netxs::ui
             {
                 //if (!gear.captured(bell::id)) //todo why?
                 {
-                    gohome();
+                    send<upon::scroll::cancel>();
                     gear.dismiss();
                 }
             };
@@ -2314,7 +2292,7 @@ namespace netxs::ui
                         if (auto delta = xy(gear.mouse::delta.get()))
                         {
                             calc.stepby(delta);
-                            send(events<AXIS>());
+                            send<upon::scroll::bycoor>();
                             gear.dismiss();
                         }
                     }
@@ -2337,7 +2315,7 @@ namespace netxs::ui
                     {
                         if (this->form::template protos<tier::release>(bttn::drag::stop::right))
                         {
-                            gohome();
+                            send<upon::scroll::cancel>();
                         }
                         base::deface();
                         gear.release();

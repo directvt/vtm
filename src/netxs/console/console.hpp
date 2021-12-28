@@ -240,12 +240,39 @@ namespace netxs::events::userland
                     };
                     SUBSET_XS( scroll )
                     {
-                        EVENT_XS( x     , rack ), // event after scroll along X.
-                        EVENT_XS( y     , rack ), // event after scroll along Y.
-                        EVENT_XS( resetx, rack ), // event reset scroll along X.
-                        EVENT_XS( resety, rack ), // event reset scroll along Y.
+                        GROUP_XS( bycoor, rack ), // scroll absolute.
+                        GROUP_XS( bystep, rack ), // scroll by delta.
+                        GROUP_XS( bypage, rack ), // scroll by page.
+                        GROUP_XS( cancel, rack ), // reset scrolling.
 
-                        INDEX_XS( x, y, resetx, resety ),
+                        SUBSET_XS( bycoor )
+                        {
+                            EVENT_XS( x, rack ), // scroll absolute along X.
+                            EVENT_XS( y, rack ), // scroll absolute along Y.
+
+                            INDEX_XS( x, y ),
+                        };
+                        SUBSET_XS( bystep )
+                        {
+                            EVENT_XS( x, rack ), // scroll by delta along X.
+                            EVENT_XS( y, rack ), // scroll by delta along Y.
+
+                            INDEX_XS( x, y ),
+                        };
+                        SUBSET_XS( bypage )
+                        {
+                            EVENT_XS( x, rack ), // scroll by page along X.
+                            EVENT_XS( y, rack ), // scroll by page along Y.
+
+                            INDEX_XS( x, y ),
+                        };
+                        SUBSET_XS( cancel )
+                        {
+                            EVENT_XS( x, rack ), // cancel scrolling along X.
+                            EVENT_XS( y, rack ), // cancel scrolling along Y.
+
+                            INDEX_XS( x, y ),
+                        };
                     };
                 };
                 SUBSET_XS( proceed )

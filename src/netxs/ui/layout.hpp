@@ -1720,9 +1720,10 @@ namespace netxs::ui::atoms
     // layout: Scroll info.
     struct rack
     {
-        twod region; // rack: Available scroll area.
-        rect window; // rack: Scrolling viewport.
-        side beyond; // rack: Scroll margins outside of the scroll region.
+        twod region{}; // rack: Available scroll area.
+        rect window{}; // rack: Scrolling viewport.
+        side beyond{}; // rack: Scroll margins outside of the scroll region.
+        iota vector{}; // rack: Scroll direction.
 
         auto str() const
         {
