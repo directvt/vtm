@@ -360,8 +360,7 @@ namespace netxs::app::calc
                                 auto rows_body = body_area->attach(slot::_2, ui::fork::ctor());
                                     auto layers = rows_body->attach(slot::_2, ui::cake::ctor());
                                     auto scroll = layers->attach(ui::rail::ctor())
-                                                        ->plugin<pro::limit>(twod{ -1,1 }, twod{ -1,-1 })
-                                                        ->config(true, true);
+                                                        ->plugin<pro::limit>(twod{ -1,1 }, twod{ -1,-1 });
                                         auto grid = scroll->attach(ui::post::ctor())
                                                           ->colors(0xFF000000, 0xFFffffff)
                                                           ->plugin<pro::cell_highlight>()

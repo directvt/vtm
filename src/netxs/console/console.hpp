@@ -3779,6 +3779,22 @@ namespace netxs::console
                 };
             }
         };
+
+        // pro: Drag&roll.
+        class glide
+            : public skill
+        {
+            using skill::boss,
+                  skill::memo;
+
+        public:
+            glide(base&&) = delete;
+            glide(base& boss)
+                : skill{ boss }
+            {
+
+            }
+        };
     }
 
     // console: World internals.

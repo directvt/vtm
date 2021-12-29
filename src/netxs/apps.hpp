@@ -556,10 +556,9 @@ namespace netxs::app::shared
                 auto test_stat_area = object->attach(slot::_2, ui::fork::ctor(axis::Y));
                     auto layers = test_stat_area->attach(slot::_1, ui::cake::ctor());
                         auto scroll = layers->attach(ui::rail::ctor())
-                                            ->config(true, true)
                                             ->colors(whitelt, reddk);
                                     scroll->attach(ui::post::ctor())
-                                            ->upload(truecolor);
+                                          ->upload(truecolor);
                         auto scroll_bars = layers->attach(ui::fork::ctor());
                             auto vt = scroll_bars->attach(slot::_2, ui::grip<axis::Y>::ctor(scroll));
                             auto hz = test_stat_area->attach(slot::_2, ui::grip<axis::X>::ctor(scroll));

@@ -432,8 +432,7 @@ namespace netxs::app::test
                 auto test_stat_area = object0->attach(slot::_2, ui::fork::ctor(axis::Y));
                     auto layers = test_stat_area->attach(slot::_1, ui::cake::ctor());
                         auto scroll = layers->attach(ui::rail::ctor())
-                                            ->colors(cyanlt, bluedk)
-                                            ->config(true, true);
+                                            ->colors(cyanlt, bluedk);
                             auto object = scroll->attach(ui::post::ctor())
                                                 ->upload(topic)
                                                 ->invoke([&](auto& self)

@@ -1268,13 +1268,14 @@ namespace netxs::ui
         using upon = e2::form::upon;
 
         bool strict[2] = { true, true }; // rail: Don't allow overscroll.
-        bool manual[2] = { true, true }; // rail: Manaul scrolling (no auto align).
+        bool manual[2] = { true, true }; // rail: Manual scrolling (no auto align).
         bool locked{}; // rail: Client is under resizing.
         subs tokens{}; // rail: Subscriptions on client moveto and resize.
         subs fasten{}; // rail: Subscriptions on masters to follow they state.
         rack scinfo{}; // rail: Scroll info.
         axes permit{}; // rail: Allowed axes to scroll.
         axes siezed{}; // rail: Allowed axes to capture.
+        axes extraz{}; // rail: Allow overscroll with auto correct.
         sptr client{}; // rail: Client instance.
 
         iota speed{ SPD  }; // rail: Text auto-scroll initial speed component ΔR.
@@ -1283,13 +1284,6 @@ namespace netxs::ui
         bool steer{ faux }; // rail: Text scroll vertical direction.
 
     public:
-        bool overscroll[2] = { true, true }; // rail: Allow overscroll with auto correct.
-        auto config(bool allow_x_overscroll = true, bool allow_y_overscroll = true)
-        {
-            overscroll[axis::X] = allow_x_overscroll;
-            overscroll[axis::Y] = allow_y_overscroll;
-            return This();
-        }
         template<axis AXIS>
         auto moveby(iota coor)
         {
@@ -1319,9 +1313,10 @@ namespace netxs::ui
                 item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, empty);
             }
         }
-        rail(axes allow_to_scroll = axes::ALL, axes allow_to_capture = axes::ALL)
+        rail(axes allow_to_scroll = axes::ALL, axes allow_to_capture = axes::ALL, axes allow_overscroll = axes::ALL)
             : permit{ allow_to_scroll  },
-              siezed{ allow_to_capture }
+              siezed{ allow_to_capture },
+              extraz{ allow_overscroll }
         {
             // Receive scroll parameters from external source.
             SUBMIT(tier::preview, e2::form::upon::scroll::any, info)
@@ -1383,8 +1378,8 @@ namespace netxs::ui
                     {
                         manual[X] = true;
                         manual[Y] = true;
-                        strict[X] = !overscroll[X];
-                        strict[Y] = !overscroll[Y];
+                        strict[X] = !(extraz & axes::X_ONLY);
+                        strict[Y] = !(extraz & axes::Y_ONLY);
                         gear.dismiss();
                     }
                 }
