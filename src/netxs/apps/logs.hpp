@@ -159,7 +159,7 @@ namespace netxs::app::logs
         }
 
     public:
-        sptr<log_parser> worker = netxs::shared_singleton<log_parser>();
+        netxs::sptr<log_parser> worker = netxs::shared_singleton<log_parser>();
 
         post_logs()
         {

@@ -55,6 +55,8 @@ namespace netxs::ui
         };
 
     public:
+        using sptr = netxs::sptr<base>;
+
         pro::mouse mouse{ *this }; // form: Mouse controller.
         pro::keybd keybd{ *this }; // form: Keybd controller.
 
@@ -143,7 +145,7 @@ namespace netxs::ui
             return backup;
         }
         // form: UI-control will be detached when the master is detached.
-        auto depend(sptr<base> master_ptr)
+        auto depend(sptr master_ptr)
         {
             auto& master = *master_ptr;
             //todo test leaks
@@ -168,8 +170,8 @@ namespace netxs::ui
             return backup;
         }
         // form: Create and attach a new item using a template and dynamic datasource.
-        template<class PROPERTY, class C, class P>
-        auto attach_element(PROPERTY, sptr<C> data_src_sptr, P item_template)
+        template<class PROPERTY, class SPTR, class P>
+        auto attach_element(PROPERTY, SPTR data_src_sptr, P item_template)
         {
             using prop_t = typename PROPERTY::type;
             auto backup = This();
@@ -217,9 +219,9 @@ namespace netxs::ui
         static constexpr iota MAX_RATIO = 0xFFFF;
         static constexpr iota HALF_RATIO = 0xFFFF >> 1;
 
-        sptr<base> client_1; // fork: 1st object.
-        sptr<base> client_2; // fork: 2nd object.
-        sptr<base> splitter; // fork: Resizing grip.
+        sptr client_1; // fork: 1st object.
+        sptr client_2; // fork: 2nd object.
+        sptr splitter; // fork: Resizing grip.
 
         twod size1;
         twod size2;
@@ -469,22 +471,22 @@ namespace netxs::ui
             }
         }
         template<class T>
-        auto attach(slot SLOT, sptr<T> item)
+        auto attach(slot SLOT, T item_ptr)
         {
             if (SLOT == slot::_1)
             {
                 if (client_1) remove(client_1);
-                client_1 = item;
+                client_1 = item_ptr;
             }
             else if (SLOT == slot::_2)
             {
                 if (client_2) remove(client_2);
-                client_2 = item;
+                client_2 = item_ptr;
             }
             else
             {
                 if (splitter) remove(splitter);
-                splitter = item;
+                splitter = item_ptr;
                 splitter->SUBMIT(tier::preview, e2::form::upon::changed, delta)
                 {
                     split += get_x(delta);
@@ -493,11 +495,11 @@ namespace netxs::ui
                 };
             }
 
-            item->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
-            return item;
+            item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
+            return item_ptr;
         }
         // fork: Remove nested object by it's ptr.
-        void remove(sptr<base> item_ptr)
+        void remove(sptr item_ptr)
         {
             if (client_1 == item_ptr ? ((void)client_1.reset(), true) :
                 client_2 == item_ptr ? ((void)client_2.reset(), true) :
@@ -513,7 +515,8 @@ namespace netxs::ui
     class list
         : public form<list>
     {
-        using book = std::list<std::pair<sptr<base>, twod>>;
+        using book = std::list<std::pair<sptr, twod>>;
+
         book subset;
         bool updown; // list: List orientation, true: vertical(default), faux: horizontal.
         sort lineup; // list: Attachment order.
@@ -614,52 +617,51 @@ namespace netxs::ui
             };
         }
         // list: Remove the last nested object. Return the object refrence.
-        auto pop_back() -> sptr<base>
+        auto pop_back()
         {
             if (subset.size())
             {
-                auto item = std::prev(subset.end());
-                auto item_ptr = item->first;
+                auto iter = std::prev(subset.end());
+                auto item_ptr = iter->first;
                 auto backup = This();
-                subset.erase(item);
+                subset.erase(iter);
                 item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, backup);
                 return item_ptr;
             }
-            return {};
+            return sptr{};
         }
         // list: Attach specified item.
         template<class T>
-        auto attach(sptr<T> item)
+        auto attach(T item_ptr)
         {
-            if (lineup == sort::forward) subset.push_back ({ item, dot_00 });
-            else                         subset.push_front({ item, dot_00 });
-            item->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
-            return item;
+            if (lineup == sort::forward) subset.push_back ({ item_ptr, dot_00 });
+            else                         subset.push_front({ item_ptr, dot_00 });
+            item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
+            return item_ptr;
         }
         // list: Remove nested object.
-        void remove(sptr<base> item_ptr)
+        void remove(sptr item_ptr)
         {
             auto head = subset.begin();
             auto tail = subset.end();
-            auto item = std::find_if(head, tail, [&](auto& c){ return c.first == item_ptr; });
-            if (item != tail)
+            auto iter = std::find_if(head, tail, [&](auto& c){ return c.first == item_ptr; });
+            if (iter != tail)
             {
                 auto backup = This();
-                subset.erase(item);
+                subset.erase(iter);
                 item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, backup);
             }
         }
         // list: Update nested object.
-        template<class T, class S>
-        void update(T old_item_ptr, S new_item_ptr)
+        void update(sptr old_item_ptr, sptr new_item_ptr)
         {
             auto head = subset.begin();
             auto tail = subset.end();
-            auto item = std::find_if(head, tail, [&](auto& c){ return c.first == old_item_ptr; });
-            if (item != tail)
+            auto iter = std::find_if(head, tail, [&](auto& c){ return c.first == old_item_ptr; });
+            if (iter != tail)
             {
                 auto backup = This();
-                auto pos = subset.erase(item);
+                auto pos = subset.erase(iter);
                 old_item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, backup);
                 subset.insert(pos, std::pair{ new_item_ptr, dot_00 });
                 new_item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::attached, backup);
@@ -671,7 +673,7 @@ namespace netxs::ui
     class cake
         : public form<cake>
     {
-        std::list<sptr<base>> subset;
+        std::list<sptr> subset;
 
     public:
         ~cake()
@@ -713,37 +715,37 @@ namespace netxs::ui
             };
         }
         // cake: Remove the last nested object. Return the object refrence.
-        auto pop_back() -> sptr<base>
+        auto pop_back()
         {
             if (subset.size())
             {
-                auto item = std::prev(subset.end());
-                auto item_ptr = *item;
+                auto iter = std::prev(subset.end());
+                auto item_ptr = *iter;
                 auto backup = This();
-                subset.erase(item);
+                subset.erase(iter);
                 item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, backup);
                 return item_ptr;
             }
-            return {};
+            return sptr{};
         }
         // cake: Create a new item of the specified subtype and attach it.
         template<class T>
-        auto attach(sptr<T> item)
+        auto attach(T item_ptr)
         {
-            subset.push_back(item);
-            item->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
-            return item;
+            subset.push_back(item_ptr);
+            item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
+            return item_ptr;
         }
         // cake: Remove nested object.
-        void remove(sptr<base> item_ptr)
+        void remove(sptr item_ptr)
         {
             auto head = subset.begin();
             auto tail = subset.end();
-            auto item = std::find_if(head, tail, [&](auto& c){ return c == item_ptr; });
-            if (item != tail)
+            auto iter = std::find_if(head, tail, [&](auto& c){ return c == item_ptr; });
+            if (iter != tail)
             {
                 auto backup = This();
-                subset.erase(item);
+                subset.erase(iter);
                 item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, backup);
             }
         }
@@ -755,10 +757,10 @@ namespace netxs::ui
     {
         struct type
         {
-            sptr<base> ptr;
-            snap       hz;
-            snap       vt;
-            bool       on;
+            sptr ptr;
+            snap  hz;
+            snap  vt;
+            bool  on;
         };
         std::list<type> subset;
 
@@ -822,59 +824,59 @@ namespace netxs::ui
             };
         }
         // park: Remove the last nested object. Return the object refrence.
-        auto pop_back() -> sptr<base>
+        auto pop_back()
         {
             if (subset.size())
             {
-                auto item = std::prev(subset.end());
-                auto item_ptr = item->ptr;
+                auto iter = std::prev(subset.end());
+                auto item_ptr = iter->ptr;
                 auto backup = This();
-                subset.erase(item);
+                subset.erase(iter);
                 item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, backup);
                 return item_ptr;
             }
-            return {};
+            return sptr{};
         }
         // park: Configure specified object.
-        void config(sptr<base> item_ptr, snap new_hz, snap new_vt)
+        void config(sptr item_ptr, snap new_hz, snap new_vt)
         {
             if (!item_ptr) return;
             auto head = subset.begin();
             auto tail = subset.end();
-            auto item = std::find_if(head, tail, [&](auto& c){ return c.ptr == item_ptr; });
-            if (item != tail)
+            auto iter = std::find_if(head, tail, [&](auto& c){ return c.ptr == item_ptr; });
+            if (iter != tail)
             {
-                item->hz = new_hz;
-                item->vt = new_vt;
+                iter->hz = new_hz;
+                iter->vt = new_vt;
             }
         }
         // park: Make specified object visible or not.
-        void visible(sptr<base> item_ptr, bool is_visible)
+        void visible(sptr item_ptr, bool is_visible)
         {
             if (!item_ptr) return;
             auto head = subset.begin();
             auto tail = subset.end();
-            auto item = std::find_if(head, tail, [&](auto& c){ return c.ptr == item_ptr; });
-            if (item != tail) item->on = is_visible;
+            auto iter = std::find_if(head, tail, [&](auto& c){ return c.ptr == item_ptr; });
+            if (iter != tail) iter->on = is_visible;
         }
         // park: Create a new item of the specified subtype and attach it.
         template<class T>
-        auto attach(snap hz, snap vt, sptr<T> item)
+        auto attach(snap hz, snap vt, T item_ptr)
         {
-            subset.push_back({ item, hz, vt, true });
-            item->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
-            return item;
+            subset.push_back({ item_ptr, hz, vt, true });
+            item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
+            return item_ptr;
         }
         // park: Remove nested object.
-        void remove(sptr<base> item_ptr)
+        void remove(sptr item_ptr)
         {
             auto head = subset.begin();
             auto tail = subset.end();
-            auto item = std::find_if(head, tail, [&](auto& c){ return c.ptr == item_ptr; });
-            if (item != tail)
+            auto iter = std::find_if(head, tail, [&](auto& c){ return c.ptr == item_ptr; });
+            if (iter != tail)
             {
                 auto backup = This();
-                subset.erase(item);
+                subset.erase(iter);
                 item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, backup);
             }
         }
@@ -884,7 +886,7 @@ namespace netxs::ui
     class veer
         : public form<veer>
     {
-        std::list<sptr<base>> subset;
+        std::list<sptr> subset;
 
     public:
         ~veer()
@@ -923,10 +925,10 @@ namespace netxs::ui
             };
         }
         // veer: Return the last object refrence or empty sptr.
-        auto back() -> sptr<base>
+        auto back()
         {
             return subset.size() ? subset.back()
-                                 : sptr<base>{};
+                                 : sptr{};
         }
         // veer: Return nested objects count.
         auto count()
@@ -939,37 +941,37 @@ namespace netxs::ui
             return subset.empty();
         }
         // veer: Remove the last object. Return the object refrence.
-        auto pop_back() -> sptr<base>
+        auto pop_back()
         {
             if (subset.size())
             {
-                auto item = std::prev(subset.end());
-                auto item_ptr = *item;
+                auto iter = std::prev(subset.end());
+                auto item_ptr = *iter;
                 auto backup = This();
-                subset.erase(item);
+                subset.erase(iter);
                 item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, backup);
                 return item_ptr;
             }
-            return {};
+            return sptr{};
         }
         // veer: Create a new item of the specified subtype and attach it.
         template<class T>
-        auto attach(sptr<T> item)
+        auto attach(T item_ptr)
         {
-            subset.push_back(item);
-            item->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
-            return item;
+            subset.push_back(item_ptr);
+            item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
+            return item_ptr;
         }
         // veer: Remove nested object.
-        void remove(sptr<base> item_ptr)
+        void remove(sptr item_ptr)
         {
             auto head = subset.begin();
             auto tail = subset.end();
-            auto item = std::find_if(head, tail, [&](auto& c){ return c == item_ptr; });
-            if (item != tail)
+            auto iter = std::find_if(head, tail, [&](auto& c){ return c == item_ptr; });
+            if (iter != tail)
             {
                 auto backup = This();
-                subset.erase(item);
+                subset.erase(iter);
                 item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, backup);
             }
         }
@@ -1273,13 +1275,12 @@ namespace netxs::ui
         rack scinfo{}; // rail: Scroll info.
         axes permit{}; // rail: Allowed axes to scroll.
         axes siezed{}; // rail: Allowed axes to capture.
+        sptr client{}; // rail: Client instance.
 
         iota speed{ SPD  }; // rail: Text auto-scroll initial speed component ΔR.
         iota pulse{ PLS  }; // rail: Text auto-scroll initial speed component ΔT.
         iota cycle{ CCL  }; // rail: Text auto-scroll duration in ms.
         bool steer{ faux }; // rail: Text scroll vertical direction.
-
-        sptr<base> client; // rail: Client instance.
 
     public:
         bool overscroll[2] = { true, true }; // rail: Allow overscroll with auto correct.
@@ -1297,7 +1298,7 @@ namespace netxs::ui
             return This();
         }
         template<axis AXIS>
-        auto follow(sptr<base> master = {})
+        auto follow(sptr master = {})
         {
             if (master) master->SUBMIT_T(tier::release, upon::scroll::bycoor::_<AXIS>, fasten, master_scinfo)
             {
@@ -1313,9 +1314,9 @@ namespace netxs::ui
             if (client)
             {
                 auto empty = decltype(e2::form::upon::vtree::detached)::type{};
-                auto item = client;
+                auto item_ptr = client;
                 client.reset();
-                item->SIGNAL(tier::release, e2::form::upon::vtree::detached, empty);
+                item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, empty);
             }
         }
         rail(axes allow_to_scroll = axes::ALL, axes allow_to_capture = axes::ALL)
@@ -1327,7 +1328,6 @@ namespace netxs::ui
             {
                 if (client)
                 {
-                    auto& item = *client;
                     switch (this->bell::protos<tier::preview>())
                     {
                         case upon::scroll::bycoor::x.id: scroll<X>(scinfo.window.coor.x - info.window.coor.x); break;
@@ -1587,12 +1587,12 @@ namespace netxs::ui
         }
         // rail: Attach specified item.
         template<class T>
-        auto attach(sptr<T> item)
+        auto attach(T item_ptr)
         {
             if (client) remove(client);
-            client = item;
+            client = item_ptr;
             tokens.clear();
-            item->SUBMIT_T(tier::release, e2::size::set, tokens.extra(), size)
+            item_ptr->SUBMIT_T(tier::release, e2::size::set, tokens.extra(), size)
             {
                 if (!locked)
                 {
@@ -1600,7 +1600,7 @@ namespace netxs::ui
                     scroll<Y>();
                 }
             };
-            item->SUBMIT_T(tier::release, e2::form::upon::vtree::detached, tokens.extra(), p)
+            item_ptr->SUBMIT_T(tier::release, e2::form::upon::vtree::detached, tokens.extra(), p)
             {
                 scinfo.region = {};
                 scinfo.window.coor = {};
@@ -1609,11 +1609,11 @@ namespace netxs::ui
                 tokens.clear();
                 fasten.clear();
             };
-            item->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
-            return item;
+            item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
+            return item_ptr;
         }
-        //template<class T>
-        void remove(sptr<base> item_ptr)
+        // rail: Detach specified item.
+        void remove(sptr item_ptr)
         {
             if (client == item_ptr)
             {
@@ -1623,8 +1623,7 @@ namespace netxs::ui
             }
         }
         // rail: Update nested object.
-        template<class T, class S>
-        void update(T old_item_ptr, S new_item_ptr)
+        void update(sptr old_item_ptr, sptr new_item_ptr)
         {
             auto backup = This();
             client = new_item_ptr;
@@ -1641,8 +1640,8 @@ namespace netxs::ui
         pro::timer timer{*this }; // grip: Minimize by timeout.
         pro::limit limit{*this }; // grip: Size limits.
 
+        using sptr = netxs::sptr<base>; //todo gcc (ubuntu 20.04) doesn't get it (see form::sptr)
         using wptr = netxs::wptr<base>;
-        using sptr = netxs::sptr<base>;
         using form = ui::form<grip<AXIS>>;
         using upon = e2::form::upon;
 
@@ -2013,14 +2012,14 @@ namespace netxs::ui
     //class grip_fx
     //    : public flow, public form<grip_fx<AXIS, drawfx>>
     template<axis AXIS>
-    class grip_fx // rename to roll?
+    class grip_fx
         : public form<grip_fx<AXIS>>
     {
         pro::timer timer{*this }; // grip: Minimize by timeout.
         pro::limit limit{*this }; // grip: Size limits.
 
+        using sptr = netxs::sptr<base>; //todo gcc (ubuntu 20.04) doesn't get it (see form::sptr)
         using wptr = netxs::wptr<base>;
-        using sptr = netxs::sptr<base>;
         using form = ui::form<grip_fx<AXIS>>;
         using upon = e2::form::upon;
 
@@ -2181,6 +2180,7 @@ namespace netxs::ui
             }
             return on_pager;
         }
+
     public:
         grip_fx(sptr boss, iota thickness = 1, iota multiplier = 2)
             : boss{ boss       },
@@ -2384,18 +2384,18 @@ namespace netxs::ui
     {
         dent padding; // pads: Space around an element's content, outside of any defined borders. It does not affect the size, only affects the fill. Used in base::renderproc only.
         dent margins; // pads: Space around an element's content, inside of any defined borders. Containers take this parameter into account when calculating sizes. Used in all conainers.
+        sptr client;
 
     public:
-        sptr<base> client;
 
         ~pads()
         {
             if (client)
             {
                 auto empty = decltype(e2::form::upon::vtree::detached)::type{};
-                auto item = client;
+                auto item_ptr = client;
                 client.reset();
-                item->SIGNAL(tier::release, e2::form::upon::vtree::detached, empty);
+                item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, empty);
             }
         }
         pads(dent const& padding_value = {}, dent const& margins_value = {})
@@ -2437,15 +2437,15 @@ namespace netxs::ui
         }
         // pads: Attach specified item.
         template<class T>
-        auto attach(sptr<T> item)
+        auto attach(T item_ptr)
         {
             if (client) remove(client);
-            client = item;
-            item->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
-            return item;
+            client = item_ptr;
+            item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
+            return item_ptr;
         }
         // pads: Remove item.
-        void remove(sptr<base> item_ptr)
+        void remove(sptr item_ptr)
         {
             if (client == item_ptr)
             {
@@ -2455,8 +2455,7 @@ namespace netxs::ui
             }
         }
         // pads: Update nested object.
-        template<class T, class S>
-        void update(T old_item_ptr, S new_item_ptr)
+        void update(sptr old_item_ptr, sptr new_item_ptr)
         {
             auto backup = This();
             client = new_item_ptr;
