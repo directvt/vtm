@@ -2175,8 +2175,8 @@ namespace netxs::ui
             twod get_coord(twod const& origin) override
             {
                 auto coor = coord;
-                if (coord.y >= y_top
-                 && coord.y <= y_end)
+                if (coor.y >= y_top
+                 && coor.y <= y_end)
                 {
                     coor.y += batch.basis;
 
@@ -3419,6 +3419,7 @@ namespace netxs::ui
             }
         }
         bool follow_cursor = faux;
+        bool out_of_sync = faux;
         // term: Reset viewport position.
         void scroll(bool force_basis = true)
         {
@@ -3443,6 +3444,7 @@ namespace netxs::ui
                     }
 
                     origin.y = -basis;
+                    out_of_sync = true;
                     SIGNAL(tier::release, e2::coor::set, origin);
                     SIGNAL(tier::release, e2::size::set, scroll_size); // Update scrollbars.
                     return;
@@ -3450,6 +3452,7 @@ namespace netxs::ui
 
                 //todo check the case: arena == batch.peak - 1
                 origin.y = -basis;
+                out_of_sync = true;
                 SIGNAL(tier::release, e2::coor::set, origin);
                 SIGNAL(tier::release, e2::size::set, scroll_size); // Update scrollbars.
                 return;
@@ -3463,6 +3466,7 @@ namespace netxs::ui
                     //todo optimize
                     //todo separate the viewport position from the slide
                     origin.y = slide;
+                    out_of_sync = true;
                     SIGNAL(tier::release, e2::coor::set, origin);
                     SIGNAL(tier::release, e2::size::set, scroll_size); // Update scrollbars.
                     return;
@@ -3471,6 +3475,7 @@ namespace netxs::ui
 
             if (scroll_size != base::size() || adjust_pads)
             {
+                out_of_sync = true;
                 SIGNAL(tier::release, e2::size::set, scroll_size); // Update scrollbars.
             }
         }
@@ -3607,6 +3612,22 @@ namespace netxs::ui
                 origin = new_coor;
                 origin.y = -target->set_slide(-origin.y);
                 //preview: new_coor = origin;
+
+                //auto& console = *target;
+                //rack scinfo{};
+                //auto& thing = *this;
+                //auto  block = thing.base::area();
+                //scinfo.beyond = thing.oversz;  // Oversize value.
+                //scinfo.region = block.size;
+                //auto fullsize = console.height();
+                //auto count = console.get_size();
+                ////auto avg_height = (double)fullsize / count;
+                //auto curline = netxs::divround(fullsize * console.anchor(), count);
+                //block.coor.y = -curline;//; // Viewport.
+                //scinfo.window.coor = -block.coor; // Viewport.
+                //scinfo.window.size = console.panel;      //
+                //this->SIGNAL(tier::release, e2::form::upon::scroll::bycoor::x, scinfo);
+                //this->SIGNAL(tier::release, e2::form::upon::scroll::bycoor::y, scinfo);
             };
             SUBMIT(tier::preview, e2::size::set, new_size)
             {
@@ -3690,6 +3711,17 @@ namespace netxs::ui
             {
                 target->brush.reset(brush);
             };
+            SUBMIT(tier::release, e2::render::prerender, parent_canvas)
+            {
+                //if (out_of_sync)
+                //{
+                //    out_of_sync = faux;
+                //    auto& console = *target;
+                //    auto scroll_size = console.panel + console.get_basis();
+                //    this->SIGNAL(tier::release, e2::coor::set, origin);
+                //    this->SIGNAL(tier::release, e2::size::set, scroll_size); // Update scrollbars.
+                //}
+            };
             SUBMIT(tier::release, e2::render::any, parent_canvas)
             {
                 auto& console = *target;
@@ -3699,7 +3731,7 @@ namespace netxs::ui
                 }
 
                 auto view = parent_canvas.view();
-                auto full = parent_canvas.full();
+                auto full = parent_canvas.full(); //todo don't use face::full, use smth like console::size
                 auto base = full.coor - view.coor;
                 cursor.coor(console.get_coord(base));
 
@@ -3707,7 +3739,7 @@ namespace netxs::ui
                 if (oversz.b > 0) // Shade the viewport bottom oversize (futures).
                 {
                     auto bottom_oversize = parent_canvas.full();
-                    bottom_oversize.coor.y += console.get_basis() + console.panel.y - console.scend;//scroll_size.y;
+                    bottom_oversize.coor.y += console.get_basis() + console.panel.y - console.scend;
                     bottom_oversize.size.y  = oversz.b;
                     bottom_oversize = bottom_oversize.clip(parent_canvas.view());
                     parent_canvas.fill(bottom_oversize, cell::shaders::xlight);

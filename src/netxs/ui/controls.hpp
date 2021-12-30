@@ -1287,8 +1287,7 @@ namespace netxs::ui
         template<axis AXIS>
         auto moveby(iota coor)
         {
-            AXIS == axis::X ? scroll<X>(coor)
-                            : scroll<Y>(coor);
+            scroll<AXIS>(coor);
             return This();
         }
         template<axis AXIS>
@@ -1296,8 +1295,8 @@ namespace netxs::ui
         {
             if (master) master->SUBMIT_T(tier::release, upon::scroll::bycoor::_<AXIS>, fasten, master_scinfo)
             {
-                AXIS == axis::X ? scroll<X>(scinfo.window.coor.x - master_scinfo.window.coor.x)
-                                : scroll<Y>(scinfo.window.coor.y - master_scinfo.window.coor.y);
+                scroll<AXIS>(AXIS == X ? scinfo.window.coor.x - master_scinfo.window.coor.x
+                                       : scinfo.window.coor.y - master_scinfo.window.coor.y);
             };
             else fasten.clear();
 
@@ -1318,7 +1317,7 @@ namespace netxs::ui
               siezed{ allow_to_capture },
               extraz{ allow_overscroll }
         {
-            // Receive scroll parameters from external source.
+            // Receive scroll parameters from external sources.
             SUBMIT(tier::preview, e2::form::upon::scroll::any, info)
             {
                 if (client)
@@ -1444,16 +1443,9 @@ namespace netxs::ui
             {
                 switch (id)
                 {
-                    case X:
-                        manual[X] = true;
-                        scroll<X>();
-                        break;
-                    case Y:
-                        manual[Y] = true;
-                        scroll<Y>();
-                        break;
-                    default:
-                        break;
+                    case Y: manual[Y] = true; scroll<Y>(); break;
+                    case X: manual[X] = true; scroll<X>(); break;
+                    default: break;
                 }
                 deface();
             };
@@ -1580,6 +1572,14 @@ namespace netxs::ui
 
             return inside;
         }
+        void sync()
+        {
+            if (!locked)
+            {
+                scroll<X>();
+                scroll<Y>();
+            }
+        }
         // rail: Attach specified item.
         template<class T>
         auto attach(T item_ptr)
@@ -1587,20 +1587,20 @@ namespace netxs::ui
             if (client) remove(client);
             client = item_ptr;
             tokens.clear();
+            //item_ptr->SUBMIT_T(tier::release, e2::coor::set, tokens.extra(), coor)
+            //{
+            //    sync();
+            //};
             item_ptr->SUBMIT_T(tier::release, e2::size::set, tokens.extra(), size)
             {
-                if (!locked)
-                {
-                    scroll<X>();
-                    scroll<Y>();
-                }
+                sync();
             };
             item_ptr->SUBMIT_T(tier::release, e2::form::upon::vtree::detached, tokens.extra(), p)
             {
                 scinfo.region = {};
                 scinfo.window.coor = {};
-                this->SIGNAL(tier::release, upon::scroll::bycoor::_<axis::X>, scinfo);
-                this->SIGNAL(tier::release, upon::scroll::bycoor::_<axis::Y>, scinfo);
+                this->SIGNAL(tier::release, upon::scroll::bycoor::x, scinfo);
+                this->SIGNAL(tier::release, upon::scroll::bycoor::y, scinfo);
                 tokens.clear();
                 fasten.clear();
             };
