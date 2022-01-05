@@ -939,8 +939,15 @@ namespace netxs::console
         auto moveto(twod new_coor)
         {
             auto old_coor = square.coor;
+            SIGNAL(tier::preview, e2::coor::set, new_coor);
             SIGNAL(tier::release, e2::coor::set, new_coor);
             auto delta = square.coor - old_coor;
+            return delta;
+        }
+        // base: Move the form by the specified step and return the coor delta.
+        auto moveby(twod const& step)
+        {
+            auto delta = moveto(square.coor + step);
             return delta;
         }
         // base: Resize the form, and return the size delta.
@@ -968,19 +975,14 @@ namespace netxs::console
             point -= square.coor;
             anchor = point;
             resize(newsize);
-            return point - anchor;
+            auto delta = moveby(point - anchor);
+            return delta;
         }
         // base: Dry run (preview then release) current value.
         auto resize()
         {
             auto new_value = square.size;
             return resize(new_value);
-        }
-        // base: Move the form by the specified step and return the coor delta.
-        auto moveby(twod const& step)
-        {
-            auto delta = moveto(square.coor + step);
-            return delta;
         }
         // base: Resize the form by step, and return delta.
         auto sizeby(twod const& step)

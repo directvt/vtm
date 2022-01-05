@@ -256,22 +256,22 @@ namespace netxs::app::calc
                 {
                     auto clr = topclr - 0x0f0f0f;
                     cellatix_text_head.bgc(clr - step * 0 /* 0xf0f0f0 */).add(" ")
-                                    .bgc(clr - step * 1 /* 0xededed */).add(" ")
-                                    .bgc(clr - step * 2 /* 0xeaeaea */).add(c)
-                                    .bgc(clr - step * 3 /* 0xe7e7e7 */).add(" ")
-                                    .bgc(clr - step * 4 /* 0xe4e4e4 */).add(" ");
+                                      .bgc(clr - step * 1 /* 0xededed */).add(" ")
+                                      .bgc(clr - step * 2 /* 0xeaeaea */).add(c)
+                                      .bgc(clr - step * 3 /* 0xe7e7e7 */).add(" ")
+                                      .bgc(clr - step * 4 /* 0xe4e4e4 */).add(" ");
                 }
                 auto clr = topclr;
                 auto cellatix_text_01 = ansi::bgc(clr - step * 0 /* 0xffffff */).add(" ")
-                                            .bgc(clr - step * 1 /* 0xfcfcfc */).add(" ")
-                                            .bgc(clr - step * 2 /* 0xf9f9f9 */).add(" ")
-                                            .bgc(clr - step * 3 /* 0xf6f6f6 */).add(" ")
-                                            .bgc(clr - step * 4 /* 0xf3f3f3 */).add(" ");
+                                             .bgc(clr - step * 1 /* 0xfcfcfc */).add(" ")
+                                             .bgc(clr - step * 2 /* 0xf9f9f9 */).add(" ")
+                                             .bgc(clr - step * 3 /* 0xf6f6f6 */).add(" ")
+                                             .bgc(clr - step * 4 /* 0xf3f3f3 */).add(" ");
                 auto cellatix_text_00 = ansi::bgc(clr - step * 4 /* 0xf3f3f3 */).add(" ")
-                                            .bgc(clr - step * 3 /* 0xf6f6f6 */).add(" ")
-                                            .bgc(clr - step * 2 /* 0xf9f9f9 */).add(" ")
-                                            .bgc(clr - step * 1 /* 0xfcfcfc */).add(" ")
-                                            .bgc(clr - step * 0 /* 0xffffff */).add(" ");
+                                             .bgc(clr - step * 3 /* 0xf6f6f6 */).add(" ")
+                                             .bgc(clr - step * 2 /* 0xf9f9f9 */).add(" ")
+                                             .bgc(clr - step * 1 /* 0xfcfcfc */).add(" ")
+                                             .bgc(clr - step * 0 /* 0xffffff */).add(" ");
                 cellatix_cols = ansi::nil().wrp(wrap::off)
                     + cellatix_text_head;
                 cellatix_text = ansi::nil().wrp(wrap::off);
@@ -377,7 +377,8 @@ namespace netxs::app::calc
                                                          boss.upload(ansi::bgc(whitelt).fgc(blacklt).add(data));
                                                          };
                                                      });
-                                    auto cols_area = corner_cols->attach(slot::_2, ui::rail::ctor(axes::X_ONLY, axes::X_ONLY))
+                                    //auto cols_area = corner_cols->attach(slot::_2, ui::rail::ctor(axes::X_ONLY, axes::X_ONLY))
+                                    auto cols_area = corner_cols->attach(slot::_2, ui::rail::ctor(axes::ALL, axes::ALL))
                                                                 ->follow<axis::X>(scroll);
                                         auto cols = cols_area->attach(ui::post::ctor())
                                                              ->plugin<pro::limit>(twod{ -1,1 }, twod{ -1,1 })
@@ -388,8 +389,7 @@ namespace netxs::app::calc
                                         auto rows = rows_area->attach(ui::post::ctor())
                                                              ->upload(cellatix_rows); //todo grid  1 \n 2 \n 3 \n ...
                     auto stat_area = all_stat->attach(slot::_2, ui::rail::ctor())
-                                             ->plugin<pro::limit>(twod{ -1,1 }, twod{ -1,1 })
-                                             ->moveby<axis::X>(-5);
+                                             ->plugin<pro::limit>(twod{ -1,1 }, twod{ -1,1 });
                         auto sheet_plus = stat_area->attach(ui::fork::ctor());
                             auto sheet = sheet_plus->attach(slot::_1, ui::post::ctor())
                                                    ->plugin<pro::limit>(twod{ -1,-1 }, twod{ 13,-1 })

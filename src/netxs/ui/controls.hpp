@@ -1269,7 +1269,7 @@ namespace netxs::ui
 
         bool strict[2] = { true, true }; // rail: Don't allow overscroll.
         bool manual[2] = { true, true }; // rail: Manual scrolling (no auto align).
-        bool locked{}; // rail: Client is under resizing.
+        //bool locked{}; // rail: Client is under resizing.
         subs tokens{}; // rail: Subscriptions on client moveto and resize.
         subs fasten{}; // rail: Subscriptions on masters to follow they state.
         rack scinfo{}; // rail: Scroll info.
@@ -1285,19 +1285,17 @@ namespace netxs::ui
 
     public:
         template<axis AXIS>
-        auto moveby(iota coor)
-        {
-            scroll<AXIS>(coor);
-            return This();
-        }
-        template<axis AXIS>
         auto follow(sptr master = {})
         {
-            if (master) master->SUBMIT_T(tier::release, upon::scroll::bycoor::_<AXIS>, fasten, master_scinfo)
+            if (master)
             {
-                scroll<AXIS>(AXIS == X ? scinfo.window.coor.x - master_scinfo.window.coor.x
-                                       : scinfo.window.coor.y - master_scinfo.window.coor.y);
-            };
+                master->SUBMIT_T(tier::release, upon::scroll::bycoor::_<AXIS>, fasten, master_scinfo)
+                {
+                    //this->SIGNAL(tier::preview, e2::form::upon::scroll::bycoor::_<AXIS>, master_scinfo);
+                    move<AXIS>(AXIS == X ? scinfo.window.coor.x - master_scinfo.window.coor.x
+                                         : scinfo.window.coor.y - master_scinfo.window.coor.y);
+                };
+            }
             else fasten.clear();
 
             return This();
@@ -1324,12 +1322,12 @@ namespace netxs::ui
                 {
                     switch (this->bell::protos<tier::preview>())
                     {
-                        case upon::scroll::bycoor::x.id: scroll<X>(scinfo.window.coor.x - info.window.coor.x); break;
-                        case upon::scroll::bycoor::y.id: scroll<Y>(scinfo.window.coor.y - info.window.coor.y); break;
-                        case upon::scroll::bystep::x.id: scroll<X>(info.vector); break;
-                        case upon::scroll::bystep::y.id: scroll<Y>(info.vector); break;
-                        case upon::scroll::bypage::x.id: scroll<X>(info.vector * scinfo.window.size.x); break;
-                        case upon::scroll::bypage::y.id: scroll<Y>(info.vector * scinfo.window.size.y); break;
+                        case upon::scroll::bycoor::x.id: move<X>(scinfo.window.coor.x - info.window.coor.x); break;
+                        case upon::scroll::bycoor::y.id: move<Y>(scinfo.window.coor.y - info.window.coor.y); break;
+                        case upon::scroll::bystep::x.id: move<X>(info.vector); break;
+                        case upon::scroll::bystep::y.id: move<Y>(info.vector); break;
+                        case upon::scroll::bypage::x.id: move<X>(info.vector * scinfo.window.size.x); break;
+                        case upon::scroll::bypage::y.id: move<Y>(info.vector * scinfo.window.size.y); break;
                         case upon::scroll::cancel::x.id: cancel<X, true>(); break;
                         case upon::scroll::cancel::y.id: cancel<Y, true>(); break;
                     }
@@ -1344,11 +1342,11 @@ namespace netxs::ui
             {
                 if (client)
                 {
-                    locked = true; // See the details in subscription at the attach().
+                    //locked = true; // See the details in subscription at the attach().
                     auto delta = client->base::resize(new_size, base::anchor);
-                    locked = faux;
-                    scroll<X>(delta.x);
-                    scroll<Y>(delta.y);
+                    //locked = faux;
+                    //scroll<X>(delta.x);
+                    //scroll<Y>(delta.y);
                 }
             };
 
@@ -1356,10 +1354,25 @@ namespace netxs::ui
             SUBMIT(tier::release, hids::events::mouse::scroll::any, gear)
             {
                 auto dir = gear.whldt > 0;
-                if (permit == axes::X_ONLY || gear.meta(hids::ANYCTRL |
-                                                        hids::SHIFT ))
+                //if (permit == axes::X_ONLY || gear.meta(hids::ANYCTRL |
+                //                                        hids::SHIFT ))
+                //     wheels<X>(dir);
+                //else wheels<Y>(dir);
+                if (permit == axes::Y_ONLY)
+                {
+                     wheels<Y>(dir);
+                }
+                else
+                if (permit == axes::X_ONLY)
+                {
                      wheels<X>(dir);
-                else wheels<Y>(dir);
+                }
+                else
+                if (permit == axes::ALL)
+                {
+                    if (gear.meta(hids::ANYCTRL | hids::SHIFT )) wheels<X>(dir);
+                    else                                         wheels<Y>(dir);
+                } 
 
                 gear.dismiss();
             };
@@ -1388,8 +1401,14 @@ namespace netxs::ui
                 if (gear.captured(bell::id))
                 {
                     auto delta = gear.mouse::delta.get();
-                    if (permit & axes::X_ONLY) scroll<X>(delta.x);
-                    if (permit & axes::Y_ONLY) scroll<Y>(delta.y);
+                    //if (permit == axes::ALL)
+                    //{
+                    //    ...moveby(delta);
+                    //}
+                    //else if (permit & axes::X_ONLY) scroll<X>(delta.x);
+                    //else if (permit & axes::Y_ONLY) scroll<Y>(delta.y);
+                    if (permit & axes::X_ONLY) move<X>(delta.x);
+                    if (permit & axes::Y_ONLY) move<Y>(delta.y);
                     gear.dismiss();
                 }
             };
@@ -1443,11 +1462,11 @@ namespace netxs::ui
             {
                 switch (id)
                 {
-                    case Y: manual[Y] = true; scroll<Y>(); break;
-                    case X: manual[X] = true; scroll<X>(); break;
+                    case Y: manual[Y] = true; /*scroll<Y>();*/ break;
+                    case X: manual[X] = true; /*scroll<X>();*/ break;
                     default: break;
                 }
-                deface();
+                base::deface();
             };
             SUBMIT(tier::release, e2::render::any, parent_canvas)
             {
@@ -1479,7 +1498,7 @@ namespace netxs::ui
                 speed = SPD;
                 cycle = CCL;
             }
-            scroll<AXIS>(dir ? 1 : -1);
+            move<AXIS>(dir ? 1 : -1);
             keepon<AXIS>(quadratic<iota>(dir ? speed : -speed, pulse, cycle, now<iota>()));
         }
         template<axis AXIS, class FX>
@@ -1488,15 +1507,45 @@ namespace netxs::ui
             strict[AXIS] = true;
             robot.actify(AXIS, func, [&](auto& p)
                 {
-                    scroll<AXIS>(p);
+                    move<AXIS>(p);
                 });
+        }
+        template<axis AXIS>
+        auto inside()
+        {
+            bool value = true;
+            if (client)
+            {
+                auto& thing = *client;
+                auto  block = thing.base::area();
+                auto  basis = thing.oversz.topleft();
+                block.coor -= basis; // Scroll origin basis.
+                block.size += thing.oversz.summ();
+                auto& frame = base::size();
+                auto  level = AXIS == X;
+                auto  bound = level ? std::min(frame.x - block.size.x, 0)
+                                    : std::min(frame.y - block.size.y, 0);
+                auto& coord = level ? block.coor.x
+                                    : block.coor.y;
+                if (manual[AXIS]) // Check overscroll if no auto correction.
+                {
+                    auto clamp = std::clamp(coord, bound, 0);
+                    value = clamp == coord;
+                    if (!value && strict[AXIS]) // If outside the scroll limits
+                    {                           // and overscroll is not allowed.
+                            coord = clamp;
+                            //todo moveto
+                    }
+                }
+            }
+            return value;
         }
         template<axis AXIS, class FX>
         void actify(FX&& func)
         {
-            auto inside = scroll<AXIS>();
-            if  (inside)  keepon<AXIS>(func);
-            else          lineup<AXIS>();
+            //auto inside = scroll<AXIS>();
+            if (inside<AXIS>()) keepon<AXIS>(func);
+            else                lineup<AXIS>();
         }
         template<axis AXIS, bool FORCED = faux>
         void cancel()
@@ -1504,8 +1553,8 @@ namespace netxs::ui
             if constexpr (FORCED) lineup<AXIS>();
             else
             {
-                auto inside = scroll<AXIS>();
-                if (!inside)  lineup<AXIS>();
+                //auto inside = scroll<AXIS>();
+                if (!inside<AXIS>()) lineup<AXIS>();
             }
         }
         template<axis AXIS>
@@ -1528,58 +1577,70 @@ namespace netxs::ui
             }
         }
         template<axis AXIS>
-        bool scroll(iota delta = {})
+        void scroll(twod& block_coor)
         {
-            bool inside = true;
-
+            //bool inside = true;
             if (client)
             {
                 auto& thing = *client;
-                auto  block = thing.base::area();
+                //auto  block_coor = thing.base::coor();
+                auto  block_size = thing.base::size();
                 auto  basis = thing.oversz.topleft();
-                block.coor -= basis; // Scroll origin basis.
-                block.size += thing.oversz.summ();
+                block_coor -= basis; // Scroll origin basis.
+                block_size += thing.oversz.summ();
                 auto& frame = base::size();
                 auto  level = AXIS == X;
-                auto  bound = level ? std::min(frame.x - block.size.x, 0)
-                                    : std::min(frame.y - block.size.y, 0);
-                auto& coord = level ? block.coor.x
-                                    : block.coor.y;
-                coord += delta;
+                auto  bound = level ? std::min(frame.x - block_size.x, 0)
+                                    : std::min(frame.y - block_size.y, 0);
+                auto& coord = level ? block_coor.x
+                                    : block_coor.y;
+                //coord += delta;
 
                 if (manual[AXIS]) // Check overscroll if no auto correction.
                 {
                     auto clamp = std::clamp(coord, bound, 0);
-                    inside = clamp == coord;
-                    if (!inside && strict[AXIS]) // If outside the scroll limits
+                    //inside = clamp == coord;
+                    //if (!inside && strict[AXIS]) // If outside the scroll limits
+                    //{                            // and overscroll is not allowed.
+                    //        coord = clamp;
+                    //}
+                    if ((clamp != coord) && strict[AXIS]) // If outside the scroll limits
                     {                            // and overscroll is not allowed.
-                            coord = clamp;
+                        coord = clamp;
                     }
                 }
 
                 scinfo.beyond = thing.oversz;  // Oversize value.
-                scinfo.region = block.size;
-                scinfo.window.coor =-block.coor; // Viewport.
+                scinfo.region = block_size;
+                scinfo.window.coor =-block_coor; // Viewport.
                 scinfo.window.size = frame;      //
                 SIGNAL(tier::release, upon::scroll::bycoor::_<AXIS>, scinfo);
 
-                block.coor += basis; // Client origin basis.
-                locked = true;
-                thing.base::moveto(block.coor);
-                locked = faux;
-                deface();
+                block_coor += basis; // Client origin basis.
+                //locked = true;
+                //thing.base::moveto(block_coor);
+                //locked = faux;
+                base::deface(); // Main menu redrawing
             }
-
-            return inside;
+            //return inside;
         }
-        void sync()
+        template<axis AXIS>
+        void move(iota delta)
         {
-            if (!locked)
+            if (client)
             {
-                scroll<X>();
-                scroll<Y>();
+                if constexpr (AXIS == X) client->base::moveby({ delta, 0 });
+                if constexpr (AXIS == Y) client->base::moveby({ 0, delta });
             }
         }
+        //void sync()
+        //{
+        //    if (!locked)
+        //    {
+        //        scroll<X>();
+        //        scroll<Y>();
+        //    }
+        //}
         // rail: Attach specified item.
         template<class T>
         auto attach(T item_ptr)
@@ -1587,20 +1648,22 @@ namespace netxs::ui
             if (client) remove(client);
             client = item_ptr;
             tokens.clear();
-            //item_ptr->SUBMIT_T(tier::release, e2::coor::set, tokens.extra(), coor)
-            //{
-            //    sync();
-            //};
+            item_ptr->SUBMIT_T(tier::preview, e2::coor::set, tokens.extra(), coor)
+            {
+                //sync();
+                if (permit & axes::X_ONLY) scroll<X>(coor);
+                if (permit & axes::Y_ONLY) scroll<Y>(coor);
+            };
             item_ptr->SUBMIT_T(tier::release, e2::size::set, tokens.extra(), size)
             {
-                sync();
+                //sync();
             };
             item_ptr->SUBMIT_T(tier::release, e2::form::upon::vtree::detached, tokens.extra(), p)
             {
                 scinfo.region = {};
                 scinfo.window.coor = {};
-                this->SIGNAL(tier::release, upon::scroll::bycoor::x, scinfo);
-                this->SIGNAL(tier::release, upon::scroll::bycoor::y, scinfo);
+                this->SIGNAL(tier::release, upon::scroll::bycoor::x, scinfo); // Reset dependent scrollbars.
+                this->SIGNAL(tier::release, upon::scroll::bycoor::y, scinfo); //
                 tokens.clear();
                 fasten.clear();
             };
