@@ -143,6 +143,21 @@ namespace netxs::events
         vect                 qcopy; // reactor: Copy of the current pretenders to exec on current event.
         bool                 alive; // reactor: Current exec branch interruptor.
 
+        void cleanup(ui64& ref_count, ui64& del_count)
+        {
+            ui64 lref{};
+            ui64 ldel{};
+            for (auto& [event, subs] : stock)
+            {
+                auto refs = subs.size();
+                subs.remove_if([](auto&& a) { return a.expired(); });
+                auto size = subs.size();
+                lref += size;
+                ldel += refs - size;
+            }
+            ref_count += lref;
+            del_count += ldel;
+        }
         void merge(reactor const& r)
         {
             for (auto& [event, src_subs] : r.stock)
@@ -334,6 +349,13 @@ namespace netxs::events
     class bell;
     using ftor = std::function<bool(sptr<bell>)>;
 
+    struct ref_count_t
+    {
+        ui64 obj_count{};
+        ui64 ref_count{};
+        ui64 del_count{};
+    };
+
     //todo unify seeding
     namespace userland
     {
@@ -347,6 +369,7 @@ namespace netxs::events
                 EVENT_XS( base   , root ),
                 EVENT_XS( hids   , root ),
                 EVENT_XS( custom , root ),
+                EVENT_XS( cleanup, ref_count_t ), // Garbage collection.
             };
         };
     }
@@ -494,7 +517,18 @@ namespace netxs::events
             else                                      return anycast.stop();
         }
 
-       ~bell() { sync lock; SIGNAL(tier::release, userland::root::dtor, id); }
+        bell()
+        {
+            SUBMIT_GLOBAL(userland::root::cleanup, tracker.extra(), counter)
+            {
+                counter.obj_count++;
+                preview.cleanup(counter.ref_count, counter.del_count);
+                request.cleanup(counter.ref_count, counter.del_count);
+                release.cleanup(counter.ref_count, counter.del_count);
+                anycast.cleanup(counter.ref_count, counter.del_count);
+            };
+        }
+       ~bell() { SIGNAL(tier::release, userland::root::dtor, id); }
 
         virtual void  global(twod& coor) { } // bell: Recursively calculate global coordinate.
         virtual sptr<bell> gettop() { return sptr<bell>(this, noop{}); } // bell: Recursively find the root of the visual tree.

@@ -1,7 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#define MONOTTY_VER "Monotty Desktopio v0.5.9999d"
+#define MONOTTY_VER "Monotty Desktopio v0.5.9999h"
 
 // Enable demo apps and assign Esc key to log off.
 //#define DEMO
@@ -37,10 +37,10 @@ using namespace netxs;
 
 int main(int argc, char* argv[])
 {
-    netxs::logger::logger logger([&](auto&& data) { os::syslog(data); });
+    netxs::logger logger([&](auto&& data) { os::syslog(data); });
 
     auto banner = [&]() { log(MONOTTY_VER); };
-    auto server = faux;
+    auto client = true;
     auto daemon = faux;
     {
         auto getopt = os::args{ argc, argv };
@@ -48,7 +48,7 @@ int main(int argc, char* argv[])
         {
             switch (getopt.next())
             {
-                case 's': server = true; break;
+                case 's': client = faux; break;
                 case 'd': daemon = true; break;
                 default:
                     #ifndef PROD
@@ -89,13 +89,13 @@ int main(int argc, char* argv[])
                 banner();
                 os::exit(1, "main: failed to daemonize");
             }
-            else server = true;
+            else client = faux;
         }
     }
 
     banner();
 
-    if (!server)
+    if (client)
     {
         os::start_log("vtm");
 
@@ -106,7 +106,7 @@ int main(int argc, char* argv[])
         utf::text spot;
         {
             std::ifstream config;
-            config.open("vtm.conf");
+            config.open(os::homepath() + "/.config/vtm/settings.ini");
 
             if (config.is_open())
                 std::getline(config, spot);
@@ -152,10 +152,9 @@ int main(int argc, char* argv[])
         os::exit(0);
     }
     
-    netxs::logger::logger srv_logger( [=](auto const& utf8)
+    netxs::logger srv_logger( [=](auto const& utf8)
     {
         static text buff;
-        os::syslog(utf8);
         if (auto sync = events::try_sync{})
         {
             if (buff.size())
@@ -169,12 +168,12 @@ int main(int argc, char* argv[])
     });
 
     //todo Get current config from "~/.config/vtm/settings.ini".
-    utf::text config;
+    utf::text config_data;
     {
-        std::ifstream conf;
-        conf.open("vtm.conf");
-        if (conf.is_open()) std::getline(conf, config);
-        if (config.empty()) config = "empty config";
+        std::ifstream config;
+        config.open(os::homepath() + "/.config/vtm/settings.ini");
+        if (config.is_open()) std::getline(config, config_data);
+        if (config_data.empty()) config_data = "empty config";
 
         //todo unify
         //skin::setup(tone::lucidity, 192);
@@ -192,18 +191,40 @@ int main(int argc, char* argv[])
 
     log("host: created");
 
-    world->SUBMIT(tier::release, e2::form::proceed::createat, what)
+    world->SUBMIT(tier::general, e2::cleanup, counter)
     {
-        auto& config = app::shared::objs_config[what.menu_item_id];
-        auto  window = ui::cake::ctor()
-            ->plugin<pro::title>(config.title)
-            ->plugin<pro::limit>(dot_11, twod{ 400,200 }) //todo unify, set via config
-            ->plugin<pro::sizer>()
-            ->plugin<pro::frame>()
-            ->plugin<pro::light>()
-            ->plugin<pro::align>()
+        world->router<tier::general>().cleanup(counter.ref_count, counter.del_count);
+    };
+
+    auto base_window = [](auto header, auto footer, auto menu_item_id)
+    {
+        return ui::cake::ctor()
+            ->template plugin<pro::d_n_d>()
+            ->template plugin<pro::title>(header, footer) //todo "template": gcc complains on ubuntu 18.04
+            ->template plugin<pro::limit>(dot_11, twod{ 400,200 }) //todo unify, set via config
+            ->template plugin<pro::sizer>()
+            ->template plugin<pro::frame>()
+            ->template plugin<pro::light>()
+            ->template plugin<pro::align>()
             ->invoke([&](auto& boss)
             {
+                auto shadow = ptr::shadow(boss.This());
+                boss.SUBMIT_BYVAL(tier::preview, e2::form::proceed::d_n_d::drop, what)
+                {
+                    if (auto boss_ptr = shadow.lock())
+                    if (auto object = boss_ptr->pop_back())
+                    {
+                        auto& boss = *boss_ptr;
+                        auto target = what.object;
+                        what.menuid = menu_item_id;
+                        what.object = object;
+                        auto& title = boss.template plugins<pro::title>();
+                        what.header = title.header();
+                        what.footer = title.footer();
+                        target->SIGNAL(tier::release, e2::form::proceed::d_n_d::drop, what);
+                        boss.base::detach(); // The object kills itself.
+                    }
+                };
                 boss.SUBMIT(tier::release, hids::events::mouse::button::dblclick::left, gear)
                 {
                     boss.base::template riseup<tier::release>(e2::form::maximize, gear);
@@ -239,16 +260,47 @@ int main(int argc, char* argv[])
                 {
                     if (nested_item) boss.base::detach(); // The object kills itself.
                 };
+                boss.SUBMIT(tier::release, e2::dtor, p)
+                {
+                    auto start = tempus::now();
+                    auto counter = decltype(e2::cleanup)::type{};
+                    SIGNAL_GLOBAL(e2::cleanup, counter);
+                    auto stop = tempus::now() - start;
+                    log("world: Garbage collection",
+                    "\n\ttime ", utf::format(stop.count()), "ns",
+                    "\n\tobjs ", counter.obj_count,
+                    "\n\trefs ", counter.ref_count,
+                    "\n\tdels ", counter.del_count);
+                };
             });
+    };
 
-        window->extend(what.location);
-        auto& creator = app::shared::creator(config.type);
-        window->attach(creator(config.data));
-        log(" world create type=", config.type, " menu_item_id=", what.menu_item_id);
-        world->branch(what.menu_item_id, window);
+    world->SUBMIT(tier::release, e2::form::proceed::createat, what)
+    {
+        auto& config = app::shared::objs_config[what.menuid];
+        auto window = base_window(config.title, "", what.menuid);
+
+        window->extend(what.square);
+        auto& creator = app::shared::creator(config.group);
+        window->attach(creator(config.param));
+        log("world: create type=", config.group, " menu_item_id=", what.menuid);
+        world->branch(what.menuid, window, config.fixed);
         window->SIGNAL(tier::anycast, e2::form::upon::started, world);
 
-        what.frame = window;
+        what.object = window;
+    };
+    world->SUBMIT(tier::release, e2::form::proceed::createfrom, what)
+    {
+        auto& config = app::shared::objs_config[what.menuid];
+        auto window = base_window(what.header, what.footer, what.menuid);
+
+        window->extend(what.square);
+        window->attach(what.object);
+        log("world: attach type=", config.group, " menu_item_id=", what.menuid);
+        world->branch(what.menuid, window, config.fixed);
+        window->SIGNAL(tier::anycast, e2::form::upon::started, world);
+
+        what.object = window;
     };
     world->SUBMIT(tier::general, e2::form::global::lucidity, alpha)
     {
@@ -339,14 +391,21 @@ int main(int argc, char* argv[])
 
                     auto& menu_builder = app::shared::creator("Desk");
                     auto deskmenu = menu_builder(utf::concat(client->id, ";", user, ";", path));
+                    auto& fone_builder = app::shared::creator("Fone");
+                    auto bkground = fone_builder(
+                    #ifndef PROD
+                        "Shop;Demo;"
+                    #else
+                        "HeadlessTerm;Demo;ssh demo@netxs.online"
+                    #endif
+                    );
             
                     client->attach(deskmenu);
+                    client->ground(bkground);
                     client->color(app::shared::background_color.fgc(), app::shared::background_color.bgc());
                     text header = username;
-                    text footer = ansi::mgr(1).mgl(1).add(MONOTTY_VER);
                     client->SIGNAL(tier::release, e2::form::prop::name, header);
                     client->SIGNAL(tier::preview, e2::form::prop::header, header);
-                    client->SIGNAL(tier::preview, e2::form::prop::footer, footer);
                     client->base::moveby(user_coor);
                 lock.reset();
                 log("user: new gate for ", peer);

@@ -8,25 +8,19 @@ namespace netxs::events::userland
 {
     struct desk
     {
-        //EVENTPACK( desk, netxs::events::userland::root::custom )
-        //{
-        //    GROUP_XS( ui, input::hids ),
+        EVENTPACK( desk, netxs::events::userland::root::custom )
+        {
+            GROUP_XS( ui, text ),
 
-        //    SUBSET_XS( ui )
-        //    {
-        //        EVENT_XS( create  , input::hids ),
-        //        GROUP_XS( split   , input::hids ),
-
-        //        SUBSET_XS( split )
-        //        {
-        //            EVENT_XS( hz, input::hids ),
-        //        };
-        //    };
-        //};
+            SUBSET_XS( ui )
+            {
+                EVENT_XS( selected, text ),
+            };
+        };
     };
 }
 
-// desk: Side Navigation Menu.
+// desk: Sidebar menu.
 namespace netxs::app::desk
 {
     using events = ::netxs::events::userland::desk;
@@ -107,71 +101,110 @@ namespace netxs::app::desk
             const static auto c3 = app::shared::c3;
             const static auto x3 = app::shared::x3;
 
-            auto apps = ui::list::ctor();
-
-            for (auto const& [class_id, inst_ptr_list] : *apps_map)
-            {
-                auto inst_id  = class_id;
-                auto obj_desc = app::shared::objs_config[class_id].name;
-                if (inst_ptr_list.size())
+            auto apps = ui::list::ctor()
+                ->invoke([&](auto& boss)
                 {
-                    auto item_area = apps->attach(ui::pads::ctor(dent{ 0,0,0,1 }, dent{ 0,0,1,0 }))
-                                         ->template plugin<pro::fader>(x3, c3, 0ms)
-                                         ->depend_on_collection(inst_ptr_list)
-                                         ->invoke([&](auto& boss)
+                    boss.SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
+                    {
+                        auto current_default = decltype(e2::data::changed)::type{};
+                        boss.template riseup<tier::request>(e2::data::changed, current_default); //todo "template" required by gcc (ubuntu 18.04)
+                        boss.SIGNAL(tier::anycast, events::ui::selected, current_default);
+                    };
+                });
+
+            for (auto const& [class_id, stat_inst_ptr_list] : *apps_map)
+            {
+                auto& [state, inst_ptr_list] = stat_inst_ptr_list;
+                auto inst_id  = class_id;
+                auto obj_desc = app::shared::objs_config[class_id].label;
+                auto item_area = apps->attach(ui::pads::ctor(dent{ 0,0,0,1 }, dent{ 0,0,1,0 }))
+                                     ->template plugin<pro::fader>(x3, c3, 0ms)
+                                     ->invoke([&](auto& boss)
+                                     {
+                                         boss.mouse.take_all_events(faux);
+                                         auto boss_shadow = ptr::shadow(boss.This());
+                                         auto data_src_shadow = ptr::shadow(data_src);
+                                         boss.SUBMIT_BYVAL(tier::release, hids::events::mouse::button::click::right, gear)
                                          {
-                                             boss.mouse.take_all_events(faux);
-                                             auto data_src_shadow = ptr::shadow(data_src);
-                                             boss.SUBMIT_BYVAL(tier::release, hids::events::mouse::button::click::left, gear)
+                                             if (auto boss = boss_shadow.lock())
                                              {
-                                                 if (auto data_src = data_src_shadow.lock())
-                                                 {
-                                                     sptr<registry_t> registry_ptr;
-                                                     data_src->SIGNAL(tier::request, e2::bindings::list::apps, registry_ptr);
-                                                     auto& app_list = (*registry_ptr)[inst_id];
-                                                     // Rotate list forward.
-                                                     app_list.push_back(app_list.front());
-                                                     app_list.pop_front();
-                                                     // Expose window.
-                                                     auto& inst = *app_list.back();
-                                                     inst.SIGNAL(tier::preview, e2::form::layout::expose, inst);
-                                                     auto& area = inst.base::area();
-                                                     auto center = area.coor + (area.size / 2);
-                                                     bell::getref(gear.id)->
-                                                     SIGNAL(tier::release, e2::form::layout::shift, center);  // Goto to the window.
-                                                     gear.pass_kb_focus(inst);
-                                                     gear.dismiss();
-                                                 }
-                                             };
-                                             boss.SUBMIT_BYVAL(tier::release, hids::events::mouse::button::click::right, gear)
+                                                 boss->SIGNAL(tier::anycast, events::ui::selected, inst_id);
+                                             }
+                                         };
+                                         boss.SUBMIT_BYVAL(tier::release, hids::events::mouse::button::click::left, gear)
+                                         {
+                                             if (auto boss = boss_shadow.lock())
                                              {
-                                                 if (auto data_src = data_src_shadow.lock())
-                                                 {
-                                                     sptr<registry_t> registry_ptr;
-                                                     data_src->SIGNAL(tier::request, e2::bindings::list::apps, registry_ptr);
-                                                     auto& app_list = (*registry_ptr)[inst_id];
-                                                     // Rotate list forward.
-                                                     app_list.push_front(app_list.back());
-                                                     app_list.pop_back();
-                                                     // Expose window.
-                                                     auto& inst = *app_list.back();
-                                                     inst.SIGNAL(tier::preview, e2::form::layout::expose, inst);
-                                                     auto& area = inst.base::area();
-                                                     auto center = area.coor + (area.size / 2);
-                                                     bell::getref(gear.id)->
-                                                     SIGNAL(tier::release, e2::form::layout::shift, center);  // Goto to the window.
-                                                     gear.pass_kb_focus(inst);
-                                                     gear.dismiss();
-                                                 }
-                                             };
-                                         });
+                                                 boss->SIGNAL(tier::anycast, events::ui::selected, inst_id);
+                                             }
+                                             auto world_ptr = decltype(e2::config::whereami)::type{};
+                                             SIGNAL_GLOBAL(e2::config::whereami, world_ptr);
+                                             if (world_ptr)
+                                             {
+                                                 static iota random = 0;
+                                                 random = (random + 2) % 10;
+                                                 auto offset = twod{ random * 2, random };
+                                                 auto viewport = gear.area();
+                                                 gear.slot.coor = viewport.coor + viewport.size / 8 + offset;
+                                                 gear.slot.size = viewport.size * 3 / 4;
+                                                 world_ptr->SIGNAL(tier::release, e2::form::proceed::createby, gear);
+                                                 gear.dismiss();
+                                             }
+                                         };
+                                         //boss.SUBMIT_BYVAL(tier::release, hids::events::mouse::scroll::any, gear)
+                                         //{
+                                         //   if (auto boss = boss_shadow.lock())
+                                         //   if (auto data_src = data_src_shadow.lock())
+                                         //   {
+                                         //       sptr<registry_t> registry_ptr;
+                                         //       data_src->SIGNAL(tier::request, e2::bindings::list::apps, registry_ptr);
+                                         //       auto& app_list = (*registry_ptr)[inst_id];
+                                         //       if (app_list.size())
+                                         //       {
+                                         //           auto deed = boss->bell::protos<tier::release>();
+                                         //           if (deed == hids::events::mouse::scroll::down.id) // Rotate list forward.
+                                         //           {
+                                         //               app_list.push_back(app_list.front());
+                                         //               app_list.pop_front();
+                                         //           }
+                                         //           else // Rotate list backward.
+                                         //           {
+                                         //               app_list.push_front(app_list.back());
+                                         //               app_list.pop_back();
+                                         //           }
+                                         //           // Expose window.
+                                         //           auto& inst = *app_list.back();
+                                         //           inst.SIGNAL(tier::preview, e2::form::layout::expose, inst);
+                                         //           auto& area = inst.base::area();
+                                         //           auto center = area.coor + (area.size / 2);
+                                         //           bell::getref(gear.id)->
+                                         //           SIGNAL(tier::release, e2::form::layout::shift, center);  // Goto to the window.
+                                         //           gear.pass_kb_focus(inst);
+                                         //           gear.dismiss();
+                                         //       }
+                                         //   }
+                                         //};
+                                     });
+                if (!state) item_area->depend_on_collection(inst_ptr_list);
                         auto block = item_area->attach(ui::fork::ctor(axis::Y));
                             auto head_area = block->attach(slot::_1, ui::pads::ctor(dent{ 0,0,0,0 }, dent{ 0,0,1,1 }));
-                                auto head = head_area->attach(ui::item::ctor(obj_desc, true));
+                                auto head = head_area->attach(ui::item::ctor(obj_desc, true))
+                                    ->invoke([&](auto& boss)
+                                    {
+                                        auto boss_shadow = ptr::shadow(boss.This());
+                                        boss.SUBMIT_BYVAL(tier::anycast, events::ui::selected, data)
+                                        {
+                                            auto selected = inst_id == data;
+                                            if (auto boss = boss_shadow.lock())
+                                            {
+                                                boss->set(ansi::fgc4(selected ? 0xFF00ff00 : 0x00000000).add(obj_desc));
+                                                boss->deface();
+                                            }
+                                        };
+                                    });
                             auto list_pads = block->attach(slot::_2, ui::pads::ctor(dent{ 0,0,0,0 }, dent{ 0,0,0,0 }));
                     auto insts = list_pads->attach(ui::list::ctor())
-                                            ->attach_collection(e2::form::prop::header, inst_ptr_list, app_template);
-                }
+                                          ->attach_collection(e2::form::prop::header, inst_ptr_list, app_template);
             }
             return apps;
         };
@@ -179,7 +212,7 @@ namespace netxs::app::desk
         auto build = [](view v)
         {
             iota uibar_min_size = 4;
-            iota uibar_full_size = 32;
+            iota uibar_full_size = 31;
 
             auto window = ui::cake::ctor();
 
@@ -201,81 +234,8 @@ namespace netxs::app::desk
 
             if (auto client = bell::getref(my_id))
             {
-                // Taskbar Layout (PoC)
+                // Taskbar Layout.
                 auto client_shadow = ptr::shadow(client);
-
-                auto menuitems_template = [client_shadow](auto& data_src, auto& apps_map)
-                {
-                    const static auto c3 = app::shared::c3;
-                    const static auto x3 = app::shared::x3;
-
-                    auto menuitems = ui::list::ctor();
-
-                    if (auto client = client_shadow.lock())
-                    {
-                        auto current_default = decltype(e2::data::changed)::type{};
-                        client->SIGNAL(tier::request, e2::data::changed, current_default);
-
-                        for (auto const& [class_id, inst_ptr_list] : *apps_map)
-                        {
-                            auto id = class_id;
-                            auto obj_desc = app::shared::objs_config[class_id].name;
-                            auto selected = class_id == current_default;
-
-                            auto item_area = menuitems->attach(ui::pads::ctor(dent{ 0,0,0,1 }, dent{ 0,0,1,0 }))
-                                                    ->plugin<pro::fader>(x3, c3, 0ms)
-                                                    ->invoke([&](auto& boss)
-                                                    {
-                                                        boss.mouse.take_all_events(faux);
-                                                        boss.SUBMIT_BYVAL(tier::release, hids::events::mouse::button::click::left, gear)
-                                                        {
-                                                            if (auto client = bell::getref(gear.id))
-                                                            {
-                                                                client->SIGNAL(tier::release, e2::data::changed, id);
-                                                                gear.dismiss();
-                                                            }
-                                                        };
-                                                        boss.SUBMIT_BYVAL(tier::release, hids::events::mouse::button::dblclick::left, gear)
-                                                        {
-                                                            auto world_ptr = decltype(e2::config::whereami)::type{};
-                                                            SIGNAL_GLOBAL(e2::config::whereami, world_ptr);
-                                                            if (world_ptr)
-                                                            {
-                                                                static iota random = 0;
-                                                                random = (random + 2) % 10;
-                                                                auto offset = twod{ random * 2, random };
-                                                                auto viewport = gear.area();
-                                                                gear.slot.coor = viewport.coor + viewport.size / 8 + offset;
-                                                                gear.slot.size = viewport.size * 3 / 4;
-                                                                world_ptr->SIGNAL(tier::release, e2::form::proceed::createby, gear);
-                                                            }
-                                                        };
-                                                    });
-                                auto block = item_area->attach(ui::fork::ctor(axis::X));
-                                    auto mark_area = block->attach(slot::_1, ui::pads::ctor(dent{ 1,1,0,0 }, dent{ 0,0,0,0 }));
-                                        auto mark = mark_area->attach(ui::item::ctor(ansi::fgc4(selected ? 0xFF00ff00
-                                                                                                         : 0xFF000000).add("██"), faux))
-                                                    ->invoke([&](auto& boss)
-                                                    {
-                                                        auto client_id = client->id;
-                                                        auto mark_shadow = ptr::shadow(boss.This());
-                                                        client->SUBMIT_T_BYVAL(tier::release, e2::data::changed, boss.tracker, data)
-                                                        {
-                                                            auto selected = id == data;
-                                                            if (auto mark = mark_shadow.lock())
-                                                            {
-                                                                mark->set(ansi::fgc4(selected ? 0xFF00ff00 : 0xFF000000).add("██"));
-                                                                mark->deface();
-                                                            }
-                                                        };
-                                                    });
-                                    auto label_area = block->attach(slot::_2, ui::pads::ctor(dent{ 1,1,0,0 }, dent{ 0,0,0,0 }));
-                                        auto label = label_area->attach(ui::item::ctor(ansi::fgc4(0xFFffffff).add(obj_desc), true, true));
-                        }
-                    }
-
-                    return menuitems;
-                };
                 auto user_template = [my_id](auto& data_src, auto const& utf8)
                 {
                     const static auto c3 = app::shared::c3;
@@ -304,10 +264,11 @@ namespace netxs::app::desk
                         #endif
                         auto previous_default_sptr = std::make_shared<text>(*current_default_sptr);
                         auto subs_sptr = std::make_shared<subs>();
+                        auto shadow = ptr::shadow(boss.This());
 
                         boss.SUBMIT_BYVAL(tier::release, e2::form::upon::vtree::attached, parent)
                         {
-                            parent->SIGNAL(tier::release, e2::data::changed, *current_default_sptr);
+                            parent->SIGNAL(tier::anycast, events::ui::selected, *current_default_sptr);
 
                             parent->SUBMIT_T(tier::request, e2::data::changed, *subs_sptr, data)
                             {
@@ -317,7 +278,14 @@ namespace netxs::app::desk
                             {
                                 if (previous_default_sptr) data = *previous_default_sptr;
                             };
-                            parent->SUBMIT_T(tier::release, e2::data::changed, *subs_sptr, data)
+                            parent->SUBMIT_T_BYVAL(tier::release, e2::data::changed, *subs_sptr, data)
+                            {
+                                if (auto boss = shadow.lock())
+                                {
+                                    boss->SIGNAL(tier::anycast, events::ui::selected, data);
+                                }
+                            };
+                            parent->SUBMIT_T(tier::anycast, events::ui::selected, *subs_sptr, data)
                             {
                                 if (previous_default_sptr && current_default_sptr)
                                 {
@@ -410,70 +378,20 @@ namespace netxs::app::desk
 
                             auto world_ptr = decltype(e2::config::whereami)::type{};
                             SIGNAL_GLOBAL(e2::config::whereami, world_ptr);
-
-                            auto apps_area = apps_users->attach(slot::_1, ui::fork::ctor(axis::Y));
                             {
-                                auto label_pads = apps_area->attach(slot::_1, ui::pads::ctor(dent{ 0,0,1,1 }, dent{ 0,0,0,0 }))
-                                                           ->plugin<pro::fader>(x3, c3, 150ms);
-                                    auto label_bttn = label_pads->attach(ui::fork::ctor());
-                                        auto label = label_bttn->attach(slot::_1,
-                                            ui::item::ctor(ansi::fgc(whitelt).add("  ≡ "), faux, faux));
-                                        auto bttn_area = label_bttn->attach(slot::_2, ui::fork::ctor());
-                                            auto bttn_pads = bttn_area->attach(slot::_2, ui::pads::ctor(dent{ 2,2,0,0 }, dent{ 0,0,1,1 }))
-                                                                      ->plugin<pro::fader>(x6, c6, 150ms);
-                                                auto bttn = bttn_pads->attach(ui::item::ctor(">", faux));
-                                auto applist_area = apps_area->attach(slot::_2, ui::pads::ctor(dent{ 0,0,1,0 }, dent{}))
-                                                             ->attach(ui::cake::ctor());
-                                    auto task_menu_area = applist_area->attach(ui::fork::ctor(axis::Y, 0, 0));
-                                        auto menu_scrl = task_menu_area->attach(slot::_1, ui::rail::ctor(axes::ONLY_Y))
-                                                                       ->colors(0x00, 0x00); //todo mouse events passthrough
+                                auto applist_area = apps_users->attach(slot::_1, ui::pads::ctor(dent{ 0,0,1,0 }, dent{}))
+                                                              ->attach(ui::cake::ctor());
+                                    auto task_menu_area = applist_area->attach(ui::rail::ctor(axes::Y_ONLY))
+                                                                      ->colors(0x00, 0x00); //todo mouse events passthrough
                                             if (world_ptr)
                                             {
-                                                auto menuitems = menu_scrl->attach_element(e2::bindings::list::apps, world_ptr, menuitems_template);
-                                                auto tasks_scrl = task_menu_area->attach(slot::_2, ui::rail::ctor(axes::ONLY_Y))
+                                                auto tasks_scrl = task_menu_area->attach(ui::rail::ctor(axes::Y_ONLY))
                                                                                 ->colors(0x00, 0x00); //todo mouse events passthrough
                                                 auto apps = tasks_scrl->attach_element(e2::bindings::list::apps, world_ptr, apps_template);
                                             }
-                                label_pads->invoke([&](auto& boss)
-                                            {
-                                                auto task_menu_area_shadow = ptr::shadow(task_menu_area);
-                                                auto bttn_shadow = ptr::shadow(bttn);
-                                                boss.SUBMIT_BYVAL(tier::release, hids::events::mouse::button::click::left, gear)
-                                                {
-                                                    if (auto bttn = bttn_shadow.lock())
-                                                    if (auto task_menu_area = task_menu_area_shadow.lock())
-                                                    {
-                                                        auto state = task_menu_area->get_ratio();
-                                                        bttn->set(state ? ">" : "<");
-                                                        if (state) task_menu_area->config(0, 1);
-                                                        else       task_menu_area->config(1, 0);
-                                                        gear.dismiss();
-                                                    }
-                                                };
-                                            });
-                                apps_area->invoke([&](auto& boss)
-                                            {
-                                                auto task_menu_area_shadow = ptr::shadow(task_menu_area);
-                                                auto bttn_shadow = ptr::shadow(bttn);
-                                                boss.SUBMIT_BYVAL(tier::release, e2::form::state::mouse, active)
-                                                {
-                                                    if (!active)
-                                                    if (auto bttn = bttn_shadow.lock())
-                                                    if (auto task_menu_area = task_menu_area_shadow.lock())
-                                                    {
-                                                        if (auto state = task_menu_area->get_ratio())
-                                                        {
-                                                            bttn->set(">");
-                                                            task_menu_area->config(0);
-                                                        }
-                                                    }
-                                                };
-                                            });
-                                //todo make some sort of highlighting at the bottom and top
-                                //scroll_bars_left(items_area, items_scrl);
                             }
-                            auto users_area = apps_users->attach(slot::_2, ui::fork::ctor(axis::Y));
                             {
+                                auto users_area = apps_users->attach(slot::_2, ui::fork::ctor(axis::Y));
                                 auto label_pads = users_area->attach(slot::_1, ui::pads::ctor(dent{ 0,0,1,1 }, dent{ 0,0,0,0 }))
                                                             ->plugin<pro::fader>(x3, c3, 150ms);
                                     auto label_bttn = label_pads->attach(ui::fork::ctor());
@@ -481,17 +399,14 @@ namespace netxs::app::desk
                                             ui::item::ctor(ansi::fgc(whitelt).add("Users"), faux, faux));
                                         auto bttn_area = label_bttn->attach(slot::_2, ui::fork::ctor());
                                             auto bttn_pads = bttn_area->attach(slot::_2, ui::pads::ctor(dent{ 2,2,0,0 }, dent{ 0,0,1,1 }))
-                                                                        ->plugin<pro::fader>(x6, c6, 150ms);
+                                                                      ->plugin<pro::fader>(x6, c6, 150ms);
                                                 auto bttn = bttn_pads->attach(ui::item::ctor("<", faux));
                                 auto userlist_area = users_area->attach(slot::_2, ui::pads::ctor())
-                                                                ->plugin<pro::limit>();
+                                                               ->plugin<pro::limit>();
                                     if (world_ptr)
                                     {
                                         auto users = userlist_area->attach_element(e2::bindings::list::users, world_ptr, branch_template);
                                     }
-                                    //auto users_rail = userlist_area->attach(ui::rail::ctor());
-                                    //auto users = users_rail->attach_element(e2::bindings::list::users, world, branch_template);
-                                //todo unify
                                 bttn_pads->invoke([&](auto& boss)
                                             {
                                                 auto userlist_area_shadow = ptr::shadow(userlist_area);
@@ -515,15 +430,19 @@ namespace netxs::app::desk
                                             });
                             }
                         }
-                        auto bttns_area = taskbar->attach(slot::_2, ui::fork::ctor(axis::X));
                         {
                             const static auto c2 = app::shared::c2;
                             const static auto x2 = app::shared::x2;
                             const static auto c1 = app::shared::c1;
                             const static auto x1 = app::shared::x1;
 
-                            auto bttns = bttns_area->attach(slot::_1, ui::fork::ctor(axis::X));
-                                auto disconnect_area = bttns->attach(slot::_1, ui::pads::ctor(dent{ 2,3,1,1 }))
+                            auto bttns_cake = taskbar->attach(slot::_2, ui::cake::ctor());
+                            auto bttns_area = bttns_cake->attach(ui::rail::ctor(axes::X_ONLY))
+                                                        ->plugin<pro::limit>(twod{ -1, 3 }, twod{ -1, 3 });
+                                bttns_cake->attach(app::shared::underlined_hz_scrollbars(bttns_area));
+                            auto bttns = bttns_area->attach(ui::fork::ctor(axis::X))
+                                                   ->plugin<pro::limit>(twod{ uibar_full_size, 3 }, twod{ -1, 3 });
+                                auto disconnect_park = bttns->attach(slot::_1, ui::park::ctor())
                                                             ->plugin<pro::fader>(x2, c2, 150ms)
                                                             ->invoke([&](auto& boss)
                                                             {
@@ -536,22 +455,24 @@ namespace netxs::app::desk
                                                                     }
                                                                 };
                                                             });
-                                    auto disconnect = disconnect_area->attach(ui::item::ctor("× Disconnect"));
-                                auto shutdown_area = bttns->attach(slot::_2, ui::pads::ctor(dent{ 2,3,1,1 }))
-                                                        ->plugin<pro::fader>(x1, c1, 150ms)
-                                                        ->invoke([&](auto& boss)
-                                                        {
-                                                            boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
-                                                            {
-                                                                //todo unify, see system.h:1614
-                                                                #if defined(__APPLE__) || defined(__FreeBSD__)
-                                                                auto path2 = "/tmp/" + path + ".sock";
-                                                                ::unlink(path2.c_str());
-                                                                #endif
-                                                                os::exit(0, "taskbar: shutdown by button");
-                                                            };
-                                                        });
-                                    auto shutdown = shutdown_area->attach(ui::item::ctor("× Shutdown"));
+                                auto disconnect_area = disconnect_park->attach(snap::head, snap::center, ui::pads::ctor(dent{ 2,3,1,1 }));
+                                auto disconnect = disconnect_area->attach(ui::item::ctor("× Disconnect"));
+                                auto shutdown_park = bttns->attach(slot::_2, ui::park::ctor())
+                                                          ->plugin<pro::fader>(x1, c1, 150ms)
+                                                          ->invoke([&](auto& boss)
+                                                          {
+                                                              boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
+                                                              {
+                                                                  //todo unify, see system.h:1614
+                                                                  #if defined(__APPLE__) || defined(__FreeBSD__)
+                                                                  auto path2 = "/tmp/" + path + ".sock";
+                                                                  ::unlink(path2.c_str());
+                                                                  #endif
+                                                                  os::exit(0, "taskbar: shutdown by button");
+                                                              };
+                                                          });
+                                auto shutdown_area = shutdown_park->attach(snap::tail, snap::center, ui::pads::ctor(dent{ 2,3,1,1 }));
+                                auto shutdown = shutdown_area->attach(ui::item::ctor("× Shutdown"));
                         }
             }
             return window;

@@ -15,8 +15,8 @@ Text-based desktop environment inside your terminal*
 
 # Demo
 
-<a href="https://www.youtube.com/watch?v=FzmtPCxoPeA">
-  <img align="right" width="400" alt="Demo on YouTube" src="https://user-images.githubusercontent.com/11535558/127660289-25e71ef1-d17d-42d1-b79e-00e570056fe4.gif">
+<a href="https://www.youtube.com/watch?v=kofkoxGjFWQ">
+  <img align="right" width="400" alt="Demo on YouTube" src="https://user-images.githubusercontent.com/11535558/146906370-c9705579-1bbb-4e9e-8977-47312f551cc8.gif">
 </a>
 
 ### Live SSH
@@ -89,7 +89,7 @@ powershell ../src/install/install.ps1
 
 Option       | Description
 -------------|-------------------------------------------------------
-No arguments | Run client (auto start server if is not started)
+No arguments | Run client (auto start server)
 ` -d `       | Run server in background
 ` -s `       | Run server in interactive mode
 
@@ -104,8 +104,8 @@ No arguments | Run client (auto start server if is not started)
     <th colspan="2">Desktop</th>
   </tr>
   <tr>
-    <th>App list</th>
-    <th>Running app list</th>
+    <th>App group</th>
+    <th>Running app</th>
     <th>User list</th>
     <th>≡ Menu</th>
     <th>Menu bar</th>
@@ -122,7 +122,7 @@ No arguments | Run client (auto start server if is not started)
   </tr>
   <tr>
     <th>LeftClick</th>
-    <td>Set default app</td>
+    <td>Run app</td>
     <td>Go to app</td>
     <td></td>
     <td>Maximize/restore</td>
@@ -138,15 +138,14 @@ No arguments | Run client (auto start server if is not started)
   </tr>
   <tr>
     <th>double LeftClick</th>
-    <td>Run app</td>
-    <td colspan="2"></td>
+    <td colspan="3"></td>
     <td></td>
     <td colspan="2">Maximize/restore app window</td>
     <td colspan="3"></td>
   </tr>
   <tr>
     <th>RightClick</th>
-    <td></td>
+    <td>Set default app</td>
     <td>Center app window</td>
     <td colspan="1"></td>
     <td colspan="2">Toggle menu height</td>
@@ -236,6 +235,13 @@ No arguments | Run client (auto start server if is not started)
    - Serves for quick navigation through the desktop space using cyclic selection (left click on group title) in the `View` group on the taskbar.
 
  - `▀▄ Tile`
+   - Supports Drag and Drop for panes (like tabs in a browser).
+   - Use any modifier (`Ctrl` or `Alt`) while pane dragging to disable drag&drop mode.
+   - List of panes (outside the right side of the window)
+     - `LeftClick` -- Set exclusive focus (highlighted by color)
+     - `Ctrl+LeftClick` -- Set group focus (highlighted by color)
+     - `double LeftClick` -- Maxixmize/restore
+     - `Left+Right or MiddleClick` -- Terminate application
    - Tiling window manager preconfigurable using environment variable `VTM_PROFILE...`.  
      ```
      # Configuration example:

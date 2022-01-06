@@ -94,6 +94,7 @@ namespace netxs::app::term
                     gear.dismiss(true);
                 };
             }},
+        #ifdef DEMO 
             std::pair<text, std::function<void(ui::pads&)>>{ "=─",
             [](ui::pads& boss)
             {
@@ -136,6 +137,7 @@ namespace netxs::app::term
                     boss.color(align == bias::right ? 0xFF00ff00 : x3.fgc(), x3.bgc());
                 };
             }},
+        #endif
             std::pair<text, std::function<void(ui::pads&)>>{ "Wrap",
             [](ui::pads& boss)
             {
@@ -171,7 +173,7 @@ namespace netxs::app::term
                                                 ->plugin<pro::limit>(dot_11, twod{ 400,200 });
                         auto scroll = layers->attach(ui::rail::ctor());
                         {
-                            scroll->plugin<pro::limit>(twod{ 10,1 }); // mc crashes when window is too small
+                            scroll->plugin<pro::limit>(twod{ 12,1 }); // mc crashes when window is too small
 
                             auto shell = os::get_shell();
                             auto inst = scroll->attach(ui::term::ctor(v.empty() ? shell + " -i"

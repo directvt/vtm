@@ -3595,6 +3595,8 @@ namespace netxs::ui
         bool started = faux;
         void start()
         {
+            if (!started)
+            {
             //todo move it to the another thread (slow init)
             //initsz = base::size();
             //std::thread{ [&]( )
@@ -3604,6 +3606,7 @@ namespace netxs::ui
                                              [&](auto exit_reason) { onexit(exit_reason); } );
                 started = true;
             //} }.detach();
+            }
         }
        ~term(){ active = faux; }
         term(text command_line, iota max_scrollback_size = def_length, iota grow_step = def_growup)

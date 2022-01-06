@@ -28,7 +28,7 @@ namespace netxs::app::shared
     X(Shop         , "Shop"                  , ("Desktopio App Store")                                         , "" ) \
     X(Logs         , "Logs"                  , ("Logs \nDebug output console")                                 , "" ) \
     X(View         , "View"                  , (ansi::jet(bias::center).add("View \n Region 1"))               , "" ) \
-    X(Tile         , "Tile"                  , ("Tiling Window Manager")                                       , "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h(a(\"Term\" ,\"\" ,\"\"), a(\"Term\" ,\"\" ,\"\"))" ) \
+    X(Tile         , "Tile"                  , ("Tiling Window Manager")                                       , "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h(a(\"Term\" ,\"Term\" ,\"\"), a(\"Term\" ,\"Term\" ,\"\"))" ) \
     X(Settings     , "Settings"              , ("Settings: Frame Rate Limit")                                  , "" ) \
     X(PowerShell   , "PowerShell"            , ("Term \nPowerShell")                                           , "" ) \
     X(CommandPrompt, "Command Prompt"        , ("Term \nCommand Prompt")                                       , "" ) \
@@ -39,14 +39,15 @@ namespace netxs::app::shared
     X(Truecolor    , "Truecolor image"       , (ansi::jet(bias::right).add("True color ANSI/ASCII image test")), "" ) \
     X(Strobe       , "Strobe"                , (ansi::jet(bias::center).add("Strobe"))                         , "" ) \
     X(Test         , "Test Window"           , (ansi::jet(bias::center).add("Test Page"))                      , "" ) \
-    X(Empty        , "Empty Window"          , (ansi::mgl(1).mgr(1).add("Empty Instance \nid: "))              , "" )
+    X(Empty        , "Empty Window"          , (ansi::add("Empty Instance \nid: "))                            , "" )
 
     struct menu_item
     {
-        text type;
-        text name;
+        text group;
+        text label;
         text title;
-        text data;
+        text param;
+        bool fixed = true;
     };
 
     //todo temp
@@ -73,6 +74,8 @@ namespace netxs::app::shared
     auto const action_color      = tint::greenlt ;
     auto background_color = cell{}.fgc(whitedk).bgc(0xFF000000 /* blackdk */);
 
+    const static auto c8 = cell{}.bgc(0x00).fgc(highlight_color);
+    const static auto x8 = cell{ c8 }.bga(0x00).fga(0x00);
     const static auto c7 = cell{}.bgc(whitedk).fgc(blackdk);
     const static auto c6 = cell{}.bgc(action_color).fgc(whitelt);
     const static auto x6 = cell{ c6 }.bga(0x00).fga(0x00);
@@ -118,6 +121,31 @@ namespace netxs::app::shared
                 auto vt = scroll_bars->attach(slot::_2, ui::grip<axis::Y>::ctor(master));
         return scroll_bars;
     };
+    const auto underlined_hz_scrollbars = [](auto master)
+    {
+        auto area = ui::park::ctor();
+        auto grip = ui::grip_fx<axis::X>::ctor(master);
+        area->branch(snap::stretch, snap::tail, grip)
+            ->invoke([&](auto& boss)
+            {
+                area->visible(grip, faux);
+                auto boss_shadow = ptr::shadow(boss.This());
+                auto park_shadow = ptr::shadow(area);
+                auto grip_shadow = ptr::shadow(grip);
+                master->SUBMIT_BYVAL(tier::release, e2::form::state::mouse, active)
+                {
+                    if (auto park_ptr = park_shadow.lock())
+                    if (auto grip_ptr = grip_shadow.lock())
+                    if (auto boss_ptr = boss_shadow.lock())
+                    {
+                        auto& boss = *boss_ptr;
+                        park_ptr->visible(grip_ptr, active);
+                        boss_ptr->base::deface();
+                    }
+                };
+            });
+        return area;
+    };
     const auto scroll_bars_term = [](auto master)
     {
         auto scroll_bars = ui::fork::ctor();
@@ -130,61 +158,118 @@ namespace netxs::app::shared
     // Menu bar (shrinkable on right-click).
     const auto custom_menu = [](bool full_size, std::list<std::pair<text, std::function<void(ui::pads&)>>> menu_items)
     {
-        auto menu_block = ui::park::ctor()
-            ->plugin<pro::limit>(twod{ -1, full_size ? 3 : 1 }, twod{ -1, full_size ? 3 : 1 })
-            ->invoke([](ui::park& boss)
-            {
-                boss.SUBMIT(tier::release, hids::events::mouse::button::click::right, gear)
-                {
-                    auto& limit = boss.plugins<pro::limit>();
-                    auto limits = limit.get();
-                    limits.min.y = limits.max.y = limits.min.y == 1 ? 3 : 1;
-                    limit.set(limits);
-                    boss.reflow();
-                    gear.dismiss();
-                };
-                boss.SUBMIT(tier::anycast, e2::form::prop::menusize, size)
-                {
-                    auto& limit = boss.plugins<pro::limit>();
-                    auto limits = limit.get();
-                    limits.min.y = limits.max.y = std::max(0, size);
-                    limit.set(limits);
-                    boss.reflow();
-                };
-            });
-        auto menu_area = menu_block->attach(snap::stretch, snap::center, ui::fork::ctor())
-                                    ->active();
+        auto menu_area = ui::fork::ctor()
+                        ->active();
             auto inner_pads = dent{ 1,2,1,1 };
             auto menu_list = menu_area->attach(slot::_1, ui::fork::ctor());
                                         
                 menu_list->attach(slot::_1, ui::pads::ctor(inner_pads, dent{ 0 }))
-                            ->plugin<pro::fader>(x3, c3, 150ms)
-                            ->invoke([&](ui::pads& boss)
-                            {
-                                boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
-                                {
-                                    boss.base::template riseup<tier::release>(e2::form::maximize, gear);
-                                    gear.dismiss();
-                                };
-                            })
-                        ->attach(ui::item::ctor(" ≡", faux, true));
-                auto scrl_list = menu_list->attach(slot::_2, ui::rail::ctor(axes::ONLY_X, axes::ONLY_X))
-                                            ->attach(ui::list::ctor(axis::X));
+                         ->plugin<pro::fader>(x3, c3, 150ms)
+                         ->invoke([&](ui::pads& boss)
+                         {
+                             boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
+                             {
+                                 boss.base::template riseup<tier::release>(e2::form::maximize, gear);
+                                 gear.dismiss();
+                             };
+                         })
+                         ->attach(ui::item::ctor(" ≡", faux, true));
+
+                auto scrl_area = menu_list->attach(slot::_2, ui::cake::ctor());
+                auto scrl_rail = scrl_area->attach(ui::rail::ctor(axes::X_ONLY, axes::X_ONLY));
+                auto scrl_list = scrl_rail->attach(ui::list::ctor(axis::X));
+
+                auto scroll_hint = ui::park::ctor();
+                auto hints = scroll_hint->attach(snap::stretch, snap::tail, ui::grip_fx<axis::X>::ctor(scrl_rail));
+
+                auto scrl_grip = scrl_area->attach(scroll_hint);
+
             for (auto& body : menu_items) scrl_list->attach(ui::pads::ctor(inner_pads, dent{ 1 }))
-                                                    ->plugin<pro::fader>(x3, c3, 150ms)
-                                                    ->invoke(body.second)
-                                                    ->attach(ui::item::ctor(body.first, faux, true));
+                                                   ->plugin<pro::fader>(x3, c3, 150ms)
+                                                   ->invoke(body.second)
+                                                   ->attach(ui::item::ctor(body.first, faux, true));
             menu_area->attach(slot::_2, ui::pads::ctor(dent{ 2,2,1,1 }, dent{}))
-                        ->plugin<pro::fader>(x1, c1, 150ms)
-                        ->invoke([&](auto& boss)
+                     ->plugin<pro::fader>(x1, c1, 150ms)
+                     ->invoke([&](auto& boss)
+                     {
+                         boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
+                         {
+                             boss.base::template riseup<tier::release>(e2::form::quit, boss.This());
+                             gear.dismiss();
+                         };
+                     })
+                     ->attach(ui::item::ctor("×"));
+
+        auto menu_block = ui::park::ctor()
+            ->plugin<pro::limit>(twod{ -1, full_size ? 3 : 1 }, twod{ -1, full_size ? 3 : 1 })
+            ->invoke([&](ui::park& boss)
+            {
+                scroll_hint->visible(hints, faux);
+                auto boss_shadow = ptr::shadow(boss.This());
+                auto park_shadow = ptr::shadow(scroll_hint);
+                auto grip_shadow = ptr::shadow(hints);
+                boss.SUBMIT_BYVAL(tier::release, hids::events::mouse::button::click::right, gear)
+                {
+                    if (auto park_ptr = park_shadow.lock())
+                    if (auto grip_ptr = grip_shadow.lock())
+                    if (auto boss_ptr = boss_shadow.lock())
+                    {
+                        auto& boss = *boss_ptr;
+                        auto& limit = boss.plugins<pro::limit>();
+                        auto limits = limit.get();
+                        if (limits.min.y == 1)
                         {
-                            boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
-                            {
-                                boss.base::template riseup<tier::release>(e2::form::quit, boss.This());
-                                gear.dismiss();
-                            };
-                        })
-                        ->attach(ui::item::ctor("×"));
+                            park_ptr->config(grip_ptr, snap::stretch, snap::tail);
+                            limits.min.y = limits.max.y = 3;
+                        }
+                        else
+                        {
+                            park_ptr->config(grip_ptr, snap::stretch, snap::center);
+                            limits.min.y = limits.max.y = 1;
+                        }
+                        limit.set(limits);
+                        boss.reflow();
+                        gear.dismiss();
+                    }
+                };
+                boss.SUBMIT_BYVAL(tier::anycast, e2::form::prop::menusize, size)
+                {
+                    if (auto park_ptr = park_shadow.lock())
+                    if (auto grip_ptr = grip_shadow.lock())
+                    if (auto boss_ptr = boss_shadow.lock())
+                    {
+                        auto& boss = *boss_ptr;
+                        auto& limit = boss.plugins<pro::limit>();
+                        auto limits = limit.get();
+                        limits.min.y = limits.max.y = std::max(0, size);
+                        //todo too hacky
+                        if (limits.min.y == 3)
+                        {
+                            park_ptr->config(grip_ptr, snap::stretch, snap::tail);
+                        }
+                        else
+                        {
+                            park_ptr->config(grip_ptr, snap::stretch, snap::center);
+                        }
+                        limit.set(limits);
+                        boss.reflow();
+                    }
+                };
+                //todo revise
+                if (menu_items.size()) // Show scrolling hint only if elements exist.
+                boss.SUBMIT_BYVAL(tier::release, e2::form::state::mouse, active)
+                {
+                    if (auto park_ptr = park_shadow.lock())
+                    if (auto grip_ptr = grip_shadow.lock())
+                    if (auto boss_ptr = boss_shadow.lock())
+                    {
+                        park_ptr->visible(grip_ptr, active);
+                        boss_ptr->base::deface();
+                    }
+                };
+            });
+        menu_block->attach(snap::stretch, snap::center, menu_area);
+
         return menu_block;
     };
 
@@ -251,6 +336,10 @@ namespace netxs::app::shared
         {
             auto window = ui::cake::ctor();
             auto strob = window->plugin<pro::focus>()
+                               ->invoke([](auto& boss)
+                                {
+                                    boss.keybd.accept(true);
+                                })
                                ->attach(ui::mock::ctor());
             auto strob_shadow = ptr::shadow(strob);
             bool stobe_state = true;
@@ -269,6 +358,7 @@ namespace netxs::app::shared
         {
             auto window = ui::cake::ctor();
             window->plugin<pro::focus>()
+                  ->plugin<pro::cache>()
                   ->attach(ui::stem_rate<tier::general, decltype(e2::config::fps)>::ctor("Set frame rate limit", 1, 200, "fps"))
                   ->colors(0xFFFFFFFF, bluedk)
                   ->invoke([&](auto& boss)
@@ -285,10 +375,11 @@ namespace netxs::app::shared
                   ->plugin<pro::acryl>()
                   ->invoke([&](auto& boss)
                   {
+                      boss.keybd.accept(true);
                       boss.SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
                       {
                           static iota i = 0; i++;
-                          auto title = ansi::mgl(1).mgr(1).add("Empty Instance \nid: ", parent->id);
+                          auto title = ansi::add("Empty Instance \nid: ", parent->id);
                           boss.base::template riseup<tier::preview>(e2::form::prop::header, title);
                       };
                   });
@@ -454,7 +545,11 @@ namespace netxs::app::shared
             window->plugin<pro::focus>()
                   ->plugin<pro::track>()
                   ->plugin<pro::acryl>()
-                  ->plugin<pro::cache>();
+                  ->plugin<pro::cache>()
+                  ->invoke([](auto& boss)
+                    {
+                        boss.keybd.accept(true);
+                    });
             auto object = window->attach(ui::fork::ctor(axis::Y))
                                 ->colors(whitelt, 0xA01f0fc4);
                 auto menu = object->attach(slot::_1, app::shared::custom_menu(true, {}));
@@ -688,6 +783,95 @@ namespace netxs::app::shared
                     auto hz = term_stat_area->attach(slot::_2, ui::grip<axis::X>::ctor(scroll));
             return window;
         };
+        auto build_HeadlessTerm  = [](view v)
+        {
+            auto window = ui::cake::ctor();
+            window->plugin<pro::focus>()
+                  ->plugin<pro::track>()
+                  ->plugin<pro::acryl>()
+                  ->plugin<pro::cache>();
+            auto object = window->attach(ui::fork::ctor(axis::Y))
+                                ->colors(whitelt, app::shared::term_menu_bg);
+                auto menu = object->attach(slot::_1, app::shared::custom_menu(faux, {}));
+                auto layers = object->attach(slot::_2, ui::cake::ctor())
+                                    ->plugin<pro::limit>(dot_11, twod{ 400,200 });
+                    auto scroll = layers->attach(ui::rail::ctor())
+                                        ->plugin<pro::limit>(twod{ 10,1 }); // mc crashes when window is too small
+                    auto data = v.empty() ? os::get_shell() + "-i"
+                                          : text{ v };
+                    auto inst = scroll->attach(ui::term::ctor(data))
+                                      ->colors(whitelt, blackdk)
+                                      ->invoke([&](auto& boss)
+                                      {
+                                          boss.SUBMIT(tier::anycast, e2::form::upon::started, root)
+                                          {
+                                              boss.start();
+                                          };
+                                      });
+                layers->attach(app::shared::scroll_bars(scroll));
+            return window;
+        };
+        auto build_Fone          = [](view v)
+        {
+            return ui::park::ctor()
+                ->branch(ui::snap::tail, ui::snap::tail, ui::item::ctor(MONOTTY_VER)
+                ->template plugin<pro::fader>(x8, c8, 0ms))
+                ->invoke([&](auto& boss)
+                {
+                    auto shadow = ptr::shadow(boss.This());
+                    auto data = utf::divide(v, ";");
+                    auto type = text{ data.size() > 0 ? data[0] : view{} };
+                    auto name = text{ data.size() > 1 ? data[1] : view{} };
+                    auto args = text{ data.size() > 2 ? data[2] : view{} };
+                    boss.SUBMIT_BYVAL(tier::release, hids::events::mouse::button::click::left, gear)
+                    {
+                        //todo revise/unify
+                        auto world_ptr = decltype(e2::config::whereami)::type{};
+                        SIGNAL_GLOBAL(e2::config::whereami, world_ptr);
+                        if (auto boss = shadow.lock())
+                        if (world_ptr)
+                        {
+                            static iota random = 0;
+                            random = (random + 2) % 10;
+                            auto offset = twod{ random * 2, random };
+                            auto viewport = gear.area();
+                            gear.slot.coor = viewport.coor + viewport.size / 8 + offset;
+                            gear.slot.size = viewport.size * 3 / 4;
+
+                            auto menu_list_ptr = decltype(e2::bindings::list::apps)::type{};
+                            world_ptr->SIGNAL(tier::request, e2::bindings::list::apps, menu_list_ptr);
+                            auto& menu_list = *menu_list_ptr;
+                            
+                            if (app::shared::objs_config.contains(name) && app::shared::objs_config[name].fixed) // Check for Demo label availability.
+                            {
+                                auto i = 1;
+                                text test;
+                                do   test = name + " (" + std::to_string(++i) + ")";
+                                while (app::shared::objs_config.contains(test) && app::shared::objs_config[name].fixed);
+                                std::swap(test, name);
+                            }
+                            auto& m = app::shared::objs_config[name];
+                            m.group = type;
+                            m.label = name;
+                            m.title = name; // Use the same title as the menu label.
+                            m.param = args;
+                            m.fixed = faux;
+                            menu_list[name];
+
+                            auto current_default = decltype(e2::data::changed)::type{};
+                            boss->template riseup<tier::request>(e2::data::changed, current_default); //todo "template" required by gcc (ubuntu 18.04)
+                            
+                            if (auto gate = boss->parent())
+                            {
+                                gate->SIGNAL(tier::release, e2::data::changed, name);
+                                world_ptr->SIGNAL(tier::release, e2::form::proceed::createby, gear);
+                                gate->SIGNAL(tier::release, e2::data::changed, current_default);
+                            }
+                            gear.dismiss();
+                        }
+                    };
+                });
+        };
 
         app::shared::initialize builder_Strobe       { "Strobe"       , build_Strobe        };
         app::shared::initialize builder_Settings     { "Settings"     , build_Settings      };
@@ -700,20 +884,22 @@ namespace netxs::app::shared
         app::shared::initialize builder_PowerShell   { "PowerShell"   , build_PowerShell    };
         app::shared::initialize builder_CommandPrompt{ "CommandPrompt", build_CommandPrompt };
         app::shared::initialize builder_Bash         { "Bash"         , app::term::build    };
+        app::shared::initialize builder_HeadlessTerm { "HeadlessTerm" , build_HeadlessTerm  };
+        app::shared::initialize builder_Fone         { "Fone"         , build_Fone          };
     }
 
     auto init_menu = [](auto world) // Init registry/menu list.
     {
-        sptr<registry_t> menu_list_ptr;
+        auto menu_list_ptr = decltype(e2::bindings::list::apps)::type{};
         world->SIGNAL(tier::request, e2::bindings::list::apps, menu_list_ptr);
         auto& menu_list = *menu_list_ptr;
 
         #ifdef DEMO
             auto shell = os::get_shell();
             #ifdef PROD
-                app::shared::objs_config[objs_lookup["Tile"]].data = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h(v(\"" + shell + " -c 'LC_ALL=en_US.UTF-8 mc -c -x -d; cat'\", h(\"" + shell + " -c 'ls /bin | nl | ccze -A; " + shell + "'\", a(\"Settings\",\"\",\"\"))), a(\"Calc\",\"\",\"\"))";
+                app::shared::objs_config[objs_lookup["Tile"]].param = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h(v(\"" + shell + " -c 'LC_ALL=en_US.UTF-8 mc -c -x -d; cat'\", h(\"" + shell + " -c 'ls /bin | nl | ccze -A; " + shell + "'\", a(\"Settings\",\"Settings\",\"\"))), a(\"Calc\",\"\",\"\"))";
             #else
-                app::shared::objs_config[objs_lookup["Tile"]].data = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h1:1(v1:1(\"" + shell + " -c 'LC_ALL=en_US.UTF-8 mc -c -x -d; cat'\", h1:1(\"" + shell + " -c 'ls /bin | nl | ccze -A; " + shell + "'\", a(\"Settings\",\"\",\"\"))), a(\"Calc\",\"\",\"\"))";
+                app::shared::objs_config[objs_lookup["Tile"]].param = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h1:1(v1:1(\"" + shell + " -c 'LC_ALL=en_US.UTF-8 mc -c -x -d; cat'\", h1:1(\"\",\"" + shell + " -c 'ls /bin | nl | ccze -A; " + shell + "'\")), a(\"Calc\",\"\",\"\"))";
             #endif
 
             for (auto& [menu_item_id, app_data] : app::shared::objs_config)
@@ -751,10 +937,10 @@ namespace netxs::app::shared
                     if (!name.empty())
                     {
                         auto& m = app::shared::objs_config[name];
-                        m.type = "Tile";
-                        m.name = name;
+                        m.group = "Tile";
+                        m.label = name;
                         m.title = name; // Use the same title as the menu label.
-                        m.data = text{ p };
+                        m.param = text{ p };
                         menu_list[name];
                     }
                 }
@@ -766,11 +952,12 @@ namespace netxs::app::shared
             auto creator = [&](text const& menu_item_id, rect area)
             {
                 auto what = decltype(e2::form::proceed::createat)::type{};
-                what.menu_item_id = menu_item_id;
-                what.location = area;
+                what.menuid = menu_item_id;
+                what.square = area;
                 world->SIGNAL(tier::release, e2::form::proceed::createat, what);
             };
             auto sub_pos = twod{ 12+17, 0 };
+            creator(objs_lookup["Tile"], { twod{ 40 + 85,-10 } + sub_pos, {160, 42 } });
             creator(objs_lookup["Test"], { twod{ 22     , 1  } + sub_pos, { 70, 21 } });
             creator(objs_lookup["Shop"], { twod{ 4      , 6  } + sub_pos, { 82, 38 } });
             creator(objs_lookup["Calc"], { twod{ 15     , 15 } + sub_pos, { 65, 23 } });
@@ -779,7 +966,6 @@ namespace netxs::app::shared
             creator(objs_lookup["Term"], { twod{ 34     , 38 } + sub_pos, { 64, 16 } });
             creator(objs_lookup["Term"], { twod{ 44 + 85, 35 } + sub_pos, { 64, 15 } });
             creator(objs_lookup["Term"], { twod{ 40 + 85, 42 } + sub_pos, { 64, 15 } });
-            creator(objs_lookup["Tile"], { twod{ 40 + 85,-10 } + sub_pos, {160, 42 } });
             creator(objs_lookup["View"], { twod{ 0, 7 } + twod{ -120, 60 }, { 120, 52 } });
             creator(objs_lookup["View"], { twod{ 0,-1 } + sub_pos, { 120, 52 } });
 

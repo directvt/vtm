@@ -15,14 +15,19 @@ namespace netxs::ui
     using namespace netxs::ui::atoms;
     using namespace netxs::console;
 
+    enum sort
+    {
+         forward,
+         reverse,
+    };
     enum slot : id_t { _1, _2, _I };
     enum axis : id_t { X, Y };
     enum axes
     {
         NONE   = 0,
-        ONLY_X = 1 << 0,
-        ONLY_Y = 1 << 1,
-        ALL    = (ONLY_X | ONLY_Y),
+        X_ONLY = 1 << 0,
+        Y_ONLY = 1 << 1,
+        ALL    = (X_ONLY | Y_ONLY),
     };
     enum snap
     {
@@ -32,7 +37,7 @@ namespace netxs::ui
         stretch,
         center,
     };
-    // controls: base UI control.
+    // controls: base UI element.
     template<class T>
     class form
         : public base
@@ -141,7 +146,9 @@ namespace netxs::ui
         auto depend(sptr<base> master_ptr)
         {
             auto& master = *master_ptr;
-            master.SUBMIT_T(tier::release, e2::form::upon::vtree::detached, memomap[master.id], parent_ptr)
+            //todo test leaks
+            //master.SUBMIT_T(tier::release, e2::form::upon::vtree::detached, memomap[master.id], parent_ptr)
+            master.SUBMIT_T(tier::release, e2::dtor, memomap[master.id], id)
             {
                 auto backup = This();
                 memomap.erase(master.id);
@@ -201,7 +208,7 @@ namespace netxs::ui
         }
     };
 
-    // controls: Splitter control.
+    // controls: Splitter.
     class fork
         : public form<fork>
     {
@@ -502,15 +509,26 @@ namespace netxs::ui
         }
     };
 
-    // controls: Vertical/horizontal list control.
+    // controls: Vertical/horizontal list.
     class list
         : public form<list>
     {
-        using roll = std::list<std::pair<sptr<base>, iota>>;
-        roll subset;
+        using book = std::list<std::pair<sptr<base>, twod>>;
+        book subset;
         bool updown; // list: List orientation, true: vertical(default), faux: horizontal.
+        sort lineup; // list: Attachment order.
 
     public:
+        void clear()
+        {
+            auto backup = This();
+            while (subset.size())
+            {
+                auto item_ptr = subset.back().first;
+                subset.pop_back();
+                item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, backup);
+            }
+        }
         ~list()
         {
             events::sync lock;
@@ -522,8 +540,9 @@ namespace netxs::ui
                 item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, empty);
             }
         }
-        list(axis orientation = axis::Y)
-            : updown{ orientation == axis::Y }
+        list(axis orientation = axis::Y, sort attach_order = sort::forward)
+            : updown{ orientation == axis::Y },
+              lineup{ attach_order }
         {
             SUBMIT(tier::preview, e2::size::set, new_sz)
             {
@@ -533,13 +552,16 @@ namespace netxs::ui
                 auto  x_temp = x_size;
                 auto  y_temp = y_size;
 
-                auto meter = [&]() {
+                auto meter = [&]()
+                {
                     height = 0;
                     for (auto& client : subset)
                     {
                         y_size = 0;
                         client.first->SIGNAL(tier::preview, e2::size::set, new_sz);
-                        client.second = y_size;
+                        client.second = { x_size, y_size };
+                        if (x_size > x_temp) x_temp = x_size;
+                        x_size = x_temp;
                         height += y_size;
                     }
                 };
@@ -548,7 +570,6 @@ namespace netxs::ui
             };
             SUBMIT(tier::release, e2::size::set, new_sz)
             {
-                //todo optimize avoid SIGNAL if size/coor is unchanged
                 auto& y_size = updown ? new_sz.y : new_sz.x;
                 auto& x_size = updown ? new_sz.x : new_sz.y;
                 twod  new_xy;
@@ -558,7 +579,7 @@ namespace netxs::ui
                 auto  found = faux;
                 for (auto& client : subset)
                 {
-                    y_size = client.second;
+                    y_size = client.second.y;
                     if (client.first)
                     {
                         auto& entry = *client.first;
@@ -573,11 +594,14 @@ namespace netxs::ui
                                 base::anchor += new_xy - anker.coor;
                             }
                         }
-
                         entry.SIGNAL(tier::release, e2::coor::set, new_xy);
-                        entry.SIGNAL(tier::release, e2::size::set, new_sz);
+                        auto& sz_y = updown ? client.second.y : client.second.x;
+                        auto& sz_x = updown ? client.second.x : client.second.y;
+                        auto& size = entry.resize(sz_x, sz_y);
+                        sz_x = size.x;
+                        sz_y = size.y;
+                        y_coor += client.second.y;
                     }
-                    y_coor+= client.second;
                 }
             };
             SUBMIT(tier::release, e2::render::any, parent_canvas)
@@ -607,7 +631,8 @@ namespace netxs::ui
         template<class T>
         auto attach(sptr<T> item)
         {
-            subset.push_back({ item, 0 });
+            if (lineup == sort::forward) subset.push_back ({ item, dot_00 });
+            else                         subset.push_front({ item, dot_00 });
             item->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
             return item;
         }
@@ -636,7 +661,7 @@ namespace netxs::ui
                 auto backup = This();
                 auto pos = subset.erase(item);
                 old_item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, backup);
-                subset.insert(pos, std::pair{ new_item_ptr, 0 });
+                subset.insert(pos, std::pair{ new_item_ptr, dot_00 });
                 new_item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::attached, backup);
             }
         }
@@ -724,7 +749,7 @@ namespace netxs::ui
         }
     };
 
-    // controls: Align form controls.
+    // controls: Form aligner.
     class park
         : public form<park>
     {
@@ -733,6 +758,7 @@ namespace netxs::ui
             sptr<base> ptr;
             snap       hz;
             snap       vt;
+            bool       on;
         };
         std::list<type> subset;
 
@@ -791,7 +817,7 @@ namespace netxs::ui
                 auto& basis = base::coor();
                 for (auto& client : subset)
                 {
-                    parent_canvas.render(client.ptr, basis);
+                    if (client.on) parent_canvas.render(client.ptr, basis);
                 }
             };
         }
@@ -809,11 +835,33 @@ namespace netxs::ui
             }
             return {};
         }
+        // park: Configure specified object.
+        void config(sptr<base> item_ptr, snap new_hz, snap new_vt)
+        {
+            if (!item_ptr) return;
+            auto head = subset.begin();
+            auto tail = subset.end();
+            auto item = std::find_if(head, tail, [&](auto& c){ return c.ptr == item_ptr; });
+            if (item != tail)
+            {
+                item->hz = new_hz;
+                item->vt = new_vt;
+            }
+        }
+        // park: Make specified object visible or not.
+        void visible(sptr<base> item_ptr, bool is_visible)
+        {
+            if (!item_ptr) return;
+            auto head = subset.begin();
+            auto tail = subset.end();
+            auto item = std::find_if(head, tail, [&](auto& c){ return c.ptr == item_ptr; });
+            if (item != tail) item->on = is_visible;
+        }
         // park: Create a new item of the specified subtype and attach it.
         template<class T>
         auto attach(snap hz, snap vt, sptr<T> item)
         {
-            subset.push_back({ item, hz, vt });
+            subset.push_back({ item, hz, vt, true });
             item->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
             return item;
         }
@@ -1320,7 +1368,7 @@ namespace netxs::ui
             SUBMIT(tier::release, hids::events::mouse::scroll::any, gear)
             {
                 auto dir = gear.whldt > 0;
-                if (permit == axes::ONLY_X || gear.meta(hids::ANYCTRL |
+                if (permit == axes::X_ONLY || gear.meta(hids::ANYCTRL |
                                                         hids::SHIFT ))
                      wheels<X>(dir);
                 else wheels<Y>(dir);
@@ -1334,8 +1382,8 @@ namespace netxs::ui
                 auto dy = ds.y * 2;
                 auto vt = std::abs(dx) < std::abs(dy);
 
-                if (((siezed & axes::ONLY_X) && !vt) ||
-                    ((siezed & axes::ONLY_Y) &&  vt))
+                if (((siezed & axes::X_ONLY) && !vt) ||
+                    ((siezed & axes::Y_ONLY) &&  vt))
                 {
                     if (gear.capture(bell::id))
                     {
@@ -1352,8 +1400,8 @@ namespace netxs::ui
                 if (gear.captured(bell::id))
                 {
                     auto delta = gear.mouse::delta.get();
-                    if (permit & axes::ONLY_X) scroll<X>(delta.x);
-                    if (permit & axes::ONLY_Y) scroll<Y>(delta.y);
+                    if (permit & axes::X_ONLY) scroll<X>(delta.x);
+                    if (permit & axes::Y_ONLY) scroll<Y>(delta.y);
                     gear.dismiss();
                 }
             };
@@ -1381,8 +1429,8 @@ namespace netxs::ui
                     auto  cycle = datetime::round<iota>(v0.dT);
                     auto  limit = datetime::round<iota>(STOPPING_TIME);
 
-                    if (permit & axes::ONLY_X) actify<X>(quadratic{ speed.x, cycle, limit, start });
-                    if (permit & axes::ONLY_Y) actify<Y>(quadratic{ speed.y, cycle, limit, start });
+                    if (permit & axes::X_ONLY) actify<X>(quadratic{ speed.x, cycle, limit, start });
+                    if (permit & axes::Y_ONLY) actify<Y>(quadratic{ speed.y, cycle, limit, start });
 
                     base::deface();
                     gear.release();
@@ -1591,12 +1639,11 @@ namespace netxs::ui
         }
     };
 
-    // controls: Scroll bar.
+    // controls: Scrollbar.
     template<axis AXIS>
-    class grip // rename to roll?
+    class grip
         : public form<grip<AXIS>>
     {
-        //pro::mouse mouse{*this }; // grip: Mouse events controller.
         pro::timer timer{*this }; // grip: Minimize by timeout.
         pro::limit limit{*this }; // grip: Size limits.
 
@@ -1974,6 +2021,385 @@ namespace netxs::ui
         }
     };
 
+    // controls: Scroll bar.
+    //template<axis AXIS, auto drawfx = noop{}> //todo apple clang doesn't get it
+    //class grip_fx
+    //    : public flow, public form<grip_fx<AXIS, drawfx>>
+    template<axis AXIS>
+    class grip_fx // rename to roll?
+        : public form<grip_fx<AXIS>>
+    {
+        //pro::mouse mouse{*this }; // grip: Mouse events controller.
+        pro::timer timer{*this }; // grip: Minimize by timeout.
+        pro::limit limit{*this }; // grip: Size limits.
+
+        using wptr = netxs::wptr<base>;
+        using sptr = netxs::sptr<base>;
+        using form = ui::form<grip_fx<AXIS>>;
+
+        enum activity
+        {
+            mouse_leave = 0, // faux
+            mouse_hover = 1, // true
+            pager_first = 10,
+            pager_next  = 11,
+        };
+
+        template<auto N> static constexpr
+        //auto events = e2::form::upon::scroll::_<N>; //todo clang 11.0.1 doesn't support this.
+        auto events() { return e2::form::upon::scroll::_<N>; }
+
+        static inline auto  xy(twod const& p) { return AXIS == axis::X ? p.x : p.y; }
+        static inline auto  yx(twod const& p) { return AXIS == axis::Y ? p.x : p.y; }
+        static inline auto& xy(twod&       p) { return AXIS == axis::X ? p.x : p.y; }
+        static inline auto& yx(twod&       p) { return AXIS == axis::Y ? p.x : p.y; }
+
+        struct math
+        {
+            rack  master_inf = {};                         // math: Master scroll info.
+            iota& master_len = xy(master_inf.region);      // math: Master len.
+            iota& master_pos = xy(master_inf.window.coor); // math: Master viewport pos.
+            iota& master_box = xy(master_inf.window.size); // math: Master viewport len.
+            iota  scroll_len = 0; // math: Scrollbar len.
+            iota  scroll_pos = 0; // math: Scrollbar grip pos.
+            iota  scroll_box = 0; // math: Scrollbar grip len.
+            iota   m         = 0; // math: Master max pos.
+            iota   s         = 0; // math: Scroll max pos.
+            double r         = 1; // math: Scroll/master len ratio.
+
+            iota  cursor_pos = 0; // math: Mouse cursor position.
+
+            // math: Calc scroll to master metrics.
+            void s_to_m()
+            {
+                auto scroll_center = scroll_pos + scroll_box / 2.0;
+                auto master_center = scroll_len ? scroll_center / r
+                                                : 0;
+                master_pos = (iota)std::round(master_center - master_box / 2.0);
+
+                // Reset to extreme positions.
+                if (scroll_pos == 0 && master_pos > 0) master_pos = 0;
+                if (scroll_pos == s && master_pos < m) master_pos = m;
+            }
+            // math: Calc master to scroll metrics.
+            void m_to_s()
+            {
+                r = (double)scroll_len / master_len;
+                auto master_middle = master_pos + master_box / 2.0;
+                auto scroll_middle = master_middle * r;
+                scroll_box = std::max(1, (iota)(master_box * r));
+                scroll_pos = (iota)std::round(scroll_middle - scroll_box / 2.0);
+
+                // Don't place the grip behind the scrollbar.
+                if (scroll_pos >= scroll_len) scroll_pos = scroll_len - 1;
+
+                // Extreme positions are always closed last.
+                s = scroll_len - scroll_box;
+                m = master_len - master_box;
+
+                if (scroll_len > 2) // Two-row hight is not suitable for this type of aligning.
+                {
+                    if (scroll_pos == 0 && master_pos > 0) scroll_pos = 1;
+                    if (scroll_pos == s && master_pos < m) scroll_pos = s - 1;
+                }
+            }
+            void update(rack const& scinfo)
+            {
+                master_inf = scinfo;
+                m_to_s();
+            }
+            void resize(twod const& new_size)
+            {
+                scroll_len = xy(new_size);
+                m_to_s();
+            }
+            void stepby(iota delta)
+            {
+                scroll_pos = std::clamp(scroll_pos + delta, 0, s);
+                s_to_m();
+            }
+            void commit(rect& handle)
+            {
+                xy(handle.coor)+= scroll_pos;
+                xy(handle.size) = scroll_box;
+            }
+            auto inside(iota coor)
+            {
+                if (coor >= scroll_pos + scroll_box) return 1; // Below the grip.
+                if (coor >= scroll_pos)              return 0; // Inside the grip.
+                                                     return-1; // Above the grip.
+            }
+            void pager(iota dir)
+            {
+                master_pos += master_box * dir;
+                m_to_s();
+            }
+            auto follow()
+            {
+                auto dir = scroll_len > 2 ? inside(cursor_pos)
+                                          : cursor_pos > 0 ? 1 // Don't stop to follow over
+                                                           :-1;//    box on small scrollbar.
+                if (dir)
+                {
+                    pager(dir);
+                    return true;
+                }
+                return faux;
+            }
+        };
+
+        wptr boss;
+        hook memo;
+        iota thin; // grip: Scrollbar thickness.
+        iota init; // grip: Handle base width.
+        math calc; // grip: Scrollbar calculator.
+        bool wide; // grip: Is the scrollbar active.
+        iota mult; // grip: Vertical bar width multiplier.
+
+        bool on_pager = faux;
+
+        template<class EVENT = decltype(events<AXIS>())>
+        void send(EVENT)
+        {
+            if (auto master = this->boss.lock())
+            {
+                master->SIGNAL(tier::preview, EVENT{}, calc.master_inf);
+            }
+        }
+        void gohome()
+        {
+            send(events<AXIS + 2>());
+        }
+        void config(iota width)
+        {
+            thin = width;
+            auto lims = twod{ xy({ -1,thin }), yx({ -1,thin }) };
+            limit.set(lims, lims);
+        }
+        void giveup(hids& gear)
+        {
+            if (on_pager) gear.dismiss();
+            else
+            {
+                if (gear.captured(bell::id))
+                {
+                    //if (this->form<grip<AXIS>>::template protos<tier::release>(hids::events::mouse::button::drag::cancel::right))
+                    if (this->form::template protos<tier::release>(hids::events::mouse::button::drag::cancel::right))
+                    {
+                        gohome();
+                    }
+                    base::deface();
+                    gear.release();
+                    gear.dismiss();
+                }
+            }
+        }
+        auto pager_repeat()
+        {
+            if (on_pager && calc.follow())
+            {
+                send(events<AXIS>());
+            }
+            return on_pager;
+        }
+    public:
+        grip_fx(sptr boss, iota thickness = 1, iota multiplier = 2)
+            : boss{ boss       },
+              thin{ thickness  },
+              wide{ faux       },
+              init{ thickness  },
+              mult{ multiplier }
+        {
+            config(thin);
+
+            boss->SUBMIT_T(tier::release, events<AXIS>(), memo, scinfo)
+            {
+                calc.update(scinfo);
+                base::deface();
+            };
+
+            SUBMIT(tier::release, e2::size::set, new_size)
+            {
+                calc.resize(new_size);
+            };
+
+            using bttn = hids::events::mouse::button;
+            SUBMIT(tier::release, hids::events::mouse::scroll::any, gear)
+            {
+                if (gear.whldt)
+                {
+                    auto dir = gear.whldt < 0 ? 1 : -1;
+                    calc.pager(dir);
+                    send(events<AXIS>());
+                    gear.dismiss();
+                }
+            };
+            SUBMIT(tier::release, hids::events::mouse::move, gear)
+            {
+                calc.cursor_pos = xy(gear.mouse::coord);
+            };
+            SUBMIT(tier::release, hids::events::mouse::button::dblclick::left, gear)
+            {
+                gear.dismiss(); // Do not pass double clicks outside.
+            };
+            SUBMIT(tier::release, hids::events::mouse::button::down::any, gear)
+            {
+                if (!on_pager)
+                if (this->form::template protos<tier::release>(bttn::down::left) ||
+                    this->form::template protos<tier::release>(bttn::down::right))
+                if (auto dir = calc.inside(xy(gear.mouse::coord)))
+                {
+                    if (gear.capture(bell::id))
+                    {
+                        on_pager = true;
+                        pager_repeat();
+                        gear.dismiss();
+
+                        timer.actify(activity::pager_first, REPEAT_DELAY, [&](auto p)
+                        {
+                            if (pager_repeat())
+                            {
+                                timer.actify(activity::pager_next, REPEAT_RATE, [&](auto d)
+                                {
+                                    return pager_repeat(); // Repeat until on_pager.
+                                });
+                            }
+                            return faux; // One shot call (first).
+                        });
+                    }
+                }
+            };
+            SUBMIT(tier::release, hids::events::mouse::button::up::any, gear)
+            {
+                if (on_pager && gear.captured(bell::id))
+                {
+                    if (this->form::template protos<tier::release>(bttn::up::left) ||
+                        this->form::template protos<tier::release>(bttn::up::right))
+                    {
+                        gear.release();
+                        gear.dismiss();
+                        on_pager = faux;
+                        timer.pacify(activity::pager_first);
+                        timer.pacify(activity::pager_next);
+                    }
+                }
+            };
+            SUBMIT(tier::release, hids::events::mouse::button::up::right, gear)
+            {
+                //if (!gear.captured(bell::id)) //todo why?
+                {
+                    gohome();
+                    gear.dismiss();
+                }
+            };
+
+            SUBMIT(tier::release, hids::events::mouse::button::drag::start::any, gear)
+            {
+                if (on_pager) gear.dismiss();
+                else
+                {
+                    if (gear.capture(bell::id))
+                    {
+                        gear.dismiss();
+                    }
+                }
+            };
+            SUBMIT(tier::release, hids::events::mouse::button::drag::pull::any, gear)
+            {
+                if (on_pager) gear.dismiss();
+                else
+                {
+                    if (gear.captured(bell::id))
+                    {
+                        if (auto delta = xy(gear.mouse::delta.get()))
+                        {
+                            calc.stepby(delta);
+                            send(events<AXIS>());
+                            gear.dismiss();
+                        }
+                    }
+                }
+            };
+            SUBMIT(tier::release, hids::events::mouse::button::drag::cancel::any, gear)
+            {
+                giveup(gear);
+            };
+            SUBMIT(tier::general, hids::events::die, gear)
+            {
+                giveup(gear);
+            };
+            SUBMIT(tier::release, hids::events::mouse::button::drag::stop::any, gear)
+            {
+                if (on_pager) gear.dismiss();
+                else
+                {
+                    if (gear.captured(bell::id))
+                    {
+                        if (this->form::template protos<tier::release>(bttn::drag::stop::right))
+                        {
+                            gohome();
+                        }
+                        base::deface();
+                        gear.release();
+                        gear.dismiss();
+                    }
+                }
+            };
+            SUBMIT(tier::release, e2::form::state::mouse, active)
+            {
+                auto apply = [&](auto active)
+                {
+                    wide = active;
+                    if (AXIS == axis::Y && mult) config(active ? init * mult // Make vertical scrollbar
+                                                               : init);      // wider on hover.
+                    base::reflow();
+                    return faux; // One shot call.
+                };
+
+                timer.pacify(activity::mouse_leave);
+
+                if (active) apply(activity::mouse_hover);
+                else timer.actify(activity::mouse_leave, ACTIVE_TIMEOUT, apply);
+            };
+            //SUBMIT(tier::release, hids::events::mouse::move, gear)
+            //{
+            //	auto apply = [&](auto active)
+            //	{
+            //		wide = active;
+            //		if (AXIS == axis::Y) config(active ? init * 2 // Make vertical scrollbar
+            //		                                   : init);   //  wider on hover
+            //		base::reflow();
+            //		return faux; // One shot call
+            //	};
+            //
+            //	timer.pacify(activity::mouse_leave);
+            //	apply(activity::mouse_hover);
+            //	timer.template actify<activity::mouse_leave>(ACTIVE_TIMEOUT, apply);
+            //};
+            SUBMIT(tier::release, e2::render::any, parent_canvas)
+            {
+                auto region = parent_canvas.view();
+                auto object = parent_canvas.full();
+                auto handle = region;
+
+                calc.commit(handle);
+
+                auto& handle_len = xy(handle.size);
+                auto& region_len = xy(region.size);
+                auto& object_len = xy(object.size);
+
+                handle = region.clip(handle);
+                handle_len = std::max(1, handle_len);
+
+                if (object_len && handle_len != region_len) // Show only if it is oversized.
+                {
+                    //parent_canvas.fill(handle, [](cell& c) { c.und(!c.und()); });
+                    parent_canvas.fill(handle, [](cell& c) { c.und(true); });
+                }
+            };
+        }
+    };
+
     // controls: Container with margins (outer space) and padding (inner space).
     class pads
         : public form<pads>
@@ -2066,7 +2492,7 @@ namespace netxs::ui
         : public form<mock>
     { };
 
-    // controls: Menu label.
+    // controls: Menu item.
     class item
         : public form<item>
     {
@@ -2126,7 +2552,7 @@ namespace netxs::ui
         }
     };
 
-    // controls: Edit control.
+    // controls: Textedit box.
     class edit
         : public form<edit>
     {
@@ -2460,6 +2886,7 @@ namespace netxs::ui
             {
                 if (base::ruined())
                 {
+                    base::ruined(faux); // The object may be invalidated again during rendering. (see pro::d_n_d)
                     canvas.wipe(base::color());
                     canvas.output(topic);
                     auto cp = canvas.cp();
@@ -2467,7 +2894,6 @@ namespace netxs::ui
                     cp.y -= 3;
                     grip_ctl->base::moveto(cp);
                     canvas.render(grip_ctl, base::coor());
-                    base::ruined(faux);
                 }
                 parent_canvas.fill(canvas, cell::shaders::fusefull);
             };

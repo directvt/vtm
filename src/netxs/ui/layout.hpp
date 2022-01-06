@@ -259,6 +259,22 @@ namespace netxs::ui::atoms
                          (c2.chan.b * level + c1.chan.b * inverse) >> 8,
                          (c2.chan.a * level + c1.chan.a * inverse) >> 8 };
         }
+        // rgba: Alpha blending RGBA colors.
+        void inline mix(rgba const& c, byte alpha)
+        {
+            if (alpha == 0xFF)
+            {
+                chan = c.chan;
+            }
+            else if (alpha)
+            {
+                auto inverse = 256 - alpha;
+                chan.r = (c.chan.r * alpha + chan.r * inverse) >> 8;
+                chan.g = (c.chan.g * alpha + chan.g * inverse) >> 8;
+                chan.b = (c.chan.b * alpha + chan.b * inverse) >> 8;
+                chan.a = (c.chan.a * alpha + chan.a * inverse) >> 8;
+            }
+        }
         // rgba: Rough alpha blending RGBA colors.
         //void mix_alpha(rgba const& c)
         //{
@@ -938,16 +954,14 @@ namespace netxs::ui::atoms
             st = c.st;
             if (c.wdt()) gc = c.gc;
         }
-        // cell: Mix colors using alpha and copy grapheme cluster if it's exist.
-        //void mix_colors	(cell const& c)
-        //{
-        //	uv.param.fg.mix_alpha(c.fgc());
-        //	uv.param.bg.mix_alpha(c.bgc());
-        //	if (c.wdt())
-        //	{
-        //		gc = c.gc;
-        //	}
-        //}
+        // cell: Mix colors using alpha.
+        void mix(cell const& c, byte alpha)
+        {
+        	uv.fg.mix(c.fgc(), alpha);
+        	uv.bg.mix(c.bgc(), alpha);
+            st = c.st;
+        	if (c.wdt()) gc = c.gc;
+        }
         // cell: Merge the two cells and update ID with COOR.
         void fuse(cell const& c, id_t oid)//, twod const& pos)
         {
@@ -1192,6 +1206,14 @@ namespace netxs::ui::atoms
             {
                 template<class D> inline void operator() (D& dst) const { dst.xlight(); }
             };
+            struct transparent_t : public brush_t<transparent_t>
+            {
+                byte alpha;
+                constexpr transparent_t(byte alpha) : alpha{ alpha }
+                { }
+                template<class C> constexpr inline auto operator() (C brush) const { return func<C>(brush); }
+                template<class D, class S>  inline void operator() (D& dst, S& src) const { dst.mix(src, alpha); }
+            };
 
         public:
             static constexpr auto contrast = contrast_t{};
@@ -1200,6 +1222,11 @@ namespace netxs::ui::atoms
             static constexpr auto     flat =     flat_t{};
             static constexpr auto     full =     full_t{};
             static constexpr auto   xlight =   xlight_t{};
+            
+            static constexpr auto transparent(byte alpha)
+            {
+                return transparent_t{ alpha };
+            }
         };
     };
 

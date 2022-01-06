@@ -39,14 +39,18 @@ namespace netxs::console
     class site;
 
     using namespace netxs::input;
-    using drawfx = std::function<bool(face&, page const&)>;
-    using registry_t = netxs::imap<text, std::list<sptr<base>>>;
+    using drawfx = std::pair<bool, std::function<void(face&, sptr<base>)>>;
+    using registry_t = netxs::imap<text, std::pair<bool, std::list<sptr<base>>>>;
     using focus_test_t = std::pair<id_t, iota>;
+    using functor = std::function<void(sptr<base>)>;
     struct create_t
     {
-        text menu_item_id;
-        rect location;
-        sptr<base> frame;
+        using sptr = netxs::sptr<base>;
+        text menuid;
+        text header;
+        text footer;
+        rect square;
+        sptr object;
     };
 }
 
@@ -62,6 +66,7 @@ namespace netxs::events::userland
         using type = netxs::events::type;
         static constexpr auto dtor = netxs::events::userland::root::dtor;
         static constexpr auto cascade = netxs::events::userland::root::cascade;
+        static constexpr auto cleanup = netxs::events::userland::root::cleanup;
 
         EVENTPACK( e2, netxs::events::userland::root::base )
         {
@@ -165,6 +170,7 @@ namespace netxs::events::userland
             {
                 EVENT_XS( canvas   , sptr<console::core> ), // request global canvas.
                 EVENT_XS( maximize , input::hids         ), // request to toggle maximize/restore.
+                EVENT_XS( restore  , sptr<console::base> ), // request to toggle restore.
                 EVENT_XS( quit     , sptr<console::base> ), // request parent for destroy.
                 GROUP_XS( layout   , const twod          ),
                 GROUP_XS( draggable, bool                ), // signal to the form to enable draggablity for specified mouse button.
@@ -246,6 +252,7 @@ namespace netxs::events::userland
                 {
                     EVENT_XS( create  , rect                ), // return coordinates of the new object placeholder.
                     EVENT_XS( createat, console::create_t   ), // general: create an intance at the specified location and return sptr<base>.
+                    EVENT_XS( createfrom, console::create_t   ), // general: attach spcified intance and return sptr<base>.
                     EVENT_XS( createby, input::hids         ), // return gear with coordinates of the new object placeholder gear::slot.
                     EVENT_XS( destroy , console::base       ), // ??? bool return reference to the parent.
                     EVENT_XS( render  , console::drawfx     ), // ask children to render itself to the parent canvas, arg is a function drawfx to perform drawing.
@@ -253,11 +260,20 @@ namespace netxs::events::userland
                     EVENT_XS( detach  , sptr<console::base> ), // order to detach a child, tier::release - kill itself, tier::preview - detach the child specified in args, arg is a child sptr.
                     EVENT_XS( focus   , sptr<console::base> ), // order to set focus to the specified object, arg is a object sptr.
                     EVENT_XS( unfocus , sptr<console::base> ), // order to unset focus on the specified object, arg is a object sptr.
-                    EVENT_XS( swap    , sptr<console::base> ), // order to relace existing client. See tiling manager empty slot.
+                    EVENT_XS( swap    , sptr<console::base> ), // order to replace existing client. See tiling manager empty slot.
+                    EVENT_XS( functor , console::functor    ), // exec functor (see pro::focus).
+                    GROUP_XS( d_n_d   , sptr<console::base> ), // drag&drop functionality. See tiling manager empty slot and pro::d_n_d.
                     //EVENT_XS( commit     , iota                     ), // order to output the targets, arg is a frame number.
                     //EVENT_XS( multirender, vector<shared_ptr<face>> ), // ask children to render itself to the set of canvases, arg is an array of the face sptrs.
                     //EVENT_XS( draw       , face                     ), // ????  order to render itself to the canvas.
                     //EVENT_XS( checkin    , face_sptr                ), // order to register an output client canvas.
+
+                    SUBSET_XS(d_n_d)
+                    {
+                        EVENT_XS(ask  , sptr<console::base>),
+                        EVENT_XS(drop , console::create_t  ),
+                        EVENT_XS(abort, sptr<console::base>),
+                    };
                 };
                 SUBSET_XS( cursor )
                 {
@@ -330,10 +346,12 @@ namespace netxs::events::userland
                     EVENT_XS( fullscreen, bool        ), // set fullscreen flag.
                     EVENT_XS( viewport  , rect        ), // request: return form actual viewport.
                     EVENT_XS( menusize  , iota        ), // release: set menu height.
+                    EVENT_XS( lucidity  , iota        ), // set or request window transparency, iota: 0-255, -1 to request.
                 };
                 SUBSET_XS( global )
                 {
                     //EVENT_XS( ctxmenu , twod ), // request context menu at specified coords.
+                    //deprecated - use tier::anycast
                     EVENT_XS( lucidity, iota ), // set or request global window transparency, iota: 0-255, -1 to request.
                     //GROUP_XS( object,      ), // global scene objects events
                     //GROUP_XS( user  ,      ), // global scene users events
@@ -786,7 +804,7 @@ namespace netxs::console
 
         // face: Render nested object to the canvas using renderproc. TRIM = trim viewport to the client area.
         template<bool TRIM = true, class T>
-        void render(sptr<T> nested_ptr, twod const& basis)
+        void render(sptr<T> nested_ptr, twod const& basis = {})
         {
             if (nested_ptr)
             {
@@ -805,6 +823,7 @@ namespace netxs::console
             object_area.coor+= parent_area.coor;
 
             auto nested_view = canvas_view.clip(object_area);
+            //todo revise: why whole canvas is not used
             if (TRIM ? nested_view : canvas_view)
             {
                 auto canvas_coor = core::coor();
@@ -904,6 +923,14 @@ namespace netxs::console
             SIGNAL(tier::preview, e2::size::set, new_size);
             SIGNAL(tier::release, e2::size::set, new_size);
             return square.size - old_size;
+        }
+        // base: Resize the form, and return the new size.
+        auto& resize(iota x, iota y)
+        {
+            auto new_size = twod{ x,y };
+            SIGNAL(tier::preview, e2::size::set, new_size);
+            SIGNAL(tier::release, e2::size::set, new_size);
+            return size();
         }
         // base: Resize the form relative the center point.
         //       Return center point offset.
@@ -1512,13 +1539,20 @@ namespace netxs::console
             using list = socks<sock>;
             using skill::boss,
                   skill::memo;
-            list items;
+
+            list items; // track: .
+            bool alive; // track: Is active.
 
         public:
             track(base&&) = delete;
             track(base& boss)
-                : skill{ boss }
+                : skill{ boss },
+                  alive{ true }
             {
+                boss.SUBMIT_T(tier::anycast, e2::form::prop::lucidity, memo, lucidity)
+                {
+                    if (lucidity != -1) alive = lucidity == 0xFF;
+                };
                 boss.SUBMIT_T(tier::release, hids::events::mouse::move, memo, gear)
                 {
                     items.take(gear).calc(boss, gear.coord);
@@ -1533,6 +1567,7 @@ namespace netxs::console
                 };
                 boss.SUBMIT_T(tier::release, e2::render::prerender, memo, parent_canvas)
                 {
+                    if (!alive) return;
                     auto full = parent_canvas.full();
                     auto view = parent_canvas.view();
                     auto mark = cell{}.bgc(0xFFffffff);
@@ -2678,6 +2713,8 @@ namespace netxs::console
                 if (head_live) recalc(head_page, head_size);
                 if (foot_live) recalc(foot_page, foot_size);
             }
+            auto& header() { return head_text; }
+            auto& footer() { return foot_text; }
             void header(view newtext)
             {
                 head_page = newtext;
@@ -2768,14 +2805,16 @@ namespace netxs::console
             {
                 init();
             }
-            title(base& boss, view title, bool visible = true, bool on_header = true,
-                                                               bool on_footer = true)
+            title(base& boss, view title, view foots = {}, bool visible = true,
+                                                           bool on_header = true,
+                                                           bool on_footer = true)
                 : skill{ boss },
                   head_live{ on_header },
                   foot_live{ on_footer }
             {
                 init();
                 header(title);
+                footer(foots);
                 live = visible;
                 //footer(ansi::jet(bias::right) + "test\nmultiline\nfooter");
             }
@@ -3216,6 +3255,7 @@ namespace netxs::console
             iota transit;
             cell c1;
             cell c2;
+            cell c2_orig;
             bool fake = faux;
 
             //todo use lambda
@@ -3237,6 +3277,7 @@ namespace netxs::console
                 fade{ fade_out },
                 c1 { default_state },
                 c2 { highlighted_state },
+                c2_orig { highlighted_state },
                 transit{ 0 }
             {
                 boss.base::color(c1.fgc(), c1.bgc());
@@ -3244,8 +3285,14 @@ namespace netxs::console
                 {
                     if (!fake)
                     {
-                        c1.fgc(brush.fgc());
-                        c1.bgc(brush.bgc());
+                        auto& fgc = brush.fgc();
+                        auto& bgc = brush.bgc();
+                        c1.fgc(fgc);
+                        c1.bgc(bgc);
+                        if (brush.fga()) c2.fgc(fgc);
+                        else             c2.fgc(c2_orig.fgc());
+                        if (brush.bga()) c2.bgc(bgc);
+                        else             c2.bgc(c2_orig.bgc());
                         work(transit);
                     }
                 };
@@ -3336,6 +3383,7 @@ namespace netxs::console
                   skill::memo;
 
             sptr<face> coreface;
+            byte       lucidity;
 
         public:
             face& canvas; // cache: Bitmap cache.
@@ -3343,11 +3391,21 @@ namespace netxs::console
             cache(base&&) = delete;
             cache(base& boss, bool rendered = true)
                 : skill{ boss },
-                  canvas{*(coreface = std::make_shared<face>())}
+                  canvas{*(coreface = std::make_shared<face>())},
+                  lucidity{ 0xFF }
             {
                 canvas.link(boss.bell::id);
                 canvas.move(boss.base::coor());
                 canvas.size(boss.base::size());
+                boss.SUBMIT_T(tier::anycast, e2::form::prop::lucidity, memo, value)
+                {
+                    if (value == -1) value = lucidity;
+                    else
+                    {
+                        lucidity = value;
+                        //boss.deface();
+                    }
+                };
                 boss.SUBMIT_T(tier::release, e2::form::upon::vtree::attached, memo, parent_ptr)
                 {
                     boss.SIGNAL(tier::general, e2::form::canvas, canvas.shared_from_this());
@@ -3362,10 +3420,11 @@ namespace netxs::console
                         if (boss.base::ruined())
                         {
                             canvas.wipe();
-                            boss.SIGNAL(tier::release, e2::render::any, canvas);
                             boss.base::ruined(faux);
+                            boss.SIGNAL(tier::release, e2::render::any, canvas);
                         }
-                        parent_canvas.fill(canvas, cell::shaders::fusefull);
+                        if (lucidity == 0xFF) parent_canvas.fill(canvas, cell::shaders::fusefull);
+                        else                  parent_canvas.fill(canvas, cell::shaders::transparent(lucidity));
                         boss.bell::expire<tier::release>();
                     };
                 }
@@ -3380,15 +3439,22 @@ namespace netxs::console
                   skill::memo;
 
             iota width; // acryl: Blur radius.
+            bool alive; // acryl: Is active.
 
         public:
             acryl(base&&) = delete;
             acryl(base& boss, iota size = 5)
                 : skill{ boss },
-                  width{ size }
+                  width{ size },
+                  alive{ true }
             {
+                boss.SUBMIT_T(tier::anycast, e2::form::prop::lucidity, memo, lucidity)
+                {
+                    if (lucidity != -1) alive = lucidity == 0xFF;
+                };
                 boss.SUBMIT_T(tier::release, e2::render::prerender, memo, parent_canvas)
                 {
+                    if (!alive) return;
                     auto brush = boss.base::color();
                     if (brush.wdt()) parent_canvas.blur(width, [&](cell& c) { c.fuse(brush); });
                     else             parent_canvas.blur(width);
@@ -3484,12 +3550,17 @@ namespace netxs::console
             focus(base& boss)
                 : skill{ boss }
             {
+                boss.SUBMIT_T(tier::general, e2::form::proceed::functor, memo, proc)
+                {
+                    if (pool.size()) proc(boss.This());
+                };
                 boss.SUBMIT_T(tier::anycast, e2::form::state::keybd::find, memo, gear_test)
                 {
-                    if (find(gear_test.first))
-                    {
-                        gear_test.second++;
-                    }
+                    if (find(gear_test.first)) gear_test.second++;
+                };
+                boss.SUBMIT_T(tier::request, e2::form::state::keybd::find, memo, gear_test)
+                {
+                    if (find(gear_test.first)) gear_test.second++;
                 };
                 boss.SUBMIT_T(tier::anycast, e2::form::state::keybd::handover, memo, gear_id_list)
                 {
@@ -3510,14 +3581,26 @@ namespace netxs::console
                         boss.base::deface();
                     }
                 };
+                boss.SUBMIT_T(tier::anycast, e2::form::highlight::any, memo, state)
+                {
+                    state = !pool.empty();
+                    boss.template riseup<tier::preview>(e2::form::highlight::any, state);
+                };
+                boss.SUBMIT_T(tier::anycast, e2::form::upon::started, memo, root)
+                {
+                    auto state = !pool.empty();
+                    boss.template riseup<tier::preview>(e2::form::highlight::any, state);
+                };
                 boss.SUBMIT_T(tier::release, e2::form::state::keybd::got, memo, gear)
                 {
+                    boss.template riseup<tier::preview>(e2::form::highlight::any, true);
                     pool.push_back(gear.id);
                     boss.base::deface();
                 };
                 boss.SUBMIT_T(tier::release, e2::form::state::keybd::lost, memo, gear)
                 {
                     assert(!pool.empty());
+                    boss.template riseup<tier::preview>(e2::form::highlight::any, faux);
 
                     if (!pool.empty())
                     {
@@ -3570,6 +3653,105 @@ namespace netxs::console
                 };
             }
         };
+
+        // pro: Drag&drop functionality.
+        class d_n_d
+            : public skill
+        {
+            using skill::boss,
+                  skill::memo;
+            using wptr = netxs::wptr<base>;
+
+            id_t under;
+            bool drags;
+            twod coord;
+            wptr cover;
+
+            void proceed(bool keep)
+            {
+                drags = faux;
+                boss.SIGNAL(tier::anycast, e2::form::prop::lucidity, 0xFF); // Make target opaque.
+                if (auto object = cover.lock())
+                {
+                    if (keep)
+                    {
+                        auto what = decltype(e2::form::proceed::d_n_d::drop)::type{};
+                        what.object = object;
+                        boss.SIGNAL(tier::preview, e2::form::proceed::d_n_d::drop, what);
+                    }
+                    else object->SIGNAL(tier::release, e2::form::proceed::d_n_d::abort, boss.This());
+                }
+                cover.reset();
+                under = {};
+            }
+
+        public:
+            d_n_d(base&&) = delete;
+            d_n_d(base& boss)
+                : skill{ boss },
+                  drags{ faux },
+                  under{      }
+            {
+                boss.SUBMIT_T(tier::release, hids::events::mouse::button::drag::start::left, memo, gear)
+                {
+                    if (boss.size().inside(gear.coord)
+                    && !gear.meta())
+                    {
+                        drags = true;
+                        coord = gear.coord;
+                        under = {};
+                    }
+                };
+                boss.SUBMIT_T(tier::release, hids::events::mouse::button::drag::pull::left, memo, gear)
+                {
+                    if (!drags) return;
+                    if (gear.meta()) proceed(faux);
+                    else             coord = gear.coord - gear.delta.get();
+                };
+                boss.SUBMIT_T(tier::release, hids::events::mouse::button::drag::stop::left, memo, gear)
+                {
+                    if (!drags) return;
+                    if (gear.meta()) proceed(faux);
+                    else             proceed(true);
+                };
+                boss.SUBMIT_T(tier::release, hids::events::mouse::button::drag::cancel::left, memo, gear)
+                {
+                    if (!drags) return;
+                    //todo revise (panoramic scrolling with left + right)
+                    //proceed(faux);
+                    if (gear.meta()) proceed(faux);
+                    else             proceed(true);
+                };
+                boss.SUBMIT_T(tier::release, e2::render::prerender, memo, parent_canvas)
+                {
+                    if (!drags) return;
+                    auto full = parent_canvas.face::full();
+                    auto size = parent_canvas.core::size();
+                    auto coor = full.coor + coord;
+                    if (size.inside(coor))
+                    {
+                        auto& c = parent_canvas[coor];
+                        auto new_under = c.link();
+                        if (under != new_under)
+                        {
+                            auto object = decltype(e2::form::proceed::d_n_d::ask)::type{};
+                            if (auto old_object = std::dynamic_pointer_cast<base>(bell::getref(under)))
+                            {
+                                old_object->riseup<tier::release>(e2::form::proceed::d_n_d::abort, object);
+                            }
+                            if (auto new_object = std::dynamic_pointer_cast<base>(bell::getref(new_under)))
+                            {
+                                new_object->riseup<tier::release>(e2::form::proceed::d_n_d::ask, object);
+                            }
+                            boss.SIGNAL(tier::anycast, e2::form::prop::lucidity, object ? 0x80
+                                                                                        : 0xFF); // Make it semi-transparent on success and opaque otherwise.
+                            cover = object;
+                            under = new_under;
+                        }
+                    }
+                };
+            }
+        };
     }
 
     // console: World internals.
@@ -3586,7 +3768,7 @@ namespace netxs::console
         // host: Provides functionality for the scene objects manipulations.
         class hall
         {
-            class node // scene: Helper-class for the pro::scene. Adapter for the object that going to be attached to the scene.
+            class node // hall: Helper-class for the pro::scene. Adapter for the object that going to be attached to the scene.
             {
                 struct ward
                 {
@@ -3747,7 +3929,7 @@ namespace netxs::console
                 }
             };
 
-            class list // scene: Helper-class for the pro::scene. List of objects that can be reordered, etc.
+            class list // hall: Helper-class. List of objects that can be reordered, etc.
             {
                 std::list<sptr<node>> items;
 
@@ -3864,10 +4046,10 @@ namespace netxs::console
 
             base& boss;
             subs  memo;
-            area edges; // scene: wrecked regions history
-            proc paint; // scene: Render all child items to the specified canvas
-            list items; // scene: Child visual tree
-            list users; // scene: Scene spectators
+            area edges; // hall: Wrecked regions history.
+            proc paint; // hall: Render all child items to the specified canvas.
+            list items; // hall: Child visual tree.
+            list users; // hall: Scene spectators.
 
             sptr<registry_t>            app_registry;
             sptr<std::list<sptr<base>>> usr_registry;
@@ -3878,19 +4060,14 @@ namespace netxs::console
                 app_registry{ std::make_shared<registry_t>() },
                 usr_registry{ std::make_shared<std::list<sptr<base>>>() }
             {
-                paint = [&](face& canvas, page const& titles) -> bool
+                paint.second = [&](face& canvas, sptr<base> background)
                 {
-                    if (edges.size())
-                    {
-                        canvas.wipe(boss.id);
-                        canvas.output(titles);
-                        //todo revise
-                        if (users.size() > 1) users.prerender(canvas); // Draw backpane for spectators
-                        items.render    (canvas); // Draw objects of the world
-                        users.postrender(canvas); // Draw spectator's mouse pointers
-                        return true;
-                    }
-                    else return faux;
+                    canvas.wipe(boss.id);
+                    canvas.render(background);
+                    //todo revise
+                    if (users.size() > 1) users.prerender(canvas); // Draw backpane for spectators.
+                    items.render    (canvas); // Draw objects of the world.
+                    users.postrender(canvas); // Draw spectator's mouse pointers.
                 };
 
                 boss.SUBMIT_T(tier::preview, e2::form::proceed::detach, memo, item_ptr)
@@ -3902,14 +4079,19 @@ namespace netxs::console
                     //todo unify
                     bool found = faux;
                     // Remove from active app registry.
-                    for (auto& [class_id, app_list] : *app_registry)
+                    for (auto& [class_id, fxd_app_list] : *app_registry)
                     {
+                        auto& [fixed, app_list] = fxd_app_list;
                         auto head = app_list.begin();
                         auto tail = app_list.end();
                         auto iter = std::find_if(head, tail, [&](auto& c) { return c == item_ptr; });
                         if (iter != tail)
                         {
                             app_list.erase(iter);
+                            if (app_list.empty() && !fixed)
+                            {
+                                app_registry->erase(class_id);
+                            }
                             found = true;
                             break;
                         }
@@ -3947,14 +4129,14 @@ namespace netxs::console
                     app_list = app_registry;
                 };
 
-                // scene: Proceed request for available objects (next)
+                // hall: Proceed request for available objects (next)
                 boss.SUBMIT_T(tier::request, e2::form::proceed::attach, memo, next)
                 {
                     if (items)
                         if (auto next_ptr = items.rotate_next())
                             next = next_ptr->object;
                 };
-                // scene: Proceed request for available objects (prev)
+                // hall: Proceed request for available objects (prev)
                 boss.SUBMIT_T(tier::request, e2::form::proceed::detach, memo, prev)
                 {
                     if (items)
@@ -3963,13 +4145,14 @@ namespace netxs::console
                 };
             }
 
-            // scene: .
+            // hall: .
             void redraw()
             {
-                boss.SIGNAL(tier::release, e2::form::proceed::render, paint);
+                paint.first = edges.size();
                 edges.clear();
+                boss.SIGNAL(tier::release, e2::form::proceed::render, paint);
             }
-            // scene: Mark dirty region.
+            // hall: Mark dirty region.
             void denote(rect const& updateregion)
             {
                 if (updateregion)
@@ -3978,18 +4161,20 @@ namespace netxs::console
                 }
             }
 
-            // scene: Attach a new item to the scene.
+            // hall: Attach a new item to the scene.
             template<class S>
-            auto branch(text const& class_id, sptr<S> item)
+            auto branch(text const& class_id, sptr<S> item, bool fixed = true)
             {
                 items.append(item);
                 item->base::root(true); //todo move it to the window creator (main)
-                (*app_registry)[class_id].push_back(item);
+                auto& [stat, list] = (*app_registry)[class_id];
+                stat = fixed;
+                list.push_back(item);
                 item->SIGNAL(tier::release, e2::form::upon::vtree::attached, boss.base::This());
 
                 boss.SIGNAL(tier::release, e2::bindings::list::apps, app_registry);
             }
-            // scene: Create a new user of the specified subtype and invite him to the scene.
+            // hall: Create a new user of the specified subtype and invite him to the scene.
             template<class S, class ...Args>
             auto invite(Args&&... args)
             {
@@ -4025,9 +4210,9 @@ namespace netxs::console
     public:
         // host: Create a new item of the specified subtype and attach it.
         template<class T>
-        auto branch(text const& class_id, sptr<T> item_ptr)
+        auto branch(text const& class_id, sptr<T> item_ptr, bool fixed = true)
         {
-            scene.branch(class_id, item_ptr);
+            scene.branch(class_id, item_ptr, fixed);
         }
         //todo unify
         // host: .
@@ -4119,12 +4304,12 @@ namespace netxs::console
                     else
                     {
                         auto what = decltype(e2::form::proceed::createat)::type{};
-                        what.location = gear.slot;
+                        what.square = gear.slot;
                         auto data = decltype(e2::data::changed)::type{};
                         gate.SIGNAL(tier::request, e2::data::changed, data);
-                        what.menu_item_id = data;
+                        what.menuid = data;
                         this->SIGNAL(tier::release, e2::form::proceed::createat, what);
-                        if (auto& frame = what.frame)
+                        if (auto& frame = what.object)
                         {
                             insts_count++;
                             #ifndef PROD
@@ -5211,9 +5396,8 @@ again:
         iota legacy = os::legacy::clean;
 
     public:
-        // todo unify
-        page watermark;
         sptr<base> uibar; // gate: Local UI overlay, UI bar/taskbar/sidebar.
+        sptr<base> background; // gate: Local UI background.
 
         // Main loop.
         void proceed(os::xipc media /*session socket*/, text title)
@@ -5286,33 +5470,34 @@ again:
                 world->SUBMIT_T(tier::release, e2::form::proceed::render, token, render_scene)
                 {
                     auto stamp = tempus::now();
-                    if (render_scene(cache.canvas, watermark) || !yield) // Put the world to the my canvas.
-                    {
-                        // Update objects under mouse cursor.
-                        //input.fire(hids::events::mouse::hover);
-                        #ifdef DEBUG_OVERLAY
-                            debug.bypass = true;
-                            //input.fire(hids::events::mouse::hover);
-                            input.fire(hids::events::mouse::move.id);
-                            debug.bypass = faux;
-                        #else
-                            input.fire(hids::events::mouse::move.id);
-                        #endif
 
-                        // Draw debug overlay, maker, titles, etc.
-                        this->SIGNAL(tier::release, e2::postrender, cache.canvas);
-                        #ifdef DEBUG_OVERLAY
-                            if ((yield = paint.commit(cache.canvas)))
-                            {
-                                auto& watch = yield.value().first;
-                                auto& delta = yield.value().second;
-                                debug.update(watch, delta);
-                            }
-                            debug.update(stamp);
-                        #else
-                            yield = paint.commit(cache.canvas); // Try output my canvas to the my console.
-                        #endif
-                    }
+                    if (render_scene.first) render_scene.second(cache.canvas, background); // Put the world to the my canvas.
+                    else if (yield) return;
+
+                    // Update objects under mouse cursor.
+                    //input.fire(hids::events::mouse::hover);
+                    #ifdef DEBUG_OVERLAY
+                        debug.bypass = true;
+                        //input.fire(hids::events::mouse::hover);
+                        input.fire(hids::events::mouse::move.id);
+                        debug.bypass = faux;
+                    #else
+                        input.fire(hids::events::mouse::move.id);
+                    #endif
+
+                    // Draw debug overlay, maker, titles, etc.
+                    this->SIGNAL(tier::release, e2::postrender, cache.canvas);
+                    #ifdef DEBUG_OVERLAY
+                        if ((yield = paint.commit(cache.canvas)))
+                        {
+                            auto& watch = yield.value().first;
+                            auto& delta = yield.value().second;
+                            debug.update(watch, delta);
+                        }
+                        debug.update(stamp);
+                    #else
+                        yield = paint.commit(cache.canvas); // Try output my canvas to the my console.
+                    #endif
                 };
 
                 conio.session(title);
@@ -5346,12 +5531,6 @@ again:
                                 base::moveby(-x);
                                 base::deface();
                              });
-            };
-
-            //todo unify (use uibar)
-            SUBMIT(tier::preview, e2::form::prop::footer, newfooter)
-            {
-                watermark = ansi::cup(dot_00).rlf(feed::rev).jet(bias::right).add(newfooter);
             };
             SUBMIT(tier::release, e2::form::prop::fullscreen, state)
             {
@@ -5460,6 +5639,7 @@ again:
             SUBMIT(tier::release, e2::size::set, newsz)
             {
                 if (uibar) uibar->base::resize(newsz);
+                if (background) background->base::resize(newsz);
             };
             SUBMIT(tier::release, e2::render::prerender, parent_canvas)
             {
@@ -5469,7 +5649,6 @@ again:
                 {
                     auto area = base::area();
                     area.coor-= parent_canvas.area().coor;
-
                     //todo revise
                     auto mark = skin::color(tone::shadow);
                     mark.bga(mark.bga() / 2);
@@ -5542,7 +5721,6 @@ again:
         {
             uibar = item;
             item->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
-            //item->SIGNAL(tier::anycast, e2::form::upon::started, This());
             return item;
         }
         // gate: Create a new item of the specified subtype and attach it.
@@ -5550,6 +5728,14 @@ again:
         auto attach(Args&&... args)
         {
             return attach(base::create<T>(std::forward<Args>(args)...));
+        }
+        // gate: Attach background object.
+        template<class T>
+        auto ground(sptr<T> item)
+        {
+            background = item;
+            item->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
+            return item;
         }
     };
 }
