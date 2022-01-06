@@ -20,8 +20,8 @@ namespace netxs::ui
          forward,
          reverse,
     };
-    enum slot : id_t { _1, _2, _I };
-    enum axis : id_t { X, Y };
+    enum slot { _1, _2, _I };
+    enum axis { X, Y };
     enum axes
     {
         NONE   = 0,
@@ -1267,21 +1267,25 @@ namespace netxs::ui
 
         using upon = e2::form::upon;
 
-        bool strict[2] = { true, true }; // rail: Don't allow overscroll.
-        bool manual[2] = { true, true }; // rail: Manual scrolling (no auto align).
-        //bool locked{}; // rail: Client is under resizing.
-        subs tokens{}; // rail: Subscriptions on client moveto and resize.
-        subs fasten{}; // rail: Subscriptions on masters to follow they state.
-        rack scinfo{}; // rail: Scroll info.
-        axes permit{}; // rail: Allowed axes to scroll.
-        axes siezed{}; // rail: Allowed axes to capture.
-        axes extraz{}; // rail: Allow overscroll with auto correct.
-        sptr client{}; // rail: Client instance.
+        twod strict; // rail: Don't allow overscroll.
+        twod manual; // rail: Manual scrolling (no auto align).
+        twod permit; // rail: Allowed axes to scroll.
+        twod siezed; // rail: Allowed axes to capture.
+        twod oversc; // rail: Allow overscroll with auto correct.
+        subs tokens; // rail: Subscriptions on client moveto and resize.
+        subs fasten; // rail: Subscriptions on masters to follow they state.
+        rack scinfo; // rail: Scroll info.
+        sptr client; // rail: Client instance.
 
         iota speed{ SPD  }; // rail: Text auto-scroll initial speed component ΔR.
         iota pulse{ PLS  }; // rail: Text auto-scroll initial speed component ΔT.
         iota cycle{ CCL  }; // rail: Text auto-scroll duration in ms.
         bool steer{ faux }; // rail: Text scroll vertical direction.
+
+        static constexpr auto xy(axes AXES)
+        {
+            return twod{ !!(AXES & axes::X_ONLY), !!(AXES & axes::Y_ONLY) };
+        }
 
     public:
         template<axis AXIS>
@@ -1309,9 +1313,11 @@ namespace netxs::ui
             }
         }
         rail(axes allow_to_scroll = axes::ALL, axes allow_to_capture = axes::ALL, axes allow_overscroll = axes::ALL)
-            : permit{ allow_to_scroll  },
-              siezed{ allow_to_capture },
-              extraz{ allow_overscroll }
+            : permit{ xy(allow_to_scroll)  },
+              siezed{ xy(allow_to_capture) },
+              oversc{ xy(allow_overscroll) },
+              strict{ xy(axes::ALL) },
+              manual{ xy(axes::ALL) }
         {
             SUBMIT(tier::preview, e2::form::upon::scroll::any, info) // Receive scroll parameters from external sources.
             {
@@ -1344,27 +1350,11 @@ namespace netxs::ui
             using bttn = hids::events::mouse::button;
             SUBMIT(tier::release, hids::events::mouse::scroll::any, gear)
             {
-                auto dir = gear.whldt > 0;
-                //if (permit == axes::X_ONLY || gear.meta(hids::ANYCTRL |
-                //                                        hids::SHIFT ))
-                //     wheels<X>(dir);
-                //else wheels<Y>(dir);
-                if (permit == axes::Y_ONLY)
-                {
-                     wheels<Y>(dir);
-                }
-                else
-                if (permit == axes::X_ONLY)
-                {
-                     wheels<X>(dir);
-                }
-                else
-                if (permit == axes::ALL)
-                {
-                    if (gear.meta(hids::ANYCTRL | hids::SHIFT )) wheels<X>(dir);
-                    else                                         wheels<Y>(dir);
-                } 
-
+                auto dt = gear.whldt > 0;
+                auto hz = permit == xy(axes::X_ONLY)
+                       || permit == xy(axes::ALL) && gear.meta(hids::ANYCTRL | hids::SHIFT );
+                if (hz) wheels<X>(dt);
+                else    wheels<Y>(dt);
                 gear.dismiss();
             };
             SUBMIT(tier::release, bttn::drag::start::right, gear)
@@ -1374,15 +1364,13 @@ namespace netxs::ui
                 auto dy = ds.y * 2;
                 auto vt = std::abs(dx) < std::abs(dy);
 
-                if (((siezed & axes::X_ONLY) && !vt) ||
-                    ((siezed & axes::Y_ONLY) &&  vt))
+                if ((siezed[X] && !vt) ||
+                    (siezed[Y] &&  vt))
                 {
                     if (gear.capture(bell::id))
                     {
-                        manual[X] = true;
-                        manual[Y] = true;
-                        strict[X] = !(extraz & axes::X_ONLY);
-                        strict[Y] = !(extraz & axes::Y_ONLY);
+                        manual = xy(axes::ALL);
+                        strict = xy(axes::ALL) - oversc; // !oversc = dot_11 - oversc
                         gear.dismiss();
                     }
                 }
@@ -1392,8 +1380,7 @@ namespace netxs::ui
                 if (gear.captured(bell::id))
                 {
                     auto delta = gear.mouse::delta.get();
-                    auto value = twod{ permit & axes::X_ONLY ? delta.x : 0,
-                                       permit & axes::Y_ONLY ? delta.y : 0 };
+                    auto value = permit * delta;
                     if (value) movexy(value);
                     gear.dismiss();
                 }
@@ -1422,9 +1409,9 @@ namespace netxs::ui
                     auto  cycle = datetime::round<iota>(v0.dT);
                     auto  limit = datetime::round<iota>(STOPPING_TIME);
 
-                    if (permit & axes::X_ONLY) actify<X>(quadratic{ speed.x, cycle, limit, start });
-                    if (permit & axes::Y_ONLY) actify<Y>(quadratic{ speed.y, cycle, limit, start });
-                    //todo if (permit == axes::ALL) actify(quadratic{ speed, cycle, limit, start });
+                    if (permit[X]) actify<X>(quadratic{ speed.x, cycle, limit, start });
+                    if (permit[Y]) actify<Y>(quadratic{ speed.y, cycle, limit, start });
+                    //todo if (permit == xy(axes::ALL)) actify(quadratic{ speed, cycle, limit, start });
 
                     base::deface();
                     gear.release();
@@ -1500,44 +1487,28 @@ namespace netxs::ui
         template<axis AXIS>
         auto inside()
         {
-            bool value = true;
-            if (client)
+            if (client && manual[AXIS]) // Check overscroll if no auto correction.
             {
-                auto& thing = *client;
-                auto& frame = base::size();
-                auto  block = thing.base::area();
-                auto  basis = thing.oversz.topleft();
-                block.coor -= basis; // Scroll origin basis.
-                block.size += thing.oversz.summ();
-                auto  level = AXIS == X;
-                auto  bound = level ? std::min(frame.x - block.size.x, 0)
-                                    : std::min(frame.y - block.size.y, 0);
-                auto& coord = level ? block.coor.x
-                                    : block.coor.y;
-                if (manual[AXIS]) // Check overscroll if no auto correction.
-                {
-                    auto clamp = std::clamp(coord, bound, 0);
-                    value = clamp == coord;
-                }
+                auto& item = *client;
+                auto frame = base::size()[AXIS];
+                auto coord = item.base::coor()[AXIS] - item.oversz.topleft()[AXIS]; // coor - scroll origin basis.
+                auto block = item.base::size()[AXIS] + item.oversz.summ()[AXIS];
+                auto bound = std::min(frame - block, 0);
+                auto clamp = std::clamp(coord, bound, 0);
+                return clamp == coord;
             }
-            return value;
+            return true;
         }
         template<axis AXIS, class FX>
         void actify(FX&& func)
         {
-            //auto inside = scroll<AXIS>();
             if (inside<AXIS>()) keepon<AXIS>(func);
             else                lineup<AXIS>();
         }
         template<axis AXIS, bool FORCED = faux>
         void cancel()
         {
-            if constexpr (FORCED) lineup<AXIS>();
-            else
-            {
-                //auto inside = scroll<AXIS>();
-                if (!inside<AXIS>()) lineup<AXIS>();
-            }
+            if (FORCED || !inside<AXIS>()) lineup<AXIS>();
         }
         template<axis AXIS>
         void lineup()
@@ -1545,16 +1516,13 @@ namespace netxs::ui
             if (client)
             {
                 manual[AXIS] = faux;
-                auto& block = client->base::area();
-                auto  level = AXIS == X;
-                auto  coord = level ? block.coor.x
-                                    : block.coor.y;
-                auto  bound = level ? std::min(base::size().x - block.size.x, 0)
-                                    : std::min(base::size().y - block.size.y, 0);
-                auto  newxy = std::clamp(coord, bound, 0);
-                auto  route = newxy - coord;
-                iota  tempo = SWITCHING_TIME;
-                auto  fader = constlinearAtoB<iota>(route, tempo, now<iota>());
+                auto block = client->base::area();
+                auto coord = block.coor[AXIS];
+                auto bound = std::min(base::size()[AXIS] - block.size[AXIS], 0);
+                auto newxy = std::clamp(coord, bound, 0);
+                auto route = newxy - coord;
+                iota tempo = SWITCHING_TIME;
+                auto fader = constlinearAtoB<iota>(route, tempo, now<iota>());
                 keepon<AXIS>(fader);
             }
         }
@@ -1562,31 +1530,27 @@ namespace netxs::ui
         {
             if (client)
             {
-                auto& thing = *client;
-                auto& frame = base::size();
-                auto  block = thing.base::size();
-                auto  basis = thing.oversz.topleft();
+                auto& item = *client;
+                auto frame = base::size();
+                auto block = item.base::size() + item.oversz.summ();
+                auto basis = item.oversz.topleft();
                 coord -= basis; // Scroll origin basis.
-                block += thing.oversz.summ();
-                auto  bound = std::min(frame - block, dot_00);
-                auto  clamp = std::clamp(coord, bound, dot_00);
-                // Check overscroll if no auto correction.
-                if (clamp.x != coord.x && manual[X] && strict[X]) // If outside the scroll limits and overscroll is not allowed.
+                auto bound = std::min(frame - block, dot_00);
+                auto clamp = std::clamp(coord, bound, dot_00);
+                for (auto xy : { axis::X, axis::Y }) // Check overscroll if no auto correction.
                 {
-                    coord.x = clamp.x;
+                    if (manual[xy] && strict[xy]) // Clamp if it is outside the scroll limits and no overscroll.
+                    {
+                        coord[xy] = clamp[xy];
+                    }
                 }
-                if (clamp.y != coord.y && manual[Y] && strict[Y]) // If outside the scroll limits and overscroll is not allowed.
-                {
-                    coord.y = clamp.y;
-                }
-
-                scinfo.beyond = thing.oversz;
+                scinfo.beyond = item.oversz;
                 scinfo.region = block;
                 scinfo.window.coor =-coord; // Viewport.
                 scinfo.window.size = frame; //
                 SIGNAL(tier::release, upon::scroll::bycoor::any, scinfo);
                 coord += basis; // Client origin basis.
-                base::deface(); // Main menu redrawing
+                base::deface(); // Main menu redraw trigger.
             }
         }
         void movexy(twod const& delta)
@@ -1671,18 +1635,13 @@ namespace netxs::ui
             pager_next  = 11,
         };
 
-        static inline auto  xy(twod const& p) { return AXIS == axis::X ? p.x : p.y; }
-        static inline auto  yx(twod const& p) { return AXIS == axis::Y ? p.x : p.y; }
-        static inline auto& xy(twod&       p) { return AXIS == axis::X ? p.x : p.y; }
-        static inline auto& yx(twod&       p) { return AXIS == axis::Y ? p.x : p.y; }
-
         struct math
         {
-            rack  master_inf = {};                         // math: Master scroll info.
-            iota& master_len = xy(master_inf.region);      // math: Master len.
-            iota& master_pos = xy(master_inf.window.coor); // math: Master viewport pos.
-            iota& master_box = xy(master_inf.window.size); // math: Master viewport len.
-            iota& master_dir =    master_inf.vector ;      // math: Master scroll direction.
+            rack  master_inf = {};                           // math: Master scroll info.
+            iota& master_len = master_inf.region     [AXIS]; // math: Master len.
+            iota& master_pos = master_inf.window.coor[AXIS]; // math: Master viewport pos.
+            iota& master_box = master_inf.window.size[AXIS]; // math: Master viewport len.
+            iota& master_dir = master_inf.vector;            // math: Master scroll direction.
             iota  scroll_len = 0; // math: Scrollbar len.
             iota  scroll_pos = 0; // math: Scrollbar grip pos.
             iota  scroll_box = 0; // math: Scrollbar grip len.
@@ -1733,7 +1692,7 @@ namespace netxs::ui
             }
             void resize(twod const& new_size)
             {
-                scroll_len = xy(new_size);
+                scroll_len = new_size[AXIS];
                 m_to_s();
             }
             void stepby(iota delta)
@@ -1743,8 +1702,8 @@ namespace netxs::ui
             }
             void commit(rect& handle)
             {
-                xy(handle.coor)+= scroll_pos;
-                xy(handle.size) = scroll_box;
+                handle.coor[AXIS]+= scroll_pos;
+                handle.size[AXIS] = scroll_box;
             }
             auto inside(iota coor)
             {
@@ -1786,7 +1745,8 @@ namespace netxs::ui
         void config(iota width)
         {
             thin = width;
-            auto lims = twod{ xy({ -1,thin }), yx({ -1,thin }) };
+            auto lims = AXIS == axis::X ? twod{ -1,width }
+                                        : twod{ width,-1 };
             limit.set(lims, lims);
         }
         void giveup(hids& gear)
@@ -1854,7 +1814,7 @@ namespace netxs::ui
             };
             SUBMIT(tier::release, hids::events::mouse::move, gear)
             {
-                calc.cursor_pos = xy(gear.mouse::coord);
+                calc.cursor_pos = gear.mouse::coord[AXIS];
             };
             SUBMIT(tier::release, hids::events::mouse::button::dblclick::left, gear)
             {
@@ -1865,7 +1825,7 @@ namespace netxs::ui
                 if (!on_pager)
                 if (this->form::template protos<tier::release>(bttn::down::left) ||
                     this->form::template protos<tier::release>(bttn::down::right))
-                if (auto dir = calc.inside(xy(gear.mouse::coord)))
+                if (auto dir = calc.inside(gear.mouse::coord[AXIS]))
                 {
                     if (gear.capture(bell::id))
                     {
@@ -1929,7 +1889,7 @@ namespace netxs::ui
                 {
                     if (gear.captured(bell::id))
                     {
-                        if (auto delta = xy(gear.mouse::delta.get()))
+                        if (auto delta = gear.mouse::delta.get()[AXIS])
                         {
                             calc.stepby(delta);
                             send<upon::scroll::bycoor>();
@@ -2001,8 +1961,8 @@ namespace netxs::ui
 
                 calc.commit(handle);
 
-                auto& handle_len = xy(handle.size);
-                auto& region_len = xy(region.size);
+                auto& handle_len = handle.size[AXIS];
+                auto& region_len = region.size[AXIS];
 
                 handle = region.clip(handle);
                 handle_len = std::max(1, handle_len);
@@ -2049,18 +2009,13 @@ namespace netxs::ui
             pager_next  = 11,
         };
 
-        static inline auto  xy(twod const& p) { return AXIS == axis::X ? p.x : p.y; }
-        static inline auto  yx(twod const& p) { return AXIS == axis::Y ? p.x : p.y; }
-        static inline auto& xy(twod&       p) { return AXIS == axis::X ? p.x : p.y; }
-        static inline auto& yx(twod&       p) { return AXIS == axis::Y ? p.x : p.y; }
-
         struct math
         {
-            rack  master_inf = {};                         // math: Master scroll info.
-            iota& master_len = xy(master_inf.region);      // math: Master len.
-            iota& master_pos = xy(master_inf.window.coor); // math: Master viewport pos.
-            iota& master_box = xy(master_inf.window.size); // math: Master viewport len.
-            iota& master_dir =    master_inf.vector ;      // math: Master scroll direction.
+            rack  master_inf = {};                           // math: Master scroll info.
+            iota& master_len = master_inf.region     [AXIS]; // math: Master len.
+            iota& master_pos = master_inf.window.coor[AXIS]; // math: Master viewport pos.
+            iota& master_box = master_inf.window.size[AXIS]; // math: Master viewport len.
+            iota& master_dir = master_inf.vector;            // math: Master scroll direction.
             iota  scroll_len = 0; // math: Scrollbar len.
             iota  scroll_pos = 0; // math: Scrollbar grip pos.
             iota  scroll_box = 0; // math: Scrollbar grip len.
@@ -2111,7 +2066,7 @@ namespace netxs::ui
             }
             void resize(twod const& new_size)
             {
-                scroll_len = xy(new_size);
+                scroll_len = new_size[AXIS];
                 m_to_s();
             }
             void stepby(iota delta)
@@ -2121,8 +2076,8 @@ namespace netxs::ui
             }
             void commit(rect& handle)
             {
-                xy(handle.coor)+= scroll_pos;
-                xy(handle.size) = scroll_box;
+                handle.coor[AXIS]+= scroll_pos;
+                handle.size[AXIS] = scroll_box;
             }
             auto inside(iota coor)
             {
@@ -2164,7 +2119,8 @@ namespace netxs::ui
         void config(iota width)
         {
             thin = width;
-            auto lims = twod{ xy({ -1,thin }), yx({ -1,thin }) };
+            auto lims = AXIS == axis::X ? twod{ -1,width }
+                                        : twod{ width,-1 };
             limit.set(lims, lims);
         }
         void giveup(hids& gear)
@@ -2232,7 +2188,7 @@ namespace netxs::ui
             };
             SUBMIT(tier::release, hids::events::mouse::move, gear)
             {
-                calc.cursor_pos = xy(gear.mouse::coord);
+                calc.cursor_pos = gear.mouse::coord[AXIS];
             };
             SUBMIT(tier::release, hids::events::mouse::button::dblclick::left, gear)
             {
@@ -2243,7 +2199,7 @@ namespace netxs::ui
                 if (!on_pager)
                 if (this->form::template protos<tier::release>(bttn::down::left) ||
                     this->form::template protos<tier::release>(bttn::down::right))
-                if (auto dir = calc.inside(xy(gear.mouse::coord)))
+                if (auto dir = calc.inside(gear.mouse::coord[AXIS]))
                 {
                     if (gear.capture(bell::id))
                     {
@@ -2307,7 +2263,7 @@ namespace netxs::ui
                 {
                     if (gear.captured(bell::id))
                     {
-                        if (auto delta = xy(gear.mouse::delta.get()))
+                        if (auto delta = gear.mouse::delta.get()[AXIS])
                         {
                             calc.stepby(delta);
                             send<upon::scroll::bycoor>();
@@ -2380,9 +2336,9 @@ namespace netxs::ui
 
                 calc.commit(handle);
 
-                auto& handle_len = xy(handle.size);
-                auto& region_len = xy(region.size);
-                auto& object_len = xy(object.size);
+                auto& handle_len = handle.size[AXIS];
+                auto& region_len = region.size[AXIS];
+                auto& object_len = object.size[AXIS];
 
                 handle = region.clip(handle);
                 handle_len = std::max(1, handle_len);
