@@ -240,11 +240,27 @@ namespace netxs::events::userland
                     };
                     SUBSET_XS( scroll )
                     {
+                        GROUP_XS( to_top, rack ), // scroll to top.
+                        GROUP_XS( to_end, rack ), // scroll to end.
                         GROUP_XS( bycoor, rack ), // scroll absolute.
                         GROUP_XS( bystep, rack ), // scroll by delta.
                         GROUP_XS( bypage, rack ), // scroll by page.
                         GROUP_XS( cancel, rack ), // reset scrolling.
 
+                        SUBSET_XS( to_top )
+                        {
+                            EVENT_XS( x, rack ), // scroll to_top along X.
+                            EVENT_XS( y, rack ), // scroll to_top along Y.
+
+                            INDEX_XS( x, y ),
+                        };
+                        SUBSET_XS( to_end )
+                        {
+                            EVENT_XS( x, rack ), // scroll to_end along X.
+                            EVENT_XS( y, rack ), // scroll to_end along Y.
+
+                            INDEX_XS( x, y ),
+                        };
                         SUBSET_XS( bycoor )
                         {
                             EVENT_XS( x, rack ), // scroll absolute along X.
@@ -943,6 +959,12 @@ namespace netxs::console
             SIGNAL(tier::release, e2::coor::set, new_coor);
             auto delta = square.coor - old_coor;
             return delta;
+        }
+        // base: Dry run. Check current position.
+        auto moveto()
+        {
+            auto new_value = square.coor;
+            return moveto(new_value);
         }
         // base: Move the form by the specified step and return the coor delta.
         auto moveby(twod const& step)

@@ -1289,11 +1289,9 @@ namespace netxs::ui
         {
             if (master)
             {
-                master->SUBMIT_T(tier::release, upon::scroll::bycoor::_<AXIS>, fasten, master_scinfo)
+                master->SUBMIT_T(tier::release, upon::scroll::bycoor::any, fasten, master_scinfo)
                 {
-                    //this->SIGNAL(tier::preview, e2::form::upon::scroll::bycoor::_<AXIS>, master_scinfo);
-                    move<AXIS>(AXIS == X ? scinfo.window.coor.x - master_scinfo.window.coor.x
-                                         : scinfo.window.coor.y - master_scinfo.window.coor.y);
+                    this->SIGNAL(tier::preview, e2::form::upon::scroll::bycoor::_<AXIS>, master_scinfo);
                 };
             }
             else fasten.clear();
@@ -1315,8 +1313,7 @@ namespace netxs::ui
               siezed{ allow_to_capture },
               extraz{ allow_overscroll }
         {
-            // Receive scroll parameters from external sources.
-            SUBMIT(tier::preview, e2::form::upon::scroll::any, info)
+            SUBMIT(tier::preview, e2::form::upon::scroll::any, info) // Receive scroll parameters from external sources.
             {
                 if (client)
                 {
@@ -1341,13 +1338,7 @@ namespace netxs::ui
             SUBMIT(tier::release, e2::size::set, new_size)
             {
                 if (client)
-                {
-                    //locked = true; // See the details in subscription at the attach().
-                    auto delta = client->base::resize(new_size, base::anchor);
-                    //locked = faux;
-                    //scroll<X>(delta.x);
-                    //scroll<Y>(delta.y);
-                }
+                    client->base::resize(new_size, base::anchor);
             };
 
             using bttn = hids::events::mouse::button;
@@ -1401,14 +1392,9 @@ namespace netxs::ui
                 if (gear.captured(bell::id))
                 {
                     auto delta = gear.mouse::delta.get();
-                    //if (permit == axes::ALL)
-                    //{
-                    //    ...moveby(delta);
-                    //}
-                    //else if (permit & axes::X_ONLY) scroll<X>(delta.x);
-                    //else if (permit & axes::Y_ONLY) scroll<Y>(delta.y);
-                    if (permit & axes::X_ONLY) move<X>(delta.x);
-                    if (permit & axes::Y_ONLY) move<Y>(delta.y);
+                    auto value = twod{ permit & axes::X_ONLY ? delta.x : 0,
+                                       permit & axes::Y_ONLY ? delta.y : 0 };
+                    if (value) movexy(value);
                     gear.dismiss();
                 }
             };
@@ -1438,6 +1424,7 @@ namespace netxs::ui
 
                     if (permit & axes::X_ONLY) actify<X>(quadratic{ speed.x, cycle, limit, start });
                     if (permit & axes::Y_ONLY) actify<Y>(quadratic{ speed.y, cycle, limit, start });
+                    //todo if (permit == axes::ALL) actify(quadratic{ speed, cycle, limit, start });
 
                     base::deface();
                     gear.release();
@@ -1517,11 +1504,11 @@ namespace netxs::ui
             if (client)
             {
                 auto& thing = *client;
+                auto& frame = base::size();
                 auto  block = thing.base::area();
                 auto  basis = thing.oversz.topleft();
                 block.coor -= basis; // Scroll origin basis.
                 block.size += thing.oversz.summ();
-                auto& frame = base::size();
                 auto  level = AXIS == X;
                 auto  bound = level ? std::min(frame.x - block.size.x, 0)
                                     : std::min(frame.y - block.size.y, 0);
@@ -1531,11 +1518,6 @@ namespace netxs::ui
                 {
                     auto clamp = std::clamp(coord, bound, 0);
                     value = clamp == coord;
-                    if (!value && strict[AXIS]) // If outside the scroll limits
-                    {                           // and overscroll is not allowed.
-                            coord = clamp;
-                            //todo moveto
-                    }
                 }
             }
             return value;
@@ -1576,71 +1558,51 @@ namespace netxs::ui
                 keepon<AXIS>(fader);
             }
         }
-        template<axis AXIS>
-        void scroll(twod& block_coor)
+        void scroll(twod& coord)
         {
-            //bool inside = true;
             if (client)
             {
                 auto& thing = *client;
-                //auto  block_coor = thing.base::coor();
-                auto  block_size = thing.base::size();
-                auto  basis = thing.oversz.topleft();
-                block_coor -= basis; // Scroll origin basis.
-                block_size += thing.oversz.summ();
                 auto& frame = base::size();
-                auto  level = AXIS == X;
-                auto  bound = level ? std::min(frame.x - block_size.x, 0)
-                                    : std::min(frame.y - block_size.y, 0);
-                auto& coord = level ? block_coor.x
-                                    : block_coor.y;
-                //coord += delta;
-
-                if (manual[AXIS]) // Check overscroll if no auto correction.
+                auto  block = thing.base::size();
+                auto  basis = thing.oversz.topleft();
+                coord -= basis; // Scroll origin basis.
+                block += thing.oversz.summ();
+                auto  bound = std::min(frame - block, dot_00);
+                auto  clamp = std::clamp(coord, bound, dot_00);
+                // Check overscroll if no auto correction.
+                if (clamp.x != coord.x && manual[X] && strict[X]) // If outside the scroll limits and overscroll is not allowed.
                 {
-                    auto clamp = std::clamp(coord, bound, 0);
-                    //inside = clamp == coord;
-                    //if (!inside && strict[AXIS]) // If outside the scroll limits
-                    //{                            // and overscroll is not allowed.
-                    //        coord = clamp;
-                    //}
-                    if ((clamp != coord) && strict[AXIS]) // If outside the scroll limits
-                    {                            // and overscroll is not allowed.
-                        coord = clamp;
-                    }
+                    coord.x = clamp.x;
+                }
+                if (clamp.y != coord.y && manual[Y] && strict[Y]) // If outside the scroll limits and overscroll is not allowed.
+                {
+                    coord.y = clamp.y;
                 }
 
-                scinfo.beyond = thing.oversz;  // Oversize value.
-                scinfo.region = block_size;
-                scinfo.window.coor =-block_coor; // Viewport.
-                scinfo.window.size = frame;      //
-                SIGNAL(tier::release, upon::scroll::bycoor::_<AXIS>, scinfo);
-
-                block_coor += basis; // Client origin basis.
-                //locked = true;
-                //thing.base::moveto(block_coor);
-                //locked = faux;
+                scinfo.beyond = thing.oversz;
+                scinfo.region = block;
+                scinfo.window.coor =-coord; // Viewport.
+                scinfo.window.size = frame; //
+                SIGNAL(tier::release, upon::scroll::bycoor::any, scinfo);
+                coord += basis; // Client origin basis.
                 base::deface(); // Main menu redrawing
             }
-            //return inside;
         }
-        template<axis AXIS>
-        void move(iota delta)
+        void movexy(twod const& delta)
         {
             if (client)
+                client->base::moveby(delta);
+        }
+        template<axis AXIS>
+        void move(iota p)
+        {
+            if (p)
             {
-                if constexpr (AXIS == X) client->base::moveby({ delta, 0 });
-                if constexpr (AXIS == Y) client->base::moveby({ 0, delta });
+                if constexpr (AXIS == X) movexy({ p, 0 });
+                if constexpr (AXIS == Y) movexy({ 0, p });
             }
         }
-        //void sync()
-        //{
-        //    if (!locked)
-        //    {
-        //        scroll<X>();
-        //        scroll<Y>();
-        //    }
-        //}
         // rail: Attach specified item.
         template<class T>
         auto attach(T item_ptr)
@@ -1650,20 +1612,18 @@ namespace netxs::ui
             tokens.clear();
             item_ptr->SUBMIT_T(tier::preview, e2::coor::set, tokens.extra(), coor)
             {
-                //sync();
-                if (permit & axes::X_ONLY) scroll<X>(coor);
-                if (permit & axes::Y_ONLY) scroll<Y>(coor);
+                scroll(coor);
             };
             item_ptr->SUBMIT_T(tier::release, e2::size::set, tokens.extra(), size)
             {
-                //sync();
+                if (client)
+                    client->base::moveto();
             };
             item_ptr->SUBMIT_T(tier::release, e2::form::upon::vtree::detached, tokens.extra(), p)
             {
                 scinfo.region = {};
                 scinfo.window.coor = {};
-                this->SIGNAL(tier::release, upon::scroll::bycoor::x, scinfo); // Reset dependent scrollbars.
-                this->SIGNAL(tier::release, upon::scroll::bycoor::y, scinfo); //
+                this->SIGNAL(tier::release, upon::scroll::bycoor::any, scinfo); // Reset dependent scrollbars.
                 tokens.clear();
                 fasten.clear();
             };
@@ -1871,7 +1831,7 @@ namespace netxs::ui
         {
             config(thin);
 
-            boss->SUBMIT_T(tier::release, upon::scroll::bycoor::_<AXIS>, memo, scinfo)
+            boss->SUBMIT_T(tier::release, upon::scroll::bycoor::any, memo, scinfo)
             {
                 calc.update(scinfo);
                 base::deface();
@@ -2249,7 +2209,7 @@ namespace netxs::ui
         {
             config(thin);
 
-            boss->SUBMIT_T(tier::release, upon::scroll::bycoor::_<AXIS>, memo, scinfo)
+            boss->SUBMIT_T(tier::release, upon::scroll::bycoor::any, memo, scinfo)
             {
                 calc.update(scinfo);
                 base::deface();

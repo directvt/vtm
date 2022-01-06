@@ -374,11 +374,10 @@ namespace netxs::app::calc
                                                      {
                                                          grid->SUBMIT(tier::release, e2::data::text, data)
                                                          {
-                                                         boss.upload(ansi::bgc(whitelt).fgc(blacklt).add(data));
+                                                            boss.upload(ansi::bgc(whitelt).fgc(blacklt).add(data));
                                                          };
                                                      });
-                                    //auto cols_area = corner_cols->attach(slot::_2, ui::rail::ctor(axes::X_ONLY, axes::X_ONLY))
-                                    auto cols_area = corner_cols->attach(slot::_2, ui::rail::ctor(axes::ALL, axes::ALL))
+                                    auto cols_area = corner_cols->attach(slot::_2, ui::rail::ctor(axes::X_ONLY, axes::X_ONLY))
                                                                 ->follow<axis::X>(scroll);
                                         auto cols = cols_area->attach(ui::post::ctor())
                                                              ->plugin<pro::limit>(twod{ -1,1 }, twod{ -1,1 })
