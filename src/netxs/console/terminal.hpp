@@ -3314,6 +3314,7 @@ namespace netxs::ui
                         altbuf.clear_all();
                         altbuf.resize_viewport(target->panel); // Reset viewport to the basis.
                         target = &altbuf;
+                        follow_basis = true;
                         base::resize(altbuf.panel);
                         break;
                     case 2004: // Set bracketed paste mode.
@@ -3385,6 +3386,7 @@ namespace netxs::ui
                         normal.style = target->style;
                         normal.resize_viewport(target->panel); // Reset viewport to the basis.
                         target = &normal;
+                        follow_basis = true;
                         base::resize(normal.panel);
                         break;
                     case 2004: // Disable bracketed paste mode.
@@ -3418,67 +3420,63 @@ namespace netxs::ui
                 queue.clear();
             }
         }
+        bool follow_basis = true;
         bool follow_cursor = faux;
-        bool out_of_sync = faux;
+        //bool out_of_sync = faux;
         // term: Reset viewport position.
-        void scroll(bool force_basis = true)
-        {
-            auto& console = *target;
-            auto basis = console.get_basis();
-            auto adjust_pads = console.recalc_pads(oversz);
-            auto scroll_size = console.panel;
-            scroll_size.y += basis;
-
-            if (force_basis)
-            {
-                if (follow_cursor)
-                {
-                    follow_cursor = faux;
-
-                    auto c = console.get_coord(dot_00);
-                    if (origin.x != 0 || c.x != console.panel.x)
-                    {
-                             if (c.x >= 0  && c.x < console.panel.x) origin.x = 0;
-                        else if (c.x >= -origin.x + console.panel.x) origin.x = -c.x + console.panel.x - 1;
-                        else if (c.x <  -origin.x                  ) origin.x = -c.x;
-                    }
-
-                    origin.y = -basis;
-                    out_of_sync = true;
-                    SIGNAL(tier::release, e2::coor::set, origin);
-                    SIGNAL(tier::release, e2::size::set, scroll_size); // Update scrollbars.
-                    return;
-                }
-
-                //todo check the case: arena == batch.peak - 1
-                origin.y = -basis;
-                out_of_sync = true;
-                SIGNAL(tier::release, e2::coor::set, origin);
-                SIGNAL(tier::release, e2::size::set, scroll_size); // Update scrollbars.
-                return;
-            }
-            else if (console.is_need_to_correct())
-            {
-                auto cur_pos = -origin.y;
-                if (cur_pos >=0 && cur_pos < basis)
-                if (auto slide = -console.get_slide(); origin.y != slide)
-                {
-                    //todo optimize
-                    //todo separate the viewport position from the slide
-                    origin.y = slide;
-                    out_of_sync = true;
-                    SIGNAL(tier::release, e2::coor::set, origin);
-                    SIGNAL(tier::release, e2::size::set, scroll_size); // Update scrollbars.
-                    return;
-                }
-            }
-
-            if (scroll_size != base::size() || adjust_pads)
-            {
-                out_of_sync = true;
-                SIGNAL(tier::release, e2::size::set, scroll_size); // Update scrollbars.
-            }
-        }
+//        void scroll(bool force_basis = true)
+//        {
+//            auto& console = *target;
+//            auto basis = console.get_basis();
+//            auto adjust_pads = console.recalc_pads(oversz);
+//            auto scroll_size = console.panel;
+//            scroll_size.y += basis;
+//
+//            if (force_basis)
+//            {
+//                if (follow_cursor)
+//                {
+//                    follow_cursor = faux;
+//                    auto c = console.get_coord(dot_00);
+//                    if (origin.x != 0 || c.x != console.panel.x)
+//                    {
+//                             if (c.x >= 0  && c.x < console.panel.x) origin.x = 0;
+//                        else if (c.x >= -origin.x + console.panel.x) origin.x = -c.x + console.panel.x - 1;
+//                        else if (c.x <  -origin.x                  ) origin.x = -c.x;
+//                    }
+//                }
+//
+//                //todo check the case: arena == batch.peak - 1
+//                origin.y = -basis;
+//                out_of_sync = true;
+//                console.set_slide(basis);
+//                //SIGNAL(tier::release, e2::coor::set, origin);
+//                //SIGNAL(tier::release, e2::size::set, scroll_size); // Update scrollbars.
+//                return;
+//            }
+//            else if (console.is_need_to_correct())
+//            {
+//                auto cur_pos = -origin.y;
+//                if (cur_pos >=0 && cur_pos < basis)
+//                if (auto slide = -console.get_slide(); origin.y != slide)
+//                {
+//                    //todo optimize
+//                    //todo separate the viewport position from the slide
+//                    origin.y = slide;
+//                    out_of_sync = true;
+//                    //SIGNAL(tier::release, e2::coor::set, origin);
+//                    //SIGNAL(tier::release, e2::size::set, scroll_size); // Update scrollbars.
+//                    return;
+//                }
+//            }
+//
+//            //if (!out_of_sync && (scroll_size != base::size() || adjust_pads))
+//            if (scroll_size != base::size() || adjust_pads)
+//            {
+//                out_of_sync = true;
+//                //SIGNAL(tier::release, e2::size::set, scroll_size); // Update scrollbars.
+//            }
+//        }
         // term: Proceed terminal input.
         void ondata(view data)
         {
@@ -3487,11 +3485,19 @@ namespace netxs::ui
                 netxs::events::try_sync guard;
                 if (guard)
                 {
+                    //todo avoid if no subscriptions
                     SIGNAL(tier::general, e2::debug::output, data); // Post for the Logs.
 
-                    auto force_basis = target->force_basis();
-                    ansi::parse(data, target);
-                    scroll(force_basis);
+                    if (follow_basis) ansi::parse(data, target);
+                    else
+                    {
+                        auto old_basis = target->get_basis();
+                        auto old_slide = target->get_slide();
+                        ansi::parse(data, target);
+                        auto new_basis = target->get_basis();
+                        follow_basis = old_basis <= old_slide && old_slide <= new_basis
+                                    || new_basis <= old_slide && old_slide <= old_basis;
+                    }
 
                     base::deface();
                     break;
@@ -3524,7 +3530,8 @@ namespace netxs::ui
         void exec_cmd(commands::ui::commands cmd)
         {
             log("term: tier::preview, ui::commands, ", cmd);
-            scroll();
+            //scroll();
+            follow_basis = true;
             switch (cmd)
             {
                 case commands::ui::left:
@@ -3553,13 +3560,15 @@ namespace netxs::ui
         void data_in(view data)
         {
             log("term: app::term::data::in, ", utf::debase(data));
-            scroll();
+            //scroll();
+            follow_basis = true;
             ondata(data);
         }
         void data_out(view data)
         {
             log("term: app::term::data::out, ", utf::debase(data));
-            scroll();
+            //scroll();
+            follow_basis = true;
             ptycon.write(data);
         }
         void start()
@@ -3606,11 +3615,13 @@ namespace netxs::ui
             {
                 this->base::riseup<tier::request>(e2::form::prop::header, wtrack.get(ansi::OSC_TITLE));
             };
-            SUBMIT(tier::release, e2::coor::set, new_coor)
+            SUBMIT(tier::preview, e2::coor::set, new_coor)
             {
                 //todo use tier::preview bcz approx viewport position can be corrected
-                origin = new_coor;
-                origin.y = -target->set_slide(-origin.y);
+                origin.x = new_coor.x;
+                origin.y = -target->set_slide(-new_coor.y);
+                follow_basis = target->get_slide() == target->get_basis();
+
                 //preview: new_coor = origin;
 
                 //auto& console = *target;
@@ -3634,28 +3645,44 @@ namespace netxs::ui
                 auto& console = *target;
                 new_size = std::max(new_size, dot_11);
 
-                auto force_basis = console.force_basis();
+                auto old_origin = origin;
+                //auto force_basis = console.force_basis();
                 console.resize_viewport(new_size);
 
-                if (force_basis) scroll();
+                if (follow_basis)
+                {
+                    if (follow_cursor)
+                    {
+                        follow_cursor = faux;
+                        auto c = console.get_coord(dot_00);
+                        if (origin.x != 0 || c.x != console.panel.x)
+                        {
+                                 if (c.x >= 0  && c.x < console.panel.x) origin.x = 0;
+                            else if (c.x >= -origin.x + console.panel.x) origin.x = -c.x + console.panel.x - 1;
+                            else if (c.x <  -origin.x                  ) origin.x = -c.x;
+                        }
+                    }
+
+                    auto basis = console.get_basis();
+                    origin.y = -basis;
+                }
                 else
                 {
-                    auto slide = -console.get_slide();
-                    if (origin.y != slide)
-                    {
-                        origin.y = slide;
-                        this->SIGNAL(tier::release, e2::coor::set, origin);
-                    }
+                    auto slide = console.get_slide();
+                    origin.y = -slide;
                 }
+                base::anchor += old_origin - origin;
 
                 ptycon.resize(new_size);
 
                 new_size.y += console.get_basis();
+                //out_of_sync = faux;
             };
             SUBMIT(tier::release, hids::events::keybd::any, gear)
             {
                 //todo stop/finalize scrolling animations
-                scroll(true);
+                //scroll(true);
+                follow_basis = true;
                 follow_cursor = true;
                 #ifndef PROD
                     return;
@@ -3711,16 +3738,37 @@ namespace netxs::ui
             {
                 target->brush.reset(brush);
             };
-            SUBMIT(tier::release, e2::render::prerender, parent_canvas)
+            //SUBMIT(tier::release, e2::render::prerender, parent_canvas)
+            SUBMIT(tier::general, e2::tick, timestamp)
             {
                 //if (out_of_sync)
                 //{
                 //    out_of_sync = faux;
                 //    auto& console = *target;
                 //    auto scroll_size = console.panel + console.get_basis();
+                //    auto old = origin;
                 //    this->SIGNAL(tier::release, e2::coor::set, origin);
                 //    this->SIGNAL(tier::release, e2::size::set, scroll_size); // Update scrollbars.
                 //}
+                auto& console = *target;
+                auto scroll_size = console.panel;
+                scroll_size.y += console.get_basis();
+                auto scroll_coor = base::coor();
+                if (follow_basis)
+                {
+                    scroll_coor.y = -console.get_basis();
+
+                }
+                else
+                {
+                    scroll_coor.y = -console.get_slide();
+
+                }
+                //if (scroll_size != base::size()) 
+                    this->base::resize(scroll_size);
+                //if (scroll_coor != base::coor())
+                    this->base::moveto(scroll_coor);
+                base::deface();
             };
             SUBMIT(tier::release, e2::render::any, parent_canvas)
             {

@@ -1471,15 +1471,16 @@ namespace netxs::ui
                 steer = dir;
                 speed = SPD;
                 cycle = CCL;
+                //todo at least one line should be
+                //move<AXIS>(dir ? 1 : -1);
             }
-            move<AXIS>(dir ? 1 : -1);
             keepon<AXIS>(quadratic<iota>(dir ? speed : -speed, pulse, cycle, now<iota>()));
         }
         template<axis AXIS, class FX>
         void keepon(FX&& func)
         {
             strict[AXIS] = true;
-            robot.actify(AXIS, func, [&](auto& p)
+            robot.actify(AXIS, std::forward<FX>(func), [&](auto& p)
                 {
                     move<AXIS>(p);
                 });
@@ -1502,7 +1503,7 @@ namespace netxs::ui
         template<axis AXIS, class FX>
         void actify(FX&& func)
         {
-            if (inside<AXIS>()) keepon<AXIS>(func);
+            if (inside<AXIS>()) keepon<AXIS>(std::forward<FX>(func));
             else                lineup<AXIS>();
         }
         template<axis AXIS, bool FORCED = faux>
