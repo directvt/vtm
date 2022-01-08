@@ -97,7 +97,7 @@ namespace netxs::app::shared
         log("app_limit: max count reached");
         auto timeout = tempus::now() + APPS_DEL_TIMEOUT;
         auto shadow = ptr::shadow(boss);
-        boss->SUBMIT_BYVAL(tier::general, e2::tick, timestamp)
+        boss->SUBMIT_BYVAL(tier::general, e2::timer::any, timestamp)
         {
             if (timestamp > timeout)
             {
@@ -343,7 +343,7 @@ namespace netxs::app::shared
                                ->attach(ui::mock::ctor());
             auto strob_shadow = ptr::shadow(strob);
             bool stobe_state = true;
-            strob->SUBMIT_BYVAL(tier::general, e2::tick, now)
+            strob->SUBMIT_BYVAL(tier::general, e2::timer::any, now)
             {
                 stobe_state = !stobe_state;
                 if (auto strob = strob_shadow.lock())

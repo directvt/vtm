@@ -70,9 +70,9 @@ namespace netxs::events::userland
 
         EVENTPACK( e2, netxs::events::userland::root::base )
         {
-            EVENT_XS( tick      , moment              ), // timer tick, arg: current moment (now).
             EVENT_XS( postrender, console::face       ), // release: UI-tree post-rendering.
             EVENT_XS( depth     , iota                ), // request: Determine the depth of the hierarchy.
+            GROUP_XS( timer     , moment              ), // timer tick, arg: current moment (now).
             GROUP_XS( render    , console::face       ), // release: UI-tree rendering.
             GROUP_XS( conio     , iota                ),
             GROUP_XS( size      , twod                ), // release: Object size.
@@ -84,6 +84,10 @@ namespace netxs::events::userland
             GROUP_XS( command   , iota                ), // exec UI command.
             GROUP_XS( bindings  , sptr<console::base> ), // Dynamic Data Bindings.
 
+            SUBSET_XS( timer )
+            {
+                EVENT_XS( tick, moment ), // relaese: execute before e2::timer::any (rendering)
+            };
             SUBSET_XS( render ) // release any: UI-tree default rendering submission.
             {
                 EVENT_XS( prerender, console::face ), // release: UI-tree pre-rendering, used by pro::cache (can interrupt SIGNAL) and any kind of highlighters.
@@ -111,6 +115,12 @@ namespace netxs::events::userland
                 EVENT_XS( logs  , const view          ), // logs output.
                 EVENT_XS( output, const view          ), // logs has to be parsed.
                 EVENT_XS( parsed, const console::page ), // output parced logs.
+                GROUP_XS( count , iota                ), // global: log listeners.
+
+                SUBSET_XS( count )
+                {
+                    EVENT_XS( set, iota ), // global: log listeners.
+                };
             };
             SUBSET_XS( config )
             {
@@ -995,7 +1005,7 @@ namespace netxs::console
         auto resize(twod newsize, twod point)
         {
             point -= square.coor;
-            anchor = point;
+            anchor = point; //todo use dot_00 instead of point
             resize(newsize);
             auto delta = moveby(point - anchor);
             return delta;
@@ -1780,8 +1790,7 @@ namespace netxs::console
                         pacify(ID);
                     }
                 };
-                //boss.SUBMIT_TV(tier::general, e2::timer::any, memo[ID], handler);
-                boss.SUBMIT_TV(tier::general, e2::tick, memo[ID], handler);
+                boss.SUBMIT_TV(tier::general, e2::timer::any, memo[ID], handler);
                 boss.SIGNAL(tier::release, e2::form::animate::start, ID);
             }
             // pro::robot: Optional proceed every timer tick,
@@ -1850,9 +1859,7 @@ namespace netxs::console
                         if (!lambda(ID)) pacify(ID);
                     }
                 };
-                //boss.SUBMIT_TV(tier::general, e2::timer::any, memo[ID], handler);
-                boss.SUBMIT_TV(tier::general, e2::tick, memo[ID], handler);
-                //boss.SIGNAL(tier::release, e2::form::animate::start, ID);
+                boss.SUBMIT_TV(tier::general, e2::timer::any, memo[ID], handler);
             }
             // pro::timer: Start countdown.
             template<class P>
@@ -2417,7 +2424,7 @@ namespace netxs::console
                     live = step == period::zero();
                     if (!live)
                     {
-                        boss.SUBMIT_T(tier::general, e2::tick, memo, timestamp)
+                        boss.SUBMIT_T(tier::general, e2::timer::tick, memo, timestamp)
                         {
                             if (timestamp > next)
                             {
@@ -2899,7 +2906,7 @@ namespace netxs::console
                 };
 
                 // Double escape catcher.
-                boss.SUBMIT_T(tier::general, e2::tick, memo, timestamp)
+                boss.SUBMIT_T(tier::general, e2::timer::any, memo, timestamp)
                 {
                     if (wait && (timestamp > stop))
                     {
@@ -2943,7 +2950,7 @@ namespace netxs::console
                     //alibi.reset();
                 };
 
-                boss.SUBMIT_T(tier::general, e2::tick, ping, something)
+                boss.SUBMIT_T(tier::general, e2::timer::any, ping, something)
                 {
                     if (tempus::now() > stop)
                     {
@@ -4291,7 +4298,7 @@ namespace netxs::console
 
     protected:
         host(hndl exit_proc)
-            : synch(router<tier::general>(), e2::tick.id),
+            : synch(router<tier::general>(), e2::timer::tick.id),
               scene{ *this },
               frate{ 0 },
               close{ exit_proc }
@@ -4300,7 +4307,7 @@ namespace netxs::console
 
             keybd.accept(true); // Subscribe on keybd offers.
 
-            SUBMIT(tier::general, e2::tick, timestamp)
+            SUBMIT(tier::general, e2::timer::any, timestamp)
             {
                 scene.redraw();
             };
@@ -4385,7 +4392,7 @@ namespace netxs::console
                                     log("inst: max count reached");
                                     auto timeout = tempus::now() + APPS_DEL_TIMEOUT;
                                     auto w_frame = ptr::shadow(frame);
-                                    frame->SUBMIT_BYVAL(tier::general, e2::tick, timestamp)
+                                    frame->SUBMIT_BYVAL(tier::general, e2::timer::any, timestamp)
                                     {
                                         if (timestamp > timeout)
                                         {

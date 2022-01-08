@@ -741,11 +741,6 @@ namespace netxs::ui
                 return 0;
             }
             // bufferbase: .
-    virtual bool force_basis()
-            {
-                return true;
-            }
-            // bufferbase: .
     virtual iota set_slide(iota)
             {
                 return 0;
@@ -1728,11 +1723,6 @@ namespace netxs::ui
             iota get_slide() override
             {
                 return batch.slide;
-            }
-            // scroll_buf: .
-            bool force_basis() override
-            {
-                return batch.slide == batch.basis;
             }
             // scroll_buf: .
             iota set_slide(iota new_slide) override
@@ -3243,6 +3233,9 @@ namespace netxs::ui
         bool       active; // term: Terminal lifetime.
         bool       decckm; // term: Cursor keys Application(true)/ANSI(faux) mode.
         bool       bpmode; // term: Bracketed paste mode.
+        bool       onlogs; // term: Avoid logs if no subscriptions.
+        bool       follow; // term: Follow viewport.
+        bool       unsync; // term: Viewport is out of sync.
 
         // term: Soft terminal reset (DECSTR).
         void decstr()
@@ -3314,7 +3307,7 @@ namespace netxs::ui
                         altbuf.clear_all();
                         altbuf.resize_viewport(target->panel); // Reset viewport to the basis.
                         target = &altbuf;
-                        follow_basis = true;
+                        follow = true;
                         base::resize(altbuf.panel);
                         break;
                     case 2004: // Set bracketed paste mode.
@@ -3386,7 +3379,7 @@ namespace netxs::ui
                         normal.style = target->style;
                         normal.resize_viewport(target->panel); // Reset viewport to the basis.
                         target = &normal;
-                        follow_basis = true;
+                        follow = true;
                         base::resize(normal.panel);
                         break;
                     case 2004: // Disable bracketed paste mode.
@@ -3420,9 +3413,33 @@ namespace netxs::ui
                 queue.clear();
             }
         }
-        bool follow_basis = true;
+
         bool follow_cursor = faux;
-        //bool out_of_sync = faux;
+        // term: Reset viewport position.
+        void scroll(twod& origin)
+        {
+            auto& console = *target;
+            if (follow)
+            {
+                if (follow_cursor)
+                {
+                    follow_cursor = faux;
+                    auto c = console.get_coord(dot_00);
+                    if (origin.x != 0 || c.x != console.panel.x)
+                    {
+                                if (c.x >= 0  && c.x < console.panel.x) origin.x = 0;
+                        else if (c.x >= -origin.x + console.panel.x) origin.x = -c.x + console.panel.x - 1;
+                        else if (c.x <  -origin.x                  ) origin.x = -c.x;
+                    }
+                }
+
+                origin.y = -console.get_basis();;
+            }
+            else
+            {
+                origin.y = -console.get_slide();
+            }
+        }
         // term: Reset viewport position.
 //        void scroll(bool force_basis = true)
 //        {
@@ -3485,20 +3502,20 @@ namespace netxs::ui
                 netxs::events::try_sync guard;
                 if (guard)
                 {
-                    //todo avoid if no subscriptions
-                    SIGNAL(tier::general, e2::debug::output, data); // Post for the Logs.
+                    if (onlogs) SIGNAL_GLOBAL(e2::debug::output, data); // Post data for Logs.
 
-                    if (follow_basis) ansi::parse(data, target);
+                    if (follow) ansi::parse(data, target);
                     else
                     {
                         auto old_basis = target->get_basis();
                         auto old_slide = target->get_slide();
                         ansi::parse(data, target);
                         auto new_basis = target->get_basis();
-                        follow_basis = old_basis <= old_slide && old_slide <= new_basis
-                                    || new_basis <= old_slide && old_slide <= old_basis;
+                        follow = old_basis <= old_slide && old_slide <= new_basis
+                              || new_basis <= old_slide && old_slide <= old_basis;
                     }
 
+                    unsync = true;
                     base::deface();
                     break;
                 }
@@ -3517,7 +3534,7 @@ namespace netxs::ui
             else
             {
                 log("term: submit for destruction on next frame/tick");
-                SUBMIT_GLOBAL(e2::tick, oneoff, t)
+                SUBMIT_GLOBAL(e2::timer::any, oneoff, t)
                 {
                     auto backup = This();
                     this->base::riseup<tier::release>(e2::form::quit, backup);
@@ -3530,8 +3547,7 @@ namespace netxs::ui
         void exec_cmd(commands::ui::commands cmd)
         {
             log("term: tier::preview, ui::commands, ", cmd);
-            //scroll();
-            follow_basis = true;
+            follow = true;
             switch (cmd)
             {
                 case commands::ui::left:
@@ -3560,24 +3576,22 @@ namespace netxs::ui
         void data_in(view data)
         {
             log("term: app::term::data::in, ", utf::debase(data));
-            //scroll();
-            follow_basis = true;
+            follow = true;
             ondata(data);
         }
         void data_out(view data)
         {
             log("term: app::term::data::out, ", utf::debase(data));
-            //scroll();
-            follow_basis = true;
+            follow = true;
             ptycon.write(data);
         }
         void start()
         {
-            static auto unique = decltype(e2::tick)::type{}; // Eliminate concurrent start actions.
+            static auto unique = decltype(e2::timer::tick)::type{}; // Eliminate concurrent start actions.
 
             if (!ptycon && !oneoff)
             {
-                SUBMIT_GLOBAL(e2::tick, oneoff, timer)
+                SUBMIT_GLOBAL(e2::timer::any, oneoff, timer)
                 {
                     if (unique != timer)
                     {
@@ -3602,25 +3616,38 @@ namespace netxs::ui
               ctrack{ *this },
               active{  true },
               decckm{  faux },
-              bpmode{  faux }
+              bpmode{  faux },
+              onlogs{  faux },
+              follow{  true },
+              unsync{  faux }
         {
             cmdarg = command_line;
             target = &normal;
             //cursor.style(commands::cursor::def_style); // default=blinking_box
             cursor.style(commands::cursor::blinking_underline);
             cursor.show(); //todo revise (possible bug)
-            form::keybd.accept(true); // Subscribe to keybd offers.
+            form::keybd.accept(true); // Subscribe on keybd offers.
 
+            SUBMIT(tier::general, e2::debug::count::any, count)
+            {
+                onlogs = count > 0;
+            };
+            SIGNAL_GLOBAL(e2::debug::count::set, 0);
             SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
             {
                 this->base::riseup<tier::request>(e2::form::prop::header, wtrack.get(ansi::OSC_TITLE));
             };
             SUBMIT(tier::preview, e2::coor::set, new_coor)
             {
+                //todo correct if round
+                //log("tier::preview, e2::coor::set, new_coor");
+            };
+            SUBMIT(tier::release, e2::coor::set, new_coor)
+            {
                 //todo use tier::preview bcz approx viewport position can be corrected
                 origin.x = new_coor.x;
                 origin.y = -target->set_slide(-new_coor.y);
-                follow_basis = target->get_slide() == target->get_basis();
+                follow = target->get_slide() == target->get_basis();
 
                 //preview: new_coor = origin;
 
@@ -3645,44 +3672,21 @@ namespace netxs::ui
                 auto& console = *target;
                 new_size = std::max(new_size, dot_11);
 
-                auto old_origin = origin;
-                //auto force_basis = console.force_basis();
+                auto scroll_coor = origin;
                 console.resize_viewport(new_size);
+                console.recalc_pads(base::oversz);
 
-                if (follow_basis)
-                {
-                    if (follow_cursor)
-                    {
-                        follow_cursor = faux;
-                        auto c = console.get_coord(dot_00);
-                        if (origin.x != 0 || c.x != console.panel.x)
-                        {
-                                 if (c.x >= 0  && c.x < console.panel.x) origin.x = 0;
-                            else if (c.x >= -origin.x + console.panel.x) origin.x = -c.x + console.panel.x - 1;
-                            else if (c.x <  -origin.x                  ) origin.x = -c.x;
-                        }
-                    }
-
-                    auto basis = console.get_basis();
-                    origin.y = -basis;
-                }
-                else
-                {
-                    auto slide = console.get_slide();
-                    origin.y = -slide;
-                }
-                base::anchor += old_origin - origin;
+                scroll(origin);
+                base::anchor += scroll_coor - origin;
 
                 ptycon.resize(new_size);
 
                 new_size.y += console.get_basis();
-                //out_of_sync = faux;
             };
             SUBMIT(tier::release, hids::events::keybd::any, gear)
             {
                 //todo stop/finalize scrolling animations
-                //scroll(true);
-                follow_basis = true;
+                follow = true;
                 follow_cursor = true;
                 #ifndef PROD
                     return;
@@ -3738,37 +3742,28 @@ namespace netxs::ui
             {
                 target->brush.reset(brush);
             };
-            //SUBMIT(tier::release, e2::render::prerender, parent_canvas)
-            SUBMIT(tier::general, e2::tick, timestamp)
+            SUBMIT(tier::general, e2::timer::tick, timestamp)
             {
-                //if (out_of_sync)
-                //{
-                //    out_of_sync = faux;
-                //    auto& console = *target;
-                //    auto scroll_size = console.panel + console.get_basis();
-                //    auto old = origin;
-                //    this->SIGNAL(tier::release, e2::coor::set, origin);
-                //    this->SIGNAL(tier::release, e2::size::set, scroll_size); // Update scrollbars.
-                //}
+                if (!unsync) return;
+                unsync = faux;
+
                 auto& console = *target;
+
                 auto scroll_size = console.panel;
                 scroll_size.y += console.get_basis();
-                auto scroll_coor = base::coor();
-                if (follow_basis)
-                {
-                    scroll_coor.y = -console.get_basis();
 
-                }
-                else
-                {
-                    scroll_coor.y = -console.get_slide();
+                auto scroll_coor = origin;
+                scroll(scroll_coor);
 
-                }
-                //if (scroll_size != base::size()) 
-                    this->base::resize(scroll_size);
-                //if (scroll_coor != base::coor())
+                auto adjust_pads = console.recalc_pads(base::oversz);
+
+                if (scroll_size != base::size() // Update scrollbars.
+                 || scroll_coor != origin
+                 || adjust_pads) 
+                {
+                    this->SIGNAL(tier::release, e2::size::set, scroll_size);
                     this->base::moveto(scroll_coor);
-                base::deface();
+                }
             };
             SUBMIT(tier::release, e2::render::any, parent_canvas)
             {

@@ -54,9 +54,15 @@ namespace netxs::app::logs
                 {
                     input.join();
                 }
+                SIGNAL_GLOBAL(e2::debug::count::set, -1);
             }
             log_parser()
             {
+                SIGNAL_GLOBAL(e2::debug::count::set, 1);
+                SUBMIT(tier::general, e2::debug::count::set, count)
+                {
+                    count++;
+                };
                 SUBMIT(tier::general, e2::debug::output, shadow)
                 {
                     queue.push(text{ shadow });

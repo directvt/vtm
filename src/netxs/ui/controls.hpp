@@ -1527,8 +1527,9 @@ namespace netxs::ui
                 keepon<AXIS>(fader);
             }
         }
-        void scroll(twod& coord)
+        auto scroll(twod& coord)
         {
+            twod delta;
             if (client)
             {
                 auto& item = *client;
@@ -1540,8 +1541,9 @@ namespace netxs::ui
                 auto clamp = std::clamp(coord, bound, dot_00);
                 for (auto xy : { axis::X, axis::Y }) // Check overscroll if no auto correction.
                 {
-                    if (manual[xy] && strict[xy]) // Clamp if it is outside the scroll limits and no overscroll.
+                    if (coord[xy] != clamp[xy] && manual[xy] && strict[xy]) // Clamp if it is outside the scroll limits and no overscroll.
                     {
+                        delta[xy] = clamp[xy] - coord[xy];
                         coord[xy] = clamp[xy];
                     }
                 }
@@ -1553,6 +1555,7 @@ namespace netxs::ui
                 coord += basis; // Client origin basis.
                 base::deface(); // Main menu redraw trigger.
             }
+            return delta;
         }
         void movexy(twod const& delta)
         {
@@ -1582,7 +1585,13 @@ namespace netxs::ui
             item_ptr->SUBMIT_T(tier::release, e2::size::set, tokens.extra(), size)
             {
                 if (client)
-                    client->base::moveto();
+                {
+                    auto coor = client->base::coor();
+                    if (auto delta = scroll(coor))
+                    {
+                        //todo sync
+                    }
+                }
             };
             item_ptr->SUBMIT_T(tier::release, e2::form::upon::vtree::detached, tokens.extra(), p)
             {
