@@ -3233,11 +3233,11 @@ namespace netxs::ui
         text       cmdarg; // term: Startup command line arguments.
         hook       oneoff; // term: One-shot token for start and shutdown events.
         twod       origin; // term: Viewport position.
+        twod       follow; // term: Viewport follows cursor (bool: X, Y).
         bool       active; // term: Terminal lifetime.
         bool       decckm; // term: Cursor keys Application(true)/ANSI(faux) mode.
         bool       bpmode; // term: Bracketed paste mode.
         bool       onlogs; // term: Avoid logs if no subscriptions.
-        bool       follow; // term: Follow viewport.
         bool       unsync; // term: Viewport is out of sync.
 
         // term: Soft terminal reset (DECSTR).
@@ -3310,7 +3310,7 @@ namespace netxs::ui
                         altbuf.clear_all();
                         altbuf.resize_viewport(target->panel); // Reset viewport to the basis.
                         target = &altbuf;
-                        follow = true;
+                        follow[axis::Y] = true;
                         base::resize(altbuf.panel);
                         break;
                     case 2004: // Set bracketed paste mode.
@@ -3382,7 +3382,7 @@ namespace netxs::ui
                         normal.style = target->style;
                         normal.resize_viewport(target->panel); // Reset viewport to the basis.
                         target = &normal;
-                        follow = true;
+                        follow[axis::Y] = true;
                         base::resize(normal.panel);
                         break;
                     case 2004: // Disable bracketed paste mode.
@@ -3416,17 +3416,15 @@ namespace netxs::ui
                 queue.clear();
             }
         }
-
-        bool follow_cursor = faux;
         // term: Reset viewport position.
         void scroll(twod& origin)
         {
             auto& console = *target;
-            if (follow)
+            if (follow[axis::Y])
             {
-                if (follow_cursor)
+                if (follow[axis::X])
                 {
-                    follow_cursor = faux;
+                    follow[axis::X] = faux;
                     auto c = console.get_coord(dot_00);
                     if (origin.x != 0 || c.x != console.panel.x)
                     {
@@ -3435,7 +3433,7 @@ namespace netxs::ui
                         else if (c.x <  -origin.x                  ) origin.x = -c.x;
                     }
                 }
-                origin.y = -console.get_basis();;
+                origin.y = -console.get_basis();
             }
             else
             {
@@ -3452,15 +3450,15 @@ namespace netxs::ui
                 {
                     if (onlogs) SIGNAL_GLOBAL(e2::debug::output, data); // Post data for Logs.
 
-                    if (follow) ansi::parse(data, target);
+                    if (follow[axis::Y]) ansi::parse(data, target);
                     else
                     {
                         auto old_basis = target->get_basis();
                         auto old_slide = target->get_slide();
                         ansi::parse(data, target);
                         auto new_basis = target->get_basis();
-                        follow = old_basis <= old_slide && old_slide <= new_basis
-                              || new_basis <= old_slide && old_slide <= old_basis;
+                        follow[axis::Y] = old_basis <= old_slide && old_slide <= new_basis
+                                       || new_basis <= old_slide && old_slide <= old_basis;
                     }
 
                     unsync = true;
@@ -3494,7 +3492,7 @@ namespace netxs::ui
         void exec_cmd(commands::ui::commands cmd)
         {
             log("term: tier::preview, ui::commands, ", cmd);
-            follow = true;
+            follow[axis::Y] = true;
             switch (cmd)
             {
                 case commands::ui::left:
@@ -3523,13 +3521,13 @@ namespace netxs::ui
         void data_in(view data)
         {
             log("term: app::term::data::in, ", utf::debase(data));
-            follow = true;
+            follow[axis::Y] = true;
             ondata(data);
         }
         void data_out(view data)
         {
             log("term: app::term::data::out, ", utf::debase(data));
-            follow = true;
+            follow[axis::Y] = true;
             ptycon.write(data);
         }
         void start()
@@ -3561,11 +3559,11 @@ namespace netxs::ui
               ftrack{ *this },
               wtrack{ *this },
               ctrack{ *this },
+              follow{  0, 1 },
               active{  true },
               decckm{  faux },
               bpmode{  faux },
               onlogs{  faux },
-              follow{  true },
               unsync{  faux }
         {
             cmdarg = command_line;
@@ -3592,9 +3590,10 @@ namespace netxs::ui
             SUBMIT(tier::release, e2::coor::set, new_coor)
             {
                 //todo use tier::preview bcz approx viewport position can be corrected
+                auto& console = *target;
                 origin.x = new_coor.x;
-                origin.y = -target->set_slide(-new_coor.y);
-                follow = target->get_slide() == target->get_basis();
+                origin.y = -console.set_slide(-new_coor.y);
+                follow[axis::Y] = console.get_slide() == console.get_basis();
 
                 //preview: new_coor = origin;
 
@@ -3633,8 +3632,8 @@ namespace netxs::ui
             SUBMIT(tier::release, hids::events::keybd::any, gear)
             {
                 //todo stop/finalize scrolling animations
-                follow = true;
-                follow_cursor = true;
+                follow[axis::X] = true;
+                follow[axis::Y] = true;
                 #ifndef PROD
                     return;
                 #endif
