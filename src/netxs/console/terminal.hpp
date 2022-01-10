@@ -2768,7 +2768,7 @@ namespace netxs::ui
                                 auto after = batch.index() + 1;
                                      spoil = batch.remove(after, spoil);
 
-                                if (saved < batch.basis) index_rebuild(); // Update index.
+                                if (saved < batch.basis) index_rebuild(); // Update index. (processing lines larger than viewport)
                                 else
                                 {
                                     saved -= batch.basis;
@@ -3314,7 +3314,6 @@ namespace netxs::ui
                         altbuf.resize_viewport(target->panel); // Reset viewport to the basis.
                         target = &altbuf;
                         follow[axis::Y] = true;
-                        base::resize(altbuf.panel);
                         break;
                     case 2004: // Set bracketed paste mode.
                         bpmode = true;
@@ -3386,7 +3385,6 @@ namespace netxs::ui
                         normal.resize_viewport(target->panel); // Reset viewport to the basis.
                         target = &normal;
                         follow[axis::Y] = true;
-                        base::resize(normal.panel);
                         break;
                     case 2004: // Disable bracketed paste mode.
                         bpmode = faux;
