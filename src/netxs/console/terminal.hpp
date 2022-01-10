@@ -1579,6 +1579,7 @@ namespace netxs::ui
                 // buff: Rewrite the indices from the specified position to the end.
                 void reindex(iota from)
                 {
+                    assert(from >= 0);
                     auto head = begin() + from;
                     auto tail = end();
                     auto indx = from == 0 ? 0
@@ -2766,10 +2767,10 @@ namespace netxs::ui
                                 assert(spoil > 0);
                                 auto after = batch.index() + 1;
                                      spoil = batch.remove(after, spoil);
-                                // Update index.
-                                {
-                                    assert(test_index());
 
+                                if (saved < batch.basis) index_rebuild(); // Update index.
+                                else
+                                {
                                     saved -= batch.basis;
                                     auto indit = index.begin() + saved;
                                     auto endit = index.end();
@@ -3181,6 +3182,7 @@ namespace netxs::ui
                         // Insert block.
                         while (count-- > 0) batch.insert(floor, id_t{}, parser::style);
 
+                        assert(start == batch.index_by_id(topid)); //todo The index may be outdated due to the ring.
                         batch.reindex(start);
                         index_rebuild();
                     }
@@ -3210,6 +3212,7 @@ namespace netxs::ui
                     // Insert block.
                     while (count-- > 0) batch.insert(start, id_t{}, parser::style);
 
+                    assert(start == batch.index_by_id(topid)); //todo The index may be outdated due to the ring.
                     batch.reindex(start);
                     index_rebuild();
                 }
