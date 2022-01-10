@@ -1418,19 +1418,21 @@ namespace netxs::ui
                     gear.dismiss();
                 }
             };
-            SUBMIT(tier::release, bttn::down::any, gear)
-            {
-                if (manual[X]) robot.pacify(X);
-                if (manual[Y]) robot.pacify(Y);
-            };
             SUBMIT(tier::release, bttn::click::right, gear)
             {
                 if (!gear.captured(bell::id))
                 {
                     if (manual[X]) cancel<X, true>();
                     if (manual[Y]) cancel<Y, true>();
-                    //gear.dismiss();
                 }
+            };
+            SUBMIT(tier::release, bttn::down::any, gear)
+            {
+                cutoff();
+            };
+            SUBMIT(tier::release, e2::form::animate::reset, id)
+            {
+                cutoff();
             };
             SUBMIT(tier::release, e2::form::animate::stop, id)
             {
@@ -1447,6 +1449,11 @@ namespace netxs::ui
                 if (client)
                     parent_canvas.render<faux>(client, base::coor());
             };
+        }
+        void cutoff()
+        {
+            if (manual[X]) robot.pacify(X);
+            if (manual[Y]) robot.pacify(Y);
         }
         void giveup(hids& gear)
         {

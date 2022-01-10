@@ -3454,12 +3454,12 @@ namespace netxs::ui
                     if (follow[axis::Y]) ansi::parse(data, target);
                     else
                     {
-                        auto old_basis = target->get_basis();
-                        auto old_slide = target->get_slide();
+                        auto last_basis = target->get_basis();
+                        auto last_slide = target->get_slide();
                         ansi::parse(data, target);
-                        auto new_basis = target->get_basis();
-                        follow[axis::Y] = old_basis <= old_slide && old_slide <= new_basis
-                                       || new_basis <= old_slide && old_slide <= old_basis;
+                        auto next_basis = target->get_basis();
+                        follow[axis::Y] = last_basis <= last_slide && last_slide <= next_basis
+                                       || next_basis <= last_slide && last_slide <= last_basis;
                     }
 
                     unsync = true;
@@ -3632,7 +3632,8 @@ namespace netxs::ui
             };
             SUBMIT(tier::release, hids::events::keybd::any, gear)
             {
-                //todo stop/finalize scrolling animations
+                this->riseup<tier::release>(e2::form::animate::reset, 0); // Reset scroll animation.
+
                 follow[axis::X] = true;
                 follow[axis::Y] = true;
                 #ifndef PROD

@@ -336,6 +336,7 @@ namespace netxs::events::userland
                 {
                     EVENT_XS( start, id_t ),
                     EVENT_XS( stop , id_t ),
+                    EVENT_XS( reset, id_t ),
                 };
                 SUBSET_XS( drag )
                 {
