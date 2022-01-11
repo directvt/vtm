@@ -81,6 +81,7 @@ namespace netxs::ansi
     static const char CSI_WIN = 't';     // CSI n;m;k  t  — XTWINOPS, Terminal window props.
     static const char CSI_ECH = 'X';     // CSI n      X  — Erase n character(s) ? difference with delete ?
     static const char CSI_ICH = '@';     // CSI n      @  — Insert/wedge n character(s).
+    static const char CSI_PDA = 'c';     // CSI n      c  — Send device attributes (Primary DA).
     static const char DECSET  = 'h';     // CSI ? n    h  — DECSET.
     static const char DECRST  = 'l';     // CSI ? n    l  — DECRST.
     static const char CSI_hRM = 'h';     // CSI n      h  — Reset mode (always Replace mode n=4).

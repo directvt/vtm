@@ -345,6 +345,7 @@ namespace netxs::ui
                     default:
                     case 6: queue.report(owner.target->coord); break;
                     case 5: queue.add("OK");                   break;
+                    case-1: queue.add("VT420");                break; // redirected from CSI n c
                 }
                 owner.answer(queue);
             }
@@ -641,6 +642,7 @@ namespace netxs::ui
 
                 vt.csier.table[CSI_WIN] = VT_PROC{ p->owner.wtrack.manage(q   ); };  // CSI n;m;k t  Terminal window options (XTWINOPS).
                 vt.csier.table[CSI_DSR] = VT_PROC{ p->owner.wtrack.report(q(6)); };  // CSI n n  Device status report (DSR).
+                vt.csier.table[CSI_PDA] = VT_PROC{ p->owner.wtrack.report( -1 ); };  // CSI n c  Send device attributes (Primary DA). Respond always "VT420".
 
                 vt.csier.table[CSI_CCC][CCC_SBS] = VT_PROC{ p->owner.sbsize(q); };  // CCC_SBS: Set scrollback size.
                 vt.csier.table[CSI_CCC][CCC_EXT] = VT_PROC{ p->owner.native(q(1)); };          // CCC_EXT: Setup extended functionality.
@@ -1693,6 +1695,7 @@ namespace netxs::ui
             {
                 auto stash = batch.vsize - batch.basis - index.size;
                 assert(stash >= 0);
+                assert(test_basis());
                 return true;
             }
             auto test_resize()
@@ -1708,6 +1711,46 @@ namespace netxs::ui
                 for (auto& l : batch) test_vsize += l.height(panel.x);
                 if (test_vsize != batch.vsize) log(" ERROR! test_vsize=", test_vsize, " vsize=", batch.vsize);
                 return test_vsize == batch.vsize;
+            }
+            bool test_basis()
+            {
+                if (batch.basis >= batch.vsize)
+                {
+                    assert((log(" batch.basis >= batch.vsize  batch.basis=", batch.basis, " batch.vsize=", batch.vsize), true));
+                }
+
+                auto index_front = index.front();
+                auto temp = index_front;
+                auto coor = batch.vsize;
+                auto head = batch.end();
+                while (coor != batch.basis)
+                {
+                    auto& curln = *--head;
+                    auto  curid = curln.index;
+                    auto length = curln.length();
+                    if (curln.wrapped())
+                    {
+                        auto remain = length ? (length - 1) % panel.x + 1 : 0;
+                        length -= remain;
+                        index_front = { curid, length, remain };
+                        --coor;
+                        while (length > 0 && coor != batch.basis)
+                        {
+                            length -= panel.x;
+                            index_front = { curid, length, panel.x };
+                            --coor;
+                        }
+                    }
+                    else
+                    {
+                        index_front = { curid, 0, length };
+                        --coor;
+                    }
+                }
+                auto result = index_front.index == temp.index
+                           && index_front.start == temp.start
+                           && index_front.width == temp.width;
+                return result;
             }
             // scroll_buf: . // size in cells
             //bool is_need_to_correct() override
@@ -2945,13 +2988,15 @@ namespace netxs::ui
                 auto blank = brush.spc();
                 auto clear = [&](twod const& coor)
                 {
-                    auto j = index[coor.y].index;
-                    auto i = batch.index_by_id(j);
+                    auto& from = index[coor.y];
+                    auto topid = from.index;
+                    auto start = from.start;
+                    auto i = batch.index_by_id(topid);
                     auto n = batch.size - 1 - i;
                     auto m = index.size - 1 - coor.y;
                     auto p = arena      - 1 - coor.y;
 
-                    if (coor.x == 0 && batch.caret != 0) // Remove the index of the current line if the entire visible line is going to be removed.
+                    if (coor.x == 0 && start != 0) // Remove the index of the current line if the entire visible line is going to be removed.
                     {
                         ++m;
                         ++p;
@@ -2966,11 +3011,11 @@ namespace netxs::ui
 
                     add_lines(p);
 
-                    i = batch.index_by_id(j); // The index may be outdated due to the ring.
+                    i = batch.index_by_id(topid); // The index may be outdated due to the ring.
                     auto& curln = batch[i];
                     auto& mapln = index[coor.y];
                     mapln.width = coor.x;
-                    curln.trimto(batch.caret);
+                    curln.trimto(start);
                     batch.recalc(curln);
                     assert(mapln.start == 0 || curln.wrapped());
 
@@ -3182,8 +3227,7 @@ namespace netxs::ui
                         // Insert block.
                         while (count-- > 0) batch.insert(floor, id_t{}, parser::style);
 
-                        assert(start == batch.index_by_id(topid)); //todo The index may be outdated due to the ring.
-                        batch.reindex(start);
+                        batch.reindex(start); //todo The index may be outdated due to the ring.
                         index_rebuild();
                     }
                 }
@@ -3202,8 +3246,9 @@ namespace netxs::ui
 
                     // Delete block.
                     auto topid = index[top    ].index;
-                    auto mdlid = index[mdl - 1].index + 1;
                     auto endid = index[end - 1].index + 1;
+                    auto mdlid = mdl > 0 ? index[mdl - 1].index + 1 // mdl == 0 or mdl == top when count == max (full arena).
+                                         : topid;
                     auto start = batch.index_by_id(topid);
                     auto range = static_cast<iota>(endid - mdlid);
                     auto floor = batch.index_by_id(endid) - range;
@@ -3212,8 +3257,7 @@ namespace netxs::ui
                     // Insert block.
                     while (count-- > 0) batch.insert(start, id_t{}, parser::style);
 
-                    assert(start == batch.index_by_id(topid)); //todo The index may be outdated due to the ring.
-                    batch.reindex(start);
+                    batch.reindex(start); //todo The index may be outdated due to the ring.
                     index_rebuild();
                 }
 
