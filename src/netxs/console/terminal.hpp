@@ -30,6 +30,7 @@ namespace netxs::ui
     class term
         : public ui::form<term>
     {
+        static constexpr iota max_length = 65535; // term: Max line length.
         static constexpr iota def_length = 20000; // term: Default scrollback history length.
         static constexpr iota def_growup = 0;     // term: Default scrollback history grow step.
         static constexpr iota def_tablen = 8;     // term: Default tab length.
@@ -612,9 +613,11 @@ namespace netxs::ui
                 vt.csier.table[CSI_CUF] = VT_PROC{ p->cuf( q(1)); };  // CSI n C  (CUF)
                 vt.csier.table[CSI_CUB] = VT_PROC{ p->cuf(-q(1)); };  // CSI n D  (CUB)
 
-                vt.csier.table[CSI_CHT] = VT_PROC{ p->tab( q(1)); };  // CSI n I  Caret forward  n tabs, default n=1.
-                vt.csier.table[CSI_CBT] = VT_PROC{ p->tab(-q(1)); };  // CSI n Z  Caret backward n tabs, default n=1.
-                vt.csier.table[CSI_TBC] = VT_PROC{ p->tbc( q(1)); };  // CSI n g  Reset tabstop value.
+                vt.csier.table[CSI_CHT]           = VT_PROC{ p->tab( q(1)); };  // CSI n I  Caret forward  n tabs, default n=1.
+                vt.csier.table[CSI_CBT]           = VT_PROC{ p->tab(-q(1)); };  // CSI n Z  Caret backward n tabs, default n=1.
+                vt.csier.table[CSI_TBC]           = VT_PROC{ p->tbc( q(0)); };  // CSI n g  Clear tabstops, default n=0.
+                vt.csier.table_quest[CSI_QST_RTB] = VT_PROC{ p->rtb(     ); };  // CSI ? W  Reset tabstops to the 8 column defaults.
+                vt.intro[ctrl::ESC][ESC_HTS]      = VT_PROC{ p->stb(     ); };  // ESC H    Place tabstop at the current column.
 
                 vt.csier.table[CSI_CUD2]= VT_PROC{ p->dn ( q(1)); };  // CSI n e  Vertical position relative. Move cursor down (VPR).
 
@@ -650,7 +653,6 @@ namespace netxs::ui
 
                 vt.intro[ctrl::ESC][ESC_IND] = VT_PROC{ p->lf(1); };          // ESC D  Index. Caret down and scroll if needed (IND).
                 vt.intro[ctrl::ESC][ESC_IR ] = VT_PROC{ p->ri (); };          // ESC M  Reverse index (RI).
-                vt.intro[ctrl::ESC][ESC_HTS] = VT_PROC{ p->stb(); };          // ESC H  Place tabstop at the current cursor posistion.
                 vt.intro[ctrl::ESC][ESC_SC ] = VT_PROC{ p->scp(); };          // ESC 7  (same as CSI s) Save cursor position.
                 vt.intro[ctrl::ESC][ESC_RC ] = VT_PROC{ p->rcp(); };          // ESC 8  (same as CSI u) Restore cursor position.
                 vt.intro[ctrl::ESC][ESC_RIS] = VT_PROC{ p->owner.decstr(); }; // ESC c  Reset to initial state (same as DECSTR).
@@ -688,6 +690,8 @@ namespace netxs::ui
                 }
             }
 
+            using tabs = std::vector<std::pair<iota, iota>>; // Pairs of forward and reverse tabstops index.
+
             term& owner; // bufferbase: Terminal object reference.
             twod  panel; // bufferbase: Viewport size.
             twod  coord; // bufferbase: Viewport cursor position; 0-based.
@@ -698,7 +702,8 @@ namespace netxs::ui
             iota  y_end; // bufferbase: Precalculated 0-based scrolling region bottom vertical pos.
             iota  n_top; // bufferbase: Original      1-based scrolling region top    vertical pos (use 0 if it is not set).
             iota  n_end; // bufferbase: Original      1-based scrolling region bottom vertical pos (use 0 if it is not set).
-            iota  tabsz; // bufferbase: Tabstop current value.
+            tabs  stops; // bufferbase: Tabstop index.
+            bool  notab; // bufferbase: Tabstop index is cleared.
 
             bufferbase(term& master)
                 : owner{ master },
@@ -711,7 +716,8 @@ namespace netxs::ui
                   y_end{ 0      },
                   n_top{ 0      },
                   n_end{ 0      },
-                  tabsz{ def_tablen }
+                  stops{ {0, 0} },
+                  notab{ faux   }
             {
                 parser::style = ansi::def_style;
             }
@@ -762,6 +768,7 @@ namespace netxs::ui
     virtual void resize_viewport(twod const& new_sz)
             {
                 panel = std::max(new_sz, dot_11);
+                resize_tabstops(panel.x);
                 update_region();
             }
             // bufferbase: Reset coord and set the scrolling region using 1-based top and bottom. Use 0 to reset.
@@ -844,34 +851,201 @@ namespace netxs::ui
     virtual void clear_all()
             {
                 parser::state = {};
+                rtb();
+            }
+            // tabstops index, tablen = 3, vector<pair<fwd_idx, rev_idx>>:
+            // coor.x      -2-1 0 1 2 3 4 5 6 7 8 9
+            // size = 9         0 1 2 3 4 5 6 7 8
+            //             ----------------------
+            // custom: fwd_idx  3 3 3 6 6 6 9 9 9 
+            //         rev_idx  0 0 0 3 3 3 6 6 6  coord.x - 1
+            // 
+            // auto:   fwd_idx -3-3-3-6-6-6-9-9-9 
+            //         rev_idx  0 0 0 3 3 3 6 6 6  coord.x - 1
+            // 
+            // empty:  fwd_idx -9-9-9-9-9-9-9-9-9
+            //         rev_idx  0 0 0 0 0 0 0 0 0  coord.x - 1
+            // 
+            void clear_tabstops()
+            {
+                notab = true;
+                auto auto_tabs = std::pair{ -panel.x, 0 }; // Negative means auto, not custom.
+                stops.assign(panel.x, auto_tabs);
+            }
+            // bufferbase: Resize tabstop index.
+            void resize_tabstops(iota new_size, bool forced = faux)
+            {
+                auto size = static_cast<iota>(stops.size());
+                if (!forced && new_size <= size) return;
+
+                auto back = stops.back();
+                auto last_size = back.first > 0 ? 0 // Custom tabstop -- don't touch it.
+                                                : -back.first - back.second;
+                auto last_stop = forced ? 0
+                                        :size - last_size;
+                stops.resize(last_stop); // Trim.
+
+                if (notab) // Preserve existing tabstops.
+                {
+                    auto auto_tabs = std::pair{ -new_size, last_stop };
+                    stops.resize(new_size, auto_tabs);
+                }
+                else // Add additional default tabstops.
+                {
+                    stops.reserve(new_size);
+                    auto step = term::def_tablen;
+                    auto next = last_stop / step * step;
+                    auto add_count = new_size - step;
+                    while (next < add_count)
+                    {
+                        auto prev = next;
+                        next += step;
+                        auto auto_tabs = std::pair{ -next, prev };
+                        stops.resize(stops.size() + step, auto_tabs);
+                    }
+                    auto auto_tabs = std::pair{ -new_size, next };
+                    stops.resize(new_size, auto_tabs);
+                }
             }
             // bufferbase: ESC H  Place tabstop at the current cursor posistion.
             void stb()
             {
                 parser::flush();
-                tabsz = std::max(1, coord.x + 1);
+                if (coord.x <= 0 || coord.x > term::max_length) return;
+                resize_tabstops(coord.x);
+                auto  coor = coord.x - 1;
+                auto  head = stops.begin();
+                auto  tail = stops.begin() + coor;
+                auto& last = tail->first;
+                if (coord.x != last)
+                {
+                    auto size = stops.size();
+                    auto base = last;
+                    last = coord.x;
+                    while (head != tail)
+                    {
+                        auto& last = (--tail)->first;
+                        if (last == base) last = coord.x;
+                        else break;
+                    }
+                    if (coord.x < size)
+                    {
+                        head += coord.x;
+                        tail = stops.end();
+                        auto& next = head->second;
+                        auto  prev = next;
+                        next = coord.x;
+                        while (++head != tail)
+                        {
+                            auto& next = head->second;
+                            if (next == prev) next = coord.x;
+                            else break;
+                        }
+                    }
+                }
+            }
+            // bufferbase: (see CSI 0 g) Remove tabstop at the current cursor posistion.
+            void remove_tabstop()
+            {
+                auto  size = static_cast<iota>(stops.size());
+                if (coord.x <= 0 || coord.x >= size) return;
+                auto  head = stops.begin();
+                auto  tail = stops.begin() + coord.x;
+                auto  back = tail;
+                auto& stop = *tail;
+                auto& item = *--tail;
+                auto  main = stop.first;
+                auto  base = std::abs(item.first);
+
+                if (base == std::abs(main)) return;
+
+                item.first = main;
+                while (head != tail)
+                {
+                    --tail;
+                    auto& item = tail->first;
+                    if (base == std::abs(item)) item = main;
+                    else break;
+                }
+
+                tail = stops.end();
+                base = stop.second;
+                main = item.second;
+                stop.second = main;
+                while (++back != tail)
+                {
+                    auto& item = back->second;
+                    if (base == std::abs(item)) item = main;
+                    else break;
+                }
+            }
+            // bufferbase: CSI ? W  Reset tabstops to the 8 (todo hardcoded?) column defaults.
+            void rtb()
+            {
+                notab = faux;
+                resize_tabstops(panel.x, true);
+            }
+            // bufferbase: Horizontal tab implementation.
+            template<bool FWD>
+            void tab_impl(auto size)
+            {
+                if constexpr (FWD)
+                {
+                    auto x = std::clamp(coord.x, 0, size - 1);
+                    if (coord.x == x) coord.x = std::abs(stops[x].first);
+                    else
+                    {
+                        coord.x += notab ? term::def_tablen
+                                         : term::def_tablen - coord.x % term::def_tablen;
+                    }
+                }
+                else
+                {
+                    auto x = std::clamp(coord.x, 1, size);
+                    if (coord.x == x) coord.x = stops[x - 1].second;
+                    else
+                    {
+                        coord.x -= notab ? term::def_tablen
+                                         :(term::def_tablen + coord.x - 1) % term::def_tablen + 1;
+                    }
+                }
             }
             // bufferbase: TAB  Horizontal tab.
     virtual void tab(iota n)
             {
                 parser::flush();
-                if (n > 0)
-                {
-                    auto new_pos = coord.x + n * tabsz - coord.x % tabsz;
-                    if (new_pos < panel.x) coord.x = new_pos;
-                }
-                else if (n < 0)
-                {
-                    n = -n - 1;
-                    auto count = n * tabsz + coord.x % tabsz;
-                    coord.x = std::max(0, coord.x - count);
-                }
+                auto size = static_cast<iota>(stops.size());
+                if (n > 0) while (n-- > 0) tab_impl<true>(size);
+                else       while (n++ < 0) tab_impl<faux>(size);
+            }
+            void print_tabstops(text msg)
+            {
+                log(msg, ":\n", "index size = ", stops.size());
+                auto i = 0;
+                auto data = utf::adjust("coor:", 5, " ", faux);
+                for (auto [fwd, rev] : stops) data += utf::adjust(std::to_string(i++), 4, " ", true);
+                data += '\n' + utf::adjust("fwd:", 5, " ", faux);
+                for (auto [fwd, rev] : stops) data += utf::adjust(std::to_string(fwd), 4, " ", true);
+                data += '\n' + utf::adjust("rev:", 5, " ", faux);
+                for (auto [fwd, rev] : stops) data += utf::adjust(std::to_string(rev), 4, " ", true);
+                log(data);
             }
             // bufferbase: CSI n g  Reset tabstop value.
             void tbc(iota n)
             {
-                parser::flush();
-                tabsz = def_tablen;
+                switch (n)
+                {
+                    case 0: // Remove tab stop from the current column.
+                        parser::flush();
+                        remove_tabstop();
+                        break;
+                    case 3: // Clear all tab stops.
+                        clear_tabstops();
+                        break;
+                    default: // Test: print tab stops.
+                        print_tabstops("Tabstops index: `CSI " + std::to_string(n) + " g`");
+                        break;
+                }
             }
             // bufferbase: ESC 7 or CSU s  Save cursor position.
             void scp()
@@ -1253,6 +1427,12 @@ namespace netxs::ui
             void scroll_region(iota top, iota end, iota n, bool use_scrollback = faux) override
             {
                 canvas.scroll(top, end + 1, n, brush.spare);
+            }
+            // alt_screen: Horizontal tab.
+            void tab(iota n) override
+            {
+                bufferbase::tab(n);
+                coord.x = std::clamp(coord.x, 0, panel.x - 1);
             }
         };
 
@@ -2295,7 +2475,6 @@ namespace netxs::ui
             }
 
             void cup (fifo& q) override { bufferbase::cup (q); sync_coord(); }
-            void tab (iota  n) override { bufferbase::tab (n); sync_coord(); }
             void scl (iota  n) override { bufferbase::scl (n); sync_coord(); }
             void cuf (iota  n) override { bufferbase::cuf (n); sync_coord(); }
             void chx (iota  n) override { bufferbase::chx (n); sync_coord(); }
@@ -2308,6 +2487,16 @@ namespace netxs::ui
             void ri  ()        override { bufferbase::ri  ( ); sync_coord(); }
             void cr  ()        override { bufferbase::cr  ( ); sync_coord(); }
 
+            // scroll_buf: Horizontal tab.
+            void tab (iota n) override
+            {
+                bufferbase::tab(n);
+                auto& curln = batch.current();
+                auto  wraps = curln.wrapped();
+                     if (coord.x < 0)                 coord.x = 0;
+                else if (wraps && coord.x >= panel.x) coord.x = panel.x - 1;
+                sync_coord();
+            }
             // scroll_buf: Reset the scrolling region.
             void reset_scroll_region()
             {

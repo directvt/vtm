@@ -51,6 +51,8 @@ namespace netxs::ansi
 
     static const char CSI_EXL_RST = 'p'; // CSI   !    p  — Reset terminal to initial state.
 
+    static const char CSI_QST_RTB = 'W'; // CSI   ?    W  — Reset tabstops to the defaults.
+
     static const char CSI_CUU = 'A';     // CSI n      A  — Caret Up.
     static const char CSI_CUD = 'B';     // CSI n      B  — Caret Down.
     static const char CSI_CUD2= 'e';     // CSI n      e  — Caret Down.
