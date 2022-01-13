@@ -1039,6 +1039,12 @@ namespace netxs::ui::atoms
             uv.fg.xlight();
             uv.bg.xlight();
         }
+        // cell: Invert both foreground and background.
+        void invert()
+        {
+            uv.fg.invert();
+            uv.bg.invert();
+        }
         // cell: Darken both foreground and background.
         void shadow(uint8_t fk, uint8_t bk) //void shadow(uint8_t k = 24)
         {
@@ -1206,6 +1212,10 @@ namespace netxs::ui::atoms
             {
                 template<class D> inline void operator() (D& dst) const { dst.xlight(); }
             };
+            struct invert_t
+            {
+                template<class D> inline void operator() (D& dst) const { dst.invert(); }
+            };
             struct transparent_t : public brush_t<transparent_t>
             {
                 byte alpha;
@@ -1222,6 +1232,7 @@ namespace netxs::ui::atoms
             static constexpr auto     flat =     flat_t{};
             static constexpr auto     full =     full_t{};
             static constexpr auto   xlight =   xlight_t{};
+            static constexpr auto   invert =   invert_t{};
             
             static constexpr auto transparent(byte alpha)
             {

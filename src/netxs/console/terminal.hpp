@@ -882,7 +882,7 @@ namespace netxs::ui
                 auto last_size = back.first > 0 ? 0 // Custom tabstop -- don't touch it.
                                                 : -back.first - back.second;
                 auto last_stop = forced ? 0
-                                        :size - last_size;
+                                        : size - last_size;
                 stops.resize(last_stop); // Trim.
 
                 if (notab) // Preserve existing tabstops.
@@ -3475,6 +3475,7 @@ namespace netxs::ui
         bool       bpmode; // term: Bracketed paste mode.
         bool       onlogs; // term: Avoid logs if no subscriptions.
         bool       unsync; // term: Viewport is out of sync.
+        bool       invert; // term: Inverted rendering (DECSCNM).
 
         // term: Soft terminal reset (DECSTR).
         void decstr()
@@ -3483,6 +3484,9 @@ namespace netxs::ui
             normal.clear_all();
             altbuf.clear_all();
             target = &normal;
+            invert = faux;
+            decckm = faux;
+            bpmode = faux;
         }
         // term: Set termnail parameters. (DECSET).
         void decset(fifo& queue)
@@ -3494,6 +3498,9 @@ namespace netxs::ui
                 {
                     case 1:    // Cursor keys application mode.
                         decckm = true;
+                        break;
+                    case 5:    // Inverted rendering (DECSCNM).
+                        invert = true;
                         break;
                     case 7:    // Enable auto-wrap.
                         target->style.wrp(wrap::on);
@@ -3566,6 +3573,9 @@ namespace netxs::ui
                 {
                     case 1:    // Cursor keys ANSI mode.
                         decckm = faux;
+                        break;
+                    case 5:    // Inverted rendering (DECSCNM).
+                        invert = faux;
                         break;
                     case 7:    // Disable auto-wrap.
                         target->style.wrp(wrap::off);
@@ -3798,7 +3808,8 @@ namespace netxs::ui
               decckm{  faux },
               bpmode{  faux },
               onlogs{  faux },
-              unsync{  faux }
+              unsync{  faux },
+              invert{  faux }
         {
             cmdarg = command_line;
             target = &normal;
@@ -3961,6 +3972,8 @@ namespace netxs::ui
                 cursor.coor(console.get_coord(base));
 
                 console.output(parent_canvas);
+                if (invert) parent_canvas.fill(cell::shaders::invert);
+
                 if (oversz.b > 0) // Shade the viewport bottom oversize (futures).
                 {
                     auto bottom_oversize = parent_canvas.full();
