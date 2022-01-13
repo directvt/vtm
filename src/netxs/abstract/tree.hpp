@@ -64,9 +64,17 @@ namespace netxs::generics
                         }
                         else last = &next;
                     }
-                    else break;
+                    else
+                    {
+                        if (last->stop) break;
+                        else queue.pop_front();
+                    }
                 }
-                else break;
+                else
+                {
+                    if (last->stop) break;
+                    else queue.pop_front();
+                }
             }
         }
 
@@ -97,9 +105,17 @@ namespace netxs::generics
                                 }
                                 else last = &next;
                             }
-                            else break;
+                            else
+                            {
+                                if (last->stop) break;
+                                else queue.pop_front();
+                            }
                         }
-                        else break;
+                        else
+                        {
+                            if (last->stop) break;
+                            else queue.pop_front();
+                        }
                     }
                 }
             }
