@@ -185,24 +185,24 @@ namespace netxs::app::desk
                                          //   }
                                          //};
                                      });
-                if (!state) item_area->depend_on_collection(inst_ptr_list);
-                        auto block = item_area->attach(ui::fork::ctor(axis::Y));
-                            auto head_area = block->attach(slot::_1, ui::pads::ctor(dent{ 0,0,0,0 }, dent{ 0,0,1,1 }));
-                                auto head = head_area->attach(ui::item::ctor(obj_desc, true))
-                                    ->invoke([&](auto& boss)
+                if (!state) item_area->depend_on_collection(inst_ptr_list); // Remove not pinned apps, like Info.
+                auto block = item_area->attach(ui::fork::ctor(axis::Y));
+                    auto head_area = block->attach(slot::_1, ui::pads::ctor(dent{ 0,0,0,0 }, dent{ 0,0,1,1 }));
+                        auto head = head_area->attach(ui::item::ctor(obj_desc, true))
+                            ->invoke([&](auto& boss)
+                            {
+                                auto boss_shadow = ptr::shadow(boss.This());
+                                boss.SUBMIT_BYVAL(tier::anycast, events::ui::selected, data)
+                                {
+                                    auto selected = inst_id == data;
+                                    if (auto boss = boss_shadow.lock())
                                     {
-                                        auto boss_shadow = ptr::shadow(boss.This());
-                                        boss.SUBMIT_BYVAL(tier::anycast, events::ui::selected, data)
-                                        {
-                                            auto selected = inst_id == data;
-                                            if (auto boss = boss_shadow.lock())
-                                            {
-                                                boss->set(ansi::fgc4(selected ? 0xFF00ff00 : 0x00000000).add(obj_desc));
-                                                boss->deface();
-                                            }
-                                        };
-                                    });
-                            auto list_pads = block->attach(slot::_2, ui::pads::ctor(dent{ 0,0,0,0 }, dent{ 0,0,0,0 }));
+                                        boss->set(ansi::fgc4(selected ? 0xFF00ff00 : 0x00000000).add(obj_desc));
+                                        boss->deface();
+                                    }
+                                };
+                            });
+                    auto list_pads = block->attach(slot::_2, ui::pads::ctor(dent{ 0,0,0,0 }, dent{ 0,0,0,0 }));
                     auto insts = list_pads->attach(ui::list::ctor())
                                           ->attach_collection(e2::form::prop::header, inst_ptr_list, app_template);
             }
@@ -381,14 +381,12 @@ namespace netxs::app::desk
                             {
                                 auto applist_area = apps_users->attach(slot::_1, ui::pads::ctor(dent{ 0,0,1,0 }, dent{}))
                                                               ->attach(ui::cake::ctor());
-                                    auto task_menu_area = applist_area->attach(ui::rail::ctor(axes::Y_ONLY))
-                                                                      ->colors(0x00, 0x00); //todo mouse events passthrough
-                                            if (world_ptr)
-                                            {
-                                                auto tasks_scrl = task_menu_area->attach(ui::rail::ctor(axes::Y_ONLY))
-                                                                                ->colors(0x00, 0x00); //todo mouse events passthrough
-                                                auto apps = tasks_scrl->attach_element(e2::bindings::list::apps, world_ptr, apps_template);
-                                            }
+                                if (world_ptr)
+                                {
+                                    auto tasks_scrl = applist_area->attach(ui::rail::ctor(axes::Y_ONLY))
+                                                                  ->colors(0x00, 0x00); //todo mouse events passthrough
+                                    auto apps = tasks_scrl->attach_element(e2::bindings::list::apps, world_ptr, apps_template);
+                                }
                             }
                             {
                                 auto users_area = apps_users->attach(slot::_2, ui::fork::ctor(axis::Y));

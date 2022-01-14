@@ -1605,8 +1605,8 @@ namespace netxs::ui
                 scinfo.region = {};
                 scinfo.window.coor = {};
                 this->SIGNAL(tier::release, upon::scroll::bycoor::any, scinfo); // Reset dependent scrollbars.
-                tokens.clear();
                 fasten.clear();
+                tokens.clear();
             };
             item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
             return item_ptr;
@@ -1624,10 +1624,8 @@ namespace netxs::ui
         // rail: Update nested object.
         void update(sptr old_item_ptr, sptr new_item_ptr)
         {
-            auto backup = This();
-            client = new_item_ptr;
-            old_item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, backup);
-            new_item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::attached, backup);
+            if (client != old_item_ptr) log(" rail: WARNING! Wrong DOM structure. rail.id=", id);
+            attach(new_item_ptr);
         }
     };
 
@@ -2630,7 +2628,6 @@ namespace netxs::ui
     class stem_rate
         : public form<stem_rate<TIER, EVENT>>
     {
-        pro::mouse mouse{*this }; // stem_rate: Mouse controller.
         pro::robot robot{*this }; // stem_rate: Animation controller.
         pro::limit limit{*this }; // stem_rate: Size limits.
 
