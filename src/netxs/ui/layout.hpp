@@ -66,19 +66,19 @@ namespace netxs::ui::atoms
     // layout: 8-bit RGBA.
     union rgba
     {
-        struct rgba_t { uint8_t r, g, b, a; } chan;
-        uint32_t                              token;
+        struct rgba_t { byte r, g, b, a; } chan;
+        ui32                               token;
 
         constexpr rgba ()
             : token(0)
         { }
 
-        template<class T, class A = uint8_t>
+        template<class T, class A = byte>
         constexpr rgba (T r, T g, T b, A a = 0xff)
-            : chan{ static_cast<uint8_t>(r),
-                    static_cast<uint8_t>(g),
-                    static_cast<uint8_t>(b),
-                    static_cast<uint8_t>(a) }
+            : chan{ static_cast<byte>(r),
+                    static_cast<byte>(g),
+                    static_cast<byte>(b),
+                    static_cast<byte>(a) }
         { }
 
         constexpr rgba (rgba const& c)
@@ -89,7 +89,7 @@ namespace netxs::ui::atoms
             : rgba{ color256[c] }
         { }
 
-        constexpr rgba (uint32_t c)
+        constexpr rgba (ui32 c)
             : token(c)
         { }
 
@@ -150,7 +150,7 @@ namespace netxs::ui::atoms
         // rgba: Set color to opaque black.
         void rst()
         {
-            static constexpr uint32_t colorblack = 0xFF000000;
+            static constexpr ui32 colorblack = 0xFF000000;
 
             token = colorblack;
         }
@@ -164,7 +164,7 @@ namespace netxs::ui::atoms
             return faux;
         }
         // rgba: Set alpha channel.
-        void alpha(uint8_t k)
+        void alpha(byte k)
         {
             chan.a = k;
         }
@@ -176,14 +176,14 @@ namespace netxs::ui::atoms
         // rgba: Colourimetric (perceptual luminance-preserving) conversion to greyscale.
         auto constexpr luma() const
         {
-            return static_cast<uint8_t>(0.2627 * ((token & 0x0000FF) >> 0)
-                                      + 0.6780 * ((token & 0x00FF00) >> 8)
-                                      + 0.0593 * ((token & 0xFF0000) >> 16));
+            return static_cast<byte>(0.2627 * ((token & 0x0000FF) >> 0)
+                                   + 0.6780 * ((token & 0x00FF00) >> 8)
+                                   + 0.0593 * ((token & 0xFF0000) >> 16));
         }
         // rgba: Return 256-color 6x6x6 cube.
         auto to256cube() const
         {
-            uint8_t clr;
+            byte clr;
             if (chan.r == chan.g
              && chan.r == chan.b)
             {
@@ -333,7 +333,7 @@ namespace netxs::ui::atoms
             }
         }
         // rgba: Darken the color.
-        void shadow(uint8_t k = 39)//24)
+        void shadow(byte k = 39)//24)
         {
             if (chan.r + chan.g + chan.b > 39)//24)
             {
@@ -349,7 +349,7 @@ namespace netxs::ui::atoms
             }
         }
         // rgba: Lighten the color.
-        void bright(uint8_t k = 39)//24) reduced in order to correct highlight the cellatix
+        void bright(byte k = 39)//24) reduced in order to correct highlight the cellatix
         {
             if (chan.r + chan.g + chan.b > 255*3 - 39)//24)
             {
@@ -377,7 +377,7 @@ namespace netxs::ui::atoms
                        + std::to_string(chan.b) + ","
                        + std::to_string(chan.a) + "}";
         }
-        static constexpr uint32_t color16[] =
+        static constexpr ui32 color16[] =
         {
             0xFF000000, // 0  blackdk
             0xFF202020, // 1  blacklt
@@ -396,7 +396,7 @@ namespace netxs::ui::atoms
             0xFF009CC0, // 6  yellowdk
             0xFFD6D660, // 7  cyanlt
         };
-        static constexpr uint32_t color256[] =
+        static constexpr ui32 color256[] =
         {
             0xFF101010,	// 0  blackdk
             0xFF1F0FC4,	// 1  reddk
@@ -542,10 +542,6 @@ namespace netxs::ui::atoms
     // layout: Enriched grapheme cluster.
     class cell
     {
-    public:
-        using bitstate = unsigned char;
-
-    private:
         template<class V = void> // Use template in order to define statics in the header file.
         union glyf
         {
@@ -559,14 +555,14 @@ namespace netxs::ui::atoms
 
             // There is no need to reset/clear/flush the map because
             // count of different grapheme clusters is finite.
-            static constexpr size_t         limit = sizeof(uint64_t);
-            static std::hash<view>          coder;
-            static text                     empty;
-            static std::map<uint64_t, text> jumbo;
+            static constexpr size_t     limit = sizeof(ui64);
+            static std::hash<view>      coder;
+            static text                 empty;
+            static std::map<ui64, text> jumbo;
 
-            uint64_t                        token;
-            mode                            state;
-            char                            glyph[limit];
+            ui64 token;
+            mode state;
+            char glyph[limit];
 
             constexpr glyf()
                 : token(0)
@@ -686,8 +682,9 @@ namespace netxs::ui::atoms
             // weigth := 0..255
             // italic := 0..255
             //
+            using bitstate = ui16;
 
-            uint32_t token;
+            ui32 token;
 
             struct
             {
@@ -703,6 +700,8 @@ namespace netxs::ui::atoms
                         bitstate overln : 1;
                         bitstate strike : 1;
                         bitstate r_to_l : 1;
+                        bitstate blinks : 1;
+                        bitstate reserv : 7; // reserved
                     } var;
                 } shared;
 
@@ -719,6 +718,7 @@ namespace netxs::ui::atoms
                         bitstate zwnbsp : 1;
                         //todo use these bits as a underline variator
                         bitstate render : 2; // reserved
+                        bitstate reserv : 8; // reserved
                     } var;
 
                 } unique;
@@ -784,6 +784,10 @@ namespace netxs::ui::atoms
                     {
                         //todo implement RTL
                     }
+                    if (cvar.blinks != bvar.blinks)
+                    {
+                        dest.blk(cvar.blinks);
+                    }
 
                     bvar = cvar;
                 }
@@ -800,6 +804,7 @@ namespace netxs::ui::atoms
             void ovr (bool b) { param.shared.var.overln = b; }
             void stk (bool b) { param.shared.var.strike = b; }
             void rtl (bool b) { param.shared.var.r_to_l = b; }
+            void blk (bool b) { param.shared.var.blinks = b; }
             void vis (iota l) { param.unique.var.render = l; }
 
             bool bld () const { return param.shared.var.bolded; }
@@ -809,6 +814,7 @@ namespace netxs::ui::atoms
             bool ovr () const { return param.shared.var.overln; }
             bool stk () const { return param.shared.var.strike; }
             bool rtl () const { return param.shared.var.r_to_l; }
+            bool blk () const { return param.shared.var.blinks; }
             iota vis () const { return param.unique.var.render; }
         };
         struct clrs
@@ -1046,14 +1052,14 @@ namespace netxs::ui::atoms
             uv.bg.invert();
         }
         // cell: Darken both foreground and background.
-        void shadow(uint8_t fk, uint8_t bk) //void shadow(uint8_t k = 24)
+        void shadow(byte fk, byte bk) //void shadow(byte k = 24)
         {
             uv.fg.shadow(fk);
             uv.bg.shadow(bk);
         }
         //todo xlight conflict
         // cell: Lighten both foreground and background.
-        void bright(uint8_t fk, uint8_t bk) //void bright(uint8_t k = 24)
+        void bright(byte fk, byte bk) //void bright(byte k = 24)
         {
             uv.fg.bright(fk);
             uv.bg.bright(bk);
@@ -1084,11 +1090,11 @@ namespace netxs::ui::atoms
         cell& set (cell const& c) { uv = c.uv;
                                     st = c.st;
                                     gc = c.gc;          return *this; }
-        cell& alpha (uint8_t k)   { bga(k); fga(k);     return *this; } // cell: Set alpha/transparency (background and foreground).
+        cell& alpha (byte k)      { bga(k); fga(k);     return *this; } // cell: Set alpha/transparency (background and foreground).
         cell& bgc (rgba const& c) { uv.bg = c;          return *this; } // cell: Set Background color.
         cell& fgc (rgba const& c) { uv.fg = c;          return *this; } // cell: Set Foreground color.
-        cell& bga (uint8_t k)     { uv.bg.chan.a = k;   return *this; } // cell: Set Background alpha/transparency.
-        cell& fga (uint8_t k)     { uv.fg.chan.a = k;   return *this; } // cell: Set Foreground alpha/transparency.
+        cell& bga (byte k)        { uv.bg.chan.a = k;   return *this; } // cell: Set Background alpha/transparency.
+        cell& fga (byte k)        { uv.fg.chan.a = k;   return *this; } // cell: Set Foreground alpha/transparency.
         cell& bld (bool b)        { st.bld(b);          return *this; } // cell: Set Bold attribute.
         cell& itc (bool b)        { st.itc(b);          return *this; } // cell: Set Italic attribute.
         cell& und (bool b)        { st.und(b ? 1 : 0);  return *this; } // cell: Set Underline attribute.
@@ -1096,6 +1102,7 @@ namespace netxs::ui::atoms
         cell& ovr (bool b)        { st.ovr(b);          return *this; } // cell: Set Overline attribute.
         cell& inv (bool b)        { st.inv(b);          return *this; } // cell: Set Invert attribute.
         cell& stk (bool b)        { st.stk(b);          return *this; } // cell: Set Strikethrough attribute.
+        cell& blk (bool b)        { st.blk(b);          return *this; } // cell: Set Blink attribute.
         cell& rtl (bool b)        { st.rtl(b);          return *this; } // cell: Set Right-To-Left attribute.
         cell& link(id_t oid)      { id = oid;           return *this; } // cell: Set link object ID.
         cell& txt (view c)        { c.size() ? gc.set(c) : gc.wipe(); return *this; } // cell: Set Grapheme cluster.
@@ -1118,8 +1125,8 @@ namespace netxs::ui::atoms
         void inplus (bool b) { st.param.unique.var.inplus = b; } // cell: Set the presence of the INVISIBLE PLUS (U+2064).
         void zwnbsp (bool b) { st.param.unique.var.zwnbsp = b; } // cell: Set the presence of the ZERO WIDTH NO-BREAK SPACE (U+FEFF).
 
-        uint8_t     bga () const { return uv.bg.chan.a;  } // cell: Return Background alpha/transparency.
-        uint8_t     fga () const { return uv.fg.chan.a;  } // cell: Return Foreground alpha/transparency.
+        byte        bga () const { return uv.bg.chan.a;  } // cell: Return Background alpha/transparency.
+        byte        fga () const { return uv.fg.chan.a;  } // cell: Return Foreground alpha/transparency.
         rgba&       bgc ()       { return uv.bg;         } // cell: Return Background color.
         rgba&       fgc ()       { return uv.fg;         } // cell: Return Foreground color.
         rgba const& bgc () const { return uv.bg;         } // cell: Return Background color.
@@ -1131,6 +1138,7 @@ namespace netxs::ui::atoms
         bool        ovr () const { return st.ovr();      } // cell: Return Underline/Underscore attribute.
         bool        inv () const { return st.inv();      } // cell: Return Negative attribute.
         bool        stk () const { return st.stk();      } // cell: Return Strikethrough attribute.
+        bool        blk () const { return st.blk();      } // cell: Return Blink attribute.
         id_t       link () const { return id;            } // cell: Return link object ID.
 
         //id_t       para () const { return pg;            } // cell: Return paragraph ID.
@@ -1242,9 +1250,9 @@ namespace netxs::ui::atoms
     };
 
     // Extern link statics.
-    template<class T> std::hash<view>          cell::glyf<T>::coder;
-    template<class T> text                     cell::glyf<T>::empty;
-    template<class T> std::map<uint64_t, text> cell::glyf<T>::jumbo;
+    template<class T> std::hash<view>      cell::glyf<T>::coder;
+    template<class T> text                 cell::glyf<T>::empty;
+    template<class T> std::map<ui64, text> cell::glyf<T>::jumbo;
 
     enum class bias : unsigned char { none, left, right, center, };
     enum class wrap : unsigned char { none, on,  off,            };

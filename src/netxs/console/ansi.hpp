@@ -158,6 +158,9 @@ namespace netxs::ansi
     static const iota SGR_UND       = 4;
     static const iota SGR_DOUBLEUND = 21;
     static const iota SGR_NOUND     = 24;
+    static const iota SGR_SLOWBLINK = 5;
+    static const iota SGR_FASTBLINK = 6;
+    static const iota SGR_NO_BLINK  = 25;
     static const iota SGR_STRIKE    = 9;
     static const iota SGR_NOSTRIKE  = 29;
     static const iota SGR_OVERLN    = 53;
@@ -430,6 +433,7 @@ namespace netxs::ansi
         esc& rcp()              { return add("\033[u"                  ); } // esc: Restore caret position from memory.
         esc& bld(bool b = true) { return add(b ? "\033[1m" : "\033[22m"); } // esc: SGR 𝗕𝗼𝗹𝗱 attribute.
         esc& und(bool b = true) { return add(b ? "\033[4m" : "\033[24m"); } // esc: SGR 𝗨𝗻𝗱𝗲𝗿𝗹𝗶𝗻𝗲 attribute.
+        esc& blk(bool b = true) { return add(b ? "\033[5m" : "\033[25m"); } // esc: SGR Blink attribute.
         esc& inv(bool b = true) { return add(b ? "\033[7m" : "\033[27m"); } // esc: SGR 𝗡𝗲𝗴𝗮𝘁𝗶𝘃𝗲 attribute.
         esc& itc(bool b = true) { return add(b ? "\033[3m" : "\033[23m"); } // esc: SGR 𝑰𝒕𝒂𝒍𝒊𝒄 attribute.
         esc& stk(bool b = true) { return add(b ? "\033[9m" : "\033[29m"); } // esc: SGR Strikethrough attribute.
@@ -653,6 +657,7 @@ namespace netxs::ansi
 
     static esc bld (bool b = true)   { return esc{}.bld (b); } // ansi: SGR 𝗕𝗼𝗹𝗱 attribute.
     static esc und (bool b = true)   { return esc{}.und (b); } // ansi: SGR 𝗨𝗻𝗱𝗲𝗿𝗹𝗶𝗻𝗲 attribute.
+    static esc blk (bool b = true)   { return esc{}.blk (b); } // ansi: SGR Blink attribute.
     static esc inv (bool b = true)   { return esc{}.inv (b); } // ansi: SGR 𝗡𝗲𝗴𝗮𝘁𝗶𝘃𝗲 attribute.
     static esc itc (bool b = true)   { return esc{}.itc (b); } // ansi: SGR 𝑰𝒕𝒂𝒍𝒊𝒄 attribute.
     static esc stk (bool b = true)   { return esc{}.stk (b); } // ansi: SGR Strikethrough attribute.
@@ -950,6 +955,7 @@ namespace netxs::ansi
             * - void inv(bool b);                    // Set inverse attribute.
             * - void stk(bool b);                    // Set strikethgh attribute.
             * - void und(bool b);                    // Set underline attribute.
+            * - void blk(bool b);                    // Set blink attribute.
             * - void dnl(bool b);                    // Set double underline attribute.
             * - void ovr(bool b);                    // Set overline attribute.
             * - void wrp(bool b);                    // Set auto wrap.
@@ -1050,6 +1056,9 @@ namespace netxs::ansi
                     csi_sgr[SGR_UND      ] = VT_PROC{ p->brush.und(true); }; // fx_sgr_und;
                     csi_sgr[SGR_DOUBLEUND] = VT_PROC{ p->brush.dnl(true); }; // fx_sgr_dnl;
                     csi_sgr[SGR_NOUND    ] = VT_PROC{ p->brush.und(faux); }; // fx_sgr_und;
+                    csi_sgr[SGR_SLOWBLINK] = VT_PROC{ p->brush.blk(true); }; // fx_sgr_blk;
+                    csi_sgr[SGR_FASTBLINK] = VT_PROC{ p->brush.blk(true); }; // fx_sgr_blk;
+                    csi_sgr[SGR_NO_BLINK ] = VT_PROC{ p->brush.blk(faux); }; // fx_sgr_blk;
                     csi_sgr[SGR_STRIKE   ] = VT_PROC{ p->brush.stk(true); }; // fx_sgr_stk<true>;
                     csi_sgr[SGR_NOSTRIKE ] = VT_PROC{ p->brush.stk(faux); }; // fx_sgr_stk<faux>;
                     csi_sgr[SGR_OVERLN   ] = VT_PROC{ p->brush.ovr(true); }; // fx_sgr_ovr<faux>;
