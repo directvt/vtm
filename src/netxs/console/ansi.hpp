@@ -88,8 +88,8 @@ namespace netxs::ansi
     static const char CSI_CUD2= 'e';     // CSI n      e  — Caret Down.
     static const char CSI_CUF = 'C';     // CSI n      C  — Caret Forward.
     static const char CSI_CUB = 'D';     // CSI n      D  — Caret Back.
-    static const char CSI_CNL = 'E';     // CSI n      E  — Caret Next Line.
-    static const char CSI_CPL = 'F';     // CSI n      F  — Caret Previous Line.
+    static const char CSI_CNL = 'E';     // CSI n      E  — Caret Next Line.     Move n lines down and to the leftmost column.
+    static const char CSI_CPL = 'F';     // CSI n      F  — Caret Previous Line. Move n lines up   and to the leftmost column.
     static const char CSI_CHX = 'G';     // CSI n      G  — Caret Horizontal Absolute.
     static const char CSI_CHY = 'd';     // CSI n      d  — Caret Vertical Absolute.
     static const char CSI_HVP = 'f';     // CSI n ; m  f  — Horizontal and Vertical Position.
@@ -1500,19 +1500,27 @@ namespace netxs::ansi
                 //debug += (debug.size() ? "_<fn:"s : "<fn:"s) + i + ">"s;
             }
         }
-        inline void flush()
+        inline void flush_style()
         {
             if (state != style)
             {
                 meta(state);
                 state = style;
             }
+        }
+        inline void flush_data()
+        {
             if (count)
             {
                 data(count, proto);
                 proto.clear();
                 count = 0;
             }
+        }
+        inline void flush()
+        {
+            flush_style();
+            flush_data();
         }
         virtual void meta(deco const& old_style)         { };
         virtual void data(iota count, grid const& proto) { };

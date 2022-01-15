@@ -621,8 +621,8 @@ namespace netxs::ui
 
                 vt.csier.table[CSI_CUD2]= VT_PROC{ p->dn ( q(1)); };  // CSI n e  Vertical position relative. Move cursor down (VPR).
 
-                vt.csier.table[CSI_CNL] = vt.csier.table[CSI_CUD];    // CSI n E
-                vt.csier.table[CSI_CPL] = vt.csier.table[CSI_CUU];    // CSI n F
+                vt.csier.table[CSI_CNL] = VT_PROC{ p->cr (); p->dn (q(1)); };  // CSI n E  Move n lines down and to the leftmost column.
+                vt.csier.table[CSI_CPL] = VT_PROC{ p->cr (); p->up (q(1)); };  // CSI n F  Move n lines up   and to the leftmost column.
                 vt.csier.table[CSI_CHX] = VT_PROC{ p->chx( q(1)); };  // CSI n G  Move cursor hz absolute.
                 vt.csier.table[CSI_CHY] = VT_PROC{ p->chy( q(1)); };  // CSI n d  Move cursor vt absolute.
                 vt.csier.table[CSI_CUP] = VT_PROC{ p->cup( q   ); };  // CSI y ; x H (1-based)
@@ -1279,14 +1279,13 @@ namespace netxs::ui
             // bufferbase: CSI n d  Absolute vertical cursor position (1-based).
     virtual void chy(iota n)
             {
-                parser::flush();
+                parser::flush_data();
                 coord.y = std::clamp(n, 1, panel.y) - 1;
-                assert(panel.inside(coord));
             }
             // bufferbase: CSI y; x H/F  Caret position (1-based).
     virtual void cup(fifo& queue)
             {
-                parser::flush();
+                parser::flush_data();
                 auto y = queue(1);
                 auto x = queue(1);
                 auto p = twod{ x, y };
@@ -1295,7 +1294,7 @@ namespace netxs::ui
             // bufferbase: Move cursor up.
     virtual void up(iota n)
             {
-                parser::flush();
+                parser::flush_data();
                 auto new_coord_y = coord.y - n;
                 if (new_coord_y <  y_top
                      && coord.y >= y_top)
@@ -1307,7 +1306,7 @@ namespace netxs::ui
             // bufferbase: Move cursor down.
     virtual void dn(iota n)
             {
-                parser::flush();
+                parser::flush_data();
                 auto new_coord_y = coord.y + n;
                 if (new_coord_y >  y_end
                      && coord.y <= y_end)
@@ -1319,7 +1318,7 @@ namespace netxs::ui
             // bufferbase: Line feed. Index. Scroll region up if new_coord_y > end.
     virtual void lf(iota n)
             {
-                parser::flush();
+                parser::flush_data();
                 auto new_coord_y = coord.y + n;
                 if (new_coord_y >  y_end
                      && coord.y <= y_end)
@@ -1965,11 +1964,10 @@ namespace netxs::ui
             }
             void print_index(text msg)
             {
-                log(" ", msg, " index.size=", index.size, " basis=", batch.basis);
+                log(" ", msg, " index.size=", index.size, " basis=", batch.basis, " panel=", panel);
                 for (auto n = 0; auto& l : index)
                 {
-                    log("  ", n++,". id=", l.index," offset=", l.start, " width=", l.width);
-                    if (l.start % panel.x != 0) throw;
+                    log("  ", n++,". id=", l.index," start=", l.start, " width=", l.width, l.start % panel.x != 0 ? " <-- BAD INDEX l.start % panel.x != 0":"");
                 }
                 auto& mapln = index.back();
                 auto& curln = batch.item_by_id(mapln.index);
@@ -2005,8 +2003,19 @@ namespace netxs::ui
             bool test_futures()
             {
                 auto stash = batch.vsize - batch.basis - index.size;
+                if (stash < 0)
+                {
+                    print_batch("test_basis");
+                    print_index("test_basis");
+                }
                 assert(stash >= 0);
-                assert(test_basis());
+                test_basis();
+                return true;
+            }
+            bool test_coord()
+            {
+                auto wrapped_block = batch.caret - coord.x;
+                assert(coord.y < y_top || coord.y > y_end || wrapped_block % panel.x == 0);
                 return true;
             }
             auto test_resize()
@@ -2061,6 +2070,12 @@ namespace netxs::ui
                 auto result = index_front.index == temp.index
                            && index_front.start == temp.start
                            && index_front.width == temp.width;
+                if (!result)
+                {
+                    print_batch("test_basis");
+                    print_index("test_basis");
+                }
+                assert(result);
                 return result;
             }
             // scroll_buf: . // size in cells
@@ -2365,6 +2380,7 @@ namespace netxs::ui
 
                 assert(batch.basis >= 0);
                 assert(test_futures());
+                assert(test_coord());
                 assert(test_resize());
             }
             // scroll_buf: Rebuild the next avail indexes from the known index (mapln).
@@ -2499,6 +2515,7 @@ namespace netxs::ui
             auto feed_futures(iota query)
             {
                 assert(test_futures());
+                assert(test_coord());
                 assert(query > 0);
 
                 auto stash = batch.vsize - batch.basis - index.size;
@@ -2639,6 +2656,7 @@ namespace netxs::ui
                 index.resize(arena);
                 index_rebuild();
                 bufferbase::set_scroll_region(0, 0);
+                sync_coord();
             }
             // scroll_buf: Set the scrolling region using 1-based top and bottom. Use 0 to reset.
             void set_scroll_region(iota top, iota bottom) override
@@ -2646,8 +2664,12 @@ namespace netxs::ui
                 auto old_sctop = sctop;
                 auto old_scend = scend;
 
-                bufferbase::set_scroll_region(top, bottom);
-                if (old_sctop == sctop && old_scend == scend) return;
+                bufferbase::set_scroll_region(top, bottom); // coord -> dot_00 -- coord is unsynced
+                if (old_sctop == sctop && old_scend == scend)
+                {
+                    sync_coord();
+                    return;
+                }
 
                 // Trim the existing margin content if any. The app that changed the margins is responsible for updating the content.
                 upmin = { panel.x, sctop };
@@ -2987,6 +3009,7 @@ namespace netxs::ui
             {
                 assert(coord.y >= 0 && coord.y < panel.y);
                 assert(test_futures());
+                assert(test_coord());
 
                 if (coord.y < y_top)
                 {
@@ -3016,6 +3039,7 @@ namespace netxs::ui
                         auto tail = dest + count;
                         rich::forward_fill_proc(data, dest, tail);
                     }
+                    // Note: coord can be unsync due to scroll regions.
                 }
                 else if (coord.y <= y_end)
                 {
@@ -3108,13 +3132,13 @@ namespace netxs::ui
                                     }
                                     else assert(curln._size == curln.length());
                                 }
-                                else // The case when the current line completely fills the viewport.
+                                else // The case when the current line completely fills the viewport (arena == 1).
                                 {
+                                    assert(arena == 1);
                                     mapln.start = batch.caret - coord.x;
                                     mapln.width = coord.x;
                                     batch.recalc(curln);
                                 }
-
                                 assert(test_futures());
                             } // case 1 done.
                             else // case 2 - fusion: cursor overlaps lines below but stays inside the viewport.
@@ -3161,10 +3185,8 @@ namespace netxs::ui
                                             ++indit;
                                         }
                                     }
-
                                     assert(test_index());
                                 }
-
                                 assert(test_futures());
                             } // case 2 done.
                         }
@@ -3198,7 +3220,9 @@ namespace netxs::ui
                         rich::unlimit_fill_proc(data, size, dest, tail, back);
                     }
                     coord.y = std::min(coord.y + y_end + 1, panel.y - 1);
+                    // Note: coord can be unsync due to scroll regions.
                 }
+                assert(test_coord());
             }
             // scroll_buf: Clear scrollback.
             void clear_all() override
@@ -3302,6 +3326,8 @@ namespace netxs::ui
             // scroll_buf: Remove all lines below (including futures) except the current. "ED2 Erase viewport" keeps empty lines.
             void del_below() override
             {
+                assert(test_futures());
+
                 auto blank = brush.spc();
                 auto clear = [&](twod const& coor)
                 {
@@ -3331,13 +3357,14 @@ namespace netxs::ui
                     i = batch.index_by_id(topid); // The index may be outdated due to the ring.
                     auto& curln = batch[i];
                     auto& mapln = index[coor.y];
-                    mapln.width = coor.x;
-                    curln.trimto(start);
+                    mapln.width = std::min(coor.x, mapln.width);
+                    curln.trimto(start + mapln.width);
                     batch.recalc(curln);
                     assert(mapln.start == 0 || curln.wrapped());
 
                     sync_coord();
 
+                    assert(test_futures());
                     dnbox.wipe(blank);
                 };
 
@@ -3359,8 +3386,6 @@ namespace netxs::ui
                     assert(coor.x + coor.y * dnbox.size().x < scend * dnbox.size().x);
                     dnbox.del_below(coor, blank);
                 }
-
-                assert(test_futures());
             }
             // scroll_buf: Clear all lines from the viewport top line to the current line.
             void del_above() override
@@ -3493,6 +3518,7 @@ namespace netxs::ui
                 }
 
                 assert(test_futures());
+                // Note: coord is unsynced -- see set_scroll_region()
             }
             // scroll_buf: Scroll the specified region by n lines. The scrollback can only be used with the whole scrolling region.
             void scroll_region(iota top, iota end, iota n, bool use_scrollback) override
@@ -3579,6 +3605,7 @@ namespace netxs::ui
                 }
 
                 assert(test_futures());
+                assert(test_coord());
             }
         };
 
