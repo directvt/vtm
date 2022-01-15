@@ -23,21 +23,51 @@ namespace netxs::ansi
     static constexpr auto ESCCSI = "\033[";
     static constexpr auto ESCOCS = "\033]";
 
-    static const char CSI   = '['; // ESC [
-    static const char OCS   = ']'; // ESC ]
-    static const char KEY_A = '='; // ESC =
-    static const char KEY_N = '>'; // ESC >
-    static const char G0SET = '('; // ESC (
-    static const char DELIM = ';'; // ESC ;
+    static const char ESC_CSI    = '['; // ESC [ ...
+    static const char ESC_OCS    = ']'; // ESC ] ...
+    static const char ESC_DSC    = 'P'; // ESC P ... BELL/ST
+    static const char ESC_SOS    = 'X'; // ESC X ... BELL/ST
+    static const char ESC_PM     = '^'; // ESC ^ ... BELL/ST
+    static const char ESC_APC    = '_'; // ESC _ ... BELL/ST
 
-    static const char ESC_SC  = '7'; // ESC 7         Save caret Position.
-    static const char ESC_RC  = '8'; // ESC 8         Restore caret Position.
-    static const char ESC_HTS = 'H'; // ESC H         Tab stop at the caret.
-    static const char ESC_NEL = 'E'; // ESC E         Move caret down and CR.
-    static const char ESC_IND = 'D'; // ESC D         Caret Down.
-    static const char ESC_IR  = 'M'; // ESC M         Caret Up.
-    static const char ESC_DCS = 'P'; // ESC P ... ST  DCS start
-    static const char ESC_RIS = 'c'; // ESC c         Reset terminal to initial state.
+    static const char ESC_G0SET  = '('; // ESC ( c
+    static const char ESC_G1SET  = ')'; // ESC ) c
+    static const char ESC_G2SET  = '*'; // ESC * c
+    static const char ESC_G3SET  = '+'; // ESC + c
+    static const char ESC_G1xSET = '-'; // ESC - c
+    static const char ESC_G2xSET = '.'; // ESC . c
+    static const char ESC_G3xSET = '/'; // ESC / c
+
+    static const char ESC_CTRL   = ' '; // ESC sp F, ESC sp G, ESC sp L, ESC sp M, ESC sp N
+    static const char ESC_DECDHL = '#'; // ESC # 3, ESC # 4, ESC # 5, ESC # 6, ESC # 8
+    static const char ESC_CHRSET = '%'; // ESC % @, ESC % G  G: Select UTF-8, @: Select default.
+
+    static const char ESC_ST     ='\\'; // ESC backslash
+    static const char ESC_DELIM  = ';'; // ESC ;
+    static const char ESC_KEY_A  = '='; // ESC =  Application keypad.
+    static const char ESC_KEY_N  = '>'; // ESC >  Normal      keypad.
+    static const char ESC_DECBI  = '6'; // ESC 6  Back index,    DECBI.
+    static const char ESC_DECFI  = '9'; // ESC 9  Forward index, DECFI.
+    static const char ESC_SC     = '7'; // ESC 7  Save    caret position and rendition state.
+    static const char ESC_RC     = '8'; // ESC 8  Restore caret position and rendition state.
+    static const char ESC_HTS    = 'H'; // ESC H  Set tabstop at the current caret position.
+    static const char ESC_NEL    = 'E'; // ESC E  Move caret down and CR.
+    static const char ESC_CLB    = 'F'; // ESC F  Move caret to lower leftmost position.
+    static const char ESC_IND    = 'D'; // ESC D  Caret down.
+    static const char ESC_IR     = 'M'; // ESC M  Caret up.
+    static const char ESC_RIS    = 'c'; // ESC c  Reset terminal to initial state.
+    static const char ESC_MEMLK  = 'l'; // ESC l  Memory lock.
+    static const char ESC_MUNLK  = 'm'; // ESC m  Memory unlock.
+    static const char ESC_LS2    = 'n'; // ESC n  LS2.
+    static const char ESC_LS3    = 'o'; // ESC o  LS3.
+    static const char ESC_LS1R   = '~'; // ESC ~  LS1R.
+    static const char ESC_LS2R   = '}'; // ESC }  LS2R.
+    static const char ESC_LS3R   = '|'; // ESC |  LS3R.
+    static const char ESC_SS3    = 'O'; // ESC O  SS3.
+    static const char ESC_SS2    = 'N'; // ESC N  SS2.
+    static const char ESC_SPA    = 'V'; // ESC V  SPA.
+    static const char ESC_EPA    = 'W'; // ESC W  EPA.
+    static const char ESC_RID    = 'Z'; // ESC Z  Return ID.
 
     static const char CSI_SPC_SLC = '@'; // CSI n SP   @  — Shift left n columns(s).
     static const char CSI_SPC_SRC = 'A'; // CSI n SP   A  — Shift right n columns(s).
@@ -1142,11 +1172,11 @@ namespace netxs::ansi
             //intro[ctrl::EOL] = exec <fn::nl, 1>;
 
             auto& esc = intro[ctrl::ESC].resize(0x100);
-                esc[CSI   ] = xcsi;
-                esc[OCS   ] = xosc;
-                esc[KEY_A ] = keym;
-                esc[KEY_N ] = keym;
-                esc[G0SET ] = g0__;
+                esc[ESC_CSI   ] = xcsi;
+                esc[ESC_OCS   ] = xosc;
+                esc[ESC_KEY_A ] = keym;
+                esc[ESC_KEY_N ] = keym;
+                esc[ESC_G0SET ] = g0__;
                 //esc[ESC_SC] = ;
                 //esc[ESC_RC] = ;
                 //esc['M'  ] = __ri;
@@ -1519,189 +1549,156 @@ namespace netxs::ansi
     };
 
     // ansi: Checking ANSI/UTF-8 integrity and return a valid view.
-    template<class TEXT_OR_VIEW>
-    auto purify(TEXT_OR_VIEW&& utf8)
+    auto purify(view utf8)
     {
-        /*
-        - Occurrences of characters 00-1F or 7F-FF in an escape sequence
-          or control sequence is an error condition whose recovery is not specified.
-
-        - For control sequences, the maximum length of parameter string
-          is defined by implementation.
-
-        - For control sequences, occurrences of a parameter character
-          after an intermediate character is an error condition.
-
-        */
-
-        view crop{ std::forward<TEXT_OR_VIEW>(utf8) };
-
-        // check ansi integrity
-        if (auto size = crop.size())
+        if (utf8.size())
         {
-            //todo unify the BEL searching
+            auto head = utf8.begin();
+            auto tail = utf8.end();
+            auto prev = tail;
+            auto find = faux;
+            do   find = *--prev == 0x1b; // find ESC
+            while (head != prev && !find);
 
-            // find ESC \x1b
-            while (size && (crop[--size] != 0x1b))
-            { }
-
-            auto start = size;
-            if (crop[start] == 0x1b)
+            if (find)
             {
-                start++;
-
-                // test single byte after ESC is good: ESC x
-                if (start < crop.size())
+                auto next = prev;
+                if (++next != tail) // test bytes after ESC
                 {
-                    auto c = crop[start];
-                    // test CSI: ESC [ pn;...;pn cmd
-                    if (c == '[')
+                    auto c = *next;
+                    if (c == '[') // test CSI: ESC [ pn;...;pn cmd
                     {
-                        // find CSI command: cmd >= 0x40 && cmd <= 0x7E;
-                        while (++start < crop.size())
+                        while (++next != tail) // find CSI command: cmd >= 0x40 && cmd <= 0x7E
                         {
-                            auto cmd = crop[start];
+                            auto cmd = *next;
                             if (cmd >= 0x40 && cmd <= 0x7E) break;
                         }
-
-                        if (start == crop.size())
+                        if (next == tail)
                         {
-                            crop = crop.substr(0, size);
-                            return crop;
+                            utf8 = { head, prev }; // preserve ESC at the end
+                            return utf8;
                         }
                     }
-                    // test OSC: ESC ] ... BEL
-                    else if (c == ']')
+                    else if (c == ']') // test OSC: ESC ] ... BEL
                     {
                         // test OSC: ESC ] P Nrrggbb
-                        auto step = start + 1;
-                        if (step < crop.size())
+                        auto step = next;
+                        if (++step != tail)
                         {
-                            auto c = crop[step];
+                            auto c = *step;
                             if(c == 'P') // Set linux console palette.
                             {
-                                if (crop.size() < step + 8)
+                                if (tail - step < 8)
                                 {
-                                    crop = crop.substr(0, size);
+                                    utf8 = { head, prev }; // preserve ESC at the end
                                 }
                                 else
                                 {
-                                    utf::purify(crop);
+                                    utf::purify(utf8);
                                 }
-                                return crop;
+                                return utf8;
                             }
                             else if(c == 'R') // Reset linux console palette.
                             {
-                                utf::purify(crop);
-                                return crop;
+                                utf::purify(utf8);
+                                return utf8;
                             }
                         }
-
-                        // find BEL
-                        while (++start < crop.size())
+                        while (++next != tail) // find BEL
                         {
-                            auto cmd = crop[start];
+                            auto cmd = *next;
                             if (cmd == 0x07) break;
                         }
-
-                        if (start == crop.size())
+                        if (next == tail)
                         {
-                            crop = crop.substr(0, size);
-                            return crop;
+                            utf8 = { head, prev }; // preserve ESC at the end
+                            return utf8;
                         }
                     }
-                    // test G0SET: ESC ( c
-                    else if (c == '(')
+                    else if (c == '\\') // test ST: ESC \ ...
                     {
-                        if (++start == crop.size())
+                        if (++next == tail)
                         {
-                            crop = crop.substr(0, size);
-                            return crop;
+                            return utf8;
                         }
                     }
-                    // test ST: ESC \...
-                    else if (c == '\\')
+                    // test Message/Command: 
+                    else if (c == 'P'  // DSC ESC P ... BEL
+                          || c == 'X'  // SOS ESC X ... BEL
+                          || c == '^'  // PM  ESC ^ ... BEL
+                          || c == '_') // APC ESC _ ... BEL
                     {
-                        if (++start == crop.size())
+                        while (++next != tail) // find BEL
                         {
-                            return crop;
-                        }
-                    }
-                    // test Esc+byte: ESC 7 8 D E H M ...
-                    else if (c == '7' ||
-                             c == '8' ||
-                             c == 'D' ||
-                             c == 'E' ||
-                             c == 'H' ||
-                             c == 'M' ||
-                             c == 'c')
-                    {
-                        if (++start == crop.size())
-                        {
-                            return crop;
-                        }
-                    }
-                    // test PM: ESC ^
-                    else if (c == '^')
-                    {
-                        // find BEL
-                        while (++start < crop.size())
-                        {
-                            auto cmd = crop[start];
+                            auto cmd = *next;
                             if (cmd == 0x07) break;
                         }
-
-                        if (start == crop.size())
+                        if (next == tail)
                         {
-                            crop = crop.substr(0, size);
-                            return crop;
+                            utf8 = { head, prev }; // preserve ESC at the end
+                            return utf8;
                         }
                     }
-                    // test APC: ESC _ ... ST
-                    else if (c == '_')
+                    // test Esc + byte + rest:
+                    else if (c == '('  // G0SET VT100  ESC ( c  94 characters
+                          || c == ')'  // G1SET VT100  ESC ) c  94 characters
+                          || c == '*'  // G2SET VT220  ESC * c  94 characters
+                          || c == '+'  // G3SET VT220  ESC + c  94 characters
+                          || c == '-'  // G1SET VT300  ESC - c  96 characters
+                          || c == '.'  // G2SET VT300  ESC . c  96 characters
+                          || c == '/'  // G3SET VT300  ESC / c  96 characters
+                          || c == ' '  // ESC sp F, ESC sp G, ESC sp L, ESC sp M, ESC sp N
+                          || c == '#'  // ESC # 3, ESC # 4, ESC # 5, ESC # 6, ESC # 8
+                          || c == '%') // ESC % @, ESC % G  G: Select UTF-8, @: Select default
                     {
-                        // find BEL
-                        while (++start < crop.size())
+                        if (++next == tail)
                         {
-                            auto cmd = crop[start];
-                            if (cmd == 0x07) break;
-                        }
-
-                        if (start == crop.size())
-                        {
-                            crop = crop.substr(0, size);
-                            return crop;
+                            utf8 = { head, prev }; // preserve ESC at the end
+                            return utf8;
                         }
                     }
-                    // test DCS: ESC P ... ST
-                    else if (c == 'P')
+                    // test Esc + byte: ESC 7 8 D E H M ...
+                    else if (c == '6'  // Back index, DECBI
+                          || c == '7'  // Save    cursor coor and rendition state
+                          || c == '8'  // Restore cursor coor and rendition state
+                          || c == '9'  // Forward index, DECFI
+                          || c == 'c'  // Full reset, RIS
+                          || c == 'D'  // Caret down
+                          || c == 'M'  // Caret up
+                          || c == 'E'  // Next line
+                          || c == 'F'  // Set cursor to lower leftmost coor
+                          || c == 'H'  // Tabstop set
+                          || c == '='  // Application keypad
+                          || c == '>'  // Normal      keypad
+                          || c == 'l'  // Memory lock
+                          || c == 'm'  // Memory unlock
+                          || c == 'n'  // LS2
+                          || c == 'o'  // LS3
+                          || c == '~'  // LS1R
+                          || c == '}'  // LS2R
+                          || c == '|'  // LS3R
+                          || c == 'O'  // SS3
+                          || c == 'N'  // SS2
+                          || c == 'V'  // SPA
+                          || c == 'W'  // EPA
+                          || c == 'Z') // Return ID 
                     {
-                        // find BEL
-                        while (++start < crop.size())
+                        if (++next == tail)
                         {
-                            auto cmd = crop[start];
-                            if (cmd == 0x07) break;
-                        }
-
-                        if (start == crop.size())
-                        {
-                            crop = crop.substr(0, size);
-                            return crop;
+                            return utf8;
                         }
                     }
                 }
                 else
                 {
-                    // preserve ESC at the end
-                    crop = crop.substr(0, size);
-                    return crop;
+                    utf8 = { head, prev }; // preserve ESC at the end
+                    return utf8;
                 }
             }
         }
 
-        utf::purify(crop);
-
-        return crop;
+        utf::purify(utf8);
+        return utf8;
     }
 }
 

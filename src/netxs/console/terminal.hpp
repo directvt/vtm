@@ -688,6 +688,16 @@ namespace netxs::ui
                         proc = [i](auto& q, auto& p) { p->not_implemented_CSI(i, q); };
                     }
                 }
+                auto& esc_lookup = vt.intro[ctrl::ESC];
+                // Log all unimplemented ESC+rest.
+                for (auto i = 0; i < 0x100; ++i)
+                {
+                    auto& proc = esc_lookup[i];
+                    if (!proc)
+                    {
+                        proc = [i](auto& q, auto& p) { p->not_implemented_ESC(i, q); };
+                    }
+                }
             }
 
             using tabs = std::vector<std::pair<iota, iota>>; // Pairs of forward and reverse tabstops index.
@@ -845,7 +855,119 @@ namespace netxs::ui
                         params.push_back(delim);
                     }
                 }
-                log("CSI ", params, " ", (unsigned char)i, "(", std::to_string(i), ") is not implemented.");
+                log("CSI ", params, " ", (unsigned char)i, "(", i, ") is not implemented");
+            }
+            void not_implemented_ESC(iota c, qiew& q)
+            {
+                switch (c)
+                {
+                    // Unexpected
+                    case ansi::ESC_CSI   :
+                    case ansi::ESC_OCS   :
+                    case ansi::ESC_DSC   :
+                    case ansi::ESC_SOS   :
+                    case ansi::ESC_PM    :
+                    case ansi::ESC_APC   :
+                    case ansi::ESC_ST    :
+                        log("ESC ", (char)c, " (", c, ") is unexpected");
+                        break;
+                    // Unsupported ESC + byte + rest
+                    case ansi::ESC_G0SET :
+                    case ansi::ESC_G1SET :
+                    case ansi::ESC_G2SET :
+                    case ansi::ESC_G3SET :
+                    case ansi::ESC_G1xSET:
+                    case ansi::ESC_G2xSET:
+                    case ansi::ESC_G3xSET:
+                    case ansi::ESC_CTRL  :
+                    case ansi::ESC_DECDHL:
+                    case ansi::ESC_CHRSET:
+                    {
+                        if (!q) log("ESC ", (char)c, " (", c, ") is incomplete");
+                        auto b = q.front();
+                        q.pop_front();
+                        switch (b)
+                        {
+                            case 'B':
+                            case 'A':
+                            case '0':
+                            case '1':
+                            case '2':
+                            case '<':
+                            case '4':
+                            case '5':
+                            case 'C':
+                            case 'R':
+                            case 'f':
+                            case 'Q':
+                            case 'K':
+                            case 'Y':
+                            case 'E':
+                            case '6':
+                            case 'Z':
+                            case '7':
+                            case 'H':
+                            case '=':
+                            case '>':
+                            case '9':
+                            case '`':
+                            case 'U':
+                                log("ESC ", (char)c, " ", (char)b, " (", c, " ", b, ") is usupported");
+                                break;
+                            case '%':
+                            case '"':
+                            {
+                                if (q.size() < 2)
+                                {
+                                    if (q) q.pop_front();
+                                    log("ESC ", (char)c, " ", (char)b, " (", c, " ", b, ") is incomplete");
+                                }
+                                else
+                                {
+                                     auto d = q.front();
+                                     q.pop_front();
+                                     log("ESC ", (char)c, " ", (char)b, " ", (char)d, " (", c, " ", b, " ", d, ") is usupported");
+                                }
+                                break;
+                            }
+                            default:
+                                log("ESC ", (char)c, " ", (char)b, " (", c, " ", b, ") is unknown");
+                                break;
+                        }
+                        break;
+                    }
+                    // Unsupported ESC + byte
+                    case ansi::ESC_DELIM :
+                    case ansi::ESC_KEY_A :
+                    case ansi::ESC_KEY_N :
+                    case ansi::ESC_DECBI :
+                    case ansi::ESC_DECFI :
+                    case ansi::ESC_SC    :
+                    case ansi::ESC_RC    :
+                    case ansi::ESC_HTS   :
+                    case ansi::ESC_NEL   :
+                    case ansi::ESC_CLB   :
+                    case ansi::ESC_IND   :
+                    case ansi::ESC_IR    :
+                    case ansi::ESC_RIS   :
+                    case ansi::ESC_MEMLK :
+                    case ansi::ESC_MUNLK :
+                    case ansi::ESC_LS2   :
+                    case ansi::ESC_LS3   :
+                    case ansi::ESC_LS1R  :
+                    case ansi::ESC_LS2R  :
+                    case ansi::ESC_LS3R  :
+                    case ansi::ESC_SS3   :
+                    case ansi::ESC_SS2   :
+                    case ansi::ESC_SPA   :
+                    case ansi::ESC_EPA   :
+                    case ansi::ESC_RID   :
+                        log("ESC ", (char)c, " (", c, ") is usupported");
+                        break;
+                    default:
+                        log("ESC ", (char)c, " (", c, ") is unknown");
+                        break;
+                }
             }
             // bufferbase: .
     virtual void clear_all()
@@ -2977,9 +3099,8 @@ namespace netxs::ui
                                     }
                                     else assert(curln._size == curln.length());
                                 }
-                                else // Case when arena == 1
+                                else // The case when the current line completely fills the viewport.
                                 {
-                                    assert(arena == 1);
                                     mapln.start = batch.caret - coord.x;
                                     mapln.width = coord.x;
                                     batch.recalc(curln);
