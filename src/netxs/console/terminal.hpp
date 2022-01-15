@@ -667,9 +667,9 @@ namespace netxs::ui
                 vt.csier.table_quest[DECRST] = VT_PROC{ p->owner.decrst(q); };
 
                 vt.oscer[OSC_LABEL_TITLE] = VT_PROC{ p->owner.wtrack.set(OSC_LABEL_TITLE, q); };
-                vt.oscer[OSC_LABEL]       = VT_PROC{ p->owner.wtrack.set(OSC_LABEL,       q); };
-                vt.oscer[OSC_TITLE]       = VT_PROC{ p->owner.wtrack.set(OSC_TITLE,       q); };
-                vt.oscer[OSC_XPROP]       = VT_PROC{ p->owner.wtrack.set(OSC_XPROP,       q); };
+                vt.oscer[OSC_LABEL      ] = VT_PROC{ p->owner.wtrack.set(OSC_LABEL,       q); };
+                vt.oscer[OSC_TITLE      ] = VT_PROC{ p->owner.wtrack.set(OSC_TITLE,       q); };
+                vt.oscer[OSC_XPROP      ] = VT_PROC{ p->owner.wtrack.set(OSC_XPROP,       q); };
                 vt.oscer[OSC_LINUX_COLOR] = VT_PROC{ p->owner.ctrack.set(OSC_LINUX_COLOR, q); };
                 vt.oscer[OSC_LINUX_RESET] = VT_PROC{ p->owner.ctrack.set(OSC_LINUX_RESET, q); };
                 vt.oscer[OSC_SET_PALETTE] = VT_PROC{ p->owner.ctrack.set(OSC_SET_PALETTE, q); };
@@ -701,11 +701,18 @@ namespace netxs::ui
             }
 
             using tabs = std::vector<std::pair<iota, iota>>; // Pairs of forward and reverse tabstops index.
+            struct redo
+            {
+                using mark = ansi::mark;
+                deco style{}; // Parser style state.
+                mark brush{}; // Parser brush state.
+                twod coord{}; // Screen coord state.
+            };
 
             term& owner; // bufferbase: Terminal object reference.
             twod  panel; // bufferbase: Viewport size.
             twod  coord; // bufferbase: Viewport cursor position; 0-based.
-            twod  saved; // bufferbase: Saved cursor position.
+            redo  saved; // bufferbase: Saved cursor position and rendition state.
             iota  sctop; // bufferbase: Precalculated scrolling region top    height.
             iota  scend; // bufferbase: Precalculated scrolling region bottom height.
             iota  y_top; // bufferbase: Precalculated 0-based scrolling region top    vertical pos.
@@ -719,7 +726,6 @@ namespace netxs::ui
                 : owner{ master },
                   panel{ dot_11 },
                   coord{ dot_00 },
-                  saved{ dot_00 },
                   sctop{ 0      },
                   scend{ 0      },
                   y_top{ 0      },
@@ -1169,17 +1175,22 @@ namespace netxs::ui
                         break;
                 }
             }
-            // bufferbase: ESC 7 or CSU s  Save cursor position.
+            // bufferbase: ESC 7 or CSI s  Save cursor position.
             void scp()
             {
                 parser::flush();
-                saved = coord;
+                saved = { .style = parser::style,
+                          .brush = parser::brush,
+                          .coord = coord };
             }
-            // bufferbase: ESC 8 or CSU u  Restore cursor position.
+            // bufferbase: ESC 8 or CSI u  Restore cursor position.
             void rcp()
             {
                 parser::flush();
-                set_coord(saved);
+                set_coord(saved.coord);
+                parser::style = saved.style;
+                parser::brush = saved.brush;
+                parser::flush(); // Proceed new style.
             }
             // bufferbase: CSI n T/S  Scroll down/up, scrolled up lines are pushed to the scrollback buffer.
     virtual void scl(iota n)
@@ -1522,8 +1533,6 @@ namespace netxs::ui
             // alt_screen: Clear viewport.
             void clear_all() override
             {
-                saved = dot_00;
-                coord = dot_00;
                 canvas.wipe();
                 set_scroll_region(0, 0);
                 bufferbase::clear_all();
@@ -3194,8 +3203,6 @@ namespace netxs::ui
             // scroll_buf: Clear scrollback.
             void clear_all() override
             {
-                saved = dot_00;
-                coord = dot_00;
                 batch.clear();
                 reset_scroll_region();
                 bufferbase::clear_all();
