@@ -4127,7 +4127,7 @@ namespace netxs::ui
                 cursor.coor(console.get_coord(base));
 
                 console.output(parent_canvas);
-                if (invert) parent_canvas.fill(cell::shaders::invert);
+                if (invert) parent_canvas.fill(cell::shaders::reverse);
 
                 if (oversz.b > 0) // Shade the viewport bottom oversize (futures).
                 {
