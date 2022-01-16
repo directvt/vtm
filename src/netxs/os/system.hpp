@@ -1445,13 +1445,13 @@ namespace netxs::os
         bool sealed; // ipc: Provide autoclosing.
         text scpath; // ipc: Socket path (in order to unlink).
 
-        void init(iota buff_size = PIPE_BUF) { buffer.resize(buff_size); }
+        void init(iota buff_size = PIPE_BUF) { active = true; buffer.resize(buff_size); }
 
     public:
         ipc(file const& descriptor = {}, bool sealed = faux)
             : handle{ descriptor },
               sealed{ sealed },
-              active{ true }
+              active{ faux }
         {
             if (handle) init();
         }
@@ -2375,7 +2375,7 @@ namespace netxs::os
     template<class V> conmode     tty::_globals<V>::state;
     template<class V> testy<twod> tty::_globals<V>::winsz;
 
-    class ptydev
+    class ptydev // Note: STA.
     {
         #if defined(_WIN32)
 
@@ -2391,11 +2391,12 @@ namespace netxs::os
 
         #endif
 
-        os::ipc                   termlink;
-        testy<twod>               termsize;
-        std::thread               stdinput;
-        std::function<void(view)> receiver;
-        std::function<void(iota)> shutdown;
+        os::ipc                   termlink{};
+        testy<twod>               termsize{};
+        std::thread               stdinput{};
+        std::function<void(view)> receiver{};
+        std::function<void(iota)> shutdown{};
+        text                      tempbuff{};
 
     public:
         ~ptydev()
@@ -2405,6 +2406,7 @@ namespace netxs::os
             if (stdinput.joinable())
             {
                 log("ptydev: input thread joining");
+                //todo deadlock on wsl with tiling ~50 terms
                 stdinput.join();
             }
             #if defined(_WIN32)
@@ -2576,13 +2578,15 @@ namespace netxs::os
             #endif
 
             stdinput = std::thread([&] { read_socket_thread(); });
+
+            if (tempbuff.size()) write(decltype(tempbuff){ std::move(tempbuff) });
         }
 
         iota wait_child()
         {
-            iota exit_code;
+            iota exit_code = {};
+            log("ptydev: wait child process, tty=", termlink);
             termlink.reset();
-            log("ptydev: wait child process");
 
             #if defined(_WIN32)
 
@@ -2599,6 +2603,8 @@ namespace netxs::os
 
             #else
 
+            if (pid != 0)
+            {
                 int status;
                 ok(::kill(pid, SIGKILL));
                 ok(::waitpid(pid, &status, 0)); // Wait for the child to avoid zombies.
@@ -2612,6 +2618,7 @@ namespace netxs::os
                     exit_code = 0;
                     log("ptydev: error: child process exit code not detected");
                 }
+            }
 
             #endif
             log("ptydev: wait_child() exit");
@@ -2640,7 +2647,7 @@ namespace netxs::os
         }
         void resize(twod const& newsize)
         {
-            if (termsize(newsize) && termlink)
+            if (termlink && termsize(newsize))
             {
                 #if defined(_WIN32)
 
@@ -2662,7 +2669,8 @@ namespace netxs::os
         }
         void write(view data)
         {
-            termlink.send<true>(data);
+            if (termlink) termlink.send<true>(data);
+            else          tempbuff += data;
         }
     };
 }

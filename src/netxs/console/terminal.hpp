@@ -30,6 +30,7 @@ namespace netxs::ui
     class term
         : public ui::form<term>
     {
+        static constexpr iota max_length = 65535; // term: Max line length.
         static constexpr iota def_length = 20000; // term: Default scrollback history length.
         static constexpr iota def_growup = 0;     // term: Default scrollback history grow step.
         static constexpr iota def_tablen = 8;     // term: Default tab length.
@@ -345,6 +346,7 @@ namespace netxs::ui
                     default:
                     case 6: queue.report(owner.target->coord); break;
                     case 5: queue.add("OK");                   break;
+                    case-1: queue.add("VT420");                break; // redirected from CSI n c
                 }
                 owner.answer(queue);
             }
@@ -611,14 +613,16 @@ namespace netxs::ui
                 vt.csier.table[CSI_CUF] = VT_PROC{ p->cuf( q(1)); };  // CSI n C  (CUF)
                 vt.csier.table[CSI_CUB] = VT_PROC{ p->cuf(-q(1)); };  // CSI n D  (CUB)
 
-                vt.csier.table[CSI_CHT] = VT_PROC{ p->tab( q(1)); };  // CSI n I  Caret forward  n tabs, default n=1.
-                vt.csier.table[CSI_CBT] = VT_PROC{ p->tab(-q(1)); };  // CSI n Z  Caret backward n tabs, default n=1.
-                vt.csier.table[CSI_TBC] = VT_PROC{ p->tbc( q(1)); };  // CSI n g  Reset tabstop value.
+                vt.csier.table[CSI_CHT]           = VT_PROC{ p->tab( q(1)); };  // CSI n I  Caret forward  n tabs, default n=1.
+                vt.csier.table[CSI_CBT]           = VT_PROC{ p->tab(-q(1)); };  // CSI n Z  Caret backward n tabs, default n=1.
+                vt.csier.table[CSI_TBC]           = VT_PROC{ p->tbc( q(0)); };  // CSI n g  Clear tabstops, default n=0.
+                vt.csier.table_quest[CSI_QST_RTB] = VT_PROC{ p->rtb(     ); };  // CSI ? W  Reset tabstops to the 8 column defaults.
+                vt.intro[ctrl::ESC][ESC_HTS]      = VT_PROC{ p->stb(     ); };  // ESC H    Place tabstop at the current column.
 
                 vt.csier.table[CSI_CUD2]= VT_PROC{ p->dn ( q(1)); };  // CSI n e  Vertical position relative. Move cursor down (VPR).
 
-                vt.csier.table[CSI_CNL] = vt.csier.table[CSI_CUD];    // CSI n E
-                vt.csier.table[CSI_CPL] = vt.csier.table[CSI_CUU];    // CSI n F
+                vt.csier.table[CSI_CNL] = VT_PROC{ p->cr (); p->dn (q(1)); };  // CSI n E  Move n lines down and to the leftmost column.
+                vt.csier.table[CSI_CPL] = VT_PROC{ p->cr (); p->up (q(1)); };  // CSI n F  Move n lines up   and to the leftmost column.
                 vt.csier.table[CSI_CHX] = VT_PROC{ p->chx( q(1)); };  // CSI n G  Move cursor hz absolute.
                 vt.csier.table[CSI_CHY] = VT_PROC{ p->chy( q(1)); };  // CSI n d  Move cursor vt absolute.
                 vt.csier.table[CSI_CUP] = VT_PROC{ p->cup( q   ); };  // CSI y ; x H (1-based)
@@ -641,6 +645,7 @@ namespace netxs::ui
 
                 vt.csier.table[CSI_WIN] = VT_PROC{ p->owner.wtrack.manage(q   ); };  // CSI n;m;k t  Terminal window options (XTWINOPS).
                 vt.csier.table[CSI_DSR] = VT_PROC{ p->owner.wtrack.report(q(6)); };  // CSI n n  Device status report (DSR).
+                vt.csier.table[CSI_PDA] = VT_PROC{ p->owner.wtrack.report( -1 ); };  // CSI n c  Send device attributes (Primary DA). Respond always "VT420".
 
                 vt.csier.table[CSI_CCC][CCC_SBS] = VT_PROC{ p->owner.sbsize(q); };  // CCC_SBS: Set scrollback size.
                 vt.csier.table[CSI_CCC][CCC_EXT] = VT_PROC{ p->owner.native(q(1)); };          // CCC_EXT: Setup extended functionality.
@@ -648,7 +653,6 @@ namespace netxs::ui
 
                 vt.intro[ctrl::ESC][ESC_IND] = VT_PROC{ p->lf(1); };          // ESC D  Index. Caret down and scroll if needed (IND).
                 vt.intro[ctrl::ESC][ESC_IR ] = VT_PROC{ p->ri (); };          // ESC M  Reverse index (RI).
-                vt.intro[ctrl::ESC][ESC_HTS] = VT_PROC{ p->stb(); };          // ESC H  Place tabstop at the current cursor posistion.
                 vt.intro[ctrl::ESC][ESC_SC ] = VT_PROC{ p->scp(); };          // ESC 7  (same as CSI s) Save cursor position.
                 vt.intro[ctrl::ESC][ESC_RC ] = VT_PROC{ p->rcp(); };          // ESC 8  (same as CSI u) Restore cursor position.
                 vt.intro[ctrl::ESC][ESC_RIS] = VT_PROC{ p->owner.decstr(); }; // ESC c  Reset to initial state (same as DECSTR).
@@ -663,9 +667,9 @@ namespace netxs::ui
                 vt.csier.table_quest[DECRST] = VT_PROC{ p->owner.decrst(q); };
 
                 vt.oscer[OSC_LABEL_TITLE] = VT_PROC{ p->owner.wtrack.set(OSC_LABEL_TITLE, q); };
-                vt.oscer[OSC_LABEL]       = VT_PROC{ p->owner.wtrack.set(OSC_LABEL,       q); };
-                vt.oscer[OSC_TITLE]       = VT_PROC{ p->owner.wtrack.set(OSC_TITLE,       q); };
-                vt.oscer[OSC_XPROP]       = VT_PROC{ p->owner.wtrack.set(OSC_XPROP,       q); };
+                vt.oscer[OSC_LABEL      ] = VT_PROC{ p->owner.wtrack.set(OSC_LABEL,       q); };
+                vt.oscer[OSC_TITLE      ] = VT_PROC{ p->owner.wtrack.set(OSC_TITLE,       q); };
+                vt.oscer[OSC_XPROP      ] = VT_PROC{ p->owner.wtrack.set(OSC_XPROP,       q); };
                 vt.oscer[OSC_LINUX_COLOR] = VT_PROC{ p->owner.ctrack.set(OSC_LINUX_COLOR, q); };
                 vt.oscer[OSC_LINUX_RESET] = VT_PROC{ p->owner.ctrack.set(OSC_LINUX_RESET, q); };
                 vt.oscer[OSC_SET_PALETTE] = VT_PROC{ p->owner.ctrack.set(OSC_SET_PALETTE, q); };
@@ -684,32 +688,52 @@ namespace netxs::ui
                         proc = [i](auto& q, auto& p) { p->not_implemented_CSI(i, q); };
                     }
                 }
+                auto& esc_lookup = vt.intro[ctrl::ESC];
+                // Log all unimplemented ESC+rest.
+                for (auto i = 0; i < 0x100; ++i)
+                {
+                    auto& proc = esc_lookup[i];
+                    if (!proc)
+                    {
+                        proc = [i](auto& q, auto& p) { p->not_implemented_ESC(i, q); };
+                    }
+                }
             }
+
+            using tabs = std::vector<std::pair<iota, iota>>; // Pairs of forward and reverse tabstops index.
+            struct redo
+            {
+                using mark = ansi::mark;
+                deco style{}; // Parser style state.
+                mark brush{}; // Parser brush state.
+                twod coord{}; // Screen coord state.
+            };
 
             term& owner; // bufferbase: Terminal object reference.
             twod  panel; // bufferbase: Viewport size.
             twod  coord; // bufferbase: Viewport cursor position; 0-based.
-            twod  saved; // bufferbase: Saved cursor position.
+            redo  saved; // bufferbase: Saved cursor position and rendition state.
             iota  sctop; // bufferbase: Precalculated scrolling region top    height.
             iota  scend; // bufferbase: Precalculated scrolling region bottom height.
             iota  y_top; // bufferbase: Precalculated 0-based scrolling region top    vertical pos.
             iota  y_end; // bufferbase: Precalculated 0-based scrolling region bottom vertical pos.
             iota  n_top; // bufferbase: Original      1-based scrolling region top    vertical pos (use 0 if it is not set).
             iota  n_end; // bufferbase: Original      1-based scrolling region bottom vertical pos (use 0 if it is not set).
-            iota  tabsz; // bufferbase: Tabstop current value.
+            tabs  stops; // bufferbase: Tabstop index.
+            bool  notab; // bufferbase: Tabstop index is cleared.
 
             bufferbase(term& master)
                 : owner{ master },
                   panel{ dot_11 },
                   coord{ dot_00 },
-                  saved{ dot_00 },
                   sctop{ 0      },
                   scend{ 0      },
                   y_top{ 0      },
                   y_end{ 0      },
                   n_top{ 0      },
                   n_end{ 0      },
-                  tabsz{ def_tablen }
+                  stops{ {0, 0} },
+                  notab{ faux   }
             {
                 parser::style = ansi::def_style;
             }
@@ -725,11 +749,11 @@ namespace netxs::ui
             virtual iota get_step() const                            = 0;
                     auto get_view() const { return panel; }
 
-            // bufferbase: .
-    virtual bool is_need_to_correct()
-            {
-                return faux;
-            }
+            // bufferbase: . // size in cells
+    //virtual bool is_need_to_correct()
+            //{
+            //    return faux;
+            //}
             // bufferbase: .
     virtual iota get_basis()
             {
@@ -739,11 +763,6 @@ namespace netxs::ui
     virtual iota get_slide()
             {
                 return 0;
-            }
-            // bufferbase: .
-    virtual bool force_basis()
-            {
-                return true;
             }
             // bufferbase: .
     virtual iota set_slide(iota)
@@ -765,6 +784,7 @@ namespace netxs::ui
     virtual void resize_viewport(twod const& new_sz)
             {
                 panel = std::max(new_sz, dot_11);
+                resize_tabstops(panel.x);
                 update_region();
             }
             // bufferbase: Reset coord and set the scrolling region using 1-based top and bottom. Use 0 to reset.
@@ -841,52 +861,336 @@ namespace netxs::ui
                         params.push_back(delim);
                     }
                 }
-                log("CSI ", params, " ", (unsigned char)i, "(", std::to_string(i), ") is not implemented.");
+                log("CSI ", params, " ", (unsigned char)i, "(", i, ") is not implemented");
+            }
+            void not_implemented_ESC(iota c, qiew& q)
+            {
+                switch (c)
+                {
+                    // Unexpected
+                    case ansi::ESC_CSI   :
+                    case ansi::ESC_OCS   :
+                    case ansi::ESC_DSC   :
+                    case ansi::ESC_SOS   :
+                    case ansi::ESC_PM    :
+                    case ansi::ESC_APC   :
+                    case ansi::ESC_ST    :
+                        log("ESC ", (char)c, " (", c, ") is unexpected");
+                        break;
+                    // Unsupported ESC + byte + rest
+                    case ansi::ESC_G0SET :
+                    case ansi::ESC_G1SET :
+                    case ansi::ESC_G2SET :
+                    case ansi::ESC_G3SET :
+                    case ansi::ESC_G1xSET:
+                    case ansi::ESC_G2xSET:
+                    case ansi::ESC_G3xSET:
+                    case ansi::ESC_CTRL  :
+                    case ansi::ESC_DECDHL:
+                    case ansi::ESC_CHRSET:
+                    {
+                        if (!q) log("ESC ", (char)c, " (", c, ") is incomplete");
+                        auto b = q.front();
+                        q.pop_front();
+                        switch (b)
+                        {
+                            case 'B':
+                            case 'A':
+                            case '0':
+                            case '1':
+                            case '2':
+                            case '<':
+                            case '4':
+                            case '5':
+                            case 'C':
+                            case 'R':
+                            case 'f':
+                            case 'Q':
+                            case 'K':
+                            case 'Y':
+                            case 'E':
+                            case '6':
+                            case 'Z':
+                            case '7':
+                            case 'H':
+                            case '=':
+                            case '>':
+                            case '9':
+                            case '`':
+                            case 'U':
+                                log("ESC ", (char)c, " ", (char)b, " (", c, " ", b, ") is usupported");
+                                break;
+                            case '%':
+                            case '"':
+                            {
+                                if (q.size() < 2)
+                                {
+                                    if (q) q.pop_front();
+                                    log("ESC ", (char)c, " ", (char)b, " (", c, " ", b, ") is incomplete");
+                                }
+                                else
+                                {
+                                     auto d = q.front();
+                                     q.pop_front();
+                                     log("ESC ", (char)c, " ", (char)b, " ", (char)d, " (", c, " ", b, " ", d, ") is usupported");
+                                }
+                                break;
+                            }
+                            default:
+                                log("ESC ", (char)c, " ", (char)b, " (", c, " ", b, ") is unknown");
+                                break;
+                        }
+                        break;
+                    }
+                    // Unsupported ESC + byte
+                    case ansi::ESC_DELIM :
+                    case ansi::ESC_KEY_A :
+                    case ansi::ESC_KEY_N :
+                    case ansi::ESC_DECBI :
+                    case ansi::ESC_DECFI :
+                    case ansi::ESC_SC    :
+                    case ansi::ESC_RC    :
+                    case ansi::ESC_HTS   :
+                    case ansi::ESC_NEL   :
+                    case ansi::ESC_CLB   :
+                    case ansi::ESC_IND   :
+                    case ansi::ESC_IR    :
+                    case ansi::ESC_RIS   :
+                    case ansi::ESC_MEMLK :
+                    case ansi::ESC_MUNLK :
+                    case ansi::ESC_LS2   :
+                    case ansi::ESC_LS3   :
+                    case ansi::ESC_LS1R  :
+                    case ansi::ESC_LS2R  :
+                    case ansi::ESC_LS3R  :
+                    case ansi::ESC_SS3   :
+                    case ansi::ESC_SS2   :
+                    case ansi::ESC_SPA   :
+                    case ansi::ESC_EPA   :
+                    case ansi::ESC_RID   :
+                        log("ESC ", (char)c, " (", c, ") is usupported");
+                        break;
+                    default:
+                        log("ESC ", (char)c, " (", c, ") is unknown");
+                        break;
+                }
             }
             // bufferbase: .
     virtual void clear_all()
             {
                 parser::state = {};
+                rtb();
+            }
+            // tabstops index, tablen = 3, vector<pair<fwd_idx, rev_idx>>:
+            // coor.x      -2-1 0 1 2 3 4 5 6 7 8 9
+            // size = 9         0 1 2 3 4 5 6 7 8
+            //             ----------------------
+            // custom: fwd_idx  3 3 3 6 6 6 9 9 9 
+            //         rev_idx  0 0 0 3 3 3 6 6 6  coord.x - 1
+            // 
+            // auto:   fwd_idx -3-3-3-6-6-6-9-9-9 
+            //         rev_idx  0 0 0 3 3 3 6 6 6  coord.x - 1
+            // 
+            // empty:  fwd_idx -9-9-9-9-9-9-9-9-9
+            //         rev_idx  0 0 0 0 0 0 0 0 0  coord.x - 1
+            // 
+            void clear_tabstops()
+            {
+                notab = true;
+                auto auto_tabs = std::pair{ -panel.x, 0 }; // Negative means auto, not custom.
+                stops.assign(panel.x, auto_tabs);
+            }
+            // bufferbase: Resize tabstop index.
+            void resize_tabstops(iota new_size, bool forced = faux)
+            {
+                auto size = static_cast<iota>(stops.size());
+                if (!forced && new_size <= size) return;
+
+                auto back = stops.back();
+                auto last_size = back.first > 0 ? 0 // Custom tabstop -- don't touch it.
+                                                : -back.first - back.second;
+                auto last_stop = forced ? 0
+                                        : size - last_size;
+                stops.resize(last_stop); // Trim.
+
+                if (notab) // Preserve existing tabstops.
+                {
+                    auto auto_tabs = std::pair{ -new_size, last_stop };
+                    stops.resize(new_size, auto_tabs);
+                }
+                else // Add additional default tabstops.
+                {
+                    stops.reserve(new_size);
+                    auto step = term::def_tablen;
+                    auto next = last_stop / step * step;
+                    auto add_count = new_size - step;
+                    while (next < add_count)
+                    {
+                        auto prev = next;
+                        next += step;
+                        auto auto_tabs = std::pair{ -next, prev };
+                        stops.resize(stops.size() + step, auto_tabs);
+                    }
+                    auto auto_tabs = std::pair{ -new_size, next };
+                    stops.resize(new_size, auto_tabs);
+                }
             }
             // bufferbase: ESC H  Place tabstop at the current cursor posistion.
             void stb()
             {
                 parser::flush();
-                tabsz = std::max(1, coord.x + 1);
+                if (coord.x <= 0 || coord.x > term::max_length) return;
+                resize_tabstops(coord.x);
+                auto  coor = coord.x - 1;
+                auto  head = stops.begin();
+                auto  tail = stops.begin() + coor;
+                auto& last = tail->first;
+                if (coord.x != last)
+                {
+                    auto size = stops.size();
+                    auto base = last;
+                    last = coord.x;
+                    while (head != tail)
+                    {
+                        auto& last = (--tail)->first;
+                        if (last == base) last = coord.x;
+                        else break;
+                    }
+                    if (coord.x < size)
+                    {
+                        head += coord.x;
+                        tail = stops.end();
+                        auto& next = head->second;
+                        auto  prev = next;
+                        next = coord.x;
+                        while (++head != tail)
+                        {
+                            auto& next = head->second;
+                            if (next == prev) next = coord.x;
+                            else break;
+                        }
+                    }
+                }
+            }
+            // bufferbase: (see CSI 0 g) Remove tabstop at the current cursor posistion.
+            void remove_tabstop()
+            {
+                auto  size = static_cast<iota>(stops.size());
+                if (coord.x <= 0 || coord.x >= size) return;
+                auto  head = stops.begin();
+                auto  tail = stops.begin() + coord.x;
+                auto  back = tail;
+                auto& stop = *tail;
+                auto& item = *--tail;
+                auto  main = stop.first;
+                auto  base = std::abs(item.first);
+
+                if (base == std::abs(main)) return;
+
+                item.first = main;
+                while (head != tail)
+                {
+                    --tail;
+                    auto& item = tail->first;
+                    if (base == std::abs(item)) item = main;
+                    else break;
+                }
+
+                tail = stops.end();
+                base = stop.second;
+                main = item.second;
+                stop.second = main;
+                while (++back != tail)
+                {
+                    auto& item = back->second;
+                    if (base == std::abs(item)) item = main;
+                    else break;
+                }
+            }
+            // bufferbase: CSI ? W  Reset tabstops to the 8 (todo hardcoded?) column defaults.
+            void rtb()
+            {
+                notab = faux;
+                resize_tabstops(panel.x, true);
+            }
+            // bufferbase: Horizontal tab implementation.
+            template<bool FWD>
+            void tab_impl(auto size)
+            {
+                if constexpr (FWD)
+                {
+                    auto x = std::clamp(coord.x, 0, size - 1);
+                    if (coord.x == x) coord.x = std::abs(stops[x].first);
+                    else
+                    {
+                        coord.x += notab ? term::def_tablen
+                                         : term::def_tablen - coord.x % term::def_tablen;
+                    }
+                }
+                else
+                {
+                    auto x = std::clamp(coord.x, 1, size);
+                    if (coord.x == x) coord.x = stops[x - 1].second;
+                    else
+                    {
+                        coord.x -= notab ? term::def_tablen
+                                         :(term::def_tablen + coord.x - 1) % term::def_tablen + 1;
+                    }
+                }
             }
             // bufferbase: TAB  Horizontal tab.
     virtual void tab(iota n)
             {
                 parser::flush();
-                if (n > 0)
-                {
-                    auto new_pos = coord.x + n * tabsz - coord.x % tabsz;
-                    if (new_pos < panel.x) coord.x = new_pos;
-                }
-                else if (n < 0)
-                {
-                    n = -n - 1;
-                    auto count = n * tabsz + coord.x % tabsz;
-                    coord.x = std::max(0, coord.x - count);
-                }
+                auto size = static_cast<iota>(stops.size());
+                if (n > 0) while (n-- > 0) tab_impl<true>(size);
+                else       while (n++ < 0) tab_impl<faux>(size);
+            }
+            void print_tabstops(text msg)
+            {
+                log(msg, ":\n", "index size = ", stops.size());
+                auto i = 0;
+                auto data = utf::adjust("coor:", 5, " ", faux);
+                for (auto [fwd, rev] : stops) data += utf::adjust(std::to_string(i++), 4, " ", true);
+                data += '\n' + utf::adjust("fwd:", 5, " ", faux);
+                for (auto [fwd, rev] : stops) data += utf::adjust(std::to_string(fwd), 4, " ", true);
+                data += '\n' + utf::adjust("rev:", 5, " ", faux);
+                for (auto [fwd, rev] : stops) data += utf::adjust(std::to_string(rev), 4, " ", true);
+                log(data);
             }
             // bufferbase: CSI n g  Reset tabstop value.
             void tbc(iota n)
             {
-                parser::flush();
-                tabsz = def_tablen;
+                switch (n)
+                {
+                    case 0: // Remove tab stop from the current column.
+                        parser::flush();
+                        remove_tabstop();
+                        break;
+                    case 3: // Clear all tab stops.
+                        clear_tabstops();
+                        break;
+                    default: // Test: print tab stops.
+                        print_tabstops("Tabstops index: `CSI " + std::to_string(n) + " g`");
+                        break;
+                }
             }
-            // bufferbase: ESC 7 or CSU s  Save cursor position.
+            // bufferbase: ESC 7 or CSI s  Save cursor position.
             void scp()
             {
                 parser::flush();
-                saved = coord;
+                saved = { .style = parser::style,
+                          .brush = parser::brush,
+                          .coord = coord };
             }
-            // bufferbase: ESC 8 or CSU u  Restore cursor position.
+            // bufferbase: ESC 8 or CSI u  Restore cursor position.
             void rcp()
             {
                 parser::flush();
-                set_coord(saved);
+                set_coord(saved.coord);
+                parser::style = saved.style;
+                parser::brush = saved.brush;
+                parser::flush(); // Proceed new style.
             }
             // bufferbase: CSI n T/S  Scroll down/up, scrolled up lines are pushed to the scrollback buffer.
     virtual void scl(iota n)
@@ -975,14 +1279,13 @@ namespace netxs::ui
             // bufferbase: CSI n d  Absolute vertical cursor position (1-based).
     virtual void chy(iota n)
             {
-                parser::flush();
+                parser::flush_data();
                 coord.y = std::clamp(n, 1, panel.y) - 1;
-                assert(panel.inside(coord));
             }
             // bufferbase: CSI y; x H/F  Caret position (1-based).
     virtual void cup(fifo& queue)
             {
-                parser::flush();
+                parser::flush_data();
                 auto y = queue(1);
                 auto x = queue(1);
                 auto p = twod{ x, y };
@@ -991,7 +1294,7 @@ namespace netxs::ui
             // bufferbase: Move cursor up.
     virtual void up(iota n)
             {
-                parser::flush();
+                parser::flush_data();
                 auto new_coord_y = coord.y - n;
                 if (new_coord_y <  y_top
                      && coord.y >= y_top)
@@ -1003,7 +1306,7 @@ namespace netxs::ui
             // bufferbase: Move cursor down.
     virtual void dn(iota n)
             {
-                parser::flush();
+                parser::flush_data();
                 auto new_coord_y = coord.y + n;
                 if (new_coord_y >  y_end
                      && coord.y <= y_end)
@@ -1015,7 +1318,7 @@ namespace netxs::ui
             // bufferbase: Line feed. Index. Scroll region up if new_coord_y > end.
     virtual void lf(iota n)
             {
-                parser::flush();
+                parser::flush_data();
                 auto new_coord_y = coord.y + n;
                 if (new_coord_y >  y_end
                      && coord.y <= y_end)
@@ -1229,8 +1532,6 @@ namespace netxs::ui
             // alt_screen: Clear viewport.
             void clear_all() override
             {
-                saved = dot_00;
-                coord = dot_00;
                 canvas.wipe();
                 set_scroll_region(0, 0);
                 bufferbase::clear_all();
@@ -1256,6 +1557,12 @@ namespace netxs::ui
             void scroll_region(iota top, iota end, iota n, bool use_scrollback = faux) override
             {
                 canvas.scroll(top, end + 1, n, brush.spare);
+            }
+            // alt_screen: Horizontal tab.
+            void tab(iota n) override
+            {
+                bufferbase::tab(n);
+                coord.x = std::clamp(coord.x, 0, panel.x - 1);
             }
         };
 
@@ -1299,7 +1606,7 @@ namespace netxs::ui
                 line& operator = (line const&) = default;
 
                 id_t index{};
-                ui64 accum{};
+                //ui64 accum{}; // size in cells
                 deco style{};
                 iota _size{};
                 type _kind{};
@@ -1359,47 +1666,46 @@ namespace netxs::ui
             {
                 using ring::ring;
                 using type = line::type;
+                using maps = std::map<iota, iota>[type::count];
 
                 iota caret{}; // buff: Current line caret horizontal position.
                 iota vsize{}; // buff: Scrollback vertical size (height).
                 iota width{}; // buff: Viewport width.
-                id_t taken{}; // buff: The index up to which the cells are already counted.
-                ui64 accum{}; // buff: The total number of cells in the stored lines.
-                bool dirty{}; // buff: Indicator that not all available cells have been counted (lazy counting).
+                //id_t taken{}; // buff: size in cells: The index up to which the cells are already counted.
+                //ui64 accum{}; // buff: size in cells: The total number of cells in the stored lines.
+                //bool dirty{}; // buff: size in cells: Indicator that not all available cells have been counted (lazy counting).
+                //bool need_to_correct{}; // size in cells: .
                 iota basis{}; // buff: Working area basis. Vertical position of O(0, 0) in the scrollback.
                 iota slide{}; // buff: Viewport vertical position in the scrollback.
+                maps sizes{}; // buff: Line length accounting database.
 
             id_t anchor_id{}; // the nearest id to the slide
             iota anchor_dy{}; // distance to the slide.
-            bool need_to_correct{};
             bool round{};
 
                 static constexpr id_t threshold = 1000;
                 static constexpr ui64 lnpadding = 40; // Padding to improve accuracy.
 
-                //todo optimize for large lines, use std::unordered_map<iota, iota>
-                // buff: Line length accounting database.
-                struct maxs : public std::vector<iota>
-                {
-                    iota max = 0;
-                    maxs() : std::vector<iota>(1) { }
-                    void prev_max() { while (max > 0 && !at(--max)); }
-                }
-                lens[type::count];
-
-                // buff: Decrease the height.
+                // buff: Decrease height.
                 void dec_height(iota& vsize, type kind, iota size)
                 {
                     if (size > width && kind == type::autowrap) vsize -= (size + width - 1) / width;
                     else                                        vsize -= 1;
                 }
-                // buff: Increase the height.
+                // buff: Increase height.
                 void add_height(iota& vsize, type kind, iota size)
                 {
                     if (size > width && kind == type::autowrap) vsize += (size + width - 1) / width;
                     else                                        vsize += 1;
                 }
-                // buff: Recalc the height for unlimited scrollback without using reflow.
+                // buff: Return max line length of the specified type.
+                template<auto N>
+                auto max()
+                {
+                    return sizes[N].empty() ? 0
+                                            : sizes[N].rbegin()->first;
+                }
+                // buff: Recalculate unlimited scrollback height without reflow.
                 void set_width(iota new_width)
                 {
                     vsize = 0;
@@ -1408,28 +1714,48 @@ namespace netxs::ui
                                        type::rghtside,
                                        type::centered })
                     {
-                        auto& cur_lens = lens[kind];
-                        auto head = cur_lens.begin();
-                        auto tail = head + cur_lens.max + 1;
-                        do vsize += *head++;
-                        while (head != tail);
-                    }
-                    auto kind = type::autowrap;
-                    auto& cur_lens = lens[kind];
-                    auto head = cur_lens.begin();
-                    auto tail = head + cur_lens.max + 1;
-                    auto c = 0;
-                    auto h = 1;
-                    do
-                    {
-                        if (auto count = *head++) vsize += h * count;
-                        if (++c > width)
+                        for (auto [size, pool] : sizes[kind])
                         {
-                            c = 1;
-                            ++h;
+                            assert(pool > 0);
+                            vsize += pool;
                         }
                     }
-                    while (head != tail);
+                    auto kind = type::autowrap;
+                    for (auto [size, pool] : sizes[kind])
+                    {
+                        if (size > width) vsize += pool * ((size + width - 1) / width);
+                        else              vsize += pool;
+                    }
+                }
+                // buff: Register a new line.
+                void invite(type& kind, iota& size, type new_kind, iota new_size)
+                {
+                    ++sizes[new_kind][new_size];
+                    add_height(vsize, new_kind, new_size);
+                    size = new_size;
+                    kind = new_kind;
+                }
+                // buff: Refresh scrollback height.
+                void recalc(type& kind, iota& size, type new_kind, iota new_size)
+                {
+                    if (size != new_size
+                     || kind != new_kind)
+                    {
+                        undock(kind, size);
+                        ++sizes[new_kind][new_size];
+                        add_height(vsize, new_kind, new_size);
+                        size = new_size;
+                        kind = new_kind;
+                    }
+                }
+                // buff: Discard the specified metrics.
+                void undock(type kind, iota size)
+                {
+                    auto& lens = sizes[kind];
+                    auto  iter = lens.find(size); assert(iter != lens.end());
+                    auto  pool = --(*iter).second;
+                    if (pool == 0) lens.erase(iter);
+                    dec_height(vsize, kind, size);
                 }
                 // buff: Check buffer size.
                 void check_size(twod const new_size)
@@ -1441,83 +1767,31 @@ namespace netxs::ui
                         ring::resize<BOTTOM_ANCHORED>(new_size.y, ring::step);
                     }
                 }
-                // buff: Register new line.
-                void invite(type& kind, iota& size, type new_kind, iota new_size)
-                {
-                    auto& new_lens = lens[new_kind];
-                    if (new_lens.size() <= new_size) new_lens.resize(new_size * 2 + 1);
-
-                    ++new_lens[new_size];
-                    add_height(vsize, new_kind, new_size);
-                    if (new_lens.max < new_size) new_lens.max = new_size;
-
-                    size = new_size;
-                    kind = new_kind;
-                }
-                // buff: Refresh scrollback height.
-                void recalc(type& kind, iota& size, type new_kind, iota new_size)
-                {
-                    if (size != new_size
-                     || kind != new_kind)
-                    {
-                        auto& new_lens = lens[new_kind];
-                        if (new_lens.size() <= new_size) new_lens.resize(new_size * 2 + 1);
-
-                        if (new_size <  size
-                         || new_kind != kind)
-                        {
-                            undock(kind, size);
-                        }
-                        else
-                        {
-                            --lens[kind][size];
-                            dec_height(vsize, kind, size);
-                        }
-
-                        ++new_lens[new_size];
-                        add_height(vsize, new_kind, new_size);
-                        if (new_lens.max < new_size) new_lens.max = new_size;
-
-                        size = new_size;
-                        kind = new_kind;
-                    }
-                }
-                // buff: Discard the specified metrics.
-                void undock(type kind, iota size)
-                {
-                    auto& cur_lens =       lens[kind];
-                    auto cur_count = --cur_lens[size];
-                    if (size == cur_lens.max && cur_count == 0)
-                    {
-                        cur_lens.prev_max();
-                    }
-                    dec_height(vsize, kind, size);
-                }
-                // buff: Push back the specified line.
+                // buff: Push the specified line back.
                 void invite(line& l)
                 {
-                    dirty = true;
+                    //dirty = true; // size in cells
                     invite(l._kind, l._size, l.style.get_kind(), l.length());
                 }
-                // buff: Push back the new line.
+                // buff: Push a new line back.
                 template<class ...Args>
                 auto& invite(Args&&... args)
                 {
-                    dirty = true;
+                    //dirty = true; // size in cells
                     auto& l = ring::push_back(std::forward<Args>(args)...);
                     invite(l._kind, l._size, l.style.get_kind(), l.length());
                     return l;
                 }
-                // buff: Insert the new line at the specified position.
+                // buff: Insert a new line at the specified position.
                 template<class ...Args>
                 auto& insert(iota at, Args&&... args)
                 {
-                    dirty = true;
+                    //dirty = true; // size in cells
                     auto& l = *ring::insert(at, std::forward<Args>(args)...);
                     invite(l._kind, l._size, l.style.get_kind(), l.length());
                     return l;
                 }
-                // buff: Remove the specified line info from accounting and update the metrics based on the scrollback height.
+                // buff: Remove specified line info from accounting and update metrics based on scroll height.
                 void undock_base_front(line& l) override
                 {
                     auto kind = l._kind;
@@ -1532,12 +1806,11 @@ namespace netxs::ui
                         anchor_dy = 0;
                         slide = 0;
                     }
-                    need_to_correct = true;
+                    //need_to_correct = true; // size in cells
                 }
                 // buff: Remove information about the specified line from accounting.
                 void undock_base_back (line& l) override { undock(l._kind, l._size); }
-                // buff: Return an item position in the scrollback using its id.
-                template<auto N> auto max() { return lens[N].max; }
+                // buff: Return the item position in the scrollback using its id.
                 auto index_by_id(ui32 id)
                 {
                     //No need to disturb distant objects, it may already be in the swap.
@@ -1549,74 +1822,76 @@ namespace netxs::ui
                 {
                     return begin() + index_by_id(id);
                 }
-                // buff: Return an item reference using its id.
+                // buff: Return the item reference using its id.
                 auto& item_by_id(ui32 id)
                 {
                     return ring::at(index_by_id(id));
                 }
-                // buff: Refresh the scrollback size in cells, starting at the specified index.
-                void recalc_size(iota taken_index)
-                {
-                    auto head = begin() + std::max(0, taken_index);
-                    auto tail = end();
-                    auto& curln = *head;
-                    auto accum = curln.accum;
-                    //auto i = 0;
-                    //log("  i=", i++, " curln.accum=", accum);
-                    accum += curln.length() + lnpadding;
-                    while (++head != tail)
-                    {
-                        auto& curln = *head;
-                        curln.accum = accum;
-                        //log("  i=", i++, " curln.accum=", accum);
-                        accum += curln.length() + lnpadding;
-                    }
-                    dirty = faux;
-                    //log( " recalc_size taken_index=", taken_index);
-                }
-                // buff: Return the scrollback size in cells.
-                auto get_size_in_cells()
-                {
-                    auto& endln = back();
-                    auto& endid = endln.index;
-                    auto  count = length();
-                    auto  taken_index = static_cast<iota>(count - 1 - (endid - taken));
-                    if (taken != endid || dirty)
-                    {
-                        auto& topln = front();
-                        recalc_size(taken_index);
-                        taken = endln.index;
-                        accum = endln.accum
-                            + endln.length() + lnpadding
-                            - topln.accum;
-                        //log(" topln.accum=", topln.accum,
-                        //    " endln.accum=", endln.accum,
-                        //    " vsize=", vsize,
-                        //    " accum=", accum);
-                    }
-                    return accum;
-                }
-                // buff: Refresh metrics due to the specified modified line.
+                //// buff: Refresh scrollback size in cells, starting at the specified index.
+                //void recalc_size(iota taken_index)
+                //{
+                //    auto head = begin() + std::max(0, taken_index);
+                //    auto tail = end();
+                //    auto& curln = *head;
+                //    auto accum = curln.accum;
+                //    //auto i = 0;
+                //    //log("  i=", i++, " curln.accum=", accum);
+                //    accum += curln.length() + lnpadding;
+                //    while (++head != tail)
+                //    {
+                //        auto& curln = *head;
+                //        curln.accum = accum;
+                //        //log("  i=", i++, " curln.accum=", accum);
+                //        accum += curln.length() + lnpadding;
+                //    }
+                //    dirty = faux;
+                //    //log( " recalc_size taken_index=", taken_index);
+                //}
+                //// buff: Return scrollback size in cells.
+                //auto get_size_in_cells()
+                //{
+                //    auto& endln = back();
+                //    auto& endid = endln.index;
+                //    auto  count = length();
+                //    auto  taken_index = static_cast<iota>(count - 1 - (endid - taken));
+                //    if (taken != endid || dirty)
+                //    {
+                //        auto& topln = front();
+                //        recalc_size(taken_index);
+                //        taken = endln.index;
+                //        accum = endln.accum
+                //            + endln.length() + lnpadding
+                //            - topln.accum;
+                //        //log(" topln.accum=", topln.accum,
+                //        //    " endln.accum=", endln.accum,
+                //        //    " vsize=", vsize,
+                //        //    " accum=", accum);
+                //    }
+                //    return accum;
+                //}
+                // buff: Refresh metrics due to modified line.
                 void recalc(line& l)
                 {
                     recalc(l._kind, l._size, l.style.get_kind(), l.length());
-                    dirty = true;
-                    auto taken_index = index_by_id(taken);
-                    auto curln_index = index_by_id(l.index);
-                    if (curln_index < taken_index)
-                    {
-                        taken       =     l.index;
-                        taken_index = curln_index;
-                    }
-                    if (ring::size - taken_index > threshold)
-                    {
-                        recalc_size(taken_index);
-                        taken = back().index;
-                    }
+                    //// size in cells
+                    //dirty = true;
+                    //auto taken_index = index_by_id(taken);
+                    //auto curln_index = index_by_id(l.index);
+                    //if (curln_index < taken_index)
+                    //{
+                    //    taken       =     l.index;
+                    //    taken_index = curln_index;
+                    //}
+                    //if (ring::size - taken_index > threshold)
+                    //{
+                    //    recalc_size(taken_index);
+                    //    taken = back().index;
+                    //}
                 }
                 // buff: Rewrite the indices from the specified position to the end.
                 void reindex(iota from)
                 {
+                    assert(from >= 0);
                     auto head = begin() + from;
                     auto tail = end();
                     auto indx = from == 0 ? 0
@@ -1640,10 +1915,10 @@ namespace netxs::ui
                     ring::clear();
                     caret = 0;
                     basis = 0;
-                    accum = 0;
                     slide = 0;
-                    dirty = 0;
-                    taken = 0;
+                    //accum = 0; // size in cells
+                    //dirty = 0; // size in cells
+                    //taken = 0; // size in cells
                     invite(0); // At least one line must exist.
                     anchor_id = back().index;
                     anchor_dy = 0;
@@ -1689,11 +1964,10 @@ namespace netxs::ui
             }
             void print_index(text msg)
             {
-                log(" ", msg, " index.size=", index.size, " basis=", batch.basis);
+                log(" ", msg, " index.size=", index.size, " basis=", batch.basis, " panel=", panel);
                 for (auto n = 0; auto& l : index)
                 {
-                    log("  ", n++,". id=", l.index," offset=", l.start, " width=", l.width);
-                    if (l.start % panel.x != 0) throw;
+                    log("  ", n++,". id=", l.index," start=", l.start, " width=", l.width, l.start % panel.x != 0 ? " <-- BAD INDEX l.start % panel.x != 0":"");
                 }
                 auto& mapln = index.back();
                 auto& curln = batch.item_by_id(mapln.index);
@@ -1729,7 +2003,19 @@ namespace netxs::ui
             bool test_futures()
             {
                 auto stash = batch.vsize - batch.basis - index.size;
+                if (stash < 0)
+                {
+                    print_batch("test_basis");
+                    print_index("test_basis");
+                }
                 assert(stash >= 0);
+                test_basis();
+                return true;
+            }
+            bool test_coord()
+            {
+                auto wrapped_block = batch.caret - coord.x;
+                assert(coord.y < y_top || coord.y > y_end || wrapped_block % panel.x == 0);
                 return true;
             }
             auto test_resize()
@@ -1746,13 +2032,59 @@ namespace netxs::ui
                 if (test_vsize != batch.vsize) log(" ERROR! test_vsize=", test_vsize, " vsize=", batch.vsize);
                 return test_vsize == batch.vsize;
             }
-            // scroll_buf: .
-            bool is_need_to_correct() override
+            bool test_basis()
             {
-                auto result = batch.need_to_correct;
-                batch.need_to_correct = faux;
+                if (batch.basis >= batch.vsize)
+                {
+                    assert((log(" batch.basis >= batch.vsize  batch.basis=", batch.basis, " batch.vsize=", batch.vsize), true));
+                }
+
+                auto index_front = index.front();
+                auto temp = index_front;
+                auto coor = batch.vsize;
+                auto head = batch.end();
+                while (coor != batch.basis)
+                {
+                    auto& curln = *--head;
+                    auto  curid = curln.index;
+                    auto length = curln.length();
+                    if (curln.wrapped())
+                    {
+                        auto remain = length ? (length - 1) % panel.x + 1 : 0;
+                        length -= remain;
+                        index_front = { curid, length, remain };
+                        --coor;
+                        while (length > 0 && coor != batch.basis)
+                        {
+                            length -= panel.x;
+                            index_front = { curid, length, panel.x };
+                            --coor;
+                        }
+                    }
+                    else
+                    {
+                        index_front = { curid, 0, length };
+                        --coor;
+                    }
+                }
+                auto result = index_front.index == temp.index
+                           && index_front.start == temp.start
+                           && index_front.width == temp.width;
+                if (!result)
+                {
+                    print_batch("test_basis");
+                    print_index("test_basis");
+                }
+                assert(result);
                 return result;
             }
+            // scroll_buf: . // size in cells
+            //bool is_need_to_correct() override
+            //{
+            //    auto result = batch.need_to_correct;
+            //    batch.need_to_correct = faux;
+            //    return result;
+            //}
             // scroll_buf: .
             iota get_basis() override
             {
@@ -1762,11 +2094,6 @@ namespace netxs::ui
             iota get_slide() override
             {
                 return batch.slide;
-            }
-            // scroll_buf: .
-            bool force_basis() override
-            {
-                return batch.slide == batch.basis;
             }
             // scroll_buf: .
             iota set_slide(iota new_slide) override
@@ -2053,6 +2380,7 @@ namespace netxs::ui
 
                 assert(batch.basis >= 0);
                 assert(test_futures());
+                assert(test_coord());
                 assert(test_resize());
             }
             // scroll_buf: Rebuild the next avail indexes from the known index (mapln).
@@ -2187,6 +2515,7 @@ namespace netxs::ui
             auto feed_futures(iota query)
             {
                 assert(test_futures());
+                assert(test_coord());
                 assert(query > 0);
 
                 auto stash = batch.vsize - batch.basis - index.size;
@@ -2209,8 +2538,8 @@ namespace netxs::ui
             twod get_coord(twod const& origin) override
             {
                 auto coor = coord;
-                if (coord.y >= y_top
-                 && coord.y <= y_end)
+                if (coor.y >= y_top
+                 && coor.y <= y_end)
                 {
                     coor.y += batch.basis;
 
@@ -2294,7 +2623,6 @@ namespace netxs::ui
             }
 
             void cup (fifo& q) override { bufferbase::cup (q); sync_coord(); }
-            void tab (iota  n) override { bufferbase::tab (n); sync_coord(); }
             void scl (iota  n) override { bufferbase::scl (n); sync_coord(); }
             void cuf (iota  n) override { bufferbase::cuf (n); sync_coord(); }
             void chx (iota  n) override { bufferbase::chx (n); sync_coord(); }
@@ -2307,6 +2635,16 @@ namespace netxs::ui
             void ri  ()        override { bufferbase::ri  ( ); sync_coord(); }
             void cr  ()        override { bufferbase::cr  ( ); sync_coord(); }
 
+            // scroll_buf: Horizontal tab.
+            void tab (iota n) override
+            {
+                bufferbase::tab(n);
+                auto& curln = batch.current();
+                auto  wraps = curln.wrapped();
+                     if (coord.x < 0)                 coord.x = 0;
+                else if (wraps && coord.x >= panel.x) coord.x = panel.x - 1;
+                sync_coord();
+            }
             // scroll_buf: Reset the scrolling region.
             void reset_scroll_region()
             {
@@ -2318,6 +2656,7 @@ namespace netxs::ui
                 index.resize(arena);
                 index_rebuild();
                 bufferbase::set_scroll_region(0, 0);
+                sync_coord();
             }
             // scroll_buf: Set the scrolling region using 1-based top and bottom. Use 0 to reset.
             void set_scroll_region(iota top, iota bottom) override
@@ -2325,8 +2664,12 @@ namespace netxs::ui
                 auto old_sctop = sctop;
                 auto old_scend = scend;
 
-                bufferbase::set_scroll_region(top, bottom);
-                if (old_sctop == sctop && old_scend == scend) return;
+                bufferbase::set_scroll_region(top, bottom); // coord -> dot_00 -- coord is unsynced
+                if (old_sctop == sctop && old_scend == scend)
+                {
+                    sync_coord();
+                    return;
+                }
 
                 // Trim the existing margin content if any. The app that changed the margins is responsible for updating the content.
                 upmin = { panel.x, sctop };
@@ -2666,6 +3009,7 @@ namespace netxs::ui
             {
                 assert(coord.y >= 0 && coord.y < panel.y);
                 assert(test_futures());
+                assert(test_coord());
 
                 if (coord.y < y_top)
                 {
@@ -2695,6 +3039,7 @@ namespace netxs::ui
                         auto tail = dest + count;
                         rich::forward_fill_proc(data, dest, tail);
                     }
+                    // Note: coord can be unsync due to scroll regions.
                 }
                 else if (coord.y <= y_end)
                 {
@@ -2787,14 +3132,13 @@ namespace netxs::ui
                                     }
                                     else assert(curln._size == curln.length());
                                 }
-                                else // Case when arena == 1
+                                else // The case when the current line completely fills the viewport (arena == 1).
                                 {
                                     assert(arena == 1);
                                     mapln.start = batch.caret - coord.x;
                                     mapln.width = coord.x;
                                     batch.recalc(curln);
                                 }
-
                                 assert(test_futures());
                             } // case 1 done.
                             else // case 2 - fusion: cursor overlaps lines below but stays inside the viewport.
@@ -2809,10 +3153,10 @@ namespace netxs::ui
                                 assert(spoil > 0);
                                 auto after = batch.index() + 1;
                                      spoil = batch.remove(after, spoil);
-                                // Update index.
-                                {
-                                    assert(test_index());
 
+                                if (saved < batch.basis) index_rebuild(); // Update index. (processing lines larger than viewport)
+                                else
+                                {
                                     saved -= batch.basis;
                                     auto indit = index.begin() + saved;
                                     auto endit = index.end();
@@ -2841,10 +3185,8 @@ namespace netxs::ui
                                             ++indit;
                                         }
                                     }
-
                                     assert(test_index());
                                 }
-
                                 assert(test_futures());
                             } // case 2 done.
                         }
@@ -2878,13 +3220,13 @@ namespace netxs::ui
                         rich::unlimit_fill_proc(data, size, dest, tail, back);
                     }
                     coord.y = std::min(coord.y + y_end + 1, panel.y - 1);
+                    // Note: coord can be unsync due to scroll regions.
                 }
+                assert(test_coord());
             }
             // scroll_buf: Clear scrollback.
             void clear_all() override
             {
-                saved = dot_00;
-                coord = dot_00;
                 batch.clear();
                 reset_scroll_region();
                 bufferbase::clear_all();
@@ -2984,15 +3326,20 @@ namespace netxs::ui
             // scroll_buf: Remove all lines below (including futures) except the current. "ED2 Erase viewport" keeps empty lines.
             void del_below() override
             {
+                assert(test_futures());
+
                 auto blank = brush.spc();
                 auto clear = [&](twod const& coor)
                 {
-                    auto i = batch.index_by_id(index[coor.y].index);
+                    auto& from = index[coor.y];
+                    auto topid = from.index;
+                    auto start = from.start;
+                    auto i = batch.index_by_id(topid);
                     auto n = batch.size - 1 - i;
                     auto m = index.size - 1 - coor.y;
                     auto p = arena      - 1 - coor.y;
 
-                    if (coor.x == 0 && batch.caret != 0) // Remove the index of the current line if the entire visible line is to be removed.
+                    if (coor.x == 0 && start != 0) // Remove the index of the current line if the entire visible line is going to be removed.
                     {
                         ++m;
                         ++p;
@@ -3007,15 +3354,17 @@ namespace netxs::ui
 
                     add_lines(p);
 
+                    i = batch.index_by_id(topid); // The index may be outdated due to the ring.
                     auto& curln = batch[i];
                     auto& mapln = index[coor.y];
-                    mapln.width = coor.x;
-                    curln.trimto(batch.caret);
+                    mapln.width = std::min(coor.x, mapln.width);
+                    curln.trimto(start + mapln.width);
                     batch.recalc(curln);
                     assert(mapln.start == 0 || curln.wrapped());
 
                     sync_coord();
 
+                    assert(test_futures());
                     dnbox.wipe(blank);
                 };
 
@@ -3037,8 +3386,6 @@ namespace netxs::ui
                     assert(coor.x + coor.y * dnbox.size().x < scend * dnbox.size().x);
                     dnbox.del_below(coor, blank);
                 }
-
-                assert(test_futures());
             }
             // scroll_buf: Clear all lines from the viewport top line to the current line.
             void del_above() override
@@ -3171,6 +3518,7 @@ namespace netxs::ui
                 }
 
                 assert(test_futures());
+                // Note: coord is unsynced -- see set_scroll_region()
             }
             // scroll_buf: Scroll the specified region by n lines. The scrollback can only be used with the whole scrolling region.
             void scroll_region(iota top, iota end, iota n, bool use_scrollback) override
@@ -3222,7 +3570,7 @@ namespace netxs::ui
                         // Insert block.
                         while (count-- > 0) batch.insert(floor, id_t{}, parser::style);
 
-                        batch.reindex(start);
+                        batch.reindex(start); //todo The index may be outdated due to the ring.
                         index_rebuild();
                     }
                 }
@@ -3241,8 +3589,9 @@ namespace netxs::ui
 
                     // Delete block.
                     auto topid = index[top    ].index;
-                    auto mdlid = index[mdl - 1].index + 1;
                     auto endid = index[end - 1].index + 1;
+                    auto mdlid = mdl > 0 ? index[mdl - 1].index + 1 // mdl == 0 or mdl == top when count == max (full arena).
+                                         : topid;
                     auto start = batch.index_by_id(topid);
                     auto range = static_cast<iota>(endid - mdlid);
                     auto floor = batch.index_by_id(endid) - range;
@@ -3251,11 +3600,12 @@ namespace netxs::ui
                     // Insert block.
                     while (count-- > 0) batch.insert(start, id_t{}, parser::style);
 
-                    batch.reindex(start);
+                    batch.reindex(start); //todo The index may be outdated due to the ring.
                     index_rebuild();
                 }
 
                 assert(test_futures());
+                assert(test_coord());
             }
         };
 
@@ -3272,12 +3622,15 @@ namespace netxs::ui
         buffer_ptr target; // term: Current   screen buffer pointer.
         os::ptydev ptycon; // term: PTY device.
         text       cmdarg; // term: Startup command line arguments.
-        twod       initsz; // term: Initial PTY size (pty inited in the parallel thread).
-        hook       oneoff; // term: One-shot token for the first resize and shutdown events.
+        hook       oneoff; // term: One-shot token for start and shutdown events.
         twod       origin; // term: Viewport position.
+        twod       follow; // term: Viewport follows cursor (bool: X, Y).
         bool       active; // term: Terminal lifetime.
         bool       decckm; // term: Cursor keys Application(true)/ANSI(faux) mode.
         bool       bpmode; // term: Bracketed paste mode.
+        bool       onlogs; // term: Avoid logs if no subscriptions.
+        bool       unsync; // term: Viewport is out of sync.
+        bool       invert; // term: Inverted rendering (DECSCNM).
 
         // term: Soft terminal reset (DECSTR).
         void decstr()
@@ -3286,6 +3639,9 @@ namespace netxs::ui
             normal.clear_all();
             altbuf.clear_all();
             target = &normal;
+            invert = faux;
+            decckm = faux;
+            bpmode = faux;
         }
         // term: Set termnail parameters. (DECSET).
         void decset(fifo& queue)
@@ -3297,6 +3653,9 @@ namespace netxs::ui
                 {
                     case 1:    // Cursor keys application mode.
                         decckm = true;
+                        break;
+                    case 5:    // Inverted rendering (DECSCNM).
+                        invert = true;
                         break;
                     case 7:    // Enable auto-wrap.
                         target->style.wrp(wrap::on);
@@ -3349,7 +3708,7 @@ namespace netxs::ui
                         altbuf.clear_all();
                         altbuf.resize_viewport(target->panel); // Reset viewport to the basis.
                         target = &altbuf;
-                        base::resize(altbuf.panel);
+                        follow[axis::Y] = true;
                         break;
                     case 2004: // Set bracketed paste mode.
                         bpmode = true;
@@ -3369,6 +3728,9 @@ namespace netxs::ui
                 {
                     case 1:    // Cursor keys ANSI mode.
                         decckm = faux;
+                        break;
+                    case 5:    // Inverted rendering (DECSCNM).
+                        invert = faux;
                         break;
                     case 7:    // Disable auto-wrap.
                         target->style.wrp(wrap::off);
@@ -3420,7 +3782,7 @@ namespace netxs::ui
                         normal.style = target->style;
                         normal.resize_viewport(target->panel); // Reset viewport to the basis.
                         target = &normal;
-                        base::resize(normal.panel);
+                        follow[axis::Y] = true;
                         break;
                     case 2004: // Disable bracketed paste mode.
                         bpmode = faux;
@@ -3453,22 +3815,15 @@ namespace netxs::ui
                 queue.clear();
             }
         }
-        bool follow_cursor = faux;
         // term: Reset viewport position.
-        void scroll(bool force_basis = true)
+        void scroll(twod& origin)
         {
             auto& console = *target;
-            auto basis = console.get_basis();
-            auto adjust_pads = console.recalc_pads(oversz);
-            auto scroll_size = console.panel;
-            scroll_size.y += basis;
-
-            if (force_basis)
+            if (follow[axis::Y])
             {
-                if (follow_cursor)
+                if (follow[axis::X])
                 {
-                    follow_cursor = faux;
-
+                    follow[axis::X] = faux;
                     auto c = console.get_coord(dot_00);
                     if (origin.x != 0 || c.x != console.panel.x)
                     {
@@ -3476,37 +3831,12 @@ namespace netxs::ui
                         else if (c.x >= -origin.x + console.panel.x) origin.x = -c.x + console.panel.x - 1;
                         else if (c.x <  -origin.x                  ) origin.x = -c.x;
                     }
-
-                    origin.y = -basis;
-                    SIGNAL(tier::release, e2::coor::set, origin);
-                    SIGNAL(tier::release, e2::size::set, scroll_size); // Update scrollbars.
-                    return;
                 }
-
-                //todo check the case: arena == batch.peak - 1
-                origin.y = -basis;
-                SIGNAL(tier::release, e2::coor::set, origin);
-                SIGNAL(tier::release, e2::size::set, scroll_size); // Update scrollbars.
-                return;
+                origin.y = -console.get_basis();
             }
-            else if (console.is_need_to_correct())
+            else
             {
-                auto cur_pos = -origin.y;
-                if (cur_pos >=0 && cur_pos < basis)
-                if (auto slide = -console.get_slide(); origin.y != slide)
-                {
-                    //todo optimize
-                    //todo separate the viewport position from the slide
-                    origin.y = slide;
-                    SIGNAL(tier::release, e2::coor::set, origin);
-                    SIGNAL(tier::release, e2::size::set, scroll_size); // Update scrollbars.
-                    return;
-                }
-            }
-
-            if (scroll_size != base::size() || adjust_pads)
-            {
-                SIGNAL(tier::release, e2::size::set, scroll_size); // Update scrollbars.
+                origin.y = -console.get_slide();
             }
         }
         // term: Proceed terminal input.
@@ -3517,13 +3847,20 @@ namespace netxs::ui
                 netxs::events::try_sync guard;
                 if (guard)
                 {
-                    SIGNAL(tier::general, e2::debug::output, data); // Post for the Logs.
+                    if (onlogs) SIGNAL_GLOBAL(e2::debug::output, data); // Post data for Logs.
 
-                    auto force_basis = target->force_basis();
-                    ansi::parse(data, target);
-                    scroll(force_basis);
+                    if (follow[axis::Y]) ansi::parse(data, target);
+                    else
+                    {
+                        auto last_basis = target->get_basis();
+                        auto last_slide = target->get_slide();
+                        ansi::parse(data, target);
+                        auto next_basis = target->get_basis();
+                        follow[axis::Y] = last_basis <= last_slide && last_slide <= next_basis
+                                       || next_basis <= last_slide && last_slide <= last_basis;
+                    }
 
-                    base::deface();
+                    unsync = true;
                     break;
                 }
                 else std::this_thread::yield();
@@ -3541,10 +3878,11 @@ namespace netxs::ui
             else
             {
                 log("term: submit for destruction on next frame/tick");
-                SUBMIT_T(tier::general, e2::tick, oneoff, t)
+                SUBMIT_GLOBAL(e2::timer::any, oneoff, t)
                 {
+                    auto backup = This();
+                    this->base::riseup<tier::release>(e2::form::quit, backup);
                     oneoff.reset();
-                    this->base::riseup<tier::release>(e2::form::quit, This());
                 };
             }
         }
@@ -3553,7 +3891,7 @@ namespace netxs::ui
         void exec_cmd(commands::ui::commands cmd)
         {
             log("term: tier::preview, ui::commands, ", cmd);
-            scroll();
+            follow[axis::Y] = true;
             switch (cmd)
             {
                 case commands::ui::left:
@@ -3582,30 +3920,32 @@ namespace netxs::ui
         void data_in(view data)
         {
             log("term: app::term::data::in, ", utf::debase(data));
-            scroll();
+            follow[axis::Y] = true;
             ondata(data);
         }
         void data_out(view data)
         {
             log("term: app::term::data::out, ", utf::debase(data));
-            scroll();
+            follow[axis::Y] = true;
             ptycon.write(data);
         }
-        //todo temp
-        bool started = faux;
         void start()
         {
-            if (!started)
+            static auto unique = decltype(e2::timer::tick)::type{}; // Eliminate concurrent start actions.
+
+            if (!ptycon && !oneoff)
             {
-            //todo move it to the another thread (slow init)
-            //initsz = base::size();
-            //std::thread{ [&]( )
-            //{
-                //todo async command queue
-                ptycon.start(cmdarg, initsz, [&](auto utf8_shadow) { ondata(utf8_shadow); },
-                                             [&](auto exit_reason) { onexit(exit_reason); } );
-                started = true;
-            //} }.detach();
+                SUBMIT_GLOBAL(e2::timer::any, oneoff, timer)
+                {
+                    if (unique != timer)
+                    {
+                        auto initsz = target->panel;
+                        ptycon.start(cmdarg, initsz, [&](auto utf8_shadow) { ondata(utf8_shadow); },
+                                                     [&](auto exit_reason) { onexit(exit_reason); } );
+                        unique = timer;
+                        oneoff.reset();
+                    }
+                };
             }
         }
        ~term(){ active = faux; }
@@ -3618,85 +3958,83 @@ namespace netxs::ui
               ftrack{ *this },
               wtrack{ *this },
               ctrack{ *this },
+              follow{  0, 1 },
               active{  true },
               decckm{  faux },
-              bpmode{  faux }
+              bpmode{  faux },
+              onlogs{  faux },
+              unsync{  faux },
+              invert{  faux }
         {
             cmdarg = command_line;
             target = &normal;
             //cursor.style(commands::cursor::def_style); // default=blinking_box
             cursor.style(commands::cursor::blinking_underline);
             cursor.show(); //todo revise (possible bug)
+            form::keybd.accept(true); // Subscribe on keybd offers.
 
-            form::keybd.accept(true); // Subscribe to keybd offers.
-
-            SUBMIT(tier::release, e2::coor::set, new_coor)
+            SUBMIT(tier::general, e2::debug::count::any, count)
             {
-                //todo use tier::preview bcz approx viewport position can be corrected
-                origin = new_coor;
-                origin.y = -target->set_slide(-origin.y);
-                //preview: new_coor = origin;
+                onlogs = count > 0;
             };
+            SIGNAL_GLOBAL(e2::debug::count::set, 0);
             SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
             {
                 this->base::riseup<tier::request>(e2::form::prop::header, wtrack.get(ansi::OSC_TITLE));
+            };
+            SUBMIT(tier::preview, e2::coor::set, new_coor)
+            {
+                //todo correct if round
+                //log("tier::preview, e2::coor::set, new_coor");
+            };
+            SUBMIT(tier::release, e2::coor::set, new_coor)
+            {
+                //todo use tier::preview bcz approx viewport position can be corrected
+                auto& console = *target;
+                origin.x = new_coor.x;
+                origin.y = -console.set_slide(-new_coor.y);
+                follow[axis::Y] = console.get_slide() == console.get_basis();
 
-                //todo deprecated
-                this->SUBMIT_T(tier::release, e2::size::set, oneoff, new_sz)
-                {
-                    if (new_sz.y > 0)
-                    {
-                        oneoff.reset();
+                //preview: new_coor = origin;
 
-                        auto& console = *target;
-                        new_sz = std::max(new_sz, dot_11);
-                        console.resize_viewport(new_sz);
+                //auto& console = *target;
+                //rack scinfo{};
+                //auto& thing = *this;
+                //auto  block = thing.base::area();
+                //scinfo.beyond = thing.oversz;  // Oversize value.
+                //scinfo.region = block.size;
+                //auto fullsize = console.height();
+                //auto count = console.get_size();
+                ////auto avg_height = (double)fullsize / count;
+                //auto curline = netxs::divround(fullsize * console.anchor(), count);
+                //block.coor.y = -curline;//; // Viewport.
+                //scinfo.window.coor = -block.coor; // Viewport.
+                //scinfo.window.size = console.panel;      //
+                //this->SIGNAL(tier::release, e2::form::upon::scroll::bycoor::x, scinfo);
+                //this->SIGNAL(tier::release, e2::form::upon::scroll::bycoor::y, scinfo);
+            };
+            SUBMIT(tier::preview, e2::size::set, new_size)
+            {
+                auto& console = *target;
+                new_size = std::max(new_size, dot_11);
 
-                        this->SUBMIT(tier::preview, e2::size::set, new_sz)
-                        {
-                            auto& console = *target;
-                            new_sz = std::max(new_sz, dot_11);
+                auto scroll_coor = origin;
+                console.resize_viewport(new_size);
+                console.recalc_pads(base::oversz);
 
-                            auto force_basis = console.force_basis();
-                            console.resize_viewport(new_sz);
+                scroll(origin);
+                base::anchor += scroll_coor - origin;
 
-                            if (!force_basis)
-                            {
-                                auto slide = -console.get_slide();
-                                if (origin.y != slide)
-                                {
-                                    origin.y = slide;
-                                    this->SIGNAL(tier::release, e2::coor::set, origin);
-                                }
-                            }
-                            else scroll();
+                ptycon.resize(new_size);
 
-                            initsz = new_sz;
-                            //std::thread{ [&]()
-                            //{
-                                //todo async command queue
-                                if (started) ptycon.resize(initsz);
-                            //} }.detach();
-
-                            new_sz.y = console.get_basis() + new_sz.y;
-                        };
-
-                        //todo move it to the another thread (slow init)
-//                        initsz = new_sz;
-//                        //std::thread{ [&]( )
-//                        //{
-//                            //todo async command queue
-//                            ptycon.start(cmdarg, initsz, [&](auto utf8_shadow) { ondata(utf8_shadow); },
-//                                                         [&](auto exit_reason) { onexit(exit_reason); } );
-                        //} }.detach();
-                    }
-                };
+                new_size.y += console.get_basis();
             };
             SUBMIT(tier::release, hids::events::keybd::any, gear)
             {
-                //todo stop/finalize scrolling animations
-                scroll(true);
-                follow_cursor = true;
+                this->riseup<tier::release>(e2::form::animate::reset, 0); // Reset scroll animation.
+
+                follow[axis::X] = true;
+                follow[axis::Y] = true;
                 #ifndef PROD
                     return;
                 #endif
@@ -3751,6 +4089,30 @@ namespace netxs::ui
             {
                 target->brush.reset(brush);
             };
+            SUBMIT(tier::general, e2::timer::tick, timestamp)
+            {
+                if (!unsync) return;
+                unsync = faux;
+
+                auto& console = *target;
+
+                auto scroll_size = console.panel;
+                scroll_size.y += console.get_basis();
+
+                auto scroll_coor = origin;
+                scroll(scroll_coor);
+
+                auto adjust_pads = console.recalc_pads(base::oversz);
+
+                if (scroll_size != base::size() // Update scrollbars.
+                 || scroll_coor != origin
+                 || adjust_pads) 
+                {
+                    this->SIGNAL(tier::release, e2::size::set, scroll_size);
+                    this->base::moveto(scroll_coor);
+                }
+                base::deface();
+            };
             SUBMIT(tier::release, e2::render::any, parent_canvas)
             {
                 auto& console = *target;
@@ -3765,10 +4127,12 @@ namespace netxs::ui
                 cursor.coor(console.get_coord(base));
 
                 console.output(parent_canvas);
+                if (invert) parent_canvas.fill(cell::shaders::reverse);
+
                 if (oversz.b > 0) // Shade the viewport bottom oversize (futures).
                 {
                     auto bottom_oversize = parent_canvas.full();
-                    bottom_oversize.coor.y += console.get_basis() + console.panel.y - console.scend;//scroll_size.y;
+                    bottom_oversize.coor.y += console.get_basis() + console.panel.y - console.scend;
                     bottom_oversize.size.y  = oversz.b;
                     bottom_oversize = bottom_oversize.clip(parent_canvas.view());
                     parent_canvas.fill(bottom_oversize, cell::shaders::xlight);

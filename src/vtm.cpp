@@ -1,7 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#define MONOTTY_VER "Monotty Desktopio v0.5.9999h"
+#define MONOTTY_VER "Monotty Desktopio v0.5.9999i"
 
 // Enable demo apps and assign Esc key to log off.
 //#define DEMO
@@ -396,7 +396,7 @@ int main(int argc, char* argv[])
                     #ifndef PROD
                         "Shop;Demo;"
                     #else
-                        "HeadlessTerm;Demo;ssh demo@netxs.online"
+                        "HeadlessTerm;Info;ssh info@netxs.online"
                     #endif
                     );
             

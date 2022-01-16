@@ -20,8 +20,8 @@ namespace netxs::ui
          forward,
          reverse,
     };
-    enum slot : id_t { _1, _2, _I };
-    enum axis : id_t { X, Y };
+    enum slot { _1, _2, _I };
+    enum axis { X, Y };
     enum axes
     {
         NONE   = 0,
@@ -55,6 +55,8 @@ namespace netxs::ui
         };
 
     public:
+        using sptr = netxs::sptr<base>;
+
         pro::mouse mouse{ *this }; // form: Mouse controller.
         pro::keybd keybd{ *this }; // form: Keybd controller.
 
@@ -143,7 +145,7 @@ namespace netxs::ui
             return backup;
         }
         // form: UI-control will be detached when the master is detached.
-        auto depend(sptr<base> master_ptr)
+        auto depend(sptr master_ptr)
         {
             auto& master = *master_ptr;
             //todo test leaks
@@ -168,8 +170,8 @@ namespace netxs::ui
             return backup;
         }
         // form: Create and attach a new item using a template and dynamic datasource.
-        template<class PROPERTY, class C, class P>
-        auto attach_element(PROPERTY, sptr<C> data_src_sptr, P item_template)
+        template<class PROPERTY, class SPTR, class P>
+        auto attach_element(PROPERTY, SPTR data_src_sptr, P item_template)
         {
             using prop_t = typename PROPERTY::type;
             auto backup = This();
@@ -217,9 +219,9 @@ namespace netxs::ui
         static constexpr iota MAX_RATIO = 0xFFFF;
         static constexpr iota HALF_RATIO = 0xFFFF >> 1;
 
-        sptr<base> client_1; // fork: 1st object.
-        sptr<base> client_2; // fork: 2nd object.
-        sptr<base> splitter; // fork: Resizing grip.
+        sptr client_1; // fork: 1st object.
+        sptr client_2; // fork: 2nd object.
+        sptr splitter; // fork: Resizing grip.
 
         twod size1;
         twod size2;
@@ -469,22 +471,22 @@ namespace netxs::ui
             }
         }
         template<class T>
-        auto attach(slot SLOT, sptr<T> item)
+        auto attach(slot SLOT, T item_ptr)
         {
             if (SLOT == slot::_1)
             {
                 if (client_1) remove(client_1);
-                client_1 = item;
+                client_1 = item_ptr;
             }
             else if (SLOT == slot::_2)
             {
                 if (client_2) remove(client_2);
-                client_2 = item;
+                client_2 = item_ptr;
             }
             else
             {
                 if (splitter) remove(splitter);
-                splitter = item;
+                splitter = item_ptr;
                 splitter->SUBMIT(tier::preview, e2::form::upon::changed, delta)
                 {
                     split += get_x(delta);
@@ -493,11 +495,11 @@ namespace netxs::ui
                 };
             }
 
-            item->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
-            return item;
+            item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
+            return item_ptr;
         }
         // fork: Remove nested object by it's ptr.
-        void remove(sptr<base> item_ptr)
+        void remove(sptr item_ptr)
         {
             if (client_1 == item_ptr ? ((void)client_1.reset(), true) :
                 client_2 == item_ptr ? ((void)client_2.reset(), true) :
@@ -513,7 +515,8 @@ namespace netxs::ui
     class list
         : public form<list>
     {
-        using book = std::list<std::pair<sptr<base>, twod>>;
+        using book = std::list<std::pair<sptr, twod>>;
+
         book subset;
         bool updown; // list: List orientation, true: vertical(default), faux: horizontal.
         sort lineup; // list: Attachment order.
@@ -614,52 +617,51 @@ namespace netxs::ui
             };
         }
         // list: Remove the last nested object. Return the object refrence.
-        auto pop_back() -> sptr<base>
+        auto pop_back()
         {
             if (subset.size())
             {
-                auto item = std::prev(subset.end());
-                auto item_ptr = item->first;
+                auto iter = std::prev(subset.end());
+                auto item_ptr = iter->first;
                 auto backup = This();
-                subset.erase(item);
+                subset.erase(iter);
                 item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, backup);
                 return item_ptr;
             }
-            return {};
+            return sptr{};
         }
         // list: Attach specified item.
         template<class T>
-        auto attach(sptr<T> item)
+        auto attach(T item_ptr)
         {
-            if (lineup == sort::forward) subset.push_back ({ item, dot_00 });
-            else                         subset.push_front({ item, dot_00 });
-            item->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
-            return item;
+            if (lineup == sort::forward) subset.push_back ({ item_ptr, dot_00 });
+            else                         subset.push_front({ item_ptr, dot_00 });
+            item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
+            return item_ptr;
         }
         // list: Remove nested object.
-        void remove(sptr<base> item_ptr)
+        void remove(sptr item_ptr)
         {
             auto head = subset.begin();
             auto tail = subset.end();
-            auto item = std::find_if(head, tail, [&](auto& c){ return c.first == item_ptr; });
-            if (item != tail)
+            auto iter = std::find_if(head, tail, [&](auto& c){ return c.first == item_ptr; });
+            if (iter != tail)
             {
                 auto backup = This();
-                subset.erase(item);
+                subset.erase(iter);
                 item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, backup);
             }
         }
         // list: Update nested object.
-        template<class T, class S>
-        void update(T old_item_ptr, S new_item_ptr)
+        void update(sptr old_item_ptr, sptr new_item_ptr)
         {
             auto head = subset.begin();
             auto tail = subset.end();
-            auto item = std::find_if(head, tail, [&](auto& c){ return c.first == old_item_ptr; });
-            if (item != tail)
+            auto iter = std::find_if(head, tail, [&](auto& c){ return c.first == old_item_ptr; });
+            if (iter != tail)
             {
                 auto backup = This();
-                auto pos = subset.erase(item);
+                auto pos = subset.erase(iter);
                 old_item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, backup);
                 subset.insert(pos, std::pair{ new_item_ptr, dot_00 });
                 new_item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::attached, backup);
@@ -671,7 +673,7 @@ namespace netxs::ui
     class cake
         : public form<cake>
     {
-        std::list<sptr<base>> subset;
+        std::list<sptr> subset;
 
     public:
         ~cake()
@@ -713,37 +715,37 @@ namespace netxs::ui
             };
         }
         // cake: Remove the last nested object. Return the object refrence.
-        auto pop_back() -> sptr<base>
+        auto pop_back()
         {
             if (subset.size())
             {
-                auto item = std::prev(subset.end());
-                auto item_ptr = *item;
+                auto iter = std::prev(subset.end());
+                auto item_ptr = *iter;
                 auto backup = This();
-                subset.erase(item);
+                subset.erase(iter);
                 item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, backup);
                 return item_ptr;
             }
-            return {};
+            return sptr{};
         }
         // cake: Create a new item of the specified subtype and attach it.
         template<class T>
-        auto attach(sptr<T> item)
+        auto attach(T item_ptr)
         {
-            subset.push_back(item);
-            item->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
-            return item;
+            subset.push_back(item_ptr);
+            item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
+            return item_ptr;
         }
         // cake: Remove nested object.
-        void remove(sptr<base> item_ptr)
+        void remove(sptr item_ptr)
         {
             auto head = subset.begin();
             auto tail = subset.end();
-            auto item = std::find_if(head, tail, [&](auto& c){ return c == item_ptr; });
-            if (item != tail)
+            auto iter = std::find_if(head, tail, [&](auto& c){ return c == item_ptr; });
+            if (iter != tail)
             {
                 auto backup = This();
-                subset.erase(item);
+                subset.erase(iter);
                 item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, backup);
             }
         }
@@ -755,10 +757,10 @@ namespace netxs::ui
     {
         struct type
         {
-            sptr<base> ptr;
-            snap       hz;
-            snap       vt;
-            bool       on;
+            sptr ptr;
+            snap  hz;
+            snap  vt;
+            bool  on;
         };
         std::list<type> subset;
 
@@ -822,59 +824,59 @@ namespace netxs::ui
             };
         }
         // park: Remove the last nested object. Return the object refrence.
-        auto pop_back() -> sptr<base>
+        auto pop_back()
         {
             if (subset.size())
             {
-                auto item = std::prev(subset.end());
-                auto item_ptr = item->ptr;
+                auto iter = std::prev(subset.end());
+                auto item_ptr = iter->ptr;
                 auto backup = This();
-                subset.erase(item);
+                subset.erase(iter);
                 item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, backup);
                 return item_ptr;
             }
-            return {};
+            return sptr{};
         }
         // park: Configure specified object.
-        void config(sptr<base> item_ptr, snap new_hz, snap new_vt)
+        void config(sptr item_ptr, snap new_hz, snap new_vt)
         {
             if (!item_ptr) return;
             auto head = subset.begin();
             auto tail = subset.end();
-            auto item = std::find_if(head, tail, [&](auto& c){ return c.ptr == item_ptr; });
-            if (item != tail)
+            auto iter = std::find_if(head, tail, [&](auto& c){ return c.ptr == item_ptr; });
+            if (iter != tail)
             {
-                item->hz = new_hz;
-                item->vt = new_vt;
+                iter->hz = new_hz;
+                iter->vt = new_vt;
             }
         }
         // park: Make specified object visible or not.
-        void visible(sptr<base> item_ptr, bool is_visible)
+        void visible(sptr item_ptr, bool is_visible)
         {
             if (!item_ptr) return;
             auto head = subset.begin();
             auto tail = subset.end();
-            auto item = std::find_if(head, tail, [&](auto& c){ return c.ptr == item_ptr; });
-            if (item != tail) item->on = is_visible;
+            auto iter = std::find_if(head, tail, [&](auto& c){ return c.ptr == item_ptr; });
+            if (iter != tail) iter->on = is_visible;
         }
         // park: Create a new item of the specified subtype and attach it.
         template<class T>
-        auto attach(snap hz, snap vt, sptr<T> item)
+        auto attach(snap hz, snap vt, T item_ptr)
         {
-            subset.push_back({ item, hz, vt, true });
-            item->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
-            return item;
+            subset.push_back({ item_ptr, hz, vt, true });
+            item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
+            return item_ptr;
         }
         // park: Remove nested object.
-        void remove(sptr<base> item_ptr)
+        void remove(sptr item_ptr)
         {
             auto head = subset.begin();
             auto tail = subset.end();
-            auto item = std::find_if(head, tail, [&](auto& c){ return c.ptr == item_ptr; });
-            if (item != tail)
+            auto iter = std::find_if(head, tail, [&](auto& c){ return c.ptr == item_ptr; });
+            if (iter != tail)
             {
                 auto backup = This();
-                subset.erase(item);
+                subset.erase(iter);
                 item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, backup);
             }
         }
@@ -884,7 +886,7 @@ namespace netxs::ui
     class veer
         : public form<veer>
     {
-        std::list<sptr<base>> subset;
+        std::list<sptr> subset;
 
     public:
         ~veer()
@@ -923,10 +925,10 @@ namespace netxs::ui
             };
         }
         // veer: Return the last object refrence or empty sptr.
-        auto back() -> sptr<base>
+        auto back()
         {
             return subset.size() ? subset.back()
-                                 : sptr<base>{};
+                                 : sptr{};
         }
         // veer: Return nested objects count.
         auto count()
@@ -939,37 +941,37 @@ namespace netxs::ui
             return subset.empty();
         }
         // veer: Remove the last object. Return the object refrence.
-        auto pop_back() -> sptr<base>
+        auto pop_back()
         {
             if (subset.size())
             {
-                auto item = std::prev(subset.end());
-                auto item_ptr = *item;
+                auto iter = std::prev(subset.end());
+                auto item_ptr = *iter;
                 auto backup = This();
-                subset.erase(item);
+                subset.erase(iter);
                 item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, backup);
                 return item_ptr;
             }
-            return {};
+            return sptr{};
         }
         // veer: Create a new item of the specified subtype and attach it.
         template<class T>
-        auto attach(sptr<T> item)
+        auto attach(T item_ptr)
         {
-            subset.push_back(item);
-            item->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
-            return item;
+            subset.push_back(item_ptr);
+            item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
+            return item_ptr;
         }
         // veer: Remove nested object.
-        void remove(sptr<base> item_ptr)
+        void remove(sptr item_ptr)
         {
             auto head = subset.begin();
             auto tail = subset.end();
-            auto item = std::find_if(head, tail, [&](auto& c){ return c == item_ptr; });
-            if (item != tail)
+            auto iter = std::find_if(head, tail, [&](auto& c){ return c == item_ptr; });
+            if (iter != tail)
             {
                 auto backup = This();
-                subset.erase(item);
+                subset.erase(iter);
                 item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, backup);
             }
         }
@@ -1263,49 +1265,39 @@ namespace netxs::ui
     {
         pro::robot robot{*this }; // rail: Animation controller.
 
-        template<auto N> static constexpr
-        //auto events = e2::form::upon::scroll::_<N>; //todo clang 11.0.1 doesn't support this.
-        auto events() { return e2::form::upon::scroll::_<N>; }
+        using upon = e2::form::upon;
 
-        bool strict[2] = { true, true }; // rail: Don't allow overscroll.
-        bool manual[2] = { true, true }; // rail: Manaul scrolling (no auto align).
-        bool locked{}; // rail: Client is under resizing.
-        subs tokens{}; // rail: Subscriptions on client moveto and resize.
-        subs fasten{}; // rail: Subscriptions on masters to follow they state.
-        rack scinfo{}; // rail: Scroll info.
-        axes permit{}; // rail: Allowed axes to scroll.
-        axes siezed{}; // rail: Allowed axes to capture.
+        twod strict; // rail: Don't allow overscroll.
+        twod manual; // rail: Manual scrolling (no auto align).
+        twod permit; // rail: Allowed axes to scroll.
+        twod siezed; // rail: Allowed axes to capture.
+        twod oversc; // rail: Allow overscroll with auto correct.
+        subs tokens; // rail: Subscriptions on client moveto and resize.
+        subs fasten; // rail: Subscriptions on masters to follow they state.
+        rack scinfo; // rail: Scroll info.
+        sptr client; // rail: Client instance.
 
         iota speed{ SPD  }; // rail: Text auto-scroll initial speed component ΔR.
         iota pulse{ PLS  }; // rail: Text auto-scroll initial speed component ΔT.
         iota cycle{ CCL  }; // rail: Text auto-scroll duration in ms.
         bool steer{ faux }; // rail: Text scroll vertical direction.
 
-        sptr<base> client; // rail: Client instance.
+        static constexpr auto xy(axes AXES)
+        {
+            return twod{ !!(AXES & axes::X_ONLY), !!(AXES & axes::Y_ONLY) };
+        }
 
     public:
-        bool overscroll[2] = { true, true }; // rail: Allow overscroll with auto correct.
-        auto config(bool allow_x_overscroll = true, bool allow_y_overscroll = true)
-        {
-            overscroll[axis::X] = allow_x_overscroll;
-            overscroll[axis::Y] = allow_y_overscroll;
-            return This();
-        }
         template<axis AXIS>
-        auto moveby(iota coor)
+        auto follow(sptr master = {})
         {
-            AXIS == axis::X ? scroll<X>(coor)
-                            : scroll<Y>(coor);
-            return This();
-        }
-        template<axis AXIS>
-        auto follow(sptr<base> master = {})
-        {
-            if (master) master->SUBMIT_T(tier::release, events<AXIS>(), fasten, master_scinfo)
+            if (master)
             {
-                AXIS == axis::X ? scroll<X>(scinfo.window.coor.x - master_scinfo.window.coor.x)
-                                : scroll<Y>(scinfo.window.coor.y - master_scinfo.window.coor.y);
-            };
+                master->SUBMIT_T(tier::release, upon::scroll::bycoor::any, fasten, master_scinfo)
+                {
+                    this->SIGNAL(tier::preview, e2::form::upon::scroll::bycoor::_<AXIS>, master_scinfo);
+                };
+            }
             else fasten.clear();
 
             return This();
@@ -1315,35 +1307,32 @@ namespace netxs::ui
             if (client)
             {
                 auto empty = decltype(e2::form::upon::vtree::detached)::type{};
-                auto item = client;
+                auto item_ptr = client;
                 client.reset();
-                item->SIGNAL(tier::release, e2::form::upon::vtree::detached, empty);
+                item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, empty);
             }
         }
-        rail(axes allow_to_scroll = axes::ALL, axes allow_to_capture = axes::ALL)
-            : permit{ allow_to_scroll  },
-              siezed{ allow_to_capture }
+        rail(axes allow_to_scroll = axes::ALL, axes allow_to_capture = axes::ALL, axes allow_overscroll = axes::ALL)
+            : permit{ xy(allow_to_scroll)  },
+              siezed{ xy(allow_to_capture) },
+              oversc{ xy(allow_overscroll) },
+              strict{ xy(axes::ALL) },
+              manual{ xy(axes::ALL) }
         {
-            // Receive scroll parameters from external source.
-            SUBMIT(tier::preview, e2::form::upon::scroll::any, info)
+            SUBMIT(tier::preview, e2::form::upon::scroll::any, info) // Receive scroll parameters from external sources.
             {
                 if (client)
                 {
-                    auto& item = *client;
                     switch (this->bell::protos<tier::preview>())
                     {
-                        case events<X>().id:
-                            scroll<X>(scinfo.window.coor.x - info.window.coor.x);
-                            break;
-                        case events<Y>().id:
-                            scroll<Y>(scinfo.window.coor.y - info.window.coor.y);
-                            break;
-                        case events<X + 2>().id:
-                            cancel<X, true>();
-                            break;
-                        case events<Y + 2>().id:
-                            cancel<Y, true>();
-                            break;
+                        case upon::scroll::bycoor::x.id: move<X>(scinfo.window.coor.x - info.window.coor.x); break;
+                        case upon::scroll::bycoor::y.id: move<Y>(scinfo.window.coor.y - info.window.coor.y); break;
+                        case upon::scroll::bystep::x.id: move<X>(info.vector); break;
+                        case upon::scroll::bystep::y.id: move<Y>(info.vector); break;
+                        case upon::scroll::bypage::x.id: move<X>(info.vector * scinfo.window.size.x); break;
+                        case upon::scroll::bypage::y.id: move<Y>(info.vector * scinfo.window.size.y); break;
+                        case upon::scroll::cancel::x.id: cancel<X, true>(); break;
+                        case upon::scroll::cancel::y.id: cancel<Y, true>(); break;
                     }
                 }
             };
@@ -1355,24 +1344,17 @@ namespace netxs::ui
             SUBMIT(tier::release, e2::size::set, new_size)
             {
                 if (client)
-                {
-                    locked = true; // See the details in subscription at the attach().
-                    auto delta = client->base::resize(new_size, base::anchor);
-                    locked = faux;
-                    scroll<X>(delta.x);
-                    scroll<Y>(delta.y);
-                }
+                    client->base::resize(new_size, base::anchor);
             };
 
             using bttn = hids::events::mouse::button;
             SUBMIT(tier::release, hids::events::mouse::scroll::any, gear)
             {
-                auto dir = gear.whldt > 0;
-                if (permit == axes::X_ONLY || gear.meta(hids::ANYCTRL |
-                                                        hids::SHIFT ))
-                     wheels<X>(dir);
-                else wheels<Y>(dir);
-
+                auto dt = gear.whldt > 0;
+                auto hz = permit == xy(axes::X_ONLY)
+                       || permit == xy(axes::ALL) && gear.meta(hids::ANYCTRL | hids::SHIFT );
+                if (hz) wheels<X>(dt);
+                else    wheels<Y>(dt);
                 gear.dismiss();
             };
             SUBMIT(tier::release, bttn::drag::start::right, gear)
@@ -1382,15 +1364,13 @@ namespace netxs::ui
                 auto dy = ds.y * 2;
                 auto vt = std::abs(dx) < std::abs(dy);
 
-                if (((siezed & axes::X_ONLY) && !vt) ||
-                    ((siezed & axes::Y_ONLY) &&  vt))
+                if ((siezed[X] && !vt) ||
+                    (siezed[Y] &&  vt))
                 {
                     if (gear.capture(bell::id))
                     {
-                        manual[X] = true;
-                        manual[Y] = true;
-                        strict[X] = !overscroll[X];
-                        strict[Y] = !overscroll[Y];
+                        manual = xy(axes::ALL);
+                        strict = xy(axes::ALL) - oversc; // !oversc = dot_11 - oversc
                         gear.dismiss();
                     }
                 }
@@ -1400,8 +1380,8 @@ namespace netxs::ui
                 if (gear.captured(bell::id))
                 {
                     auto delta = gear.mouse::delta.get();
-                    if (permit & axes::X_ONLY) scroll<X>(delta.x);
-                    if (permit & axes::Y_ONLY) scroll<Y>(delta.y);
+                    auto value = permit * delta;
+                    if (value) movexy(value);
                     gear.dismiss();
                 }
             };
@@ -1429,18 +1409,14 @@ namespace netxs::ui
                     auto  cycle = datetime::round<iota>(v0.dT);
                     auto  limit = datetime::round<iota>(STOPPING_TIME);
 
-                    if (permit & axes::X_ONLY) actify<X>(quadratic{ speed.x, cycle, limit, start });
-                    if (permit & axes::Y_ONLY) actify<Y>(quadratic{ speed.y, cycle, limit, start });
+                    if (permit[X]) actify<X>(quadratic{ speed.x, cycle, limit, start });
+                    if (permit[Y]) actify<Y>(quadratic{ speed.y, cycle, limit, start });
+                    //todo if (permit == xy(axes::ALL)) actify(quadratic{ speed, cycle, limit, start });
 
                     base::deface();
                     gear.release();
                     gear.dismiss();
                 }
-            };
-            SUBMIT(tier::release, bttn::down::any, gear)
-            {
-                if (manual[X]) robot.pacify(X);
-                if (manual[Y]) robot.pacify(Y);
             };
             SUBMIT(tier::release, bttn::click::right, gear)
             {
@@ -1448,31 +1424,36 @@ namespace netxs::ui
                 {
                     if (manual[X]) cancel<X, true>();
                     if (manual[Y]) cancel<Y, true>();
-                    //gear.dismiss();
                 }
+            };
+            SUBMIT(tier::release, bttn::down::any, gear)
+            {
+                cutoff();
+            };
+            SUBMIT(tier::release, e2::form::animate::reset, id)
+            {
+                cutoff();
             };
             SUBMIT(tier::release, e2::form::animate::stop, id)
             {
                 switch (id)
                 {
-                    case X:
-                        manual[X] = true;
-                        scroll<X>();
-                        break;
-                    case Y:
-                        manual[Y] = true;
-                        scroll<Y>();
-                        break;
-                    default:
-                        break;
+                    case Y: manual[Y] = true; /*scroll<Y>();*/ break;
+                    case X: manual[X] = true; /*scroll<X>();*/ break;
+                    default: break;
                 }
-                deface();
+                base::deface();
             };
             SUBMIT(tier::release, e2::render::any, parent_canvas)
             {
                 if (client)
                     parent_canvas.render<faux>(client, base::coor());
             };
+        }
+        void cutoff()
+        {
+            if (manual[X]) robot.pacify(X);
+            if (manual[Y]) robot.pacify(Y);
         }
         void giveup(hids& gear)
         {
@@ -1497,35 +1478,45 @@ namespace netxs::ui
                 steer = dir;
                 speed = SPD;
                 cycle = CCL;
+                //todo at least one line should be
+                //move<AXIS>(dir ? 1 : -1);
             }
-            scroll<AXIS>(dir ? 1 : -1);
             keepon<AXIS>(quadratic<iota>(dir ? speed : -speed, pulse, cycle, now<iota>()));
         }
         template<axis AXIS, class FX>
         void keepon(FX&& func)
         {
             strict[AXIS] = true;
-            robot.actify(AXIS, func, [&](auto& p)
+            robot.actify(AXIS, std::forward<FX>(func), [&](auto& p)
                 {
-                    scroll<AXIS>(p);
+                    move<AXIS>(p);
                 });
+        }
+        template<axis AXIS>
+        auto inside()
+        {
+            if (client && manual[AXIS]) // Check overscroll if no auto correction.
+            {
+                auto& item = *client;
+                auto frame = base::size()[AXIS];
+                auto coord = item.base::coor()[AXIS] - item.oversz.topleft()[AXIS]; // coor - scroll origin basis.
+                auto block = item.base::size()[AXIS] + item.oversz.summ()[AXIS];
+                auto bound = std::min(frame - block, 0);
+                auto clamp = std::clamp(coord, bound, 0);
+                return clamp == coord;
+            }
+            return true;
         }
         template<axis AXIS, class FX>
         void actify(FX&& func)
         {
-            auto inside = scroll<AXIS>();
-            if  (inside)  keepon<AXIS>(func);
-            else          lineup<AXIS>();
+            if (inside<AXIS>()) keepon<AXIS>(std::forward<FX>(func));
+            else                lineup<AXIS>();
         }
         template<axis AXIS, bool FORCED = faux>
         void cancel()
         {
-            if constexpr (FORCED) lineup<AXIS>();
-            else
-            {
-                auto inside = scroll<AXIS>();
-                if (!inside)  lineup<AXIS>();
-            }
+            if (FORCED || !inside<AXIS>()) lineup<AXIS>();
         }
         template<axis AXIS>
         void lineup()
@@ -1533,93 +1524,95 @@ namespace netxs::ui
             if (client)
             {
                 manual[AXIS] = faux;
-                auto& block = client->base::area();
-                auto  level = AXIS == X;
-                auto  coord = level ? block.coor.x
-                                    : block.coor.y;
-                auto  bound = level ? std::min(base::size().x - block.size.x, 0)
-                                    : std::min(base::size().y - block.size.y, 0);
-                auto  newxy = std::clamp(coord, bound, 0);
-                auto  route = newxy - coord;
-                iota  tempo = SWITCHING_TIME;
-                auto  fader = constlinearAtoB<iota>(route, tempo, now<iota>());
+                auto block = client->base::area();
+                auto coord = block.coor[AXIS];
+                auto bound = std::min(base::size()[AXIS] - block.size[AXIS], 0);
+                auto newxy = std::clamp(coord, bound, 0);
+                auto route = newxy - coord;
+                iota tempo = SWITCHING_TIME;
+                auto fader = constlinearAtoB<iota>(route, tempo, now<iota>());
                 keepon<AXIS>(fader);
             }
         }
-        template<axis AXIS>
-        bool scroll(iota delta = {})
+        auto scroll(twod& coord)
         {
-            bool inside = true;
-
+            twod delta;
             if (client)
             {
-                auto& thing = *client;
-                auto  block = thing.base::area();
-                auto  basis = thing.oversz.topleft();
-                block.coor -= basis; // Scroll origin basis.
-                block.size += thing.oversz.summ();
-                auto& frame = base::size();
-                auto  level = AXIS == X;
-                auto  bound = level ? std::min(frame.x - block.size.x, 0)
-                                    : std::min(frame.y - block.size.y, 0);
-                auto& coord = level ? block.coor.x
-                                    : block.coor.y;
-                coord += delta;
-
-                if (manual[AXIS]) // Check overscroll if no auto correction.
+                auto& item = *client;
+                auto frame = base::size();
+                auto block = item.base::size() + item.oversz.summ();
+                auto basis = item.oversz.topleft();
+                coord -= basis; // Scroll origin basis.
+                auto bound = std::min(frame - block, dot_00);
+                auto clamp = std::clamp(coord, bound, dot_00);
+                for (auto xy : { axis::X, axis::Y }) // Check overscroll if no auto correction.
                 {
-                    auto clamp = std::clamp(coord, bound, 0);
-                    inside = clamp == coord;
-                    if (!inside && strict[AXIS]) // If outside the scroll limits
-                    {                            // and overscroll is not allowed.
-                            coord = clamp;
+                    if (coord[xy] != clamp[xy] && manual[xy] && strict[xy]) // Clamp if it is outside the scroll limits and no overscroll.
+                    {
+                        delta[xy] = clamp[xy] - coord[xy];
+                        coord[xy] = clamp[xy];
                     }
                 }
-
-                scinfo.beyond = thing.oversz;  // Oversize value.
-                scinfo.region = block.size;
-                scinfo.window.coor =-block.coor; // Viewport.
-                scinfo.window.size = frame;      //
-                SIGNAL(tier::release, events<AXIS>(), scinfo);
-
-                block.coor += basis; // Client origin basis.
-                locked = true;
-                thing.base::moveto(block.coor);
-                locked = faux;
-                deface();
+                scinfo.beyond = item.oversz;
+                scinfo.region = block;
+                scinfo.window.coor =-coord; // Viewport.
+                scinfo.window.size = frame; //
+                SIGNAL(tier::release, upon::scroll::bycoor::any, scinfo);
+                coord += basis; // Client origin basis.
+                base::deface(); // Main menu redraw trigger.
             }
-
-            return inside;
+            return delta;
+        }
+        void movexy(twod const& delta)
+        {
+            if (client)
+                client->base::moveby(delta);
+        }
+        template<axis AXIS>
+        void move(iota p)
+        {
+            if (p)
+            {
+                if constexpr (AXIS == X) movexy({ p, 0 });
+                if constexpr (AXIS == Y) movexy({ 0, p });
+            }
         }
         // rail: Attach specified item.
         template<class T>
-        auto attach(sptr<T> item)
+        auto attach(T item_ptr)
         {
             if (client) remove(client);
-            client = item;
+            client = item_ptr;
             tokens.clear();
-            item->SUBMIT_T(tier::release, e2::size::set, tokens.extra(), size)
+            item_ptr->SUBMIT_T(tier::preview, e2::coor::set, tokens.extra(), coor)
             {
-                if (!locked)
+                scroll(coor);
+            };
+            item_ptr->SUBMIT_T(tier::release, e2::size::set, tokens.extra(), size)
+            {
+                if (client)
                 {
-                    scroll<X>();
-                    scroll<Y>();
+                    auto coor = client->base::coor();
+                    if (auto delta = scroll(coor))
+                    {
+                        //todo sync
+                    }
                 }
             };
-            item->SUBMIT_T(tier::release, e2::form::upon::vtree::detached, tokens.extra(), p)
+            item_ptr->SUBMIT_T(tier::release, e2::form::upon::vtree::detached, tokens.extra(), p)
             {
                 scinfo.region = {};
                 scinfo.window.coor = {};
-                this->SIGNAL(tier::release, events<axis::X>(), scinfo);
-                this->SIGNAL(tier::release, events<axis::Y>(), scinfo);
-                tokens.clear();
+                this->SIGNAL(tier::release, upon::scroll::bycoor::any, scinfo); // Reset dependent scrollbars.
                 fasten.clear();
+                tokens.clear();
             };
-            item->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
-            return item;
+            item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
+            return item_ptr;
         }
-        //template<class T>
-        void remove(sptr<base> item_ptr)
+        // rail: Detach specified item.
+        void remove(sptr item_ptr)
         {
             if (client == item_ptr)
             {
@@ -1629,13 +1622,10 @@ namespace netxs::ui
             }
         }
         // rail: Update nested object.
-        template<class T, class S>
-        void update(T old_item_ptr, S new_item_ptr)
+        void update(sptr old_item_ptr, sptr new_item_ptr)
         {
-            auto backup = This();
-            client = new_item_ptr;
-            old_item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, backup);
-            new_item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::attached, backup);
+            if (client != old_item_ptr) log(" rail: WARNING! Wrong DOM structure. rail.id=", id);
+            attach(new_item_ptr);
         }
     };
 
@@ -1647,9 +1637,10 @@ namespace netxs::ui
         pro::timer timer{*this }; // grip: Minimize by timeout.
         pro::limit limit{*this }; // grip: Size limits.
 
+        using sptr = netxs::sptr<base>; //todo gcc (ubuntu 20.04) doesn't get it (see form::sptr)
         using wptr = netxs::wptr<base>;
-        using sptr = netxs::sptr<base>;
         using form = ui::form<grip<AXIS>>;
+        using upon = e2::form::upon;
 
         enum activity
         {
@@ -1659,21 +1650,13 @@ namespace netxs::ui
             pager_next  = 11,
         };
 
-        template<auto N> static constexpr
-        //auto events = e2::form::upon::scroll::_<N>; //todo clang 11.0.1 doesn't support this.
-        auto events() { return e2::form::upon::scroll::_<N>; }
-
-        static inline auto  xy(twod const& p) { return AXIS == axis::X ? p.x : p.y; }
-        static inline auto  yx(twod const& p) { return AXIS == axis::Y ? p.x : p.y; }
-        static inline auto& xy(twod&       p) { return AXIS == axis::X ? p.x : p.y; }
-        static inline auto& yx(twod&       p) { return AXIS == axis::Y ? p.x : p.y; }
-
         struct math
         {
-            rack  master_inf = {};                         // math: Master scroll info.
-            iota& master_len = xy(master_inf.region);      // math: Master len.
-            iota& master_pos = xy(master_inf.window.coor); // math: Master viewport pos.
-            iota& master_box = xy(master_inf.window.size); // math: Master viewport len.
+            rack  master_inf = {};                           // math: Master scroll info.
+            iota& master_len = master_inf.region     [AXIS]; // math: Master len.
+            iota& master_pos = master_inf.window.coor[AXIS]; // math: Master viewport pos.
+            iota& master_box = master_inf.window.size[AXIS]; // math: Master viewport len.
+            iota& master_dir = master_inf.vector;            // math: Master scroll direction.
             iota  scroll_len = 0; // math: Scrollbar len.
             iota  scroll_pos = 0; // math: Scrollbar grip pos.
             iota  scroll_box = 0; // math: Scrollbar grip len.
@@ -1724,7 +1707,7 @@ namespace netxs::ui
             }
             void resize(twod const& new_size)
             {
-                scroll_len = xy(new_size);
+                scroll_len = new_size[AXIS];
                 m_to_s();
             }
             void stepby(iota delta)
@@ -1734,8 +1717,8 @@ namespace netxs::ui
             }
             void commit(rect& handle)
             {
-                xy(handle.coor)+= scroll_pos;
-                xy(handle.size) = scroll_box;
+                handle.coor[AXIS]+= scroll_pos;
+                handle.size[AXIS] = scroll_box;
             }
             auto inside(iota coor)
             {
@@ -1743,22 +1726,16 @@ namespace netxs::ui
                 if (coor >= scroll_pos)              return 0; // Inside the grip.
                                                      return-1; // Above the grip.
             }
-            void pager(iota dir)
-            {
-                master_pos += master_box * dir;
-                m_to_s();
-            }
             auto follow()
             {
                 auto dir = scroll_len > 2 ? inside(cursor_pos)
                                           : cursor_pos > 0 ? 1 // Don't stop to follow over
                                                            :-1;//    box on small scrollbar.
-                if (dir)
-                {
-                    pager(dir);
-                    return true;
-                }
-                return faux;
+                return dir;
+            }
+            void setdir(iota dir)
+            {
+                master_dir = -dir;
             }
         };
 
@@ -1772,22 +1749,19 @@ namespace netxs::ui
 
         bool on_pager = faux;
 
-        template<class EVENT = decltype(events<AXIS>())>
-        void send(EVENT)
+        template<class EVENT>
+        void send()
         {
             if (auto master = this->boss.lock())
             {
-                master->SIGNAL(tier::preview, EVENT{}, calc.master_inf);
+                master->SIGNAL(tier::preview, EVENT::template _<AXIS>, calc.master_inf);
             }
-        }
-        void gohome()
-        {
-            send(events<AXIS + 2>());
         }
         void config(iota width)
         {
             thin = width;
-            auto lims = twod{ xy({ -1,thin }), yx({ -1,thin }) };
+            auto lims = AXIS == axis::X ? twod{ -1,width }
+                                        : twod{ width,-1 };
             limit.set(lims, lims);
         }
         void giveup(hids& gear)
@@ -1797,10 +1771,9 @@ namespace netxs::ui
             {
                 if (gear.captured(bell::id))
                 {
-                    //if (this->form<grip<AXIS>>::template protos<tier::release>(hids::events::mouse::button::drag::cancel::right))
                     if (this->form::template protos<tier::release>(hids::events::mouse::button::drag::cancel::right))
                     {
-                        gohome();
+                        send<upon::scroll::cancel>();
                     }
                     base::deface();
                     gear.release();
@@ -1808,14 +1781,21 @@ namespace netxs::ui
                 }
             }
         }
+        void pager(iota dir)
+        {
+            calc.setdir(dir);
+            send<upon::scroll::bypage>();
+        }
         auto pager_repeat()
         {
-            if (on_pager && calc.follow())
+            if (on_pager)
             {
-                send(events<AXIS>());
+                auto dir = calc.follow();
+                pager(dir);
             }
             return on_pager;
         }
+
     public:
         grip(sptr boss, iota thickness = 1, iota multiplier = 2)
             : boss{ boss       },
@@ -1826,7 +1806,7 @@ namespace netxs::ui
         {
             config(thin);
 
-            boss->SUBMIT_T(tier::release, events<AXIS>(), memo, scinfo)
+            boss->SUBMIT_T(tier::release, upon::scroll::bycoor::any, memo, scinfo)
             {
                 calc.update(scinfo);
                 base::deface();
@@ -1843,14 +1823,13 @@ namespace netxs::ui
                 if (gear.whldt)
                 {
                     auto dir = gear.whldt < 0 ? 1 : -1;
-                    calc.pager(dir);
-                    send(events<AXIS>());
+                    pager(dir);
                     gear.dismiss();
                 }
             };
             SUBMIT(tier::release, hids::events::mouse::move, gear)
             {
-                calc.cursor_pos = xy(gear.mouse::coord);
+                calc.cursor_pos = gear.mouse::coord[AXIS];
             };
             SUBMIT(tier::release, hids::events::mouse::button::dblclick::left, gear)
             {
@@ -1861,7 +1840,7 @@ namespace netxs::ui
                 if (!on_pager)
                 if (this->form::template protos<tier::release>(bttn::down::left) ||
                     this->form::template protos<tier::release>(bttn::down::right))
-                if (auto dir = calc.inside(xy(gear.mouse::coord)))
+                if (auto dir = calc.inside(gear.mouse::coord[AXIS]))
                 {
                     if (gear.capture(bell::id))
                     {
@@ -1902,7 +1881,7 @@ namespace netxs::ui
             {
                 //if (!gear.captured(bell::id)) //todo why?
                 {
-                    gohome();
+                    send<upon::scroll::cancel>();
                     gear.dismiss();
                 }
             };
@@ -1925,10 +1904,10 @@ namespace netxs::ui
                 {
                     if (gear.captured(bell::id))
                     {
-                        if (auto delta = xy(gear.mouse::delta.get()))
+                        if (auto delta = gear.mouse::delta.get()[AXIS])
                         {
                             calc.stepby(delta);
-                            send(events<AXIS>());
+                            send<upon::scroll::bycoor>();
                             gear.dismiss();
                         }
                     }
@@ -1951,7 +1930,7 @@ namespace netxs::ui
                     {
                         if (this->form::template protos<tier::release>(bttn::drag::stop::right))
                         {
-                            gohome();
+                            send<upon::scroll::cancel>();
                         }
                         base::deface();
                         gear.release();
@@ -1997,8 +1976,8 @@ namespace netxs::ui
 
                 calc.commit(handle);
 
-                auto& handle_len = xy(handle.size);
-                auto& region_len = xy(region.size);
+                auto& handle_len = handle.size[AXIS];
+                auto& region_len = region.size[AXIS];
 
                 handle = region.clip(handle);
                 handle_len = std::max(1, handle_len);
@@ -2026,16 +2005,16 @@ namespace netxs::ui
     //class grip_fx
     //    : public flow, public form<grip_fx<AXIS, drawfx>>
     template<axis AXIS>
-    class grip_fx // rename to roll?
+    class grip_fx
         : public form<grip_fx<AXIS>>
     {
-        //pro::mouse mouse{*this }; // grip: Mouse events controller.
         pro::timer timer{*this }; // grip: Minimize by timeout.
         pro::limit limit{*this }; // grip: Size limits.
 
+        using sptr = netxs::sptr<base>; //todo gcc (ubuntu 20.04) doesn't get it (see form::sptr)
         using wptr = netxs::wptr<base>;
-        using sptr = netxs::sptr<base>;
         using form = ui::form<grip_fx<AXIS>>;
+        using upon = e2::form::upon;
 
         enum activity
         {
@@ -2045,21 +2024,13 @@ namespace netxs::ui
             pager_next  = 11,
         };
 
-        template<auto N> static constexpr
-        //auto events = e2::form::upon::scroll::_<N>; //todo clang 11.0.1 doesn't support this.
-        auto events() { return e2::form::upon::scroll::_<N>; }
-
-        static inline auto  xy(twod const& p) { return AXIS == axis::X ? p.x : p.y; }
-        static inline auto  yx(twod const& p) { return AXIS == axis::Y ? p.x : p.y; }
-        static inline auto& xy(twod&       p) { return AXIS == axis::X ? p.x : p.y; }
-        static inline auto& yx(twod&       p) { return AXIS == axis::Y ? p.x : p.y; }
-
         struct math
         {
-            rack  master_inf = {};                         // math: Master scroll info.
-            iota& master_len = xy(master_inf.region);      // math: Master len.
-            iota& master_pos = xy(master_inf.window.coor); // math: Master viewport pos.
-            iota& master_box = xy(master_inf.window.size); // math: Master viewport len.
+            rack  master_inf = {};                           // math: Master scroll info.
+            iota& master_len = master_inf.region     [AXIS]; // math: Master len.
+            iota& master_pos = master_inf.window.coor[AXIS]; // math: Master viewport pos.
+            iota& master_box = master_inf.window.size[AXIS]; // math: Master viewport len.
+            iota& master_dir = master_inf.vector;            // math: Master scroll direction.
             iota  scroll_len = 0; // math: Scrollbar len.
             iota  scroll_pos = 0; // math: Scrollbar grip pos.
             iota  scroll_box = 0; // math: Scrollbar grip len.
@@ -2110,7 +2081,7 @@ namespace netxs::ui
             }
             void resize(twod const& new_size)
             {
-                scroll_len = xy(new_size);
+                scroll_len = new_size[AXIS];
                 m_to_s();
             }
             void stepby(iota delta)
@@ -2120,8 +2091,8 @@ namespace netxs::ui
             }
             void commit(rect& handle)
             {
-                xy(handle.coor)+= scroll_pos;
-                xy(handle.size) = scroll_box;
+                handle.coor[AXIS]+= scroll_pos;
+                handle.size[AXIS] = scroll_box;
             }
             auto inside(iota coor)
             {
@@ -2129,22 +2100,16 @@ namespace netxs::ui
                 if (coor >= scroll_pos)              return 0; // Inside the grip.
                                                      return-1; // Above the grip.
             }
-            void pager(iota dir)
-            {
-                master_pos += master_box * dir;
-                m_to_s();
-            }
             auto follow()
             {
                 auto dir = scroll_len > 2 ? inside(cursor_pos)
                                           : cursor_pos > 0 ? 1 // Don't stop to follow over
                                                            :-1;//    box on small scrollbar.
-                if (dir)
-                {
-                    pager(dir);
-                    return true;
-                }
-                return faux;
+                return dir;
+            }
+            void setdir(iota dir)
+            {
+                master_dir = -dir;
             }
         };
 
@@ -2158,22 +2123,19 @@ namespace netxs::ui
 
         bool on_pager = faux;
 
-        template<class EVENT = decltype(events<AXIS>())>
-        void send(EVENT)
+        template<class EVENT>
+        void send()
         {
             if (auto master = this->boss.lock())
             {
-                master->SIGNAL(tier::preview, EVENT{}, calc.master_inf);
+                master->SIGNAL(tier::preview, EVENT::template _<AXIS>, calc.master_inf);
             }
-        }
-        void gohome()
-        {
-            send(events<AXIS + 2>());
         }
         void config(iota width)
         {
             thin = width;
-            auto lims = twod{ xy({ -1,thin }), yx({ -1,thin }) };
+            auto lims = AXIS == axis::X ? twod{ -1,width }
+                                        : twod{ width,-1 };
             limit.set(lims, lims);
         }
         void giveup(hids& gear)
@@ -2183,10 +2145,9 @@ namespace netxs::ui
             {
                 if (gear.captured(bell::id))
                 {
-                    //if (this->form<grip<AXIS>>::template protos<tier::release>(hids::events::mouse::button::drag::cancel::right))
                     if (this->form::template protos<tier::release>(hids::events::mouse::button::drag::cancel::right))
                     {
-                        gohome();
+                        send<upon::scroll::cancel>();
                     }
                     base::deface();
                     gear.release();
@@ -2194,14 +2155,21 @@ namespace netxs::ui
                 }
             }
         }
+        void pager(iota dir)
+        {
+            calc.setdir(dir);
+            send<upon::scroll::bypage>();
+        }
         auto pager_repeat()
         {
-            if (on_pager && calc.follow())
+            if (on_pager)
             {
-                send(events<AXIS>());
+                auto dir = calc.follow();
+                pager(dir);
             }
             return on_pager;
         }
+
     public:
         grip_fx(sptr boss, iota thickness = 1, iota multiplier = 2)
             : boss{ boss       },
@@ -2212,7 +2180,7 @@ namespace netxs::ui
         {
             config(thin);
 
-            boss->SUBMIT_T(tier::release, events<AXIS>(), memo, scinfo)
+            boss->SUBMIT_T(tier::release, upon::scroll::bycoor::any, memo, scinfo)
             {
                 calc.update(scinfo);
                 base::deface();
@@ -2229,14 +2197,13 @@ namespace netxs::ui
                 if (gear.whldt)
                 {
                     auto dir = gear.whldt < 0 ? 1 : -1;
-                    calc.pager(dir);
-                    send(events<AXIS>());
+                    pager(dir);
                     gear.dismiss();
                 }
             };
             SUBMIT(tier::release, hids::events::mouse::move, gear)
             {
-                calc.cursor_pos = xy(gear.mouse::coord);
+                calc.cursor_pos = gear.mouse::coord[AXIS];
             };
             SUBMIT(tier::release, hids::events::mouse::button::dblclick::left, gear)
             {
@@ -2247,7 +2214,7 @@ namespace netxs::ui
                 if (!on_pager)
                 if (this->form::template protos<tier::release>(bttn::down::left) ||
                     this->form::template protos<tier::release>(bttn::down::right))
-                if (auto dir = calc.inside(xy(gear.mouse::coord)))
+                if (auto dir = calc.inside(gear.mouse::coord[AXIS]))
                 {
                     if (gear.capture(bell::id))
                     {
@@ -2288,7 +2255,7 @@ namespace netxs::ui
             {
                 //if (!gear.captured(bell::id)) //todo why?
                 {
-                    gohome();
+                    send<upon::scroll::cancel>();
                     gear.dismiss();
                 }
             };
@@ -2311,10 +2278,10 @@ namespace netxs::ui
                 {
                     if (gear.captured(bell::id))
                     {
-                        if (auto delta = xy(gear.mouse::delta.get()))
+                        if (auto delta = gear.mouse::delta.get()[AXIS])
                         {
                             calc.stepby(delta);
-                            send(events<AXIS>());
+                            send<upon::scroll::bycoor>();
                             gear.dismiss();
                         }
                     }
@@ -2337,7 +2304,7 @@ namespace netxs::ui
                     {
                         if (this->form::template protos<tier::release>(bttn::drag::stop::right))
                         {
-                            gohome();
+                            send<upon::scroll::cancel>();
                         }
                         base::deface();
                         gear.release();
@@ -2384,9 +2351,9 @@ namespace netxs::ui
 
                 calc.commit(handle);
 
-                auto& handle_len = xy(handle.size);
-                auto& region_len = xy(region.size);
-                auto& object_len = xy(object.size);
+                auto& handle_len = handle.size[AXIS];
+                auto& region_len = region.size[AXIS];
+                auto& object_len = object.size[AXIS];
 
                 handle = region.clip(handle);
                 handle_len = std::max(1, handle_len);
@@ -2406,18 +2373,18 @@ namespace netxs::ui
     {
         dent padding; // pads: Space around an element's content, outside of any defined borders. It does not affect the size, only affects the fill. Used in base::renderproc only.
         dent margins; // pads: Space around an element's content, inside of any defined borders. Containers take this parameter into account when calculating sizes. Used in all conainers.
+        sptr client;
 
     public:
-        sptr<base> client;
 
         ~pads()
         {
             if (client)
             {
                 auto empty = decltype(e2::form::upon::vtree::detached)::type{};
-                auto item = client;
+                auto item_ptr = client;
                 client.reset();
-                item->SIGNAL(tier::release, e2::form::upon::vtree::detached, empty);
+                item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, empty);
             }
         }
         pads(dent const& padding_value = {}, dent const& margins_value = {})
@@ -2459,15 +2426,15 @@ namespace netxs::ui
         }
         // pads: Attach specified item.
         template<class T>
-        auto attach(sptr<T> item)
+        auto attach(T item_ptr)
         {
             if (client) remove(client);
-            client = item;
-            item->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
-            return item;
+            client = item_ptr;
+            item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
+            return item_ptr;
         }
         // pads: Remove item.
-        void remove(sptr<base> item_ptr)
+        void remove(sptr item_ptr)
         {
             if (client == item_ptr)
             {
@@ -2477,8 +2444,7 @@ namespace netxs::ui
             }
         }
         // pads: Update nested object.
-        template<class T, class S>
-        void update(T old_item_ptr, S new_item_ptr)
+        void update(sptr old_item_ptr, sptr new_item_ptr)
         {
             auto backup = This();
             client = new_item_ptr;
@@ -2662,7 +2628,6 @@ namespace netxs::ui
     class stem_rate
         : public form<stem_rate<TIER, EVENT>>
     {
-        pro::mouse mouse{*this }; // stem_rate: Mouse controller.
         pro::robot robot{*this }; // stem_rate: Animation controller.
         pro::limit limit{*this }; // stem_rate: Size limits.
 

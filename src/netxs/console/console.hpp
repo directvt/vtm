@@ -11,10 +11,10 @@
 #include <iostream>
 #include <typeindex>
 
-#define SPD            1   // console: Auto-scroll initial speed component ΔR.
+#define SPD            10   // console: Auto-scroll initial speed component ΔR.
 #define PLS            167  // console: Auto-scroll initial speed component ΔT.
 #define CCL            120  // console: Auto-scroll duration in ms.
-#define SPD_ACCEL      4    // console: Auto-scroll speed accelation.
+#define SPD_ACCEL      1    // console: Auto-scroll speed accelation.
 #define CCL_ACCEL      30   // console: Auto-scroll additional duration in ms.
 #define SPD_MAX        100  // console: Auto-scroll max speed.
 #define CCL_MAX        1000 // console: Auto-scroll max duration in ms.
@@ -70,9 +70,9 @@ namespace netxs::events::userland
 
         EVENTPACK( e2, netxs::events::userland::root::base )
         {
-            EVENT_XS( tick      , moment              ), // timer tick, arg: current moment (now).
             EVENT_XS( postrender, console::face       ), // release: UI-tree post-rendering.
             EVENT_XS( depth     , iota                ), // request: Determine the depth of the hierarchy.
+            GROUP_XS( timer     , moment              ), // timer tick, arg: current moment (now).
             GROUP_XS( render    , console::face       ), // release: UI-tree rendering.
             GROUP_XS( conio     , iota                ),
             GROUP_XS( size      , twod                ), // release: Object size.
@@ -84,6 +84,10 @@ namespace netxs::events::userland
             GROUP_XS( command   , iota                ), // exec UI command.
             GROUP_XS( bindings  , sptr<console::base> ), // Dynamic Data Bindings.
 
+            SUBSET_XS( timer )
+            {
+                EVENT_XS( tick, moment ), // relaese: execute before e2::timer::any (rendering)
+            };
             SUBSET_XS( render ) // release any: UI-tree default rendering submission.
             {
                 EVENT_XS( prerender, console::face ), // release: UI-tree pre-rendering, used by pro::cache (can interrupt SIGNAL) and any kind of highlighters.
@@ -111,6 +115,12 @@ namespace netxs::events::userland
                 EVENT_XS( logs  , const view          ), // logs output.
                 EVENT_XS( output, const view          ), // logs has to be parsed.
                 EVENT_XS( parsed, const console::page ), // output parced logs.
+                GROUP_XS( count , iota                ), // global: log listeners.
+
+                SUBSET_XS( count )
+                {
+                    EVENT_XS( set, iota ), // global: log listeners.
+                };
             };
             SUBSET_XS( config )
             {
@@ -240,12 +250,55 @@ namespace netxs::events::userland
                     };
                     SUBSET_XS( scroll )
                     {
-                        EVENT_XS( x     , rack ), // event after scroll along X.
-                        EVENT_XS( y     , rack ), // event after scroll along Y.
-                        EVENT_XS( resetx, rack ), // event reset scroll along X.
-                        EVENT_XS( resety, rack ), // event reset scroll along Y.
+                        GROUP_XS( to_top, rack ), // scroll to top.
+                        GROUP_XS( to_end, rack ), // scroll to end.
+                        GROUP_XS( bycoor, rack ), // scroll absolute.
+                        GROUP_XS( bystep, rack ), // scroll by delta.
+                        GROUP_XS( bypage, rack ), // scroll by page.
+                        GROUP_XS( cancel, rack ), // reset scrolling.
 
-                        INDEX_XS( x, y, resetx, resety ),
+                        SUBSET_XS( to_top )
+                        {
+                            EVENT_XS( x, rack ), // scroll to_top along X.
+                            EVENT_XS( y, rack ), // scroll to_top along Y.
+
+                            INDEX_XS( x, y ),
+                        };
+                        SUBSET_XS( to_end )
+                        {
+                            EVENT_XS( x, rack ), // scroll to_end along X.
+                            EVENT_XS( y, rack ), // scroll to_end along Y.
+
+                            INDEX_XS( x, y ),
+                        };
+                        SUBSET_XS( bycoor )
+                        {
+                            EVENT_XS( x, rack ), // scroll absolute along X.
+                            EVENT_XS( y, rack ), // scroll absolute along Y.
+
+                            INDEX_XS( x, y ),
+                        };
+                        SUBSET_XS( bystep )
+                        {
+                            EVENT_XS( x, rack ), // scroll by delta along X.
+                            EVENT_XS( y, rack ), // scroll by delta along Y.
+
+                            INDEX_XS( x, y ),
+                        };
+                        SUBSET_XS( bypage )
+                        {
+                            EVENT_XS( x, rack ), // scroll by page along X.
+                            EVENT_XS( y, rack ), // scroll by page along Y.
+
+                            INDEX_XS( x, y ),
+                        };
+                        SUBSET_XS( cancel )
+                        {
+                            EVENT_XS( x, rack ), // cancel scrolling along X.
+                            EVENT_XS( y, rack ), // cancel scrolling along Y.
+
+                            INDEX_XS( x, y ),
+                        };
                     };
                 };
                 SUBSET_XS( proceed )
@@ -283,6 +336,7 @@ namespace netxs::events::userland
                 {
                     EVENT_XS( start, id_t ),
                     EVENT_XS( stop , id_t ),
+                    EVENT_XS( reset, id_t ),
                 };
                 SUBSET_XS( drag )
                 {
@@ -912,8 +966,21 @@ namespace netxs::console
         auto moveto(twod new_coor)
         {
             auto old_coor = square.coor;
+            SIGNAL(tier::preview, e2::coor::set, new_coor);
             SIGNAL(tier::release, e2::coor::set, new_coor);
             auto delta = square.coor - old_coor;
+            return delta;
+        }
+        // base: Dry run. Check current position.
+        auto moveto()
+        {
+            auto new_value = square.coor;
+            return moveto(new_value);
+        }
+        // base: Move the form by the specified step and return the coor delta.
+        auto moveby(twod const& step)
+        {
+            auto delta = moveto(square.coor + step);
             return delta;
         }
         // base: Resize the form, and return the size delta.
@@ -939,21 +1006,16 @@ namespace netxs::console
         auto resize(twod newsize, twod point)
         {
             point -= square.coor;
-            anchor = point;
+            anchor = point; //todo use dot_00 instead of point
             resize(newsize);
-            return point - anchor;
+            auto delta = moveby(point - anchor);
+            return delta;
         }
         // base: Dry run (preview then release) current value.
         auto resize()
         {
             auto new_value = square.size;
             return resize(new_value);
-        }
-        // base: Move the form by the specified step and return the coor delta.
-        auto moveby(twod const& step)
-        {
-            auto delta = moveto(square.coor + step);
-            return delta;
         }
         // base: Resize the form by step, and return delta.
         auto sizeby(twod const& step)
@@ -1729,8 +1791,7 @@ namespace netxs::console
                         pacify(ID);
                     }
                 };
-                //boss.SUBMIT_TV(tier::general, e2::timer::any, memo[ID], handler);
-                boss.SUBMIT_TV(tier::general, e2::tick, memo[ID], handler);
+                boss.SUBMIT_TV(tier::general, e2::timer::any, memo[ID], handler);
                 boss.SIGNAL(tier::release, e2::form::animate::start, ID);
             }
             // pro::robot: Optional proceed every timer tick,
@@ -1799,9 +1860,7 @@ namespace netxs::console
                         if (!lambda(ID)) pacify(ID);
                     }
                 };
-                //boss.SUBMIT_TV(tier::general, e2::timer::any, memo[ID], handler);
-                boss.SUBMIT_TV(tier::general, e2::tick, memo[ID], handler);
-                //boss.SIGNAL(tier::release, e2::form::animate::start, ID);
+                boss.SUBMIT_TV(tier::general, e2::timer::any, memo[ID], handler);
             }
             // pro::timer: Start countdown.
             template<class P>
@@ -2366,7 +2425,7 @@ namespace netxs::console
                     live = step == period::zero();
                     if (!live)
                     {
-                        boss.SUBMIT_T(tier::general, e2::tick, memo, timestamp)
+                        boss.SUBMIT_T(tier::general, e2::timer::tick, memo, timestamp)
                         {
                             if (timestamp > next)
                             {
@@ -2848,7 +2907,7 @@ namespace netxs::console
                 };
 
                 // Double escape catcher.
-                boss.SUBMIT_T(tier::general, e2::tick, memo, timestamp)
+                boss.SUBMIT_T(tier::general, e2::timer::any, memo, timestamp)
                 {
                     if (wait && (timestamp > stop))
                     {
@@ -2892,7 +2951,7 @@ namespace netxs::console
                     //alibi.reset();
                 };
 
-                boss.SUBMIT_T(tier::general, e2::tick, ping, something)
+                boss.SUBMIT_T(tier::general, e2::timer::any, ping, something)
                 {
                     if (tempus::now() > stop)
                     {
@@ -3752,6 +3811,22 @@ namespace netxs::console
                 };
             }
         };
+
+        // pro: Drag&roll.
+        class glide
+            : public skill
+        {
+            using skill::boss,
+                  skill::memo;
+
+        public:
+            glide(base&&) = delete;
+            glide(base& boss)
+                : skill{ boss }
+            {
+
+            }
+        };
     }
 
     // console: World internals.
@@ -4224,7 +4299,7 @@ namespace netxs::console
 
     protected:
         host(hndl exit_proc)
-            : synch(router<tier::general>(), e2::tick.id),
+            : synch(router<tier::general>(), e2::timer::tick.id),
               scene{ *this },
               frate{ 0 },
               close{ exit_proc }
@@ -4233,7 +4308,7 @@ namespace netxs::console
 
             keybd.accept(true); // Subscribe on keybd offers.
 
-            SUBMIT(tier::general, e2::tick, timestamp)
+            SUBMIT(tier::general, e2::timer::any, timestamp)
             {
                 scene.redraw();
             };
@@ -4318,7 +4393,7 @@ namespace netxs::console
                                     log("inst: max count reached");
                                     auto timeout = tempus::now() + APPS_DEL_TIMEOUT;
                                     auto w_frame = ptr::shadow(frame);
-                                    frame->SUBMIT_BYVAL(tier::general, e2::tick, timestamp)
+                                    frame->SUBMIT_BYVAL(tier::general, e2::timer::any, timestamp)
                                     {
                                         if (timestamp > timeout)
                                         {

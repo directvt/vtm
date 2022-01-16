@@ -75,14 +75,21 @@ namespace netxs::generics
         auto& current     ()      { return buff[cart];          }
         auto& operator  * ()      { return buff[cart];          }
         auto  operator -> ()      { return buff.begin() + cart; }
-        auto&         at (iota i) { return buff[mod(head + i)]; }
+        auto&         at (iota i) { assert(i >= 0 && i < size); return buff[mod(head + i)]; }
         auto& operator[] (iota i) { return at(i);               }
         auto  index() const       { return dst(head, cart);     }
-        void  index(iota i)       { cart = mod(head + i);       }
-        void  prev()              { dec(cart);                  }
-        void  next()              { inc(cart);                  }
+        void  index(iota i)       { assert(i >= 0 && i < size); cart = mod(head + i); }
+        void  prev()              { dec(cart); test();          }
+        void  next()              { inc(cart); test();          }
 
     private:
+        void  test()
+        {
+            assert((head == tail &&  cart == head)
+                || (head <  tail &&  cart >= head && cart <= tail)
+                || (head >  tail && (cart >= head && cart >= tail
+                                  || cart <= head && cart <= tail)));
+        }
         auto  full()
         {
             if (size == peak - 1)
@@ -113,40 +120,10 @@ namespace netxs::generics
             if (cart == tail) dec(tail), cart = tail;
             else              dec(tail);
         }
-    public:
-        template<class ...Args>
-        auto& push_back(Args&&... args)
-        {
-            if (full()) undock_front();
-            else        ++size;
-            inc(tail);
-            auto& item = back();
-            item = type(std::forward<Args>(args)...);
-            return item;
-        }
-        template<class ...Args>
-        auto& push_front(Args&&... args)
-        {
-            if (full()) undock_back();
-            else        ++size;
-            dec(head);
-            auto& item = front();
-            item = type(std::forward<Args>(args)...);
-            return item;
-        }
-        template<bool USE_BACK = faux>
-        void pop_front() { undock_front<USE_BACK>(); --size; }
-        void pop_back () { undock_back();            --size; }
         // ring: Insert an item before the specified position. Pop front when full. Return an iterator pointing to the new item.
         template<class ...Args>
-        auto insert(iota at, Args&&... args) // Pop front always if ring is full.
+        auto insert_impl(iota at, Args&&... args) // Pop front always if ring is full.
         {
-            assert(at >= 0 && at <= size);
-
-            auto tmp = index();
-            if (tmp >= at) tmp++;
-            index(tmp);
-
             if (at == 0)
             {
                 push_front(std::forward<Args>(args)...);
@@ -164,19 +141,19 @@ namespace netxs::generics
             {
                 auto it_1 = begin();
                 auto it_2 = it_1 + d;
-                if (!full())
-                {
-                    ++size;
-                    dec(head);
-                    auto& item = front();
-                    item = type(std::forward<Args>(args)...);
-                }
-                else
+                if (full())
                 {
                     auto& item = front();
                     if constexpr (USE_UNDOCK) undock_base_front(item);
                     item = type(std::forward<Args>(args)...);
                     ++it_1;
+                }
+                else
+                {
+                    ++size;
+                    dec(head);
+                    auto& item = front();
+                    item = type(std::forward<Args>(args)...);
                 }
                 swap_block<true>(it_1, it_2, begin());
                 --it_2;
@@ -204,6 +181,49 @@ namespace netxs::generics
                 return it_2;
             }
         }
+
+    public:
+        template<class ...Args>
+        type& push_back(Args&&... args)
+        {
+            if (full()) undock_front();
+            else        ++size;
+            inc(tail);
+            auto& item = back();
+            item = type(std::forward<Args>(args)...);
+            return item;
+        }
+        template<class ...Args>
+        type& push_front(Args&&... args)
+        {
+            if (full()) undock_back();
+            else        ++size;
+            dec(head);
+            auto& item = front();
+            item = type(std::forward<Args>(args)...);
+            return item;
+        }
+        template<bool USE_BACK = faux>
+        void pop_front() { undock_front<USE_BACK>(); --size; }
+        void pop_back () { undock_back();            --size; }
+        // ring: Insert an item before the specified position. Pop front when full. Return an iterator pointing to the new item.
+        template<class ...Args>
+        auto insert(iota at, Args&&... args) // Pop front always if ring is full.
+        {
+            assert(at >= 0 && at <= size);
+            auto temp = index();
+            if (full())
+            {
+                if (temp > 0 && temp < at) temp--;
+            }
+            else
+            {
+                if (temp >= at) temp++;
+            }
+            auto iter = insert_impl(at, std::forward<Args>(args)...);
+            index(temp);
+            return iter;
+        }
         auto remove(iota at, iota n)
         {
             assert(at >= 0 && at < size);
@@ -214,7 +234,7 @@ namespace netxs::generics
             auto vol = n;
             auto tmp = index();
                  if (tmp >= at + n) tmp -= n;
-            else if (tmp >= at    ) tmp  = at - 1;
+            else if (tmp >= at    ) tmp = std::max(at - 1, 0);
 
             auto top_block = at;
             auto btm_block = max - n;

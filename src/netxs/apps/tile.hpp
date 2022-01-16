@@ -71,11 +71,10 @@ namespace netxs::app::tile
             {
                 if (client)
                 {
-                    auto new_coor = twod{ newsz.x + 2/*resize grip width*/, 0 };
+                    auto new_coor = twod{ newsz.x + 2/*todo resize grip width*/, 0 };
                     auto new_size = twod{ client->size().x, newsz.y };
-                    client->SIGNAL(tier::release, e2::coor::set, new_coor);
-                    client->SIGNAL(tier::preview, e2::size::set, new_size);
-                    client->SIGNAL(tier::release, e2::size::set, new_size);
+                    client->base::moveto(new_coor);
+                    client->base::resize(new_size);
                 }
             };
             boss.SUBMIT_T(tier::release, events::enlist, memo, object)
@@ -692,7 +691,7 @@ namespace netxs::app::tile
                                                 log("tile: inst: max count reached");
                                                 auto timeout = tempus::now() + APPS_DEL_TIMEOUT;
                                                 auto w_frame = ptr::shadow(host);
-                                                host->SUBMIT_BYVAL(tier::general, e2::tick, timestamp)
+                                                host->SUBMIT_BYVAL(tier::general, e2::timer::any, timestamp)
                                                 {
                                                     if (timestamp > timeout)
                                                     {
