@@ -1583,7 +1583,8 @@ namespace netxs::ansi
                         }
                         if (next == tail)
                         {
-                            utf8 = { head, prev }; // preserve ESC at the end
+                            //utf8 = { head, prev }; //todo apple clang doesn't get it // preserve ESC at the end
+                            utf8 = view{ &(*head), (size_t)(prev - head) }; // preserve ESC at the end
                             return utf8;
                         }
                     }
@@ -1598,7 +1599,8 @@ namespace netxs::ansi
                             {
                                 if (tail - step < 8)
                                 {
-                                    utf8 = { head, prev }; // preserve ESC at the end
+                                    //utf8 = { head, prev }; //todo apple clang doesn't get it // preserve ESC at the end
+                                    utf8 = view{ &(*head), (size_t)(prev - head) }; // preserve ESC at the end
                                 }
                                 else
                                 {
@@ -1619,7 +1621,8 @@ namespace netxs::ansi
                         }
                         if (next == tail)
                         {
-                            utf8 = { head, prev }; // preserve ESC at the end
+                            //utf8 = { head, prev }; //todo apple clang doesn't get it // preserve ESC at the end
+                            utf8 = view{ &(*head), (size_t)(prev - head) }; // preserve ESC at the end
                             return utf8;
                         }
                     }
@@ -1643,7 +1646,8 @@ namespace netxs::ansi
                         }
                         if (next == tail)
                         {
-                            utf8 = { head, prev }; // preserve ESC at the end
+                            //utf8 = { head, prev }; //todo apple clang doesn't get it // preserve ESC at the end
+                            utf8 = view{ &(*head), (size_t)(prev - head) }; // preserve ESC at the end
                             return utf8;
                         }
                     }
@@ -1661,8 +1665,8 @@ namespace netxs::ansi
                     {
                         if (++next == tail)
                         {
-                            utf8 = { head, prev }; // preserve ESC at the end
-                            return utf8;
+                            //utf8 = { head, prev }; //todo apple clang doesn't get it // preserve ESC at the end
+                            utf8 = view{ &(*head), (size_t)(prev - head) }; // preserve ESC at the end
                         }
                     }
                     // test Esc + byte: ESC 7 8 D E H M ...
@@ -1699,7 +1703,8 @@ namespace netxs::ansi
                 }
                 else
                 {
-                    utf8 = { head, prev }; // preserve ESC at the end
+                    //utf8 = { head, prev }; //todo apple clang doesn't get it // preserve ESC at the end
+                    utf8 = view{ &(*head), (size_t)(prev - head) }; // preserve ESC at the end
                     return utf8;
                 }
             }
