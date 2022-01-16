@@ -49,8 +49,8 @@ namespace netxs
               y{ queue(0) }
         { }
 
-        constexpr T&       operator []  (int selector)          { return selector ? x : y;          }
-        constexpr T const& operator []  (int selector) const    { return selector ? x : y;          }
+        constexpr T&       operator []  (int selector)          { return selector ? y : x;          }
+        constexpr T const& operator []  (int selector) const    { return selector ? y : x;          }
         constexpr explicit operator bool() const                { return x != 0 || y != 0;          }
         constexpr duplet&  operator ++  ()                      { x++; y++;           return *this; }
         constexpr duplet&  operator --  ()                      { x--; y--;           return *this; }

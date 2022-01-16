@@ -97,7 +97,7 @@ namespace netxs::app::shared
         log("app_limit: max count reached");
         auto timeout = tempus::now() + APPS_DEL_TIMEOUT;
         auto shadow = ptr::shadow(boss);
-        boss->SUBMIT_BYVAL(tier::general, e2::tick, timestamp)
+        boss->SUBMIT_BYVAL(tier::general, e2::timer::any, timestamp)
         {
             if (timestamp > timeout)
             {
@@ -343,7 +343,7 @@ namespace netxs::app::shared
                                ->attach(ui::mock::ctor());
             auto strob_shadow = ptr::shadow(strob);
             bool stobe_state = true;
-            strob->SUBMIT_BYVAL(tier::general, e2::tick, now)
+            strob->SUBMIT_BYVAL(tier::general, e2::timer::any, now)
             {
                 stobe_state = !stobe_state;
                 if (auto strob = strob_shadow.lock())
@@ -556,10 +556,9 @@ namespace netxs::app::shared
                 auto test_stat_area = object->attach(slot::_2, ui::fork::ctor(axis::Y));
                     auto layers = test_stat_area->attach(slot::_1, ui::cake::ctor());
                         auto scroll = layers->attach(ui::rail::ctor())
-                                            ->config(true, true)
                                             ->colors(whitelt, reddk);
                                     scroll->attach(ui::post::ctor())
-                                            ->upload(truecolor);
+                                          ->upload(truecolor);
                         auto scroll_bars = layers->attach(ui::fork::ctor());
                             auto vt = scroll_bars->attach(slot::_2, ui::grip<axis::Y>::ctor(scroll));
                             auto hz = test_stat_area->attach(slot::_2, ui::grip<axis::X>::ctor(scroll));
@@ -897,9 +896,9 @@ namespace netxs::app::shared
         #ifdef DEMO
             auto shell = os::get_shell();
             #ifdef PROD
-                app::shared::objs_config[objs_lookup["Tile"]].param = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h(v(\"" + shell + " -c 'LC_ALL=en_US.UTF-8 mc -c -x -d; cat'\", h(\"" + shell + " -c 'ls /bin | nl | ccze -A; " + shell + "'\", a(\"Settings\",\"Settings\",\"\"))), a(\"Calc\",\"\",\"\"))";
+                app::shared::objs_config[objs_lookup["Tile"]].param = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h(v(a(\"MC\",\"\",\"\"), h(\"" + shell + " -c 'ls /bin | nl | ccze -A; " + shell + "'\", a(\"Settings\",\"Settings\",\"\"))), a(\"Calc\",\"\",\"\"))";
             #else
-                app::shared::objs_config[objs_lookup["Tile"]].param = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h1:1(v1:1(\"" + shell + " -c 'LC_ALL=en_US.UTF-8 mc -c -x -d; cat'\", h1:1(\"\",\"" + shell + " -c 'ls /bin | nl | ccze -A; " + shell + "'\")), a(\"Calc\",\"\",\"\"))";
+                app::shared::objs_config[objs_lookup["Tile"]].param = "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h1:1(v1:1(a(\"MC\",\"\",\"\"), h1:1(\"\",\"" + shell + " -c 'ls /bin | nl | ccze -A; " + shell + "'\")), a(\"Calc\",\"\",\"\"))";
             #endif
 
             for (auto& [menu_item_id, app_data] : app::shared::objs_config)

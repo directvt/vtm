@@ -229,16 +229,15 @@ namespace netxs::app::shop
                 auto layers = object->attach(slot::_2, ui::cake::ctor());
                     auto scroll = layers->attach(ui::rail::ctor())
                                         ->colors(whitedk, 0xFF0f0f0f)
-                                        ->plugin<pro::limit>(twod{ -1,2 }, twod{ -1,-1 })
-                                        ->config(true, true);
+                                        ->plugin<pro::limit>(twod{ -1,2 }, twod{ -1,-1 });
                         auto items = scroll->attach(ui::list::ctor());
                         for (auto& body : appstore_body) items->attach(ui::post::ctor())
                                                               ->upload(body)
                                                               ->plugin<pro::grade>()
                                                               ->plugin<pro::fader>(x3, c3, 250ms);
                         items->attach(ui::post::ctor())
-                                ->upload(desktopio_body)
-                                ->plugin<pro::grade>();
+                             ->upload(desktopio_body)
+                             ->plugin<pro::grade>();
                 layers->attach(app::shared::scroll_bars(scroll));
             return window;
         };

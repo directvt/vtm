@@ -54,9 +54,15 @@ namespace netxs::app::logs
                 {
                     input.join();
                 }
+                SIGNAL_GLOBAL(e2::debug::count::set, -1);
             }
             log_parser()
             {
+                SIGNAL_GLOBAL(e2::debug::count::set, 1);
+                SUBMIT(tier::general, e2::debug::count::set, count)
+                {
+                    count++;
+                };
                 SUBMIT(tier::general, e2::debug::output, shadow)
                 {
                     queue.push(text{ shadow });
@@ -76,12 +82,12 @@ namespace netxs::app::logs
                 while (alive)
                 {
                     auto utf8 = queue.pop();
-                    bool not_procesed = true;
-                    while (not_procesed && alive)
+                    bool processed = faux;
+                    while (!processed && alive)
                     {
                         if (auto lock = netxs::events::try_sync())
                         {
-                            not_procesed = faux;
+                            processed = true;
                             auto shadow = view{ utf8 };
                             auto parsed = read(shadow);
                             SIGNAL(tier::release, e2::debug::parsed, parsed);
@@ -142,11 +148,12 @@ namespace netxs::app::logs
             ui::post::recalc();
             auto new_cp = flow::cp();
 
-            //todo unify, its too hacky
-            auto new_coor = twod{ 0, std::numeric_limits<iota>::min() };
-            SIGNAL(tier::release, e2::coor::set, new_coor);
+            //todo unify, it's too hacky -- use smth like a signal scroll::end
+            //                              riseup<tier::preview>(e2::form::upon::scroll::to_end::y, scinfo);
             auto new_size = post::get_size();
-            SIGNAL(tier::release, e2::size::set, new_size);
+            auto new_coor = twod{ 0, std::numeric_limits<iota>::min() };
+            base::resize(new_size);
+            base::moveto(new_coor);
 
             caret.coor(new_cp);
         }
@@ -159,7 +166,7 @@ namespace netxs::app::logs
         }
 
     public:
-        sptr<log_parser> worker = netxs::shared_singleton<log_parser>();
+        netxs::sptr<log_parser> worker = netxs::shared_singleton<log_parser>();
 
         post_logs()
         {
