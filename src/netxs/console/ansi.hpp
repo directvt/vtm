@@ -183,14 +183,14 @@ namespace netxs::ansi
     static const iota SGR_FAINT     = 22;
     static const iota SGR_ITALIC    = 3;
     static const iota SGR_NONITALIC = 23;
-    static const iota SGR_INV       = 7;
-    static const iota SGR_NOINV     = 27;
     static const iota SGR_UND       = 4;
     static const iota SGR_DOUBLEUND = 21;
     static const iota SGR_NOUND     = 24;
     static const iota SGR_SLOWBLINK = 5;
     static const iota SGR_FASTBLINK = 6;
     static const iota SGR_NO_BLINK  = 25;
+    static const iota SGR_INV       = 7;
+    static const iota SGR_NOINV     = 27;
     static const iota SGR_STRIKE    = 9;
     static const iota SGR_NOSTRIKE  = 29;
     static const iota SGR_OVERLN    = 53;

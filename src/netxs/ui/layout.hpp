@@ -796,6 +796,10 @@ namespace netxs::ui::atoms
             {
                 token = 0;
             }
+            void rev()
+            {
+                param.shared.var.invert = !param.shared.var.invert;
+            }
 
             void bld (bool b) { param.shared.var.bolded = b; }
             void itc (bool b) { param.shared.var.italic = b; }
@@ -1056,6 +1060,11 @@ namespace netxs::ui::atoms
         {
             std::swap(uv.fg, uv.bg);
         }
+        // cell: Flip inversion bit.
+        void invbit()
+        {
+            st.rev();
+        }
         // cell: Darken both foreground and background.
         void shadow(byte fk, byte bk) //void shadow(byte k = 24)
         {
@@ -1233,6 +1242,10 @@ namespace netxs::ui::atoms
             {
                 template<class D> inline void operator() (D& dst) const { dst.reverse(); }
             };
+            struct invbit_t
+            {
+                template<class D> inline void operator() (D& dst) const { dst.invbit(); }
+            };
             struct transparent_t : public brush_t<transparent_t>
             {
                 byte alpha;
@@ -1251,6 +1264,7 @@ namespace netxs::ui::atoms
             static constexpr auto   xlight =   xlight_t{};
             static constexpr auto   invert =   invert_t{};
             static constexpr auto  reverse =  reverse_t{};
+            static constexpr auto   invbit =   invbit_t{};
             
             static constexpr auto transparent(byte alpha)
             {
