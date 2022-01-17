@@ -662,8 +662,9 @@ namespace netxs::ui
                 vt.intro[ctrl::BS ] = VT_PROC{ p->cuf(-q.pop_all(ctrl::BS )); };
                 vt.intro[ctrl::DEL] = VT_PROC{ p->del( q.pop_all(ctrl::DEL)); };
                 vt.intro[ctrl::TAB] = VT_PROC{ p->tab( q.pop_all(ctrl::TAB)); };
-                vt.intro[ctrl::EOL] = VT_PROC{ p->lf ( q.pop_all(ctrl::EOL)); }; // LF.
-                vt.intro[ctrl::CR ] = VT_PROC{ p->cr ();                      }; // CR.
+                vt.intro[ctrl::EOL] = VT_PROC{ p->lf ( q.pop_all(ctrl::EOL)); }; // LF
+                vt.intro[ctrl::VT ] = VT_PROC{ p->lf ( q.pop_all(ctrl::VT )); }; // VT same as LF
+                vt.intro[ctrl::CR ] = VT_PROC{ p->cr ();                      }; // CR
 
                 vt.csier.table_quest[DECSET] = VT_PROC{ p->owner.decset(q); };
                 vt.csier.table_quest[DECRST] = VT_PROC{ p->owner.decrst(q); };
@@ -3035,8 +3036,10 @@ namespace netxs::ui
                 {
                     n = std::min(n, panel.x - coord.x);
                     auto& curln = batch.current();
-                    if (c == whitespace) curln.splice<faux>(batch.caret, n, blank);
-                    else                 curln.splice<true>(batch.caret, n, blank);
+                    //todo revise (brush != default ? see windows console)
+                    //if (c == whitespace) curln.splice<faux>(batch.caret, n, blank);
+                    //else                 curln.splice<true>(batch.caret, n, blank);
+                    curln.splice<true>(batch.caret, n, blank);
                     batch.recalc(curln);
                     auto& mapln = index[coord.y];
                     auto  width = curln.length();
