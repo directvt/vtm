@@ -1242,8 +1242,8 @@ namespace netxs::ansi
                 auto fill = [&] (auto& queue)
                 {
                     auto a = ';';
-                    auto push = [&](auto num)
-                    {	// Parse subparameters divided by colon ':' (max arg value<int32_t> is 1,073,741,823)
+                    auto push = [&](auto num) // Parse subparameters divided by colon ':' (max arg value<int32_t> is 1,073,741,823)
+                    {
                         if (a == ':') queue.template push<true>(num);
                         else          queue.template push<faux>(num);
                     };

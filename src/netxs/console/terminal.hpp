@@ -346,7 +346,17 @@ namespace netxs::ui
                     default:
                     case 6: queue.report(owner.target->coord); break;
                     case 5: queue.add("OK");                   break;
-                    case-1: queue.add("VT420");                break; // redirected from CSI n c
+                    case-1: queue.add("VT420");                break;
+                }
+                owner.answer(queue);
+            }
+            // w_tracking: CSI n c  Primary device attributes (DA1).
+            void device(iota n)
+            {
+                switch(n)
+                {
+                    default:
+                        queue.add("\033[?1;2c"); break;
                 }
                 owner.answer(queue);
             }
@@ -608,10 +618,10 @@ namespace netxs::ui
                 vt.csier.table[CSI_SGR][SGR_BG_CYN_LT] = VT_PROC{ p->owner.ctrack.bgc(tint::cyanlt   ); };
                 vt.csier.table[CSI_SGR][SGR_BG_WHT_LT] = VT_PROC{ p->owner.ctrack.bgc(tint::whitelt  ); };
 
-                vt.csier.table[CSI_CUU] = VT_PROC{ p->up ( q(1)); };  // CSI n A  (CUU)
-                vt.csier.table[CSI_CUD] = VT_PROC{ p->dn ( q(1)); };  // CSI n B  (CUD)
-                vt.csier.table[CSI_CUF] = VT_PROC{ p->cuf( q(1)); };  // CSI n C  (CUF)
-                vt.csier.table[CSI_CUB] = VT_PROC{ p->cuf(-q(1)); };  // CSI n D  (CUB)
+                vt.csier.table[CSI_CUU] = VT_PROC{ p->up (q(1)); };  // CSI n A  (CUU)
+                vt.csier.table[CSI_CUD] = VT_PROC{ p->dn (q(1)); };  // CSI n B  (CUD)
+                vt.csier.table[CSI_CUF] = VT_PROC{ p->cuf(q(1)); };  // CSI n C  (CUF)
+                vt.csier.table[CSI_CUB] = VT_PROC{ p->cub(q(1)); };  // CSI n D  (CUB)
 
                 vt.csier.table[CSI_CHT]           = VT_PROC{ p->tab( q(1)); };  // CSI n I  Caret forward  n tabs, default n=1.
                 vt.csier.table[CSI_CBT]           = VT_PROC{ p->tab(-q(1)); };  // CSI n Z  Caret backward n tabs, default n=1.
@@ -645,7 +655,7 @@ namespace netxs::ui
 
                 vt.csier.table[CSI_WIN] = VT_PROC{ p->owner.wtrack.manage(q   ); };  // CSI n;m;k t  Terminal window options (XTWINOPS).
                 vt.csier.table[CSI_DSR] = VT_PROC{ p->owner.wtrack.report(q(6)); };  // CSI n n  Device status report (DSR).
-                vt.csier.table[CSI_PDA] = VT_PROC{ p->owner.wtrack.report( -1 ); };  // CSI n c  Send device attributes (Primary DA). Respond always "VT420".
+                vt.csier.table[CSI_PDA] = VT_PROC{ p->owner.wtrack.device(q(0)); };  // CSI n c  Send device attributes (Primary DA).
 
                 vt.csier.table[CSI_CCC][CCC_SBS] = VT_PROC{ p->owner.sbsize(q); };  // CCC_SBS: Set scrollback size.
                 vt.csier.table[CSI_CCC][CCC_EXT] = VT_PROC{ p->owner.native(q(1)); };          // CCC_EXT: Setup extended functionality.
@@ -658,13 +668,14 @@ namespace netxs::ui
                 vt.intro[ctrl::ESC][ESC_RIS   ] = VT_PROC{ p->owner.decstr(); }; // ESC c  Reset to initial state (same as DECSTR).
                 vt.intro[ctrl::ESC][ESC_NEL   ] = VT_PROC{ p->cr(); p->dn(1); }; // ESC E  Move cursor down and CR. Same as CSI 1 E
                 vt.intro[ctrl::ESC][ESC_DECDHL] = VT_PROC{ p->dhl(q); };         // ESC # ...  ESC # 3, ESC # 4, ESC # 5, ESC # 6, ESC # 8
+                vt.intro[ctrl::ESC][ESC_APC   ] = VT_PROC{ p->apc(q); };         // ESC _ ... ST  APC.
 
-                vt.intro[ctrl::BS ] = VT_PROC{ p->cuf(-q.pop_all(ctrl::BS )); };
-                vt.intro[ctrl::DEL] = VT_PROC{ p->del( q.pop_all(ctrl::DEL)); };
-                vt.intro[ctrl::TAB] = VT_PROC{ p->tab( q.pop_all(ctrl::TAB)); };
-                vt.intro[ctrl::EOL] = VT_PROC{ p->lf ( q.pop_all(ctrl::EOL)); }; // LF
-                vt.intro[ctrl::VT ] = VT_PROC{ p->lf ( q.pop_all(ctrl::VT )); }; // VT same as LF
-                vt.intro[ctrl::CR ] = VT_PROC{ p->cr ();                      }; // CR
+                vt.intro[ctrl::BS ] = VT_PROC{ p->cub(q.pop_all(ctrl::BS )); };
+                vt.intro[ctrl::DEL] = VT_PROC{ p->del(q.pop_all(ctrl::DEL)); };
+                vt.intro[ctrl::TAB] = VT_PROC{ p->tab(q.pop_all(ctrl::TAB)); };
+                vt.intro[ctrl::EOL] = VT_PROC{ p->lf (q.pop_all(ctrl::EOL)); }; // LF
+                vt.intro[ctrl::VT ] = VT_PROC{ p->lf (q.pop_all(ctrl::VT )); }; // VT same as LF
+                vt.intro[ctrl::CR ] = VT_PROC{ p->cr ();                     }; // CR
 
                 vt.csier.table_quest[DECSET] = VT_PROC{ p->owner.decset(q); };
                 vt.csier.table_quest[DECRST] = VT_PROC{ p->owner.decrst(q); };
@@ -1012,6 +1023,29 @@ namespace netxs::ui
                         break;
                 }                
             }
+            void apc(qiew& q)
+            {
+                parser::flush();
+                text data;
+                while (q)
+                {
+                    auto c = q.front();
+                    data.push_back(c);
+                    q.pop_front();
+                         if (c == ansi::C0_BEL) break;
+                    else if (c == ansi::C0_ESC)
+                    {
+                        auto c = q.front();
+                        if (q && c == '\\')
+                        {
+                            data.push_back(c);
+                            q.pop_front();
+                            break;
+                        }
+                    }
+                }
+                log("Unsupported APC: ", utf::debase(data));
+            }
             // bufferbase: .
     virtual void clear_all()
             {
@@ -1307,6 +1341,12 @@ namespace netxs::ui
                 parser::flush();
                 if (n == 0) n = 1;
                 coord.x += n;
+            }
+            // bufferbase: Move cursor backward by n.
+            void cub(iota n)
+            {
+                if (n == 0) n = 1;
+                cuf(-n);
             }
             // bufferbase: CSI n G  Absolute horizontal cursor position (1-based).
     virtual void chx(iota n)
