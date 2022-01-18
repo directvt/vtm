@@ -669,10 +669,10 @@ namespace netxs::ui
                 vt.intro[ctrl::ESC][ESC_NEL   ] = VT_PROC{ p->cr(); p->dn(1); }; // ESC E  Move cursor down and CR. Same as CSI 1 E
                 vt.intro[ctrl::ESC][ESC_DECDHL] = VT_PROC{ p->dhl(q); };         // ESC # ...  ESC # 3, ESC # 4, ESC # 5, ESC # 6, ESC # 8
 
-                vt.intro[ctrl::ESC][ESC_APC   ] = VT_PROC{ p->msg('_', q); };    // ESC _ ... ST  APC.
-                vt.intro[ctrl::ESC][ESC_DSC   ] = VT_PROC{ p->msg('P', q); };    // ESC P ... ST  DSC.
-                vt.intro[ctrl::ESC][ESC_SOS   ] = VT_PROC{ p->msg('X', q); };    // ESC X ... ST  SOS.
-                vt.intro[ctrl::ESC][ESC_PM    ] = VT_PROC{ p->msg('^', q); };    // ESC ^ ... ST  PM.
+                vt.intro[ctrl::ESC][ESC_APC   ] = VT_PROC{ p->msg(ESC_APC, q); };    // ESC _ ... ST  APC.
+                vt.intro[ctrl::ESC][ESC_DSC   ] = VT_PROC{ p->msg(ESC_DSC, q); };    // ESC P ... ST  DSC.
+                vt.intro[ctrl::ESC][ESC_SOS   ] = VT_PROC{ p->msg(ESC_SOS, q); };    // ESC X ... ST  SOS.
+                vt.intro[ctrl::ESC][ESC_PM    ] = VT_PROC{ p->msg(ESC_PM , q); };    // ESC ^ ... ST  PM.
 
                 vt.intro[ctrl::BS ] = VT_PROC{ p->cub(q.pop_all(ctrl::BS )); };
                 vt.intro[ctrl::DEL] = VT_PROC{ p->del(q.pop_all(ctrl::DEL)); };
@@ -1048,7 +1048,7 @@ namespace netxs::ui
                         }
                     }
                 }
-                log("Unsupported Message/Command: ESC ", (char)c, " ", utf::debase(data));
+                log("Unsupported Message/Command: '\\e", (char)c, utf::debase<faux>(data), "'");
             }
             // bufferbase: .
     virtual void clear_all()
