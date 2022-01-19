@@ -401,6 +401,13 @@ namespace netxs::events::userland
                     EVENT_XS( viewport  , rect        ), // request: return form actual viewport.
                     EVENT_XS( menusize  , iota        ), // release: set menu height.
                     EVENT_XS( lucidity  , iota        ), // set or request window transparency, iota: 0-255, -1 to request.
+                    EVENT_XS( fixedsize , bool        ), // set ui::fork ratio.
+                    GROUP_XS( window    , twod        ), // set or request window properties.
+
+                    SUBSET_XS( window )
+                    {
+                        EVENT_XS( size  , twod        ), // set window size.
+                    };
                 };
                 SUBSET_XS( global )
                 {
@@ -931,6 +938,8 @@ namespace netxs::console
         iota object_kind = {};
 
     public:
+        static constexpr iota reflow_root = -1; //todo unify
+
         side oversz; // base: Oversize, margin.
         twod anchor; // base: Object balance point. Center point for any transform (on preview).
 
@@ -1054,12 +1063,13 @@ namespace netxs::console
             deface(square);
         }
         // base: Going to rebuild visual tree. Retest current size, ask parent if it is linked.
+        template<bool FORCED = faux>
         void reflow()
         {
             auto parent_ptr = parent();
-            if (parent_ptr && !visual_root)
+            if (parent_ptr && (!visual_root || (FORCED && (kind() != base::reflow_root)))) //todo unify -- See basewindow in vtm.cpp
             {
-                parent_ptr->reflow();
+                parent_ptr->reflow<FORCED>();
             }
             else
             {
@@ -3394,16 +3404,20 @@ namespace netxs::console
             {
                 twod min = min_value;
                 twod max = max_value;
+                void fixed(twod const& m)
+                {
+                    min = max = m;
+                }
             }
             lims;
             bool sure; // limit: Reepeat size checking afetr all.
 
         public:
             limit(base&&) = delete;
-            limit(base& boss, twod const& min_size = -dot_11, twod const& max_size = -dot_11, bool forced = faux)
+            limit(base& boss, twod const& min_size = -dot_11, twod const& max_size = -dot_11, bool forced_clamp = faux, bool forced_resize = faux)
                 : skill{ boss }
             {
-                set(min_size, max_size, forced);
+                set(min_size, max_size, forced_clamp);
                 // Clamping before all.
                 boss.SUBMIT_T(tier::preview, e2::size::any, memo, new_size)
                 {
@@ -3415,18 +3429,30 @@ namespace netxs::console
                     if (sure)
                         new_size = std::clamp(new_size, lims.min, lims.max);
                 };
+                if (forced_resize)
+                {
+                    boss.SUBMIT_T(tier::release, e2::form::prop::window::size, memo, new_size)
+                    {
+                        auto reserv = lims;
+                        lims.fixed(new_size);
+                        boss.base::template riseup<tier::release>(e2::form::prop::fixedsize, true, true); //todo unify - Inform ui::fork to adjust ratio.
+                        boss.base::template reflow<true>();
+                        boss.base::template riseup<tier::release>(e2::form::prop::fixedsize, faux, true);
+                        lims = reserv;
+                    };
+                }
             }
             // pro::limit: Set size limits (min, max). Preserve current value if specified arg less than 0.
-            void set(twod const& min_size, twod const& max_size = -dot_11, bool forced = faux)
+            void set(twod const& min_size, twod const& max_size = -dot_11, bool forced_clamp = faux)
             {
-                sure = forced;
+                sure = forced_clamp;
                 lims.min = min_size.less(dot_00, min_value, min_size);
                 lims.max = max_size.less(dot_00, max_value, max_size);
             }
             // pro::limit: Set resize limits (min, max). Preserve current value if specified arg less than 0.
-            void set(lims_t const& new_limits, bool forced = faux)
+            void set(lims_t const& new_limits, bool forced_clamp = faux)
             {
-                set(new_limits.min, new_limits.max, forced);
+                set(new_limits.min, new_limits.max, forced_clamp);
             }
             auto& get() const
             {

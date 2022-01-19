@@ -208,6 +208,7 @@ int main(int argc, char* argv[])
             ->template plugin<pro::align>()
             ->invoke([&](auto& boss)
             {
+                boss.kind(base::reflow_root); //todo unify -- See base::reflow()
                 auto shadow = ptr::shadow(boss.This());
                 boss.SUBMIT_BYVAL(tier::preview, e2::form::proceed::d_n_d::drop, what)
                 {

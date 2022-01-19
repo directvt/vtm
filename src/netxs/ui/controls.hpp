@@ -148,8 +148,6 @@ namespace netxs::ui
         auto depend(sptr master_ptr)
         {
             auto& master = *master_ptr;
-            //todo test leaks
-            //master.SUBMIT_T(tier::release, e2::form::upon::vtree::detached, memomap[master.id], parent_ptr)
             master.SUBMIT_T(tier::release, e2::dtor, memomap[master.id], id)
             {
                 auto backup = This();
@@ -239,6 +237,7 @@ namespace netxs::ui
         iota maxpos;
         bool updown;
         bool movable;
+        bool fixed;
 
         twod xpose(twod const& pt) { return updown ? twod{ pt.y, pt.x } : pt; }
         iota get_x(twod const& pt) { return updown ? pt.y : pt.x; }
@@ -255,6 +254,14 @@ namespace netxs::ui
             width = std::max(thickness, 0);
             config(s1, s2);
         }
+        void _config_ratio(iota s1, iota s2)
+        {
+            if (s1 < 0) s1 = 0;
+            if (s2 < 0) s2 = 0;
+            auto sum = s1 + s2;
+            ratio = sum ? netxs::divround(s1 * MAX_RATIO, sum)
+                        : MAX_RATIO >> 1;
+        }
 
     public:
         auto get_ratio()
@@ -263,11 +270,7 @@ namespace netxs::ui
         }
         void config(iota s1, iota s2 = 1)
         {
-            if (s1 < 0) s1 = 0;
-            if (s2 < 0) s2 = 0;
-            auto sum = s1 + s2;
-            ratio = sum ? netxs::divround(s1 * MAX_RATIO, sum)
-                        : MAX_RATIO >> 1;
+            _config_ratio(s1, s2);
             base::reflow();
         }
         auto config(axis alignment, iota thickness, iota s1, iota s2)
@@ -305,8 +308,13 @@ namespace netxs::ui
               width{ 0 },
               movable{ true },
               updown{ faux },
-              ratio{ 0xFFFF >> 1 }
+              ratio{ 0xFFFF >> 1 },
+              fixed{ faux }
         {
+            SUBMIT(tier::release, e2::form::prop::fixedsize, is_fixed) //todo unify -- See terminal window self resize
+            {
+                fixed = is_fixed;
+            };
             SUBMIT(tier::preview, e2::size::set, new_size)
             {
                 fork::size_preview(new_size);
@@ -415,6 +423,8 @@ namespace netxs::ui
                 }
 
                 new_size = xpose({ split + width + get_x(size2), new_size0.y });
+
+                if (fixed) _config_ratio(split, get_x(size2));
             }
         }
 

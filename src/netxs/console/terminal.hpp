@@ -364,17 +364,25 @@ namespace netxs::ui
             void manage(fifo& q)
             {
                 owner.target->flush();
+                static constexpr iota all_title = 0;  // Sub commands.
+                static constexpr iota label     = 1;  // Sub commands.
+                static constexpr iota title     = 2;  // Sub commands.
+                static constexpr iota set_winsz = 8;  // Set window size in characters.
                 static constexpr iota get_label = 20; // Report icon   label. (Report as OSC L label ST).
                 static constexpr iota get_title = 21; // Report window title. (Report as OSC l title ST).
                 static constexpr iota put_stack = 22; // Push icon label and window title to   stack.
                 static constexpr iota pop_stack = 23; // Pop  icon label and window title from stack.
-                static constexpr iota all_title = 0;  // Sub commands.
-                static constexpr iota label     = 1;  // Sub commands.
-                static constexpr iota title     = 2;  // Sub commands.
                 switch (auto option = q(0))
                 {
-                    // Return an empty string for security reasons
-                    case get_label: owner.answer(queue.osc(ansi::OSC_LABEL_REPORT, "")); break;
+                    case set_winsz:
+                    {
+                        twod winsz;
+                        winsz.y = q(-1);
+                        winsz.x = q(-1);
+                        owner.window_resize(winsz);
+                        break;
+                    }
+                    case get_label: owner.answer(queue.osc(ansi::OSC_LABEL_REPORT, "")); break; // Return an empty string for security reasons
                     case get_title: owner.answer(queue.osc(ansi::OSC_TITLE_REPORT, "")); break;
                     case put_stack:
                     {
@@ -3743,6 +3751,9 @@ namespace netxs::ui
                     case 1:    // Cursor keys application mode.
                         decckm = true;
                         break;
+                    case 3:    // Set 132 column window size (DECCOLM).
+                        window_resize({ 132, 0 });
+                        break;
                     case 5:    // Inverted rendering (DECSCNM).
                         invert = true;
                         break;
@@ -3817,6 +3828,9 @@ namespace netxs::ui
                 {
                     case 1:    // Cursor keys ANSI mode.
                         decckm = faux;
+                        break;
+                    case 3:    // Set 80 column window size (DECCOLM).
+                        window_resize({ 80, 0 });
                         break;
                     case 5:    // Inverted rendering (DECSCNM).
                         invert = faux;
@@ -4036,6 +4050,11 @@ namespace netxs::ui
                     }
                 };
             }
+        }
+        // term: Resize terminal window.
+        void window_resize(twod winsz)
+        {
+            base::riseup<tier::preview>(e2::form::prop::window::size, winsz);
         }
        ~term(){ active = faux; }
         term(text command_line, iota max_scrollback_size = def_length, iota grow_step = def_growup)

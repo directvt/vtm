@@ -173,7 +173,26 @@ namespace netxs::app::term
                                                 ->plugin<pro::limit>(dot_11, twod{ 400,200 });
                         auto scroll = layers->attach(ui::rail::ctor());
                         {
-                            scroll->plugin<pro::limit>(twod{ 12,1 }); // mc crashes when window is too small
+                            auto min_size = twod{ 12,1 }; // mc crashes when window is too small
+                            auto max_size = -dot_11;
+                            auto forced_clamp = faux;
+                            auto forced_resize = true;
+                            scroll->plugin<pro::limit>(min_size, max_size, forced_clamp, forced_resize)
+                                  ->invoke([](auto& boss)
+                                  {
+                                    boss.SUBMIT(tier::preview, e2::form::prop::window::size, new_size)
+                                    {
+                                        auto size = boss.size();
+                                        new_size = new_size.less(dot_11, size, std::max(dot_11, new_size));
+                                        //     if (new_size.x == 0) new_size.x = size.x; //todo maximize window
+                                        //else if (new_size.x ==-1) new_size.x = size.x;
+                                        //else                      new_size.x = std::max(1, new_size.x);
+                                        //     if (new_size.y == 0) new_size.y = size.y; //todo maximize window
+                                        //else if (new_size.y ==-1) new_size.y = size.y;
+                                        //else                      new_size.y = std::max(1, new_size.y);
+                                        boss.SIGNAL(tier::release, e2::form::prop::window::size, new_size);
+                                    };
+                                  });
 
                             auto shell = os::get_shell();
                             auto inst = scroll->attach(ui::term::ctor(v.empty() ? shell + " -i"
