@@ -183,14 +183,14 @@ namespace netxs::ansi
     static const iota SGR_FAINT     = 22;
     static const iota SGR_ITALIC    = 3;
     static const iota SGR_NONITALIC = 23;
-    static const iota SGR_INV       = 7;
-    static const iota SGR_NOINV     = 27;
     static const iota SGR_UND       = 4;
     static const iota SGR_DOUBLEUND = 21;
     static const iota SGR_NOUND     = 24;
     static const iota SGR_SLOWBLINK = 5;
     static const iota SGR_FASTBLINK = 6;
     static const iota SGR_NO_BLINK  = 25;
+    static const iota SGR_INV       = 7;
+    static const iota SGR_NOINV     = 27;
     static const iota SGR_STRIKE    = 9;
     static const iota SGR_NOSTRIKE  = 29;
     static const iota SGR_OVERLN    = 53;
@@ -1220,11 +1220,30 @@ namespace netxs::ansi
                 auto ints = []  (unsigned char cmd) { return cmd >= 0x20 && cmd <= 0x2f; }; // "intermediate bytes" in the range 0x20–0x2F
                 auto pars = []  (unsigned char cmd) { return cmd >= 0x3C && cmd <= 0x3f; }; // "parameter bytes" in the range 0x30–0x3F
                 auto cmds = []  (unsigned char cmd) { return cmd >= 0x40 && cmd <= 0x7E; };
+                auto isC0 = []  (unsigned char cmd) { return cmd <= 0x1F; };
+                auto trap = [&] (auto& c) // Catch and execute C0.
+                {
+                    if (isC0(c))
+                    {
+                        auto& intro = _glb<T>::vt_parser.intro;
+                        auto  empty = qiew{};
+                        do
+                        {
+                            intro.execute(c, empty, client); // Make one iteration using firstcmd and return.
+                            ascii.pop_front();
+                            if (ascii.empty()) break;
+                            c = ascii.front();
+                        }
+                        while (isC0(c));
+                        return true;
+                    }
+                    return faux;
+                };
                 auto fill = [&] (auto& queue)
                 {
                     auto a = ';';
-                    auto push = [&](auto num)
-                    {	// Parse subparameters divided by colon ':' (max arg value<int32_t> is 1,073,741,823)
+                    auto push = [&](auto num) // Parse subparameters divided by colon ':' (max arg value<int32_t> is 1,073,741,823)
+                    {
                         if (a == ':') queue.template push<true>(num);
                         else          queue.template push<faux>(num);
                     };
@@ -1234,13 +1253,18 @@ namespace netxs::ansi
                         if (auto param = utf::to_int(ascii))
                         {
                             push(param.value());
-                            if  (ascii.empty()) break;
+                            if (ascii.empty()) break;
+                            a = ascii.front(); // Delimiter or cmd after number.
+                            trap(a);
                         }
-                        else push(0); // default zero parameter expressed by the standalone delimiter/semicolon.
-
-                        a = ascii.front(); // delimiter or cmd after number
+                        else
+                        {
+                            auto c = ascii.front();
+                            if (trap(c)) continue;
+                            push(0); // Default zero parameter expressed by standalone delimiter/semicolon.
+                            a = c; // Delimiter or cmd after number.
+                        }
                         ascii.pop_front();
-
                         if (cmds(a))
                         {
                             queue.settop(a);

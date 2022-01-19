@@ -346,7 +346,17 @@ namespace netxs::ui
                     default:
                     case 6: queue.report(owner.target->coord); break;
                     case 5: queue.add("OK");                   break;
-                    case-1: queue.add("VT420");                break; // redirected from CSI n c
+                    case-1: queue.add("VT420");                break;
+                }
+                owner.answer(queue);
+            }
+            // w_tracking: CSI n c  Primary device attributes (DA1).
+            void device(iota n)
+            {
+                switch(n)
+                {
+                    default:
+                        queue.add("\033[?1;2c"); break;
                 }
                 owner.answer(queue);
             }
@@ -608,10 +618,10 @@ namespace netxs::ui
                 vt.csier.table[CSI_SGR][SGR_BG_CYN_LT] = VT_PROC{ p->owner.ctrack.bgc(tint::cyanlt   ); };
                 vt.csier.table[CSI_SGR][SGR_BG_WHT_LT] = VT_PROC{ p->owner.ctrack.bgc(tint::whitelt  ); };
 
-                vt.csier.table[CSI_CUU] = VT_PROC{ p->up ( q(1)); };  // CSI n A  (CUU)
-                vt.csier.table[CSI_CUD] = VT_PROC{ p->dn ( q(1)); };  // CSI n B  (CUD)
-                vt.csier.table[CSI_CUF] = VT_PROC{ p->cuf( q(1)); };  // CSI n C  (CUF)
-                vt.csier.table[CSI_CUB] = VT_PROC{ p->cuf(-q(1)); };  // CSI n D  (CUB)
+                vt.csier.table[CSI_CUU] = VT_PROC{ p->up (q(1)); };  // CSI n A  (CUU)
+                vt.csier.table[CSI_CUD] = VT_PROC{ p->dn (q(1)); };  // CSI n B  (CUD)
+                vt.csier.table[CSI_CUF] = VT_PROC{ p->cuf(q(1)); };  // CSI n C  (CUF)
+                vt.csier.table[CSI_CUB] = VT_PROC{ p->cub(q(1)); };  // CSI n D  (CUB)
 
                 vt.csier.table[CSI_CHT]           = VT_PROC{ p->tab( q(1)); };  // CSI n I  Caret forward  n tabs, default n=1.
                 vt.csier.table[CSI_CBT]           = VT_PROC{ p->tab(-q(1)); };  // CSI n Z  Caret backward n tabs, default n=1.
@@ -645,23 +655,31 @@ namespace netxs::ui
 
                 vt.csier.table[CSI_WIN] = VT_PROC{ p->owner.wtrack.manage(q   ); };  // CSI n;m;k t  Terminal window options (XTWINOPS).
                 vt.csier.table[CSI_DSR] = VT_PROC{ p->owner.wtrack.report(q(6)); };  // CSI n n  Device status report (DSR).
-                vt.csier.table[CSI_PDA] = VT_PROC{ p->owner.wtrack.report( -1 ); };  // CSI n c  Send device attributes (Primary DA). Respond always "VT420".
+                vt.csier.table[CSI_PDA] = VT_PROC{ p->owner.wtrack.device(q(0)); };  // CSI n c  Send device attributes (Primary DA).
 
                 vt.csier.table[CSI_CCC][CCC_SBS] = VT_PROC{ p->owner.sbsize(q); };  // CCC_SBS: Set scrollback size.
                 vt.csier.table[CSI_CCC][CCC_EXT] = VT_PROC{ p->owner.native(q(1)); };          // CCC_EXT: Setup extended functionality.
                 vt.csier.table[CSI_CCC][CCC_RST] = VT_PROC{ p->style.glb(); p->style.wrp(deco::defwrp); };  // fx_ccc_rst
 
-                vt.intro[ctrl::ESC][ESC_IND] = VT_PROC{ p->lf(1); };          // ESC D  Index. Caret down and scroll if needed (IND).
-                vt.intro[ctrl::ESC][ESC_IR ] = VT_PROC{ p->ri (); };          // ESC M  Reverse index (RI).
-                vt.intro[ctrl::ESC][ESC_SC ] = VT_PROC{ p->scp(); };          // ESC 7  (same as CSI s) Save cursor position.
-                vt.intro[ctrl::ESC][ESC_RC ] = VT_PROC{ p->rcp(); };          // ESC 8  (same as CSI u) Restore cursor position.
-                vt.intro[ctrl::ESC][ESC_RIS] = VT_PROC{ p->owner.decstr(); }; // ESC c  Reset to initial state (same as DECSTR).
+                vt.intro[ctrl::ESC][ESC_IND   ] = VT_PROC{ p->lf(1); };          // ESC D  Index. Caret down and scroll if needed (IND).
+                vt.intro[ctrl::ESC][ESC_IR    ] = VT_PROC{ p->ri (); };          // ESC M  Reverse index (RI).
+                vt.intro[ctrl::ESC][ESC_SC    ] = VT_PROC{ p->scp(); };          // ESC 7  (same as CSI s) Save cursor position.
+                vt.intro[ctrl::ESC][ESC_RC    ] = VT_PROC{ p->rcp(); };          // ESC 8  (same as CSI u) Restore cursor position.
+                vt.intro[ctrl::ESC][ESC_RIS   ] = VT_PROC{ p->owner.decstr(); }; // ESC c  Reset to initial state (same as DECSTR).
+                vt.intro[ctrl::ESC][ESC_NEL   ] = VT_PROC{ p->cr(); p->dn(1); }; // ESC E  Move cursor down and CR. Same as CSI 1 E
+                vt.intro[ctrl::ESC][ESC_DECDHL] = VT_PROC{ p->dhl(q); };         // ESC # ...  ESC # 3, ESC # 4, ESC # 5, ESC # 6, ESC # 8
 
-                vt.intro[ctrl::BS ] = VT_PROC{ p->cuf(-q.pop_all(ctrl::BS )); };
-                vt.intro[ctrl::DEL] = VT_PROC{ p->del( q.pop_all(ctrl::DEL)); };
-                vt.intro[ctrl::TAB] = VT_PROC{ p->tab( q.pop_all(ctrl::TAB)); };
-                vt.intro[ctrl::EOL] = VT_PROC{ p->lf ( q.pop_all(ctrl::EOL)); }; // LF.
-                vt.intro[ctrl::CR ] = VT_PROC{ p->cr ();                      }; // CR.
+                vt.intro[ctrl::ESC][ESC_APC   ] = VT_PROC{ p->msg(ESC_APC, q); };    // ESC _ ... ST  APC.
+                vt.intro[ctrl::ESC][ESC_DSC   ] = VT_PROC{ p->msg(ESC_DSC, q); };    // ESC P ... ST  DSC.
+                vt.intro[ctrl::ESC][ESC_SOS   ] = VT_PROC{ p->msg(ESC_SOS, q); };    // ESC X ... ST  SOS.
+                vt.intro[ctrl::ESC][ESC_PM    ] = VT_PROC{ p->msg(ESC_PM , q); };    // ESC ^ ... ST  PM.
+
+                vt.intro[ctrl::BS ] = VT_PROC{ p->cub(q.pop_all(ctrl::BS )); };
+                vt.intro[ctrl::DEL] = VT_PROC{ p->del(q.pop_all(ctrl::DEL)); };
+                vt.intro[ctrl::TAB] = VT_PROC{ p->tab(q.pop_all(ctrl::TAB)); };
+                vt.intro[ctrl::EOL] = VT_PROC{ p->lf (q.pop_all(ctrl::EOL)); }; // LF
+                vt.intro[ctrl::VT ] = VT_PROC{ p->lf (q.pop_all(ctrl::VT )); }; // VT same as LF
+                vt.intro[ctrl::CR ] = VT_PROC{ p->cr ();                     }; // CR
 
                 vt.csier.table_quest[DECSET] = VT_PROC{ p->owner.decset(q); };
                 vt.csier.table_quest[DECRST] = VT_PROC{ p->owner.decrst(q); };
@@ -975,6 +993,63 @@ namespace netxs::ui
                         break;
                 }
             }
+            void dhl(qiew& q)
+            {
+                parser::flush();
+                auto c = q ? q.front()
+                           : -1;
+                if (q) q.pop_front();
+                switch (c)
+                {
+                    case -1:
+                        log("ESC #  is unexpected");
+                        break;
+                    case '3':
+                    case '4':
+                    case '5':
+                    case '6':
+                        log("ESC # ", (char)c, " (", c, ") is usupported");
+                        break;
+                    case '8':
+                    {
+                        set_coord(dot_00);
+                        auto y = 0;
+                        while (++y <= panel.y)// Fill viewport with 'E'.
+                        {
+                            chy(y);
+                            ech(panel.x, 'E');
+                        }
+                        set_coord(dot_00);
+                        break;
+                    }
+                    default:
+                        log("ESC # ", (char)c, " (", c, ") is unknown");
+                        break;
+                }                
+            }
+            void msg(iota c, qiew& q)
+            {
+                parser::flush();
+                text data;
+                while (q)
+                {
+                    auto c = q.front();
+                    data.push_back(c);
+                    q.pop_front();
+                         if (c == ansi::C0_BEL) break;
+                    else if (c == ansi::C0_ESC)
+                    {
+                        auto c = q.front();
+                        if (q && c == '\\')
+                        {
+                            data.push_back(c);
+                            q.pop_front();
+                            break;
+                        }
+                    }
+                }
+                log("Unsupported Message/Command: '\\e", (char)c, utf::debase<faux>(data), "'");
+            }
             // bufferbase: .
     virtual void clear_all()
             {
@@ -1256,7 +1331,7 @@ namespace netxs::ui
                 log("bufferbase: SHL(n=", n, ") is not implemented.");
             }
             // bufferbase: CSI n X  Erase/put n chars after cursor. Don't change cursor pos.
-    virtual void ech(iota n) = 0;
+    virtual void ech(iota n, char c = whitespace) = 0;
             // bufferbase: CSI n P  Delete (not Erase) letters under the cursor.
     virtual void dch(iota n) = 0;
             // bufferbase: '\x7F'  Delete characters backwards.
@@ -1268,7 +1343,14 @@ namespace netxs::ui
     virtual void cuf(iota n)
             {
                 parser::flush();
+                if (n == 0) n = 1;
                 coord.x += n;
+            }
+            // bufferbase: Move cursor backward by n.
+            void cub(iota n)
+            {
+                if (n == 0) n = 1;
+                cuf(-n);
             }
             // bufferbase: CSI n G  Absolute horizontal cursor position (1-based).
     virtual void chx(iota n)
@@ -1295,6 +1377,7 @@ namespace netxs::ui
     virtual void up(iota n)
             {
                 parser::flush_data();
+                if (n == 0) n = 1;
                 auto new_coord_y = coord.y - n;
                 if (new_coord_y <  y_top
                      && coord.y >= y_top)
@@ -1307,6 +1390,7 @@ namespace netxs::ui
     virtual void dn(iota n)
             {
                 parser::flush_data();
+                if (n == 0) n = 1;
                 auto new_coord_y = coord.y + n;
                 if (new_coord_y >  y_end
                      && coord.y <= y_end)
@@ -1458,10 +1542,11 @@ namespace netxs::ui
                 canvas.cutoff(coord, n, blank);
             }
             // alt_screen: CSI n X  Erase/put n chars after cursor. Don't change cursor pos.
-            void ech(iota n) override
+            void ech(iota n, char c = whitespace) override
             {
                 parser::flush();
-                auto blank = brush.spc();//.bgc(greendk).bga(0x7f);
+                auto blank = brush;
+                blank.txt(c);
                 canvas.splice(coord, n, blank);
             }
             // alt_screen: Parser callback.
@@ -2986,15 +3071,19 @@ namespace netxs::ui
                 else ctx.block.cutoff(coord, n, blank);
             }
             // scroll_buf: CSI n X  Erase/put n chars after cursor. Don't change cursor pos.
-            void ech(iota n) override
+            void ech(iota n, char c = whitespace) override
             {
                 parser::flush();
-                auto blank = brush.spc();
+                auto blank = brush;
+                blank.txt(c);
                 if (auto ctx = get_context(coord))
                 {
                     n = std::min(n, panel.x - coord.x);
                     auto& curln = batch.current();
-                    curln.splice(batch.caret, n, blank);
+                    //todo revise (brush != default ? see windows console)
+                    //if (c == whitespace) curln.splice<faux>(batch.caret, n, blank);
+                    //else                 curln.splice<true>(batch.caret, n, blank);
+                    curln.splice<true>(batch.caret, n, blank);
                     batch.recalc(curln);
                     auto& mapln = index[coord.y];
                     auto  width = curln.length();
@@ -4127,7 +4216,7 @@ namespace netxs::ui
                 cursor.coor(console.get_coord(base));
 
                 console.output(parent_canvas);
-                if (invert) parent_canvas.fill(cell::shaders::reverse);
+                if (invert) parent_canvas.fill(cell::shaders::invbit);
 
                 if (oversz.b > 0) // Shade the viewport bottom oversize (futures).
                 {
