@@ -433,7 +433,7 @@ namespace netxs::{module}
     }};
 
     template<class T, class D>
-    auto deflate(D const& pack, size_t size)
+    auto unpack(D const& pack, size_t size)
     {{
         std::vector<T> data;
         data.reserve(size);
@@ -452,8 +452,8 @@ namespace netxs::{module}
     {{
         using blocks_t = uint16_t;
         using offset_t = uint8_t;
-        static std::vector<offset_t> offset = deflate<offset_t>(base::offset_pack, base::offset_size);
-        static std::vector<blocks_t> blocks = deflate<blocks_t>(base::blocks_pack, base::blocks_size);
+        static std::vector<offset_t> offset = unpack<offset_t>(base::offset_pack, base::offset_size);
+        static std::vector<blocks_t> blocks = unpack<blocks_t>(base::blocks_pack, base::blocks_size);
 
         return cp > 0x10FFFF
             ? base::ucspec[0]
