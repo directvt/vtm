@@ -43,6 +43,7 @@ namespace netxs::console
     using registry_t = netxs::imap<text, std::pair<bool, std::list<sptr<base>>>>;
     using focus_test_t = std::pair<id_t, iota>;
     using functor = std::function<void(sptr<base>)>;
+    using proc = std::function<void(hids&)>;
     struct create_t
     {
         using sptr = netxs::sptr<base>;
@@ -315,6 +316,7 @@ namespace netxs::events::userland
                     EVENT_XS( unfocus , sptr<console::base> ), // order to unset focus on the specified object, arg is a object sptr.
                     EVENT_XS( swap    , sptr<console::base> ), // order to replace existing client. See tiling manager empty slot.
                     EVENT_XS( functor , console::functor    ), // exec functor (see pro::focus).
+                    EVENT_XS( onbehalf, console::proc       ), // exec functor on behalf (see gate).
                     GROUP_XS( d_n_d   , sptr<console::base> ), // drag&drop functionality. See tiling manager empty slot and pro::d_n_d.
                     //EVENT_XS( commit     , iota                     ), // order to output the targets, arg is a frame number.
                     //EVENT_XS( multirender, vector<shared_ptr<face>> ), // ask children to render itself to the set of canvases, arg is an array of the face sptrs.
@@ -442,6 +444,7 @@ namespace netxs::events::userland
                         EVENT_XS( got     , input::hids           ), // release: got  keyboard focus.
                         EVENT_XS( lost    , input::hids           ), // release: lost keyboard focus.
                         EVENT_XS( handover, std::list<id_t>       ), // request: Handover all available foci.
+                        EVENT_XS( enlist  , std::list<id_t>       ), // anycast: Enumerate all available foci.
                         EVENT_XS( find    , console::focus_test_t ), // request: Check the focus.
                     };
                 };
@@ -3404,9 +3407,9 @@ namespace netxs::console
             {
                 twod min = min_value;
                 twod max = max_value;
-                void fixed(twod const& m)
+                void fixed_size(twod const& m)
                 {
-                    min = max = m;
+                    min = max = std::clamp(m, min, max);;
                 }
             }
             lims;
@@ -3434,7 +3437,7 @@ namespace netxs::console
                     boss.SUBMIT_T(tier::release, e2::form::prop::window::size, memo, new_size)
                     {
                         auto reserv = lims;
-                        lims.fixed(new_size);
+                        lims.fixed_size(new_size);
                         boss.base::template riseup<tier::release>(e2::form::prop::fixedsize, true, true); //todo unify - Inform ui::fork to adjust ratio.
                         boss.base::template reflow<true>();
                         boss.base::template riseup<tier::release>(e2::form::prop::fixedsize, faux, true);
@@ -3642,6 +3645,14 @@ namespace netxs::console
                 boss.SUBMIT_T(tier::anycast, e2::form::state::keybd::find, memo, gear_test)
                 {
                     if (find(gear_test.first)) gear_test.second++;
+                };
+                boss.SUBMIT_T(tier::anycast, e2::form::state::keybd::enlist, memo, gear_id_list)
+                {
+                    if (pool.size())
+                    {
+                        auto tail = gear_id_list.end();
+                        gear_id_list.insert(tail, pool.begin(), pool.end());
+                    }                    
                 };
                 boss.SUBMIT_T(tier::request, e2::form::state::keybd::find, memo, gear_test)
                 {
@@ -5664,7 +5675,7 @@ again:
                     world->SIGNAL(tier::release, e2::form::proceed::createby, gear);
                 }
             };
-            SUBMIT(tier::preview, e2::form::proceed::focus, item_ptr)
+            SUBMIT(tier::preview, e2::form::proceed::focus, item_ptr) //todo use e2::form::proceed::onbehalf
             {
                 if (item_ptr)
                 {
@@ -5676,7 +5687,7 @@ again:
                     gear.force_group_focus = faux;
                 }
             };
-            SUBMIT(tier::preview, e2::form::proceed::unfocus, item_ptr)
+            SUBMIT(tier::preview, e2::form::proceed::unfocus, item_ptr) //todo use e2::form::proceed::onbehalf
             {
                 if (item_ptr)
                 {
@@ -5685,6 +5696,10 @@ again:
                     gear.kb_focus_taken = faux; //todo used in base::upevent handler
                     item_ptr->SIGNAL(tier::release, hids::events::upevent::kbannul, gear);
                 }
+            };
+            SUBMIT(tier::release, e2::form::proceed::onbehalf, proc)
+            {
+                proc(input);
             };
             SUBMIT(tier::preview, hids::events::keybd::any, gear)
             {

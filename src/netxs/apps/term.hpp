@@ -94,7 +94,6 @@ namespace netxs::app::term
                     gear.dismiss(true);
                 };
             }},
-        #ifdef DEMO 
             std::pair<text, std::function<void(ui::pads&)>>{ "=─",
             [](ui::pads& boss)
             {
@@ -137,7 +136,6 @@ namespace netxs::app::term
                     boss.color(align == bias::right ? 0xFF00ff00 : x3.fgc(), x3.bgc());
                 };
             }},
-        #endif
             std::pair<text, std::function<void(ui::pads&)>>{ "Wrap",
             [](ui::pads& boss)
             {
@@ -182,15 +180,28 @@ namespace netxs::app::term
                                   {
                                     boss.SUBMIT(tier::preview, e2::form::prop::window::size, new_size)
                                     {
-                                        auto size = boss.size();
-                                        new_size = new_size.less(dot_11, size, std::max(dot_11, new_size));
-                                        //     if (new_size.x == 0) new_size.x = size.x; //todo maximize window
-                                        //else if (new_size.x ==-1) new_size.x = size.x;
-                                        //else                      new_size.x = std::max(1, new_size.x);
-                                        //     if (new_size.y == 0) new_size.y = size.y; //todo maximize window
-                                        //else if (new_size.y ==-1) new_size.y = size.y;
-                                        //else                      new_size.y = std::max(1, new_size.y);
-                                        boss.SIGNAL(tier::release, e2::form::prop::window::size, new_size);
+                                        // Axis x/y (see XTWINOPS):
+                                        //   -1 -- preserve
+                                        //    0 -- maximize (toggle)
+                                        if (new_size == dot_00) // Toggle maximize/restore terminal window (only if it is focused by someone).
+                                        {
+                                            auto gates = decltype(e2::form::state::keybd::enlist)::type{};
+                                            boss.SIGNAL(tier::anycast, e2::form::state::keybd::enlist, gates);
+                                            if (gates.size())
+                                            if (auto gate_ptr = bell::getref(gates.back()))
+                                            {
+                                                gate_ptr->SIGNAL(tier::release, e2::form::proceed::onbehalf, [&](auto& gear)
+                                                {
+                                                    boss.template riseup<tier::release>(e2::form::maximize, gear);
+                                                });
+                                            }
+                                        }
+                                        else
+                                        {
+                                            auto size = boss.size();
+                                            new_size = new_size.less(dot_11, size, std::max(dot_11, new_size));
+                                            boss.SIGNAL(tier::release, e2::form::prop::window::size, new_size);
+                                        }
                                     };
                                   });
 

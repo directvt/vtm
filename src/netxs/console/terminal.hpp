@@ -368,12 +368,18 @@ namespace netxs::ui
                 static constexpr iota label     = 1;  // Sub commands.
                 static constexpr iota title     = 2;  // Sub commands.
                 static constexpr iota set_winsz = 8;  // Set window size in characters.
+                static constexpr iota maximize  = 9;  // Toggle maximize/restore.
+                static constexpr iota full_scrn = 10; // Toggle fullscreen mode (todo: hide menu).
                 static constexpr iota get_label = 20; // Report icon   label. (Report as OSC L label ST).
                 static constexpr iota get_title = 21; // Report window title. (Report as OSC l title ST).
                 static constexpr iota put_stack = 22; // Push icon label and window title to   stack.
                 static constexpr iota pop_stack = 23; // Pop  icon label and window title from stack.
                 switch (auto option = q(0))
                 {
+                    case maximize:
+                    case full_scrn:
+                        owner.window_resize(dot_00);
+                        break;
                     case set_winsz:
                     {
                         twod winsz;
