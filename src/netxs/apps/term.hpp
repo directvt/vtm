@@ -94,7 +94,6 @@ namespace netxs::app::term
                     gear.dismiss(true);
                 };
             }},
-        #ifdef DEMO 
             std::pair<text, std::function<void(ui::pads&)>>{ "=─",
             [](ui::pads& boss)
             {
@@ -137,7 +136,6 @@ namespace netxs::app::term
                     boss.color(align == bias::right ? 0xFF00ff00 : x3.fgc(), x3.bgc());
                 };
             }},
-        #endif
             std::pair<text, std::function<void(ui::pads&)>>{ "Wrap",
             [](ui::pads& boss)
             {
@@ -173,7 +171,39 @@ namespace netxs::app::term
                                                 ->plugin<pro::limit>(dot_11, twod{ 400,200 });
                         auto scroll = layers->attach(ui::rail::ctor());
                         {
-                            scroll->plugin<pro::limit>(twod{ 12,1 }); // mc crashes when window is too small
+                            auto min_size = twod{ 12,1 }; // mc crashes when window is too small
+                            auto max_size = -dot_11;
+                            auto forced_clamp = faux;
+                            auto forced_resize = true;
+                            scroll->plugin<pro::limit>(min_size, max_size, forced_clamp, forced_resize)
+                                  ->invoke([](auto& boss)
+                                  {
+                                    boss.SUBMIT(tier::preview, e2::form::prop::window::size, new_size)
+                                    {
+                                        // Axis x/y (see XTWINOPS):
+                                        //   -1 -- preserve
+                                        //    0 -- maximize (toggle)
+                                        if (new_size == dot_00) // Toggle maximize/restore terminal window (only if it is focused by someone).
+                                        {
+                                            auto gates = decltype(e2::form::state::keybd::enlist)::type{};
+                                            boss.SIGNAL(tier::anycast, e2::form::state::keybd::enlist, gates);
+                                            if (gates.size())
+                                            if (auto gate_ptr = bell::getref(gates.back()))
+                                            {
+                                                gate_ptr->SIGNAL(tier::release, e2::form::proceed::onbehalf, [&](auto& gear)
+                                                {
+                                                    boss.template riseup<tier::release>(e2::form::maximize, gear);
+                                                });
+                                            }
+                                        }
+                                        else
+                                        {
+                                            auto size = boss.size();
+                                            new_size = new_size.less(dot_11, size, std::max(dot_11, new_size));
+                                            boss.SIGNAL(tier::release, e2::form::prop::window::size, new_size);
+                                        }
+                                    };
+                                  });
 
                             auto shell = os::get_shell();
                             auto inst = scroll->attach(ui::term::ctor(v.empty() ? shell + " -i"
