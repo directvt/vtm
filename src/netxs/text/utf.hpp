@@ -1320,7 +1320,7 @@ namespace netxs::utf
     }
 
     // utf: Return a string without control chars (replace all ctrls with printables).
-    template<bool SPLIT = faux>
+    template<bool SPLIT = true>
     auto debase(view utf8)
     {
         text buff;

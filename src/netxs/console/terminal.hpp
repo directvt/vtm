@@ -2675,6 +2675,7 @@ namespace netxs::ui
                 sync_coord();
             }
             // scroll_buf: Map the current cursor position to the scrollback.
+            template<bool ALLOW_PENDING_WRAP = true>
             void sync_coord()
             {
                 coord.y = std::clamp(coord.y, 0, panel.y - 1);
@@ -2686,7 +2687,14 @@ namespace netxs::ui
                     auto& curln = batch.current();
                     auto  wraps = curln.wrapped();
                     auto  curid = curln.index;
-                    if (coord.x > panel.x && wraps) coord.x = panel.x;
+                    if constexpr (ALLOW_PENDING_WRAP)
+                    {
+                        if (coord.x > panel.x && wraps) coord.x = panel.x;
+                    }
+                    else
+                    {
+                        if (coord.x >= panel.x && wraps) coord.x = panel.x - 1;
+                    }
 
                     coord.y -= y_top;
 
@@ -2717,15 +2725,23 @@ namespace netxs::ui
                 }
                 else // Always wraps inside margins.
                 {
-                    if (coord.x > panel.x) coord.x = panel.x;
+                    if constexpr (ALLOW_PENDING_WRAP)
+                    {
+                        if (coord.x > panel.x) coord.x = panel.x;
+                    }
+                    else
+                    {
+                        if (coord.x >=panel.x) coord.x = panel.x - 1;
+                    }
                 }
             }
 
-            void cup (fifo& q) override { bufferbase::cup (q); sync_coord(); }
-            void scl (iota  n) override { bufferbase::scl (n); sync_coord(); }
-            void cuf (iota  n) override { bufferbase::cuf (n); sync_coord(); }
-            void chx (iota  n) override { bufferbase::chx (n); sync_coord(); }
+            void cup (fifo& q) override { bufferbase::cup (q); sync_coord<faux>(); }
+            void cuf (iota  n) override { bufferbase::cuf (n); sync_coord<faux>(); }
+            void chx (iota  n) override { bufferbase::chx (n); sync_coord<faux>(); }
+            void tab (iota  n) override { bufferbase::tab (n); sync_coord<faux>(); }
             void chy (iota  n) override { bufferbase::chy (n); sync_coord(); }
+            void scl (iota  n) override { bufferbase::scl (n); sync_coord(); }
             void il  (iota  n) override { bufferbase::il  (n); sync_coord(); }
             void dl  (iota  n) override { bufferbase::dl  (n); sync_coord(); }
             void up  (iota  n) override { bufferbase::up  (n); sync_coord(); }
@@ -2734,16 +2750,6 @@ namespace netxs::ui
             void ri  ()        override { bufferbase::ri  ( ); sync_coord(); }
             void cr  ()        override { bufferbase::cr  ( ); sync_coord(); }
 
-            // scroll_buf: Horizontal tab.
-            void tab (iota n) override
-            {
-                bufferbase::tab(n);
-                auto& curln = batch.current();
-                auto  wraps = curln.wrapped();
-                     if (coord.x < 0)                 coord.x = 0;
-                else if (wraps && coord.x >= panel.x) coord.x = panel.x - 1;
-                sync_coord();
-            }
             // scroll_buf: Reset the scrolling region.
             void reset_scroll_region()
             {
