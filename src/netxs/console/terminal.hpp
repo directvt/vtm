@@ -739,6 +739,7 @@ namespace netxs::ui
                 deco style{}; // Parser style state.
                 mark brush{}; // Parser brush state.
                 twod coord{}; // Screen coord state.
+                bool decom{}; // Origin mode  state.
             };
 
             term& owner; // bufferbase: Terminal object reference.
@@ -753,6 +754,7 @@ namespace netxs::ui
             iota  n_end; // bufferbase: Original      1-based scrolling region bottom vertical pos (use 0 if it is not set).
             tabs  stops; // bufferbase: Tabstop index.
             bool  notab; // bufferbase: Tabstop index is cleared.
+            bool  decom; // bufferbase: Origin mode.
 
             bufferbase(term& master)
                 : owner{ master },
@@ -765,7 +767,8 @@ namespace netxs::ui
                   n_top{ 0      },
                   n_end{ 0      },
                   stops{ {0, 0} },
-                  notab{ faux   }
+                  notab{ faux   },
+                  decom{ faux   }
             {
                 parser::style = ansi::def_style;
             }
@@ -811,6 +814,7 @@ namespace netxs::ui
                 auto y_max = panel.y - 1;
                 y_end = std::clamp(y_max - scend, 0, y_max);
                 y_top = std::clamp(sctop        , 0, y_end);
+                cup(dot_11);
             }
             // bufferbase: .
     virtual void resize_viewport(twod const& new_sz)
@@ -829,7 +833,7 @@ namespace netxs::ui
                     //bottom != 0 && top > bottom) top = bottom; //todo Nobody respects that.
                     bottom != 0 && top >= bottom) top = bottom = 0;
 
-                coord = dot_00;
+                //coord = dot_00;
                 n_top = top    == 1       ? 0 : top;
                 n_end = bottom == panel.y ? 0 : bottom;
                 update_region();
@@ -1068,6 +1072,7 @@ namespace netxs::ui
     virtual void clear_all()
             {
                 parser::state = {};
+                decom = faux;
                 rtb();
             }
             // tabstops index, tablen = 3, vector<pair<fwd_idx, rev_idx>>:
@@ -1270,13 +1275,19 @@ namespace netxs::ui
                 parser::flush();
                 saved = { .style = parser::style,
                           .brush = parser::brush,
-                          .coord = coord };
+                          .coord = coord,
+                          .decom = decom };
+                if (decom) saved.coord.y -= y_top;
+                assert(saved.coord.y >= 0);
             }
             // bufferbase: ESC 8 or CSI u  Restore cursor position.
             void rcp()
             {
                 parser::flush();
-                set_coord(saved.coord);
+                decom = saved.decom;
+                auto coor = saved.coord; 
+                if (decom) coor.y += y_top;
+                set_coord(coor);
                 parser::style = saved.style;
                 parser::brush = saved.brush;
                 parser::flush(); // Proceed new style.
@@ -1376,16 +1387,31 @@ namespace netxs::ui
     virtual void chy(iota n)
             {
                 parser::flush_data();
-                coord.y = std::clamp(n, 1, panel.y) - 1;
+                --n;
+                if (decom)
+                {
+                    coord.y = std::clamp(n + y_top, y_top, y_end);
+                }
+                else coord.y = std::clamp(n, 0, panel.y - 1);
+            }
+            // bufferbase: CSI y; x H/F  Caret position (1-based).
+    virtual void cup(twod p)
+            {
+                parser::flush_data();
+                p -= dot_11;
+                coord.x = std::clamp(p.x, 0, panel.x - 1);
+                if (decom)
+                {
+                    coord.y = std::clamp(p.y + y_top, y_top, y_end);
+                }
+                else coord.y  = std::clamp(p.y, 0, panel.y - 1);
             }
             // bufferbase: CSI y; x H/F  Caret position (1-based).
     virtual void cup(fifo& queue)
             {
-                parser::flush_data();
                 auto y = queue(1);
                 auto x = queue(1);
-                auto p = twod{ x, y };
-                coord  = std::clamp(p, dot_11, panel) - dot_11;
+                cup({ x, y });
             }
             // bufferbase: Move cursor up.
     virtual void up(iota n)
@@ -2731,7 +2757,7 @@ namespace netxs::ui
                     }
                     else
                     {
-                        if (coord.x >=panel.x) coord.x = panel.x - 1;
+                        if (coord.x >= panel.x) coord.x = panel.x - 1;
                     }
                 }
             }
@@ -3765,9 +3791,14 @@ namespace netxs::ui
                         break;
                     case 3:    // Set 132 column window size (DECCOLM).
                         window_resize({ 132, 0 });
+                        target->ed(commands::erase::display::viewport);
                         break;
                     case 5:    // Inverted rendering (DECSCNM).
                         invert = true;
+                        break;
+                    case 6:    // Enable origin mode (DECOM).
+                        target->decom = true;
+                        target->cup(dot_11);
                         break;
                     case 7:    // Enable auto-wrap.
                         target->style.wrp(wrap::on);
@@ -3843,9 +3874,14 @@ namespace netxs::ui
                         break;
                     case 3:    // Set 80 column window size (DECCOLM).
                         window_resize({ 80, 0 });
+                        target->ed(commands::erase::display::viewport);
                         break;
                     case 5:    // Inverted rendering (DECSCNM).
                         invert = faux;
+                        break;
+                    case 6:    // Disable origin mode (DECOM).
+                        target->decom = faux;
+                        target->cup(dot_11);
                         break;
                     case 7:    // Disable auto-wrap.
                         target->style.wrp(wrap::off);
