@@ -739,6 +739,7 @@ namespace netxs::ui
                 deco style{}; // Parser style state.
                 mark brush{}; // Parser brush state.
                 twod coord{}; // Screen coord state.
+                bool decom{}; // Origin mode  state.
             };
 
             term& owner; // bufferbase: Terminal object reference.
@@ -753,6 +754,7 @@ namespace netxs::ui
             iota  n_end; // bufferbase: Original      1-based scrolling region bottom vertical pos (use 0 if it is not set).
             tabs  stops; // bufferbase: Tabstop index.
             bool  notab; // bufferbase: Tabstop index is cleared.
+            bool  decom; // bufferbase: Origin mode.
 
             bufferbase(term& master)
                 : owner{ master },
@@ -765,7 +767,8 @@ namespace netxs::ui
                   n_top{ 0      },
                   n_end{ 0      },
                   stops{ {0, 0} },
-                  notab{ faux   }
+                  notab{ faux   },
+                  decom{ faux   }
             {
                 parser::style = ansi::def_style;
             }
@@ -811,6 +814,7 @@ namespace netxs::ui
                 auto y_max = panel.y - 1;
                 y_end = std::clamp(y_max - scend, 0, y_max);
                 y_top = std::clamp(sctop        , 0, y_end);
+                cup(dot_11);
             }
             // bufferbase: .
     virtual void resize_viewport(twod const& new_sz)
@@ -829,7 +833,6 @@ namespace netxs::ui
                     //bottom != 0 && top > bottom) top = bottom; //todo Nobody respects that.
                     bottom != 0 && top >= bottom) top = bottom = 0;
 
-                coord = dot_00;
                 n_top = top    == 1       ? 0 : top;
                 n_end = bottom == panel.y ? 0 : bottom;
                 update_region();
@@ -1068,6 +1071,7 @@ namespace netxs::ui
     virtual void clear_all()
             {
                 parser::state = {};
+                decom = faux;
                 rtb();
             }
             // tabstops index, tablen = 3, vector<pair<fwd_idx, rev_idx>>:
@@ -1270,13 +1274,19 @@ namespace netxs::ui
                 parser::flush();
                 saved = { .style = parser::style,
                           .brush = parser::brush,
-                          .coord = coord };
+                          .coord = coord,
+                          .decom = decom };
+                if (decom) saved.coord.y -= y_top;
+                assert(saved.coord.y >= 0);
             }
             // bufferbase: ESC 8 or CSI u  Restore cursor position.
             void rcp()
             {
                 parser::flush();
-                set_coord(saved.coord);
+                decom = saved.decom;
+                auto coor = saved.coord; 
+                if (decom) coor.y += y_top;
+                set_coord(coor);
                 parser::style = saved.style;
                 parser::brush = saved.brush;
                 parser::flush(); // Proceed new style.
@@ -1361,10 +1371,12 @@ namespace netxs::ui
                 coord.x += n;
             }
             // bufferbase: Move cursor backward by n.
-            void cub(iota n)
+    virtual void cub(iota n)
             {
+                parser::flush();
                 if (n == 0) n = 1;
-                cuf(-n);
+                else if (coord.x == panel.x && parser::style.wrp() == wrap::on && n > 0) ++n;
+                coord.x -= n;
             }
             // bufferbase: CSI n G  Absolute horizontal cursor position (1-based).
     virtual void chx(iota n)
@@ -1376,16 +1388,31 @@ namespace netxs::ui
     virtual void chy(iota n)
             {
                 parser::flush_data();
-                coord.y = std::clamp(n, 1, panel.y) - 1;
+                --n;
+                if (decom)
+                {
+                    coord.y = std::clamp(n + y_top, y_top, y_end);
+                }
+                else coord.y = std::clamp(n, 0, panel.y - 1);
+            }
+            // bufferbase: CSI y; x H/F  Caret position (1-based).
+    virtual void cup(twod p)
+            {
+                parser::flush_data();
+                p -= dot_11;
+                coord.x = std::clamp(p.x, 0, panel.x - 1);
+                if (decom)
+                {
+                    coord.y = std::clamp(p.y + y_top, y_top, y_end);
+                }
+                else coord.y  = std::clamp(p.y, 0, panel.y - 1);
             }
             // bufferbase: CSI y; x H/F  Caret position (1-based).
     virtual void cup(fifo& queue)
             {
-                parser::flush_data();
                 auto y = queue(1);
                 auto x = queue(1);
-                auto p = twod{ x, y };
-                coord  = std::clamp(p, dot_11, panel) - dot_11;
+                cup({ x, y });
             }
             // bufferbase: Move cursor up.
     virtual void up(iota n)
@@ -2675,6 +2702,7 @@ namespace netxs::ui
                 sync_coord();
             }
             // scroll_buf: Map the current cursor position to the scrollback.
+            template<bool ALLOW_PENDING_WRAP = true>
             void sync_coord()
             {
                 coord.y = std::clamp(coord.y, 0, panel.y - 1);
@@ -2686,7 +2714,14 @@ namespace netxs::ui
                     auto& curln = batch.current();
                     auto  wraps = curln.wrapped();
                     auto  curid = curln.index;
-                    if (coord.x > panel.x && wraps) coord.x = panel.x;
+                    if constexpr (ALLOW_PENDING_WRAP)
+                    {
+                        if (coord.x > panel.x && wraps) coord.x = panel.x;
+                    }
+                    else
+                    {
+                        if (coord.x >= panel.x && wraps) coord.x = panel.x - 1;
+                    }
 
                     coord.y -= y_top;
 
@@ -2717,15 +2752,24 @@ namespace netxs::ui
                 }
                 else // Always wraps inside margins.
                 {
-                    if (coord.x > panel.x) coord.x = panel.x;
+                    if constexpr (ALLOW_PENDING_WRAP)
+                    {
+                        if (coord.x > panel.x) coord.x = panel.x;
+                    }
+                    else
+                    {
+                        if (coord.x >= panel.x) coord.x = panel.x - 1;
+                    }
                 }
             }
 
-            void cup (fifo& q) override { bufferbase::cup (q); sync_coord(); }
-            void scl (iota  n) override { bufferbase::scl (n); sync_coord(); }
-            void cuf (iota  n) override { bufferbase::cuf (n); sync_coord(); }
-            void chx (iota  n) override { bufferbase::chx (n); sync_coord(); }
+            void cup (fifo& q) override { bufferbase::cup (q); sync_coord<faux>(); }
+            void cuf (iota  n) override { bufferbase::cuf (n); sync_coord<faux>(); }
+            void cub (iota  n) override { bufferbase::cub (n); sync_coord<faux>(); }
+            void chx (iota  n) override { bufferbase::chx (n); sync_coord<faux>(); }
+            void tab (iota  n) override { bufferbase::tab (n); sync_coord<faux>(); }
             void chy (iota  n) override { bufferbase::chy (n); sync_coord(); }
+            void scl (iota  n) override { bufferbase::scl (n); sync_coord(); }
             void il  (iota  n) override { bufferbase::il  (n); sync_coord(); }
             void dl  (iota  n) override { bufferbase::dl  (n); sync_coord(); }
             void up  (iota  n) override { bufferbase::up  (n); sync_coord(); }
@@ -2734,16 +2778,6 @@ namespace netxs::ui
             void ri  ()        override { bufferbase::ri  ( ); sync_coord(); }
             void cr  ()        override { bufferbase::cr  ( ); sync_coord(); }
 
-            // scroll_buf: Horizontal tab.
-            void tab (iota n) override
-            {
-                bufferbase::tab(n);
-                auto& curln = batch.current();
-                auto  wraps = curln.wrapped();
-                     if (coord.x < 0)                 coord.x = 0;
-                else if (wraps && coord.x >= panel.x) coord.x = panel.x - 1;
-                sync_coord();
-            }
             // scroll_buf: Reset the scrolling region.
             void reset_scroll_region()
             {
@@ -3759,9 +3793,14 @@ namespace netxs::ui
                         break;
                     case 3:    // Set 132 column window size (DECCOLM).
                         window_resize({ 132, 0 });
+                        target->ed(commands::erase::display::viewport);
                         break;
                     case 5:    // Inverted rendering (DECSCNM).
                         invert = true;
+                        break;
+                    case 6:    // Enable origin mode (DECOM).
+                        target->decom = true;
+                        target->cup(dot_11);
                         break;
                     case 7:    // Enable auto-wrap.
                         target->style.wrp(wrap::on);
@@ -3837,9 +3876,14 @@ namespace netxs::ui
                         break;
                     case 3:    // Set 80 column window size (DECCOLM).
                         window_resize({ 80, 0 });
+                        target->ed(commands::erase::display::viewport);
                         break;
                     case 5:    // Inverted rendering (DECSCNM).
                         invert = faux;
+                        break;
+                    case 6:    // Disable origin mode (DECOM).
+                        target->decom = faux;
+                        target->cup(dot_11);
                         break;
                     case 7:    // Disable auto-wrap.
                         target->style.wrp(wrap::off);
