@@ -833,7 +833,6 @@ namespace netxs::ui
                     //bottom != 0 && top > bottom) top = bottom; //todo Nobody respects that.
                     bottom != 0 && top >= bottom) top = bottom = 0;
 
-                //coord = dot_00;
                 n_top = top    == 1       ? 0 : top;
                 n_end = bottom == panel.y ? 0 : bottom;
                 update_region();
@@ -1372,10 +1371,12 @@ namespace netxs::ui
                 coord.x += n;
             }
             // bufferbase: Move cursor backward by n.
-            void cub(iota n)
+    virtual void cub(iota n)
             {
+                parser::flush();
                 if (n == 0) n = 1;
-                cuf(-n);
+                else if (coord.x == panel.x && parser::style.wrp() == wrap::on && n > 0) ++n;
+                coord.x -= n;
             }
             // bufferbase: CSI n G  Absolute horizontal cursor position (1-based).
     virtual void chx(iota n)
@@ -2764,6 +2765,7 @@ namespace netxs::ui
 
             void cup (fifo& q) override { bufferbase::cup (q); sync_coord<faux>(); }
             void cuf (iota  n) override { bufferbase::cuf (n); sync_coord<faux>(); }
+            void cub (iota  n) override { bufferbase::cub (n); sync_coord<faux>(); }
             void chx (iota  n) override { bufferbase::chx (n); sync_coord<faux>(); }
             void tab (iota  n) override { bufferbase::tab (n); sync_coord<faux>(); }
             void chy (iota  n) override { bufferbase::chy (n); sync_coord(); }
