@@ -1552,7 +1552,7 @@ namespace netxs::ui
                         tail += panel.x;
                         break;
                     case commands::erase::line::left: // n = 1  Erase to Left.
-                        tail += std::min(panel.x, coord.x);
+                        tail += std::min(panel.x, coord.x + 1); // +1 to include the current cell.
                         break;
                     case commands::erase::line::all: // n = 2  Erase All.
                         tail += panel.x;
@@ -1677,7 +1677,10 @@ namespace netxs::ui
             // alt_screen: Clear all lines from the viewport top line to the current line.
             void del_above() override
             {
+                auto coorx = coord.x;
+                if (coorx < panel.x) ++coord.x; // Clear the cell at the current position. See ED1 description.
                 canvas.del_above(coord, brush.spare);
+                coord.x = coorx;
             }
             // alt_screen: Shift by n the scroll region.
             void scroll_region(iota top, iota end, iota n, bool use_scrollback = faux) override
@@ -3059,7 +3062,7 @@ namespace netxs::ui
                         case commands::erase::line::left: // n = 1  Erase to Left.
                             start = wraps ? caret - caret % panel.x
                                           : 0;
-                            count = caret - start;
+                            count = caret - start + 1; // +1 to include the current cell.
                             break;
                         case commands::erase::line::all: // n = 2  Erase All.
                             start = wraps ? caret - caret % panel.x
@@ -3489,6 +3492,7 @@ namespace netxs::ui
                     while (n--) batch.pop_back();
                     while (m--) index.pop_back();
 
+                    //todo fill all lines with color if color is used
                     add_lines(p);
 
                     i = batch.index_by_id(topid); // The index may be outdated due to the ring.
@@ -3527,6 +3531,8 @@ namespace netxs::ui
             // scroll_buf: Clear all lines from the viewport top line to the current line.
             void del_above() override
             {
+                auto coorx = coord.x;
+                if (coorx < panel.x) ++coord.x; // Clear the cell at the current position. See ED1 description.
                 auto blank = brush.spc();
                 auto clear = [&](twod const& coor)
                 {
@@ -3561,7 +3567,7 @@ namespace netxs::ui
                             if (max_x > 0)
                             {
                                 auto max_w = curln.wrapped() ? (max_x - 1) % panel.x + 1
-                                                            :  max_x;
+                                                             :  max_x;
                                 auto width = std::min<iota>(max_w, coord.x);
                                 auto start = caret - coord.x;
                                 curln.splice(start, width, blank);
@@ -3570,6 +3576,7 @@ namespace netxs::ui
                     }
 
                     upbox.wipe(blank);
+                    coord.x = coorx;
                 };
 
                 auto coor = coord;
