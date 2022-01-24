@@ -953,7 +953,7 @@ namespace netxs::ui
                             case '9':
                             case '`':
                             case 'U':
-                                log("ESC ", (char)c, " ", (char)b, " (", c, " ", b, ") is usupported");
+                                log("ESC ", (char)c, " ", (char)b, " (", c, " ", b, ") is unsupported");
                                 break;
                             case '%':
                             case '"':
@@ -967,7 +967,7 @@ namespace netxs::ui
                                 {
                                      auto d = q.front();
                                      q.pop_front();
-                                     log("ESC ", (char)c, " ", (char)b, " ", (char)d, " (", c, " ", b, " ", d, ") is usupported");
+                                     log("ESC ", (char)c, " ", (char)b, " ", (char)d, " (", c, " ", b, " ", d, ") is unsupported");
                                 }
                                 break;
                             }
@@ -1003,7 +1003,7 @@ namespace netxs::ui
                     case ansi::ESC_SPA   :
                     case ansi::ESC_EPA   :
                     case ansi::ESC_RID   :
-                        log("ESC ", (char)c, " (", c, ") is usupported");
+                        log("ESC ", (char)c, " (", c, ") is unsupported");
                         break;
                     default:
                         log("ESC ", (char)c, " (", c, ") is unknown");
@@ -1025,7 +1025,7 @@ namespace netxs::ui
                     case '4':
                     case '5':
                     case '6':
-                        log("ESC # ", (char)c, " (", c, ") is usupported");
+                        log("ESC # ", (char)c, " (", c, ") is unsupported");
                         break;
                     case '8':
                     {
