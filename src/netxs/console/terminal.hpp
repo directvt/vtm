@@ -1730,6 +1730,11 @@ namespace netxs::ui
                       index{ newid },
                       style{ style }
                 { }
+                line(id_t newid, deco const& style, cell const& blank, iota length)
+                    : rich { blank, length },
+                      index{ newid },
+                      style{ style }
+                { }
 
                 line& operator = (line&&)      = default;
                 line& operator = (line const&) = default;
@@ -2921,7 +2926,7 @@ namespace netxs::ui
                 index_rebuild();
                 sync_coord();
             }
-            // scroll_buf: Push lines to the scrollback bottom.
+            // scroll_buf: Push empty lines to the scrollback bottom.
             void add_lines(iota amount)
             {
                 assert(amount >= 0);
@@ -2930,6 +2935,17 @@ namespace netxs::ui
                 {
                     auto& l = batch.invite(++newid, parser::style);
                     index.push_back(newid, 0, 0);
+                }
+            }
+            // scroll_buf: Push filled lines to the scrollback bottom.
+            void add_lines(iota amount, cell const& blank)
+            {
+                assert(amount >= 0);
+                auto newid = batch.back().index;
+                while (amount-- > 0)
+                {
+                    auto& l = batch.invite(++newid, parser::style, blank, panel.x);
+                    index.push_back(newid, 0, panel.x);
                 }
             }
             // scroll_buf: . (! Check coord.y context)
@@ -3479,7 +3495,8 @@ namespace netxs::ui
                     auto m = index.size - 1 - coor.y;
                     auto p = arena      - 1 - coor.y;
 
-                    if (coor.x == 0 && start != 0) // Remove the index of the current line if the entire visible line is going to be removed.
+                    auto fresh = coor.x == 0 && start != 0;
+                    if (fresh) // Remove the index of the current line if the entire visible line is going to be removed.
                     {
                         ++m;
                         ++p;
@@ -3492,19 +3509,27 @@ namespace netxs::ui
                     while (n--) batch.pop_back();
                     while (m--) index.pop_back();
 
-                    //todo fill all lines with color if color is used
-                    add_lines(p);
-
+                    add_lines(p, blank);
                     i = batch.index_by_id(topid); // The index may be outdated due to the ring.
                     auto& curln = batch[i];
-                    auto& mapln = index[coor.y];
-                    mapln.width = std::min(coor.x, mapln.width);
-                    curln.trimto(start + mapln.width);
+                    if (fresh)
+                    {
+                        curln.trimto(start);
+                    }
+                    else
+                    {
+                        auto& mapln = index[coor.y];
+                        mapln.width = panel.x;
+                        curln.splice<true>(start + coor.x, panel.x - coor.x, blank);
+                        curln.trimto(start + panel.x);
+                        assert(mapln.start == 0 || curln.wrapped());
+                    }
                     batch.recalc(curln);
-                    assert(mapln.start == 0 || curln.wrapped());
 
                     sync_coord();
 
+                    auto stash = batch.vsize - batch.basis - index.size;
+                    assert(stash == 0);
                     assert(test_futures());
                     dnbox.wipe(blank);
                 };
@@ -3518,6 +3543,7 @@ namespace netxs::ui
                 }
                 else if (coor.y <= y_end)
                 {
+                    coor.x = std::clamp(coor.x, 0, panel.x);
                     coor.y -= y_top;
                     clear(coor);
                 }
@@ -3531,55 +3557,32 @@ namespace netxs::ui
             // scroll_buf: Clear all lines from the viewport top line to the current line.
             void del_above() override
             {
-                auto coorx = coord.x;
-                if (coorx < panel.x) ++coord.x; // Clear the cell at the current position. See ED1 description.
                 auto blank = brush.spc();
-                auto clear = [&](twod const& coor)
+                auto clear = [&](twod const& from)
                 {
-                    // The dirtiest and fastest solution. Just fill existing lines by blank cell.
-                    auto i = batch.index_by_id(index[coor.y].index);
-                    auto& mapln = index[coor.y];
-                    auto  caret = mapln.start + coor.x;
-
-                    auto& curln = batch[i];
-                    auto& topln = index.front();
-                    auto  curit = batch.iter_by_id(topln.index);
-                    auto  endit = batch.iter_by_id(curln.index);
-                    auto  start = topln.start;
-                    auto  blank = brush.spc();
-                    if (curit == endit)
+                    auto head = index.begin();
+                    auto tail = head + from.y;
+                    while (head != tail)
                     {
-                        auto width = std::min(curln.length(), caret);
-                        curln.splice(start, width - start, blank);
+                        auto& mapln = *head++;
+                        auto& curln = batch.item_by_id(mapln.index);
+                        mapln.width = panel.x;
+                        curln.splice<true>(mapln.start, panel.x, blank);
+                        batch.recalc(curln);
                     }
-                    else
+                    if (from.x > 0)
                     {
-                        auto& curln =*curit;
-                        auto  width = curln.length();
-                        curln.splice(start, width - start, blank);
-
-                        while(++curit != endit) curit->core::wipe(blank);
-
-                        if (coord.x > 0)
-                        {
-                            auto& curln =*curit;
-                            auto  max_x = std::min<iota>(curln.length(), caret);
-                            if (max_x > 0)
-                            {
-                                auto max_w = curln.wrapped() ? (max_x - 1) % panel.x + 1
-                                                             :  max_x;
-                                auto width = std::min<iota>(max_w, coord.x);
-                                auto start = caret - coord.x;
-                                curln.splice(start, width, blank);
-                            }
-                        }
+                        auto& mapln = *head;
+                        auto& curln = batch.item_by_id(mapln.index);
+                        mapln.width = std::max(mapln.width, from.x);
+                        curln.splice<true>(mapln.start, from.x, blank);
+                        batch.recalc(curln);
                     }
-
                     upbox.wipe(blank);
-                    coord.x = coorx;
                 };
 
                 auto coor = coord;
+                if (coor.x < panel.x) coor.x += 1; // Clear the cell at the current position. See ED1 description.
                 if (coor.y < y_top)
                 {
                     assert(coor.x + coor.y * upbox.size().x < sctop * upbox.size().x);
@@ -3587,6 +3590,7 @@ namespace netxs::ui
                 }
                 else if (coor.y <= y_end)
                 {
+                    coor.x = std::clamp(coor.x, 0, panel.x);
                     coor.y -= y_top;
                     clear(coor);
                 }
