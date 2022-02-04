@@ -89,6 +89,11 @@ namespace netxs::console
         {
             assert(size.x * size.y == std::distance(body.begin(), body.end()));
         }
+        core(cell const& fill, iota length)
+            : region{ dot_00, twod{ length, 1 } },
+              client{ dot_00, twod{ length, 1 } },
+              canvas( length, fill )
+        { }
 
         friend void swap(core& lhs, core& rhs)
         {
