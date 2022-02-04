@@ -814,7 +814,6 @@ namespace netxs::ui
                 auto y_max = panel.y - 1;
                 y_end = std::clamp(y_max - scend, 0, y_max);
                 y_top = std::clamp(sctop        , 0, y_end);
-                cup(dot_11);
             }
             // bufferbase: .
     virtual void resize_viewport(twod const& new_sz)
@@ -836,6 +835,7 @@ namespace netxs::ui
                 n_top = top    == 1       ? 0 : top;
                 n_end = bottom == panel.y ? 0 : bottom;
                 update_region();
+                cup(dot_11);
             }
             // bufferbase: .
     virtual void set_coord(twod const& new_coord)
