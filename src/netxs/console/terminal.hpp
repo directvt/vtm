@@ -800,9 +800,9 @@ namespace netxs::ui
                 return 0;
             }
             // bufferbase: .
-    virtual iota set_slide(iota)
+    virtual bool set_slide(iota&)
             {
-                return 0;
+                return true;
             }
             // bufferbase: .
             void update_region()
@@ -2230,22 +2230,20 @@ namespace netxs::ui
                 return batch.slide;
             }
             // scroll_buf: .
-            iota set_slide(iota new_slide) override
+            bool set_slide(iota& new_slide) override
             {
-                //log(" new_slide=", new_slide);
-                if (batch.slide == new_slide)
-                {
-                    //log("delta == 0");
-                    return new_slide;
-                }
+                new_slide = -new_slide;
+                log(" new_slide=", new_slide);
 
+                if (batch.slide != new_slide)
                 if (batch.basis == new_slide)
                 {
-                    batch.round = faux;
+                    log(" 0. batch.basis == new_slide");
                     auto& mapln = index.front();
                     batch.anchor_id = mapln.index;
                     batch.anchor_dy = mapln.start / panel.x;
                     batch.slide = batch.basis;
+                    batch.round = faux;
                 }
                 else
                 {
@@ -2254,6 +2252,24 @@ namespace netxs::ui
 
                     //if (std::abs(delta) > recalc_threshold) // calc approx
                     //{
+                        //preview: new_coor = origin;
+
+                        //auto& console = *target;
+                        //rack scinfo{};
+                        //auto& thing = *this;
+                        //auto  block = thing.base::area();
+                        //scinfo.beyond = thing.oversz;  // Oversize value.
+                        //scinfo.region = block.size;
+                        //auto fullsize = console.height();
+                        //auto count = console.get_size();
+                        ////auto avg_height = (double)fullsize / count;
+                        //auto curline = netxs::divround(fullsize * console.anchor(), count);
+                        //block.coor.y = -curline;//; // Viewport.
+                        //scinfo.window.coor = -block.coor; // Viewport.
+                        //scinfo.window.size = console.panel;      //
+                        //this->SIGNAL(tier::release, e2::form::upon::scroll::bycoor::x, scinfo);
+                        //this->SIGNAL(tier::release, e2::form::upon::scroll::bycoor::y, scinfo);
+                        
                         //auto a = new_slide < recalc_threshold;
                         //auto b = new_slide < std::abs(batch.vsize - new_slide);
                         //if (!round && (a || b))
@@ -2278,12 +2294,12 @@ namespace netxs::ui
                     //else // calc exactly
                     {
                         auto idpos = batch.index_by_id(batch.anchor_id);
-                        //log(" idpos=", idpos, " batch.size=", batch.size);
                         auto start = batch.begin() + idpos;
                         auto found = faux;
+                        log(" idpos=", idpos, " batch.size=", batch.size, " delta=", delta);
                         if (delta < 0) // Look up.
                         {
-                            //log(" delta < 0 new_slide=", new_slide);
+                            log(" delta < 0 new_slide=", new_slide);
                             auto limit = start - std::min(std::abs(delta), idpos);
                             while (start != limit)
                             {
@@ -2294,25 +2310,26 @@ namespace netxs::ui
                                 {
                                     batch.anchor_id = curln.index;
                                     batch.anchor_dy = new_slide - vtpos;
-                                    //log(" delta < 0  new_slide=", new_slide, " batch.slide=", batch.slide, " anchor_id=", batch.anchor_id);
+                                    log(" delta < 0  new_slide=", new_slide, " batch.slide=", batch.slide, " anchor_id=", batch.anchor_id);
                                     batch.slide = new_slide;
                                     found = true;
                                     break;
                                 }
                             }
 
-                            //if (!found)
-                            //{
-                            //    ///log(" 0.1. slide reset old_slide", batch.slide, " new_slide=", batch.basis );
-                            //    batch.anchor_id = batch.back().index - (batch.size - 1);
-                            //    batch.anchor_dy = 0;
-                            //    batch.slide = 0;
-                            //    assert(batch.anchor_id == batch.front().index);
-                            //}
+                            if (!found)
+                            {
+                                log(" 0.1. slide reset old_slide", batch.slide, " new_slide=", batch.basis );
+                                batch.anchor_id = batch.back().index - (batch.size - 1);
+                                batch.anchor_dy = 0;
+                                batch.slide = 0;
+                                new_slide = 0;
+                                assert(batch.anchor_id == batch.front().index);
+                            }
                         }
-                        else if (delta > 0) //  Look down.
+                        else if (delta > 0) // Look down.
                         {
-                            //log(" delta > 0 new_slide=", new_slide);
+                            log(" delta > 0 new_slide=", new_slide);
                             auto limit = start + std::min(delta, batch.size - idpos - 1);
                             do
                             {
@@ -2324,7 +2341,7 @@ namespace netxs::ui
                                 {
                                     batch.anchor_id = curln.index;
                                     batch.anchor_dy = new_slide - curpos;
-                                    //log(" delta > 0  new_slide=", new_slide, " batch.slide=", batch.slide, " anchor_id=", batch.anchor_id);
+                                    log(" delta > 0  new_slide=", new_slide, " batch.slide=", batch.slide, " anchor_id=", batch.anchor_id);
                                     batch.slide = new_slide;
                                     found = true;
                                     break;
@@ -2332,14 +2349,15 @@ namespace netxs::ui
                             }
                             while (start++ != limit);
 
-                            //if (!found)
-                            //{
-                            //    //log(" 0.2. slide reset old_slide", batch.slide, " new_slide=", batch.basis );
-                            //    auto& mapln = index.front();
-                            //    batch.anchor_id = mapln.index;
-                            //    batch.anchor_dy = mapln.start / panel.x;
-                            //    batch.slide = batch.basis;
-                            //}
+                            if (!found)
+                            {
+                                log(" 0.2. slide reset old_slide", batch.slide, " new_slide=", batch.basis );
+                                auto& mapln = index.front();
+                                batch.anchor_id = mapln.index;
+                                batch.anchor_dy = mapln.start / panel.x;
+                                batch.slide = batch.basis;
+                                new_slide = batch.basis;
+                            }
                         }
                         else
                         {
@@ -2364,7 +2382,8 @@ namespace netxs::ui
                 }
 
                 //print_slide("  set_slide");
-                return new_slide;
+                new_slide = -new_slide;
+                return batch.slide == batch.basis;
             }
             void recalc_slide(bool away)
             {
@@ -3965,7 +3984,7 @@ namespace netxs::ui
             normal.resize_history(ring_size, grow_step);
         }
         // term: Extended functionality response.
-        void native(bool  are_u)
+        void native(bool are_u)
         {
             auto response = ansi::ext(are_u);
             answer(response);
@@ -4158,29 +4177,8 @@ namespace netxs::ui
             };
             SUBMIT(tier::release, e2::coor::set, new_coor)
             {
-                //todo use tier::preview bcz approx viewport position can be corrected
-                auto& console = *target;
-                origin.x = new_coor.x;
-                origin.y = -console.set_slide(-new_coor.y);
-                follow[axis::Y] = console.get_slide() == console.get_basis();
-
-                //preview: new_coor = origin;
-
-                //auto& console = *target;
-                //rack scinfo{};
-                //auto& thing = *this;
-                //auto  block = thing.base::area();
-                //scinfo.beyond = thing.oversz;  // Oversize value.
-                //scinfo.region = block.size;
-                //auto fullsize = console.height();
-                //auto count = console.get_size();
-                ////auto avg_height = (double)fullsize / count;
-                //auto curline = netxs::divround(fullsize * console.anchor(), count);
-                //block.coor.y = -curline;//; // Viewport.
-                //scinfo.window.coor = -block.coor; // Viewport.
-                //scinfo.window.size = console.panel;      //
-                //this->SIGNAL(tier::release, e2::form::upon::scroll::bycoor::x, scinfo);
-                //this->SIGNAL(tier::release, e2::form::upon::scroll::bycoor::y, scinfo);
+                follow[axis::Y] = target->set_slide(new_coor.y);
+                origin = new_coor;
             };
             SUBMIT(tier::preview, e2::size::set, new_size)
             {
@@ -4260,27 +4258,28 @@ namespace netxs::ui
             };
             SUBMIT(tier::general, e2::timer::tick, timestamp)
             {
-                if (!unsync) return;
-                unsync = faux;
-
-                auto& console = *target;
-
-                auto scroll_size = console.panel;
-                scroll_size.y += console.get_basis();
-
-                auto scroll_coor = origin;
-                scroll(scroll_coor);
-
-                auto adjust_pads = console.recalc_pads(base::oversz);
-
-                if (scroll_size != base::size() // Update scrollbars.
-                 || scroll_coor != origin
-                 || adjust_pads) 
+                if (unsync)
                 {
-                    this->SIGNAL(tier::release, e2::size::set, scroll_size);
-                    this->base::moveto(scroll_coor);
+                    unsync = faux;
+                    auto& console = *target;
+
+                    auto scroll_size = console.panel;
+                    scroll_size.y += console.get_basis();
+
+                    auto scroll_coor = origin;
+                    scroll(scroll_coor);
+
+                    auto adjust_pads = console.recalc_pads(base::oversz);
+
+                    if (scroll_size != base::size() // Update scrollbars.
+                     || scroll_coor != origin
+                     || adjust_pads) 
+                    {
+                        this->SIGNAL(tier::release, e2::size::set, scroll_size);
+                        this->base::moveto(scroll_coor);
+                    }
+                    base::deface();
                 }
-                base::deface();
             };
             SUBMIT(tier::release, e2::render::any, parent_canvas)
             {
