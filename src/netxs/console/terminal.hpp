@@ -346,7 +346,17 @@ namespace netxs::ui
                     default:
                     case 6: queue.report(owner.target->coord); break;
                     case 5: queue.add("OK");                   break;
-                    case-1: queue.add("VT420");                break; // redirected from CSI n c
+                    case-1: queue.add("VT420");                break;
+                }
+                owner.answer(queue);
+            }
+            // w_tracking: CSI n c  Primary device attributes (DA1).
+            void device(iota n)
+            {
+                switch(n)
+                {
+                    default:
+                        queue.add("\033[?1;2c"); break;
                 }
                 owner.answer(queue);
             }
@@ -354,17 +364,31 @@ namespace netxs::ui
             void manage(fifo& q)
             {
                 owner.target->flush();
+                static constexpr iota all_title = 0;  // Sub commands.
+                static constexpr iota label     = 1;  // Sub commands.
+                static constexpr iota title     = 2;  // Sub commands.
+                static constexpr iota set_winsz = 8;  // Set window size in characters.
+                static constexpr iota maximize  = 9;  // Toggle maximize/restore.
+                static constexpr iota full_scrn = 10; // Toggle fullscreen mode (todo: hide menu).
                 static constexpr iota get_label = 20; // Report icon   label. (Report as OSC L label ST).
                 static constexpr iota get_title = 21; // Report window title. (Report as OSC l title ST).
                 static constexpr iota put_stack = 22; // Push icon label and window title to   stack.
                 static constexpr iota pop_stack = 23; // Pop  icon label and window title from stack.
-                static constexpr iota all_title = 0;  // Sub commands.
-                static constexpr iota label     = 1;  // Sub commands.
-                static constexpr iota title     = 2;  // Sub commands.
                 switch (auto option = q(0))
                 {
-                    // Return an empty string for security reasons
-                    case get_label: owner.answer(queue.osc(ansi::OSC_LABEL_REPORT, "")); break;
+                    case maximize:
+                    case full_scrn:
+                        owner.window_resize(dot_00);
+                        break;
+                    case set_winsz:
+                    {
+                        twod winsz;
+                        winsz.y = q(-1);
+                        winsz.x = q(-1);
+                        owner.window_resize(winsz);
+                        break;
+                    }
+                    case get_label: owner.answer(queue.osc(ansi::OSC_LABEL_REPORT, "")); break; // Return an empty string for security reasons
                     case get_title: owner.answer(queue.osc(ansi::OSC_TITLE_REPORT, "")); break;
                     case put_stack:
                     {
@@ -608,10 +632,10 @@ namespace netxs::ui
                 vt.csier.table[CSI_SGR][SGR_BG_CYN_LT] = VT_PROC{ p->owner.ctrack.bgc(tint::cyanlt   ); };
                 vt.csier.table[CSI_SGR][SGR_BG_WHT_LT] = VT_PROC{ p->owner.ctrack.bgc(tint::whitelt  ); };
 
-                vt.csier.table[CSI_CUU] = VT_PROC{ p->up ( q(1)); };  // CSI n A  (CUU)
-                vt.csier.table[CSI_CUD] = VT_PROC{ p->dn ( q(1)); };  // CSI n B  (CUD)
-                vt.csier.table[CSI_CUF] = VT_PROC{ p->cuf( q(1)); };  // CSI n C  (CUF)
-                vt.csier.table[CSI_CUB] = VT_PROC{ p->cuf(-q(1)); };  // CSI n D  (CUB)
+                vt.csier.table[CSI_CUU] = VT_PROC{ p->up (q(1)); };  // CSI n A  (CUU)
+                vt.csier.table[CSI_CUD] = VT_PROC{ p->dn (q(1)); };  // CSI n B  (CUD)
+                vt.csier.table[CSI_CUF] = VT_PROC{ p->cuf(q(1)); };  // CSI n C  (CUF)
+                vt.csier.table[CSI_CUB] = VT_PROC{ p->cub(q(1)); };  // CSI n D  (CUB)
 
                 vt.csier.table[CSI_CHT]           = VT_PROC{ p->tab( q(1)); };  // CSI n I  Caret forward  n tabs, default n=1.
                 vt.csier.table[CSI_CBT]           = VT_PROC{ p->tab(-q(1)); };  // CSI n Z  Caret backward n tabs, default n=1.
@@ -645,23 +669,31 @@ namespace netxs::ui
 
                 vt.csier.table[CSI_WIN] = VT_PROC{ p->owner.wtrack.manage(q   ); };  // CSI n;m;k t  Terminal window options (XTWINOPS).
                 vt.csier.table[CSI_DSR] = VT_PROC{ p->owner.wtrack.report(q(6)); };  // CSI n n  Device status report (DSR).
-                vt.csier.table[CSI_PDA] = VT_PROC{ p->owner.wtrack.report( -1 ); };  // CSI n c  Send device attributes (Primary DA). Respond always "VT420".
+                vt.csier.table[CSI_PDA] = VT_PROC{ p->owner.wtrack.device(q(0)); };  // CSI n c  Send device attributes (Primary DA).
 
                 vt.csier.table[CSI_CCC][CCC_SBS] = VT_PROC{ p->owner.sbsize(q); };  // CCC_SBS: Set scrollback size.
                 vt.csier.table[CSI_CCC][CCC_EXT] = VT_PROC{ p->owner.native(q(1)); };          // CCC_EXT: Setup extended functionality.
                 vt.csier.table[CSI_CCC][CCC_RST] = VT_PROC{ p->style.glb(); p->style.wrp(deco::defwrp); };  // fx_ccc_rst
 
-                vt.intro[ctrl::ESC][ESC_IND] = VT_PROC{ p->lf(1); };          // ESC D  Index. Caret down and scroll if needed (IND).
-                vt.intro[ctrl::ESC][ESC_IR ] = VT_PROC{ p->ri (); };          // ESC M  Reverse index (RI).
-                vt.intro[ctrl::ESC][ESC_SC ] = VT_PROC{ p->scp(); };          // ESC 7  (same as CSI s) Save cursor position.
-                vt.intro[ctrl::ESC][ESC_RC ] = VT_PROC{ p->rcp(); };          // ESC 8  (same as CSI u) Restore cursor position.
-                vt.intro[ctrl::ESC][ESC_RIS] = VT_PROC{ p->owner.decstr(); }; // ESC c  Reset to initial state (same as DECSTR).
+                vt.intro[ctrl::ESC][ESC_IND   ] = VT_PROC{ p->lf(1); };          // ESC D  Index. Caret down and scroll if needed (IND).
+                vt.intro[ctrl::ESC][ESC_IR    ] = VT_PROC{ p->ri (); };          // ESC M  Reverse index (RI).
+                vt.intro[ctrl::ESC][ESC_SC    ] = VT_PROC{ p->scp(); };          // ESC 7  (same as CSI s) Save cursor position.
+                vt.intro[ctrl::ESC][ESC_RC    ] = VT_PROC{ p->rcp(); };          // ESC 8  (same as CSI u) Restore cursor position.
+                vt.intro[ctrl::ESC][ESC_RIS   ] = VT_PROC{ p->owner.decstr(); }; // ESC c  Reset to initial state (same as DECSTR).
+                vt.intro[ctrl::ESC][ESC_NEL   ] = VT_PROC{ p->cr(); p->dn(1); }; // ESC E  Move cursor down and CR. Same as CSI 1 E
+                vt.intro[ctrl::ESC][ESC_DECDHL] = VT_PROC{ p->dhl(q); };         // ESC # ...  ESC # 3, ESC # 4, ESC # 5, ESC # 6, ESC # 8
 
-                vt.intro[ctrl::BS ] = VT_PROC{ p->cuf(-q.pop_all(ctrl::BS )); };
-                vt.intro[ctrl::DEL] = VT_PROC{ p->del( q.pop_all(ctrl::DEL)); };
-                vt.intro[ctrl::TAB] = VT_PROC{ p->tab( q.pop_all(ctrl::TAB)); };
-                vt.intro[ctrl::EOL] = VT_PROC{ p->lf ( q.pop_all(ctrl::EOL)); }; // LF.
-                vt.intro[ctrl::CR ] = VT_PROC{ p->cr ();                      }; // CR.
+                vt.intro[ctrl::ESC][ESC_APC   ] = VT_PROC{ p->msg(ESC_APC, q); };    // ESC _ ... ST  APC.
+                vt.intro[ctrl::ESC][ESC_DSC   ] = VT_PROC{ p->msg(ESC_DSC, q); };    // ESC P ... ST  DSC.
+                vt.intro[ctrl::ESC][ESC_SOS   ] = VT_PROC{ p->msg(ESC_SOS, q); };    // ESC X ... ST  SOS.
+                vt.intro[ctrl::ESC][ESC_PM    ] = VT_PROC{ p->msg(ESC_PM , q); };    // ESC ^ ... ST  PM.
+
+                vt.intro[ctrl::BS ] = VT_PROC{ p->cub(q.pop_all(ctrl::BS )); };
+                vt.intro[ctrl::DEL] = VT_PROC{ p->del(q.pop_all(ctrl::DEL)); };
+                vt.intro[ctrl::TAB] = VT_PROC{ p->tab(q.pop_all(ctrl::TAB)); };
+                vt.intro[ctrl::EOL] = VT_PROC{ p->lf (q.pop_all(ctrl::EOL)); }; // LF
+                vt.intro[ctrl::VT ] = VT_PROC{ p->lf (q.pop_all(ctrl::VT )); }; // VT same as LF
+                vt.intro[ctrl::CR ] = VT_PROC{ p->cr ();                     }; // CR
 
                 vt.csier.table_quest[DECSET] = VT_PROC{ p->owner.decset(q); };
                 vt.csier.table_quest[DECRST] = VT_PROC{ p->owner.decrst(q); };
@@ -707,6 +739,7 @@ namespace netxs::ui
                 deco style{}; // Parser style state.
                 mark brush{}; // Parser brush state.
                 twod coord{}; // Screen coord state.
+                bool decom{}; // Origin mode  state.
             };
 
             term& owner; // bufferbase: Terminal object reference.
@@ -721,6 +754,7 @@ namespace netxs::ui
             iota  n_end; // bufferbase: Original      1-based scrolling region bottom vertical pos (use 0 if it is not set).
             tabs  stops; // bufferbase: Tabstop index.
             bool  notab; // bufferbase: Tabstop index is cleared.
+            bool  decom; // bufferbase: Origin mode.
 
             bufferbase(term& master)
                 : owner{ master },
@@ -733,7 +767,8 @@ namespace netxs::ui
                   n_top{ 0      },
                   n_end{ 0      },
                   stops{ {0, 0} },
-                  notab{ faux   }
+                  notab{ faux   },
+                  decom{ faux   }
             {
                 parser::style = ansi::def_style;
             }
@@ -797,10 +832,10 @@ namespace netxs::ui
                     //bottom != 0 && top > bottom) top = bottom; //todo Nobody respects that.
                     bottom != 0 && top >= bottom) top = bottom = 0;
 
-                coord = dot_00;
                 n_top = top    == 1       ? 0 : top;
                 n_end = bottom == panel.y ? 0 : bottom;
                 update_region();
+                cup(dot_11);
             }
             // bufferbase: .
     virtual void set_coord(twod const& new_coord)
@@ -918,7 +953,7 @@ namespace netxs::ui
                             case '9':
                             case '`':
                             case 'U':
-                                log("ESC ", (char)c, " ", (char)b, " (", c, " ", b, ") is usupported");
+                                log("ESC ", (char)c, " ", (char)b, " (", c, " ", b, ") is unsupported");
                                 break;
                             case '%':
                             case '"':
@@ -932,7 +967,7 @@ namespace netxs::ui
                                 {
                                      auto d = q.front();
                                      q.pop_front();
-                                     log("ESC ", (char)c, " ", (char)b, " ", (char)d, " (", c, " ", b, " ", d, ") is usupported");
+                                     log("ESC ", (char)c, " ", (char)b, " ", (char)d, " (", c, " ", b, " ", d, ") is unsupported");
                                 }
                                 break;
                             }
@@ -968,17 +1003,75 @@ namespace netxs::ui
                     case ansi::ESC_SPA   :
                     case ansi::ESC_EPA   :
                     case ansi::ESC_RID   :
-                        log("ESC ", (char)c, " (", c, ") is usupported");
+                        log("ESC ", (char)c, " (", c, ") is unsupported");
                         break;
                     default:
                         log("ESC ", (char)c, " (", c, ") is unknown");
                         break;
                 }
             }
+            void dhl(qiew& q)
+            {
+                parser::flush();
+                auto c = q ? q.front()
+                           : -1;
+                if (q) q.pop_front();
+                switch (c)
+                {
+                    case -1:
+                        log("ESC #  is unexpected");
+                        break;
+                    case '3':
+                    case '4':
+                    case '5':
+                    case '6':
+                        log("ESC # ", (char)c, " (", c, ") is unsupported");
+                        break;
+                    case '8':
+                    {
+                        set_coord(dot_00);
+                        auto y = 0;
+                        while (++y <= panel.y)// Fill viewport with 'E'.
+                        {
+                            chy(y);
+                            ech(panel.x, 'E');
+                        }
+                        set_coord(dot_00);
+                        break;
+                    }
+                    default:
+                        log("ESC # ", (char)c, " (", c, ") is unknown");
+                        break;
+                }                
+            }
+            void msg(iota c, qiew& q)
+            {
+                parser::flush();
+                text data;
+                while (q)
+                {
+                    auto c = q.front();
+                    data.push_back(c);
+                    q.pop_front();
+                         if (c == ansi::C0_BEL) break;
+                    else if (c == ansi::C0_ESC)
+                    {
+                        auto c = q.front();
+                        if (q && c == '\\')
+                        {
+                            data.push_back(c);
+                            q.pop_front();
+                            break;
+                        }
+                    }
+                }
+                log("Unsupported Message/Command: '\\e", (char)c, utf::debase<faux>(data), "'");
+            }
             // bufferbase: .
     virtual void clear_all()
             {
                 parser::state = {};
+                decom = faux;
                 rtb();
             }
             // tabstops index, tablen = 3, vector<pair<fwd_idx, rev_idx>>:
@@ -1181,13 +1274,19 @@ namespace netxs::ui
                 parser::flush();
                 saved = { .style = parser::style,
                           .brush = parser::brush,
-                          .coord = coord };
+                          .coord = coord,
+                          .decom = decom };
+                if (decom) saved.coord.y -= y_top;
+                assert(saved.coord.y >= 0);
             }
             // bufferbase: ESC 8 or CSI u  Restore cursor position.
             void rcp()
             {
                 parser::flush();
-                set_coord(saved.coord);
+                decom = saved.decom;
+                auto coor = saved.coord; 
+                if (decom) coor.y += y_top;
+                set_coord(coor);
                 parser::style = saved.style;
                 parser::brush = saved.brush;
                 parser::flush(); // Proceed new style.
@@ -1256,7 +1355,7 @@ namespace netxs::ui
                 log("bufferbase: SHL(n=", n, ") is not implemented.");
             }
             // bufferbase: CSI n X  Erase/put n chars after cursor. Don't change cursor pos.
-    virtual void ech(iota n) = 0;
+    virtual void ech(iota n, char c = whitespace) = 0;
             // bufferbase: CSI n P  Delete (not Erase) letters under the cursor.
     virtual void dch(iota n) = 0;
             // bufferbase: '\x7F'  Delete characters backwards.
@@ -1268,7 +1367,16 @@ namespace netxs::ui
     virtual void cuf(iota n)
             {
                 parser::flush();
+                if (n == 0) n = 1;
                 coord.x += n;
+            }
+            // bufferbase: Move cursor backward by n.
+    virtual void cub(iota n)
+            {
+                parser::flush();
+                if (n == 0) n = 1;
+                else if (coord.x == panel.x && parser::style.wrp() == wrap::on && n > 0) ++n;
+                coord.x -= n;
             }
             // bufferbase: CSI n G  Absolute horizontal cursor position (1-based).
     virtual void chx(iota n)
@@ -1280,21 +1388,37 @@ namespace netxs::ui
     virtual void chy(iota n)
             {
                 parser::flush_data();
-                coord.y = std::clamp(n, 1, panel.y) - 1;
+                --n;
+                if (decom)
+                {
+                    coord.y = std::clamp(n + y_top, y_top, y_end);
+                }
+                else coord.y = std::clamp(n, 0, panel.y - 1);
+            }
+            // bufferbase: CSI y; x H/F  Caret position (1-based).
+    virtual void cup(twod p)
+            {
+                parser::flush_data();
+                p -= dot_11;
+                coord.x = std::clamp(p.x, 0, panel.x - 1);
+                if (decom)
+                {
+                    coord.y = std::clamp(p.y + y_top, y_top, y_end);
+                }
+                else coord.y  = std::clamp(p.y, 0, panel.y - 1);
             }
             // bufferbase: CSI y; x H/F  Caret position (1-based).
     virtual void cup(fifo& queue)
             {
-                parser::flush_data();
                 auto y = queue(1);
                 auto x = queue(1);
-                auto p = twod{ x, y };
-                coord  = std::clamp(p, dot_11, panel) - dot_11;
+                cup({ x, y });
             }
             // bufferbase: Move cursor up.
     virtual void up(iota n)
             {
                 parser::flush_data();
+                if (n == 0) n = 1;
                 auto new_coord_y = coord.y - n;
                 if (new_coord_y <  y_top
                      && coord.y >= y_top)
@@ -1307,6 +1431,7 @@ namespace netxs::ui
     virtual void dn(iota n)
             {
                 parser::flush_data();
+                if (n == 0) n = 1;
                 auto new_coord_y = coord.y + n;
                 if (new_coord_y >  y_end
                      && coord.y <= y_end)
@@ -1427,7 +1552,7 @@ namespace netxs::ui
                         tail += panel.x;
                         break;
                     case commands::erase::line::left: // n = 1  Erase to Left.
-                        tail += std::min(panel.x, coord.x);
+                        tail += std::min(panel.x, coord.x + 1); // +1 to include the current cell.
                         break;
                     case commands::erase::line::all: // n = 2  Erase All.
                         tail += panel.x;
@@ -1458,10 +1583,11 @@ namespace netxs::ui
                 canvas.cutoff(coord, n, blank);
             }
             // alt_screen: CSI n X  Erase/put n chars after cursor. Don't change cursor pos.
-            void ech(iota n) override
+            void ech(iota n, char c = whitespace) override
             {
                 parser::flush();
-                auto blank = brush.spc();//.bgc(greendk).bga(0x7f);
+                auto blank = brush;
+                blank.txt(c);
                 canvas.splice(coord, n, blank);
             }
             // alt_screen: Parser callback.
@@ -1551,7 +1677,10 @@ namespace netxs::ui
             // alt_screen: Clear all lines from the viewport top line to the current line.
             void del_above() override
             {
+                auto coorx = coord.x;
+                if (coorx < panel.x) ++coord.x; // Clear the cell at the current position. See ED1 description.
                 canvas.del_above(coord, brush.spare);
+                coord.x = coorx;
             }
             // alt_screen: Shift by n the scroll region.
             void scroll_region(iota top, iota end, iota n, bool use_scrollback = faux) override
@@ -1598,6 +1727,11 @@ namespace netxs::ui
                 { }
                 line(id_t newid, deco const& style, span const& dt, twod const& sz)
                     : rich { dt,sz },
+                      index{ newid },
+                      style{ style }
+                { }
+                line(id_t newid, deco const& style, cell const& blank, iota length)
+                    : rich { blank, length },
                       index{ newid },
                       style{ style }
                 { }
@@ -2576,6 +2710,7 @@ namespace netxs::ui
                 sync_coord();
             }
             // scroll_buf: Map the current cursor position to the scrollback.
+            template<bool ALLOW_PENDING_WRAP = true>
             void sync_coord()
             {
                 coord.y = std::clamp(coord.y, 0, panel.y - 1);
@@ -2587,7 +2722,14 @@ namespace netxs::ui
                     auto& curln = batch.current();
                     auto  wraps = curln.wrapped();
                     auto  curid = curln.index;
-                    if (coord.x > panel.x && wraps) coord.x = panel.x;
+                    if constexpr (ALLOW_PENDING_WRAP)
+                    {
+                        if (coord.x > panel.x && wraps) coord.x = panel.x;
+                    }
+                    else
+                    {
+                        if (coord.x >= panel.x && wraps) coord.x = panel.x - 1;
+                    }
 
                     coord.y -= y_top;
 
@@ -2618,15 +2760,24 @@ namespace netxs::ui
                 }
                 else // Always wraps inside margins.
                 {
-                    if (coord.x > panel.x) coord.x = panel.x;
+                    if constexpr (ALLOW_PENDING_WRAP)
+                    {
+                        if (coord.x > panel.x) coord.x = panel.x;
+                    }
+                    else
+                    {
+                        if (coord.x >= panel.x) coord.x = panel.x - 1;
+                    }
                 }
             }
 
-            void cup (fifo& q) override { bufferbase::cup (q); sync_coord(); }
-            void scl (iota  n) override { bufferbase::scl (n); sync_coord(); }
-            void cuf (iota  n) override { bufferbase::cuf (n); sync_coord(); }
-            void chx (iota  n) override { bufferbase::chx (n); sync_coord(); }
+            void cup (fifo& q) override { bufferbase::cup (q); sync_coord<faux>(); }
+            void cuf (iota  n) override { bufferbase::cuf (n); sync_coord<faux>(); }
+            void cub (iota  n) override { bufferbase::cub (n); sync_coord<faux>(); }
+            void chx (iota  n) override { bufferbase::chx (n); sync_coord<faux>(); }
+            void tab (iota  n) override { bufferbase::tab (n); sync_coord<faux>(); }
             void chy (iota  n) override { bufferbase::chy (n); sync_coord(); }
+            void scl (iota  n) override { bufferbase::scl (n); sync_coord(); }
             void il  (iota  n) override { bufferbase::il  (n); sync_coord(); }
             void dl  (iota  n) override { bufferbase::dl  (n); sync_coord(); }
             void up  (iota  n) override { bufferbase::up  (n); sync_coord(); }
@@ -2635,16 +2786,6 @@ namespace netxs::ui
             void ri  ()        override { bufferbase::ri  ( ); sync_coord(); }
             void cr  ()        override { bufferbase::cr  ( ); sync_coord(); }
 
-            // scroll_buf: Horizontal tab.
-            void tab (iota n) override
-            {
-                bufferbase::tab(n);
-                auto& curln = batch.current();
-                auto  wraps = curln.wrapped();
-                     if (coord.x < 0)                 coord.x = 0;
-                else if (wraps && coord.x >= panel.x) coord.x = panel.x - 1;
-                sync_coord();
-            }
             // scroll_buf: Reset the scrolling region.
             void reset_scroll_region()
             {
@@ -2785,7 +2926,7 @@ namespace netxs::ui
                 index_rebuild();
                 sync_coord();
             }
-            // scroll_buf: Push lines to the scrollback bottom.
+            // scroll_buf: Push empty lines to the scrollback bottom.
             void add_lines(iota amount)
             {
                 assert(amount >= 0);
@@ -2794,6 +2935,17 @@ namespace netxs::ui
                 {
                     auto& l = batch.invite(++newid, parser::style);
                     index.push_back(newid, 0, 0);
+                }
+            }
+            // scroll_buf: Push filled lines to the scrollback bottom.
+            void add_lines(iota amount, cell const& blank)
+            {
+                assert(amount >= 0);
+                auto newid = batch.back().index;
+                while (amount-- > 0)
+                {
+                    auto& l = batch.invite(++newid, parser::style, blank, panel.x);
+                    index.push_back(newid, 0, panel.x);
                 }
             }
             // scroll_buf: . (! Check coord.y context)
@@ -2926,7 +3078,7 @@ namespace netxs::ui
                         case commands::erase::line::left: // n = 1  Erase to Left.
                             start = wraps ? caret - caret % panel.x
                                           : 0;
-                            count = caret - start;
+                            count = caret - start + 1; // +1 to include the current cell.
                             break;
                         case commands::erase::line::all: // n = 2  Erase All.
                             start = wraps ? caret - caret % panel.x
@@ -2986,15 +3138,19 @@ namespace netxs::ui
                 else ctx.block.cutoff(coord, n, blank);
             }
             // scroll_buf: CSI n X  Erase/put n chars after cursor. Don't change cursor pos.
-            void ech(iota n) override
+            void ech(iota n, char c = whitespace) override
             {
                 parser::flush();
-                auto blank = brush.spc();
+                auto blank = brush;
+                blank.txt(c);
                 if (auto ctx = get_context(coord))
                 {
                     n = std::min(n, panel.x - coord.x);
                     auto& curln = batch.current();
-                    curln.splice(batch.caret, n, blank);
+                    //todo revise (brush != default ? see windows console)
+                    //if (c == whitespace) curln.splice<faux>(batch.caret, n, blank);
+                    //else                 curln.splice<true>(batch.caret, n, blank);
+                    curln.splice<true>(batch.caret, n, blank);
                     batch.recalc(curln);
                     auto& mapln = index[coord.y];
                     auto  width = curln.length();
@@ -3339,7 +3495,8 @@ namespace netxs::ui
                     auto m = index.size - 1 - coor.y;
                     auto p = arena      - 1 - coor.y;
 
-                    if (coor.x == 0 && start != 0) // Remove the index of the current line if the entire visible line is going to be removed.
+                    auto fresh = coor.x == 0 && start != 0;
+                    if (fresh) // Remove the index of the current line if the entire visible line is going to be removed.
                     {
                         ++m;
                         ++p;
@@ -3352,18 +3509,27 @@ namespace netxs::ui
                     while (n--) batch.pop_back();
                     while (m--) index.pop_back();
 
-                    add_lines(p);
-
+                    add_lines(p, blank);
                     i = batch.index_by_id(topid); // The index may be outdated due to the ring.
                     auto& curln = batch[i];
-                    auto& mapln = index[coor.y];
-                    mapln.width = std::min(coor.x, mapln.width);
-                    curln.trimto(start + mapln.width);
+                    if (fresh)
+                    {
+                        curln.trimto(start);
+                    }
+                    else
+                    {
+                        auto& mapln = index[coor.y];
+                        mapln.width = panel.x;
+                        curln.splice<true>(start + coor.x, panel.x - coor.x, blank);
+                        curln.trimto(start + panel.x);
+                        assert(mapln.start == 0 || curln.wrapped());
+                    }
                     batch.recalc(curln);
-                    assert(mapln.start == 0 || curln.wrapped());
 
                     sync_coord();
 
+                    auto stash = batch.vsize - batch.basis - index.size;
+                    assert(stash == 0);
                     assert(test_futures());
                     dnbox.wipe(blank);
                 };
@@ -3377,6 +3543,7 @@ namespace netxs::ui
                 }
                 else if (coor.y <= y_end)
                 {
+                    coor.x = std::clamp(coor.x, 0, panel.x);
                     coor.y -= y_top;
                     clear(coor);
                 }
@@ -3391,51 +3558,31 @@ namespace netxs::ui
             void del_above() override
             {
                 auto blank = brush.spc();
-                auto clear = [&](twod const& coor)
+                auto clear = [&](twod const& from)
                 {
-                    // The dirtiest and fastest solution. Just fill existing lines by blank cell.
-                    auto i = batch.index_by_id(index[coor.y].index);
-                    auto& mapln = index[coor.y];
-                    auto  caret = mapln.start + coor.x;
-
-                    auto& curln = batch[i];
-                    auto& topln = index.front();
-                    auto  curit = batch.iter_by_id(topln.index);
-                    auto  endit = batch.iter_by_id(curln.index);
-                    auto  start = topln.start;
-                    auto  blank = brush.spc();
-                    if (curit == endit)
+                    auto head = index.begin();
+                    auto tail = head + from.y;
+                    while (head != tail)
                     {
-                        auto width = std::min(curln.length(), caret);
-                        curln.splice(start, width - start, blank);
+                        auto& mapln = *head++;
+                        auto& curln = batch.item_by_id(mapln.index);
+                        mapln.width = panel.x;
+                        curln.splice<true>(mapln.start, panel.x, blank);
+                        batch.recalc(curln);
                     }
-                    else
+                    if (from.x > 0)
                     {
-                        auto& curln =*curit;
-                        auto  width = curln.length();
-                        curln.splice(start, width - start, blank);
-
-                        while(++curit != endit) curit->core::wipe(blank);
-
-                        if (coord.x > 0)
-                        {
-                            auto& curln =*curit;
-                            auto  max_x = std::min<iota>(curln.length(), caret);
-                            if (max_x > 0)
-                            {
-                                auto max_w = curln.wrapped() ? (max_x - 1) % panel.x + 1
-                                                            :  max_x;
-                                auto width = std::min<iota>(max_w, coord.x);
-                                auto start = caret - coord.x;
-                                curln.splice(start, width, blank);
-                            }
-                        }
+                        auto& mapln = *head;
+                        auto& curln = batch.item_by_id(mapln.index);
+                        mapln.width = std::max(mapln.width, from.x);
+                        curln.splice<true>(mapln.start, from.x, blank);
+                        batch.recalc(curln);
                     }
-
                     upbox.wipe(blank);
                 };
 
                 auto coor = coord;
+                if (coor.x < panel.x) coor.x += 1; // Clear the cell at the current position. See ED1 description.
                 if (coor.y < y_top)
                 {
                     assert(coor.x + coor.y * upbox.size().x < sctop * upbox.size().x);
@@ -3443,6 +3590,7 @@ namespace netxs::ui
                 }
                 else if (coor.y <= y_end)
                 {
+                    coor.x = std::clamp(coor.x, 0, panel.x);
                     coor.y -= y_top;
                     clear(coor);
                 }
@@ -3654,8 +3802,16 @@ namespace netxs::ui
                     case 1:    // Cursor keys application mode.
                         decckm = true;
                         break;
+                    case 3:    // Set 132 column window size (DECCOLM).
+                        window_resize({ 132, 0 });
+                        target->ed(commands::erase::display::viewport);
+                        break;
                     case 5:    // Inverted rendering (DECSCNM).
                         invert = true;
+                        break;
+                    case 6:    // Enable origin mode (DECOM).
+                        target->decom = true;
+                        target->cup(dot_11);
                         break;
                     case 7:    // Enable auto-wrap.
                         target->style.wrp(wrap::on);
@@ -3729,8 +3885,16 @@ namespace netxs::ui
                     case 1:    // Cursor keys ANSI mode.
                         decckm = faux;
                         break;
+                    case 3:    // Set 80 column window size (DECCOLM).
+                        window_resize({ 80, 0 });
+                        target->ed(commands::erase::display::viewport);
+                        break;
                     case 5:    // Inverted rendering (DECSCNM).
                         invert = faux;
+                        break;
+                    case 6:    // Disable origin mode (DECOM).
+                        target->decom = faux;
+                        target->cup(dot_11);
                         break;
                     case 7:    // Disable auto-wrap.
                         target->style.wrp(wrap::off);
@@ -3948,6 +4112,11 @@ namespace netxs::ui
                 };
             }
         }
+        // term: Resize terminal window.
+        void window_resize(twod winsz)
+        {
+            base::riseup<tier::preview>(e2::form::prop::window::size, winsz);
+        }
        ~term(){ active = faux; }
         term(text command_line, iota max_scrollback_size = def_length, iota grow_step = def_growup)
         //term(text command_line, iota max_scrollback_size = 50, iota grow_step = 0)
@@ -4127,7 +4296,7 @@ namespace netxs::ui
                 cursor.coor(console.get_coord(base));
 
                 console.output(parent_canvas);
-                if (invert) parent_canvas.fill(cell::shaders::reverse);
+                if (invert) parent_canvas.fill(cell::shaders::invbit);
 
                 if (oversz.b > 0) // Shade the viewport bottom oversize (futures).
                 {

@@ -1320,6 +1320,7 @@ namespace netxs::utf
     }
 
     // utf: Return a string without control chars (replace all ctrls with printables).
+    template<bool SPLIT = true>
     auto debase(view utf8)
     {
         text buff;
@@ -1331,14 +1332,22 @@ namespace netxs::utf
             switch (traits.cdpoint)
             {
                 case 033:
-                    if (head == utf8.size()) buff += "\\e";
-                    else                     buff += "\n\\e";
+                    if constexpr (SPLIT)
+                    {
+                        if (head == utf8.size()) buff += "\\e";
+                        else                     buff += "\n\\e";
+                    }
+                    else buff += "\\e";
                     break;
                 case '\n':
-                    if (utf8.size() && utf8.front() == '\033')
+                    if constexpr (SPLIT)
                     {
-                        buff += "\\n\n\\e";
-                        utf8.remove_prefix(1);
+                        if (utf8.size() && utf8.front() == '\033')
+                        {
+                            buff += "\\n\n\\e";
+                            utf8.remove_prefix(1);
+                        }
+                        else buff += "\\n\n";
                     }
                     else buff += "\\n\n";
                     break;

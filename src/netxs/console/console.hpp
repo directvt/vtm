@@ -43,6 +43,7 @@ namespace netxs::console
     using registry_t = netxs::imap<text, std::pair<bool, std::list<sptr<base>>>>;
     using focus_test_t = std::pair<id_t, iota>;
     using functor = std::function<void(sptr<base>)>;
+    using proc = std::function<void(hids&)>;
     struct create_t
     {
         using sptr = netxs::sptr<base>;
@@ -315,6 +316,7 @@ namespace netxs::events::userland
                     EVENT_XS( unfocus , sptr<console::base> ), // order to unset focus on the specified object, arg is a object sptr.
                     EVENT_XS( swap    , sptr<console::base> ), // order to replace existing client. See tiling manager empty slot.
                     EVENT_XS( functor , console::functor    ), // exec functor (see pro::focus).
+                    EVENT_XS( onbehalf, console::proc       ), // exec functor on behalf (see gate).
                     GROUP_XS( d_n_d   , sptr<console::base> ), // drag&drop functionality. See tiling manager empty slot and pro::d_n_d.
                     //EVENT_XS( commit     , iota                     ), // order to output the targets, arg is a frame number.
                     //EVENT_XS( multirender, vector<shared_ptr<face>> ), // ask children to render itself to the set of canvases, arg is an array of the face sptrs.
@@ -401,6 +403,13 @@ namespace netxs::events::userland
                     EVENT_XS( viewport  , rect        ), // request: return form actual viewport.
                     EVENT_XS( menusize  , iota        ), // release: set menu height.
                     EVENT_XS( lucidity  , iota        ), // set or request window transparency, iota: 0-255, -1 to request.
+                    EVENT_XS( fixedsize , bool        ), // set ui::fork ratio.
+                    GROUP_XS( window    , twod        ), // set or request window properties.
+
+                    SUBSET_XS( window )
+                    {
+                        EVENT_XS( size  , twod        ), // set window size.
+                    };
                 };
                 SUBSET_XS( global )
                 {
@@ -435,6 +444,7 @@ namespace netxs::events::userland
                         EVENT_XS( got     , input::hids           ), // release: got  keyboard focus.
                         EVENT_XS( lost    , input::hids           ), // release: lost keyboard focus.
                         EVENT_XS( handover, std::list<id_t>       ), // request: Handover all available foci.
+                        EVENT_XS( enlist  , std::list<id_t>       ), // anycast: Enumerate all available foci.
                         EVENT_XS( find    , console::focus_test_t ), // request: Check the focus.
                     };
                 };
@@ -931,6 +941,8 @@ namespace netxs::console
         iota object_kind = {};
 
     public:
+        static constexpr iota reflow_root = -1; //todo unify
+
         side oversz; // base: Oversize, margin.
         twod anchor; // base: Object balance point. Center point for any transform (on preview).
 
@@ -1054,12 +1066,13 @@ namespace netxs::console
             deface(square);
         }
         // base: Going to rebuild visual tree. Retest current size, ask parent if it is linked.
+        template<bool FORCED = faux>
         void reflow()
         {
             auto parent_ptr = parent();
-            if (parent_ptr && !visual_root)
+            if (parent_ptr && (!visual_root || (FORCED && (kind() != base::reflow_root)))) //todo unify -- See basewindow in vtm.cpp
             {
-                parent_ptr->reflow();
+                parent_ptr->reflow<FORCED>();
             }
             else
             {
@@ -3394,16 +3407,20 @@ namespace netxs::console
             {
                 twod min = min_value;
                 twod max = max_value;
+                void fixed_size(twod const& m)
+                {
+                    min = max = std::clamp(m, min, max);;
+                }
             }
             lims;
             bool sure; // limit: Reepeat size checking afetr all.
 
         public:
             limit(base&&) = delete;
-            limit(base& boss, twod const& min_size = -dot_11, twod const& max_size = -dot_11, bool forced = faux)
+            limit(base& boss, twod const& min_size = -dot_11, twod const& max_size = -dot_11, bool forced_clamp = faux, bool forced_resize = faux)
                 : skill{ boss }
             {
-                set(min_size, max_size, forced);
+                set(min_size, max_size, forced_clamp);
                 // Clamping before all.
                 boss.SUBMIT_T(tier::preview, e2::size::any, memo, new_size)
                 {
@@ -3415,18 +3432,30 @@ namespace netxs::console
                     if (sure)
                         new_size = std::clamp(new_size, lims.min, lims.max);
                 };
+                if (forced_resize)
+                {
+                    boss.SUBMIT_T(tier::release, e2::form::prop::window::size, memo, new_size)
+                    {
+                        auto reserv = lims;
+                        lims.fixed_size(new_size);
+                        boss.base::template riseup<tier::release>(e2::form::prop::fixedsize, true, true); //todo unify - Inform ui::fork to adjust ratio.
+                        boss.base::template reflow<true>();
+                        boss.base::template riseup<tier::release>(e2::form::prop::fixedsize, faux, true);
+                        lims = reserv;
+                    };
+                }
             }
             // pro::limit: Set size limits (min, max). Preserve current value if specified arg less than 0.
-            void set(twod const& min_size, twod const& max_size = -dot_11, bool forced = faux)
+            void set(twod const& min_size, twod const& max_size = -dot_11, bool forced_clamp = faux)
             {
-                sure = forced;
+                sure = forced_clamp;
                 lims.min = min_size.less(dot_00, min_value, min_size);
                 lims.max = max_size.less(dot_00, max_value, max_size);
             }
             // pro::limit: Set resize limits (min, max). Preserve current value if specified arg less than 0.
-            void set(lims_t const& new_limits, bool forced = faux)
+            void set(lims_t const& new_limits, bool forced_clamp = faux)
             {
-                set(new_limits.min, new_limits.max, forced);
+                set(new_limits.min, new_limits.max, forced_clamp);
             }
             auto& get() const
             {
@@ -3616,6 +3645,14 @@ namespace netxs::console
                 boss.SUBMIT_T(tier::anycast, e2::form::state::keybd::find, memo, gear_test)
                 {
                     if (find(gear_test.first)) gear_test.second++;
+                };
+                boss.SUBMIT_T(tier::anycast, e2::form::state::keybd::enlist, memo, gear_id_list)
+                {
+                    if (pool.size())
+                    {
+                        auto tail = gear_id_list.end();
+                        gear_id_list.insert(tail, pool.begin(), pool.end());
+                    }                    
                 };
                 boss.SUBMIT_T(tier::request, e2::form::state::keybd::find, memo, gear_test)
                 {
@@ -5638,7 +5675,7 @@ again:
                     world->SIGNAL(tier::release, e2::form::proceed::createby, gear);
                 }
             };
-            SUBMIT(tier::preview, e2::form::proceed::focus, item_ptr)
+            SUBMIT(tier::preview, e2::form::proceed::focus, item_ptr) //todo use e2::form::proceed::onbehalf
             {
                 if (item_ptr)
                 {
@@ -5650,7 +5687,7 @@ again:
                     gear.force_group_focus = faux;
                 }
             };
-            SUBMIT(tier::preview, e2::form::proceed::unfocus, item_ptr)
+            SUBMIT(tier::preview, e2::form::proceed::unfocus, item_ptr) //todo use e2::form::proceed::onbehalf
             {
                 if (item_ptr)
                 {
@@ -5659,6 +5696,10 @@ again:
                     gear.kb_focus_taken = faux; //todo used in base::upevent handler
                     item_ptr->SIGNAL(tier::release, hids::events::upevent::kbannul, gear);
                 }
+            };
+            SUBMIT(tier::release, e2::form::proceed::onbehalf, proc)
+            {
+                proc(input);
             };
             SUBMIT(tier::preview, hids::events::keybd::any, gear)
             {
