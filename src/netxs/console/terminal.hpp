@@ -1892,14 +1892,16 @@ namespace netxs::ui
                     dec_height(vsize, kind, size);
                 }
                 // buff: Check buffer size.
-                void check_size(twod const new_size)
+                bool check_size(twod const new_size)
                 {
+                    auto old_value = vsize;
                     set_width(new_size.x);
                     if (ring::peak <= new_size.y)
                     {
                         static constexpr auto BOTTOM_ANCHORED = true;
                         ring::resize<BOTTOM_ANCHORED>(new_size.y, ring::step);
                     }
+                    return old_value != vsize;
                 }
                 // buff: Push the specified line back.
                 void invite(line& l)
@@ -2077,6 +2079,8 @@ namespace netxs::ui
             twod upmin; // scroll_buf:    Top margin minimal size.
             twod dnmin; // scroll_buf: Bottom margin minimal size.
 
+            static constexpr iota approx_threshold = 10000;
+
             scroll_buf(term& boss, iota buffer_size, iota grow_step)
                 : bufferbase{ boss                   },
                        batch{ buffer_size, grow_step },
@@ -2233,12 +2237,12 @@ namespace netxs::ui
             bool set_slide(iota& new_slide) override
             {
                 new_slide = -new_slide;
-                log(" new_slide=", new_slide);
+                log(" ss new_slide=", new_slide, " batch.round=", batch.round?"true":"faux");
 
                 if (batch.slide != new_slide)
                 if (batch.basis == new_slide)
                 {
-                    log(" 0. batch.basis == new_slide");
+                    log(" ss 0. batch.basis == new_slide");
                     auto& mapln = index.front();
                     batch.anchor_id = mapln.index;
                     batch.anchor_dy = mapln.start / panel.x;
@@ -2250,10 +2254,27 @@ namespace netxs::ui
                     auto vtpos = batch.slide - batch.anchor_dy; // current pos of anchor_id
                     auto delta = new_slide - vtpos;
 
-                    //if (std::abs(delta) > recalc_threshold) // calc approx
-                    //{
-                        //preview: new_coor = origin;
+                    auto topid = batch.front().index;
+                    auto endid = batch.back().index;
+                    auto count1 = static_cast<iota>(endid - batch.anchor_id);
+                    auto count2 = static_cast<iota>(batch.anchor_id - topid);
+                    log(" ss 0.0 count1=", count1, " count2=", count2, " batch.round=", batch.round?"true":"faux");
 
+
+                    if (std::abs(delta) > approx_threshold) // calc approx
+                    {
+                        auto& mapln = index.front();
+                        auto lastid = mapln.index;
+                        auto c1 = static_cast<iota>(lastid - topid);
+                        auto c2 = count2;
+                        log(" ss 0.1 c1=", c1, " c2=", c2, " lastid=", lastid, " topid=", topid);
+                        //iota new_slide = netxs::divround((ui64)batch.vsize * c2, (ui64)c1);
+                        //log(" ss 0.1 batch.slide=", batch.slide, " new_slide=", new_slide, " batch.round=true", " batch.vsize * c2=", (ui64)batch.vsize * c2);
+                        //batch.slide = batch.anchor_dy + new_slide;
+                        //batch.slide = new_slide;
+                        //batch.round = true;
+
+                        //preview: new_coor = origin;
                         //auto& console = *target;
                         //rack scinfo{};
                         //auto& thing = *this;
@@ -2269,7 +2290,7 @@ namespace netxs::ui
                         //scinfo.window.size = console.panel;      //
                         //this->SIGNAL(tier::release, e2::form::upon::scroll::bycoor::x, scinfo);
                         //this->SIGNAL(tier::release, e2::form::upon::scroll::bycoor::y, scinfo);
-                        
+                        //
                         //auto a = new_slide < recalc_threshold;
                         //auto b = new_slide < std::abs(batch.vsize - new_slide);
                         //if (!round && (a || b))
@@ -2290,16 +2311,17 @@ namespace netxs::ui
                         //auto exactly = curpos; 
                         //auto& curln = batch[approx_index];
                         //auto  accum = curln.accum;
-                    //}
+                    }
+                    //esle // count < threshold || count2 < threshold
                     //else // calc exactly
                     {
                         auto idpos = batch.index_by_id(batch.anchor_id);
                         auto start = batch.begin() + idpos;
                         auto found = faux;
-                        log(" idpos=", idpos, " batch.size=", batch.size, " delta=", delta);
+                        log(" ss idpos=", idpos, " batch.size=", batch.size, " delta=", delta);
                         if (delta < 0) // Look up.
                         {
-                            log(" delta < 0 new_slide=", new_slide);
+                            log(" ss delta < 0 new_slide=", new_slide);
                             auto limit = start - std::min(std::abs(delta), idpos);
                             while (start != limit)
                             {
@@ -2310,7 +2332,7 @@ namespace netxs::ui
                                 {
                                     batch.anchor_id = curln.index;
                                     batch.anchor_dy = new_slide - vtpos;
-                                    log(" delta < 0  new_slide=", new_slide, " batch.slide=", batch.slide, " anchor_id=", batch.anchor_id);
+                                    log(" ss delta < 0  new_slide=", new_slide, " batch.slide=", batch.slide, " anchor_id=", batch.anchor_id);
                                     batch.slide = new_slide;
                                     found = true;
                                     break;
@@ -2319,7 +2341,7 @@ namespace netxs::ui
 
                             if (!found)
                             {
-                                log(" 0.1. slide reset old_slide", batch.slide, " new_slide=", batch.basis );
+                                log(" ss 0.1. slide reset old_slide", batch.slide, " new_slide=", batch.basis );
                                 batch.anchor_id = batch.back().index - (batch.size - 1);
                                 batch.anchor_dy = 0;
                                 batch.slide = 0;
@@ -2329,7 +2351,7 @@ namespace netxs::ui
                         }
                         else if (delta > 0) // Look down.
                         {
-                            log(" delta > 0 new_slide=", new_slide);
+                            log(" ss delta > 0 new_slide=", new_slide);
                             auto limit = start + std::min(delta, batch.size - idpos - 1);
                             do
                             {
@@ -2341,7 +2363,7 @@ namespace netxs::ui
                                 {
                                     batch.anchor_id = curln.index;
                                     batch.anchor_dy = new_slide - curpos;
-                                    log(" delta > 0  new_slide=", new_slide, " batch.slide=", batch.slide, " anchor_id=", batch.anchor_id);
+                                    log(" ss delta > 0  new_slide=", new_slide, " batch.slide=", batch.slide, " anchor_id=", batch.anchor_id);
                                     batch.slide = new_slide;
                                     found = true;
                                     break;
@@ -2351,7 +2373,7 @@ namespace netxs::ui
 
                             if (!found)
                             {
-                                log(" 0.2. slide reset old_slide", batch.slide, " new_slide=", batch.basis );
+                                log(" ss 0.2. slide reset old_slide", batch.slide, " new_slide=", batch.basis );
                                 auto& mapln = index.front();
                                 batch.anchor_id = mapln.index;
                                 batch.anchor_dy = mapln.start / panel.x;
@@ -2385,53 +2407,81 @@ namespace netxs::ui
                 new_slide = -new_slide;
                 return batch.slide == batch.basis;
             }
+            // scroll_buf: Recalc batch.slide using anchoring by para_id + para_offset.
             void recalc_slide(bool away)
             {
                 if (away)
                 {
-                    //log(" away");
-                    // Recalc batch.slide using anchoring by para_id + para_offset
-                    // PoC: (para_id + para_offset) => (batch.slide)
-                    //      naive imp, bruteforce (within threshold)
-                    //todo calculate it approximately
+                    log(" away");
+                    auto topid = batch.front().index;
                     auto endid = batch.back().index;
-                    auto count = static_cast<iota>(endid - batch.anchor_id) + 1;
-                    if (count <= batch.size)
+                    auto count1 = static_cast<iota>(endid - batch.anchor_id);
+                    auto count2 = static_cast<iota>(batch.anchor_id - topid);
+                    log(" 0.0 count1=", count1, " count2=", count2, " batch.round=", batch.round?"true":"faux");
+                    batch.round = faux;
+                    if (count1 < batch.size)
                     {
-                        batch.slide = batch.vsize + batch.anchor_dy;
-                        auto head = batch.end();
-                        auto tail = head - count;
-                        while (head != tail)
+                        if (approx_threshold < std::min(count1, count2))
                         {
-                            auto& curln = *--head;
-                            auto height = curln.height(panel.x);
-                            batch.slide -= height;
+                            auto& mapln = index.front();
+                            auto lastid = mapln.index;
+                            auto c1 = static_cast<iota>(lastid - topid);
+                            auto c2 = count2;
+                            log(" 0.1 c1=", c1, " c2=", c2, " lastid=", lastid, " topid=", topid);
+
+                            iota new_slide = netxs::divround((ui64)batch.vsize * c2, (ui64)c1);
+                            log(" 0.1 batch.slide=", batch.slide, " new_slide=", new_slide, " batch.round=true", " batch.vsize * c2=", (ui64)batch.vsize * c2);
+                            batch.slide = batch.anchor_dy + new_slide;
+                            batch.round = true;
+                        }
+                        else if (count1 < count2)
+                        {
+                            batch.slide = batch.anchor_dy + batch.vsize;
+                            auto head = batch.end();
+                            auto tail = head - (count1 + 1);
+                            while (head != tail)
+                            {
+                                auto& curln = *--head;
+                                batch.slide -= curln.height(panel.x);
+                            }
+                            log(" 1.1 --- batch.slide=", batch.slide);
+                        }
+                        else
+                        {
+                            batch.slide = batch.anchor_dy;
+                            auto head = batch.begin();
+                            auto tail = head + (count2 + 1);
+                            while (head != tail)
+                            {
+                                auto& curln = *head++;
+                                batch.slide += curln.height(panel.x);
+                            }
+                            log(" 1.1 +++ batch.slide=", batch.slide);
                         }
                              if (batch.slide > batch.basis) batch.slide = batch.basis;
                         else if (batch.slide <= 0) // Overflow.
                         {
-                            //log(" Overflow on resize. batch.slide=", batch.slide);
-                            //log(" 1. slide reset old_slide", batch.slide, " new_slide=", 0 );
+                            log(" 1.2 Overflow on resize. slide reset old_slide=", batch.slide, " new_slide=", 0 );
                             batch.slide = 0;
                             batch.anchor_dy = 0;
-                            batch.anchor_id = endid - (batch.size - 1);
+                            batch.anchor_id = topid;
                             assert(batch.anchor_id == batch.front().index);
                         }
                     }
                     else // Overflow.
                     {
-                        //log(" Overflow on resize. Anchor id is outside. batch.slide=", batch.slide,
-                        //" anchor_id=", anchor_id, " batch.front().index=", batch.front().index);
-                        //log(" 2. slide reset old_slide", batch.slide, " new_slide=", 0 );
+                        log(" Overflow on resize. Anchor id is outside. batch.slide=", batch.slide,
+                            " anchor_id=", batch.anchor_id, " batch.front().index=", batch.front().index);
+                        log(" 2. slide reset old_slide", batch.slide, " new_slide=", 0 );
                         batch.anchor_dy = 0;
-                        batch.anchor_id = endid - (batch.size - 1);
+                        batch.anchor_id = topid;//endid - (batch.size - 1);
                         batch.slide = 0;
                         assert(batch.anchor_id == batch.front().index);
                     }
                 }
                 else
                 {
-                    //log(" 3. slide reset old_slide", batch.slide, " new_slide=", batch.basis );
+                    log(" 3. slide reset old_slide", batch.slide, " new_slide=", batch.basis );
                     batch.round = faux;
                     batch.slide = batch.basis;
                     auto& mapln = index.front();
@@ -2451,7 +2501,7 @@ namespace netxs::ui
 
                 bufferbase::resize_viewport(new_sz);
 
-                batch.check_size(panel);
+                auto vsized = batch.check_size(panel);
                 index.clear();
 
                 // Preserve original content. The app that changed the margins is responsible for updating the content.
@@ -2479,7 +2529,8 @@ namespace netxs::ui
                     coord.x = std::clamp(coord.x, 0, panel.x - 1);
                     batch.basis = std::max(0, batch.vsize - arena);
                     index_rebuild();
-                    recalc_slide(away);
+                    //if (vsized || !away) recalc_slide(away);
+                    if (vsized || !away) recalc_slide(away);
                     return;
                 }
 
@@ -2529,7 +2580,7 @@ namespace netxs::ui
                     }
                 }
                 coord.y = index.size - coord.y + y_top;
-                recalc_slide(away);
+                if (vsized || !away) recalc_slide(away);
 
                 assert(batch.basis >= 0);
                 assert(test_futures());

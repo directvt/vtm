@@ -236,8 +236,8 @@ namespace netxs::os
             return "cmd";
         #else
             auto shell = os::get_env("SHELL");
-            return shell.ends_with("vtm") ? "bash"
-                                          : shell;
+            return shell.empty() || shell.ends_with("vtm") ? "bash" //todo if empty request it from user
+                                                           : shell;
         #endif
     }
     static text homepath()
