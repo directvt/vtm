@@ -2237,12 +2237,12 @@ namespace netxs::ui
             bool set_slide(iota& new_slide) override
             {
                 new_slide = -new_slide;
-                //log(" ss new_slide=", new_slide, " batch.round=", batch.round?"true":"faux");
+                log(" ss new_slide=", new_slide, " batch.round=", batch.round?"true":"faux");
 
                 if (batch.slide != new_slide)
                 if (batch.basis == new_slide)
                 {
-                    //log(" ss 0. batch.basis == new_slide");
+                    log(" ss 0. batch.basis == new_slide");
                     auto& mapln = index.front();
                     batch.anchor_id = mapln.index;
                     batch.anchor_dy = mapln.start / panel.x;
@@ -2252,171 +2252,239 @@ namespace netxs::ui
                 else
                 {
                     auto vtpos = batch.slide - batch.anchor_dy; // current pos of anchor_id
-                    auto delta = new_slide - vtpos;
 
-                    auto topid = batch.front().index;
-                    auto endid = batch.back().index;
+                    // compare new_slide with
+                    //      batch.slide (delta1)
+                    //      0           (delta2)
+                    //      batch.vsize (delta3)
+                    auto delta1 = new_slide - vtpos;
+                    auto delta2 = new_slide - 0;
+                    auto delta3 = batch.vsize - 1 - new_slide;
+                    auto a_delta1 = std::abs(delta1);
+                    auto a_delta2 = std::abs(delta2);
+                    auto a_delta3 = std::abs(delta3);
+
+                    auto& front = batch.front();
+                    auto topid = front.index;
+                    auto& last_item = batch.back();
+                    auto endid = last_item.index;
                     auto count1 = static_cast<iota>(endid - batch.anchor_id);
                     auto count2 = static_cast<iota>(batch.anchor_id - topid);
-                    //log(" ss 0.0 count1=", count1, " count2=", count2, " batch.round=", batch.round?"true":"faux");
+                    log(" ss 0.0 count1=", count1, " count2=", count2, " batch.round=", batch.round?"true":"faux");
 
-                    //if (batch.round)
-                    //{
-                    //    //if (std::abs(delta) > approx_threshold) // calc approx
-                    //    {
-                    //        auto& mapln = index.front();
-                    //        auto lastid = mapln.index;
-                    //        auto c1 = static_cast<iota>(lastid - topid);
-                    //        auto c2 = count2;
-                    //        log(" ww 0.1 c1=", c1, " c2=", c2, " lastid=", lastid, " topid=", topid);
-                    //        iota new_slide = netxs::divround((ui64)batch.vsize * c2, (ui64)c1);
-                    //        log(" ww 0.1 batch.slide=", batch.slide, " new_slide=", new_slide, " batch.round=true", " batch.vsize * c2=", (ui64)batch.vsize * c2);
-                    //        batch.slide = batch.anchor_dy + new_slide;
-                    //        batch.round = true;
-                    //    }
-                    //}
-                    //else
+                    auto d1 = [&]()
                     {
-                        //if (std::abs(delta) > approx_threshold) // calc approx
+                        auto idpos = batch.index_by_id(batch.anchor_id);
+                        auto start = batch.begin() + idpos;
+                        auto found = faux;
+                        log(" ss idpos=", idpos, " batch.size=", batch.size, " delta=", delta1);
+                        if (delta1 < 0) // Look up.
                         {
-                            auto& mapln = index.front();
-                            auto lastid = mapln.index;
-                            auto c1 = static_cast<iota>(lastid - topid);
-                            auto c2 = count2;
-                            //log(" ss 0.1 c1=", c1, " c2=", c2, " lastid=", lastid, " topid=", topid);
-                            //iota new_slide = netxs::divround((ui64)batch.vsize * c2, (ui64)c1);
-                            //log(" ss 0.1 batch.slide=", batch.slide, " new_slide=", new_slide, " batch.round=true", " batch.vsize * c2=", (ui64)batch.vsize * c2);
-                            //batch.slide = batch.anchor_dy + new_slide;
-                            //batch.round = true;
-
-                            //preview: new_coor = origin;
-                            //auto& console = *target;
-                            //rack scinfo{};
-                            //auto& thing = *this;
-                            //auto  block = thing.base::area();
-                            //scinfo.beyond = thing.oversz;  // Oversize value.
-                            //scinfo.region = block.size;
-                            //auto fullsize = console.height();
-                            //auto count = console.get_size();
-                            ////auto avg_height = (double)fullsize / count;
-                            //auto curline = netxs::divround(fullsize * console.anchor(), count);
-                            //block.coor.y = -curline;//; // Viewport.
-                            //scinfo.window.coor = -block.coor; // Viewport.
-                            //scinfo.window.size = console.panel;      //
-                            //this->SIGNAL(tier::release, e2::form::upon::scroll::bycoor::x, scinfo);
-                            //this->SIGNAL(tier::release, e2::form::upon::scroll::bycoor::y, scinfo);
-                            //
-                            //auto a = new_slide < recalc_threshold;
-                            //auto b = new_slide < std::abs(batch.vsize - new_slide);
-                            //if (!round && (a || b))
-                            //{
-                            //    // Calculate the slide accurately.
-                            //    // ...
-                            //}
-                            //else
-                            //{
-                            //    round = true;
-                            // ...
-                            //auto bytesz = batch.get_size_in_cells();
-                            //auto curpos = batch.slide;
-                            //auto height = batch.vsize;
-                            //auto length = batch.size;
-                            //auto approx_index = (ui64)length * curpos / height;
-                            //auto approx_bytes = (ui64)bytesz * curpos / height;
-                            //auto exactly = curpos;
-                            //auto& curln = batch[approx_index];
-                            //auto  accum = curln.accum;
-                        }
-                        //else // count < threshold || count2 < threshold
-                        //else // calc exactly
-                        {
-                            auto idpos = batch.index_by_id(batch.anchor_id);
-                            auto start = batch.begin() + idpos;
-                            auto found = faux;
-                            //log(" ss idpos=", idpos, " batch.size=", batch.size, " delta=", delta);
-                            if (delta < 0) // Look up.
+                            log(" ss delta < 0 new_slide=", new_slide);
+                            auto limit = start - std::min(a_delta1, idpos);
+                            while (start != limit)
                             {
-                                //log(" ss delta < 0 new_slide=", new_slide);
-                                auto limit = start - std::min(std::abs(delta), idpos);
-                                while (start != limit)
+                                auto& curln = *--start;
+                                auto height = curln.height(panel.x);
+                                vtpos -= height;
+                                if (vtpos <= new_slide)
                                 {
-                                    auto& curln = *--start;
-                                    auto height = curln.height(panel.x);
-                                    vtpos -= height;
-                                    if (vtpos <= new_slide)
-                                    {
-                                        batch.anchor_id = curln.index;
-                                        batch.anchor_dy = new_slide - vtpos;
-                                        //log(" ss delta < 0  new_slide=", new_slide, " batch.slide=", batch.slide, " anchor_id=", batch.anchor_id);
-                                        batch.slide = new_slide;
-                                        found = true;
-                                        break;
-                                    }
-                                }
-
-                                if (!found)
-                                {
-                                    //log(" ss 0.1. slide reset old_slide", batch.slide, " new_slide=", batch.basis );
-                                    batch.anchor_id = batch.back().index - (batch.size - 1);
-                                    batch.anchor_dy = 0;
-                                    batch.slide = 0;
-                                    new_slide = 0;
-                                    assert(batch.anchor_id == batch.front().index);
+                                    batch.anchor_id = curln.index;
+                                    batch.anchor_dy = new_slide - vtpos;
+                                    log(" ss delta < 0  new_slide=", new_slide, " batch.slide=", batch.slide, " anchor_id=", batch.anchor_id);
+                                    batch.slide = new_slide;
+                                    found = true;
+                                    break;
                                 }
                             }
-                            else if (delta > 0) // Look down.
-                            {
-                                //log(" ss delta > 0 new_slide=", new_slide);
-                                auto limit = start + std::min(delta, batch.size - idpos - 1);
-                                do
-                                {
-                                    auto& curln = *start;
-                                    auto curpos = vtpos;
-                                    auto height = curln.height(panel.x);
-                                    vtpos += height;
-                                    if (vtpos > new_slide)
-                                    {
-                                        batch.anchor_id = curln.index;
-                                        batch.anchor_dy = new_slide - curpos;
-                                        //log(" ss delta > 0  new_slide=", new_slide, " batch.slide=", batch.slide, " anchor_id=", batch.anchor_id);
-                                        batch.slide = new_slide;
-                                        found = true;
-                                        break;
-                                    }
-                                }
-                                while (start++ != limit);
 
-                                if (!found)
+                            if (!found)
+                            {
+                                log(" ss 0.1. slide reset old_slide", batch.slide, " new_slide=", batch.basis );
+                                batch.anchor_id = batch.back().index - (batch.size - 1);
+                                batch.anchor_dy = 0;
+                                batch.slide = 0;
+                                //batch.round = faux;
+                                new_slide = 0;
+                                assert(batch.anchor_id == batch.front().index);
+                            }
+                        }
+                        else if (delta1 > 0) // Look down.
+                        {
+                            log(" ss delta > 0 new_slide=", new_slide);
+                            auto limit = start + std::min(delta1, batch.size - idpos - 1);
+                            do
+                            {
+                                auto& curln = *start;
+                                auto curpos = vtpos;
+                                auto height = curln.height(panel.x);
+                                vtpos += height;
+                                if (vtpos > new_slide)
                                 {
-                                    //log(" ss 0.2. slide reset old_slide", batch.slide, " new_slide=", batch.basis );
-                                    auto& mapln = index.front();
-                                    batch.anchor_id = mapln.index;
-                                    batch.anchor_dy = mapln.start / panel.x;
-                                    batch.slide = batch.basis;
-                                    new_slide = batch.basis;
+                                    batch.anchor_id = curln.index;
+                                    batch.anchor_dy = new_slide - curpos;
+                                    log(" ss delta > 0  new_slide=", new_slide, " batch.slide=", batch.slide, " anchor_id=", batch.anchor_id);
+                                    batch.slide = new_slide;
+                                    found = true;
+                                    break;
                                 }
+                            }
+                            while (start++ != limit);
+
+                            if (!found)
+                            {
+                                log(" ss 0.2. slide reset old_slide", batch.slide, " new_slide=", batch.basis );
+                                auto& mapln = index.front();
+                                batch.anchor_id = mapln.index;
+                                batch.anchor_dy = mapln.start / panel.x;
+                                batch.slide = batch.basis;
+                                //batch.round = faux;
+                                new_slide = batch.basis;
+                            }
+                        }
+                        else
+                        {
+                            batch.slide = new_slide;
+                            batch.anchor_dy = 0;
+                            found = true;
+                        }
+
+                        //if (batch.round)
+                        //{
+                        //    auto a = new_slide < batch.threshold;
+                        //    auto b = new_slide < std::abs(batch.vsize - new_slide);
+                        //    if (a || b)
+                        //    {
+                        //        batch.round = faux;
+                        //        // Calculate the slide accurately.
+                        //        // ...
+                        //    }
+                        //}
+                    };
+
+                    if (batch.round && a_delta1 < panel.y * 2)
+                    {
+                        d1();
+                        auto& front = batch.front();
+                        auto topid = front.index;
+                        auto endid = batch.back().index;
+                        auto count1 = static_cast<iota>(endid - batch.anchor_id);
+                        auto count2 = static_cast<iota>(batch.anchor_id - topid);
+                        auto min_delta = std::min(count1, count2);
+                        if (min_delta < approx_threshold) // Refine position to absolute value.
+                        {
+                            if (count1 < count2)
+                            {
+                                batch.slide = batch.anchor_dy + batch.vsize;
+                                auto tail = batch.end();
+                                auto head = tail - (count1 + 1);
+                                while (head != tail)
+                                {
+                                    auto& curln = *--tail;
+                                    batch.slide -= curln.height(panel.x);
+                                }
+                                log(" 0.1 count1 < count2 precise batch.slide=", batch.slide);
                             }
                             else
                             {
-                                batch.slide = new_slide;
-                                batch.anchor_dy = 0;
-                                found = true;
-                            }
-
-                            if (batch.round)
-                            {
-                                auto a = new_slide < batch.threshold;
-                                auto b = new_slide < std::abs(batch.vsize - new_slide);
-                                if (a || b)
+                                batch.slide = batch.anchor_dy;
+                                auto head = batch.begin();
+                                auto tail = head + (count2 + 1);
+                                while (head != tail)
                                 {
-                                    batch.round = faux;
-                                    // Calculate the slide accurately.
-                                    // ...
+                                    auto& curln = *head++;
+                                    batch.slide += curln.height(panel.x);
                                 }
+                                log(" 0.1 count1 > count2 precise batch.slide=", batch.slide);
                             }
+                            batch.round = faux;
+                            new_slide = batch.slide;
+                            log(" ss 0.0  batch.round=", batch.round?"true":"faux");
                         }
                     }
-
+                    else
+                    {
+                        auto min_delta = std::min({ a_delta1, a_delta2, a_delta3 });
+                        if (min_delta > approx_threshold) // calc approx
+                        {
+                            auto c1 = std::min(std::max(0, new_slide), batch.size);
+                            batch.anchor_id = topid + netxs::divround((ui64)batch.size * c1, (ui64)batch.vsize);
+                            batch.anchor_dy = 0;
+                            batch.slide = new_slide;
+                            batch.round = true;
+                            log(" delta > approx_threshold 0.1 batch.slide=", batch.slide, " new_slide=", new_slide, " batch.round=true", " batch.anchor_id=", batch.anchor_id);
+                        }
+                        else if (min_delta == a_delta2) // Calc from batch.begin()
+                        {
+                            log(" min_delta == a_delta2 a_delta2=", a_delta2);
+                            if (delta2 <= 0) // Above 0
+                            {
+                                batch.anchor_id = front.index;
+                                batch.anchor_dy = delta2;
+                            }
+                            else if (delta2 > 0)
+                            {
+                                auto vpos = 0;
+                                auto head = batch.begin();
+                                auto tail = batch.end();
+                                //while (head != tail)
+                                //{
+                                //    auto& curln = *head;
+                                //    vpos += curln.height(panel.x);
+                                //    if (vpos >= new_slide) break;
+                                //    ++head;
+                                //}
+                                do
+                                {
+                                    auto& curln = *head;
+                                    vpos += curln.height(panel.x);
+                                }
+                                while (vpos <  new_slide && ++head != tail);
+                                assert(vpos >= new_slide);
+                                batch.anchor_id = head->index;
+                                batch.anchor_dy = vpos - new_slide;
+                                log("     1  batch.anchor_id=", batch.anchor_id, " batch.anchor_dy=", batch.anchor_dy);
+                            }
+                            batch.slide = new_slide;
+                            batch.round = faux;
+                        }
+                        else if (min_delta == a_delta3) // Calc from batch.end()
+                        {
+                            log(" min_delta == a_delta3 a_delta3=", a_delta3);
+                            if (delta3 <= 0) // Below batch.vsize.
+                            {
+                                batch.anchor_id = last_item.index;
+                                batch.anchor_dy = last_item.height(panel.x) - delta3;
+                                log(" Below batch.vsize");
+                            }
+                            else if (delta3 > 0)
+                            {
+                                auto vpos = batch.vsize;
+                                auto head = batch.begin();
+                                auto tail = batch.end();
+                                //while (vpos > new_slide && head != --tail)
+                                //{
+                                //    auto& curln = *tail;
+                                //    vpos -= curln.height(panel.x);
+                                //}
+                                while (head != tail && vpos > new_slide)
+                                {
+                                    auto& curln = *--tail;
+                                    vpos -= curln.height(panel.x);
+                                }
+                                assert(vpos <= new_slide);
+                                batch.anchor_id = tail->index;
+                                batch.anchor_dy = new_slide - vpos;
+                                log("     2  batch.anchor_id=", batch.anchor_id, " batch.anchor_dy=", batch.anchor_dy);
+                            }
+                            batch.slide = new_slide;
+                            batch.round = faux;
+                        }
+                        else if (min_delta == a_delta1) // Calc from anchor_id
+                        {
+                            d1();
+                        }
+                    }
                 }
 
                 //print_slide("  set_slide");
@@ -2428,12 +2496,13 @@ namespace netxs::ui
             {
                 if (away)
                 {
-                    //log(" away");
-                    auto topid = batch.front().index;
+                    log(" away");
+                    auto& front = batch.front();
+                    auto topid = front.index;
                     auto endid = batch.back().index;
                     auto count1 = static_cast<iota>(endid - batch.anchor_id);
                     auto count2 = static_cast<iota>(batch.anchor_id - topid);
-                    //log(" 0.0 count1=", count1, " count2=", count2, " batch.round=", batch.round?"true":"faux");
+                    log(" 0.0 count1=", count1, " count2=", count2, " batch.round=", batch.round?"true":"faux");
                     batch.round = faux;
                     if (count1 < batch.size)
                     {
@@ -2443,10 +2512,10 @@ namespace netxs::ui
                             auto lastid = mapln.index;
                             auto c1 = static_cast<iota>(lastid - topid);
                             auto c2 = count2;
-                            //log(" 0.1 c1=", c1, " c2=", c2, " lastid=", lastid, " topid=", topid);
+                            log(" 0.1 c1=", c1, " c2=", c2, " lastid=", lastid, " topid=", topid);
 
                             iota new_slide = netxs::divround((ui64)batch.vsize * c2, (ui64)c1);
-                            //log(" 0.1 batch.slide=", batch.slide, " new_slide=", new_slide, " batch.round=true", " batch.vsize * c2=", (ui64)batch.vsize * c2);
+                            log(" 0.1 batch.slide=", batch.slide, " new_slide=", new_slide, " batch.round=true", " batch.vsize * c2=", (ui64)batch.vsize * c2);
                             batch.slide = batch.anchor_dy + new_slide;
                             batch.round = true;
                         }
@@ -2460,7 +2529,7 @@ namespace netxs::ui
                                 auto& curln = *--head;
                                 batch.slide -= curln.height(panel.x);
                             }
-                            //log(" 1.1 --- batch.slide=", batch.slide);
+                            log(" 1.1 --- batch.slide=", batch.slide);
                         }
                         else
                         {
@@ -2472,32 +2541,32 @@ namespace netxs::ui
                                 auto& curln = *head++;
                                 batch.slide += curln.height(panel.x);
                             }
-                            //log(" 1.1 +++ batch.slide=", batch.slide);
+                            log(" 1.1 +++ batch.slide=", batch.slide);
                         }
                              if (batch.slide > batch.basis) batch.slide = batch.basis;
                         else if (batch.slide <= 0) // Overflow.
                         {
-                            //log(" 1.2 Overflow on resize. slide reset old_slide=", batch.slide, " new_slide=", 0 );
+                            log(" 1.2 Overflow on resize. slide reset old_slide=", batch.slide, " new_slide=", 0 );
                             batch.slide = 0;
+                            batch.anchor_id = front.index;
                             batch.anchor_dy = 0;
-                            batch.anchor_id = topid;
                             assert(batch.anchor_id == batch.front().index);
                         }
                     }
                     else // Overflow.
                     {
-                        //log(" Overflow on resize. Anchor id is outside. batch.slide=", batch.slide,
-                        //    " anchor_id=", batch.anchor_id, " batch.front().index=", batch.front().index);
-                        //log(" 2. slide reset old_slide", batch.slide, " new_slide=", 0 );
-                        batch.anchor_dy = 0;
-                        batch.anchor_id = topid;//endid - (batch.size - 1);
+                        log(" Overflow on resize. Anchor id is outside. batch.slide=", batch.slide,
+                            " anchor_id=", batch.anchor_id, " batch.front().index=", batch.front().index);
+                        log(" 2. slide reset old_slide", batch.slide, " new_slide=", 0 );
                         batch.slide = 0;
+                        batch.anchor_id = front.index;//endid - (batch.size - 1);
+                        batch.anchor_dy = 0;
                         assert(batch.anchor_id == batch.front().index);
                     }
                 }
                 else
                 {
-                    //log(" 3. slide reset old_slide", batch.slide, " new_slide=", batch.basis );
+                    log(" 3. slide reset old_slide", batch.slide, " new_slide=", batch.basis );
                     batch.round = faux;
                     batch.slide = batch.basis;
                     auto& mapln = index.front();
@@ -4238,11 +4307,6 @@ namespace netxs::ui
                 this->base::riseup<tier::request>(e2::form::prop::header, wtrack.get(ansi::OSC_TITLE));
             };
             SUBMIT(tier::preview, e2::coor::set, new_coor)
-            {
-                //todo correct if round
-                //log("tier::preview, e2::coor::set, new_coor");
-            };
-            SUBMIT(tier::release, e2::coor::set, new_coor)
             {
                 follow[axis::Y] = target->set_slide(new_coor.y);
                 origin = new_coor;
