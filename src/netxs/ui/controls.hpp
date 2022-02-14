@@ -1544,6 +1544,7 @@ namespace netxs::ui
                 keepon<AXIS>(fader);
             }
         }
+        template<bool PREVIEW>
         auto scroll(twod& coord)
         {
             twod delta;
@@ -1554,23 +1555,29 @@ namespace netxs::ui
                 auto block = item.base::size() + item.oversz.summ();
                 auto basis = item.oversz.topleft();
                 coord -= basis; // Scroll origin basis.
-                auto bound = std::min(frame - block, dot_00);
-                auto clamp = std::clamp(coord, bound, dot_00);
-                for (auto xy : { axis::X, axis::Y }) // Check overscroll if no auto correction.
+                if constexpr (PREVIEW)
                 {
-                    if (coord[xy] != clamp[xy] && manual[xy] && strict[xy]) // Clamp if it is outside the scroll limits and no overscroll.
+                    auto bound = std::min(frame - block, dot_00);
+                    auto clamp = std::clamp(coord, bound, dot_00);
+                    for (auto xy : { axis::X, axis::Y }) // Check overscroll if no auto correction.
                     {
-                        delta[xy] = clamp[xy] - coord[xy];
-                        coord[xy] = clamp[xy];
+                        if (coord[xy] != clamp[xy] && manual[xy] && strict[xy]) // Clamp if it is outside the scroll limits and no overscroll.
+                        {
+                            delta[xy] = clamp[xy] - coord[xy];
+                            coord[xy] = clamp[xy];
+                        }
                     }
                 }
-                scinfo.beyond = item.oversz;
-                scinfo.region = block;
-                scinfo.window.coor =-coord; // Viewport.
-                scinfo.window.size = frame; //
-                SIGNAL(tier::release, upon::scroll::bycoor::any, scinfo);
+                else
+                {
+                    scinfo.beyond = item.oversz;
+                    scinfo.region = block;
+                    scinfo.window.coor =-coord; // Viewport.
+                    scinfo.window.size = frame; //
+                    SIGNAL(tier::release, upon::scroll::bycoor::any, scinfo);
+                    base::deface(); // Main menu redraw trigger.
+                }
                 coord += basis; // Client origin basis.
-                base::deface(); // Main menu redraw trigger.
             }
             return delta;
         }
@@ -1595,16 +1602,22 @@ namespace netxs::ui
             if (client) remove(client);
             client = item_ptr;
             tokens.clear();
-            item_ptr->SUBMIT_T(tier::preview, e2::coor::set, tokens.extra(), coor)
+            item_ptr->SUBMIT_T(tier::preview, e2::coor::any, tokens.extra(), coor) // any - To check coor first of all.
             {
-                scroll(coor);
+                scroll<true>(coor);
+            };
+            item_ptr->SUBMIT_T(tier::release, e2::coor::set, tokens.extra(), coor)
+            {
+                scroll<faux>(coor);
             };
             item_ptr->SUBMIT_T(tier::release, e2::size::set, tokens.extra(), size)
             {
                 if (client)
                 {
                     auto coor = client->base::coor();
-                    if (auto delta = scroll(coor))
+                    auto delta = scroll<true>(coor);
+                                 scroll<faux>(coor);
+                    if (delta)
                     {
                         //todo sync
                     }
