@@ -39,8 +39,8 @@ Text-based desktop environment inside your terminal*
   - OpenBSD
   - [`...`](https://en.wikipedia.org/wiki/POSIX#POSIX-oriented_operating_systems)
 - Windows
-  - Windows 10
-  - Windows Server 2019
+  - Windows 10 or later
+  - Windows Server 2019 or later
 
 # Building from Source
 
