@@ -355,6 +355,7 @@ namespace netxs::ui
             {
                 switch(n)
                 {
+                    case 0:
                     default:
                         queue.add("\033[?1;2c"); break;
                 }
@@ -2287,7 +2288,7 @@ namespace netxs::ui
                         {
                             ui64 count1 = std::min(std::max(0, fresh_slide), batch.vsize);
                             ui64 count2 = batch.vsize;
-                            batch.ancid = front.index + netxs::divround(batch.size * count1, count2);
+                            batch.ancid = front.index + static_cast<id_t>(netxs::divround(batch.size * count1, count2));
                             batch.ancdy = 0;
                             batch.slide = fresh_slide;
                             batch.round = batch.vsize != batch.size;
@@ -2370,7 +2371,7 @@ namespace netxs::ui
                             auto& mapln = index.front();
                             ui64 c1 = static_cast<iota>(mapln.index - front.index);
                             ui64 c2 = range2;
-                            iota fresh_slide = netxs::divround(batch.vsize * c2, c1);
+                            auto fresh_slide = static_cast<iota>(netxs::divround(batch.vsize * c2, c1));
                             batch.slide = batch.ancdy + fresh_slide;
                             batch.round = batch.vsize != batch.size;
                         }
