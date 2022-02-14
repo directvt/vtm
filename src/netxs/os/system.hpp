@@ -236,8 +236,13 @@ namespace netxs::os
             return "cmd";
         #else
             auto shell = os::get_env("SHELL");
-            return shell.ends_with("vtm") ? "bash"
-                                          : shell;
+            if (shell.empty()
+             || shell.ends_with("vtm"))
+            {
+                shell = "bash"; //todo request it from user if empty; or make it configurable
+                log("  os: using '", shell, "' as a fallback login shell");
+            }
+            return shell;
         #endif
     }
     static text homepath()
@@ -1285,10 +1290,17 @@ namespace netxs::os
                                           nullptr);    // not overlapped
 
             #else
-
+                // Mac OS X does not support the flag MSG_NOSIGNAL
+                // See GH#182, https://lists.apple.com/archives/macnetworkprog/2002/Dec/msg00091.html
+                 #if defined(__APPLE__)
+                    #define NO_SIGSEND SO_NOSIGPIPE
+                #else
+                    #define NO_SIGSEND MSG_NOSIGNAL
+                #endif
                 auto count = IS_TTY ? ::write(fd, buff, size)
-                                    : ::send (fd, buff, size, MSG_NOSIGNAL); // not work with open_pty
-                                                                             // recursive connection causes sigpipe on destroy when using write(2) despite using ::signal(SIGPIPE, SIG_IGN)
+                                    : ::send (fd, buff, size, NO_SIGSEND); // not work with open_pty
+                                                                           // recursive connection causes sigpipe on destroy when using write(2) despite using ::signal(SIGPIPE, SIG_IGN)
+                #undef NO_SIGSEND
                 //  send(2) does not work with file descriptors, only sockets.
                 // write(2) works with fds as well as sockets.
 
