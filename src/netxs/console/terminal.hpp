@@ -2151,9 +2151,10 @@ namespace netxs::ui
             // scroll_buf: Set viewport position and return whether the viewport is reset.
             bool set_slide(iota& fresh_slide) override
             {
+                if (batch.slide == -fresh_slide) return batch.slide == batch.basis;
+
                 fresh_slide = -fresh_slide;
 
-                if (batch.slide != fresh_slide)
                 if (batch.basis == fresh_slide)
                 {
                     auto& mapln = index.front();
