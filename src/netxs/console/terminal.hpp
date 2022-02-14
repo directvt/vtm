@@ -784,11 +784,6 @@ namespace netxs::ui
             virtual iota get_step() const                            = 0;
                     auto get_view() const { return panel; }
 
-            // bufferbase: . // size in cells
-    //virtual bool is_need_to_correct()
-            //{
-            //    return faux;
-            //}
             // bufferbase: .
     virtual iota get_basis()
             {
@@ -1740,7 +1735,6 @@ namespace netxs::ui
                 line& operator = (line const&) = default;
 
                 id_t index{};
-                //ui64 accum{}; // size in cells
                 deco style{};
                 iota _size{};
                 type _kind{};
@@ -1805,10 +1799,6 @@ namespace netxs::ui
                 iota caret{}; // buff: Current line caret horizontal position.
                 iota vsize{}; // buff: Scrollback vertical size (height).
                 iota width{}; // buff: Viewport width.
-                //id_t taken{}; // buff: size in cells: The index up to which the cells are already counted.
-                //ui64 accum{}; // buff: size in cells: The total number of cells in the stored lines.
-                //bool dirty{}; // buff: size in cells: Indicator that not all available cells have been counted (lazy counting).
-                //bool need_to_correct{}; // size in cells: .
                 iota basis{}; // buff: Working area basis. Vertical position of O(0, 0) in the scrollback.
                 iota slide{}; // buff: Viewport vertical position in the scrollback.
                 maps sizes{}; // buff: Line length accounting database.
@@ -1906,14 +1896,12 @@ namespace netxs::ui
                 // buff: Push the specified line back.
                 void invite(line& l)
                 {
-                    //dirty = true; // size in cells
                     invite(l._kind, l._size, l.style.get_kind(), l.length());
                 }
                 // buff: Push a new line back.
                 template<class ...Args>
                 auto& invite(Args&&... args)
                 {
-                    //dirty = true; // size in cells
                     auto& l = ring::push_back(std::forward<Args>(args)...);
                     invite(l._kind, l._size, l.style.get_kind(), l.length());
                     return l;
@@ -1922,7 +1910,6 @@ namespace netxs::ui
                 template<class ...Args>
                 auto& insert(iota at, Args&&... args)
                 {
-                    //dirty = true; // size in cells
                     auto& l = *ring::insert(at, std::forward<Args>(args)...);
                     invite(l._kind, l._size, l.style.get_kind(), l.length());
                     return l;
@@ -1942,7 +1929,6 @@ namespace netxs::ui
                         anchor_dy = 0;
                         slide = 0;
                     }
-                    //need_to_correct = true; // size in cells
                 }
                 // buff: Remove information about the specified line from accounting.
                 void undock_base_back (line& l) override { undock(l._kind, l._size); }
@@ -1963,66 +1949,10 @@ namespace netxs::ui
                 {
                     return ring::at(index_by_id(id));
                 }
-                //// buff: Refresh scrollback size in cells, starting at the specified index.
-                //void recalc_size(iota taken_index)
-                //{
-                //    auto head = begin() + std::max(0, taken_index);
-                //    auto tail = end();
-                //    auto& curln = *head;
-                //    auto accum = curln.accum;
-                //    //auto i = 0;
-                //    //log("  i=", i++, " curln.accum=", accum);
-                //    accum += curln.length() + lnpadding;
-                //    while (++head != tail)
-                //    {
-                //        auto& curln = *head;
-                //        curln.accum = accum;
-                //        //log("  i=", i++, " curln.accum=", accum);
-                //        accum += curln.length() + lnpadding;
-                //    }
-                //    dirty = faux;
-                //    //log( " recalc_size taken_index=", taken_index);
-                //}
-                //// buff: Return scrollback size in cells.
-                //auto get_size_in_cells()
-                //{
-                //    auto& endln = back();
-                //    auto& endid = endln.index;
-                //    auto  count = length();
-                //    auto  taken_index = static_cast<iota>(count - 1 - (endid - taken));
-                //    if (taken != endid || dirty)
-                //    {
-                //        auto& topln = front();
-                //        recalc_size(taken_index);
-                //        taken = endln.index;
-                //        accum = endln.accum
-                //            + endln.length() + lnpadding
-                //            - topln.accum;
-                //        //log(" topln.accum=", topln.accum,
-                //        //    " endln.accum=", endln.accum,
-                //        //    " vsize=", vsize,
-                //        //    " accum=", accum);
-                //    }
-                //    return accum;
-                //}
                 // buff: Refresh metrics due to modified line.
                 void recalc(line& l)
                 {
                     recalc(l._kind, l._size, l.style.get_kind(), l.length());
-                    //// size in cells
-                    //dirty = true;
-                    //auto taken_index = index_by_id(taken);
-                    //auto curln_index = index_by_id(l.index);
-                    //if (curln_index < taken_index)
-                    //{
-                    //    taken       =     l.index;
-                    //    taken_index = curln_index;
-                    //}
-                    //if (ring::size - taken_index > threshold)
-                    //{
-                    //    recalc_size(taken_index);
-                    //    taken = back().index;
-                    //}
                 }
                 // buff: Rewrite the indices from the specified position to the end.
                 void reindex(iota from)
@@ -2052,9 +1982,6 @@ namespace netxs::ui
                     caret = 0;
                     basis = 0;
                     slide = 0;
-                    //accum = 0; // size in cells
-                    //dirty = 0; // size in cells
-                    //taken = 0; // size in cells
                     invite(0); // At least one line must exist.
                     anchor_id = back().index;
                     anchor_dy = 0;
@@ -2216,13 +2143,6 @@ namespace netxs::ui
                 assert(result);
                 return result;
             }
-            // scroll_buf: . // size in cells
-            //bool is_need_to_correct() override
-            //{
-            //    auto result = batch.need_to_correct;
-            //    batch.need_to_correct = faux;
-            //    return result;
-            //}
             // scroll_buf: .
             iota get_basis() override
             {
@@ -2614,7 +2534,6 @@ namespace netxs::ui
                     coord.x = std::clamp(coord.x, 0, panel.x - 1);
                     batch.basis = std::max(0, batch.vsize - arena);
                     index_rebuild();
-                    //if (vsized || !away) recalc_slide(away);
                     if (vsized || !away) recalc_slide(away);
                     return;
                 }
@@ -3503,7 +3422,6 @@ namespace netxs::ui
                         }
                     }
                     assert(coord.y >= 0 && coord.y < arena);
-                    //log(" bufferbase size in cells = ", batch.get_size_in_cells());
                     coord.y += y_top;
                 }
                 else
