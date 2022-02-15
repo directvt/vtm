@@ -143,6 +143,8 @@ namespace netxs::events::userland
                         EVENT_XS( middle   , input::hids ),
                         EVENT_XS( wheel    , input::hids ),
                         EVENT_XS( win      , input::hids ),
+
+                        INDEX_XS( left, right, leftright, middle, wheel, win ),
                     };
                     SUBSET_XS( dblclick )
                     {

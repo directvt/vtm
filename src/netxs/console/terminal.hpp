@@ -774,6 +774,9 @@ namespace netxs::ui
                 parser::style = ansi::def_style;
             }
 
+            virtual bool selection_create(twod const& coor, bool mode)                  = 0;
+            virtual bool selection_extend(twod const& coor, bool mode)                  = 0;
+            virtual bool selection_cancel()                                             = 0;
             virtual void scroll_region(iota top, iota end, iota n, bool use_scrollback) = 0;
             virtual bool recalc_pads(side& oversz)                                      = 0;
             virtual void output(face& canvas)                                           = 0;
@@ -1688,6 +1691,21 @@ namespace netxs::ui
             {
                 bufferbase::tab(n);
                 coord.x = std::clamp(coord.x, 0, panel.x - 1);
+            }
+            // alt_screen: Start text selection.
+    virtual bool selection_create(twod const& coor, bool mode) override
+            {
+                return true;
+            }
+            // alt_screen: Extend text selection.
+    virtual bool selection_extend(twod const& coor, bool mode) override
+            {
+                return true;
+            }
+            // alt_screen: Cancel text selection.
+    virtual bool selection_cancel() override
+            {
+                return faux;
             }
         };
 
@@ -3755,6 +3773,21 @@ namespace netxs::ui
                 assert(test_futures());
                 assert(test_coord());
             }
+            // scroll_buf: Start text selection.
+    virtual bool selection_create(twod const& coor, bool mode) override
+            {
+                return true;
+            }
+            // scroll_buf: Extend text selection.
+    virtual bool selection_extend(twod const& coor, bool mode) override
+            {
+                return true;
+            }
+            // scroll_buf: Cancel text selection.
+    virtual bool selection_cancel() override
+            {
+                return faux;
+            }
         };
 
         using buffer_ptr = bufferbase*;
@@ -4050,6 +4083,68 @@ namespace netxs::ui
                 };
             }
         }
+        // term: .
+        template<sysmouse::bttns SEL_BUTTON, sysmouse::bttns COPY_BUTTON>
+        void selection_submit()
+        {
+            SIGNAL(tier::release, e2::form::draggable::_<SEL_BUTTON>, true);
+            SUBMIT(tier::preview, hids::events::mouse::button::click::_<COPY_BUTTON>, gear)
+            {
+                //todo take and copy selected text to the clipboard
+                // ...
+                log(" selection_cancel 1 coord=", gear.coord);
+                if (target->selection_cancel())
+                {
+                    base::deface();
+                }
+            };
+            SUBMIT(tier::preview, hids::events::mouse::button::click::_<SEL_BUTTON>, gear)
+            {
+                log(" selection_cancel 2 coord=", gear.coord);
+                if (target->selection_cancel())
+                {
+                    base::deface();
+                }
+            };
+            SUBMIT(tier::release, e2::form::drag::start::_<SEL_BUTTON>, gear)
+            {
+                auto mode = gear.meta(hids::ALT);
+                if (gear.meta(hids::ANYCTRL))
+                {
+                    log(" drag::start extend +CTRL coord=", gear.coord);
+                    if (target->selection_extend(gear.coord, mode))
+                    {
+                        base::deface();
+                    }
+                }
+                else
+                {
+                    log(" drag::start coord=", gear.coord);
+                    if (target->selection_create(gear.coord, mode))
+                    {
+                        base::deface();
+                    }
+                }
+            };
+            SUBMIT(tier::release, e2::form::drag::pull::_<SEL_BUTTON>, gear)
+            {
+                auto mode = gear.meta(hids::ALT);
+                log(" drag::start extend coord=", gear.coord);
+                if (target->selection_extend(gear.coord, mode))
+                {
+                    base::deface();
+                }
+            };
+            SUBMIT(tier::release, e2::form::drag::cancel::_<SEL_BUTTON>, gear)
+            {
+                //...
+            };
+            SUBMIT(tier::release, e2::form::drag::stop::_<SEL_BUTTON>, gear)
+            {
+                //...
+                //SIGNAL(tier::release, e2::form::upon::dragged, gear);
+            };
+        }
 
     public:
         void exec_cmd(commands::ui::commands cmd)
@@ -4140,6 +4235,7 @@ namespace netxs::ui
             cursor.style(commands::cursor::blinking_underline);
             cursor.show(); //todo revise (possible bug)
             form::keybd.accept(true); // Subscribe on keybd offers.
+            selection_submit<sysmouse::bttns::left, sysmouse::bttns::right>();
 
             SUBMIT(tier::general, e2::debug::count::any, count)
             {
