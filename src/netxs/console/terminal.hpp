@@ -12,6 +12,7 @@ namespace netxs::events::userland
     {
         EVENTPACK( uiterm, netxs::events::userland::root::custom )
         {
+            EVENT_XS( usesgr, bool ),
             GROUP_XS( layout, iota ),
 
             SUBSET_XS( layout )
@@ -72,6 +73,7 @@ namespace netxs::ui
                     wrapon,
                     wrapoff,
                     togglewrp,
+                    togglesgr,
                     reset,
                     clear,
                 };
@@ -776,6 +778,7 @@ namespace netxs::ui
 
             virtual bool selection_create(twod const& coor, bool mode)                  = 0;
             virtual bool selection_extend(twod const& coor, bool mode)                  = 0;
+            virtual text selection_pickup(bool usesgr)                                  = 0;
             virtual bool selection_cancel()                                             = 0;
             virtual void scroll_region(iota top, iota end, iota n, bool use_scrollback) = 0;
             virtual bool recalc_pads(side& oversz)                                      = 0;
@@ -1706,6 +1709,11 @@ namespace netxs::ui
     virtual bool selection_cancel() override
             {
                 return faux;
+            }
+            // alt_screen: Take selected data.
+    virtual text selection_pickup(bool usesgr) override
+            {
+                return "alt_screen selected data "s + (usesgr ? "w/SGR" : "w/o SGR");
             }
         };
 
@@ -3788,6 +3796,11 @@ namespace netxs::ui
             {
                 return faux;
             }
+            // scroll_buf: Take selected data.
+    virtual text selection_pickup(bool usesgr) override
+            {
+                return "scroll_buf selected data "s + (usesgr ? "w/SGR" : "w/o SGR");
+            }
         };
 
         using buffer_ptr = bufferbase*;
@@ -3812,6 +3825,7 @@ namespace netxs::ui
         bool       onlogs; // term: Avoid logs if no subscriptions.
         bool       unsync; // term: Viewport is out of sync.
         bool       invert; // term: Inverted rendering (DECSCNM).
+        bool       usesgr; // term: Preserve SGR attributes when copy text to the clipboard.
 
         // term: Soft terminal reset (DECSTR).
         void decstr()
@@ -4084,15 +4098,29 @@ namespace netxs::ui
             }
         }
         // term: .
+        void selection_toggle_sgr()
+        {
+            usesgr = !usesgr;
+            SIGNAL(tier::release, ui::term::events::usesgr, usesgr);
+            log("selection_toggle_sgr usesgr=", usesgr?"true":"faux");
+        }
+        // term: .
         template<sysmouse::bttns SEL_BUTTON, sysmouse::bttns COPY_BUTTON>
         void selection_submit()
         {
             SIGNAL(tier::release, e2::form::draggable::_<SEL_BUTTON>, true);
             SUBMIT(tier::preview, hids::events::mouse::button::click::_<COPY_BUTTON>, gear)
             {
-                //todo take and copy selected text to the clipboard
-                // ...
-                log(" selection_cancel 1 coord=", gear.coord);
+                log(" selection_pickup coord=", gear.coord, " usesgr=", usesgr?"true":"faux");
+                auto data = target->selection_pickup(usesgr);
+                if (data.size())
+                {
+                    if (auto gate_ptr = bell::getref(gear.id))
+                    {
+                        gate_ptr->SIGNAL(tier::release, e2::command::cout, ansi::setbuf(data));
+                        log("term: selection is copied to clipboard, data.size=", data.size());
+                    }
+                }
                 if (target->selection_cancel())
                 {
                     base::deface();
@@ -4100,7 +4128,7 @@ namespace netxs::ui
             };
             SUBMIT(tier::preview, hids::events::mouse::button::click::_<SEL_BUTTON>, gear)
             {
-                log(" selection_cancel 2 coord=", gear.coord);
+                log(" selection_cancel coord=", gear.coord);
                 if (target->selection_cancel())
                 {
                     base::deface();
@@ -4165,6 +4193,9 @@ namespace netxs::ui
                 case commands::ui::togglewrp:
                     target->style.wrp(target->style.wrp() == wrap::on ? wrap::off : wrap::on);
                     break;
+                case commands::ui::togglesgr:
+                    selection_toggle_sgr();
+                    break;
                 case commands::ui::reset:
                     decstr();
                     break;
@@ -4227,7 +4258,8 @@ namespace netxs::ui
               bpmode{  faux },
               onlogs{  faux },
               unsync{  faux },
-              invert{  faux }
+              invert{  faux },
+              usesgr{  faux }
         {
             cmdarg = command_line;
             target = &normal;

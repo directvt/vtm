@@ -13,6 +13,7 @@ namespace netxs::events::userland
         EVENTPACK( term, netxs::events::userland::root::custom )
         {
             EVENT_XS( cmd   , iota ),
+            EVENT_XS( usesgr, bool ),
             GROUP_XS( layout, iota ),
             GROUP_XS( data  , iota ),
 
@@ -150,6 +151,20 @@ namespace netxs::app::term
                     boss.color(wrapln == wrap::on ? 0xFF00ff00 : x3.fgc(), x3.bgc());
                 };
             }},
+            std::pair<text, std::function<void(ui::pads&)>>{ "+SGR",
+            [](ui::pads& boss)
+            {
+                boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
+                {
+                    boss.SIGNAL(tier::anycast, app::term::events::cmd, ui::term::commands::ui::togglesgr);
+                    gear.dismiss(true);
+                };
+                boss.SUBMIT(tier::anycast, app::term::events::usesgr, usesgr)
+                {
+                    //todo unify, get boss base colors, don't use x3
+                    boss.color(usesgr ? 0xFF00ff00 : x3.fgc(), x3.bgc());
+                };
+            }},
         };
         return app::shared::custom_menu(full_size, items);
     };
@@ -219,6 +234,11 @@ namespace netxs::app::term
                                     {
                                         boss.SIGNAL(tier::anycast, app::term::events::layout::align, status);
                                     };
+                                    boss.SUBMIT(tier::release, ui::term::events::usesgr, usesgr)
+                                    {
+                                        boss.SIGNAL(tier::anycast, app::term::events::usesgr, usesgr);
+                                    };
+
                                     boss.SUBMIT(tier::anycast, app::term::events::cmd, cmd)
                                     {
                                         boss.exec_cmd(static_cast<ui::term::commands::ui::commands>(cmd));
