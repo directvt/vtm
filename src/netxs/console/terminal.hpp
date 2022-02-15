@@ -776,10 +776,11 @@ namespace netxs::ui
                 parser::style = ansi::def_style;
             }
 
-            virtual bool selection_create(twod const& coor, bool mode)                  = 0;
+            virtual void selection_create(twod const& coor, bool mode)                  = 0;
             virtual bool selection_extend(twod const& coor, bool mode)                  = 0;
             virtual text selection_pickup(bool usesgr)                                  = 0;
             virtual bool selection_cancel()                                             = 0;
+            virtual bool selection_active()                                             = 0;
             virtual void scroll_region(iota top, iota end, iota n, bool use_scrollback) = 0;
             virtual bool recalc_pads(side& oversz)                                      = 0;
             virtual void output(face& canvas)                                           = 0;
@@ -1504,9 +1505,15 @@ namespace netxs::ui
             : public bufferbase
         {
             rich canvas; // alt_screen: Terminal screen.
+            twod seltop; // alt_screen: Selected area head.
+            twod selend; // alt_screen: Selected area tail.
+            bool select; // alt_screen: Selection is active.
+            bool selbox; // alt_screen: Box selection mode.
 
             alt_screen(term& boss)
-                : bufferbase{ boss }
+                : bufferbase{ boss },
+                  selbox{ true },
+                  select{ faux }
             { }
 
             iota get_size() const override { return panel.y; }
@@ -1664,12 +1671,45 @@ namespace netxs::ui
                 set_scroll_region(0, 0);
                 bufferbase::clear_all();
             }
+            auto get_selected_box(twod const& offset = dot_00)
+            {
+                auto square = rect{ seltop + offset, selend - seltop };
+                square.size += square.size.less(dot_00, dot_00, dot_11);
+                square.normalize_itself();
+                auto grip_1 = rect{ square.coor, dot_11 };
+                auto grip_2 = rect{ square.coor + square.size - dot_11, dot_11 };
+                return std::tuple{ square, grip_1, grip_2 };
+            }
             // alt_screen: Render to the target.
             void output(face& target) override
             {
                 auto full = target.full();
+                auto view = target.view();
                 canvas.move(full.coor);
                 target.plot(canvas, cell::shaders::fuse);
+
+                if (select)
+                {
+                    auto [square, grip_1, grip_2] = get_selected_box(full.coor);
+                    if (!selbox)
+                    {
+                        auto size = square.size - dot_01;
+                        auto pos1 = twod{ 0, grip_1.coor.y + 1 };
+                        auto pos2 = twod{ grip_2.coor.x + 1, grip_1.coor.y };
+                        auto west = rect{ pos1, { grip_1.coor.x, size.y } };
+                        auto east = rect{ pos2, { panel.x - grip_2.coor.x, size.y } };
+                        west = west.clip(view);
+                        east = east.clip(view);
+                        target.fill(west, cell::shaders::xlight);
+                        target.fill(east, cell::shaders::xlight);
+                    }
+                    square = square.clip(view);
+                    grip_1 = grip_1.clip(view);
+                    grip_2 = grip_2.clip(view);
+                    target.fill(square, cell::shaders::xlight);
+                    target.fill(grip_1, cell::shaders::xlight);
+                    target.fill(grip_2, cell::shaders::xlight);
+                }
             }
             // alt_screen: Remove all lines below except the current. "ED2 Erase viewport" keeps empty lines.
             void del_below() override
@@ -1695,23 +1735,63 @@ namespace netxs::ui
                 bufferbase::tab(n);
                 coord.x = std::clamp(coord.x, 0, panel.x - 1);
             }
-            // alt_screen: Start text selection.
-    virtual bool selection_create(twod const& coor, bool mode) override
+            // alt_screen: Return true if selection is active.
+            bool selection_active() override
             {
-                return true;
+                return select;
+            }
+            // alt_screen: Start text selection.
+            void selection_create(twod const& coor, bool mode) override
+            {
+                if (select)
+                {
+                    auto [square, grip_1, grip_2] = get_selected_box();
+                    if (coor == grip_1.coor)
+                    {
+                        seltop = grip_2.coor;
+                        selend = grip_1.coor;
+                    }
+                    else if (coor == grip_2.coor)
+                    {
+                        seltop = grip_1.coor;
+                        selend = grip_2.coor;
+                    }
+                    else
+                    {
+                        seltop = std::clamp(coor, dot_00, panel);
+                        selend = seltop;
+                    }
+                }
+                else
+                {
+                    seltop = std::clamp(coor, dot_00, panel);
+                    selend = seltop;
+                    select = true;
+                }
+                selbox = !mode; // Boxed selection is the default mode in altbuf.
             }
             // alt_screen: Extend text selection.
-    virtual bool selection_extend(twod const& coor, bool mode) override
+            bool selection_extend(twod const& coor, bool mode) override
             {
-                return true;
+                if (select)
+                {
+                    selend = std::clamp(coor, dot_00, panel);
+                    selbox = !mode;
+                }
+                return select;
             }
             // alt_screen: Cancel text selection.
-    virtual bool selection_cancel() override
+            bool selection_cancel() override
             {
-                return faux;
+                auto active = select;
+                if (select)
+                {
+                    select = faux;
+                }
+                return active;
             }
             // alt_screen: Take selected data.
-    virtual text selection_pickup(bool usesgr) override
+            text selection_pickup(bool usesgr) override
             {
                 return "alt_screen selected data "s + (usesgr ? "w/SGR" : "w/o SGR");
             }
@@ -3781,23 +3861,28 @@ namespace netxs::ui
                 assert(test_futures());
                 assert(test_coord());
             }
-            // scroll_buf: Start text selection.
-    virtual bool selection_create(twod const& coor, bool mode) override
+            // scroll_buf: Return true if selection is active.
+            bool selection_active() override
             {
                 return true;
             }
+            // scroll_buf: Start text selection.
+            void selection_create(twod const& coor, bool mode) override
+            {
+                //...
+            }
             // scroll_buf: Extend text selection.
-    virtual bool selection_extend(twod const& coor, bool mode) override
+            bool selection_extend(twod const& coor, bool mode) override
             {
                 return true;
             }
             // scroll_buf: Cancel text selection.
-    virtual bool selection_cancel() override
+            bool selection_cancel() override
             {
                 return faux;
             }
             // scroll_buf: Take selected data.
-    virtual text selection_pickup(bool usesgr) override
+            text selection_pickup(bool usesgr) override
             {
                 return "scroll_buf selected data "s + (usesgr ? "w/SGR" : "w/o SGR");
             }
@@ -4148,10 +4233,8 @@ namespace netxs::ui
                 else
                 {
                     log(" drag::start coord=", gear.coord);
-                    if (target->selection_create(gear.coord, mode))
-                    {
-                        base::deface();
-                    }
+                    target->selection_create(gear.coord, mode);
+                    base::deface();
                 }
             };
             SUBMIT(tier::release, e2::form::drag::pull::_<SEL_BUTTON>, gear)
