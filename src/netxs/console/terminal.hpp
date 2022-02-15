@@ -1671,15 +1671,6 @@ namespace netxs::ui
                 set_scroll_region(0, 0);
                 bufferbase::clear_all();
             }
-            auto get_selected_box(twod const& offset = dot_00)
-            {
-                auto square = rect{ seltop + offset, selend - seltop };
-                square.size += square.size.less(dot_00, dot_00, dot_11);
-                square.normalize_itself();
-                auto grip_1 = rect{ square.coor, dot_11 };
-                auto grip_2 = rect{ square.coor + square.size - dot_11, dot_11 };
-                return std::tuple{ square, grip_1, grip_2 };
-            }
             // alt_screen: Render to the target.
             void output(face& target) override
             {
@@ -1690,14 +1681,30 @@ namespace netxs::ui
 
                 if (select)
                 {
-                    auto [square, grip_1, grip_2] = get_selected_box(full.coor);
+                    auto grip_1 = rect{ seltop + full.coor, dot_11 };
+                    auto grip_2 = rect{ selend + full.coor, dot_11 };
+                    auto square = grip_1 | grip_2;
+                    square.normalize_itself();
                     if (!selbox)
                     {
-                        auto size = square.size - dot_01;
-                        auto pos1 = twod{ 0, grip_1.coor.y + 1 };
-                        auto pos2 = twod{ grip_2.coor.x + 1, grip_1.coor.y };
-                        auto west = rect{ pos1, { grip_1.coor.x, size.y } };
-                        auto east = rect{ pos2, { panel.x - grip_2.coor.x, size.y } };
+                        auto size_0 = square.size - dot_01;
+                        auto size_1 = seltop.x + seltop.y * panel.x;
+                        auto size_2 = selend.x + selend.y * panel.x;
+                        auto coor_1 = seltop;
+                        auto coor_2 = selend;
+                        if (size_1 > size_2) std::swap(coor_1, coor_2);
+                        auto a = coor_1.x;
+                        auto b = coor_2.x + 1;
+                        if (coor_1.x > coor_2.x)
+                        {
+                            square.coor += dot_11;
+                            square.size -= dot_11 + dot_11;
+                            std::swap(a, b);
+                        }
+                        auto west = rect{ { 0, coor_1.y + 1 }, { a,               size_0.y } };
+                        auto east = rect{ { b, coor_1.y     }, { panel.x + 1 - b, size_0.y } };
+                        west.coor += full.coor;
+                        east.coor += full.coor;
                         west = west.clip(view);
                         east = east.clip(view);
                         target.fill(west, cell::shaders::xlight);
@@ -1745,18 +1752,12 @@ namespace netxs::ui
             {
                 if (select)
                 {
-                    auto [square, grip_1, grip_2] = get_selected_box();
-                    if (coor == grip_1.coor)
+                    if (coor == seltop)
                     {
-                        seltop = grip_2.coor;
-                        selend = grip_1.coor;
+                        seltop = selend;
+                        selend = coor;
                     }
-                    else if (coor == grip_2.coor)
-                    {
-                        seltop = grip_1.coor;
-                        selend = grip_2.coor;
-                    }
-                    else
+                    else if (coor != selend)
                     {
                         seltop = std::clamp(coor, dot_00, panel);
                         selend = seltop;
@@ -1768,7 +1769,7 @@ namespace netxs::ui
                     selend = seltop;
                     select = true;
                 }
-                selbox = !mode; // Boxed selection is the default mode in altbuf.
+                selbox = mode;
             }
             // alt_screen: Extend text selection.
             bool selection_extend(twod const& coor, bool mode) override
@@ -1776,7 +1777,7 @@ namespace netxs::ui
                 if (select)
                 {
                     selend = std::clamp(coor, dot_00, panel);
-                    selbox = !mode;
+                    selbox = mode;
                 }
                 return select;
             }
