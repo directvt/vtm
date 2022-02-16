@@ -276,21 +276,24 @@ namespace netxs::console
             }
             return region.size;
         }
+        template<bool USESGR = true, bool INITIAL = true, bool FINALISE = true>
         auto meta(rect region) // core: Ansify/textify content of specified region.
         {
             ansi::esc yield;
             cell      state;
-            auto badfx = [&](auto& state, auto& frame) {
+            auto badfx = [&](auto& state, auto& frame)
+            {
                 state.set_gc();
                 frame.add(utf::REPLACEMENT_CHARACTER_UTF8_VIEW);
             };
-            auto allfx = [&](cell& c) {
+            auto allfx = [&](cell& c)
+            {
                 auto width = c.wdt();
                 if (width < 2) // Narrow character
                 {
                     if (state.wdt() == 2) badfx(state, yield); // Left part alone
 
-                    c.scan(state, yield);
+                    c.scan<svga::truecolor, USESGR>(state, yield);
                 }
                 else
                 {
@@ -298,37 +301,38 @@ namespace netxs::console
                     {
                         if (state.wdt() == 2) badfx(state, yield);  // Left part alone
 
-                        c.scan_attr(state, yield);
+                        c.scan_attr<svga::truecolor, USESGR>(state, yield);
                         state.set_gc(c); // Save char from c for the next iteration
                     }
                     else // width == 3 // Right part
                     {
                         if (state.wdt() == 2)
                         {
-                            if (state.scan(c, state, yield)) state.set_gc(); // Cleanup used t
+                            if (state.scan<svga::truecolor, USESGR>(c, state, yield)) state.set_gc(); // Cleanup used t
                             else
                             {
                                 badfx(state, yield); // Left part alone
-                                c.scan_attr(state, yield);
+                                c.scan_attr<svga::truecolor, USESGR>(state, yield);
                                 badfx(state, yield); // Right part alone
                             }
                         }
                         else
                         {
-                            c.scan_attr(state, yield);
+                            c.scan_attr<svga::truecolor, USESGR>(state, yield);
                             badfx(state, yield); // Right part alone
                         }
                     }
                 }
             };
-            auto eolfx = [&]() {
+            auto eolfx = [&]()
+            {
                 if (state.wdt() == 2) badfx(state, yield);  // Left part alone
                 yield.eol();
             };
 
-            yield.nil();
+            if constexpr (USESGR && INITIAL) yield.nil();
             netxs::onrect(*this, region, allfx, eolfx);
-            yield.nil();
+            if constexpr (USESGR && FINALISE) yield.nil();
 
             return static_cast<utf::text>(yield);
         }

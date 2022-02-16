@@ -144,6 +144,7 @@ namespace netxs::ui
                 : owner{ owner }
             { }
 
+            operator bool () { return state != mode::none; }
             void enable (mode m)
             {
                 state |= m;
@@ -1681,28 +1682,28 @@ namespace netxs::ui
 
                 if (select)
                 {
-                    auto grip_1 = rect{ seltop + full.coor, dot_11 };
-                    auto grip_2 = rect{ selend + full.coor, dot_11 };
+                    auto curtop = std::clamp(seltop, dot_00, panel - dot_11);
+                    auto curend = std::clamp(selend, dot_00, panel - dot_11);
+                    auto grip_1 = rect{ curtop + full.coor, dot_11 };
+                    auto grip_2 = rect{ curend + full.coor, dot_11 };
                     auto square = grip_1 | grip_2;
                     square.normalize_itself();
                     if (!selbox)
                     {
                         auto size_0 = square.size - dot_01;
-                        auto size_1 = seltop.x + seltop.y * panel.x;
-                        auto size_2 = selend.x + selend.y * panel.x;
-                        auto coor_1 = seltop;
-                        auto coor_2 = selend;
-                        if (size_1 > size_2) std::swap(coor_1, coor_2);
-                        auto a = coor_1.x;
-                        auto b = coor_2.x + 1;
-                        if (coor_1.x > coor_2.x)
+                        auto size_1 = curtop.x + curtop.y * panel.x;
+                        auto size_2 = curend.x + curend.y * panel.x;
+                        if (size_1 > size_2) std::swap(curtop, curend);
+                        auto a = curtop.x;
+                        auto b = curend.x + 1;
+                        if (curtop.x > curend.x)
                         {
                             square.coor += dot_11;
                             square.size -= dot_11 + dot_11;
                             std::swap(a, b);
                         }
-                        auto west = rect{ { 0, coor_1.y + 1 }, { a,               size_0.y } };
-                        auto east = rect{ { b, coor_1.y     }, { panel.x + 1 - b, size_0.y } };
+                        auto west = rect{ { 0, curtop.y + 1 }, { a,           size_0.y } };
+                        auto east = rect{ { b, curtop.y     }, { panel.x - b, size_0.y } };
                         west.coor += full.coor;
                         east.coor += full.coor;
                         west = west.clip(view);
@@ -1750,23 +1751,25 @@ namespace netxs::ui
             // alt_screen: Start text selection.
             void selection_create(twod const& coor, bool mode) override
             {
+                auto curtop = std::clamp(seltop, dot_00, panel - dot_11);
+                auto curend = std::clamp(selend, dot_00, panel - dot_11);
                 if (select)
                 {
-                    if (coor == seltop)
+                    if (coor == curtop)
                     {
-                        seltop = selend;
+                        seltop = curend;
                         selend = coor;
                     }
-                    else if (coor != selend)
+                    else if (coor != curend)
                     {
                         seltop = std::clamp(coor, dot_00, panel);
-                        selend = seltop;
+                        selend = curtop;
                     }
                 }
                 else
                 {
                     seltop = std::clamp(coor, dot_00, panel);
-                    selend = seltop;
+                    selend = curtop;
                     select = true;
                 }
                 selbox = mode;
@@ -1794,7 +1797,43 @@ namespace netxs::ui
             // alt_screen: Take selected data.
             text selection_pickup(bool usesgr) override
             {
-                return "alt_screen selected data "s + (usesgr ? "w/SGR" : "w/o SGR");
+                text data;
+                if (select)
+                {
+                    auto curtop = std::clamp(seltop, dot_00, panel - dot_11);
+                    auto curend = std::clamp(selend, dot_00, panel - dot_11);
+                    auto grip_1 = rect{ curtop, dot_11 };
+                    auto grip_2 = rect{ curend, dot_11 };
+                    grip_1.coor += canvas.coor();
+                    grip_2.coor += canvas.coor();
+                    auto square = grip_1 | grip_2;
+                    square.normalize_itself();
+                    if (selbox || grip_1.coor.y == grip_2.coor.y)
+                    {
+                        data = usesgr ? canvas.meta<true>(square)
+                                      : canvas.meta<faux>(square);
+                    }
+                    else
+                    {
+                        if (grip_1.coor.y > grip_2.coor.y) std::swap(grip_1, grip_2);
+                        auto part_1 = rect{ grip_1.coor,             { panel.x - grip_1.coor.x, 1 }              };
+                        auto part_2 = rect{ {0, grip_1.coor.y + 1 }, { panel.x, std::max(0, square.size.y - 2) } };
+                        auto part_3 = rect{ {0, grip_2.coor.y     }, { grip_2.coor.x + 1, 1 }                    };
+                        if (usesgr)
+                        {
+                            data += canvas.meta<true, true, faux>(part_1);
+                            data += canvas.meta<true, faux, faux>(part_2);
+                            data += canvas.meta<true, faux, true>(part_3);
+                        }
+                        else
+                        {
+                            data += canvas.meta<faux, true, faux>(part_1);
+                            data += canvas.meta<faux, faux, faux>(part_2);
+                            data += canvas.meta<faux, faux, true>(part_3);
+                        }
+                    }
+                }
+                return data;
             }
         };
 
@@ -4197,6 +4236,8 @@ namespace netxs::ui
             SIGNAL(tier::release, e2::form::draggable::_<SEL_BUTTON>, true);
             SUBMIT(tier::preview, hids::events::mouse::button::click::_<COPY_BUTTON>, gear)
             {
+                if (mtrack) return;
+
                 log(" selection_pickup coord=", gear.coord, " usesgr=", usesgr?"true":"faux");
                 auto data = target->selection_pickup(usesgr);
                 if (data.size())
@@ -4214,6 +4255,8 @@ namespace netxs::ui
             };
             SUBMIT(tier::preview, hids::events::mouse::button::click::_<SEL_BUTTON>, gear)
             {
+                if (mtrack) return;
+
                 log(" selection_cancel coord=", gear.coord);
                 if (target->selection_cancel())
                 {
@@ -4222,6 +4265,8 @@ namespace netxs::ui
             };
             SUBMIT(tier::release, e2::form::drag::start::_<SEL_BUTTON>, gear)
             {
+                if (mtrack) return;
+
                 auto mode = gear.meta(hids::ALT);
                 if (gear.meta(hids::ANYCTRL))
                 {
@@ -4240,6 +4285,8 @@ namespace netxs::ui
             };
             SUBMIT(tier::release, e2::form::drag::pull::_<SEL_BUTTON>, gear)
             {
+                if (mtrack) return;
+
                 auto mode = gear.meta(hids::ALT);
                 log(" drag::start extend coord=", gear.coord);
                 if (target->selection_extend(gear.coord, mode))

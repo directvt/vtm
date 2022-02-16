@@ -748,47 +748,49 @@ namespace netxs::ui::atoms
             {
                 return param.shared.token == b.param.shared.token;
             }
-            template<svga VGAMODE = svga::truecolor, class T>
+            template<svga VGAMODE = svga::truecolor, bool USESGR = true, class T>
             void get(body& base, T& dest) const
             {
                 if (!like(base))
                 {
                     auto& cvar =      param.shared.var;
                     auto& bvar = base.param.shared.var;
-                    if (cvar.bolded != bvar.bolded)
+                    if constexpr (USESGR)
                     {
-                        dest.bld(cvar.bolded);
+                        if (cvar.bolded != bvar.bolded)
+                        {
+                            dest.bld(cvar.bolded);
+                        }
+                        if (cvar.italic != bvar.italic)
+                        {
+                            dest.itc(cvar.italic);
+                        }
+                        if (cvar.unline != bvar.unline)
+                        {
+                            if constexpr (VGAMODE == svga::vga16) dest.inv(cvar.unline);
+                            else                                  dest.und(cvar.unline);
+                        }
+                        if (cvar.invert != bvar.invert)
+                        {
+                            dest.inv(cvar.invert);
+                        }
+                        if (cvar.strike != bvar.strike)
+                        {
+                            dest.stk(cvar.strike);
+                        }
+                        if (cvar.overln != bvar.overln)
+                        {
+                            dest.ovr(cvar.overln);
+                        }
+                        if (cvar.r_to_l != bvar.r_to_l)
+                        {
+                            //todo implement RTL
+                        }
+                        if (cvar.blinks != bvar.blinks)
+                        {
+                            dest.blk(cvar.blinks);
+                        }
                     }
-                    if (cvar.italic != bvar.italic)
-                    {
-                        dest.itc(cvar.italic);
-                    }
-                    if (cvar.unline != bvar.unline)
-                    {
-                        if constexpr (VGAMODE == svga::vga16) dest.inv(cvar.unline);
-                        else                                  dest.und(cvar.unline);
-                    }
-                    if (cvar.invert != bvar.invert)
-                    {
-                        dest.inv(cvar.invert);
-                    }
-                    if (cvar.strike != bvar.strike)
-                    {
-                        dest.stk(cvar.strike);
-                    }
-                    if (cvar.overln != bvar.overln)
-                    {
-                        dest.ovr(cvar.overln);
-                    }
-                    if (cvar.r_to_l != bvar.r_to_l)
-                    {
-                        //todo implement RTL
-                    }
-                    if (cvar.blinks != bvar.blinks)
-                    {
-                        dest.blk(cvar.blinks);
-                    }
-
                     bvar = cvar;
                 }
             }
@@ -847,18 +849,18 @@ namespace netxs::ui::atoms
                 return !operator == (c);
             }
 
-            template<svga VGAMODE = svga::truecolor, class T>
+            template<svga VGAMODE = svga::truecolor, bool USESGR = true, class T>
             void get(clrs& base, T& dest)	const
             {
                 if (bg != base.bg)
                 {
                     base.bg = bg;
-                    dest.template bgc<VGAMODE>(bg);
+                    if constexpr (USESGR) dest.template bgc<VGAMODE>(bg);
                 }
                 if (fg != base.fg)
                 {
                     base.fg = fg;
-                    dest.template fgc<VGAMODE>(fg);
+                    if constexpr (USESGR) dest.template fgc<VGAMODE>(fg);
                 }
             }
             void wipe()
@@ -994,32 +996,32 @@ namespace netxs::ui::atoms
             st = c.st;
         }
         // cell: Get differences of the visual attributes only (ANSI CSI/SGR format).
-        template<svga VGAMODE = svga::truecolor, class T>
+        template<svga VGAMODE = svga::truecolor, bool USESGR = true, class T>
         void scan_attr(cell& base, T& dest) const
         {
             if (!like(base))
             {
                 //todo additionally consider UNIQUE ATTRIBUTES
-                uv.get<VGAMODE>(base.uv, dest);
-                st.get<VGAMODE>(base.st, dest);
+                uv.get<VGAMODE, USESGR>(base.uv, dest);
+                st.get<VGAMODE, USESGR>(base.st, dest);
             }
         }
         // cell: Get differences (ANSI CSI/SGR format) of "base" and add it to "dest" and update the "base".
-        template<svga VGAMODE = svga::truecolor, class T>
+        template<svga VGAMODE = svga::truecolor, bool USESGR = true, class T>
         void scan(cell& base, T& dest) const
         {
             if (!like(base))
             {
                 //todo additionally consider UNIQUE ATTRIBUTES
-                uv.get<VGAMODE>(base.uv, dest);
-                st.get<VGAMODE>(base.st, dest);
+                uv.get<VGAMODE, USESGR>(base.uv, dest);
+                st.get<VGAMODE, USESGR>(base.st, dest);
             }
 
             if (wdt()) dest += gc.get();
             else       dest += whitespace;
         }
         // cell: !!! Ensure that this.wdt == 2 and the next wdt == 3 and they are the same.
-        template<svga VGAMODE = svga::truecolor, class T>
+        template<svga VGAMODE = svga::truecolor, bool USESGR = true, class T>
         bool scan(cell& next, cell& base, T& dest) const
         {
             if (gc.same(next.gc) && like(next))
@@ -1027,8 +1029,8 @@ namespace netxs::ui::atoms
                 if (!like(base))
                 {
                     //todo additionally consider UNIQUE ATTRIBUTES
-                    uv.get<VGAMODE>(base.uv, dest);
-                    st.get<VGAMODE>(base.st, dest);
+                    uv.get<VGAMODE, USESGR>(base.uv, dest);
+                    st.get<VGAMODE, USESGR>(base.st, dest);
                 }
                 dest += gc.get();
                 return true;
