@@ -714,6 +714,7 @@ namespace netxs::ui
                 vt.oscer[OSC_RESET_COLOR] = VT_PROC{ p->owner.ctrack.set(OSC_RESET_COLOR, q); };
                 vt.oscer[OSC_RESET_FGCLR] = VT_PROC{ p->owner.ctrack.set(OSC_RESET_FGCLR, q); };
                 vt.oscer[OSC_RESET_BGCLR] = VT_PROC{ p->owner.ctrack.set(OSC_RESET_BGCLR, q); };
+                vt.oscer[OSC_CLIPBOARD  ] = VT_PROC{ p->owner.forward_clipboard(q);           };
 
                 // Log all unimplemented CSI commands.
                 for (auto i = 0; i < 0x100; ++i)
@@ -3952,6 +3953,22 @@ namespace netxs::ui
         bool       invert; // term: Inverted rendering (DECSCNM).
         bool       usesgr; // term: Preserve SGR attributes when copy text to the clipboard.
 
+        // term: Forward clipboard data (OSC 52).
+        void forward_clipboard(view data)
+        {
+            auto clip = ansi::setbuf<faux>(data); // Don't re encode data, foward it as is.
+            // Take all foci.
+            auto gates = decltype(e2::form::state::keybd::enlist)::type{};
+            SIGNAL(tier::anycast, e2::form::state::keybd::enlist, gates);
+            // Signal them to set the clipboard data.
+            for (auto gate_id : gates)
+            {
+                if (auto gate_ptr = bell::getref(gate_id))
+                {
+                    gate_ptr->SIGNAL(tier::release, e2::command::cout, clip);
+                }
+            }
+        }
         // term: Soft terminal reset (DECSTR).
         void decstr()
         {
@@ -4244,6 +4261,7 @@ namespace netxs::ui
                 {
                     if (auto gate_ptr = bell::getref(gear.id))
                     {
+                        gate_ptr->SIGNAL(tier::preview, e2::form::proceed::focus, this->This()); // Set the focus to further forward the clipboard data.
                         gate_ptr->SIGNAL(tier::release, e2::command::cout, ansi::setbuf(data));
                         log("term: selection is copied to clipboard, data.size=", data.size());
                     }

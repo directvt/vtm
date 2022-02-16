@@ -330,10 +330,16 @@ namespace netxs::console
                 yield.eol();
             };
 
-            if constexpr (USESGR && INITIAL) yield.nil();
-            netxs::onrect(*this, region, allfx, eolfx);
-            if constexpr (USESGR && FINALISE) yield.nil();
-
+            if (region)
+            {
+                if constexpr (USESGR && INITIAL) yield.nil();
+                netxs::onrect(*this, region, allfx, eolfx);
+                if constexpr (FINALISE)
+                {
+                    yield.pop_back(); // Pop last eol (lf).
+                    if constexpr (USESGR) yield.nil();
+                }
+            }
             return static_cast<utf::text>(yield);
         }
         template<class P>

@@ -168,6 +168,7 @@ namespace netxs::ansi
     static const auto OSC_LINUX_COLOR  = "P"   ; // Set 16 colors palette. (Linux console)
     static const auto OSC_LINUX_RESET  = "R"   ; // Reset 16/256 colors palette. (Linux console)
     static const auto OSC_SET_PALETTE  = "4"   ; // Set 256 colors palette.
+    static const auto OSC_CLIPBOARD    = "52"  ; // Copy printed text into clipboard.
     static const auto OSC_SET_FGCOLOR  = "10"  ; // Set fg color.
     static const auto OSC_SET_BGCOLOR  = "11"  ; // Set bg color.
     static const auto OSC_RESET_COLOR  = "104" ; // Reset color N to default palette. Without params all palette reset.
@@ -356,7 +357,6 @@ namespace netxs::ansi
         esc& locate_call ()         { return add("\033[6n"                             ); } // esc: Report caret position.
         esc& scroll_wipe ()         { return add("\033[2J"                             ); } // esc: Erase scrollback.
         esc& tag         (view t)   { return add("\033]2;", t, '\07'                   ); } // esc: Window title.
-        esc& setbuf      (view t)   { return add("\033]52;;", utf::base64(t), C0_BEL   ); } // esc: Set clipboard.
         esc& setutf      (bool b)   { return add(b ? "\033%G"      : "\033%@"          ); } // esc: Select UTF-8 character set (true) or default (faux).
         esc& altbuf      (bool b)   { return add(b ? "\033[?1049h" : "\033[?1049l"     ); } // esc: Alternative buffer.
         esc& cursor      (bool b)   { return add(b ? "\033[?25h"   : "\033[?25l"       ); } // esc: Caret visibility.
@@ -368,6 +368,12 @@ namespace netxs::ansi
         esc& load_title  ()         { return add("\033[23;0t"                          ); } // esc: Restore terminal window title.
         esc& save_palette()         { return add("\033[#P"                             ); } // esc: Push palette onto stack XTPUSHCOLORS.
         esc& load_palette()         { return add("\033[#Q"                             ); } // esc: Pop  palette from stack XTPOPCOLORS.
+        template<bool ENCODE = true>
+        esc& setbuf(view t) // esc: Set clipboard.
+        {
+            if constexpr (ENCODE) return add("\033]52;;", utf::base64(t), C0_BEL);
+            else                  return add("\033]52;" , t             , C0_BEL); // Forward as is. See ui::term.
+        }
         esc& osc_palette (iota i, rgba const& c) // esc: Set color palette. ESC ] 4 ; <i> ; rgb : <r> / <g> / <b> BEL.
         {
             return add("\033]4;", i, ";rgb:", utf::to_hex(c.chan.r), '/',
@@ -671,7 +677,8 @@ namespace netxs::ansi
     static esc altbuf (bool b)       { return esc{}.altbuf(b);     } // ansi: Alternative buffer.
     static esc cursor (bool b)       { return esc{}.cursor(b);     } // ansi: Caret visibility.
     static esc appkey (bool b)       { return esc{}.appkey(b);     } // ansi: Application Caret Keys (DECCKM).
-    static esc setbuf (view t)       { return esc{}.setbuf(t);     } // ansi: Set clipboard.
+    template<bool ENCODE = true>
+    static esc setbuf (view t)       { return esc{}.setbuf<ENCODE>(t); } // ansi: Set clipboard.
 
     static esc w32input (bool b)     { return esc{}.w32input(b); } // ansi: Turn on w32-input-mode (Microsoft specific, not released yet).
     template<class ...Args> static esc w32keybd (Args&&... p){ return esc{}.w32keybd(std::forward<Args>(p)...); } // ansi: win32-input-mode sequence (keyboard).
