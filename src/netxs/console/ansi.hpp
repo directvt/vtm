@@ -574,9 +574,13 @@ namespace netxs::ansi
             switch (VGAMODE)
             {
                 case svga::truecolor:
-                    return add("\033[38;2;", c.chan.r, ';',
-                                             c.chan.g, ';',
-                                             c.chan.b, 'm');
+                    if (c.chan.a)
+                    {
+                        return add("\033[38;2;", c.chan.r, ';',
+                                                 c.chan.g, ';',
+                                                 c.chan.b, 'm');
+                    }
+                    else return add("\033[39m");
                 case svga::vga16:  return fgc16 (c);
                 case svga::vga256: return fgc256(c);
                 default:           return *this;
@@ -589,9 +593,13 @@ namespace netxs::ansi
             switch (VGAMODE)
             {
                 case svga::truecolor:
-                    return add("\033[48;2;", c.chan.r, ';',
-                                             c.chan.g, ';',
-                                             c.chan.b, 'm');
+                    if (c.chan.a)
+                    {
+                        return add("\033[48;2;", c.chan.r, ';',
+                                                 c.chan.g, ';',
+                                                 c.chan.b, 'm');
+                    }
+                    else return add("\033[49m");
                 case svga::vga16:  return bgc16 (c);
                 case svga::vga256: return bgc256(c);
                 default:           return *this;
