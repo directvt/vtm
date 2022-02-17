@@ -761,6 +761,9 @@ namespace netxs::ui
             bool  notab; // bufferbase: Tabstop index is cleared.
             bool  decom; // bufferbase: Origin mode.
 
+            bool  alive; // bufferbase: Selection is active.
+            bool  boxed; // bufferbase: Box selection mode.
+
             bufferbase(term& master)
                 : owner{ master },
                   panel{ dot_11 },
@@ -773,17 +776,51 @@ namespace netxs::ui
                   n_end{ 0      },
                   stops{ {0, 0} },
                   notab{ faux   },
-                  decom{ faux   }
+                  decom{ faux   },
+                  alive{ faux   },
+                  boxed{ faux   }
             {
                 parser::style = ansi::def_style;
             }
 
-            virtual void selection_create(twod const& coor, bool mode)                  = 0;
-            virtual bool selection_extend(twod const& coor, bool mode)                  = 0;
-            virtual text selection_pickup(bool usesgr)                                  = 0;
-            virtual void selection_finish(bool mode)                                    = 0;
-            virtual bool selection_cancel()                                             = 0;
-            virtual bool selection_active()                                             = 0;
+            virtual void selection_create(twod const& coor, bool mode) = 0;
+            virtual bool selection_extend(twod const& coor, bool mode) = 0;
+            virtual text selection_pickup(bool usesgr)                 = 0;
+            virtual void selection_render(face& target)                = 0;
+            // bufferbase: Signal about the end of the selection process.
+            virtual void selection_finish()
+            { }
+            // bufferbase: Set selection activity.
+            void selection_active(bool state)
+            {
+                alive = state;
+            }
+            // bufferbase: Return true if selection is active.
+            bool selection_active()
+            {
+                return alive;
+            }
+            // bufferbase: Set selection mode (boxed = true).
+            void selection_selbox(bool state)
+            {
+                boxed = state;
+            }
+            // bufferbase: Return selection mode.
+            bool selection_selbox()
+            {
+                return boxed;
+            }
+            // bufferbase: Cancel text selection.
+            bool selection_cancel()
+            {
+                auto active = alive;
+                if (alive)
+                {
+                    alive = faux;
+                }
+                return active;
+            }
+
             virtual void scroll_region(iota top, iota end, iota n, bool use_scrollback) = 0;
             virtual bool recalc_pads(side& oversz)                                      = 0;
             virtual void output(face& canvas)                                           = 0;
@@ -1078,6 +1115,7 @@ namespace netxs::ui
                 parser::state = {};
                 decom = faux;
                 rtb();
+                selection_cancel();
             }
             // tabstops index, tablen = 3, vector<pair<fwd_idx, rev_idx>>:
             // coor.x      -2-1 0 1 2 3 4 5 6 7 8 9
@@ -1510,13 +1548,9 @@ namespace netxs::ui
             rich canvas; // alt_screen: Terminal screen.
             twod seltop; // alt_screen: Selected area head.
             twod selend; // alt_screen: Selected area tail.
-            bool select; // alt_screen: Selection is active.
-            bool selbox; // alt_screen: Box selection mode.
 
             alt_screen(term& boss)
-                : bufferbase{ boss },
-                  selbox{ true },
-                  select{ faux }
+                : bufferbase{ boss }
             { }
 
             iota get_size() const override { return panel.y; }
@@ -1681,16 +1715,129 @@ namespace netxs::ui
                 auto view = target.view();
                 canvas.move(full.coor);
                 target.plot(canvas, cell::shaders::fuse);
+                selection_render(target);
+            }
+            // alt_screen: Remove all lines below except the current. "ED2 Erase viewport" keeps empty lines.
+            void del_below() override
+            {
+                canvas.del_below(coord, brush.spare);
+            }
+            // alt_screen: Clear all lines from the viewport top line to the current line.
+            void del_above() override
+            {
+                auto coorx = coord.x;
+                if (coorx < panel.x) ++coord.x; // Clear the cell at the current position. See ED1 description.
+                canvas.del_above(coord, brush.spare);
+                coord.x = coorx;
+            }
+            // alt_screen: Shift by n the scroll region.
+            void scroll_region(iota top, iota end, iota n, bool use_scrollback = faux) override
+            {
+                canvas.scroll(top, end + 1, n, brush.spare);
+            }
+            // alt_screen: Horizontal tab.
+            void tab(iota n) override
+            {
+                bufferbase::tab(n);
+                coord.x = std::clamp(coord.x, 0, panel.x - 1);
+            }
 
-                if (select)
+            // alt_screen: Start text selection.
+            void selection_create(twod const& coor, bool mode) override
+            {
+                auto limits = panel - dot_11;
+                auto curtop = std::clamp(seltop, dot_00, limits);
+                auto curend = std::clamp(selend, dot_00, limits);
+                if (selection_active())
                 {
-                    auto curtop = std::clamp(seltop, dot_00, panel - dot_11);
-                    auto curend = std::clamp(selend, dot_00, panel - dot_11);
+                    if (coor == curtop)
+                    {
+                        seltop = curend;
+                        selend = coor;
+                    }
+                    else if (coor != curend)
+                    {
+                        seltop = std::clamp(coor, dot_00, limits);
+                        selend = curtop;
+                    }
+                }
+                else
+                {
+                    seltop = std::clamp(coor, dot_00, limits);
+                    selend = curtop;
+                    selection_active(true);
+                }
+                selection_selbox(mode);
+            }
+            // alt_screen: Extend text selection.
+            bool selection_extend(twod const& coor, bool mode) override
+            {
+                auto state = selection_active();
+                if (state)
+                {
+                    auto limits = panel - dot_11;
+                    selend = std::clamp(coor, dot_00, limits);
+                    selection_selbox(mode);
+                }
+                return state;
+            }
+            // alt_screen: Take selected data.
+            text selection_pickup(bool usesgr) override
+            {
+                text data;
+                if (selection_active())
+                {
+                    auto limits = panel - dot_11;
+                    auto curtop = std::clamp(seltop, dot_00, limits);
+                    auto curend = std::clamp(selend, dot_00, limits);
+                    auto grip_1 = rect{ curtop, dot_11 };
+                    auto grip_2 = rect{ curend, dot_11 };
+                    grip_1.coor += canvas.coor();
+                    grip_2.coor += canvas.coor();
+                    auto square = grip_1 | grip_2;
+                    square.normalize_itself();
+                    if (selection_selbox() || grip_1.coor.y == grip_2.coor.y)
+                    {
+                        data = usesgr ? canvas.meta<true>(square)
+                                      : canvas.meta<faux>(square);
+                    }
+                    else
+                    {
+                        if (grip_1.coor.y > grip_2.coor.y) std::swap(grip_1, grip_2);
+                        auto part_1 = rect{ grip_1.coor,             { panel.x - grip_1.coor.x, 1 }              };
+                        auto part_2 = rect{ {0, grip_1.coor.y + 1 }, { panel.x, std::max(0, square.size.y - 2) } };
+                        auto part_3 = rect{ {0, grip_2.coor.y     }, { grip_2.coor.x + 1, 1 }                    };
+                        if (usesgr)
+                        {
+                            data += canvas.meta<true, true, faux>(part_1);
+                            data += canvas.meta<true, faux, faux>(part_2);
+                            data += canvas.meta<true, faux, true>(part_3);
+                        }
+                        else
+                        {
+                            data += canvas.meta<faux, true, faux>(part_1);
+                            data += canvas.meta<faux, faux, faux>(part_2);
+                            data += canvas.meta<faux, faux, true>(part_3);
+                        }
+                    }
+                }
+                return data;
+            }
+            // alt_screen: Highlight selection.
+            void selection_render(face& target) override
+            {
+                if (selection_active())
+                {
+                    auto view = target.view();
+                    auto full = target.full();
+                    auto limits = panel - dot_11;
+                    auto curtop = std::clamp(seltop, dot_00, limits);
+                    auto curend = std::clamp(selend, dot_00, limits);
                     auto grip_1 = rect{ curtop + full.coor, dot_11 };
                     auto grip_2 = rect{ curend + full.coor, dot_11 };
                     auto square = grip_1 | grip_2;
                     square.normalize_itself();
-                    if (!selbox)
+                    if (!selection_selbox())
                     {
                         auto size_0 = square.size - dot_01;
                         auto size_1 = curtop.x + curtop.y * panel.x;
@@ -1720,127 +1867,6 @@ namespace netxs::ui
                     target.fill(grip_1, cell::shaders::xlight);
                     target.fill(grip_2, cell::shaders::xlight);
                 }
-            }
-            // alt_screen: Remove all lines below except the current. "ED2 Erase viewport" keeps empty lines.
-            void del_below() override
-            {
-                canvas.del_below(coord, brush.spare);
-            }
-            // alt_screen: Clear all lines from the viewport top line to the current line.
-            void del_above() override
-            {
-                auto coorx = coord.x;
-                if (coorx < panel.x) ++coord.x; // Clear the cell at the current position. See ED1 description.
-                canvas.del_above(coord, brush.spare);
-                coord.x = coorx;
-            }
-            // alt_screen: Shift by n the scroll region.
-            void scroll_region(iota top, iota end, iota n, bool use_scrollback = faux) override
-            {
-                canvas.scroll(top, end + 1, n, brush.spare);
-            }
-            // alt_screen: Horizontal tab.
-            void tab(iota n) override
-            {
-                bufferbase::tab(n);
-                coord.x = std::clamp(coord.x, 0, panel.x - 1);
-            }
-            // alt_screen: Return true if selection is active.
-            bool selection_active() override
-            {
-                return select;
-            }
-            // alt_screen: Start text selection.
-            void selection_create(twod const& coor, bool mode) override
-            {
-                auto curtop = std::clamp(seltop, dot_00, panel - dot_11);
-                auto curend = std::clamp(selend, dot_00, panel - dot_11);
-                if (select)
-                {
-                    if (coor == curtop)
-                    {
-                        seltop = curend;
-                        selend = coor;
-                    }
-                    else if (coor != curend)
-                    {
-                        seltop = std::clamp(coor, dot_00, panel);
-                        selend = curtop;
-                    }
-                }
-                else
-                {
-                    seltop = std::clamp(coor, dot_00, panel);
-                    selend = curtop;
-                    select = true;
-                }
-                selbox = mode;
-            }
-            // alt_screen: Extend text selection.
-            bool selection_extend(twod const& coor, bool mode) override
-            {
-                if (select)
-                {
-                    selend = std::clamp(coor, dot_00, panel);
-                    selbox = mode;
-                }
-                return select;
-            }
-            // alt_screen: Cancel text selection.
-            bool selection_cancel() override
-            {
-                auto active = select;
-                if (select)
-                {
-                    select = faux;
-                }
-                return active;
-            }
-            // alt_screen: Take selected data.
-            text selection_pickup(bool usesgr) override
-            {
-                text data;
-                if (select)
-                {
-                    auto curtop = std::clamp(seltop, dot_00, panel - dot_11);
-                    auto curend = std::clamp(selend, dot_00, panel - dot_11);
-                    auto grip_1 = rect{ curtop, dot_11 };
-                    auto grip_2 = rect{ curend, dot_11 };
-                    grip_1.coor += canvas.coor();
-                    grip_2.coor += canvas.coor();
-                    auto square = grip_1 | grip_2;
-                    square.normalize_itself();
-                    if (selbox || grip_1.coor.y == grip_2.coor.y)
-                    {
-                        data = usesgr ? canvas.meta<true>(square)
-                                      : canvas.meta<faux>(square);
-                    }
-                    else
-                    {
-                        if (grip_1.coor.y > grip_2.coor.y) std::swap(grip_1, grip_2);
-                        auto part_1 = rect{ grip_1.coor,             { panel.x - grip_1.coor.x, 1 }              };
-                        auto part_2 = rect{ {0, grip_1.coor.y + 1 }, { panel.x, std::max(0, square.size.y - 2) } };
-                        auto part_3 = rect{ {0, grip_2.coor.y     }, { grip_2.coor.x + 1, 1 }                    };
-                        if (usesgr)
-                        {
-                            data += canvas.meta<true, true, faux>(part_1);
-                            data += canvas.meta<true, faux, faux>(part_2);
-                            data += canvas.meta<true, faux, true>(part_3);
-                        }
-                        else
-                        {
-                            data += canvas.meta<faux, true, faux>(part_1);
-                            data += canvas.meta<faux, faux, faux>(part_2);
-                            data += canvas.meta<faux, faux, true>(part_3);
-                        }
-                    }
-                }
-                return data;
-            }
-            // alt_screen: Signal about the end of the selection process.
-            void selection_finish(bool mode) override
-            {
-                selbox = mode;
             }
         };
 
@@ -2154,6 +2180,9 @@ namespace netxs::ui
             face dnbox; // scroll_buf: Bottom margin canvas.
             twod upmin; // scroll_buf:    Top margin minimal size.
             twod dnmin; // scroll_buf: Bottom margin minimal size.
+
+            id_t selection_anchor_id{};
+            rect selection_box{};
 
             static constexpr iota approx_threshold = 10000; //todo make it configurable
 
@@ -3548,11 +3577,11 @@ namespace netxs::ui
                 index_rebuild();
             }
             // scroll_buf: Render to the canvas.
-            void output(face& canvas) override
+            void output(face& target) override
             {
-                canvas.vsize(batch.vsize + sctop + scend); // Include margins and bottom oversize.
-                auto view = canvas.view();
-                auto full = canvas.full();
+                target.vsize(batch.vsize + sctop + scend); // Include margins and bottom oversize.
+                auto view = target.view();
+                auto full = target.full();
                 auto coor = twod{ 0, batch.slide - batch.ancdy + y_top };
                 auto stop = view.coor.y + view.size.y;
                 auto head = batch.iter_by_id(batch.ancid);
@@ -3560,7 +3589,7 @@ namespace netxs::ui
                 auto fill = [&](auto& area, auto chr)
                 {
                     if (auto r = view.clip(area))
-                        canvas.fill(r, [&](auto& c){ c.txt(chr).fgc(tint::greenlt); });
+                        target.fill(r, [&](auto& c){ c.txt(chr).fgc(tint::greenlt); });
                 };
                 auto left_edge = view.coor.x;
                 auto rght_edge = view.coor.x + view.size.x;
@@ -3575,7 +3604,7 @@ namespace netxs::ui
                     auto height = curln.height(panel.x);
                     auto length = curln.length();
                     auto adjust = curln.style.jet();
-                    canvas.output(curln, coor);
+                    target.output(curln, coor);
 
                     if (length > 0) // Highlight the lines that are not shown in full.
                     {
@@ -3626,11 +3655,12 @@ namespace netxs::ui
                 dnbox.move(end_coor);
 
                 //todo make translucency configurable
-                canvas.plot(upbox, [](auto& dst, auto& src){ dst.fuse(src); dst.bga(0xC0); });
-                canvas.plot(dnbox, [](auto& dst, auto& src){ dst.fuse(src); dst.bga(0xC0); });
+                target.plot(upbox, [](auto& dst, auto& src){ dst.fuse(src); dst.bga(0xC0); });
+                target.plot(dnbox, [](auto& dst, auto& src){ dst.fuse(src); dst.bga(0xC0); });
+                //target.plot(upbox, cell::shaders::flat);
+                //target.plot(dnbox, cell::shaders::flat);
 
-                //canvas.plot(upbox, cell::shaders::flat);
-                //canvas.plot(dnbox, cell::shaders::flat);
+                selection_render(target);
             }
             // scroll_buf: Remove all lines below (including futures) except the current. "ED2 Erase viewport" keeps empty lines.
             void del_below() override
@@ -3908,35 +3938,115 @@ namespace netxs::ui
                 assert(test_futures());
                 assert(test_coord());
             }
-            // scroll_buf: Return true if selection is active.
-            bool selection_active() override
-            {
-                return true;
-            }
+
+            twod seltop;
+            twod selend;
             // scroll_buf: Start text selection.
             void selection_create(twod const& coor, bool mode) override
             {
+                //selection_anchor_id = {};
+                //selection_box = {};
+
+                auto square = owner.actual_area();
+                auto minlim = square.coor;
+                auto maxlim = square.coor + square.size - dot_11;
+
+                auto curtop = seltop;//std::clamp(seltop, minlim, maxlim);
+                auto curend = selend;//std::clamp(selend, minlim, maxlim);
+
+                if (selection_active())
+                {
+                    if (coor == curtop)
+                    {
+                        seltop = curend;
+                        selend = coor;
+                    }
+                    else if (coor != curend)
+                    {
+                        seltop = coor;//std::clamp(coor, minlim, maxlim);
+                        selend = curtop;
+                    }
+                }
+                else
+                {
+                    seltop = coor;//std::clamp(coor, minlim, maxlim);
+                    selend = curtop;
+                    selection_active(true);
+                }
                 //...
+                selection_selbox(!mode); //todo invert
             }
             // scroll_buf: Extend text selection.
             bool selection_extend(twod const& coor, bool mode) override
             {
-                return true;
-            }
-            // scroll_buf: Cancel text selection.
-            bool selection_cancel() override
-            {
-                return faux;
+                auto state = selection_active();
+                if (state)
+                {
+                    auto square = owner.actual_area();
+                    auto minlim = square.coor;
+                    auto maxlim = square.coor + square.size - dot_11;
+
+                    selend = coor;//std::clamp(coor, minlim, maxlim);
+                    selection_selbox(mode);
+                }
+                return state;
             }
             // scroll_buf: Take selected data.
             text selection_pickup(bool usesgr) override
             {
-                return "scroll_buf selected data "s + (usesgr ? "w/SGR" : "w/o SGR");
+                text data;
+                if (selection_active())
+                {
+                    //...
+                    if (selection_selbox())
+                    {
+                        //...
+                    }
+                    else
+                    {
+                        //...
+                    }
+                }
+                return data;
             }
             // scroll_buf: Signal about the end of the selection process.
-            void selection_finish(bool mode) override
+            void selection_finish() override
             {
+                //todo recalc markers
                 //...
+            }
+            // scroll_buf: Highlight selection.
+            void selection_render(face& target) override
+            {
+                if (selection_active())
+                {
+                    auto view = target.view();
+                    auto full = target.full();
+
+                    auto square = owner.actual_area();
+                    auto minlim = square.coor;
+                    auto maxlim = square.coor + square.size - dot_11;
+
+                    auto curtop = seltop;//std::clamp(seltop, minlim, maxlim);
+                    auto curend = selend;//std::clamp(selend, minlim, maxlim);
+                    auto grip_1 = rect{ curtop + full.coor, dot_11 };
+                    auto grip_2 = rect{ curend + full.coor, dot_11 };
+
+                    square = grip_1 | grip_2;
+                    target.fill(square.clip(view), cell::shaders::xlight);
+                    target.fill(grip_1.clip(view), cell::shaders::xlight);
+                    target.fill(grip_2.clip(view), cell::shaders::xlight);
+
+                    //...
+                    if (selection_selbox())
+                    {
+                        //...
+                    }
+                    else
+                    {
+                        //...
+                    }
+                }
             }
         };
 
@@ -4060,6 +4170,7 @@ namespace netxs::ui
                         break;
                     case 1047: // Use alternate screen buffer.
                     case 1049: // Save cursor pos and use alternate screen buffer, clearing it first.  This control combines the effects of the 1047 and 1048  modes.
+                        target->selection_cancel();
                         altbuf.style = target->style;
                         altbuf.clear_all();
                         altbuf.resize_viewport(target->panel); // Reset viewport to the basis.
@@ -4143,6 +4254,7 @@ namespace netxs::ui
                         break;
                     case 1047: // Use normal screen buffer.
                     case 1049: // Use normal screen buffer and restore cursor.
+                        target->selection_cancel();
                         normal.style = target->style;
                         normal.resize_viewport(target->panel); // Reset viewport to the basis.
                         target = &normal;
@@ -4262,6 +4374,14 @@ namespace netxs::ui
         void selection_submit()
         {
             SIGNAL(tier::release, e2::form::draggable::_<SEL_BUTTON>, true);
+            SUBMIT(tier::release, hids::events::mouse::scroll::any, gear)
+            {
+                if (gear.locks) // Forward mouse wheel to all parents.
+                {
+                    auto& offset = this->base::coor();
+                    gear.pass<tier::release>(this->parent(), offset);
+                }
+            };
             SUBMIT(tier::preview, hids::events::mouse::button::click::_<COPY_BUTTON>, gear)
             {
                 if (mtrack) return;
@@ -4312,6 +4432,8 @@ namespace netxs::ui
             SUBMIT(tier::release, e2::form::drag::pull::_<SEL_BUTTON>, gear)
             {
                 if (mtrack) return;
+                //todo check bounds (oversz) and scroll if needed
+                //...
                 auto mode = gear.meta(hids::ALT);
                 log(" drag::start extend coord=", gear.coord);
                 if (target->selection_extend(gear.coord, mode))
@@ -4330,8 +4452,7 @@ namespace netxs::ui
             SUBMIT(tier::release, e2::form::drag::stop::_<SEL_BUTTON>, gear)
             {
                 if (mtrack) return;
-                auto mode = gear.meta(hids::ALT);
-                target->selection_finish(mode);
+                target->selection_finish();
             };
         }
 

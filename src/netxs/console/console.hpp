@@ -943,6 +943,7 @@ namespace netxs::console
     public:
         static constexpr iota reflow_root = -1; //todo unify
 
+        //todo replace "side" with "dent<iota>"
         side oversz; // base: Oversize, margin.
         twod anchor; // base: Object balance point. Center point for any transform (on preview).
 
@@ -958,6 +959,10 @@ namespace netxs::console
         auto parent()      { return parent_shadow.lock(); }
         void ruined(bool state) { invalid = state; }
         auto ruined() const { return invalid; }
+        auto actual_area() const
+        {
+            return rect{ square.coor - oversz.topleft(), square.size + oversz.summ() };
+        }
         auto color() const { return brush; }
         void color(rgba const& fg_color, rgba const& bg_color)
         {
