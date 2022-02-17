@@ -604,12 +604,12 @@ namespace netxs::input
             }
         }
         // mouse: Is the mouse seized/captured?
-        bool captured (id_t asker) const
+        bool captured(id_t asker) const
         {
             return swift == asker;
         }
         // mouse: Seize specified mouse control.
-        bool capture (id_t asker)
+        bool capture(id_t asker)
         {
             if (!swift || swift == asker)
             {
@@ -620,7 +620,7 @@ namespace netxs::input
             return faux;
         }
         // mouse: Release specified mouse control.
-        void release (bool force = true)
+        void release(bool force = true)
         {
             force = force || index == mouse::none;
             locks = force ? 0
@@ -628,7 +628,7 @@ namespace netxs::input
             if (!locks) swift = {};
         }
         // mouse: Bit buttons. Used only for foreign mouse pointer in the gate (pro::input) and at the ui::term::mtrack.
-        iota buttons ()
+        iota buttons()
         {
             iota bitfield = 0;
             for (auto i = 0; i < sysmouse::numofbutton; i++)
@@ -749,7 +749,7 @@ namespace netxs::input
         }
 
         // hids: Stop handeling this event.
-        void dismiss (bool set_nodbl = faux)
+        void dismiss(bool set_nodbl = faux)
         {
             alive = faux;
             if (set_nodbl) nodbl = true;

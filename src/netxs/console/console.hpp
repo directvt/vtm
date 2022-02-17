@@ -1871,10 +1871,11 @@ namespace netxs::console
             void actify(id_t ID, period timeout, P lambda)
             {
                 auto alarm = tempus::now() + timeout;
-                auto handler = [&, ID, timeout, lambda, alarm](auto now)
+                auto handler = [&, ID, timeout, lambda, alarm](auto now) mutable
                 {
                     if (now > alarm)
                     {
+                        alarm = now + timeout;
                         if (!lambda(ID)) pacify(ID);
                     }
                 };

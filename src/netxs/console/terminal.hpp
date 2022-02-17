@@ -3997,6 +3997,7 @@ namespace netxs::ui
                 text data;
                 if (selection_active())
                 {
+                    data = "test";
                     //...
                     if (selection_selbox())
                     {
@@ -4052,6 +4053,7 @@ namespace netxs::ui
 
         using buffer_ptr = bufferbase*;
 
+        pro::timer worker; // term: Linear animation controller.
         pro::caret cursor; // term: Text cursor controller.
         term_state status; // term: Screen buffer status info.
         w_tracking wtrack; // term: Terminal title tracking object.
@@ -4362,6 +4364,7 @@ namespace netxs::ui
                 };
             }
         }
+
         // term: .
         void selection_toggle_sgr()
         {
@@ -4369,91 +4372,128 @@ namespace netxs::ui
             SIGNAL(tier::release, ui::term::events::usesgr, usesgr);
             log("selection_toggle_sgr usesgr=", usesgr?"true":"faux");
         }
-        // term: .
-        template<sysmouse::bttns SEL_BUTTON, sysmouse::bttns COPY_BUTTON>
+        void selection_pickup(hids& gear)
+        {
+            if (mtrack) return;
+            log(" selection_pickup coord=", gear.coord, " usesgr=", usesgr?"true":"faux");
+            auto data = target->selection_pickup(usesgr);
+            if (data.size())
+            {
+                if (auto gate_ptr = bell::getref(gear.id))
+                {
+                    auto state = gear.state();
+                    gear.combine_focus = true;
+                    gate_ptr->SIGNAL(tier::preview, e2::form::proceed::focus, this->This()); // Set the focus to further forward the clipboard data.
+                    gate_ptr->SIGNAL(tier::release, e2::command::cout, ansi::setbuf(data));
+                    gear.state(state);
+                    log("term: selection is copied to clipboard, data.size=", data.size());
+                }
+            }
+            if (target->selection_cancel())
+            {
+                base::expire<tier::release>();
+                base::deface();
+                gear.dismiss();
+                worker.pacify();
+            }
+        }
+        void selection_cansel(hids& gear)
+        {
+            if (mtrack) return;
+            log(" selection_cancel coord=", gear.coord);
+            if (target->selection_cancel())
+            {
+                base::deface();
+                worker.pacify();
+            }
+        }
+        void selection_create(hids& gear)
+        {
+            if (mtrack) return;
+            auto boxed = gear.meta(hids::ALT);
+            if (gear.meta(hids::ANYCTRL))
+            {
+                log(" drag::start extend +CTRL coord=", gear.coord);
+                if (target->selection_extend(gear.coord, boxed))
+                {
+                    base::deface();
+                }
+            }
+            else
+            {
+                log(" drag::start coord=", gear.coord);
+                target->selection_create(gear.coord, boxed);
+                base::deface();
+            }
+        }
+        void selection_extend(hids& gear)
+        {
+            if (mtrack) return;
+            // Check bounds and scroll if needed.
+            auto boxed = gear.meta(hids::ALT);
+            auto coord = gear.coord;
+            auto vport = rect{ -origin, target->panel };
+            auto delta = dot_00;
+            for (auto a : { axis::X, axis::Y })
+            {
+                     if (coord[a] <  vport.coor[a])                 delta[a] = vport.coor[a] - coord[a];
+                else if (coord[a] >= vport.coor[a] + vport.size[a]) delta[a] = vport.coor[a] + vport.size[a] - coord[a] - 1;
+            }
+            if (delta)
+            {
+                auto step = base::moveby(delta);
+                coord += delta - step;
+                delta -= delta * 3 / 4; // Decrease scrolling speed.
+                worker.actify(0ms, [&, delta, coord, boxed](auto id) mutable // 0ms = current FPS ticks/sec. //todo make it configurable
+                                    {
+                                        auto step = base::moveby(delta);
+                                        coord -= step;
+                                        if (target->selection_extend(coord, boxed))
+                                        {
+                                            base::deface();
+                                            return !!step;
+                                        }
+                                        else return faux;
+                                    });
+            }
+            else worker.pacify();
+
+            log(" drag::start extend coord=", coord);
+            if (target->selection_extend(coord, boxed))
+            {
+                base::deface();
+            }
+        }
+        void selection_finish(hids& gear)
+        {
+            if (mtrack) return;
+            target->selection_finish();
+            worker.pacify();
+        }
         void selection_submit()
         {
-            SIGNAL(tier::release, e2::form::draggable::_<SEL_BUTTON>, true);
+            SIGNAL(tier::release, e2::form::draggable::left, true);
             SUBMIT(tier::release, hids::events::mouse::scroll::any, gear)
             {
-                if (gear.locks) // Forward mouse wheel to all parents.
+                if (gear.locks) // Forward mouse wheel events to all parents.
                 {
                     auto& offset = this->base::coor();
                     gear.pass<tier::release>(this->parent(), offset);
                 }
             };
-            SUBMIT(tier::preview, hids::events::mouse::button::click::_<COPY_BUTTON>, gear)
+            SUBMIT(tier::release, hids::events::mouse::button::click::leftright, gear) // Forbid closing by left+right click.
             {
                 if (mtrack) return;
-                log(" selection_pickup coord=", gear.coord, " usesgr=", usesgr?"true":"faux");
-                auto data = target->selection_pickup(usesgr);
-                if (data.size())
-                {
-                    if (auto gate_ptr = bell::getref(gear.id))
-                    {
-                        gate_ptr->SIGNAL(tier::preview, e2::form::proceed::focus, this->This()); // Set the focus to further forward the clipboard data.
-                        gate_ptr->SIGNAL(tier::release, e2::command::cout, ansi::setbuf(data));
-                        log("term: selection is copied to clipboard, data.size=", data.size());
-                    }
-                }
-                if (target->selection_cancel())
-                {
-                    base::deface();
-                }
+                this->bell::template expire<tier::release>();
+                gear.dismiss();
             };
-            SUBMIT(tier::preview, hids::events::mouse::button::click::_<SEL_BUTTON>, gear)
-            {
-                if (mtrack) return;
-                log(" selection_cancel coord=", gear.coord);
-                if (target->selection_cancel())
-                {
-                    base::deface();
-                }
-            };
-            SUBMIT(tier::release, e2::form::drag::start::_<SEL_BUTTON>, gear)
-            {
-                if (mtrack) return;
-                auto mode = gear.meta(hids::ALT);
-                if (gear.meta(hids::ANYCTRL))
-                {
-                    log(" drag::start extend +CTRL coord=", gear.coord);
-                    if (target->selection_extend(gear.coord, mode))
-                    {
-                        base::deface();
-                    }
-                }
-                else
-                {
-                    log(" drag::start coord=", gear.coord);
-                    target->selection_create(gear.coord, mode);
-                    base::deface();
-                }
-            };
-            SUBMIT(tier::release, e2::form::drag::pull::_<SEL_BUTTON>, gear)
-            {
-                if (mtrack) return;
-                //todo check bounds (oversz) and scroll if needed
-                //...
-                auto mode = gear.meta(hids::ALT);
-                log(" drag::start extend coord=", gear.coord);
-                if (target->selection_extend(gear.coord, mode))
-                {
-                    base::deface();
-                }
-            };
-            SUBMIT(tier::release, e2::form::drag::cancel::_<SEL_BUTTON>, gear)
-            {
-                if (mtrack) return;
-                if (target->selection_cancel())
-                {
-                    base::deface();
-                }
-            };
-            SUBMIT(tier::release, e2::form::drag::stop::_<SEL_BUTTON>, gear)
-            {
-                if (mtrack) return;
-                target->selection_finish();
-            };
+            //todo make it configurable
+            SUBMIT(tier::release, hids::events::mouse::button::click::right, gear) { selection_pickup(gear); };
+            SUBMIT(tier::preview, hids::events::mouse::button::click::left,  gear) { selection_cansel(gear); };
+            SUBMIT(tier::release, e2::form::drag::start             ::left,  gear) { selection_create(gear); };
+            SUBMIT(tier::release, e2::form::drag::pull              ::left,  gear) { selection_extend(gear); };
+            SUBMIT(tier::release, e2::form::drag::stop              ::left,  gear) { selection_finish(gear); };
+            SUBMIT(tier::release, e2::form::drag::cancel            ::left,  gear) { selection_cansel(gear); };
         }
 
     public:
@@ -4530,6 +4570,7 @@ namespace netxs::ui
             : normal{ *this, max_scrollback_size, grow_step },
               altbuf{ *this },
               cursor{ *this },
+              worker{ *this },
               mtrack{ *this },
               ftrack{ *this },
               wtrack{ *this },
@@ -4549,7 +4590,7 @@ namespace netxs::ui
             cursor.style(commands::cursor::blinking_underline);
             cursor.show(); //todo revise (possible bug)
             form::keybd.accept(true); // Subscribe on keybd offers.
-            selection_submit<sysmouse::bttns::left, sysmouse::bttns::right>();
+            selection_submit();
 
             SUBMIT(tier::general, e2::debug::count::any, count)
             {
@@ -4685,8 +4726,10 @@ namespace netxs::ui
                 if (oversz.b > 0) // Shade the viewport bottom oversize (futures).
                 {
                     auto bottom_oversize = parent_canvas.full();
+                    bottom_oversize.coor.x -= oversz.l;
                     bottom_oversize.coor.y += console.get_basis() + console.panel.y - console.scend;
                     bottom_oversize.size.y  = oversz.b;
+                    bottom_oversize.size.x += oversz.l + oversz.r;
                     bottom_oversize = bottom_oversize.clip(parent_canvas.view());
                     parent_canvas.fill(bottom_oversize, cell::shaders::xlight);
                 }
