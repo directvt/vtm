@@ -781,6 +781,7 @@ namespace netxs::ui
             virtual void selection_create(twod const& coor, bool mode)                  = 0;
             virtual bool selection_extend(twod const& coor, bool mode)                  = 0;
             virtual text selection_pickup(bool usesgr)                                  = 0;
+            virtual void selection_finish(bool mode)                                    = 0;
             virtual bool selection_cancel()                                             = 0;
             virtual bool selection_active()                                             = 0;
             virtual void scroll_region(iota top, iota end, iota n, bool use_scrollback) = 0;
@@ -1835,6 +1836,11 @@ namespace netxs::ui
                     }
                 }
                 return data;
+            }
+            // alt_screen: Signal about the end of the selection process.
+            void selection_finish(bool mode) override
+            {
+                selbox = mode;
             }
         };
 
@@ -3927,6 +3933,11 @@ namespace netxs::ui
             {
                 return "scroll_buf selected data "s + (usesgr ? "w/SGR" : "w/o SGR");
             }
+            // scroll_buf: Signal about the end of the selection process.
+            void selection_finish(bool mode) override
+            {
+                //...
+            }
         };
 
         using buffer_ptr = bufferbase*;
@@ -4254,7 +4265,6 @@ namespace netxs::ui
             SUBMIT(tier::preview, hids::events::mouse::button::click::_<COPY_BUTTON>, gear)
             {
                 if (mtrack) return;
-
                 log(" selection_pickup coord=", gear.coord, " usesgr=", usesgr?"true":"faux");
                 auto data = target->selection_pickup(usesgr);
                 if (data.size())
@@ -4274,7 +4284,6 @@ namespace netxs::ui
             SUBMIT(tier::preview, hids::events::mouse::button::click::_<SEL_BUTTON>, gear)
             {
                 if (mtrack) return;
-
                 log(" selection_cancel coord=", gear.coord);
                 if (target->selection_cancel())
                 {
@@ -4284,7 +4293,6 @@ namespace netxs::ui
             SUBMIT(tier::release, e2::form::drag::start::_<SEL_BUTTON>, gear)
             {
                 if (mtrack) return;
-
                 auto mode = gear.meta(hids::ALT);
                 if (gear.meta(hids::ANYCTRL))
                 {
@@ -4304,7 +4312,6 @@ namespace netxs::ui
             SUBMIT(tier::release, e2::form::drag::pull::_<SEL_BUTTON>, gear)
             {
                 if (mtrack) return;
-
                 auto mode = gear.meta(hids::ALT);
                 log(" drag::start extend coord=", gear.coord);
                 if (target->selection_extend(gear.coord, mode))
@@ -4314,12 +4321,17 @@ namespace netxs::ui
             };
             SUBMIT(tier::release, e2::form::drag::cancel::_<SEL_BUTTON>, gear)
             {
-                //...
+                if (mtrack) return;
+                if (target->selection_cancel())
+                {
+                    base::deface();
+                }
             };
             SUBMIT(tier::release, e2::form::drag::stop::_<SEL_BUTTON>, gear)
             {
-                //...
-                //SIGNAL(tier::release, e2::form::upon::dragged, gear);
+                if (mtrack) return;
+                auto mode = gear.meta(hids::ALT);
+                target->selection_finish(mode);
             };
         }
 
