@@ -241,18 +241,6 @@ int main(int argc, char* argv[])
                     }
                     boss.base::deface();
                 };
-                boss.SUBMIT(tier::release, hids::events::mouse::button::click::leftright, gear)
-                {
-                    auto backup = boss.This();
-                    boss.base::detach();
-                    gear.dismiss();
-                };
-                boss.SUBMIT(tier::release, hids::events::mouse::button::click::middle, gear)
-                {
-                    auto backup = boss.This();
-                    boss.base::detach();
-                    gear.dismiss();
-                };
                 boss.SUBMIT(tier::release, e2::form::proceed::detach, backup)
                 {
                     boss.base::detach(); // The object kills itself.

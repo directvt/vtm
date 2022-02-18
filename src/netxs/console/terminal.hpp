@@ -4481,12 +4481,6 @@ namespace netxs::ui
                     gear.pass<tier::release>(this->parent(), offset);
                 }
             };
-            SUBMIT(tier::release, hids::events::mouse::button::click::leftright, gear) // Forbid closing by left+right click.
-            {
-                if (mtrack) return;
-                this->bell::template expire<tier::release>();
-                gear.dismiss();
-            };
             //todo make it configurable
             SUBMIT(tier::release, hids::events::mouse::button::click::right, gear) { selection_pickup(gear); };
             SUBMIT(tier::preview, hids::events::mouse::button::click::left,  gear) { selection_cansel(gear); };

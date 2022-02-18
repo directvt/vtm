@@ -332,6 +332,23 @@ namespace netxs::app::shared
 {
     namespace
     {
+        auto closing_by_gesture = [](auto& boss)
+        {
+            boss.SUBMIT(tier::release, hids::events::mouse::button::click::leftright, gear)
+            {
+                log(" app: gesture: Left+Right click");
+                auto backup = boss.This();
+                boss.base::template riseup<tier::release>(e2::form::quit, backup);
+                gear.dismiss();
+            };
+            boss.SUBMIT(tier::release, hids::events::mouse::button::click::middle, gear)
+            {
+                auto backup = boss.This();
+                boss.base::template riseup<tier::release>(e2::form::quit, backup);
+                gear.dismiss();
+            };
+        };
+
         auto build_Strobe        = [](view v)
         {
             auto window = ui::cake::ctor();
@@ -339,6 +356,7 @@ namespace netxs::app::shared
                                ->invoke([](auto& boss)
                                 {
                                     boss.keybd.accept(true);
+                                    closing_by_gesture(boss);
                                 })
                                ->attach(ui::mock::ctor());
             auto strob_shadow = ptr::shadow(strob);
@@ -364,6 +382,7 @@ namespace netxs::app::shared
                   ->invoke([&](auto& boss)
                   {
                       boss.keybd.accept(true);
+                      closing_by_gesture(boss);
                   });
             return window;
         };
@@ -376,6 +395,7 @@ namespace netxs::app::shared
                   ->invoke([&](auto& boss)
                   {
                       boss.keybd.accept(true);
+                      closing_by_gesture(boss);
                       boss.SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
                       {
                           static iota i = 0; i++;
@@ -420,6 +440,7 @@ namespace netxs::app::shared
                         };
                         boss.SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
                         {
+                            if (parent) closing_by_gesture(*parent);
                             static iota i = 0; i++;
                             auto title = ansi::jet(bias::center).add("View \n Region ", i);
                             boss.base::template riseup<tier::preview>(e2::form::prop::header, title);
