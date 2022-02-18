@@ -3633,7 +3633,8 @@ namespace netxs::console
 
             list pool; // focus: List of active input devices.
 
-            bool find(auto test_id)
+            template<class T>
+            bool find(T test_id)
             {
                 for (auto id : pool) if (test_id == id) return true;
                 return faux;

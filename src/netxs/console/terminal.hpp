@@ -1251,8 +1251,8 @@ namespace netxs::ui
                 resize_tabstops(panel.x, true);
             }
             // bufferbase: Horizontal tab implementation.
-            template<bool FWD>
-            void tab_impl(auto size)
+            template<bool FWD, class T>
+            void tab_impl(T size)
             {
                 if constexpr (FWD)
                 {
