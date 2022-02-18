@@ -336,7 +336,6 @@ namespace netxs::app::shared
         {
             boss.SUBMIT(tier::release, hids::events::mouse::button::click::leftright, gear)
             {
-                log(" app: gesture: Left+Right click");
                 auto backup = boss.This();
                 boss.base::template riseup<tier::release>(e2::form::quit, backup);
                 gear.dismiss();
