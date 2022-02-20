@@ -3941,10 +3941,11 @@ namespace netxs::ui
                 id_t anchor{}; // Anchor id.
                 twod corner{}; // 2D offset relative to anchor (boxed).
                 iota offset{}; // 1D offset relative to anchor (lines).
+                template<bool RESET_Y>
                 void reset(line const& curln)
                 {
                     anchor = curln.index;
-                    corner.y = 0;
+                    if constexpr (RESET_Y) corner.y = 0;
                     //todo check alignment (arighted, centered)
                     offset = corner.x;
                 }
@@ -3957,35 +3958,25 @@ namespace netxs::ui
             {
                 grip value;
                 auto i_cur = batch.index_by_id(batch.ancid);
+                assert(i_cur < batch.size);
                 auto vtpos = batch.slide - batch.ancdy;
                 auto mxpos = batch.slide + panel.y;
                 auto start = batch.begin() + i_cur;
                 auto limit = batch.end();
-                while (start != limit && vtpos < mxpos)
+                while (vtpos < mxpos)
                 {
                     auto& curln = *start;
                     auto newpos = vtpos + curln.height(panel.x);
-                    if (coor.y >= vtpos && coor.y < newpos)
+                    if ((coor.y >= vtpos && coor.y < newpos) || ++start == limit)
                     {
                         coor.y -= vtpos;
+                        value.anchor = curln.index;
                         value.corner = coor;
                         //todo check alignment (arighted, centered)
                         value.offset = coor.x + coor.y * panel.x;
-                        value.anchor = curln.index;
                         break;
                     }
                     vtpos = newpos;
-                    ++start;
-                }
-                if (start == limit)
-                {
-                    assert(vtpos == batch.vsize && coor.y >= batch.vsize);
-                    auto& curln = batch.back();
-                    coor.y -= vtpos - curln.height(panel.x);
-                    value.corner = coor;
-                    //todo check alignment (arighted, centered)
-                    value.offset = coor.x + coor.y * panel.x;
-                    value.anchor = curln.index;
                 }
                 return value;
             }
@@ -4002,39 +3993,64 @@ namespace netxs::ui
                         isopen = faux;
                         return std::pair{ dot_mx, dot_mx };
                     }
-                    if (i_top < 0) upgrip.reset(batch.front());
-                    if (i_end < 0) dngrip.reset(batch.front());
+                    if (i_top < 0) upgrip.reset<true>(batch.front());
+                    if (i_end < 0) dngrip.reset<true>(batch.front());
                 }
-                auto grip1 = upgrip.corner;
-                auto grip2 = dngrip.corner;
+                if (i_top >= batch.size) upgrip.reset<faux>(batch.back());
+                if (i_end >= batch.size) dngrip.reset<faux>(batch.back());
+                auto coor1 = upgrip.corner;
+                auto coor2 = dngrip.corner;
                 auto start = batch.begin() + i_cur;
                 auto limit = batch.end();
+                auto endid = batch.back().index;
                 auto vtpos = batch.slide - batch.ancdy;
                 auto mxpos = batch.slide + panel.y;
-                auto count = 2;
-                grip1.y = i_top < i_cur ? 0 : dot_mx.y;
-                grip2.y = i_end < i_cur ? 0 : dot_mx.y;
-                while (start != limit && vtpos < mxpos && count)
+                auto done1 = true;
+                auto done2 = true;
+                coor1.y = i_top < i_cur ? 0 : dot_mx.y;
+                coor2.y = i_end < i_cur ? 0 : dot_mx.y;
+                auto check = [&](auto height, auto& curln, auto& undone, auto& grip, auto& coor)
+                {
+                    if (undone && grip.anchor == curln.index)
+                    {
+                        undone = faux;
+                        coor.y = vtpos + grip.corner.y;
+                        if (grip.corner.y >= height && grip.anchor != endid) // Try to re anchor it.
+                        {
+                            auto head = start + 1;
+                            auto ypos = grip.corner.y - height;
+                            assert(head != limit);
+                            while (true)
+                            {
+                                auto& curln = *head;
+                                auto height = curln.height(panel.x);
+                                if (ypos < height || ++head == limit)
+                                {
+                                    grip.anchor = curln.index;
+                                    grip.corner.y = ypos;
+                                    //todo check alignment (arighted, centered)
+                                    grip.offset = grip.corner.x + grip.corner.y * panel.x;
+                                    break;
+                                }
+                                ypos -= height;
+                            }
+                        }
+                    }
+                };
+                while (start != limit && vtpos < mxpos && (done1 || done2))
                 {
                     auto& curln = *start;
-                    if (upgrip.anchor == curln.index)
-                    {
-                        --count;
-                        grip1.y = vtpos + upgrip.corner.y;
-                    }
-                    if (dngrip.anchor == curln.index)
-                    {
-                        --count;
-                        grip2.y = vtpos + dngrip.corner.y;
-                    }
-                    vtpos += curln.height(panel.x);
+                    auto height = curln.height(panel.x);
+                    check(height, curln, done1, upgrip, coor1);
+                    check(height, curln, done2, dngrip, coor2);
+                    vtpos += height;
                     ++start;
                 }
                 auto square = owner.actual_area<faux>();
                 auto minlim = square.coor;
                 auto maxlim = square.coor + square.size - dot_11;
-                auto curtop = std::clamp(grip1, minlim, maxlim);
-                auto curend = std::clamp(grip2, minlim, maxlim);
+                auto curtop = std::clamp(coor1, minlim, maxlim);
+                auto curend = std::clamp(coor2, minlim, maxlim);
                 return std::pair{ curtop, curend };
             }
             // scroll_buf: Start text selection.
