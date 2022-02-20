@@ -3941,6 +3941,13 @@ namespace netxs::ui
                 id_t anchor{}; // Anchor id.
                 twod corner{}; // 2D offset relative to anchor (boxed).
                 iota offset{}; // 1D offset relative to anchor (lines).
+                void reset(line const& curln)
+                {
+                    anchor = curln.index;
+                    corner.y = 0;
+                    //todo check alignment (arighted, centered)
+                    offset = corner.x;
+                }
             };
             grip upgrip;
             grip dngrip;
@@ -3956,13 +3963,13 @@ namespace netxs::ui
                 auto limit = batch.end();
                 while (start != limit && vtpos < mxpos)
                 {
-                    //todo check alignment (arighted, centered)
                     auto& curln = *start;
                     auto newpos = vtpos + curln.height(panel.x);
                     if (coor.y >= vtpos && coor.y < newpos)
                     {
                         coor.y -= vtpos;
                         value.corner = coor;
+                        //todo check alignment (arighted, centered)
                         value.offset = coor.x + coor.y * panel.x;
                         value.anchor = curln.index;
                         break;
@@ -3976,6 +3983,7 @@ namespace netxs::ui
                     auto& curln = batch.back();
                     coor.y -= vtpos - curln.height(panel.x);
                     value.corner = coor;
+                    //todo check alignment (arighted, centered)
                     value.offset = coor.x + coor.y * panel.x;
                     value.anchor = curln.index;
                 }
@@ -3986,6 +3994,17 @@ namespace netxs::ui
                 auto i_cur = batch.index_by_id(batch.ancid);
                 auto i_top = batch.index_by_id(upgrip.anchor);
                 auto i_end = batch.index_by_id(dngrip.anchor);
+                if (i_top < 0 || i_end < 0) // Check the buffer ring.
+                {
+                    if (i_top < 0 && i_end < 0) // Disable selection.
+                    {
+                        selection_cancel();
+                        isopen = faux;
+                        return std::pair{ dot_mx, dot_mx };
+                    }
+                    if (i_top < 0) upgrip.reset(batch.front());
+                    if (i_end < 0) dngrip.reset(batch.front());
+                }
                 auto grip1 = upgrip.corner;
                 auto grip2 = dngrip.corner;
                 auto start = batch.begin() + i_cur;
@@ -3997,7 +4016,6 @@ namespace netxs::ui
                 grip2.y = i_end < i_cur ? 0 : dot_mx.y;
                 while (start != limit && vtpos < mxpos && count)
                 {
-                    //todo check alignment (arighted, centered)
                     auto& curln = *start;
                     if (upgrip.anchor == curln.index)
                     {
@@ -4012,7 +4030,12 @@ namespace netxs::ui
                     vtpos += curln.height(panel.x);
                     ++start;
                 }
-                return std::pair{ grip1, grip2 };
+                auto square = owner.actual_area<faux>();
+                auto minlim = square.coor;
+                auto maxlim = square.coor + square.size - dot_11;
+                auto curtop = std::clamp(grip1, minlim, maxlim);
+                auto curend = std::clamp(grip2, minlim, maxlim);
+                return std::pair{ curtop, curend };
             }
             // scroll_buf: Start text selection.
             void selection_create(twod const& coor, bool mode) override
@@ -4101,24 +4124,14 @@ namespace netxs::ui
             {
                 if (selection_active())
                 {
-                    //log("active()");
-                    //todo clamp and update grips
-                    //...
-
                     auto view = target.view();
                     auto full = target.full();
-
                     if (selection_selbox())
                     {
-                        auto [seltop, selend] = selection_take_boxed_grips();
-                        auto square = owner.actual_area();
-                        auto minlim = square.coor;
-                        auto maxlim = square.coor + square.size - dot_11;
-                        auto curtop = seltop;//std::clamp(seltop, minlim, maxlim);
-                        auto curend = selend;//std::clamp(selend, minlim, maxlim);
+                        auto [curtop, curend] = selection_take_boxed_grips();
                         auto grip_1 = rect{ curtop + full.coor, dot_11 };
                         auto grip_2 = rect{ curend + full.coor, dot_11 };
-                        square = grip_1 | grip_2;
+                        auto square = grip_1 | grip_2;
                         target.fill(square.clip(view), cell::shaders::xlight);
                         target.fill(grip_1.clip(view), cell::shaders::xlight);
                         target.fill(grip_2.clip(view), cell::shaders::xlight);

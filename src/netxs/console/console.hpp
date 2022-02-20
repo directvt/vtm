@@ -959,9 +959,12 @@ namespace netxs::console
         auto parent()      { return parent_shadow.lock(); }
         void ruined(bool state) { invalid = state; }
         auto ruined() const { return invalid; }
+        template<bool ABSOLUTE = true>
         auto actual_area() const
         {
-            return rect{ square.coor - oversz.topleft(), square.size + oversz.summ() };
+            auto area = rect{ -oversz.topleft(), square.size + oversz.summ() };
+            if constexpr (ABSOLUTE) area.coor += square.coor;
+            return area;
         }
         auto color() const { return brush; }
         void color(rgba const& fg_color, rgba const& bg_color)
