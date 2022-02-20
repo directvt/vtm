@@ -2181,9 +2181,6 @@ namespace netxs::ui
             twod upmin; // scroll_buf:    Top margin minimal size.
             twod dnmin; // scroll_buf: Bottom margin minimal size.
 
-            id_t selection_anchor_id{};
-            rect selection_box{};
-
             static constexpr iota approx_threshold = 10000; //todo make it configurable
 
             scroll_buf(term& boss, iota buffer_size, iota grow_step)
@@ -3939,42 +3936,120 @@ namespace netxs::ui
                 assert(test_coord());
             }
 
-            twod seltop;
-            twod selend;
+            struct grip
+            {
+                id_t anchor{}; // Anchor id.
+                twod corner{}; // 2D offset relative to anchor (boxed).
+                iota offset{}; // 1D offset relative to anchor (lines).
+            };
+            grip upgrip;
+            grip dngrip;
+            bool isopen{}; // Selection process is not complete.
+
+            auto selection_coor_to_grip(twod coor)
+            {
+                grip value;
+                auto i_cur = batch.index_by_id(batch.ancid);
+                auto vtpos = batch.slide - batch.ancdy;
+                auto mxpos = batch.slide + panel.y;
+                auto start = batch.begin() + i_cur;
+                auto limit = batch.end();
+                while (start != limit && vtpos < mxpos)
+                {
+                    //todo check alignment (arighted, centered)
+                    auto& curln = *start;
+                    auto newpos = vtpos + curln.height(panel.x);
+                    if (coor.y >= vtpos && coor.y < newpos)
+                    {
+                        coor.y -= vtpos;
+                        value.corner = coor;
+                        value.offset = coor.x + coor.y * panel.x;
+                        value.anchor = curln.index;
+                        break;
+                    }
+                    vtpos = newpos;
+                    ++start;
+                }
+                if (start == limit)
+                {
+                    assert(vtpos == batch.vsize && coor.y >= batch.vsize);
+                    auto& curln = batch.back();
+                    coor.y -= vtpos - curln.height(panel.x);
+                    value.corner = coor;
+                    value.offset = coor.x + coor.y * panel.x;
+                    value.anchor = curln.index;
+                }
+                return value;
+            }
+            auto selection_take_boxed_grips()
+            {
+                auto i_cur = batch.index_by_id(batch.ancid);
+                auto i_top = batch.index_by_id(upgrip.anchor);
+                auto i_end = batch.index_by_id(dngrip.anchor);
+                auto grip1 = upgrip.corner;
+                auto grip2 = dngrip.corner;
+                auto start = batch.begin() + i_cur;
+                auto limit = batch.end();
+                auto vtpos = batch.slide - batch.ancdy;
+                auto mxpos = batch.slide + panel.y;
+                auto count = 2;
+                grip1.y = i_top < i_cur ? 0 : dot_mx.y;
+                grip2.y = i_end < i_cur ? 0 : dot_mx.y;
+                while (start != limit && vtpos < mxpos && count)
+                {
+                    //todo check alignment (arighted, centered)
+                    auto& curln = *start;
+                    if (upgrip.anchor == curln.index)
+                    {
+                        --count;
+                        grip1.y = vtpos + upgrip.corner.y;
+                    }
+                    if (dngrip.anchor == curln.index)
+                    {
+                        --count;
+                        grip2.y = vtpos + dngrip.corner.y;
+                    }
+                    vtpos += curln.height(panel.x);
+                    ++start;
+                }
+                return std::pair{ grip1, grip2 };
+            }
             // scroll_buf: Start text selection.
             void selection_create(twod const& coor, bool mode) override
             {
-                //selection_anchor_id = {};
-                //selection_box = {};
-
-                auto square = owner.actual_area();
-                auto minlim = square.coor;
-                auto maxlim = square.coor + square.size - dot_11;
-
-                auto curtop = seltop;//std::clamp(seltop, minlim, maxlim);
-                auto curend = selend;//std::clamp(selend, minlim, maxlim);
-
-                if (selection_active())
+                if (selection_active() && !isopen)
                 {
-                    if (coor == curtop)
+                    //if (i_end >= i_cur) // Proceed only when selection is visible. i_top <= i_end.
                     {
-                        seltop = curend;
-                        selend = coor;
-                    }
-                    else if (coor != curend)
-                    {
-                        seltop = coor;//std::clamp(coor, minlim, maxlim);
-                        selend = curtop;
+                        if (selection_selbox())
+                        {
+                            auto [seltop, selend] = selection_take_boxed_grips();
+                            auto mygrip = selection_coor_to_grip(coor);
+                            if (coor == seltop)
+                            {
+                                std::swap(upgrip, dngrip);
+                            }
+                            else if (coor != selend)
+                            {
+                                upgrip = mygrip;
+                                dngrip = mygrip;
+                            }
+                        }
+                        else
+                        {
+                            
+                        }
                     }
                 }
                 else
                 {
-                    seltop = coor;//std::clamp(coor, minlim, maxlim);
-                    selend = curtop;
+                    upgrip = selection_coor_to_grip(coor);
+                    dngrip = upgrip;
                     selection_active(true);
                 }
                 //...
                 selection_selbox(!mode); //todo invert
+                isopen = true;
             }
             // scroll_buf: Extend text selection.
             bool selection_extend(twod const& coor, bool mode) override
@@ -3982,12 +4057,16 @@ namespace netxs::ui
                 auto state = selection_active();
                 if (state)
                 {
-                    auto square = owner.actual_area();
-                    auto minlim = square.coor;
-                    auto maxlim = square.coor + square.size - dot_11;
+                    if (selection_selbox())
+                    {
+                        dngrip = selection_coor_to_grip(coor);
+                    }
+                    else
+                    {
+                        
+                    }
 
-                    selend = coor;//std::clamp(coor, minlim, maxlim);
-                    selection_selbox(mode);
+                    selection_selbox(!mode); //todo invert
                 }
                 return state;
             }
@@ -4015,33 +4094,34 @@ namespace netxs::ui
             {
                 //todo recalc markers
                 //...
+                isopen = faux;
             }
             // scroll_buf: Highlight selection.
             void selection_render(face& target) override
             {
                 if (selection_active())
                 {
+                    //log("active()");
+                    //todo clamp and update grips
+                    //...
+
                     auto view = target.view();
                     auto full = target.full();
 
-                    auto square = owner.actual_area();
-                    auto minlim = square.coor;
-                    auto maxlim = square.coor + square.size - dot_11;
-
-                    auto curtop = seltop;//std::clamp(seltop, minlim, maxlim);
-                    auto curend = selend;//std::clamp(selend, minlim, maxlim);
-                    auto grip_1 = rect{ curtop + full.coor, dot_11 };
-                    auto grip_2 = rect{ curend + full.coor, dot_11 };
-
-                    square = grip_1 | grip_2;
-                    target.fill(square.clip(view), cell::shaders::xlight);
-                    target.fill(grip_1.clip(view), cell::shaders::xlight);
-                    target.fill(grip_2.clip(view), cell::shaders::xlight);
-
-                    //...
                     if (selection_selbox())
                     {
-                        //...
+                        auto [seltop, selend] = selection_take_boxed_grips();
+                        auto square = owner.actual_area();
+                        auto minlim = square.coor;
+                        auto maxlim = square.coor + square.size - dot_11;
+                        auto curtop = seltop;//std::clamp(seltop, minlim, maxlim);
+                        auto curend = selend;//std::clamp(selend, minlim, maxlim);
+                        auto grip_1 = rect{ curtop + full.coor, dot_11 };
+                        auto grip_2 = rect{ curend + full.coor, dot_11 };
+                        square = grip_1 | grip_2;
+                        target.fill(square.clip(view), cell::shaders::xlight);
+                        target.fill(grip_1.clip(view), cell::shaders::xlight);
+                        target.fill(grip_2.clip(view), cell::shaders::xlight);
                     }
                     else
                     {
@@ -4172,7 +4252,6 @@ namespace netxs::ui
                         break;
                     case 1047: // Use alternate screen buffer.
                     case 1049: // Save cursor pos and use alternate screen buffer, clearing it first.  This control combines the effects of the 1047 and 1048  modes.
-                        target->selection_cancel();
                         altbuf.style = target->style;
                         altbuf.clear_all();
                         altbuf.resize_viewport(target->panel); // Reset viewport to the basis.
@@ -4256,7 +4335,6 @@ namespace netxs::ui
                         break;
                     case 1047: // Use normal screen buffer.
                     case 1049: // Use normal screen buffer and restore cursor.
-                        target->selection_cancel();
                         normal.style = target->style;
                         normal.resize_viewport(target->panel); // Reset viewport to the basis.
                         target = &normal;
@@ -4511,7 +4589,7 @@ namespace netxs::ui
                     break;
                 case commands::ui::togglesgr:
                     selection_toggle_sgr();
-                    break;
+                    return; // Without resetting the viewport.
                 case commands::ui::reset:
                     decstr();
                     break;
@@ -4521,7 +4599,7 @@ namespace netxs::ui
                 default:
                     break;
             }
-            ondata("");
+            ondata(""); // Reset viewport.
         }
         void data_in(view data)
         {
