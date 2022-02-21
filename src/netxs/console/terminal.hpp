@@ -4051,6 +4051,10 @@ namespace netxs::ui
                 auto maxlim = square.coor + square.size - dot_11;
                 auto curtop = std::clamp(coor1, minlim, maxlim);
                 auto curend = std::clamp(coor2, minlim, maxlim);
+                if (curtop.y > curend.y || (curtop.y == curend.y && curtop.x > curend.y))
+                {
+                    std::swap(curtop, curend);
+                }
                 return std::pair{ curtop, curend };
             }
             // scroll_buf: Start text selection.
@@ -4060,10 +4064,10 @@ namespace netxs::ui
                 {
                     //if (i_end >= i_cur) // Proceed only when selection is visible. i_top <= i_end.
                     {
-                        if (selection_selbox())
-                        {
+                        auto mygrip = selection_coor_to_grip(coor);
+                        //if (selection_selbox())
+                        //{
                             auto [seltop, selend] = selection_take_boxed_grips();
-                            auto mygrip = selection_coor_to_grip(coor);
                             if (coor == seltop)
                             {
                                 std::swap(upgrip, dngrip);
@@ -4073,11 +4077,11 @@ namespace netxs::ui
                                 upgrip = mygrip;
                                 dngrip = mygrip;
                             }
-                        }
-                        else
-                        {
-                            
-                        }
+                        //}
+                        //else
+                        //{
+                        //    
+                        //}
                     }
                 }
                 else
@@ -4087,7 +4091,7 @@ namespace netxs::ui
                     selection_active(true);
                 }
                 //...
-                selection_selbox(!mode); //todo invert
+                selection_selbox(mode);
                 isopen = true;
             }
             // scroll_buf: Extend text selection.
@@ -4096,16 +4100,16 @@ namespace netxs::ui
                 auto state = selection_active();
                 if (state)
                 {
-                    if (selection_selbox())
-                    {
+                    //if (selection_selbox())
+                    //{
                         dngrip = selection_coor_to_grip(coor);
-                    }
-                    else
-                    {
-                        
-                    }
+                    //}
+                    //else
+                    //{
+                    //    
+                    //}
 
-                    selection_selbox(!mode); //todo invert
+                    selection_selbox(mode);
                 }
                 return state;
             }
@@ -4154,7 +4158,166 @@ namespace netxs::ui
                     }
                     else
                     {
-                        //...
+                        auto [curtop, curend] = selection_take_boxed_grips();
+                        auto grip1 = upgrip;
+                        auto grip2 = dngrip;
+                        auto i_cur = batch.index_by_id(batch.ancid);
+                        auto i_top = batch.index_by_id(upgrip.anchor);
+                        auto i_end = batch.index_by_id(dngrip.anchor);
+                        if (i_top > i_end || (i_top == i_end && grip2.offset > grip1.offset))
+                        {
+                            std::swap(grip1, grip2);
+                        }
+
+                        auto start = batch.begin() + i_cur;
+                        auto limit = batch.end();
+                        auto vtpos = batch.slide - batch.ancdy;
+                        auto mxpos = batch.slide + panel.y;
+                        auto undone = true;
+                        auto draw_full = [&](auto& curln, auto newpos)
+                        {
+                        };
+                        auto draw_top = [&](auto& curln, auto newpos)
+                        {
+                        };
+                        auto draw_bottom = [&](auto& curln, auto newpos)
+                        {
+                        };
+                        auto the_same = [&](auto& curln, auto newpos, auto height)
+                        {
+                            if (curln.index == grip1.anchor)
+                            {
+                                log("grip1.anchor == grip2.anchor");
+                                //todo check alignment (arighted, centered)
+                                //// auto coor11 = std::max(dot_00, twod{ grip1.offset % panel.x, vtpos + grip1.offset / panel.y});
+                                //// auto coor12 = twod{ std::min(grip2.offset + 1, std::min(curln.length(), panel.x)), coor11.y + 1};
+                                //// auto block1 = rect{ coor11 + full.coor, coor12 - coor11 };
+                                //// target.fill(block1.clip(view), cell::shaders::xlight);
+                                return faux;
+                            }
+                            return true;
+                        };
+                        auto not_equal = [&](auto& curln, auto newpos, auto height)
+                        {
+                            auto align = curln.style.jet();
+                            if (curln.index > grip1.anchor && curln.index < grip2.anchor) // Draw full block.
+                            {
+                                if (align == bias::left || align == bias::none)
+                                {
+                                    auto len = curln.length();
+                                    auto length = len;
+                                    auto square = full;
+                                    square.coor.y += vtpos;
+                                    if (length > panel.x && curln.wrapped())
+                                    {
+                                        square.size.y = (length - 1) / panel.x;
+                                        auto tailsz = twod{ (length - 1) % panel.x + 1, 1 };
+                                        tailsz.x += 1;
+                                        auto remain = rect{ square.coor, tailsz };
+                                        remain.coor.y += square.size.y;
+                                        target.fill(remain.clip(view), cell::shaders::xlight);
+                                    }
+                                    else square.size = { length + 1, 1 };
+                                    target.fill(square.clip(view), cell::shaders::xlight);
+                                }
+                                else if (align == bias::right)
+                                {
+
+                                }
+                                else // bias::center
+                                {
+
+                                }
+                            }
+                            else if (curln.index == grip2.anchor) // Draw top block.
+                            {
+                                if (align == bias::left || align == bias::none)
+                                {
+                                    auto len = curln.length();
+                                    auto length = std::min(len, std::max(0, grip2.offset + 1));
+                                    auto square = full;
+                                    square.coor.y += vtpos;
+                                    if (length > panel.x && curln.wrapped())
+                                    {
+                                        square.size.y = (length - 1) / panel.x;
+                                        auto tailsz = twod{ (length - 1) % panel.x + 1, 1 };
+                                        //tailsz.x += 1;
+                                        auto remain = rect{ square.coor, tailsz };
+                                        remain.coor.y += square.size.y;
+                                        target.fill(remain.clip(view), cell::shaders::xlight);
+                                    }
+                                    else square.size = { length, 1 }; // x + 1
+                                    target.fill(square.clip(view), cell::shaders::xlight);
+                                }
+                                else if (align == bias::right)
+                                {
+
+                                }
+                                else // bias::center
+                                {
+
+                                }
+                            }
+                            else if (curln.index == grip1.anchor) // Draw bottom block.
+                            {
+                                if (align == bias::left || align == bias::none)
+                                {
+                                    auto dy = std::max(0, grip1.offset / panel.x);
+                                    vtpos += dy;
+                                    auto len = curln.length();
+                                    auto length = std::max(0, len - dy * panel.x);
+                                    auto square = full;
+                                    square.coor.y += vtpos;
+                                    if (length > panel.x && curln.wrapped())
+                                    {
+                                        auto dx = grip1.offset % panel.x;
+                                        if (dx > 0)
+                                        {
+                                            auto tailsz = twod{ panel.x - dx, 1 };
+                                            //tailsz.x += 1;
+                                            auto remain = rect{ square.coor, tailsz };
+                                            remain.coor.x += dx;
+                                            target.fill(remain.clip(view), cell::shaders::xlight);
+                                        }
+                                        square.size.y = (length - 1) / panel.x - 1;
+                                        auto tailsz = twod{ (length - 1) % panel.x + 1, 1 };
+                                        tailsz.x += 1;
+                                        auto remain = rect{ square.coor, tailsz };
+                                        remain.coor.y += square.size.y + 1;
+                                        target.fill(remain.clip(view), cell::shaders::xlight);
+                                    }
+                                    else
+                                    {
+                                        square.coor.x += grip1.offset;
+                                        square.size = { std::max(0, length - grip1.offset + 1), 1 }; // x + 1
+                                    }
+                                    target.fill(square.clip(view), cell::shaders::xlight);
+                                }
+                                else if (align == bias::right)
+                                {
+
+                                }
+                                else // bias::center
+                                {
+
+                                }
+                            }
+                            return true;
+                        };
+                        auto iterate = [&](auto proc)
+                        {
+                            while (start != limit && vtpos < mxpos && undone)
+                            {
+                                auto& curln = *start;
+                                auto height = curln.height(panel.x);
+                                auto newpos = vtpos + height;
+                                if (!proc(curln, newpos, height)) break;
+                                vtpos = newpos;
+                                ++start;
+                            }
+                        };
+                        grip1.anchor == grip2.anchor ? iterate(the_same)
+                                                     : iterate(not_equal);
                     }
                 }
             }
