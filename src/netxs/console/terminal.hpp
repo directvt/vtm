@@ -4164,7 +4164,7 @@ namespace netxs::ui
                         auto i_cur = batch.index_by_id(batch.ancid);
                         auto i_top = batch.index_by_id(upgrip.anchor);
                         auto i_end = batch.index_by_id(dngrip.anchor);
-                        if (i_top > i_end || (i_top == i_end && grip2.offset > grip1.offset))
+                        if (i_top > i_end || (i_top == i_end && grip1.offset > grip2.offset))
                         {
                             std::swap(grip1, grip2);
                         }
@@ -4174,33 +4174,111 @@ namespace netxs::ui
                         auto vtpos = batch.slide - batch.ancdy;
                         auto mxpos = batch.slide + panel.y;
                         auto undone = true;
-                        auto draw_full = [&](auto& curln, auto newpos)
-                        {
-                        };
-                        auto draw_top = [&](auto& curln, auto newpos)
-                        {
-                        };
-                        auto draw_bottom = [&](auto& curln, auto newpos)
-                        {
-                        };
-                        auto the_same = [&](auto& curln, auto newpos, auto height)
+
+                        auto c1 = [](rgba clr){ return cell::shaders::fusefull(cell{}.bgc(clr).bga(0x70)); };
+                        auto the_same = [&](auto& curln)
                         {
                             if (curln.index == grip1.anchor)
                             {
-                                log("grip1.anchor == grip2.anchor");
-                                //todo check alignment (arighted, centered)
-                                //// auto coor11 = std::max(dot_00, twod{ grip1.offset % panel.x, vtpos + grip1.offset / panel.y});
-                                //// auto coor12 = twod{ std::min(grip2.offset + 1, std::min(curln.length(), panel.x)), coor11.y + 1};
-                                //// auto block1 = rect{ coor11 + full.coor, coor12 - coor11 };
-                                //// target.fill(block1.clip(view), cell::shaders::xlight);
+                                auto align = curln.style.jet();
+                                if (align == bias::left || align == bias::none)
+                                {
+                                    auto len = curln.length();
+                                    if (grip1.offset >= len) return faux;
+                                    auto dy = std::max(0, grip1.offset / panel.x);
+                                    //vtpos += dy;
+                                    auto length = std::clamp(grip2.offset, 0, len - 1);
+                                    auto tail_length = length - dy * panel.x;
+                                    auto square = full;
+                                    square.coor.y += vtpos + dy;
+                                    if (tail_length > panel.x && curln.wrapped())
+                                    {
+                                        if (grip1.offset >= 0)
+                                        {
+                                            auto dx = grip1.offset % panel.x;
+                                            auto tailsz = twod{ panel.x - dx, 1 };
+                                            auto remain = rect{ square.coor, tailsz };
+                                            remain.coor.x += dx;
+                                            target.fill(remain.clip(view), c1(reddk));
+                                        }
+                                        square.size.y = (tail_length - 1) / panel.x - 1;
+                                        auto tailsz = twod{ (tail_length - 1) % panel.x + 1, 1 };
+                                        tailsz.x += 1;
+                                        auto remain = rect{ square.coor, tailsz };
+                                        remain.coor.y += square.size.y + 1;
+                                        target.fill(remain.clip(view), c1(greendk));
+                                        square.coor.y += 1;
+                                    }
+                                    else
+                                    {
+                                        auto qqq = std::clamp(grip1.offset % panel.x, 0, tail_length);
+                                        square.coor.x += qqq;
+                                        square.size = { tail_length - qqq + 1, 1 };
+                                    }
+                                    target.fill(square.clip(view), c1(bluedk));
+                                }
+                                else if (align == bias::right)
+                                {
+
+                                }
+                                else // bias::center
+                                {
+
+                                }
                                 return faux;
                             }
                             return true;
                         };
-                        auto not_equal = [&](auto& curln, auto newpos, auto height)
+                        auto not_equal = [&](auto& curln)
                         {
                             auto align = curln.style.jet();
-                            if (curln.index > grip1.anchor && curln.index < grip2.anchor) // Draw full block.
+                            if (curln.index == grip1.anchor) // Draw first block.
+                            {
+                                if (align == bias::left || align == bias::none)
+                                {
+                                    auto dy = std::max(0, grip1.offset / panel.x);
+                                    
+                                    //vtpos += dy;
+                                    auto length = curln.length();
+                                    auto tail_length = std::max(0, length - dy * panel.x);
+                                    auto square = full;
+                                    square.coor.y += vtpos + dy;
+                                    if (tail_length > panel.x && curln.wrapped())
+                                    {
+                                        if (grip1.offset >= 0)
+                                        {
+                                            auto dx = grip1.offset % panel.x;
+                                            auto tailsz = twod{ panel.x - dx, 1 };
+                                            auto remain = rect{ square.coor, tailsz };
+                                            remain.coor.x += dx;
+                                            target.fill(remain.clip(view), c1(reddk));
+                                        }
+                                        square.size.y = (tail_length - 1) / panel.x - 1;
+                                        auto tailsz = twod{ (tail_length - 1) % panel.x + 1, 1 };
+                                        tailsz.x += 1;
+                                        auto remain = rect{ square.coor, tailsz };
+                                        remain.coor.y += square.size.y + 1;
+                                        target.fill(remain.clip(view), c1(greendk));
+                                        square.coor.y += 1;
+                                    }
+                                    else
+                                    {
+                                        auto qqq = std::clamp(grip1.offset % panel.x, 0, tail_length);
+                                        square.coor.x += qqq;
+                                        square.size = { tail_length - qqq + 1, 1 };
+                                    }
+                                    target.fill(square.clip(view), c1(bluedk));
+                                }
+                                else if (align == bias::right)
+                                {
+
+                                }
+                                else // bias::center
+                                {
+
+                                }
+                            }
+                            else if (curln.index > grip1.anchor && curln.index < grip2.anchor) // Draw middle blocks.
                             {
                                 if (align == bias::left || align == bias::none)
                                 {
@@ -4215,10 +4293,10 @@ namespace netxs::ui
                                         tailsz.x += 1;
                                         auto remain = rect{ square.coor, tailsz };
                                         remain.coor.y += square.size.y;
-                                        target.fill(remain.clip(view), cell::shaders::xlight);
+                                        target.fill(remain.clip(view), c1(yellowdk));
                                     }
                                     else square.size = { length + 1, 1 };
-                                    target.fill(square.clip(view), cell::shaders::xlight);
+                                    target.fill(square.clip(view), c1(magentadk));
                                 }
                                 else if (align == bias::right)
                                 {
@@ -4229,7 +4307,7 @@ namespace netxs::ui
 
                                 }
                             }
-                            else if (curln.index == grip2.anchor) // Draw top block.
+                            else if (curln.index == grip2.anchor) // Draw last block.
                             {
                                 if (align == bias::left || align == bias::none)
                                 {
@@ -4241,57 +4319,17 @@ namespace netxs::ui
                                     {
                                         square.size.y = (length - 1) / panel.x;
                                         auto tailsz = twod{ (length - 1) % panel.x + 1, 1 };
-                                        //tailsz.x += 1;
                                         auto remain = rect{ square.coor, tailsz };
                                         remain.coor.y += square.size.y;
-                                        target.fill(remain.clip(view), cell::shaders::xlight);
-                                    }
-                                    else square.size = { length, 1 }; // x + 1
-                                    target.fill(square.clip(view), cell::shaders::xlight);
-                                }
-                                else if (align == bias::right)
-                                {
-
-                                }
-                                else // bias::center
-                                {
-
-                                }
-                            }
-                            else if (curln.index == grip1.anchor) // Draw bottom block.
-                            {
-                                if (align == bias::left || align == bias::none)
-                                {
-                                    auto dy = std::max(0, grip1.offset / panel.x);
-                                    vtpos += dy;
-                                    auto len = curln.length();
-                                    auto length = std::max(0, len - dy * panel.x);
-                                    auto square = full;
-                                    square.coor.y += vtpos;
-                                    if (length > panel.x && curln.wrapped())
-                                    {
-                                        auto dx = grip1.offset % panel.x;
-                                        if (dx > 0)
-                                        {
-                                            auto tailsz = twod{ panel.x - dx, 1 };
-                                            //tailsz.x += 1;
-                                            auto remain = rect{ square.coor, tailsz };
-                                            remain.coor.x += dx;
-                                            target.fill(remain.clip(view), cell::shaders::xlight);
-                                        }
-                                        square.size.y = (length - 1) / panel.x - 1;
-                                        auto tailsz = twod{ (length - 1) % panel.x + 1, 1 };
-                                        tailsz.x += 1;
-                                        auto remain = rect{ square.coor, tailsz };
-                                        remain.coor.y += square.size.y + 1;
-                                        target.fill(remain.clip(view), cell::shaders::xlight);
+                                        target.fill(remain.clip(view), c1(cyandk));
                                     }
                                     else
                                     {
-                                        square.coor.x += grip1.offset;
-                                        square.size = { std::max(0, length - grip1.offset + 1), 1 }; // x + 1
+                                        auto sx = grip2.offset < 0 ? 0
+                                                                   : length ? length : 1;
+                                        square.size = { sx, 1 };
                                     }
-                                    target.fill(square.clip(view), cell::shaders::xlight);
+                                    target.fill(square.clip(view), c1(whitedk));
                                 }
                                 else if (align == bias::right)
                                 {
@@ -4309,10 +4347,8 @@ namespace netxs::ui
                             while (start != limit && vtpos < mxpos && undone)
                             {
                                 auto& curln = *start;
-                                auto height = curln.height(panel.x);
-                                auto newpos = vtpos + height;
-                                if (!proc(curln, newpos, height)) break;
-                                vtpos = newpos;
+                                if (!proc(curln)) break;
+                                vtpos += curln.height(panel.x);
                                 ++start;
                             }
                         };
