@@ -4051,10 +4051,6 @@ namespace netxs::ui
                 auto maxlim = square.coor + square.size - dot_11;
                 auto curtop = std::clamp(coor1, minlim, maxlim);
                 auto curend = std::clamp(coor2, minlim, maxlim);
-                if (curtop.y > curend.y || (curtop.y == curend.y && curtop.x > curend.y))
-                {
-                    std::swap(curtop, curend);
-                }
                 return std::pair{ curtop, curend };
             }
             // scroll_buf: Start text selection.
@@ -4135,9 +4131,22 @@ namespace netxs::ui
             // scroll_buf: Signal about the end of the selection process.
             void selection_finish() override
             {
-                //todo recalc markers
-                //...
                 isopen = faux;
+                if (!selection_selbox() && upgrip.anchor == dngrip.anchor)
+                {
+                    auto& curln = batch.item_by_id(upgrip.anchor);
+                    auto length = curln.length();
+                    if (upgrip.offset >= length && dngrip.offset >= length
+                     || upgrip.offset <  0      && dngrip.offset <  0)
+                    {
+                        selection_cancel();
+                    }
+                    else
+                    {
+                        //todo recalc offsets
+                        //...
+                    }
+                }
             }
             // scroll_buf: Highlight selection.
             void selection_render(face& target) override
@@ -4159,6 +4168,21 @@ namespace netxs::ui
                     else
                     {
                         auto [curtop, curend] = selection_take_boxed_grips();
+                        if (isopen)
+                        {
+                            //todo calc offsets
+                        }
+                        else
+                        {
+                            //todo recalc curtop and curend using offsets
+                        }
+                        // if selection is not null
+                        {
+                            auto grip_1 = rect{ curtop + full.coor, dot_11 };
+                            auto grip_2 = rect{ curend + full.coor, dot_11 };
+                            target.fill(grip_1.clip(view), cell::shaders::xlight);
+                            target.fill(grip_2.clip(view), cell::shaders::xlight);
+                        }
                         auto grip1 = upgrip;
                         auto grip2 = dngrip;
                         auto i_cur = batch.index_by_id(batch.ancid);
@@ -4166,8 +4190,8 @@ namespace netxs::ui
                         auto i_end = batch.index_by_id(dngrip.anchor);
                         auto start = batch.begin() + i_cur;
                         auto limit = batch.end();
-                        auto mxpos = batch.slide + panel.y;
                         auto vtpos = batch.slide - batch.ancdy;
+                        auto mxpos = batch.slide + panel.y;
                         if (i_top > i_end || (i_top == i_end && grip1.offset > grip2.offset))
                         {
                             std::swap(grip1, grip2);
@@ -4212,7 +4236,7 @@ namespace netxs::ui
                                 auto qqq = std::clamp(p1 % panel.x, 0, tail_length);
                                 square.coor.x += qqq;
                                 square.size = { tail_length - qqq, 1 };
-                                if (p1 < length || crlf) square.size.x += 1;
+                                if ((p1 >= 0 && p1 < length) || crlf) square.size.x += 1;
                             }
                             target.fill(square.clip(view), c1(bluedk));
 
@@ -4603,34 +4627,43 @@ namespace netxs::ui
                 worker.pacify();
             }
         }
-        void selection_cansel(hids& gear)
+        void selection_cancel(hids& gear)
         {
             if (mtrack) return;
-            log(" selection_cancel coord=", gear.coord);
             if (target->selection_cancel())
             {
-                base::deface();
+                log(" selection_cancel coord=", gear.coord);
                 worker.pacify();
+                base::deface();
             }
+        }
+        void selection_lclick(hids& gear)
+        {
+            if (mtrack) return;
+            if (gear.meta(hids::ANYCTRL)
+             && target->selection_active())
+            {
+                selection_extend(gear);
+                gear.dismiss();
+                base::expire<tier::release>();
+            }
+            else selection_cancel(gear);
         }
         void selection_create(hids& gear)
         {
             if (mtrack) return;
             auto boxed = gear.meta(hids::ALT);
-            if (gear.meta(hids::ANYCTRL))
+            if (gear.meta(hids::ANYCTRL)
+             && target->selection_extend(gear.coord, boxed))
             {
                 log(" drag::start extend +CTRL coord=", gear.coord);
-                if (target->selection_extend(gear.coord, boxed))
-                {
-                    base::deface();
-                }
             }
             else
             {
                 log(" drag::start coord=", gear.coord);
                 target->selection_create(gear.coord, boxed);
-                base::deface();
             }
+            base::deface();
         }
         void selection_extend(hids& gear)
         {
@@ -4675,6 +4708,7 @@ namespace netxs::ui
             if (mtrack) return;
             target->selection_finish();
             worker.pacify();
+            base::deface();
         }
         void selection_submit()
         {
@@ -4689,11 +4723,11 @@ namespace netxs::ui
             };
             //todo make it configurable
             SUBMIT(tier::release, hids::events::mouse::button::click::right, gear) { selection_pickup(gear); };
-            SUBMIT(tier::preview, hids::events::mouse::button::click::left,  gear) { selection_cansel(gear); };
+            SUBMIT(tier::release, hids::events::mouse::button::click::left,  gear) { selection_lclick(gear); };
             SUBMIT(tier::release, e2::form::drag::start             ::left,  gear) { selection_create(gear); };
             SUBMIT(tier::release, e2::form::drag::pull              ::left,  gear) { selection_extend(gear); };
             SUBMIT(tier::release, e2::form::drag::stop              ::left,  gear) { selection_finish(gear); };
-            SUBMIT(tier::release, e2::form::drag::cancel            ::left,  gear) { selection_cansel(gear); };
+            SUBMIT(tier::release, e2::form::drag::cancel            ::left,  gear) { selection_cancel(gear); };
         }
 
     public:
