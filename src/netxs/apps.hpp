@@ -60,10 +60,10 @@ namespace netxs::app::shared
     #undef X
     #undef TYPE_LIST
 
-    //static iota    max_count = 20;// 50;
-    static iota    max_vtm = 3;
-    static iota    vtm_count = 0;
-    static iota    tile_count = 0;
+    //static si32 max_count = 20;// 50;
+    static si32 max_vtm = 3;
+    static si32 vtm_count = 0;
+    static si32 tile_count = 0;
     //constexpr auto del_timeout = 1s;
 
     //auto const highlight_color2 = tint::blackdk ;
@@ -397,7 +397,6 @@ namespace netxs::app::shared
                       closing_by_gesture(boss);
                       boss.SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
                       {
-                          static iota i = 0; i++;
                           auto title = ansi::add("Empty Instance \nid: ", parent->id);
                           boss.base::template riseup<tier::preview>(e2::form::prop::header, title);
                       };
@@ -440,7 +439,7 @@ namespace netxs::app::shared
                         boss.SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
                         {
                             if (parent) closing_by_gesture(*parent);
-                            static iota i = 0; i++;
+                            static auto i = 0; i++;
                             auto title = ansi::jet(bias::center).add("View \n Region ", i);
                             boss.base::template riseup<tier::preview>(e2::form::prop::header, title);
                             
@@ -850,7 +849,7 @@ namespace netxs::app::shared
                         if (auto boss = shadow.lock())
                         if (world_ptr)
                         {
-                            static iota random = 0;
+                            static auto random = 0;
                             random = (random + 2) % 10;
                             auto offset = twod{ random * 2, random };
                             auto viewport = gear.area();
@@ -945,7 +944,7 @@ namespace netxs::app::shared
             auto tiling_profiles = os::get_envars("VTM_PROFILE");
             if (auto size = tiling_profiles.size())
             {
-                iota i = 0;
+                auto i = 0;
                 log("main: tiling profile", size > 1 ? "s":"", " found");
                 for (auto& p : tiling_profiles)
                 {
@@ -981,7 +980,7 @@ namespace netxs::app::shared
             creator(objs_lookup["Shop"], { twod{ 4      , 6  } + sub_pos, { 82, 38 } });
             creator(objs_lookup["Calc"], { twod{ 15     , 15 } + sub_pos, { 65, 23 } });
             creator(objs_lookup["Text"], { twod{ 30     , 22 } + sub_pos, { 59, 26 } });
-            creator(objs_lookup["MC"  ], { twod{ 49     , 28 } + sub_pos, { 63, 22 } });
+            creator(objs_lookup["MC"  ], { twod{ 49     , 28 } + sub_pos, { 67, 22 } });
             creator(objs_lookup["Term"], { twod{ 34     , 38 } + sub_pos, { 64, 16 } });
             creator(objs_lookup["Term"], { twod{ 44 + 85, 35 } + sub_pos, { 64, 15 } });
             creator(objs_lookup["Term"], { twod{ 40 + 85, 42 } + sub_pos, { 64, 15 } });

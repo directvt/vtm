@@ -12,10 +12,10 @@ namespace netxs::events::userland
     {
         EVENTPACK( term, netxs::events::userland::root::custom )
         {
-            EVENT_XS( cmd   , iota ),
+            EVENT_XS( cmd   , si32 ),
             EVENT_XS( usesgr, bool ),
-            GROUP_XS( layout, iota ),
-            GROUP_XS( data  , iota ),
+            GROUP_XS( layout, si32 ),
+            GROUP_XS( data  , si32 ),
 
             SUBSET_XS( layout )
             {

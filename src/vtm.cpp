@@ -309,7 +309,7 @@ int main(int argc, char* argv[])
 
     world->SIGNAL(tier::general, e2::config::fps, 60);
 
-    iota usr_count = 0;
+    auto usr_count = 0;
     auto user = os::user();
     auto path = utf::concat("monotty_", user);
     log("user: ", user);

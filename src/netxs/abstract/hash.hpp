@@ -59,7 +59,7 @@ namespace netxs
         struct iter
         {
             using it_t = decltype(IMAP{}.forward.begin());
-            using iota = typename std::iterator_traits<it_t>::difference_type; //todo "typename" keyword is required by FreeBSD clang 11.0.1
+            using type = typename std::iterator_traits<it_t>::difference_type; //todo "typename" keyword is required by FreeBSD clang 11.0.1
 
             IMAP& buff;
             it_t  addr;
@@ -69,8 +69,8 @@ namespace netxs
                 addr{ addr }
             { }
 
-            auto  operator -  (iota n)        const { return iter<IMAP>{ buff, addr - n };         }
-            auto  operator +  (iota n)        const { return iter<IMAP>{ buff, addr + n };         }
+            auto  operator -  (type n)        const { return iter<IMAP>{ buff, addr - n };         }
+            auto  operator +  (type n)        const { return iter<IMAP>{ buff, addr + n };         }
             auto  operator ++ (int)                 { return iter<IMAP>{ buff, addr++   };         }
             auto  operator -- (int)                 { return iter<IMAP>{ buff, addr--   };         }
             auto& operator ++ ()                    {                        ++addr; return *this; }
@@ -95,7 +95,7 @@ namespace netxs
         template<class K>
         auto erase(K&& key )
         {
-            iota test = 0;
+            si32 test = 0;
             auto iter = storage.find(std::forward<K>(key));
             if (iter != storage.end())
             {

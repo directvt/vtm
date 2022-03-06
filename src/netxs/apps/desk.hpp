@@ -141,7 +141,7 @@ namespace netxs::app::desk
                                              SIGNAL_GLOBAL(e2::config::whereami, world_ptr);
                                              if (world_ptr)
                                              {
-                                                 static iota random = 0;
+                                                 static si32 random = 0;
                                                  random = (random + 2) % 10;
                                                  auto offset = twod{ random * 2, random };
                                                  auto viewport = gear.area();
@@ -211,8 +211,8 @@ namespace netxs::app::desk
 
         auto build = [](view v)
         {
-            iota uibar_min_size = 4;
-            iota uibar_full_size = 31;
+            si32 uibar_min_size = 4;
+            si32 uibar_full_size = 31;
 
             auto window = ui::cake::ctor();
 
@@ -323,7 +323,7 @@ namespace netxs::app::desk
                                         {
                                             boss.mouse.template draggable<sysmouse::left>();
                                             auto boss_shadow = ptr::shadow(boss.This());
-                                            auto size_config = std::make_shared<std::pair<iota, iota>>(uibar_full_size, uibar_min_size);
+                                            auto size_config = std::make_shared<std::pair<si32, si32>>(uibar_full_size, uibar_min_size);
                                             boss.SUBMIT_BYVAL(tier::release, e2::form::drag::pull::_<sysmouse::left>, gear)
                                             {
                                                 if (auto boss_ptr = boss_shadow.lock())

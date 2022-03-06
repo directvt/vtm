@@ -98,7 +98,7 @@ namespace netxs::os
 
     enum role { client, server };
 
-    static constexpr iota STDIN_BUF = 1024;
+    static constexpr si32 STDIN_BUF = 1024;
     static bool is_daemon = faux;
 
     #if defined(_WIN32)
@@ -108,7 +108,7 @@ namespace netxs::os
         static const fd_t INVALID_FD = INVALID_HANDLE_VALUE;
         static const fd_t STDIN_FD  = GetStdHandle(STD_INPUT_HANDLE);
         static const fd_t STDOUT_FD = GetStdHandle(STD_OUTPUT_HANDLE);
-        static const iota PIPE_BUF = 65536;
+        static const si32 PIPE_BUF = 65536;
 
         //static constexpr char* security_descriptor_string =
         //	//"D:P(A;NP;GA;;;SY)(A;NP;GA;;;BA)(A;NP;GA;;;WD)";
@@ -308,7 +308,7 @@ namespace netxs::os
         auto vga256colors = {
             "rxvt-unicode-256color",
         };
-        iota mode = legacy::clean;
+        si32 mode = legacy::clean;
         auto term = os::get_env("TERM");
         if (term.size())
         {
@@ -353,7 +353,7 @@ namespace netxs::os
         }
         return mode;
     }
-    static auto vgafont_update(iota mode)
+    static auto vgafont_update(si32 mode)
     {
         #if defined (__linux__)
 
@@ -694,7 +694,7 @@ namespace netxs::os
     }
     static auto process_id()
     {
-        uint32_t result;
+        ui32 result;
 
         #if defined(_WIN32)
 
@@ -1325,7 +1325,7 @@ namespace netxs::os
         }
         return faux;
     }
-    static auto set_palette(iota legacy)
+    static auto set_palette(si32 legacy)
     {
         ansi::esc yield;
         bool legacy_mouse = legacy & os::legacy::mouse;
@@ -1361,7 +1361,7 @@ namespace netxs::os
             yield.clear();
         }
     }
-    static auto rst_palette(iota legacy)
+    static auto rst_palette(si32 legacy)
     {
         ansi::esc yield;
         bool legacy_mouse = legacy & os::legacy::mouse;
@@ -1457,7 +1457,7 @@ namespace netxs::os
         bool sealed; // ipc: Provide autoclosing.
         text scpath; // ipc: Socket path (in order to unlink).
 
-        void init(iota buff_size = PIPE_BUF) { active = true; buffer.resize(buff_size); }
+        void init(si32 buff_size = PIPE_BUF) { active = true; buffer.resize(buff_size); }
 
     public:
         ipc(file const& descriptor = {}, bool sealed = faux)
@@ -1978,7 +1978,7 @@ namespace netxs::os
             #endif
         };
 
-        void reader(iota mode)
+        void reader(si32 mode)
         {
             log(" tty: reader thread started");
             auto& ipcio =*_globals<void>::ipcio;
@@ -2142,21 +2142,21 @@ namespace netxs::os
                 file micefd;
                 twod mcoor;
                 auto buffer = text(STDIN_BUF, '\0');
-                iota ttynum = 0;
+                si32 ttynum = 0;
                 ansi::esc yield;
 
                 struct
                 {
                     testy<twod> coord;
-                    testy<iota> shift = 0;
-                    testy<iota> bttns = 0;
-                    iota        flags = 0;
+                    testy<si32> shift = 0;
+                    testy<si32> bttns = 0;
+                    si32        flags = 0;
                 } state;
                 auto get_kb_state = []()
                 {
-                    iota state = 0;
+                    si32 state = 0;
                     #if defined(__linux__)
-                        iota shift_state = 6;
+                        si32 shift_state = 6;
                         ok(::ioctl(STDIN_FD, TIOCLINUX, &shift_state));
                         state = 0
                             | (shift_state & (1 << KG_ALTGR)) >> 1 // 0x1
@@ -2362,7 +2362,7 @@ namespace netxs::os
             ::atexit(_globals<void>::default_mode);
             _globals<void>::resize_handler();
         }
-        void splice(iota mode)
+        void splice(si32 mode)
         {
             auto& ipcio = *_globals<void>::ipcio;
 
@@ -2407,7 +2407,7 @@ namespace netxs::os
         testy<twod>               termsize{};
         std::thread               stdinput{};
         std::function<void(view)> receiver{};
-        std::function<void(iota)> shutdown{};
+        std::function<void(si32)> shutdown{};
         text                      tempbuff{};
 
     public:
@@ -2434,7 +2434,7 @@ namespace netxs::os
         operator bool () { return termlink; }
 
         void start(text cmdline, twod winsz, std::function<void(view)> input_hndl
-                                           , std::function<void(iota)> shutdown_hndl)
+                                           , std::function<void(si32)> shutdown_hndl)
         {
             receiver = input_hndl;
             shutdown = shutdown_hndl;
@@ -2594,9 +2594,9 @@ namespace netxs::os
             if (tempbuff.size()) write(decltype(tempbuff){ std::move(tempbuff) });
         }
 
-        iota wait_child()
+        si32 wait_child()
         {
-            iota exit_code = {};
+            si32 exit_code = {};
             log("ptydev: wait child process, tty=", termlink);
             termlink.reset();
 

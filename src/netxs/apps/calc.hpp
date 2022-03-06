@@ -296,7 +296,7 @@ namespace netxs::app::calc
                     }
                     else
                     {
-                        auto c0 = base + step * (iota)label.length();
+                        auto c0 = base + step * (si32)label.length();
                         for (auto i = 0; i < label.length(); i++)
                         {
                             cellatix_rows += ansi::bgc(c0) + label[i];
@@ -329,7 +329,7 @@ namespace netxs::app::calc
                       boss.keybd.accept(true);
                       boss.SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
                       {
-                          static iota i = 0; i++;
+                          static auto i = 0; i++;
                           auto title = ansi::jet(bias::right).add("Spreadsheet\n ~/Untitled ", i, ".ods");
                           boss.base::template riseup<tier::preview>(e2::form::prop::header, title);
                       };

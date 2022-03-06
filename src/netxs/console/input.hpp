@@ -242,19 +242,19 @@ namespace netxs::input
             total     = numofbutton,
         };
 
-        twod  coor = dot_mx;            // sysmouse: Cursor coordinates.
-        bool  button[numofbutton] = {}; // sysmouse: Button states.
+        twod coor = dot_mx;            // sysmouse: Cursor coordinates.
+        bool button[numofbutton] = {}; // sysmouse: Button states.
 
-        bool  ismoved = faux;           // sysmouse: Movement through the cells.
-        bool  shuffle = faux;           // sysmouse: Movement inside the cell.
-        bool  doubled = faux;           // sysmouse: Double click.
-        bool  wheeled = faux;           // sysmouse: Vertical scroll wheel.
-        bool  hzwheel = faux;           // sysmouse: Horizontal scroll wheel.
-        iota  wheeldt = 0;              // sysmouse: Scroll delta.
+        bool ismoved = faux;           // sysmouse: Movement through the cells.
+        bool shuffle = faux;           // sysmouse: Movement inside the cell.
+        bool doubled = faux;           // sysmouse: Double click.
+        bool wheeled = faux;           // sysmouse: Vertical scroll wheel.
+        bool hzwheel = faux;           // sysmouse: Horizontal scroll wheel.
+        si32 wheeldt = 0;              // sysmouse: Scroll delta.
 
-        uint32_t ctlstate = 0;
+        ui32 ctlstate = 0;
 
-            bool operator !=(sysmouse const& m) const
+        bool operator !=(sysmouse const& m) const
         {
             bool result;
             if ((result = coor == m.coor))
@@ -312,21 +312,20 @@ namespace netxs::input
             F12       = 0x7B,
         };
 
-        bool     down = faux;
-        uint16_t repeatcount = 0;
-        uint16_t virtcode = 0;
-        uint16_t scancode = 0;
-        wchar_t  character = 0;
-        //char    ascii = 0;
-        uint32_t ctlstate = 0;
-        text     textline;
+        bool down = faux;
+        ui16 repeatcount = 0;
+        ui16 virtcode = 0;
+        ui16 scancode = 0;
+        wchar_t character = 0;
+        ui32 ctlstate = 0;
+        text textline;
     };
 
     // console: Mouse tracking.
     class mouse
     {
         using tail = netxs::datetime::tail<twod>;
-        using idxs = std::vector<iota>;
+        using idxs = std::vector<si32>;
         using mouse_event = netxs::events::userland::hids::mouse;
         enum bttns
         {
@@ -352,7 +351,7 @@ namespace netxs::input
         constexpr static auto scrolldn = mouse_event::scroll::down.id;
 
     public:
-        static constexpr iota none = -1; // mouse: No active buttons.
+        static constexpr si32 none = -1; // mouse: No active buttons.
 
         struct knob
         {
@@ -375,11 +374,11 @@ namespace netxs::input
         tail   delta = { 75ms, 4ms }; // mouse: History of mouse movements for a specified period of time.
         bool   scrll = faux; // mouse: Vertical scrolling.
         bool   hzwhl = faux; // mouse: Horizontal scrolling.
-        iota   whldt = 0;
+        si32   whldt = 0;
         bool   reach = faux;    // mouse: Has the event tree relay reached the mouse event target.
-        iota   index = none;    // mouse: Index of the active button. -1 if the buttons are not involed.
+        si32   index = none;    // mouse: Index of the active button. -1 if the buttons are not involed.
         bool   nodbl = faux;    // mouse: Whether single click event processed (to prevent double clicks).
-        iota   locks = 0;       // mouse: State of the captured buttons (bit field).
+        si32   locks = 0;       // mouse: State of the captured buttons (bit field).
         id_t   swift = 0;       // mouse: Delegate's ID of the current mouse owner.
         id_t   hover = 0;       // mouse: Hover control ID.
         id_t   start = 0;       // mouse: Initiator control ID.
@@ -567,7 +566,7 @@ namespace netxs::input
             }
         }
         template<class TT>
-        void action(TT const& event_subset, iota _index)
+        void action(TT const& event_subset, si32 _index)
         {
             index = _index;
             action(event_subset[index]);
@@ -628,9 +627,9 @@ namespace netxs::input
             if (!locks) swift = {};
         }
         // mouse: Bit buttons. Used only for foreign mouse pointer in the gate (pro::input) and at the ui::term::mtrack.
-        iota buttons()
+        si32 buttons()
         {
-            iota bitfield = 0;
+            si32 bitfield = 0;
             for (auto i = 0; i < sysmouse::numofbutton; i++)
             {
                 if (mouse::button[i].pressed) bitfield |= 1 << i;
@@ -684,7 +683,7 @@ namespace netxs::input
         list        kb_focus; // hids: Keyboard subscribers.
         bool        alive; // hids: Whether event processing is complete.
         //todo revise
-        uint32_t ctlstate = 0;
+        ui32 ctlstate = 0;
 
         static constexpr auto enter_event   = events::notify::mouse::enter.id;
         static constexpr auto leave_event   = events::notify::mouse::leave.id;
@@ -703,7 +702,7 @@ namespace netxs::input
         bool kb_focus_taken = faux;
         bool force_group_focus = faux;
         bool combine_focus = faux;
-        iota countdown = 0;
+        si32 countdown = 0;
 
         auto state()
         {
@@ -721,7 +720,7 @@ namespace netxs::input
             countdown         = std::get<3>(s);
         }
 
-        enum modifiers : uint32_t
+        enum modifiers : ui32
         {
             SHIFT = 1 << 2,
             ALT   = 1 << 3,
@@ -730,7 +729,7 @@ namespace netxs::input
             ANYCTRL = CTRL | RCTRL,
         };
 
-        auto meta(uint32_t ctl_key = -1) { return hids::ctlstate & ctl_key; }
+        auto meta(ui32 ctl_key = -1) { return hids::ctlstate & ctl_key; }
 
         template<class T>
         hids(T& owner, xmap const& idmap)

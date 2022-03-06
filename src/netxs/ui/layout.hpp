@@ -28,7 +28,7 @@ namespace netxs::ui::atoms
         vga256   ,
     };
 
-    enum Z_order : iota
+    enum Z_order : si32
     {
         backmost = -1,
         plain    =  0,
@@ -42,7 +42,7 @@ namespace netxs::ui::atoms
     };
     struct tint16
     {
-        enum : iota
+        enum : si32
         {
             blackdk,
             blacklt,
@@ -251,7 +251,7 @@ namespace netxs::ui::atoms
             }
         }
         // rgba: RGBA transitional blending. Level = 0: equals c1, level = 256: equals c2.
-        static auto transit(rgba const& c1, rgba const& c2, iota level)
+        static auto transit(rgba const& c1, rgba const& c2, si32 level)
         {
             auto inverse = 256 - level;
             return rgba{ (c2.chan.r * level + c1.chan.r * inverse) >> 8,
@@ -309,8 +309,8 @@ namespace netxs::ui::atoms
         //bool like(rgba const& c) const
         //{
         //
-        //	static constexpr uint32_t k = 0b11110000;
-        //	static constexpr uint32_t threshold = 0x00 + k << 16 + k << 8 + k;
+        //	static constexpr ui32 k = 0b11110000;
+        //	static constexpr ui32 threshold = 0x00 + k << 16 + k << 8 + k;
         //	return	(token & threshold) == (c.token & threshold);
         //}
         // rgba: Shift color.
@@ -805,23 +805,23 @@ namespace netxs::ui::atoms
 
             void bld (bool b) { param.shared.var.bolded = b; }
             void itc (bool b) { param.shared.var.italic = b; }
-            void und (iota n) { param.shared.var.unline = n; }
+            void und (si32 n) { param.shared.var.unline = n; }
             void inv (bool b) { param.shared.var.invert = b; }
             void ovr (bool b) { param.shared.var.overln = b; }
             void stk (bool b) { param.shared.var.strike = b; }
             void rtl (bool b) { param.shared.var.r_to_l = b; }
             void blk (bool b) { param.shared.var.blinks = b; }
-            void vis (iota l) { param.unique.var.render = l; }
+            void vis (si32 l) { param.unique.var.render = l; }
 
             bool bld () const { return param.shared.var.bolded; }
             bool itc () const { return param.shared.var.italic; }
-            iota und () const { return param.shared.var.unline; }
+            si32 und () const { return param.shared.var.unline; }
             bool inv () const { return param.shared.var.invert; }
             bool ovr () const { return param.shared.var.overln; }
             bool stk () const { return param.shared.var.strike; }
             bool rtl () const { return param.shared.var.r_to_l; }
             bool blk () const { return param.shared.var.blinks; }
-            iota vis () const { return param.unique.var.render; }
+            si32 vis () const { return param.unique.var.render; }
         };
         struct clrs
         {
@@ -1086,7 +1086,7 @@ namespace netxs::ui::atoms
             return uv.bg.is_alpha_blendable();//&& uv.param.fg.is_alpha_blendable();
         }
         // cell: Cell transitional color blending (fg/bg only).
-        void avg(cell const& c1, cell const& c2, iota level)
+        void avg(cell const& c1, cell const& c2, si32 level)
         {
             uv.fg = rgba::transit(c1.uv.fg, c2.uv.fg, level);
             uv.bg = rgba::transit(c1.uv.bg, c2.uv.bg, level);
@@ -1124,7 +1124,7 @@ namespace netxs::ui::atoms
         cell& txt (view c)        { c.size() ? gc.set(c) : gc.wipe(); return *this; } // cell: Set Grapheme cluster.
         cell& txt (char c)        { gc.set(c);          return *this; } // cell: Set Grapheme cluster from char.
         cell& clr (cell const& c) { uv = c.uv;          return *this; } // cell: Set the foreground and background colors only.
-        cell& wdt (iota w)        { gc.state.width = w; return *this; } // cell: Return Grapheme cluster screen width.
+        cell& wdt (si32 w)        { gc.state.width = w; return *this; } // cell: Return Grapheme cluster screen width.
         cell& rst () // cell: Reset view attributes of the cell to zero.
         {
             static cell empty{ whitespace };
@@ -1481,13 +1481,13 @@ namespace netxs::ui::atoms
     // layout: A rectangle represented by the four values: Left x-coor, Right x-coor, Top y-coor, Bottom y-coor.
     struct side
     {
-        iota l, r, t, b;
+        si32 l, r, t, b;
 
         constexpr side()
             : l(0), r(0), t(0), b(0)
         { }
 
-        constexpr side(iota left, iota right = 0, iota top = 0, iota bottom = 0)
+        constexpr side(si32 left, si32 right = 0, si32 top = 0, si32 bottom = 0)
             : l(left), r(right), t(top), b(bottom)
         { }
 
@@ -1551,7 +1551,7 @@ namespace netxs::ui::atoms
             t -= p.y;
             b -= p.y;
         }
-        void set(iota new_l, iota new_r = 0, iota new_t = 0, iota new_b = 0)
+        void set(si32 new_l, si32 new_r = 0, si32 new_t = 0, si32 new_b = 0)
         {
             l = new_l;
             r = new_r;
@@ -1559,7 +1559,7 @@ namespace netxs::ui::atoms
             b = new_b;
         }
         // side: Set left and right pads.
-        void set(std::pair<iota, iota> left_right)
+        void set(std::pair<si32, si32> left_right)
         {
             set(left_right.first, left_right.second);
         }
@@ -1589,7 +1589,7 @@ namespace netxs::ui::atoms
         struct edge
         {
             type step = 0;
-            constexpr inline auto get(iota size) const
+            constexpr inline auto get(si32 size) const
             {
                 if constexpr (just) return step;
                 else                return size - step;
@@ -1601,7 +1601,7 @@ namespace netxs::ui::atoms
         edge<faux> foot = {};
 
         constexpr dent_t() = default;
-        constexpr dent_t(iota w, iota e = 0, iota h = 0, iota f = 0)
+        constexpr dent_t(si32 w, si32 e = 0, si32 h = 0, si32 f = 0)
             : west{ static_cast<type>(w) },
               east{ static_cast<type>(e) },
               head{ static_cast<type>(h) },
@@ -1642,7 +1642,7 @@ namespace netxs::ui::atoms
             return !operator==(pad);
         }
         // dent: Return inner area rectangle.
-        constexpr auto area(iota size_x, iota size_y) const
+        constexpr auto area(si32 size_x, si32 size_y) const
         {
             //todo RTL
             auto w = west.get(size_x);
@@ -1670,14 +1670,14 @@ namespace netxs::ui::atoms
                          head.step };
         }
         // dent: Return inner width.
-        constexpr auto width(iota size_x) const
+        constexpr auto width(si32 size_x) const
         {
             auto w = west.get(size_x);
             auto e = east.get(size_x);
             return std::max(e - w, 0);
         }
         // dent: Return inner height.
-        constexpr auto height(iota size_y) const
+        constexpr auto height(si32 size_y) const
         {
             auto h = head.get(size_y);
             auto f = foot.get(size_y);
@@ -1689,14 +1689,14 @@ namespace netxs::ui::atoms
             return twod{ width(size.x), height(size.y) };
         }
         // dent: Return the horizontal coordinate using percentages.
-        constexpr auto h_ratio(iota px, iota size_x) const
+        constexpr auto h_ratio(si32 px, si32 size_x) const
         {
             auto w = west.get(size_x);
             auto e = east.get(size_x);
             return divround(px * (std::max(e - w, 1) - 1), 100);
         }
         // dent: Return the vertical coordinate using percentages.
-        constexpr auto v_ratio(iota py, iota size_y) const
+        constexpr auto v_ratio(si32 py, si32 size_y) const
         {
             auto h = head.get(size_y);
             auto f = foot.get(size_y);
@@ -1768,7 +1768,7 @@ namespace netxs::ui::atoms
         twod region{}; // rack: Available scroll area.
         rect window{}; // rack: Scrolling viewport.
         side beyond{}; // rack: Scroll margins outside of the scroll region.
-        iota vector{}; // rack: Scroll direction.
+        si32 vector{}; // rack: Scroll direction.
 
         auto str() const
         {
@@ -1783,17 +1783,17 @@ namespace netxs::ui::atoms
 
     // layout: Extract 1D length.
     template<class T>
-    static inline iota getlen(T p)
+    static inline si32 getlen(T p)
     {
         if constexpr (std::is_same_v<T, twod>) return p.x;
-        else                                   return static_cast<iota>(p);
+        else                                   return static_cast<si32>(p);
     }
     // layout: Extract 2D size.
     template<class T>
     static inline rect getvol(T p)
     {
         if constexpr (std::is_same_v<T, twod>) return { dot_00, p };
-        else                                   return { dot_00, { static_cast<iota>(p),  1 } };
+        else                                   return { dot_00, { static_cast<si32>(p),  1 } };
     }
 
     using grid = std::vector<cell>;

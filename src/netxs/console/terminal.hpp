@@ -13,7 +13,7 @@ namespace netxs::events::userland
         EVENTPACK( uiterm, netxs::events::userland::root::custom )
         {
             EVENT_XS( usesgr, bool ),
-            GROUP_XS( layout, iota ),
+            GROUP_XS( layout, si32 ),
 
             SUBSET_XS( layout )
             {
@@ -31,10 +31,10 @@ namespace netxs::ui
     class term
         : public ui::form<term>
     {
-        static constexpr iota max_length = 65535; // term: Max line length.
-        static constexpr iota def_length = 20000; // term: Default scrollback history length.
-        static constexpr iota def_growup = 0;     // term: Default scrollback history grow step.
-        static constexpr iota def_tablen = 8;     // term: Default tab length.
+        static constexpr si32 max_length = 65535; // term: Max line length.
+        static constexpr si32 def_length = 20000; // term: Default scrollback history length.
+        static constexpr si32 def_growup = 0;     // term: Default scrollback history grow step.
+        static constexpr si32 def_tablen = 8;     // term: Default tab length.
 
     public:
         using events = netxs::events::userland::uiterm;
@@ -45,7 +45,7 @@ namespace netxs::ui
             {
                 struct line
                 {
-                    enum : iota
+                    enum : si32
                     {
                         right = 0,
                         left  = 1,
@@ -54,7 +54,7 @@ namespace netxs::ui
                 };
                 struct display
                 {
-                    enum : iota
+                    enum : si32
                     {
                         below      = 0,
                         above      = 1,
@@ -65,7 +65,7 @@ namespace netxs::ui
             };
             struct ui
             {
-                enum commands : iota
+                enum commands : si32
                 {
                     right,
                     left,
@@ -80,7 +80,7 @@ namespace netxs::ui
             };
             struct cursor // See pro::caret.
             {
-                enum : iota
+                enum : si32
                 {
                     def_style          = 0, // blinking box
                     blinking_box       = 1, // blinking box (default)
@@ -98,9 +98,9 @@ namespace netxs::ui
         struct term_state
         {
             using buff = ansi::esc;
-            iota size = 0;
-            iota peak = 0;
-            iota step = 0;
+            si32 size = 0;
+            si32 peak = 0;
+            si32 step = 0;
             twod area;
             buff data;
             template<class bufferbase>
@@ -185,8 +185,8 @@ namespace netxs::ui
             ansi::esc   queue; // m_tracking: Buffer.
             subs        token; // m_tracking: Subscription token.
             bool        moved = faux;
-            iota        proto = prot::x11;
-            iota        state = mode::none;
+            si32        proto = prot::x11;
+            si32        state = mode::none;
 
             void capture(hids& gear)
             {
@@ -199,7 +199,7 @@ namespace netxs::ui
                 gear.dismiss();
             }
             template<prot PROT>
-            void proceed(hids& gear, iota meta, bool ispressed = faux)
+            void proceed(hids& gear, si32 meta, bool ispressed = faux)
             {
                 meta |= gear.meta(hids::SHIFT | hids::ALT | hids::CTRL);
                 meta |= gear.meta(hids::RCTRL) ? hids::CTRL : 0;
@@ -216,16 +216,16 @@ namespace netxs::ui
             {
                 using m = hids::events::mouse;
                 using b = hids::events::mouse::button;
-                constexpr static iota left = 0;
-                constexpr static iota mddl = 1;
-                constexpr static iota rght = 2;
-                constexpr static iota btup = 3;
-                constexpr static iota idle = 32;
-                constexpr static iota wheel_up = 64;
-                constexpr static iota wheel_dn = 65;
-                constexpr static iota up_left = PROT == sgr ? left : btup;
-                constexpr static iota up_rght = PROT == sgr ? rght : btup;
-                constexpr static iota up_mddl = PROT == sgr ? mddl : btup;
+                constexpr static si32 left = 0;
+                constexpr static si32 mddl = 1;
+                constexpr static si32 rght = 2;
+                constexpr static si32 btup = 3;
+                constexpr static si32 idle = 32;
+                constexpr static si32 wheel_up = 64;
+                constexpr static si32 wheel_dn = 65;
+                constexpr static si32 up_left = PROT == sgr ? left : btup;
+                constexpr static si32 up_rght = PROT == sgr ? rght : btup;
+                constexpr static si32 up_mddl = PROT == sgr ? mddl : btup;
 
                 auto ismove = moved && state & mode::move;
                 auto isdrag = moved && state & mode::drag;
@@ -342,7 +342,7 @@ namespace netxs::ui
                 }
             }
             // w_tracking: CSI n n  Device status report (DSR).
-            void report(iota n)
+            void report(si32 n)
             {
                 switch(n)
                 {
@@ -354,7 +354,7 @@ namespace netxs::ui
                 owner.answer(queue);
             }
             // w_tracking: CSI n c  Primary device attributes (DA1).
-            void device(iota n)
+            void device(si32 n)
             {
                 switch(n)
                 {
@@ -368,16 +368,16 @@ namespace netxs::ui
             void manage(fifo& q)
             {
                 owner.target->flush();
-                static constexpr iota all_title = 0;  // Sub commands.
-                static constexpr iota label     = 1;  // Sub commands.
-                static constexpr iota title     = 2;  // Sub commands.
-                static constexpr iota set_winsz = 8;  // Set window size in characters.
-                static constexpr iota maximize  = 9;  // Toggle maximize/restore.
-                static constexpr iota full_scrn = 10; // Toggle fullscreen mode (todo: hide menu).
-                static constexpr iota get_label = 20; // Report icon   label. (Report as OSC L label ST).
-                static constexpr iota get_title = 21; // Report window title. (Report as OSC l title ST).
-                static constexpr iota put_stack = 22; // Push icon label and window title to   stack.
-                static constexpr iota pop_stack = 23; // Pop  icon label and window title from stack.
+                static constexpr si32 all_title = 0;  // Sub commands.
+                static constexpr si32 label     = 1;  // Sub commands.
+                static constexpr si32 title     = 2;  // Sub commands.
+                static constexpr si32 set_winsz = 8;  // Set window size in characters.
+                static constexpr si32 maximize  = 9;  // Toggle maximize/restore.
+                static constexpr si32 full_scrn = 10; // Toggle fullscreen mode (todo: hide menu).
+                static constexpr si32 get_label = 20; // Report icon   label. (Report as OSC L label ST).
+                static constexpr si32 get_title = 21; // Report window title. (Report as OSC l title ST).
+                static constexpr si32 put_stack = 22; // Push icon label and window title to   stack.
+                static constexpr si32 pop_stack = 23; // Pop  icon label and window title from stack.
                 switch (auto option = q(0))
                 {
                     case maximize:
@@ -737,7 +737,7 @@ namespace netxs::ui
                 }
             }
 
-            using tabs = std::vector<std::pair<iota, iota>>; // Pairs of forward and reverse tabstops index.
+            using tabs = std::vector<std::pair<si32, si32>>; // Pairs of forward and reverse tabstops index.
             struct redo
             {
                 using mark = ansi::mark;
@@ -751,12 +751,12 @@ namespace netxs::ui
             twod  panel; // bufferbase: Viewport size.
             twod  coord; // bufferbase: Viewport cursor position; 0-based.
             redo  saved; // bufferbase: Saved cursor position and rendition state.
-            iota  sctop; // bufferbase: Precalculated scrolling region top    height.
-            iota  scend; // bufferbase: Precalculated scrolling region bottom height.
-            iota  y_top; // bufferbase: Precalculated 0-based scrolling region top    vertical pos.
-            iota  y_end; // bufferbase: Precalculated 0-based scrolling region bottom vertical pos.
-            iota  n_top; // bufferbase: Original      1-based scrolling region top    vertical pos (use 0 if it is not set).
-            iota  n_end; // bufferbase: Original      1-based scrolling region bottom vertical pos (use 0 if it is not set).
+            si32  sctop; // bufferbase: Precalculated scrolling region top    height.
+            si32  scend; // bufferbase: Precalculated scrolling region bottom height.
+            si32  y_top; // bufferbase: Precalculated 0-based scrolling region top    vertical pos.
+            si32  y_end; // bufferbase: Precalculated 0-based scrolling region bottom vertical pos.
+            si32  n_top; // bufferbase: Original      1-based scrolling region top    vertical pos (use 0 if it is not set).
+            si32  n_end; // bufferbase: Original      1-based scrolling region bottom vertical pos (use 0 if it is not set).
             tabs  stops; // bufferbase: Tabstop index.
             bool  notab; // bufferbase: Tabstop index is cleared.
             bool  decom; // bufferbase: Origin mode.
@@ -821,29 +821,29 @@ namespace netxs::ui
                 return active;
             }
 
-            virtual void scroll_region(iota top, iota end, iota n, bool use_scrollback) = 0;
+            virtual void scroll_region(si32 top, si32 end, si32 n, bool use_scrollback) = 0;
             virtual bool recalc_pads(side& oversz)                                      = 0;
             virtual void output(face& canvas)                                           = 0;
-            virtual iota height()                                                       = 0;
+            virtual si32 height()                                                       = 0;
             virtual void del_above()                                                    = 0;
             virtual void del_below()                                                    = 0;
-            virtual iota get_size() const                                               = 0;
-            virtual iota get_peak() const                                               = 0;
-            virtual iota get_step() const                                               = 0;
+            virtual si32 get_size() const                                               = 0;
+            virtual si32 get_peak() const                                               = 0;
+            virtual si32 get_step() const                                               = 0;
                     auto get_view() const { return panel; }
 
             // bufferbase: Get viewport basis.
-    virtual iota get_basis()
+    virtual si32 get_basis()
             {
                 return 0;
             }
             // bufferbase: Get viewport position.
-    virtual iota get_slide()
+    virtual si32 get_slide()
             {
                 return 0;
             }
             // bufferbase: Set viewport position and return whether the viewport is reset.
-    virtual bool set_slide(iota&)
+    virtual bool set_slide(si32&)
             {
                 return true;
             }
@@ -866,7 +866,7 @@ namespace netxs::ui
                 update_region();
             }
             // bufferbase: Reset coord and set the scrolling region using 1-based top and bottom. Use 0 to reset.
-    virtual void set_scroll_region(iota top, iota bottom)
+    virtual void set_scroll_region(si32 top, si32 bottom)
             {
                 // Sanity check.
                 top    = std::clamp(top   , 0, panel.y);
@@ -925,7 +925,7 @@ namespace netxs::ui
             {
                 log("not implemented: ", note);
             }
-            void not_implemented_CSI(iota i, fifo& q)
+            void not_implemented_CSI(si32 i, fifo& q)
             {
                 text params;
                 while (q)
@@ -940,7 +940,7 @@ namespace netxs::ui
                 }
                 log("CSI ", params, " ", (unsigned char)i, "(", i, ") is not implemented");
             }
-            void not_implemented_ESC(iota c, qiew& q)
+            void not_implemented_ESC(si32 c, qiew& q)
             {
                 switch (c)
                 {
@@ -1086,7 +1086,7 @@ namespace netxs::ui
                         break;
                 }                
             }
-            void msg(iota c, qiew& q)
+            void msg(si32 c, qiew& q)
             {
                 parser::flush();
                 text data;
@@ -1138,9 +1138,9 @@ namespace netxs::ui
                 stops.assign(panel.x, auto_tabs);
             }
             // bufferbase: Resize tabstop index.
-            void resize_tabstops(iota new_size, bool forced = faux)
+            void resize_tabstops(si32 new_size, bool forced = faux)
             {
-                auto size = static_cast<iota>(stops.size());
+                auto size = static_cast<si32>(stops.size());
                 if (!forced && new_size <= size) return;
 
                 auto back = stops.back();
@@ -1212,7 +1212,7 @@ namespace netxs::ui
             // bufferbase: (see CSI 0 g) Remove tabstop at the current cursor posistion.
             void remove_tabstop()
             {
-                auto  size = static_cast<iota>(stops.size());
+                auto  size = static_cast<si32>(stops.size());
                 if (coord.x <= 0 || coord.x >= size) return;
                 auto  head = stops.begin();
                 auto  tail = stops.begin() + coord.x;
@@ -1276,10 +1276,10 @@ namespace netxs::ui
                 }
             }
             // bufferbase: TAB  Horizontal tab.
-    virtual void tab(iota n)
+    virtual void tab(si32 n)
             {
                 parser::flush();
-                auto size = static_cast<iota>(stops.size());
+                auto size = static_cast<si32>(stops.size());
                 if (n > 0) while (n-- > 0) tab_impl<true>(size);
                 else       while (n++ < 0) tab_impl<faux>(size);
             }
@@ -1296,7 +1296,7 @@ namespace netxs::ui
                 log(data);
             }
             // bufferbase: CSI n g  Reset tabstop value.
-            void tbc(iota n)
+            void tbc(si32 n)
             {
                 switch (n)
                 {
@@ -1336,13 +1336,13 @@ namespace netxs::ui
                 parser::flush(); // Proceed new style.
             }
             // bufferbase: CSI n T/S  Scroll down/up, scrolled up lines are pushed to the scrollback buffer.
-    virtual void scl(iota n)
+    virtual void scl(si32 n)
             {
                 parser::flush();
                 scroll_region(y_top, y_end, n, n > 0 ? faux : true);
             }
             // bufferbase: CSI n L  Insert n lines. Place cursor to the begining of the current.
-    virtual void il(iota n)
+    virtual void il(si32 n)
             {
                 parser::flush();
                /* Works only if cursor is in the scroll region.
@@ -1356,7 +1356,7 @@ namespace netxs::ui
                 }
             }
             // bufferbase: CSI n M  Delete n lines. Place cursor to the begining of the current.
-    virtual void dl(iota n)
+    virtual void dl(si32 n)
             {
                 parser::flush();
                /* Works only if cursor is in the scroll region.
@@ -1392,30 +1392,30 @@ namespace netxs::ui
                 set_scroll_region(top, end);
             }
             // bufferbase: CSI n @  ICH. Insert n blanks after cursor. Don't change cursor pos.
-    virtual void ins(iota n) = 0;
+    virtual void ins(si32 n) = 0;
             // bufferbase: Shift left n columns(s).
-            void shl(iota n)
+            void shl(si32 n)
             {
                 log("bufferbase: SHL(n=", n, ") is not implemented.");
             }
             // bufferbase: CSI n X  Erase/put n chars after cursor. Don't change cursor pos.
-    virtual void ech(iota n, char c = whitespace) = 0;
+    virtual void ech(si32 n, char c = whitespace) = 0;
             // bufferbase: CSI n P  Delete (not Erase) letters under the cursor.
-    virtual void dch(iota n) = 0;
+    virtual void dch(si32 n) = 0;
             // bufferbase: '\x7F'  Delete characters backwards.
-            void del(iota n)
+            void del(si32 n)
             {
                 log("bufferbase: not implemented: '\\x7F' Delete characters backwards.");
             }
             // bufferbase: Move cursor forward by n.
-    virtual void cuf(iota n)
+    virtual void cuf(si32 n)
             {
                 parser::flush();
                 if (n == 0) n = 1;
                 coord.x += n;
             }
             // bufferbase: Move cursor backward by n.
-    virtual void cub(iota n)
+    virtual void cub(si32 n)
             {
                 parser::flush();
                 if (n == 0) n = 1;
@@ -1423,13 +1423,13 @@ namespace netxs::ui
                 coord.x -= n;
             }
             // bufferbase: CSI n G  Absolute horizontal cursor position (1-based).
-    virtual void chx(iota n)
+    virtual void chx(si32 n)
             {
                 parser::flush();
                 coord.x = n - 1;
             }
             // bufferbase: CSI n d  Absolute vertical cursor position (1-based).
-    virtual void chy(iota n)
+    virtual void chy(si32 n)
             {
                 parser::flush_data();
                 --n;
@@ -1459,7 +1459,7 @@ namespace netxs::ui
                 cup({ x, y });
             }
             // bufferbase: Move cursor up.
-    virtual void up(iota n)
+    virtual void up(si32 n)
             {
                 parser::flush_data();
                 if (n == 0) n = 1;
@@ -1472,7 +1472,7 @@ namespace netxs::ui
                 else coord.y = std::clamp(new_coord_y, 0, panel.y - 1);
             }
             // bufferbase: Move cursor down.
-    virtual void dn(iota n)
+    virtual void dn(si32 n)
             {
                 parser::flush_data();
                 if (n == 0) n = 1;
@@ -1485,7 +1485,7 @@ namespace netxs::ui
                 else coord.y = std::clamp(new_coord_y, 0, panel.y - 1);
             }
             // bufferbase: Line feed. Index. Scroll region up if new_coord_y > end.
-    virtual void lf(iota n)
+    virtual void lf(si32 n)
             {
                 parser::flush_data();
                 auto new_coord_y = coord.y + n;
@@ -1505,7 +1505,7 @@ namespace netxs::ui
                 coord.x = 0;
             }
             // bufferbase: CSI n J  Erase display.
-            void ed(iota n)
+            void ed(si32 n)
             {
                 parser::flush();
                 switch (n)
@@ -1528,7 +1528,7 @@ namespace netxs::ui
                 }
             }
             // bufferbase: CSI n K  Erase line (don't move cursor).
-    virtual void el(iota n) = 0;
+    virtual void el(si32 n) = 0;
 
             bool update_status(term_state& status) const
             {
@@ -1553,9 +1553,9 @@ namespace netxs::ui
                 : bufferbase{ boss }
             { }
 
-            iota get_size() const override { return panel.y; }
-            iota get_peak() const override { return panel.y; }
-            iota get_step() const override { return 0;       }
+            si32 get_size() const override { return panel.y; }
+            si32 get_peak() const override { return panel.y; }
+            si32 get_step() const override { return 0;       }
 
             // alt_screen: Resize viewport.
             void resize_viewport(twod const& new_sz) override
@@ -1565,7 +1565,7 @@ namespace netxs::ui
                 canvas.crop(panel);
             }
             // alt_screen: Return viewport height.
-            iota height() override
+            si32 height() override
             {
                 return panel.y;
             }
@@ -1583,7 +1583,7 @@ namespace netxs::ui
                 }
                 else return faux;
             }
-            static void _el(iota n, core& canvas, twod const& coord, twod const& panel, cell const& blank)
+            static void _el(si32 n, core& canvas, twod const& coord, twod const& panel, cell const& blank)
             {
                 assert(coord.y < panel.y);
                 assert(coord.x >= 0);
@@ -1607,13 +1607,13 @@ namespace netxs::ui
                 while (head != tail) *head++ = blank;
             }
             // alt_screen: CSI n K  Erase line (don't move cursor).
-            void el(iota n) override
+            void el(si32 n) override
             {
                 bufferbase::flush();
                 _el(n, canvas, coord, panel, brush.spc());
             }
             // alt_screen: CSI n @  ICH. Insert n blanks after cursor. No wrap. Existing chars after cursor shifts to the right. Don't change cursor pos.
-            void ins(iota n) override
+            void ins(si32 n) override
             {
                 bufferbase::flush();
                 assert(coord.y < panel.y);
@@ -1622,14 +1622,14 @@ namespace netxs::ui
                 canvas.insert(coord, n, blank);
             }
             // alt_screen: CSI n P  Delete (not Erase) letters under the cursor.
-            void dch(iota n) override
+            void dch(si32 n) override
             {
                 bufferbase::flush();
                 auto blank = brush.spc();
                 canvas.cutoff(coord, n, blank);
             }
             // alt_screen: CSI n X  Erase/put n chars after cursor. Don't change cursor pos.
-            void ech(iota n, char c = whitespace) override
+            void ech(si32 n, char c = whitespace) override
             {
                 parser::flush();
                 auto blank = brush;
@@ -1637,7 +1637,7 @@ namespace netxs::ui
                 canvas.splice(coord, n, blank);
             }
             // alt_screen: Parser callback.
-            void data(iota count, grid const& proto) override
+            void data(si32 count, grid const& proto) override
             {
                 assert(coord.y >= 0 && coord.y < panel.y);
 
@@ -1731,12 +1731,12 @@ namespace netxs::ui
                 coord.x = coorx;
             }
             // alt_screen: Shift by n the scroll region.
-            void scroll_region(iota top, iota end, iota n, bool use_scrollback = faux) override
+            void scroll_region(si32 top, si32 end, si32 n, bool use_scrollback = faux) override
             {
                 canvas.scroll(top, end + 1, n, brush.spare);
             }
             // alt_screen: Horizontal tab.
-            void tab(iota n) override
+            void tab(si32 n) override
             {
                 bufferbase::tab(n);
                 coord.x = std::clamp(coord.x, 0, panel.x - 1);
@@ -1905,7 +1905,7 @@ namespace netxs::ui
                       index{ newid },
                       style{ style }
                 { }
-                line(id_t newid, deco const& style, cell const& blank, iota length)
+                line(id_t newid, deco const& style, cell const& blank, si32 length)
                     : rich { blank, length },
                       index{ newid },
                       style{ style }
@@ -1916,7 +1916,7 @@ namespace netxs::ui
 
                 id_t index{};
                 deco style{};
-                iota _size{};
+                si32 _size{};
                 type _kind{};
 
                 friend void swap(line& lhs, line& rhs)
@@ -1938,7 +1938,7 @@ namespace netxs::ui
                     assert(_kind == style.get_kind());
                     return _kind == type::autowrap;
                 }
-                iota height(iota width) const
+                si32 height(si32 width) const
                 {
                     auto len = length();
                     assert(_kind == style.get_kind());
@@ -1957,10 +1957,10 @@ namespace netxs::ui
             {
                 using id_t = line::id_t;
                 id_t index;
-                iota start;
-                iota width;
+                si32 start;
+                si32 width;
                 index_item() = default;
-                index_item(id_t index, iota start, iota width)
+                index_item(id_t index, si32 start, si32 width)
                     : index{ index },
                       start{ start },
                       width{ width }
@@ -1974,26 +1974,26 @@ namespace netxs::ui
             {
                 using ring::ring;
                 using type = line::type;
-                using maps = std::map<iota, iota>[type::count];
+                using maps = std::map<si32, si32>[type::count];
 
-                iota caret{}; // buff: Current line caret horizontal position.
-                iota vsize{}; // buff: Scrollback vertical size (height).
-                iota width{}; // buff: Viewport width.
-                iota basis{}; // buff: Working area basis. Vertical position of O(0, 0) in the scrollback.
-                iota slide{}; // buff: Viewport vertical position in the scrollback.
+                si32 caret{}; // buff: Current line caret horizontal position.
+                si32 vsize{}; // buff: Scrollback vertical size (height).
+                si32 width{}; // buff: Viewport width.
+                si32 basis{}; // buff: Working area basis. Vertical position of O(0, 0) in the scrollback.
+                si32 slide{}; // buff: Viewport vertical position in the scrollback.
                 maps sizes{}; // buff: Line length accounting database.
                 id_t ancid{}; // buff: The nearest line id to the slide.
-                iota ancdy{}; // buff: Slide's top line offset.
+                si32 ancdy{}; // buff: Slide's top line offset.
                 bool round{}; // buff: Is the slide position approximate.
 
                 // buff: Decrease height.
-                void dec_height(iota& vsize, type kind, iota size)
+                void dec_height(si32& vsize, type kind, si32 size)
                 {
                     if (size > width && kind == type::autowrap) vsize -= (size + width - 1) / width;
                     else                                        vsize -= 1;
                 }
                 // buff: Increase height.
-                void add_height(iota& vsize, type kind, iota size)
+                void add_height(si32& vsize, type kind, si32 size)
                 {
                     if (size > width && kind == type::autowrap) vsize += (size + width - 1) / width;
                     else                                        vsize += 1;
@@ -2006,7 +2006,7 @@ namespace netxs::ui
                                             : sizes[N].rbegin()->first;
                 }
                 // buff: Recalculate unlimited scrollback height without reflow.
-                void set_width(iota new_width)
+                void set_width(si32 new_width)
                 {
                     vsize = 0;
                     width = std::max(1, new_width);
@@ -2028,7 +2028,7 @@ namespace netxs::ui
                     }
                 }
                 // buff: Register a new line.
-                void invite(type& kind, iota& size, type new_kind, iota new_size)
+                void invite(type& kind, si32& size, type new_kind, si32 new_size)
                 {
                     ++sizes[new_kind][new_size];
                     add_height(vsize, new_kind, new_size);
@@ -2036,7 +2036,7 @@ namespace netxs::ui
                     kind = new_kind;
                 }
                 // buff: Refresh scrollback height.
-                void recalc(type& kind, iota& size, type new_kind, iota new_size)
+                void recalc(type& kind, si32& size, type new_kind, si32 new_size)
                 {
                     if (size != new_size
                      || kind != new_kind)
@@ -2049,7 +2049,7 @@ namespace netxs::ui
                     }
                 }
                 // buff: Discard the specified metrics.
-                void undock(type kind, iota size)
+                void undock(type kind, si32 size)
                 {
                     auto& lens = sizes[kind];
                     auto  iter = lens.find(size); assert(iter != lens.end());
@@ -2084,7 +2084,7 @@ namespace netxs::ui
                 }
                 // buff: Insert a new line at the specified position.
                 template<class ...Args>
-                auto& insert(iota at, Args&&... args)
+                auto& insert(si32 at, Args&&... args)
                 {
                     auto& l = *ring::insert(at, std::forward<Args>(args)...);
                     invite(l._kind, l._size, l.style.get_kind(), l.length());
@@ -2113,7 +2113,7 @@ namespace netxs::ui
                 {
                     //No need to disturb distant objects, it may already be in the swap.
                     auto count = length();
-                    return static_cast<iota>(count - 1 - (back().index - id)); // ring buffer size is never larger than max_int32.
+                    return static_cast<si32>(count - 1 - (back().index - id)); // ring buffer size is never larger than max_int32.
                 }
                 // buff: Return an iterator pointing to the item with the specified id.
                 auto iter_by_id(ui32 id)
@@ -2131,7 +2131,7 @@ namespace netxs::ui
                     recalc(l._kind, l._size, l.style.get_kind(), l.length());
                 }
                 // buff: Rewrite the indices from the specified position to the end.
-                void reindex(iota from)
+                void reindex(si32 from)
                 {
                     assert(from >= 0);
                     auto head = begin() + from;
@@ -2145,7 +2145,7 @@ namespace netxs::ui
                     }
                 }
                 // buff: Remove the specified number of lines at the specified position (inclusive).
-                auto remove(iota at, iota count)
+                auto remove(si32 at, si32 count)
                 {
                     count = ring::remove(at, count);
                     reindex(at);
@@ -2175,15 +2175,15 @@ namespace netxs::ui
 
             buff batch; // scroll_buf: Scrollback container.
             indx index; // scroll_buf: Viewport line index.
-            iota arena; // scroll_buf: Scrollable region height.
+            si32 arena; // scroll_buf: Scrollable region height.
             face upbox; // scroll_buf:    Top margin canvas.
             face dnbox; // scroll_buf: Bottom margin canvas.
             twod upmin; // scroll_buf:    Top margin minimal size.
             twod dnmin; // scroll_buf: Bottom margin minimal size.
 
-            static constexpr iota approx_threshold = 10000; //todo make it configurable
+            static constexpr si32 approx_threshold = 10000; //todo make it configurable
 
-            scroll_buf(term& boss, iota buffer_size, iota grow_step)
+            scroll_buf(term& boss, si32 buffer_size, si32 grow_step)
                 : bufferbase{ boss                   },
                        batch{ buffer_size, grow_step },
                        index{ 0                      },
@@ -2193,9 +2193,9 @@ namespace netxs::ui
                 batch.set_width(1);
                 index_rebuild();
             }
-            iota get_size() const override { return batch.size;     }
-            iota get_peak() const override { return batch.peak - 1; }
-            iota get_step() const override { return batch.step;     }
+            si32 get_size() const override { return batch.size;     }
+            si32 get_peak() const override { return batch.peak - 1; }
+            si32 get_step() const override { return batch.step;     }
 
             void print_slide(text msg)
             {
@@ -2319,17 +2319,17 @@ namespace netxs::ui
                 return result;
             }
             // scroll_buf: Get viewport basis.
-            iota get_basis() override
+            si32 get_basis() override
             {
                 return batch.basis;
             }
             // scroll_buf: Get viewport position.
-            iota get_slide() override
+            si32 get_slide() override
             {
                 return batch.slide;
             }
             // scroll_buf: Set viewport position and return whether the viewport is reset.
-            bool set_slide(iota& fresh_slide) override
+            bool set_slide(si32& fresh_slide) override
             {
                 if (batch.slide == -fresh_slide) return batch.slide == batch.basis;
 
@@ -2428,8 +2428,8 @@ namespace netxs::ui
                     if (batch.round && range1 < panel.y * 2)
                     {
                         lookup();
-                        auto count1 = static_cast<iota>(under.index - batch.ancid);
-                        auto count2 = static_cast<iota>(batch.ancid - front.index);
+                        auto count1 = static_cast<si32>(under.index - batch.ancid);
+                        auto count2 = static_cast<si32>(batch.ancid - front.index);
                         auto min_dy = std::min(count1, count2);
 
                         if (min_dy < approx_threshold) // Refine position to absolute value.
@@ -2540,17 +2540,17 @@ namespace netxs::ui
                 {
                     auto& front = batch.front();
                     auto& under = batch.back();
-                    auto range1 = static_cast<iota>(under.index - batch.ancid);
-                    auto range2 = static_cast<iota>(batch.ancid - front.index);
+                    auto range1 = static_cast<si32>(under.index - batch.ancid);
+                    auto range2 = static_cast<si32>(batch.ancid - front.index);
                     batch.round = faux;
                     if (range1 < batch.size)
                     {
                         if (approx_threshold < std::min(range1, range2))
                         {
                             auto& mapln = index.front();
-                            ui64 c1 = static_cast<iota>(mapln.index - front.index);
+                            ui64 c1 = static_cast<si32>(mapln.index - front.index);
                             ui64 c2 = range2;
-                            auto fresh_slide = static_cast<iota>(netxs::divround(batch.vsize * c2, c1));
+                            auto fresh_slide = static_cast<si32>(netxs::divround(batch.vsize * c2, c1));
                             batch.slide = batch.ancdy + fresh_slide;
                             batch.round = batch.vsize != batch.size;
                         }
@@ -2699,7 +2699,7 @@ namespace netxs::ui
             }
             // scroll_buf: Rebuild the next avail indexes from the known index (mapln).
             template<class ITER, class INDEX_T>
-            void reindex(iota avail, ITER curit, INDEX_T const& mapln)
+            void reindex(si32 avail, ITER curit, INDEX_T const& mapln)
             {
                 auto& curln =*curit;
                 auto  width = curln.length();
@@ -2750,7 +2750,7 @@ namespace netxs::ui
                 assert(test_futures());
             }
             // scroll_buf: Rebuild index from the known index at y_pos.
-            void index_rebuild_from(iota y_pos)
+            void index_rebuild_from(si32 y_pos)
             {
                 assert(y_pos >= 0 && y_pos < index.size);
 
@@ -2801,7 +2801,7 @@ namespace netxs::ui
                 assert(test_futures());
             }
             // scroll_buf: Return scrollback height.
-            iota height() override
+            si32 height() override
             {
                 assert(test_height());
                 return batch.vsize;
@@ -2826,14 +2826,14 @@ namespace netxs::ui
                 else return faux;
             }
             // scroll_buf: Check if there are futures, use them when scrolling regions.
-            auto feed_futures(iota query)
+            auto feed_futures(si32 query)
             {
                 assert(test_futures());
                 assert(test_coord());
                 assert(query > 0);
 
                 auto stash = batch.vsize - batch.basis - index.size;
-                iota avail;
+                si32 avail;
                 if (stash > 0)
                 {
                     avail = std::min(stash, query);
@@ -2952,17 +2952,17 @@ namespace netxs::ui
             }
 
             void cup (fifo& q) override { bufferbase::cup (q); sync_coord<faux>(); }
-            void cuf (iota  n) override { bufferbase::cuf (n); sync_coord<faux>(); }
-            void cub (iota  n) override { bufferbase::cub (n); sync_coord<faux>(); }
-            void chx (iota  n) override { bufferbase::chx (n); sync_coord<faux>(); }
-            void tab (iota  n) override { bufferbase::tab (n); sync_coord<faux>(); }
-            void chy (iota  n) override { bufferbase::chy (n); sync_coord(); }
-            void scl (iota  n) override { bufferbase::scl (n); sync_coord(); }
-            void il  (iota  n) override { bufferbase::il  (n); sync_coord(); }
-            void dl  (iota  n) override { bufferbase::dl  (n); sync_coord(); }
-            void up  (iota  n) override { bufferbase::up  (n); sync_coord(); }
-            void dn  (iota  n) override { bufferbase::dn  (n); sync_coord(); }
-            void lf  (iota  n) override { bufferbase::lf  (n); sync_coord(); }
+            void cuf (si32  n) override { bufferbase::cuf (n); sync_coord<faux>(); }
+            void cub (si32  n) override { bufferbase::cub (n); sync_coord<faux>(); }
+            void chx (si32  n) override { bufferbase::chx (n); sync_coord<faux>(); }
+            void tab (si32  n) override { bufferbase::tab (n); sync_coord<faux>(); }
+            void chy (si32  n) override { bufferbase::chy (n); sync_coord(); }
+            void scl (si32  n) override { bufferbase::scl (n); sync_coord(); }
+            void il  (si32  n) override { bufferbase::il  (n); sync_coord(); }
+            void dl  (si32  n) override { bufferbase::dl  (n); sync_coord(); }
+            void up  (si32  n) override { bufferbase::up  (n); sync_coord(); }
+            void dn  (si32  n) override { bufferbase::dn  (n); sync_coord(); }
+            void lf  (si32  n) override { bufferbase::lf  (n); sync_coord(); }
             void ri  ()        override { bufferbase::ri  ( ); sync_coord(); }
             void cr  ()        override { bufferbase::cr  ( ); sync_coord(); }
 
@@ -2980,7 +2980,7 @@ namespace netxs::ui
                 sync_coord();
             }
             // scroll_buf: Set the scrolling region using 1-based top and bottom. Use 0 to reset.
-            void set_scroll_region(iota top, iota bottom) override
+            void set_scroll_region(si32 top, si32 bottom) override
             {
                 auto old_sctop = sctop;
                 auto old_scend = scend;
@@ -2999,7 +2999,7 @@ namespace netxs::ui
                 auto delta_end = scend - old_scend;
 
                 // Take lines from the scrollback.
-                auto pull = [&](face& block, twod origin, iota begin, iota limit)
+                auto pull = [&](face& block, twod origin, si32 begin, si32 limit)
                 {
                     if (begin >= index.size) return;
                     limit = std::min(limit, index.size);
@@ -3010,7 +3010,7 @@ namespace netxs::ui
                     auto upto = index[limit - 1].index + 1;
                     auto base = batch.index_by_id(from);
                     auto head = batch.begin() + base;
-                    auto size = static_cast<iota>(upto - from);
+                    auto size = static_cast<si32>(upto - from);
                     auto tail = head + size;
                     auto view = rect{ origin, { panel.x, limit - begin }};
                     auto full = rect{ dot_00, block.core::size()        };
@@ -3032,7 +3032,7 @@ namespace netxs::ui
                     auto size = block.size();
                     if (size.y <= 0) return;
 
-                    iota start;
+                    si32 start;
                     if (at_bottom)
                     {
                         auto stash = batch.vsize - batch.basis - arena;
@@ -3107,7 +3107,7 @@ namespace netxs::ui
                 sync_coord();
             }
             // scroll_buf: Push empty lines to the scrollback bottom.
-            void add_lines(iota amount)
+            void add_lines(si32 amount)
             {
                 assert(amount >= 0);
                 auto newid = batch.back().index;
@@ -3118,7 +3118,7 @@ namespace netxs::ui
                 }
             }
             // scroll_buf: Push filled lines to the scrollback bottom.
-            void add_lines(iota amount, cell const& blank)
+            void add_lines(si32 amount, cell const& blank)
             {
                 assert(amount >= 0);
                 auto newid = batch.back().index;
@@ -3217,10 +3217,10 @@ namespace netxs::ui
                 struct qt
                 {
                     twod& c;
-                    iota  t;
+                    si32  t;
                     bool  b;
                     rich& block;
-                    qt(twod& cy, iota ct, bool cb, scroll_buf& cs)
+                    qt(twod& cy, si32 ct, bool cb, scroll_buf& cs)
                         : c{ cy },
                           t{ ct },
                           b{ cb },
@@ -3235,14 +3235,14 @@ namespace netxs::ui
                 return qt{ pos, inside ? y_top : 0, inside, *this };
             }
             // scroll_buf: CSI n K  Erase line (don't move cursor).
-            void el(iota n) override
+            void el(si32 n) override
             {
                 bufferbase::flush();
                 auto blank = brush.spc();
                 if (auto ctx = get_context(coord))
                 {
-                    iota  start;
-                    iota  count;
+                    si32  start;
+                    si32  count;
                     auto  caret = std::max(0, batch.caret);
                     auto& curln = batch.current();
                     auto  width = curln.length();
@@ -3286,7 +3286,7 @@ namespace netxs::ui
                 else alt_screen::_el(n, ctx.block, coord, panel, blank);
             }
             // scroll_buf: CSI n @  ICH. Insert n blanks after cursor. Existing chars after cursor shifts to the right. Don't change cursor pos.
-            void ins(iota n) override
+            void ins(si32 n) override
             {
                 bufferbase::flush();
                 auto blank = brush.spc();
@@ -3305,7 +3305,7 @@ namespace netxs::ui
                 else ctx.block.insert(coord, n, blank);
             }
             // scroll_buf: CSI n P  Delete (not Erase) letters under the cursor. Line end is filled by blanks. Length is preserved. No wrapping.
-            void dch(iota n) override
+            void dch(si32 n) override
             {
                 bufferbase::flush();
                 auto blank = brush.spc();
@@ -3318,7 +3318,7 @@ namespace netxs::ui
                 else ctx.block.cutoff(coord, n, blank);
             }
             // scroll_buf: CSI n X  Erase/put n chars after cursor. Don't change cursor pos.
-            void ech(iota n, char c = whitespace) override
+            void ech(si32 n, char c = whitespace) override
             {
                 parser::flush();
                 auto blank = brush;
@@ -3341,7 +3341,7 @@ namespace netxs::ui
                 else ctx.block.splice(coord, n, blank);
             }
             // scroll_buf: Proceed new text (parser callback).
-            void data(iota count, grid const& proto) override
+            void data(si32 count, grid const& proto) override
             {
                 assert(coord.y >= 0 && coord.y < panel.y);
                 assert(test_futures());
@@ -3415,7 +3415,7 @@ namespace netxs::ui
                         if (query > 0) // case 3 - complex: Cursor is outside the viewport. 
                         {              // cursor overlaps some lines below and placed below the viewport.
                             batch.recalc(curln);
-                            if (auto count = static_cast<iota>(batch.back().index - curid))
+                            if (auto count = static_cast<si32>(batch.back().index - curid))
                             {
                                 assert(count > 0);
                                 while (count-- > 0) batch.pop_back();
@@ -3485,7 +3485,7 @@ namespace netxs::ui
                                 curln.splice(curln.length(), shadow);
                                 batch.recalc(curln);
                                 auto width = curln.length();
-                                auto spoil = static_cast<iota>(mapln.index - curid);
+                                auto spoil = static_cast<si32>(mapln.index - curid);
                                 assert(spoil > 0);
                                 auto after = batch.index() + 1;
                                      spoil = batch.remove(after, spoil);
@@ -3567,7 +3567,7 @@ namespace netxs::ui
                 bufferbase::clear_all();
             }
             // scroll_buf: Set scrollback limits.
-            void resize_history(iota new_size, iota grow_by = 0)
+            void resize_history(si32 new_size, si32 grow_by = 0)
             {
                 static constexpr auto BOTTOM_ANCHORED = true;
                 batch.resize<BOTTOM_ANCHORED>(new_size, grow_by);
@@ -3783,11 +3783,11 @@ namespace netxs::ui
                 }
             }
             // scroll_buf: Dissect auto-wrapped lines above the specified row in scroll region (incl last line+1).
-            void dissect(iota y_pos)
+            void dissect(si32 y_pos)
             {
                 assert(y_pos >= 0 && y_pos <= arena);
 
-                auto split = [&](id_t curid, iota start)
+                auto split = [&](id_t curid, si32 start)
                 {
                     auto after = batch.index_by_id(curid);
                     auto tmpln = std::move(batch[after]);
@@ -3849,7 +3849,7 @@ namespace netxs::ui
                 // Note: coord is unsynced -- see set_scroll_region()
             }
             // scroll_buf: Scroll the specified region by n lines. The scrollback can only be used with the whole scrolling region.
-            void scroll_region(iota top, iota end, iota n, bool use_scrollback) override
+            void scroll_region(si32 top, si32 end, si32 n, bool use_scrollback) override
             {
                 assert(top >= y_top && end <= y_end);
 
@@ -3891,7 +3891,7 @@ namespace netxs::ui
                         auto mdlid = index[mdl - 1].index + 1;
                         auto endid = index[end - 1].index + 1;
                         auto start = batch.index_by_id(topid);
-                        auto range = static_cast<iota>(mdlid - topid);
+                        auto range = static_cast<si32>(mdlid - topid);
                         auto floor = batch.index_by_id(endid) - range;
                         batch.remove(start, range);
 
@@ -3921,7 +3921,7 @@ namespace netxs::ui
                     auto mdlid = mdl > 0 ? index[mdl - 1].index + 1 // mdl == 0 or mdl == top when count == max (full arena).
                                          : topid;
                     auto start = batch.index_by_id(topid);
-                    auto range = static_cast<iota>(endid - mdlid);
+                    auto range = static_cast<si32>(endid - mdlid);
                     auto floor = batch.index_by_id(endid) - range;
                     batch.remove(floor, range);
 
@@ -3940,7 +3940,7 @@ namespace netxs::ui
             {
                 id_t anchor{}; // Anchor id.
                 twod corner{}; // 2D offset relative to anchor (boxed).
-                iota offset{}; // 1D offset relative to anchor (lines).
+                si32 offset{}; // 1D offset relative to anchor (lines).
                 template<bool RESET_Y>
                 void reset(line const& curln)
                 {
@@ -4575,7 +4575,7 @@ namespace netxs::ui
             }
         }
         // term: Shutdown callback handler.
-        void onexit(iota code)
+        void onexit(si32 code)
         {
             log("term: exit code ", code);
             if (code)
@@ -4800,7 +4800,7 @@ namespace netxs::ui
             base::riseup<tier::preview>(e2::form::prop::window::size, winsz);
         }
        ~term(){ active = faux; }
-        term(text command_line, iota max_scrollback_size = def_length, iota grow_step = def_growup)
+        term(text command_line, si32 max_scrollback_size = def_length, si32 grow_step = def_growup)
             : normal{ *this, max_scrollback_size, grow_step },
               altbuf{ *this },
               cursor{ *this },
