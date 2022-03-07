@@ -332,36 +332,18 @@ namespace netxs::ui::atoms
             }
         }
         // rgba: Darken the color.
-        void shadow(byte k = 39)//24)
+        void shadow(byte k = 39)
         {
-            if (chan.r + chan.g + chan.b > 39)//24)
-            {
-                chan.r = chan.r < k ? 0x00 : chan.r - k;
-                chan.g = chan.g < k ? 0x00 : chan.g - k;
-                chan.b = chan.b < k ? 0x00 : chan.b - k;
-            }
-            else
-            {
-                chan.r = chan.r > 0xFF - k ? 0xFF : chan.r + k;
-                chan.g = chan.g > 0xFF - k ? 0xFF : chan.g + k;
-                chan.b = chan.b > 0xFF - k ? 0xFF : chan.b + k;
-            }
+            chan.r = chan.r < k ? 0x00 : chan.r - k;
+            chan.g = chan.g < k ? 0x00 : chan.g - k;
+            chan.b = chan.b < k ? 0x00 : chan.b - k;
         }
         // rgba: Lighten the color.
-        void bright(byte k = 39)//24) reduced in order to correct highlight the cellatix
+        void bright(byte k = 39)
         {
-            if (chan.r + chan.g + chan.b > 255*3 - 39)//24)
-            {
-                chan.r = chan.r < k ? 0x00 : chan.r - k;
-                chan.g = chan.g < k ? 0x00 : chan.g - k;
-                chan.b = chan.b < k ? 0x00 : chan.b - k;
-            }
-            else
-            {
-                chan.r = chan.r > 0xFF - k ? 0xFF : chan.r + k;
-                chan.g = chan.g > 0xFF - k ? 0xFF : chan.g + k;
-                chan.b = chan.b > 0xFF - k ? 0xFF : chan.b + k;
-            }
+            chan.r = chan.r > 0xFF - k ? 0xFF : chan.r + k;
+            chan.g = chan.g > 0xFF - k ? 0xFF : chan.g + k;
+            chan.b = chan.b > 0xFF - k ? 0xFF : chan.b + k;
         }
         // rgba: Invert the color.
         void invert()
@@ -1047,7 +1029,7 @@ namespace netxs::ui::atoms
         // cell: Delight both foreground and background.
         void xlight()
         {
-            uv.fg.xlight();
+            uv.fg.bright();
             uv.bg.xlight();
         }
         // cell: Invert both foreground and background.
@@ -1065,19 +1047,6 @@ namespace netxs::ui::atoms
         void invbit()
         {
             st.rev();
-        }
-        // cell: Darken both foreground and background.
-        void shadow(byte fk, byte bk) //void shadow(byte k = 24)
-        {
-            uv.fg.shadow(fk);
-            uv.bg.shadow(bk);
-        }
-        //todo xlight conflict
-        // cell: Lighten both foreground and background.
-        void bright(byte fk, byte bk) //void bright(byte k = 24)
-        {
-            uv.fg.bright(fk);
-            uv.bg.bright(bk);
         }
         // cell: Is the cell not transparent?
         bool is_alpha_blendable() const
