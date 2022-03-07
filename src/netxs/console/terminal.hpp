@@ -1864,8 +1864,11 @@ namespace netxs::ui
                     grip_1 = grip_1.clip(view);
                     grip_2 = grip_2.clip(view);
                     target.fill(square, cell::shaders::xlight);
-                    target.fill(grip_1, cell::shaders::xlight);
-                    target.fill(grip_2, cell::shaders::xlight);
+                    target.fill(grip_1, cell::shaders::invbit);
+                    if (grip_1.coor != grip_2.coor)
+                    {
+                        target.fill(grip_2, cell::shaders::invbit);
+                    }
                 }
             }
         };
@@ -4162,8 +4165,11 @@ namespace netxs::ui
                         auto grip_2 = rect{ curend + full.coor, dot_11 };
                         auto square = grip_1 | grip_2;
                         target.fill(square.clip(view), cell::shaders::xlight);
-                        target.fill(grip_1.clip(view), cell::shaders::xlight);
-                        target.fill(grip_2.clip(view), cell::shaders::xlight);
+                        target.fill(grip_1.clip(view), cell::shaders::invbit);
+                        if (grip_1.coor != grip_2.coor)
+                        {
+                            target.fill(grip_2.clip(view), cell::shaders::invbit);
+                        }
                     }
                     else
                     {
@@ -4180,8 +4186,11 @@ namespace netxs::ui
                         {
                             auto grip_1 = rect{ curtop + full.coor, dot_11 };
                             auto grip_2 = rect{ curend + full.coor, dot_11 };
-                            target.fill(grip_1.clip(view), cell::shaders::xlight);
-                            target.fill(grip_2.clip(view), cell::shaders::xlight);
+                            target.fill(grip_1.clip(view), cell::shaders::invbit);
+                            if (grip_1.coor != grip_2.coor)
+                            {
+                                target.fill(grip_2.clip(view), cell::shaders::invbit);
+                            }
                         }
                         auto grip1 = upgrip;
                         auto grip2 = dngrip;
@@ -4697,7 +4706,6 @@ namespace netxs::ui
             }
             else worker.pacify();
 
-            log(" drag::start extend coord=", coord);
             if (target->selection_extend(coord, boxed))
             {
                 base::deface();
@@ -4705,6 +4713,7 @@ namespace netxs::ui
         }
         void selection_finish(hids& gear)
         {
+            log(" drag::finish coord=", gear.coord);
             if (mtrack) return;
             target->selection_finish();
             worker.pacify();

@@ -316,16 +316,15 @@ namespace netxs::ui::atoms
         // rgba: Shift color.
         void xlight()
         {
-            if (chan.r + chan.g + chan.b > 140*3) // Make it darker
+            if (luma() > 140)
             {
                 auto k = 64;
                 chan.r = chan.r < k ? 0x00 : chan.r - k;
                 chan.g = chan.g < k ? 0x00 : chan.g - k;
                 chan.b = chan.b < k ? 0x00 : chan.b - k;
             }
-            else // Make it lighter
+            else
             {
-                //auto k = 180;
                 auto k = 48;
                 chan.r = chan.r > 0xFF - k ? 0xFF : chan.r + k;
                 chan.g = chan.g > 0xFF - k ? 0xFF : chan.g + k;
