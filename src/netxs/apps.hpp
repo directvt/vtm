@@ -980,7 +980,7 @@ namespace netxs::app::shared
             creator(objs_lookup["Shop"], { twod{ 4      , 6  } + sub_pos, { 82, 38 } });
             creator(objs_lookup["Calc"], { twod{ 15     , 15 } + sub_pos, { 65, 23 } });
             creator(objs_lookup["Text"], { twod{ 30     , 22 } + sub_pos, { 59, 26 } });
-            creator(objs_lookup["MC"  ], { twod{ 49     , 28 } + sub_pos, { 67, 22 } });
+            creator(objs_lookup["MC"  ], { twod{ 49     , 28 } + sub_pos, { 68, 22 } });
             creator(objs_lookup["Term"], { twod{ 34     , 38 } + sub_pos, { 64, 16 } });
             creator(objs_lookup["Term"], { twod{ 44 + 85, 35 } + sub_pos, { 64, 15 } });
             creator(objs_lookup["Term"], { twod{ 40 + 85, 42 } + sub_pos, { 64, 15 } });

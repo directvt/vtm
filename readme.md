@@ -63,9 +63,10 @@ cmake --install .
 Build-time dependencies
  - `git`
  - `cmake`
- - `Visual Studio 2019`
+ - `Visual Studio 2019` or later
+ - `UTF-8` for worldwide language support, https://github.com/netxs-group/vtm/issues/175#issuecomment-1034734346
 
-Use `Developer Command Prompt for VS 2019` as a build environment
+Use `Developer Command Prompt` as a build environment
 ```cmd
 git clone https://github.com/netxs-group/vtm.git && cd ./vtm
 cmake ./src -DCMAKE_BUILD_TYPE=Release "-GVisual Studio 16 2019"
