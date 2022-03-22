@@ -525,7 +525,7 @@ namespace netxs::console
                     auto& width = printout.size.x;
                     auto& start = straight ? startpos
                                            : textline.size.x;
-                    print(coord, block.substr(start, width));
+                    print(coord, block.substr(start, width), runtime::isr_to_l);
                 }
             }
             highness = textline.size.y;
@@ -620,11 +620,15 @@ namespace netxs::console
                 }
 
                 if (arighted)
+                {
                     if (isrlfeed) proceed<SPLIT, true, true>(block, print);
                     else          proceed<SPLIT, true, faux>(block, print);
+                }
                 else
+                {
                     if (isrlfeed) proceed<SPLIT, faux, true>(block, print);
                     else          proceed<SPLIT, faux, faux>(block, print);
+                }
             }
         }
         // flow: Execute specified locus instruction list.
@@ -646,7 +650,7 @@ namespace netxs::console
         template<bool SPLIT = true, class T, class P = noop>
         void go(T const& block, core& canvas, P printfx = P())
         {
-            compose<SPLIT>(block, [&](auto const& coord, auto const& subblock)
+            compose<SPLIT>(block, [&](auto const& coord, auto const& subblock, auto isr_to_l)
                                   {
                                       canvas.text(coord, subblock, isr_to_l, printfx);
                                   });
@@ -817,7 +821,6 @@ namespace netxs::console
 
             if (joint)
             {
-
                 if constexpr (RtoL)
                 {
                     place.coor.x += place.size.x - joint.coor.x - joint.size.x;
@@ -829,12 +832,8 @@ namespace netxs::console
                 }
                 place.coor.x += start;
 
-                if constexpr (std::is_same_v<P, noop>)
-                {
-                    auto fuse = [&](auto& dst, auto& src) { dst.fusefull(src); };
-                    netxs::inbody<RtoL>(canvas, basis, joint, place.coor, fuse);
-                }
-                else netxs::inbody<RtoL>(canvas, basis, joint, place.coor, print);
+                if constexpr (std::is_same_v<P, noop>) netxs::inbody<RtoL>(canvas, basis, joint, place.coor, cell::shaders::fusefull);
+                else                                   netxs::inbody<RtoL>(canvas, basis, joint, place.coor, print);
             }
 
             return width;

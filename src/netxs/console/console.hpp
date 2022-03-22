@@ -642,6 +642,13 @@ namespace netxs::console
         bool moved = faux; // face: Is reflow required.
         bool decoy = true; // face: Is the cursor inside the viewport.
 
+        // face: Print proxy something else at the specified coor.
+        template<class T, class P>
+        void output_proxy(T const& block, twod const& coord, P proxy)
+        {
+            flow::ac(coord);
+            flow::compose<true>(block, proxy);
+        }
         // face: Print something else at the specified coor.
         template<class T, class P = noop>
         void output(T const& block, twod const& coord, P printfx = P())
