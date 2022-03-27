@@ -76,12 +76,12 @@ powershell ../src/install/install.ps1
 
 # Binaries
 
-[![](https://dice.netxs.online/cloud/vtm/status/macos)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_macos_any.tar.gz)  
-[![](https://dice.netxs.online/cloud/vtm/status/freebsd)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_freebsd_amd64.tar.gz)  
-[![](https://dice.netxs.online/cloud/vtm/status/netbsd)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_netbsd_amd64.tar.gz)  
-[![](https://dice.netxs.online/cloud/vtm/status/openbsd)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_openbsd_amd64.tar.gz)  
-[![](https://dice.netxs.online/cloud/vtm/status/linux)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_linux_amd64.tar.gz)  
-[![](https://dice.netxs.online/cloud/vtm/status/windows)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_windows_amd64.zip)  
+[![](https://raw.githubusercontent.com/o-sdn-o/vtm/master/.resources/status/macos.svg)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_macos_any.tar.gz)  
+[![](https://raw.githubusercontent.com/o-sdn-o/vtm/master/.resources/status/freebsd.svg)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_freebsd_amd64.tar.gz)  
+[![](https://raw.githubusercontent.com/o-sdn-o/vtm/master/.resources/status/netbsd.svg)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_netbsd_amd64.tar.gz)  
+[![](https://raw.githubusercontent.com/o-sdn-o/vtm/master/.resources/status/openbsd.svg)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_openbsd_amd64.tar.gz)  
+[![](https://raw.githubusercontent.com/o-sdn-o/vtm/master/.resources/status/linux.svg)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_linux_amd64.tar.gz)  
+[![](https://raw.githubusercontent.com/o-sdn-o/vtm/master/.resources/status/windows.svg)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_windows_amd64.zip)  
 
 ---
 
