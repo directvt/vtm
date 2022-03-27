@@ -2,7 +2,7 @@
 
 Text-based desktop environment inside your terminal*
 
-![image](https://raw.githubusercontent.com/o-sdn-o/vtm/master/.resources/images/mde_banner_v1.18.png)
+![image](.resources/images/mde_banner_v1.18.png)
 
 #### * Terminal Requirements
 
@@ -72,12 +72,12 @@ powershell ../src/install/install.ps1
 
 # Binaries
 
-[![](https://raw.githubusercontent.com/o-sdn-o/vtm/master/.resources/status/macos.svg)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_macos_any.tar.gz)  
-[![](https://raw.githubusercontent.com/o-sdn-o/vtm/master/.resources/status/freebsd.svg)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_freebsd_amd64.tar.gz)  
-[![](https://raw.githubusercontent.com/o-sdn-o/vtm/master/.resources/status/netbsd.svg)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_netbsd_amd64.tar.gz)  
-[![](https://raw.githubusercontent.com/o-sdn-o/vtm/master/.resources/status/openbsd.svg)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_openbsd_amd64.tar.gz)  
-[![](https://raw.githubusercontent.com/o-sdn-o/vtm/master/.resources/status/linux.svg)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_linux_amd64.tar.gz)  
-[![](https://raw.githubusercontent.com/o-sdn-o/vtm/master/.resources/status/windows.svg)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_windows_amd64.zip)  
+[![](.resources/status/macos.svg)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_macos_any.tar.gz)  
+[![](.resources/status/freebsd.svg)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_freebsd_amd64.tar.gz)  
+[![](.resources/status/netbsd.svg)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_netbsd_amd64.tar.gz)  
+[![](.resources/status/openbsd.svg)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_openbsd_amd64.tar.gz)  
+[![](.resources/status/linux.svg)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_linux_amd64.tar.gz)  
+[![](.resources/status/windows.svg)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_windows_amd64.zip)  
 
 ---
 
