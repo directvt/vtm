@@ -3943,6 +3943,12 @@ namespace netxs::ui
                 assert(test_coord());
             }
 
+            enum tend
+            {
+                unknown,
+                reverse,
+                forward
+            };
             struct grip
             {
                 id_t anchor{}; // Anchor id.
@@ -3959,6 +3965,7 @@ namespace netxs::ui
             };
             grip upgrip;
             grip dngrip;
+            tend course{}; // Selection orientation.
             bool isopen{}; // Selection process is not complete.
 
             auto selection_coor_to_grip(twod coor)
@@ -4063,39 +4070,37 @@ namespace netxs::ui
             // scroll_buf: Start text selection.
             void selection_create(twod const& coor, bool mode) override
             {
-                if (selection_active() && !isopen)
+                auto nohits = [&]()
                 {
-                    //if (i_end >= i_cur) // Proceed only when selection is visible. i_top <= i_end.
+                    auto [seltop, selend] = selection_take_boxed_grips();
+
+                    if (coor == seltop)
                     {
-                        auto mygrip = selection_coor_to_grip(coor);
-                        //if (selection_selbox())
-                        //{
-                            auto [seltop, selend] = selection_take_boxed_grips();
-                            if (coor == seltop)
-                            {
-                                std::swap(upgrip, dngrip);
-                            }
-                            else if (coor != selend)
-                            {
-                                upgrip = mygrip;
-                                dngrip = mygrip;
-                            }
-                        //}
-                        //else
-                        //{
-                        //    
-                        //}
+                        std::swap(upgrip, dngrip);
+                        std::swap(seltop, selend);
                     }
-                }
-                else
+                    else if (coor != selend) return true;
+
+                    if (seltop.y < selend.y
+                    || (seltop.y == selend.y && seltop.x < selend.x)) course = tend::forward;
+                    else if (seltop == selend)                        course = tend::unknown;
+                    else                                              course = tend::reverse;
+
+                    return faux;
+                };
+                if (!selection_active() || isopen || nohits())
                 {
                     upgrip = selection_coor_to_grip(coor);
                     dngrip = upgrip;
+                    course = tend::unknown;
                     selection_active(true);
                 }
                 //...
                 selection_selbox(mode);
                 isopen = true;
+                log("  create course=", course == tend::forward ? "tend::forward" :
+                                        course == tend::reverse ? "tend::reverse" :
+                                                                  "tend::unknown");
             }
             // scroll_buf: Extend text selection.
             bool selection_extend(twod const& coor, bool mode) override

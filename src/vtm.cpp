@@ -382,11 +382,12 @@ int main(int argc, char* argv[])
                     auto deskmenu = menu_builder(utf::concat(client->id, ";", user, ";", path));
                     auto& fone_builder = app::shared::creator("Fone");
                     auto bkground = fone_builder(
-                    #ifndef PROD
+                    //todo
+                    //#ifndef PROD
                         "Shop;Demo;"
-                    #else
-                        "HeadlessTerm;Info;ssh info@netxs.online"
-                    #endif
+                    //#else
+                    //    "HeadlessTerm;Info;ssh info@netxs.online"
+                    //#endif
                     );
             
                     client->attach(deskmenu);
