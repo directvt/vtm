@@ -2,7 +2,7 @@
 
 Text-based desktop environment inside your terminal*
 
-![image](https://dice.netxs.online/cloud/vtm/mde_banner_v1.18.png)
+![image](.resources/images/mde_banner_v1.18.png)
 
 #### * Terminal Requirements
 
@@ -18,10 +18,6 @@ Text-based desktop environment inside your terminal*
 <a href="https://www.youtube.com/watch?v=kofkoxGjFWQ">
   <img align="right" width="400" alt="Demo on YouTube" src="https://user-images.githubusercontent.com/11535558/146906370-c9705579-1bbb-4e9e-8977-47312f551cc8.gif">
 </a>
-
-### Live SSH
-
- - `ssh vtm@netxs.online`
 
 ### Video
 
@@ -63,9 +59,10 @@ cmake --install .
 Build-time dependencies
  - `git`
  - `cmake`
- - `Visual Studio 2019`
+ - `Visual Studio 2019` or later
+ - `UTF-8` for worldwide language support, https://github.com/netxs-group/vtm/issues/175#issuecomment-1034734346
 
-Use `Developer Command Prompt for VS 2019` as a build environment
+Use `Developer Command Prompt` as a build environment
 ```cmd
 git clone https://github.com/netxs-group/vtm.git && cd ./vtm
 cmake ./src -DCMAKE_BUILD_TYPE=Release "-GVisual Studio 16 2019"
@@ -76,12 +73,12 @@ powershell ../src/install/install.ps1
 
 # Binaries
 
-[![](https://dice.netxs.online/cloud/vtm/status/macos)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_macos_any.tar.gz)  
-[![](https://dice.netxs.online/cloud/vtm/status/freebsd)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_freebsd_amd64.tar.gz)  
-[![](https://dice.netxs.online/cloud/vtm/status/netbsd)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_netbsd_amd64.tar.gz)  
-[![](https://dice.netxs.online/cloud/vtm/status/openbsd)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_openbsd_amd64.tar.gz)  
-[![](https://dice.netxs.online/cloud/vtm/status/linux)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_linux_amd64.tar.gz)  
-[![](https://dice.netxs.online/cloud/vtm/status/windows)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_windows_amd64.zip)  
+[![](.resources/status/macos.svg)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_macos_any.tar.gz)  
+[![](.resources/status/freebsd.svg)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_freebsd_amd64.tar.gz)  
+[![](.resources/status/netbsd.svg)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_netbsd_amd64.tar.gz)  
+[![](.resources/status/openbsd.svg)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_openbsd_amd64.tar.gz)  
+[![](.resources/status/linux.svg)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_linux_amd64.tar.gz)  
+[![](.resources/status/windows.svg)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_windows_amd64.zip)  
 
 ---
 
