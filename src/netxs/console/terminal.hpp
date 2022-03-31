@@ -3949,6 +3949,12 @@ namespace netxs::ui
                 reverse,
                 forward
             };
+            auto _str(tend t) // For debug.
+            {
+                return t == tend::forward ? "tend::forward" :
+                       t == tend::reverse ? "tend::reverse" :
+                                            "tend::unknown";
+            }
             struct grip
             {
                 id_t anchor{}; // Anchor id.
@@ -4098,9 +4104,7 @@ namespace netxs::ui
                 //...
                 selection_selbox(mode);
                 isopen = true;
-                log("  create course=", course == tend::forward ? "tend::forward" :
-                                        course == tend::reverse ? "tend::reverse" :
-                                                                  "tend::unknown");
+                log("  create course=", _str(course));
             }
             // scroll_buf: Extend text selection.
             bool selection_extend(twod const& coor, bool mode) override
@@ -4108,15 +4112,52 @@ namespace netxs::ui
                 auto state = selection_active();
                 if (state)
                 {
-                    //if (selection_selbox())
-                    //{
-                        dngrip = selection_coor_to_grip(coor);
-                    //}
-                    //else
-                    //{
-                    //    
-                    //}
+                    dngrip = selection_coor_to_grip(coor);
+                    auto index1 = batch.index_by_id(upgrip.anchor);
+                    auto index2 = batch.index_by_id(dngrip.anchor);
 
+                    auto newval = course;
+                         if (index1 < index2 || (index1 == index2 && upgrip.offset < dngrip.offset)) newval = tend::forward;
+                    else if (index1 > index2 || (index1 == index2 && upgrip.offset > dngrip.offset)) newval = tend::reverse;
+
+                    log("  newval=", _str(newval));
+
+                    if (course != newval && !selection_selbox())
+                    {
+                        log("course != newval");
+                        if (course != tend::unknown)
+                        {
+                            auto step = course == tend::forward ? 1 : -1;
+                            upgrip.corner.x -= step;
+                            upgrip.offset   -= step;
+                            log("  oldval course=", _str(course));
+                            if (upgrip.offset < 0)
+                            {
+                                //todo recalc
+                                // upgrip.anchor -= 1;
+                                // upgrip.cornar =
+                                // upgrip.offset =
+                            }
+                        }
+                        else
+                        {
+                            if (upgrip.offset == 0 && newval == tend::reverse)
+                            {
+                                auto step = 1;
+                                upgrip.corner.x -= step;
+                                upgrip.offset   -= step;
+                                log("  oldval course=", _str(course));
+                                if (upgrip.offset < 0)
+                                {
+                                    //todo recalc
+                                    // upgrip.anchor -= 1;
+                                    // upgrip.cornar =
+                                    // upgrip.offset =
+                                }
+                            }
+                        }
+                        course = newval;
+                    }
                     selection_selbox(mode);
                 }
                 return state;
