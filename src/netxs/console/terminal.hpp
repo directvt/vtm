@@ -4194,122 +4194,6 @@ namespace netxs::ui
                         //auto c1 = [](rgba clr){ return cell::shaders::fusefull(cell{}.bgc(clr)); };
                         auto c1 = [](rgba clr){ return cell::shaders::xlight; };
 
-/*
-                        if (isopen)
-                        {
-                            //todo calc offsets
-                        }
-                        else
-                        {
-                            //todo recalc curtop and curend using offsets
-                        }
-
-                        auto grip1 = upgrip;
-                        auto grip2 = dngrip;
-                        auto i_cur = batch.index_by_id(batch.ancid);
-                        auto i_top = batch.index_by_id(upgrip.anchor);
-                        auto i_end = batch.index_by_id(dngrip.anchor);
-                        auto start = batch.begin() + i_cur;
-                        auto limit = batch.end();
-                        auto vtpos = batch.slide - batch.ancdy;
-                        auto mxpos = batch.slide + panel.y;
-                        if (i_top > i_end || (i_top == i_end && grip1.offset > grip2.offset))
-                        {
-                            std::swap(grip1, grip2);
-                        }
-
-                        auto shade = [&](auto& curln, auto p1, auto p2, bool crlf)
-                        {
-                            if (p1 > p2) p1 = p2;
-                            
-                            auto adjust = curln.style.jet();
-                            auto length = curln.length();
-                            auto iswrap = curln.wrapped();
-                            auto square = full;
-                            square.coor.y += vtpos;
-                            if (iswrap)
-                            {
-                                auto dy = std::max(0, p1 / panel.x);
-                                auto g2 = std::clamp(p2, 0, length - 1);
-                                if (crlf) g2++;
-                                auto tail_length = std::max(0, g2 - dy * panel.x);
-                                square.coor.y += dy;
-                                if (tail_length > panel.x)
-                                {
-                                    if (p1 >= 0)
-                                    {
-                                        auto dx = p1 % panel.x;
-                                        auto tailsz = twod{ panel.x - dx, 1 };
-                                        auto remain = rect{ square.coor, tailsz };
-                                        remain.coor.x += dx;
-                                        target.fill(remain.clip(view), c1(reddk));
-                                    }
-                                    square.size.y = (tail_length - 1) / panel.x - 1;
-                                    auto tailsz = twod{ (tail_length - 1) % panel.x + 1, 1 };
-                                    tailsz.x += 1;
-                                    auto remain = rect{ square.coor, tailsz };
-                                    remain.coor.y += square.size.y + 1;
-                                    target.fill(remain.clip(view), c1(greendk));
-                                    square.coor.y += 1;
-                                }
-                                else
-                                {
-                                    auto qqq = std::clamp(p1 % panel.x, 0, tail_length);
-                                    square.coor.x += qqq;
-                                    square.size = { tail_length - qqq, 1 };
-                                    if ((p1 >= 0 && p1 < length) || crlf) square.size.x += 1;
-                                }
-                            }
-                            else
-                            {
-                                auto q2 = std::clamp(p2, 0, length - 1);
-                                auto q1 = std::clamp(p1, 0, q2);
-                                square.coor.x += q1;
-                                square.size = { q2 - q1, 1 };
-                                if (p1 < length) square.size.x += 1;
-                                if (crlf) square.size.x += 1;
-                            }
-                            target.fill(square.clip(view), c1(bluedk));
-
-                            if (adjust == bias::right)
-                            {
-
-                            }
-                            else if (adjust == bias::center)
-                            {
-
-                            }
-                        };
-                        auto the_same = [&](auto& curln)
-                        {
-                            if (curln.index == grip1.anchor)
-                            {
-                                shade(curln, grip1.offset, grip2.offset, faux);
-                                return true;
-                            }
-                            return faux;
-                        };
-                        auto not_same = [&](auto& curln)
-                        {
-                                 if (curln.index >  grip1.anchor
-                                  && curln.index <  grip2.anchor) shade(curln, 0,            curln.length(), true); // Draw the full blocks.
-                            else if (curln.index == grip1.anchor) shade(curln, grip1.offset, curln.length(), true); // Draw the first block.
-                            else if (curln.index == grip2.anchor) shade(curln, 0,            grip2.offset,   faux); // Draw the last block.
-                            return faux;
-                        };
-                        auto iterate = [&](auto shader)
-                        {
-                            while (start != limit && vtpos < mxpos)
-                            {
-                                auto& curln = *start;
-                                if (shader(curln)) break;
-                                vtpos += curln.height(panel.x);
-                                ++start;
-                            }
-                        };
-                        grip1.anchor == grip2.anchor ? iterate(the_same)
-                                                     : iterate(not_same);
-*/
                         target.vsize(batch.vsize + sctop + scend); // Include margins and bottom oversize.
                         auto coor = twod{ 0, batch.slide - batch.ancdy + y_top };
                         auto stop = batch.slide + panel.y;
@@ -4322,8 +4206,9 @@ namespace netxs::ui
                         while (head != tail && coor.y < stop)
                         {
                             auto& curln = *head;
+                            auto length = curln.length();
                             auto height = curln.height(panel.x);
-                            target.output_proxy(curln, coor, [&](auto const& coord, auto const& subblock, auto isr_to_l)
+                            auto drawfx = [&](auto const& coord, auto const& subblock, auto isr_to_l)
                             {
                                 if (coord.y < a.y) return;
                                 else if (coord.y > b.y)
@@ -4356,7 +4241,24 @@ namespace netxs::ui
                                     }
                                     target.fill(block.clip(view), c1(bluedk));
                                 }
-                            });
+                            };
+                            if (length)
+                            {
+                                target.output_proxy(curln, coor, drawfx);
+                            }
+                            else
+                            {
+                                auto align = curln.style.jet();
+                                auto coord = coor + full.coor;
+                                switch (align)
+                                {
+                                    case bias::none:
+                                    case bias::left:   break;
+                                    case bias::right:  coord.x += panel.x - 1; break;
+                                    case bias::center: coord.x += panel.x / 2; break;                                
+                                }
+                                drawfx(coord, utf::view{" "}, faux);
+                            }
                             coor.y += height;
                             ++head;
                         }
