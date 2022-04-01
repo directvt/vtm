@@ -2812,7 +2812,8 @@ namespace netxs::ui
             // scroll_buf: Recalc left and right oversize.
             bool recalc_pads(side& oversz) override
             {
-                auto rght = std::max({0, batch.max<line::type::leftside>() - panel.x, coord.x - panel.x + 1 }); // Take into account the cursor position.
+                auto coor = get_coord();
+                auto rght = std::max({0, batch.max<line::type::leftside>() - panel.x, coor.x - panel.x + 1 }); // Take into account the cursor position.
                 auto left = std::max( 0, batch.max<line::type::rghtside>() - panel.x );
                 auto cntr = std::max( 0, batch.max<line::type::centered>() - panel.x );
                 auto bttm = std::max( 0, batch.vsize - (batch.basis + arena)         );
@@ -2852,7 +2853,7 @@ namespace netxs::ui
                 return avail;
             }
             // scroll_buf: Return current 0-based cursor position in the scrollback.
-            twod get_coord(twod const& origin) override
+            twod get_coord(twod const& origin = {}) override
             {
                 auto coor = coord;
                 if (coor.y >= y_top
