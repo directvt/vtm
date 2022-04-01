@@ -3954,7 +3954,7 @@ namespace netxs::ui
             {
                 id_t anchor{}; // Anchor id.
                 twod corner{}; // 2D offset relative to anchor (boxed).
-                si32 offset{}; // 1D offset relative to anchor (lines).
+                si32 offset{}; // 1D offset relative to line beginning (lines).
                 void reset(id_t index)
                 {
                     anchor = index;
@@ -3967,11 +3967,18 @@ namespace netxs::ui
 
             auto selection_coor_to_grip(twod coord)
             {
+                //todo revise
+                auto index = batch.front().index;
+                if (coord.y < 0)
+                {
+                    return grip{ .anchor = index,
+                                 .corner = coord,
+                                 .offset = coord.x + coord.y * panel.x };
+                }
                 auto i_cur = batch.index_by_id(batch.ancid);
                 assert(i_cur < batch.size);
                 auto vtpos = batch.slide - batch.ancdy;
                 auto mxpos = batch.slide + panel.y;
-                auto index = batch.front().index;
                 auto start = batch.begin() + i_cur;
                 auto limit = batch.end();
                 while (vtpos < mxpos)
@@ -3987,10 +3994,12 @@ namespace netxs::ui
                 }
                 coord.y -= vtpos;
                 //todo check alignment (arighted, centered)
+                // bind the grip according its alignment
                 return grip{ .anchor = index,
                              .corner = coord,
                              .offset = coord.x + coord.y * panel.x };
             }
+            template<bool SORT = faux>
             auto selection_take_boxed_grips()
             {
                 auto i_cur = batch.index_by_id(batch.ancid);
@@ -4058,13 +4067,18 @@ namespace netxs::ui
                     vtpos += height;
                     ++start;
                 }
-                if (!isopen)
+                if (!isopen || selection_selbox())
                 {
                     auto square = owner.actual_area<faux>();
                     auto minlim = square.coor;
                     auto maxlim = square.coor + square.size - dot_11;
                     coor1 = std::clamp(coor1, minlim, maxlim);
                     coor2 = std::clamp(coor2, minlim, maxlim);
+                }
+                if (SORT
+                && (coor1.y > coor2.y || (coor1.y == coor2.y && coor1.x > coor2.y)))
+                {
+                    std::swap(coor1, coor2);
                 }
                 return std::pair{ coor1, coor2 };
             }
@@ -4125,19 +4139,101 @@ namespace netxs::ui
             void selection_finish() override
             {
                 isopen = faux;
-                if (!selection_selbox() && upgrip.anchor == dngrip.anchor)
+                if (selection_selbox())
                 {
-                    auto& curln = batch.item_by_id(upgrip.anchor);
-                    auto length = curln.length();
-                    if (upgrip.offset >= length && dngrip.offset >= length
-                     || upgrip.offset <  0      && dngrip.offset <  0)
+                    auto [curtop, curend] = selection_take_boxed_grips<true>();
+                    upgrip = selection_coor_to_grip(curtop);
+                    dngrip = selection_coor_to_grip(curend);
+                }
+                else
+                {
+                    if (upgrip.anchor == dngrip.anchor)
+                    {
+                        auto& curln = batch.item_by_id(upgrip.anchor);
+                        auto length = curln.length();
+                        if (upgrip.offset >= length && dngrip.offset >= length
+                         || upgrip.offset <  0      && dngrip.offset <  0)
+                        {
+                            selection_cancel();
+                            return;
+                        }
+                    }
+
+                    auto i_top = batch.index_by_id(upgrip.anchor);
+                    auto i_end = batch.index_by_id(dngrip.anchor);
+
+                    if (i_top >  i_end
+                    || (i_top == i_end && upgrip.offset > dngrip.offset))
+                    {
+                        std::swap(i_top, i_end);
+                        std::swap(upgrip, dngrip);
+                    }
+
+                    if (i_top >= batch.size || i_end < 0)
                     {
                         selection_cancel();
+                        return;
                     }
-                    else
+                    auto& topln = batch.front();
+                    auto& endln = batch.back();
+
+                    //todo line aligning
+                    if (i_top < 0)
                     {
-                        //todo recalc offsets
-                        //...
+                        upgrip.anchor = topln.index;
+                        upgrip.offset = 0;
+                        upgrip.corner = {};
+                    }
+                    if (i_end >= batch.size)
+                    {
+                        auto length = std::max(0, endln.length() - 1);
+                        dngrip.anchor = endln.index;
+                        dngrip.offset = length;
+                        dngrip.corner = {length % panel.x, length / panel.x};
+                    }
+
+                    auto l1 = batch.item_by_id(upgrip.anchor).length();
+                    if (l1 > 0 && upgrip.offset >= l1
+                     || l1 == 0 && upgrip.offset > 0)
+                    {
+                        log("1");
+                        if (upgrip.anchor == endln.index)
+                        {
+                            selection_cancel();
+                            return;
+                        }
+                        auto index = upgrip.anchor + 1;
+                        upgrip.anchor = index;
+                        upgrip.offset = 0;
+                        upgrip.corner = {};
+                    }
+                    else if (upgrip.offset < 0)
+                    {
+                        log("2");
+                        upgrip.offset = 0;
+                        upgrip.corner = {};
+                    }
+
+                    if (dngrip.offset < 0)
+                    {
+                        log("3");
+                        if (dngrip.anchor == topln.index)
+                        {
+                            selection_cancel();
+                            return;
+                        }
+                        auto index = dngrip.anchor - 1;
+                        auto length = std::max(0, batch.item_by_id(index).length() - 1);
+                        dngrip.anchor = index;
+                        dngrip.offset = length;
+                        dngrip.corner = {length % panel.x, length / panel.x};
+                    }
+                    else if (dngrip.offset >= batch.item_by_id(dngrip.anchor).length())
+                    {
+                        log("4");
+                        auto length = std::max(0, batch.item_by_id(dngrip.anchor).length() - 1);
+                        dngrip.offset = length;
+                        dngrip.corner = {length % panel.x, length / panel.x};
                     }
                 }
             }
@@ -4163,10 +4259,9 @@ namespace netxs::ui
                     }
                     else
                     {
-                        auto [curtop, curend] = selection_take_boxed_grips();
+                        auto [curtop, curend] = selection_take_boxed_grips<true>();
                         curtop += full.coor;
                         curend += full.coor;
-                        if (curtop.y > curend.y || (curtop.y == curend.y && curtop.x > curend.y)) std::swap(curtop, curend);
 
                         //auto c1 = [](cell& c)
                         //{
