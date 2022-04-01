@@ -3954,12 +3954,9 @@ namespace netxs::ui
                 id_t anchor{}; // Anchor id.
                 twod corner{}; // 2D offset relative to anchor (boxed).
                 si32 offset{}; // 1D offset relative to anchor (lines).
-                template<bool RESET_Y>
-                void reset(line const& curln)
+                void reset(id_t index)
                 {
-                    anchor = curln.index;
-                    if constexpr (RESET_Y) corner.y = 0;
-                    //todo check alignment (arighted, centered)
+                    anchor = index;
                     offset = corner.x;
                 }
             };
@@ -3967,67 +3964,58 @@ namespace netxs::ui
             grip dngrip;
             bool isopen{}; // Selection process is not complete.
 
-            auto selection_coor_to_grip(twod coor)
+            auto selection_coor_to_grip(twod coord)
             {
-                grip value;
                 auto i_cur = batch.index_by_id(batch.ancid);
                 assert(i_cur < batch.size);
                 auto vtpos = batch.slide - batch.ancdy;
                 auto mxpos = batch.slide + panel.y;
+                auto index = batch.front().index;
                 auto start = batch.begin() + i_cur;
                 auto limit = batch.end();
                 while (vtpos < mxpos)
                 {
                     auto& curln = *start;
                     auto newpos = vtpos + curln.height(panel.x);
-                    if ((coor.y >= vtpos && coor.y < newpos) || ++start == limit)
+                    if ((coord.y >= vtpos && coord.y < newpos) || ++start == limit)
                     {
-                        coor.y -= vtpos;
-                        value.anchor = curln.index;
-                        value.corner = coor;
-                        //todo check alignment (arighted, centered)
-                        value.offset = coor.x + coor.y * panel.x;
+                        index = curln.index;
                         break;
                     }
                     vtpos = newpos;
                 }
-                return value;
+                coord.y -= vtpos;
+                //todo check alignment (arighted, centered)
+                return grip{ .anchor = index,
+                             .corner = coord,
+                             .offset = coord.x + coord.y * panel.x };
             }
             auto selection_take_boxed_grips()
             {
                 auto i_cur = batch.index_by_id(batch.ancid);
                 auto i_top = batch.index_by_id(upgrip.anchor);
                 auto i_end = batch.index_by_id(dngrip.anchor);
-                if (i_top < 0 || i_end < 0) // Check the buffer ring.
+                if (i_top < 0 && i_end < 0) // Disable selection.
                 {
-                    if (i_top < 0 && i_end < 0) // Disable selection.
-                    {
-                        selection_cancel();
-                        isopen = faux;
-                        return std::pair{ dot_mx, dot_mx };
-                    }
-                    if (i_top < 0) upgrip.reset<true>(batch.front());
-                    if (i_end < 0) dngrip.reset<true>(batch.front());
+                    selection_cancel();
+                    isopen = faux;
+                    return std::pair{ dot_mx, dot_mx };
                 }
-                if (i_top >= batch.size) upgrip.reset<faux>(batch.back());
-                if (i_end >= batch.size) dngrip.reset<faux>(batch.back());
                 auto coor1 = upgrip.corner;
                 auto coor2 = dngrip.corner;
                 auto start = batch.begin() + i_cur;
                 auto limit = batch.end();
+                auto topid = batch.front().index;
                 auto endid = batch.back().index;
                 auto vtpos = batch.slide - batch.ancdy;
                 auto mxpos = batch.slide + panel.y;
                 auto done1 = true;
                 auto done2 = true;
-                coor1.y = i_top < i_cur ? 0 : dot_mx.y;
-                coor2.y = i_end < i_cur ? 0 : dot_mx.y;
                 auto check = [&](auto height, auto& curln, auto& undone, auto& grip, auto& coor)
                 {
                     if (undone && grip.anchor == curln.index)
                     {
                         undone = faux;
-                        coor.y = vtpos + grip.corner.y;
                         if (grip.corner.y >= height && grip.anchor != endid) // Try to re anchor it.
                         {
                             auto head = start + 1;
@@ -4048,8 +4036,18 @@ namespace netxs::ui
                                 ypos -= height;
                             }
                         }
+                        coor.y = vtpos + grip.corner.y;
                     }
                 };
+                // Check the buffer ring.
+                     if (i_top < 0)           upgrip.reset(topid);
+                else if (i_top >= batch.size) upgrip.reset(endid);
+                     if (i_end < 0)           dngrip.reset(topid);
+                else if (i_end >= batch.size) dngrip.reset(endid);
+
+                coor1.y = i_top < i_cur ? -dot_mx.y : dot_mx.y;
+                coor2.y = i_end < i_cur ? -dot_mx.y : dot_mx.y;
+
                 while (start != limit && vtpos < mxpos && (done1 || done2))
                 {
                     auto& curln = *start;
@@ -4059,12 +4057,15 @@ namespace netxs::ui
                     vtpos += height;
                     ++start;
                 }
-                auto square = owner.actual_area<faux>();
-                auto minlim = square.coor;
-                auto maxlim = square.coor + square.size - dot_11;
-                auto curtop = std::clamp(coor1, minlim, maxlim);
-                auto curend = std::clamp(coor2, minlim, maxlim);
-                return std::pair{ curtop, curend };
+                if (!isopen)
+                {
+                    auto square = owner.actual_area<faux>();
+                    auto minlim = square.coor;
+                    auto maxlim = square.coor + square.size - dot_11;
+                    coor1 = std::clamp(coor1, minlim, maxlim);
+                    coor2 = std::clamp(coor2, minlim, maxlim);
+                }
+                return std::pair{ coor1, coor2 };
             }
             // scroll_buf: Start text selection.
             void selection_create(twod const& coor, bool mode) override
@@ -4072,14 +4073,12 @@ namespace netxs::ui
                 auto nohits = [&]()
                 {
                     auto [seltop, selend] = selection_take_boxed_grips();
-
                     if (coor == seltop)
                     {
                         std::swap(upgrip, dngrip);
                         std::swap(seltop, selend);
                     }
                     else if (coor != selend) return true;
-
                     return faux;
                 };
                 if (!selection_active() || isopen || nohits())
@@ -4088,7 +4087,6 @@ namespace netxs::ui
                     dngrip = upgrip;
                     selection_active(true);
                 }
-                //...
                 selection_selbox(mode);
                 isopen = true;
             }
@@ -4165,6 +4163,9 @@ namespace netxs::ui
                     else
                     {
                         auto [curtop, curend] = selection_take_boxed_grips();
+                        curtop += full.coor;
+                        curend += full.coor;
+                        if (curtop.y > curend.y || (curtop.y == curend.y && curtop.x > curend.y)) std::swap(curtop, curend);
 
                         //auto c1 = [](cell& c)
                         //{
@@ -4181,52 +4182,48 @@ namespace netxs::ui
                         auto stop = batch.slide + panel.y;
                         auto head = batch.iter_by_id(batch.ancid);
                         auto tail = batch.end();
-                        auto a = curtop + full.coor;
-                        auto b = curend + full.coor;
-                        if (a.y > b.y || (a.y == b.y && a.x > b.y)) std::swap(a, b);
-
+                        auto draw = [&](auto const& coord, auto const& subblock, auto isr_to_l)
+                        {
+                            if (coord.y < curtop.y) return;
+                            else if (coord.y > curend.y)
+                            {
+                                coor.y = stop;
+                            }
+                            else
+                            {
+                                auto block = rect{ coord, { subblock.length(), 1 }};
+                                if (coord.y == curtop.y)
+                                {
+                                    if (curtop.y == curend.y)
+                                    {
+                                        //todo set grip_1 & grip_2
+                                        auto bound = rect{ curtop, { curend.x - curtop.x, 1 }};
+                                        block = block.clip(bound);
+                                    }
+                                    else
+                                    {
+                                        //todo set grip_1
+                                        auto bound = rect{ curtop, { dot_mx.x, 1 }};
+                                        block = block.clip(bound);
+                                    }
+                                }
+                                else if (coord.y == curend.y)
+                                {
+                                    //todo set grip_2
+                                    auto bound = rect{ curend, { -dot_mx.x, 1 }}.normalize();
+                                    block = block.clip(bound);
+                                }
+                                target.fill(block.clip(view), c1(bluedk));
+                            }
+                        };
                         while (head != tail && coor.y < stop)
                         {
                             auto& curln = *head;
                             auto length = curln.length();
                             auto height = curln.height(panel.x);
-                            auto drawfx = [&](auto const& coord, auto const& subblock, auto isr_to_l)
-                            {
-                                if (coord.y < a.y) return;
-                                else if (coord.y > b.y)
-                                {
-                                    coor.y = stop;
-                                }
-                                else
-                                {
-                                    auto block = rect{ coord, { subblock.length(), 1 }};
-                                    if (coord.y == a.y)
-                                    {
-                                        if (a.y == b.y)
-                                        {
-                                            //todo set grip_1 & grip_2
-                                            auto bound = rect{ a, { b.x - a.x, 1 }};
-                                            block = block.clip(bound);
-                                        }
-                                        else
-                                        {
-                                            //todo set grip_1
-                                            auto bound = rect{ a, { dot_mx.x, 1 }};
-                                            block = block.clip(bound);
-                                        }
-                                    }
-                                    else if (coord.y == b.y)
-                                    {
-                                        //todo set grip_2
-                                        auto bound = rect{ b, { -dot_mx.x, 1 }}.normalize();
-                                        block = block.clip(bound);
-                                    }
-                                    target.fill(block.clip(view), c1(bluedk));
-                                }
-                            };
                             if (length)
                             {
-                                target.output_proxy(curln, coor, drawfx);
+                                target.output_proxy(curln, coor, draw);
                             }
                             else
                             {
@@ -4239,7 +4236,8 @@ namespace netxs::ui
                                     case bias::right:  coord.x += panel.x - 1; break;
                                     case bias::center: coord.x += panel.x / 2; break;                                
                                 }
-                                drawfx(coord, utf::view{" "}, faux);
+                                struct { auto length() const { return 1; }} empty;
+                                draw(coord, empty, faux);
                             }
                             coor.y += height;
                             ++head;
@@ -4249,8 +4247,8 @@ namespace netxs::ui
 
                         // if selection is not null
                         {
-                            auto grip_1 = rect{ a, dot_11 };
-                            auto grip_2 = rect{ b, dot_11 };
+                            auto grip_1 = rect{ curtop, dot_11 };
+                            auto grip_2 = rect{ curend, dot_11 };
                             target.fill(grip_1.clip(view), cell::shaders::invbit);
                             if (grip_1.coor != grip_2.coor)
                             {
@@ -4659,17 +4657,17 @@ namespace netxs::ui
             }
             if (delta)
             {
-                auto step = base::moveby(delta);
-                coord += delta - step;
+                auto shift = base::moveby(delta);
+                coord -= shift;
                 delta -= delta * 3 / 4; // Decrease scrolling speed.
                 worker.actify(0ms, [&, delta, coord, boxed](auto id) mutable // 0ms = current FPS ticks/sec. //todo make it configurable
                                     {
-                                        auto step = base::moveby(delta);
-                                        coord -= step;
+                                        auto shift = base::moveby(delta);
+                                        coord -= shift;
                                         if (target->selection_extend(coord, boxed))
                                         {
                                             base::deface();
-                                            return !!step;
+                                            return !!shift;
                                         }
                                         else return faux;
                                     });
