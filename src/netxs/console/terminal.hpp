@@ -3949,12 +3949,6 @@ namespace netxs::ui
                 reverse,
                 forward
             };
-            auto _str(tend t) // For debug.
-            {
-                return t == tend::forward ? "tend::forward" :
-                       t == tend::reverse ? "tend::reverse" :
-                                            "tend::unknown";
-            }
             struct grip
             {
                 id_t anchor{}; // Anchor id.
@@ -3971,7 +3965,6 @@ namespace netxs::ui
             };
             grip upgrip;
             grip dngrip;
-            tend course{}; // Selection orientation.
             bool isopen{}; // Selection process is not complete.
 
             auto selection_coor_to_grip(twod coor)
@@ -4087,24 +4080,17 @@ namespace netxs::ui
                     }
                     else if (coor != selend) return true;
 
-                    if (seltop.y < selend.y
-                    || (seltop.y == selend.y && seltop.x < selend.x)) course = tend::forward;
-                    else if (seltop == selend)                        course = tend::unknown;
-                    else                                              course = tend::reverse;
-
                     return faux;
                 };
                 if (!selection_active() || isopen || nohits())
                 {
                     upgrip = selection_coor_to_grip(coor);
                     dngrip = upgrip;
-                    course = tend::unknown;
                     selection_active(true);
                 }
                 //...
                 selection_selbox(mode);
                 isopen = true;
-                log("  create course=", _str(course));
             }
             // scroll_buf: Extend text selection.
             bool selection_extend(twod const& coor, bool mode) override
@@ -4113,51 +4099,6 @@ namespace netxs::ui
                 if (state)
                 {
                     dngrip = selection_coor_to_grip(coor);
-                    auto index1 = batch.index_by_id(upgrip.anchor);
-                    auto index2 = batch.index_by_id(dngrip.anchor);
-
-                    auto newval = course;
-                         if (index1 < index2 || (index1 == index2 && upgrip.offset < dngrip.offset)) newval = tend::forward;
-                    else if (index1 > index2 || (index1 == index2 && upgrip.offset > dngrip.offset)) newval = tend::reverse;
-
-                    log("  newval=", _str(newval));
-
-                    if (course != newval && !selection_selbox())
-                    {
-                        log("course != newval");
-                        if (course != tend::unknown)
-                        {
-                            auto step = course == tend::forward ? 1 : -1;
-                            upgrip.corner.x -= step;
-                            upgrip.offset   -= step;
-                            log("  oldval course=", _str(course));
-                            if (upgrip.offset < 0)
-                            {
-                                //todo recalc
-                                // upgrip.anchor -= 1;
-                                // upgrip.cornar =
-                                // upgrip.offset =
-                            }
-                        }
-                        else
-                        {
-                            if (upgrip.offset == 0 && newval == tend::reverse)
-                            {
-                                auto step = 1;
-                                upgrip.corner.x -= step;
-                                upgrip.offset   -= step;
-                                log("  oldval course=", _str(course));
-                                if (upgrip.offset < 0)
-                                {
-                                    //todo recalc
-                                    // upgrip.anchor -= 1;
-                                    // upgrip.cornar =
-                                    // upgrip.offset =
-                                }
-                            }
-                        }
-                        course = newval;
-                    }
                     selection_selbox(mode);
                 }
                 return state;
