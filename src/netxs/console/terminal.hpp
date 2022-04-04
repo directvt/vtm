@@ -763,6 +763,7 @@ namespace netxs::ui
 
             bool  alive; // bufferbase: Selection is active.
             bool  boxed; // bufferbase: Box selection mode.
+            si32  shore; // bufferbase: Left and right scrollbuffer indents.
 
             bufferbase(term& master)
                 : owner{ master },
@@ -778,7 +779,8 @@ namespace netxs::ui
                   notab{ faux   },
                   decom{ faux   },
                   alive{ faux   },
-                  boxed{ faux   }
+                  boxed{ faux   },
+                  shore{ 3      } //todo make it configurable
             {
                 parser::style = ansi::def_style;
             }
@@ -2812,14 +2814,13 @@ namespace netxs::ui
             // scroll_buf: Recalc left and right oversize.
             bool recalc_pads(side& oversz) override
             {
-                auto coor = get_coord();
-                auto rght = std::max({0, batch.max<line::type::leftside>() - panel.x, coor.x - panel.x + 1 }); // Take into account the cursor position.
-                auto left = std::max( 0, batch.max<line::type::rghtside>() - panel.x );
-                auto cntr = std::max( 0, batch.max<line::type::centered>() - panel.x );
-                auto bttm = std::max( 0, batch.vsize - (batch.basis + arena)         );
+                auto rght = std::max(0, batch.max<line::type::leftside>() - panel.x);
+                auto left = std::max(0, batch.max<line::type::rghtside>() - panel.x);
+                auto cntr = std::max(0, batch.max<line::type::centered>() - panel.x);
+                auto bttm = std::max(0, batch.vsize - batch.basis + arena          );
                 auto both = cntr >> 1;
-                left = std::max(left, both);
-                rght = std::max(rght, both + (cntr & 1));
+                left = shore + std::max(left, both);
+                rght = shore + std::max(rght, both + (cntr & 1));
                 if (oversz.r != rght || oversz.l != left || oversz.b != bttm)
                 {
                     oversz.r = rght;
@@ -3955,11 +3956,6 @@ namespace netxs::ui
                 id_t anchor{}; // Anchor id.
                 twod corner{}; // 2D offset relative to anchor (boxed).
                 si32 offset{}; // 1D offset relative to line beginning (lines).
-                void reset(id_t index)
-                {
-                    anchor = index;
-                    offset = corner.x;
-                }
             };
             grip upgrip;
             grip dngrip;
@@ -3973,7 +3969,8 @@ namespace netxs::ui
                 {
                     return grip{ .anchor = index,
                                  .corner = coord,
-                                 .offset = coord.x + coord.y * panel.x };
+                                 //.offset = coord.x + coord.y * panel.x 
+                                 };
                 }
                 auto i_cur = batch.index_by_id(batch.ancid);
                 assert(i_cur < batch.size);
@@ -3997,7 +3994,47 @@ namespace netxs::ui
                 // bind the grip according its alignment
                 return grip{ .anchor = index,
                              .corner = coord,
-                             .offset = coord.x + coord.y * panel.x };
+                             //.offset = coord.x + coord.y * panel.x 
+                             };
+                //switch (align)
+                //{
+                //    case bias::none:
+                //    case bias::left:
+                //        if (wraps)
+                //        {
+                //            if (coord.x < 0)
+                //            {
+                //                if (coord.y > 0)
+                //                {
+                //                    coord.x = panel.x - 1;
+                //                    coord.y -= 1;
+                //                }
+                //                else
+                //                {
+                //                    coord.x = -1;
+                //                    coord.y = 0;
+                //                }
+                //            }
+                //            else if (coord.x >= panel.x)
+                //            {
+                //                coord.x = panel.x - 1;
+                //            }
+                //            result.corner = coord;
+                //            result.offset = coord.x + coord.y * panel.x;
+                //        }
+                //        else
+                //        {
+                //            if (coord.x < 0)
+                //            {
+                //                coord.x = -1;
+                //                coord.y = 0;
+                //            }
+                //            result.corner = coord;
+                //            result.offset = coord.x + coord.y * panel.x;
+                //        }
+                //        break;
+                //}
+                //return result;
             }
             template<bool SORT = faux>
             auto selection_take_boxed_grips()
@@ -4037,10 +4074,10 @@ namespace netxs::ui
                                 auto height = curln.height(panel.x);
                                 if (ypos < height || ++head == limit)
                                 {
+                                    //todo check alignment (arighted, centered)
                                     grip.anchor = curln.index;
                                     grip.corner.y = ypos;
-                                    //todo check alignment (arighted, centered)
-                                    grip.offset = grip.corner.x + grip.corner.y * panel.x;
+                                    //grip.offset = grip.corner.x + grip.corner.y * panel.x;
                                     break;
                                 }
                                 ypos -= height;
@@ -4050,10 +4087,10 @@ namespace netxs::ui
                     }
                 };
                 // Check the buffer ring.
-                     if (i_top < 0)           upgrip.reset(topid);
-                else if (i_top >= batch.size) upgrip.reset(endid);
-                     if (i_end < 0)           dngrip.reset(topid);
-                else if (i_end >= batch.size) dngrip.reset(endid);
+                     if (i_top < 0)           upgrip.anchor = topid;
+                else if (i_top >= batch.size) upgrip.anchor = endid;
+                     if (i_end < 0)           dngrip.anchor = topid;
+                else if (i_end >= batch.size) dngrip.anchor = endid;
 
                 coor1.y = i_top < i_cur ? -dot_mx.y : dot_mx.y;
                 coor2.y = i_end < i_cur ? -dot_mx.y : dot_mx.y;
@@ -4067,7 +4104,7 @@ namespace netxs::ui
                     vtpos += height;
                     ++start;
                 }
-                if (!isopen || selection_selbox())
+                //if (!isopen || selection_selbox())
                 {
                     auto square = owner.actual_area<faux>();
                     auto minlim = square.coor;
@@ -4139,14 +4176,19 @@ namespace netxs::ui
             void selection_finish() override
             {
                 isopen = faux;
-                if (selection_selbox())
+                //if (selection_selbox())
                 {
                     auto [curtop, curend] = selection_take_boxed_grips<true>();
                     upgrip = selection_coor_to_grip(curtop);
                     dngrip = selection_coor_to_grip(curend);
                 }
+                /*
                 else
                 {
+                    //todo calc offsets
+                    upgrip.offset = 0;
+                    dngrip.offset = 0;
+                    //...
                     if (upgrip.anchor == dngrip.anchor)
                     {
                         auto& curln = batch.item_by_id(upgrip.anchor);
@@ -4176,22 +4218,20 @@ namespace netxs::ui
                     }
                     auto& topln = batch.front();
                     auto& endln = batch.back();
-
                     //todo line aligning
                     if (i_top < 0)
                     {
                         upgrip.anchor = topln.index;
-                        upgrip.offset = 0;
+                        //upgrip.offset = 0;
                         upgrip.corner = {};
                     }
                     if (i_end >= batch.size)
                     {
                         auto length = std::max(0, endln.length() - 1);
                         dngrip.anchor = endln.index;
-                        dngrip.offset = length;
+                        //dngrip.offset = length;
                         dngrip.corner = {length % panel.x, length / panel.x};
                     }
-
                     auto l1 = batch.item_by_id(upgrip.anchor).length();
                     if (l1 > 0 && upgrip.offset >= l1
                      || l1 == 0 && upgrip.offset > 0)
@@ -4204,16 +4244,15 @@ namespace netxs::ui
                         }
                         auto index = upgrip.anchor + 1;
                         upgrip.anchor = index;
-                        upgrip.offset = 0;
+                        //upgrip.offset = 0;
                         upgrip.corner = {};
                     }
                     else if (upgrip.offset < 0)
                     {
                         log("2");
-                        upgrip.offset = 0;
+                        //upgrip.offset = 0;
                         upgrip.corner = {};
                     }
-
                     if (dngrip.offset < 0)
                     {
                         log("3");
@@ -4225,17 +4264,18 @@ namespace netxs::ui
                         auto index = dngrip.anchor - 1;
                         auto length = std::max(0, batch.item_by_id(index).length() - 1);
                         dngrip.anchor = index;
-                        dngrip.offset = length;
+                        //dngrip.offset = length;
                         dngrip.corner = {length % panel.x, length / panel.x};
                     }
                     else if (dngrip.offset >= batch.item_by_id(dngrip.anchor).length())
                     {
                         log("4");
                         auto length = std::max(0, batch.item_by_id(dngrip.anchor).length() - 1);
-                        dngrip.offset = length;
+                        //dngrip.offset = length;
                         dngrip.corner = {length % panel.x, length / panel.x};
                     }
                 }
+                */
             }
             // scroll_buf: Highlight selection.
             void selection_render(face& target) override
@@ -4754,7 +4794,7 @@ namespace netxs::ui
             if (delta)
             {
                 auto shift = base::moveby(delta);
-                coord -= shift;
+                coord += delta - shift;
                 delta -= delta * 3 / 4; // Decrease scrolling speed.
                 worker.actify(0ms, [&, delta, coord, boxed](auto id) mutable // 0ms = current FPS ticks/sec. //todo make it configurable
                                     {
@@ -5032,13 +5072,27 @@ namespace netxs::ui
 
                 if (oversz.b > 0) // Shade the viewport bottom oversize (futures).
                 {
-                    auto bottom_oversize = parent_canvas.full();
+                    auto bottom_oversize = full;
                     bottom_oversize.coor.x -= oversz.l;
                     bottom_oversize.coor.y += console.get_basis() + console.panel.y - console.scend;
                     bottom_oversize.size.y  = oversz.b;
                     bottom_oversize.size.x += oversz.l + oversz.r;
-                    bottom_oversize = bottom_oversize.clip(parent_canvas.view());
+                    bottom_oversize = bottom_oversize.clip(view);
                     parent_canvas.fill(bottom_oversize, cell::shaders::xlight);
+                }
+
+                if (full.coor.x) // Shade left and right margins.
+                {
+                    auto west = full;
+                    west.size = dot_mx; //todo set only visible
+                    west.coor.y -= dot_mx.y / 2;
+                    auto east = west;
+                    west.coor.x -= oversz.l - console.shore + dot_mx.x;
+                    east.coor.x += oversz.r - console.shore + console.panel.x;
+                    west = west.clip(view);
+                    east = east.clip(view);
+                    parent_canvas.fill(west, [](auto& c){ c.bga(0xC0); });
+                    parent_canvas.fill(east, [](auto& c){ c.bga(0xC0); });
                 }
 
                 // Debug: Shade active viewport.
