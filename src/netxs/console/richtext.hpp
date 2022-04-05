@@ -277,10 +277,9 @@ namespace netxs::console
             return region.size;
         }
         template<bool USESGR = true, bool INITIAL = true, bool FINALISE = true>
-        auto meta(rect region) // core: Ansify/textify content of specified region.
+        auto meta(rect region, cell& state) // core: Ansify/textify content of specified region.
         {
             ansi::esc yield;
-            cell      state;
             auto badfx = [&](auto& state, auto& frame)
             {
                 state.set_gc();
@@ -341,6 +340,12 @@ namespace netxs::console
                 }
             }
             return static_cast<utf::text>(yield);
+        }
+        template<bool USESGR = true, bool INITIAL = true, bool FINALISE = true>
+        auto meta(rect region) // core: Ansify/textify content of specified region.
+        {
+            cell state;
+            return meta<USESGR, INITIAL, FINALISE>(region, state);
         }
         template<class P>
         void cage(ui::rect const& area, twod const& border_width, P fuse) // core: Draw the cage around specified area.

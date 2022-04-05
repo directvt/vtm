@@ -4093,10 +4093,10 @@ namespace netxs::ui
             // scroll_buf: Take selected data.
             text selection_pickup(bool usesgr) override
             {
-                text data;
+                ansi::esc yield;
                 if (selection_active())
                 {
-                    data = "test";
+                    //data = "test";
                     //...
                     if (selection_selbox())
                     {
@@ -4104,11 +4104,75 @@ namespace netxs::ui
                     }
                     else
                     {
-
-                        //...
+                        auto i_top = batch.index_by_id(upsel.anchor);
+                        auto i_end = batch.index_by_id(dnsel.anchor);
+                        if (i_top < 0 && i_end < 0)
+                        {
+                            selection_cancel();
+                            onsel = faux;
+                            return yield;
+                        }
+                        i_top = std::clamp(i_top, 0, batch.size - 1);
+                        i_end = std::clamp(i_end, 0, batch.size - 1);
+                        if (i_top >  i_end
+                        || (i_top == i_end && (upsel.corner.y >  dnsel.corner.y
+                                           || (upsel.corner.y == dnsel.corner.y && (upsel.corner.x > dnsel.corner.x)))))
+                        {
+                            std::swap(i_top, i_end);
+                            std::swap(upsel, dnsel);
+                        }
+                        auto start = batch.begin() + i_top;
+                        auto limit = batch.begin() + i_end;
+                        auto field = rect{ dot_00, dot_01 };
+                        auto state = cell{};
+                        if (i_top == i_end)
+                        {
+                            auto& curln = *start++;
+                            field.coor.x = upsel.corner.x + upsel.corner.y * panel.x;
+                            field.size.x = dnsel.corner.x + upsel.corner.y * panel.x;
+                            field.size.x = field.size.x - field.coor.x + 1;
+                            if (field.size.x > 0)
+                            {
+                                yield += curln.meta<true, faux, faux>(field, state);
+                            }
+                        }
+                        else
+                        {
+                            { // First line.
+                                auto& curln = *start++;
+                                auto length = curln.length();
+                                field.coor.x = upsel.corner.x + upsel.corner.y * panel.x;
+                                field.size.x = length - field.coor.x;
+                                if (field.size.x > 0)
+                                {
+                                    yield += curln.meta<true, true, faux>(field, state);
+                                }
+                                else yield.eol();
+                                field.coor.x = 0;
+                            }
+                            while (start != limit)
+                            {
+                                auto& curln = *start++;
+                                field.size.x = curln.length();
+                                if (field.size.x > 0)
+                                {
+                                    yield += curln.meta<true, faux, faux>(field, state);
+                                }
+                                else yield.eol();
+                            }
+                            { // Last line.
+                                auto& curln = *start++;
+                                auto length = curln.length();
+                                field.size.x = std::min(length, dnsel.corner.x + upsel.corner.y * panel.x + 1);
+                                if (field.size.x > 0)
+                                {
+                                    yield += curln.meta<true, true, faux>(field, state);
+                                }
+                            }
+                        }
                     }
                 }
-                return data;
+                return yield;
             }
             // scroll_buf: Signal about the end of the selection process.
             void selection_finish() override
@@ -4577,7 +4641,7 @@ namespace netxs::ui
                     log("term: selection is copied to clipboard, data.size=", data.size());
                 }
             }
-            if (selection_cancel(gear))
+            if (gear.meta(hids::ANYCTRL) || selection_cancel(gear)) // Keep selection if Ctrl is pressed.
             {
                 base::expire<tier::release>();
                 gear.dismiss();
