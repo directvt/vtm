@@ -4104,6 +4104,7 @@ namespace netxs::ui
                     }
                     else
                     {
+
                         //...
                     }
                 }
@@ -4546,12 +4547,13 @@ namespace netxs::ui
                 else if (origin.x >=-oversz.r && origin.x < console.shore - oversz.r) delta = { 1, console.shore - oversz.r };
                 if (delta.x)
                 {
+                    auto count = console.shore;
                     auto limit = delta.y;
                     delta.y = 0;
-                    worker.actify(commands::ui::center, 0ms, [&, delta, limit](auto id) mutable // 0ms = current FPS ticks/sec. //todo make it configurable
+                    worker.actify(commands::ui::center, 0ms, [&, delta, count, limit](auto id) mutable // 0ms = current FPS ticks/sec. //todo make it configurable
                     {
                         auto shift = base::moveby(delta);
-                        return origin.x != limit && !!shift;
+                        return count-- && (origin.x != limit && !!shift);
                     });
                 }
                 base::deface();
