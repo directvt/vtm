@@ -2827,7 +2827,7 @@ namespace netxs::ui
                 auto rght = std::max(0, batch.max<line::type::leftside>() - panel.x);
                 auto left = std::max(0, batch.max<line::type::rghtside>() - panel.x);
                 auto cntr = std::max(0, batch.max<line::type::centered>() - panel.x);
-                auto bttm = std::max(0, batch.vsize - batch.basis + arena          );
+                auto bttm = std::max(0, batch.vsize - batch.basis - arena          );
                 auto both = cntr >> 1;
                 left = shore + std::max(left, both);
                 rght = shore + std::max(rght, both + (cntr & 1));
@@ -4532,6 +4532,32 @@ namespace netxs::ui
             SIGNAL(tier::release, ui::term::events::usesgr, usesgr);
             log("selection_toggle_sgr usesgr=", usesgr?"true":"faux");
         }
+        auto selection_cancel(hids& gear)
+        {
+            if (mtrack) return faux;
+            auto active = target->selection_cancel();
+            if (active)
+            {
+                log(" selection_cancel coord=", gear.coord);
+                auto& console = *target;
+                worker.pacify();
+                auto delta = dot_00;
+                     if (origin.x <= oversz.l && origin.x > oversz.l - console.shore) delta = {-1, oversz.l - console.shore };
+                else if (origin.x >=-oversz.r && origin.x < console.shore - oversz.r) delta = { 1, console.shore - oversz.r };
+                if (delta.x)
+                {
+                    auto limit = delta.y;
+                    delta.y = 0;
+                    worker.actify(commands::ui::center, 0ms, [&, delta, limit](auto id) mutable // 0ms = current FPS ticks/sec. //todo make it configurable
+                    {
+                        auto shift = base::moveby(delta);
+                        return origin.x != limit && !!shift;
+                    });
+                }
+                base::deface();
+            }
+            return active;
+        }
         void selection_pickup(hids& gear)
         {
             if (mtrack) return;
@@ -4549,22 +4575,10 @@ namespace netxs::ui
                     log("term: selection is copied to clipboard, data.size=", data.size());
                 }
             }
-            if (target->selection_cancel())
+            if (selection_cancel(gear))
             {
                 base::expire<tier::release>();
-                base::deface();
                 gear.dismiss();
-                worker.pacify();
-            }
-        }
-        void selection_cancel(hids& gear)
-        {
-            if (mtrack) return;
-            if (target->selection_cancel())
-            {
-                log(" selection_cancel coord=", gear.coord);
-                worker.pacify();
-                base::deface();
             }
         }
         void selection_lclick(hids& gear)
