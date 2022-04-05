@@ -35,6 +35,7 @@ namespace netxs::ui
         static constexpr si32 def_length = 20000; // term: Default scrollback history length.
         static constexpr si32 def_growup = 0;     // term: Default scrollback history grow step.
         static constexpr si32 def_tablen = 8;     // term: Default tab length.
+        static constexpr auto def_lucent = 0xC0; // term:: Default transparency level.
 
     public:
         using events = netxs::events::userland::uiterm;
@@ -3659,12 +3660,8 @@ namespace netxs::ui
                 auto end_coor = twod{ view.coor.x, view.coor.y + y_end + 1     };
                 upbox.move(top_coor);
                 dnbox.move(end_coor);
-
-                //todo make translucency configurable
-                target.plot(upbox, [](auto& dst, auto& src){ dst.fuse(src); dst.bga(0xC0); });
-                target.plot(dnbox, [](auto& dst, auto& src){ dst.fuse(src); dst.bga(0xC0); });
-                //target.plot(upbox, cell::shaders::flat);
-                //target.plot(dnbox, cell::shaders::flat);
+                target.plot(upbox, cell::shaders::xlucent(def_lucent));
+                target.plot(dnbox, cell::shaders::xlucent(def_lucent));
 
                 selection_render(target);
             }
@@ -4333,7 +4330,7 @@ namespace netxs::ui
                                     if (curtop.y == curend.y)
                                     {
                                         //todo set grip_1 & grip_2
-                                        auto bound = rect{ curtop, { curend.x - curtop.x, 1 }};
+                                        auto bound = rect{ curtop, { curend.x - curtop.x, 1 }}.normalize();
                                         block = block.clip(bound);
                                     }
                                     else
@@ -5091,8 +5088,8 @@ namespace netxs::ui
                     east.coor.x += oversz.r - console.shore + console.panel.x;
                     west = west.clip(view);
                     east = east.clip(view);
-                    parent_canvas.fill(west, [](auto& c){ c.bga(0xC0); });
-                    parent_canvas.fill(east, [](auto& c){ c.bga(0xC0); });
+                    parent_canvas.fill(west, cell::shaders::xlucent(def_lucent));
+                    parent_canvas.fill(east, cell::shaders::xlucent(def_lucent));
                 }
 
                 // Debug: Shade active viewport.

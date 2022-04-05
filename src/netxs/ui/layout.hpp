@@ -1224,8 +1224,18 @@ namespace netxs::ui::atoms
                 template<class C> constexpr inline auto operator() (C brush) const { return func<C>(brush); }
                 template<class D, class S>  inline void operator() (D& dst, S& src) const { dst.mix(src, alpha); }
             };
+            struct xlucent_t
+            {
+                byte alpha;
+                constexpr xlucent_t(byte alpha) : alpha{ alpha }
+                { }
+                template<class D, class S>  inline void operator() (D& dst, S& src) const { dst.fuse(src); dst.bga(alpha); }
+                template<class D>           inline void operator() (D& dst)         const { dst.bga(alpha); }
+            };
 
         public:
+            static constexpr auto transparent(byte alpha) { return transparent_t{ alpha }; }
+            static constexpr auto     xlucent(byte alpha) { return     xlucent_t{ alpha }; }
             static constexpr auto contrast = contrast_t{};
             static constexpr auto fusefull = fusefull_t{};
             static constexpr auto     fuse =     fuse_t{};
@@ -1235,11 +1245,6 @@ namespace netxs::ui::atoms
             static constexpr auto   invert =   invert_t{};
             static constexpr auto  reverse =  reverse_t{};
             static constexpr auto   invbit =   invbit_t{};
-            
-            static constexpr auto transparent(byte alpha)
-            {
-                return transparent_t{ alpha };
-            }
         };
     };
 
