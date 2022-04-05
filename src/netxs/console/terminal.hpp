@@ -1972,6 +1972,11 @@ namespace netxs::ui
                       width{ width }
                 { }
             };
+            struct grip
+            {
+                id_t anchor{}; // scroll_buf::grip: Anchor id.
+                twod corner{}; // scroll_buf::grip: 2D offset relative to anchor.
+            };
 
             using ring = generics::ring<std::vector<line>, true>;
             using indx = generics::ring<std::vector<index_item>>;
@@ -2186,6 +2191,9 @@ namespace netxs::ui
             face dnbox; // scroll_buf: Bottom margin canvas.
             twod upmin; // scroll_buf:    Top margin minimal size.
             twod dnmin; // scroll_buf: Bottom margin minimal size.
+            grip upsel; // scroll_buf: Selection first grip.
+            grip dnsel; // scroll_buf: Selection second grip.
+            bool onsel; // scroll_buf: Selection process is not complete.
 
             static constexpr si32 approx_threshold = 10000; //todo make it configurable
 
@@ -2193,7 +2201,8 @@ namespace netxs::ui
                 : bufferbase{ boss                   },
                        batch{ buffer_size, grow_step },
                        index{ 0                      },
-                       arena{ 1                      }
+                       arena{ 1                      },
+                       onsel{ faux                   }
             {
                 batch.invite(0); // At least one line must exist.
                 batch.set_width(1);
@@ -3942,32 +3951,13 @@ namespace netxs::ui
                 assert(test_coord());
             }
 
-            enum tend
-            {
-                unknown,
-                reverse,
-                forward
-            };
-            struct grip
-            {
-                id_t anchor{}; // Anchor id.
-                twod corner{}; // 2D offset relative to anchor (boxed).
-                si32 offset{}; // 1D offset relative to line beginning (lines).
-            };
-            grip upgrip;
-            grip dngrip;
-            bool isopen{}; // Selection process is not complete.
-
             auto selection_coor_to_grip(twod coord)
             {
-                //todo revise
                 auto index = batch.front().index;
                 if (coord.y < 0)
                 {
                     return grip{ .anchor = index,
-                                 .corner = coord,
-                                 //.offset = coord.x + coord.y * panel.x 
-                                 };
+                                 .corner = coord };
                 }
                 auto i_cur = batch.index_by_id(batch.ancid);
                 assert(i_cur < batch.size);
@@ -3987,66 +3977,23 @@ namespace netxs::ui
                     vtpos = newpos;
                 }
                 coord.y -= vtpos;
-                //todo check alignment (arighted, centered)
-                // bind the grip according its alignment
                 return grip{ .anchor = index,
-                             .corner = coord,
-                             //.offset = coord.x + coord.y * panel.x 
-                             };
-                //switch (align)
-                //{
-                //    case bias::none:
-                //    case bias::left:
-                //        if (wraps)
-                //        {
-                //            if (coord.x < 0)
-                //            {
-                //                if (coord.y > 0)
-                //                {
-                //                    coord.x = panel.x - 1;
-                //                    coord.y -= 1;
-                //                }
-                //                else
-                //                {
-                //                    coord.x = -1;
-                //                    coord.y = 0;
-                //                }
-                //            }
-                //            else if (coord.x >= panel.x)
-                //            {
-                //                coord.x = panel.x - 1;
-                //            }
-                //            result.corner = coord;
-                //            result.offset = coord.x + coord.y * panel.x;
-                //        }
-                //        else
-                //        {
-                //            if (coord.x < 0)
-                //            {
-                //                coord.x = -1;
-                //                coord.y = 0;
-                //            }
-                //            result.corner = coord;
-                //            result.offset = coord.x + coord.y * panel.x;
-                //        }
-                //        break;
-                //}
-                //return result;
+                             .corner = coord };
             }
             template<bool SORT = faux>
-            auto selection_take_boxed_grips()
+            auto selection_take_grips()
             {
                 auto i_cur = batch.index_by_id(batch.ancid);
-                auto i_top = batch.index_by_id(upgrip.anchor);
-                auto i_end = batch.index_by_id(dngrip.anchor);
-                if (i_top < 0 && i_end < 0) // Disable selection.
+                auto i_top = batch.index_by_id(upsel.anchor);
+                auto i_end = batch.index_by_id(dnsel.anchor);
+                if (i_top < 0 && i_end < 0)
                 {
                     selection_cancel();
-                    isopen = faux;
+                    onsel = faux;
                     return std::pair{ dot_mx, dot_mx };
                 }
-                auto coor1 = upgrip.corner;
-                auto coor2 = dngrip.corner;
+                auto coor1 = upsel.corner;
+                auto coor2 = dnsel.corner;
                 auto start = batch.begin() + i_cur;
                 auto limit = batch.end();
                 auto topid = batch.front().index;
@@ -4071,10 +4018,8 @@ namespace netxs::ui
                                 auto height = curln.height(panel.x);
                                 if (ypos < height || ++head == limit)
                                 {
-                                    //todo check alignment (arighted, centered)
                                     grip.anchor = curln.index;
                                     grip.corner.y = ypos;
-                                    //grip.offset = grip.corner.x + grip.corner.y * panel.x;
                                     break;
                                 }
                                 ypos -= height;
@@ -4084,10 +4029,10 @@ namespace netxs::ui
                     }
                 };
                 // Check the buffer ring.
-                     if (i_top < 0)           upgrip.anchor = topid;
-                else if (i_top >= batch.size) upgrip.anchor = endid;
-                     if (i_end < 0)           dngrip.anchor = topid;
-                else if (i_end >= batch.size) dngrip.anchor = endid;
+                     if (i_top < 0)           upsel.anchor = topid;
+                else if (i_top >= batch.size) upsel.anchor = endid;
+                     if (i_end < 0)           dnsel.anchor = topid;
+                else if (i_end >= batch.size) dnsel.anchor = endid;
 
                 coor1.y = i_top < i_cur ? -dot_mx.y : dot_mx.y;
                 coor2.y = i_end < i_cur ? -dot_mx.y : dot_mx.y;
@@ -4096,21 +4041,20 @@ namespace netxs::ui
                 {
                     auto& curln = *start;
                     auto height = curln.height(panel.x);
-                    check(height, curln, done1, upgrip, coor1);
-                    check(height, curln, done2, dngrip, coor2);
+                    check(height, curln, done1, upsel, coor1);
+                    check(height, curln, done2, dnsel, coor2);
                     vtpos += height;
                     ++start;
                 }
-                //if (!isopen || selection_selbox())
-                {
-                    auto square = owner.actual_area<faux>();
-                    auto minlim = square.coor;
-                    auto maxlim = square.coor + square.size - dot_11;
-                    coor1 = std::clamp(coor1, minlim, maxlim);
-                    coor2 = std::clamp(coor2, minlim, maxlim);
-                }
+
+                auto square = owner.actual_area<faux>();
+                auto minlim = square.coor;
+                auto maxlim = square.coor + square.size - dot_11;
+                coor1 = std::clamp(coor1, minlim, maxlim);
+                coor2 = std::clamp(coor2, minlim, maxlim);
+
                 if (SORT
-                && (coor1.y > coor2.y || (coor1.y == coor2.y && coor1.x > coor2.y)))
+                && (coor1.y > coor2.y || (coor1.y == coor2.y && coor1.x > coor2.x)))
                 {
                     std::swap(coor1, coor2);
                 }
@@ -4121,23 +4065,19 @@ namespace netxs::ui
             {
                 auto nohits = [&]()
                 {
-                    auto [seltop, selend] = selection_take_boxed_grips();
-                    if (coor == seltop)
-                    {
-                        std::swap(upgrip, dngrip);
-                        std::swap(seltop, selend);
-                    }
+                    auto [seltop, selend] = selection_take_grips();
+                         if (coor == seltop) std::swap(upsel, dnsel);
                     else if (coor != selend) return true;
                     return faux;
                 };
-                if (!selection_active() || isopen || nohits())
+                if (!selection_active() || onsel || nohits())
                 {
-                    upgrip = selection_coor_to_grip(coor);
-                    dngrip = upgrip;
+                    upsel = selection_coor_to_grip(coor);
+                    dnsel = upsel;
                     selection_active(true);
                 }
                 selection_selbox(mode);
-                isopen = true;
+                onsel = true;
             }
             // scroll_buf: Extend text selection.
             bool selection_extend(twod const& coor, bool mode) override
@@ -4145,7 +4085,7 @@ namespace netxs::ui
                 auto state = selection_active();
                 if (state)
                 {
-                    dngrip = selection_coor_to_grip(coor);
+                    dnsel = selection_coor_to_grip(coor);
                     selection_selbox(mode);
                 }
                 return state;
@@ -4172,107 +4112,10 @@ namespace netxs::ui
             // scroll_buf: Signal about the end of the selection process.
             void selection_finish() override
             {
-                isopen = faux;
-                //if (selection_selbox())
-                {
-                    auto [curtop, curend] = selection_take_boxed_grips<true>();
-                    upgrip = selection_coor_to_grip(curtop);
-                    dngrip = selection_coor_to_grip(curend);
-                }
-                /*
-                else
-                {
-                    //todo calc offsets
-                    upgrip.offset = 0;
-                    dngrip.offset = 0;
-                    //...
-                    if (upgrip.anchor == dngrip.anchor)
-                    {
-                        auto& curln = batch.item_by_id(upgrip.anchor);
-                        auto length = curln.length();
-                        if (upgrip.offset >= length && dngrip.offset >= length
-                         || upgrip.offset <  0      && dngrip.offset <  0)
-                        {
-                            selection_cancel();
-                            return;
-                        }
-                    }
-
-                    auto i_top = batch.index_by_id(upgrip.anchor);
-                    auto i_end = batch.index_by_id(dngrip.anchor);
-
-                    if (i_top >  i_end
-                    || (i_top == i_end && upgrip.offset > dngrip.offset))
-                    {
-                        std::swap(i_top, i_end);
-                        std::swap(upgrip, dngrip);
-                    }
-
-                    if (i_top >= batch.size || i_end < 0)
-                    {
-                        selection_cancel();
-                        return;
-                    }
-                    auto& topln = batch.front();
-                    auto& endln = batch.back();
-                    //todo line aligning
-                    if (i_top < 0)
-                    {
-                        upgrip.anchor = topln.index;
-                        //upgrip.offset = 0;
-                        upgrip.corner = {};
-                    }
-                    if (i_end >= batch.size)
-                    {
-                        auto length = std::max(0, endln.length() - 1);
-                        dngrip.anchor = endln.index;
-                        //dngrip.offset = length;
-                        dngrip.corner = {length % panel.x, length / panel.x};
-                    }
-                    auto l1 = batch.item_by_id(upgrip.anchor).length();
-                    if (l1 > 0 && upgrip.offset >= l1
-                     || l1 == 0 && upgrip.offset > 0)
-                    {
-                        log("1");
-                        if (upgrip.anchor == endln.index)
-                        {
-                            selection_cancel();
-                            return;
-                        }
-                        auto index = upgrip.anchor + 1;
-                        upgrip.anchor = index;
-                        //upgrip.offset = 0;
-                        upgrip.corner = {};
-                    }
-                    else if (upgrip.offset < 0)
-                    {
-                        log("2");
-                        //upgrip.offset = 0;
-                        upgrip.corner = {};
-                    }
-                    if (dngrip.offset < 0)
-                    {
-                        log("3");
-                        if (dngrip.anchor == topln.index)
-                        {
-                            selection_cancel();
-                            return;
-                        }
-                        auto index = dngrip.anchor - 1;
-                        auto length = std::max(0, batch.item_by_id(index).length() - 1);
-                        dngrip.anchor = index;
-                        //dngrip.offset = length;
-                        dngrip.corner = {length % panel.x, length / panel.x};
-                    }
-                    else if (dngrip.offset >= batch.item_by_id(dngrip.anchor).length())
-                    {
-                        log("4");
-                        auto length = std::max(0, batch.item_by_id(dngrip.anchor).length() - 1);
-                        //dngrip.offset = length;
-                        dngrip.corner = {length % panel.x, length / panel.x};
-                    }
-                }
-                */
+                auto [curtop, curend] = selection_take_grips<true>();
+                upsel = selection_coor_to_grip(curtop);
+                dnsel = selection_coor_to_grip(curend);
+                onsel = faux;
             }
             // scroll_buf: Highlight selection.
             void selection_render(face& target) override
@@ -4283,7 +4126,7 @@ namespace netxs::ui
                     auto full = target.full();
                     if (selection_selbox())
                     {
-                        auto [curtop, curend] = selection_take_boxed_grips();
+                        auto [curtop, curend] = selection_take_grips();
                         auto grip_1 = rect{ curtop + full.coor, dot_11 };
                         auto grip_2 = rect{ curend + full.coor, dot_11 };
                         auto square = grip_1 | grip_2;
@@ -4296,20 +4139,9 @@ namespace netxs::ui
                     }
                     else
                     {
-                        auto [curtop, curend] = selection_take_boxed_grips<true>();
+                        auto [curtop, curend] = selection_take_grips<true>();
                         curtop += full.coor;
                         curend += full.coor;
-
-                        //auto c1 = [](cell& c)
-                        //{
-                        //    if (c.bgc() == bluedk)  c.bgc(bluelt);
-                        //    else                    c.bgc(bluedk);
-                        //    if (c.fgc() == c.bgc()) c.fgc(whitelt);
-                        //};
-                        //auto c1 = [](rgba clr){ return cell::shaders::fusefull(cell{}.bgc(clr).bga(0x70)); };
-                        //auto c1 = [](rgba clr){ return cell::shaders::fusefull(cell{}.bgc(clr)); };
-                        auto c1 = [](rgba clr){ return cell::shaders::xlight; };
-
                         target.vsize(batch.vsize + sctop + scend); // Include margins and bottom oversize.
                         auto coor = twod{ 0, batch.slide - batch.ancdy + y_top };
                         auto stop = batch.slide + panel.y;
@@ -4317,36 +4149,24 @@ namespace netxs::ui
                         auto tail = batch.end();
                         auto draw = [&](auto const& coord, auto const& subblock, auto isr_to_l)
                         {
-                            if (coord.y < curtop.y) return;
-                            else if (coord.y > curend.y)
-                            {
-                                coor.y = stop;
-                            }
+                                 if (coord.y < curtop.y) return;
+                            else if (coord.y > curend.y) coor.y = stop;
                             else
                             {
                                 auto block = rect{ coord, { subblock.length(), 1 }};
                                 if (coord.y == curtop.y)
                                 {
-                                    if (curtop.y == curend.y)
-                                    {
-                                        //todo set grip_1 & grip_2
-                                        auto bound = rect{ curtop, { curend.x - curtop.x, 1 }}.normalize();
-                                        block = block.clip(bound);
-                                    }
-                                    else
-                                    {
-                                        //todo set grip_1
-                                        auto bound = rect{ curtop, { dot_mx.x, 1 }};
-                                        block = block.clip(bound);
-                                    }
+                                    auto width = curtop.y == curend.y ? curend.x - curtop.x
+                                                                      : dot_mx.x;
+                                    auto bound = rect{ curtop, { width, 1 }};
+                                    block = block.clip(bound);
                                 }
                                 else if (coord.y == curend.y)
                                 {
-                                    //todo set grip_2
                                     auto bound = rect{ curend, { -dot_mx.x, 1 }}.normalize();
                                     block = block.clip(bound);
                                 }
-                                target.fill(block.clip(view), c1(bluedk));
+                                target.fill(block.clip(view), cell::shaders::xlight);
                             }
                         };
                         while (head != tail && coor.y < stop)

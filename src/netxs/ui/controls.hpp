@@ -17,8 +17,14 @@ namespace netxs::ui
 
     enum sort
     {
-         forward,
-         reverse,
+        forward,
+        reverse,
+    };
+    enum class tend
+    {
+        unknown,
+        forward,
+        reverse,
     };
     enum slot { _1, _2, _I };
     enum axis { X, Y };
