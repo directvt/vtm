@@ -4096,8 +4096,7 @@ namespace netxs::ui
                 ansi::esc yield;
                 if (selection_active())
                 {
-                    //data = "test";
-                    //...
+                    if (usesgr) yield.nil();
                     if (selection_selbox())
                     {
                         //...
@@ -4106,12 +4105,18 @@ namespace netxs::ui
                     {
                         auto i_top = batch.index_by_id(upsel.anchor);
                         auto i_end = batch.index_by_id(dnsel.anchor);
-                        if (i_top < 0 && i_end < 0)
+                        if (i_top < 0)
                         {
-                            selection_cancel();
-                            onsel = faux;
-                            return yield;
+                            if (i_end < 0)
+                            {
+                                selection_cancel();
+                                onsel = faux;
+                                return yield;
+                            }
+                            upsel.corner = dot_00;
                         }
+                        else if (i_end < 0) dnsel.corner = dot_00;
+
                         i_top = std::clamp(i_top, 0, batch.size - 1);
                         i_end = std::clamp(i_end, 0, batch.size - 1);
                         if (i_top >  i_end
@@ -4125,52 +4130,84 @@ namespace netxs::ui
                         auto limit = batch.begin() + i_end;
                         auto field = rect{ dot_00, dot_01 };
                         auto state = cell{};
-                        if (i_top == i_end)
+                        auto style = deco{};
+                        auto coord = [&](auto style, auto coor, auto close)
                         {
-                            auto& curln = *start++;
-                            field.coor.x = upsel.corner.x + upsel.corner.y * panel.x;
-                            field.size.x = dnsel.corner.x + upsel.corner.y * panel.x;
-                            field.size.x = field.size.x - field.coor.x + 1;
-                            if (field.size.x > 0)
+                            auto align = style.jet();
+                            auto wraps = style.wrp();
+                            auto atpos = 0;
+                            if (wraps == wrap::on)
                             {
-                                yield += curln.meta<true, faux, faux>(field, state);
+                                switch (align)
+                                {
+                                    case bias::left:
+                                        coor.x = std::clamp(coor.x, -close, panel.x - close);
+                                        atpos = coor.x + coor.y * panel.x;
+                                        break;
+                                    case bias::right:
+                                        //...
+                                        break;
+                                    case bias::center:
+                                        //...
+                                        break;
+                                }
                             }
+                            else
+                            {
+                                //...
+                            }
+                            return atpos + close;
+                        };
+                        auto build = [&](auto print)
+                        {
+                            if (i_top == i_end)
+                            {
+                                auto& headln = *start++;
+                                field.coor.x = coord(headln.style, upsel.corner, 0);
+                                field.size.x = coord(headln.style, dnsel.corner, 1);
+                                field.size.x = field.size.x - field.coor.x;
+                                print(headln);
+                            }
+                            else
+                            {
+                                auto& headln = *start++;
+                                field.coor.x = coord(headln.style, upsel.corner, 0);
+                                field.size.x = dot_mx.x;
+                                print(headln);
+                                field.coor.x = 0;
+                                while (start != limit) print(*start++);
+                                auto& lastln = *start++;
+                                field.size.x = coord(lastln.style, dnsel.corner, 1);
+                                print(lastln);
+                            }
+                            if (yield.length()) yield.pop_back(); // Pop last eol.
+                        };
+                        if (usesgr)
+                        {
+                            build([&](auto& curln)
+                            {
+                                if (style != curln.style)
+                                {
+                                    if (auto wrp = curln.style.wrp(); style.wrp() != wrp) yield.wrp(wrp);
+                                    if (auto jet = curln.style.jet(); style.jet() != jet) yield.jet(jet);
+                                    style = curln.style;
+                                }
+                                auto block = curln.template meta<true, faux, faux>(field, state);
+                                if (block.size() > 0) yield.add(block);
+                                else                  yield.eol();
+                            });
                         }
                         else
                         {
-                            { // First line.
-                                auto& curln = *start++;
-                                auto length = curln.length();
-                                field.coor.x = upsel.corner.x + upsel.corner.y * panel.x;
-                                field.size.x = length - field.coor.x;
-                                if (field.size.x > 0)
-                                {
-                                    yield += curln.meta<true, true, faux>(field, state);
-                                }
-                                else yield.eol();
-                                field.coor.x = 0;
-                            }
-                            while (start != limit)
+                            build([&](auto& curln)
                             {
-                                auto& curln = *start++;
-                                field.size.x = curln.length();
-                                if (field.size.x > 0)
-                                {
-                                    yield += curln.meta<true, faux, faux>(field, state);
-                                }
-                                else yield.eol();
-                            }
-                            { // Last line.
-                                auto& curln = *start++;
-                                auto length = curln.length();
-                                field.size.x = std::min(length, dnsel.corner.x + upsel.corner.y * panel.x + 1);
-                                if (field.size.x > 0)
-                                {
-                                    yield += curln.meta<true, true, faux>(field, state);
-                                }
-                            }
+                                auto block = curln.template meta<faux, faux, faux>(field, state);
+                                if (block.size() > 0) yield.add(block);
+                                else                  yield.eol();
+                            });
                         }
                     }
+                    if (usesgr) yield.nil();
                 }
                 return yield;
             }
