@@ -4131,26 +4131,24 @@ namespace netxs::ui
                         auto field = rect{ dot_00, dot_01 };
                         auto state = cell{};
                         auto style = deco{};
-                        auto coord = [&](auto style, auto coor, auto close)
+                        auto coord = [&](auto& curln, auto coor, auto close)
                         {
-                            auto align = style.jet();
-                            auto wraps = style.wrp();
+                            auto align = curln.style.jet();
+                            auto wraps = curln.style.wrp();
                             auto atpos = 0;
                             if (wraps == wrap::on)
                             {
-                                switch (align)
+                                coor.x = std::clamp(coor.x, -close, panel.x - close);
+                                auto length = curln.length();
+                                if (align != bias::left && coor.y == length / panel.x)
                                 {
-                                    case bias::left:
-                                        coor.x = std::clamp(coor.x, -close, panel.x - close);
-                                        atpos = coor.x + coor.y * panel.x;
-                                        break;
-                                    case bias::right:
-                                        //...
-                                        break;
-                                    case bias::center:
-                                        //...
-                                        break;
+                                    if (auto remain = length % panel.x)
+                                    {
+                                        if (align == bias::right)    coor.x = std::max(0,      coor.x - panel.x     + remain);
+                                        else      /* bias::center */ coor.x = std::max(-close, coor.x - panel.x / 2 + remain / 2);
+                                    }
                                 }
+                                atpos = coor.x + coor.y * panel.x;
                             }
                             else
                             {
@@ -4163,21 +4161,21 @@ namespace netxs::ui
                             if (i_top == i_end)
                             {
                                 auto& headln = *start++;
-                                field.coor.x = coord(headln.style, upsel.corner, 0);
-                                field.size.x = coord(headln.style, dnsel.corner, 1);
+                                field.coor.x = coord(headln, upsel.corner, 0);
+                                field.size.x = coord(headln, dnsel.corner, 1);
                                 field.size.x = field.size.x - field.coor.x;
                                 print(headln);
                             }
                             else
                             {
                                 auto& headln = *start++;
-                                field.coor.x = coord(headln.style, upsel.corner, 0);
+                                field.coor.x = coord(headln, upsel.corner, 0);
                                 field.size.x = dot_mx.x;
                                 print(headln);
                                 field.coor.x = 0;
                                 while (start != limit) print(*start++);
                                 auto& lastln = *start++;
-                                field.size.x = coord(lastln.style, dnsel.corner, 1);
+                                field.size.x = coord(lastln, dnsel.corner, 1);
                                 print(lastln);
                             }
                             if (yield.length()) yield.pop_back(); // Pop last eol.
@@ -4209,6 +4207,7 @@ namespace netxs::ui
                     }
                     if (usesgr) yield.nil();
                 }
+                //log(yield);
                 return yield;
             }
             // scroll_buf: Signal about the end of the selection process.
