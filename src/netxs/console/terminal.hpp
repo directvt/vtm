@@ -4097,37 +4097,77 @@ namespace netxs::ui
                 if (selection_active())
                 {
                     if (usesgr) yield.nil();
+
+                    auto i_top = batch.index_by_id(upsel.anchor);
+                    auto i_end = batch.index_by_id(dnsel.anchor);
+                    if (i_top < 0)
+                    {
+                        if (i_end < 0)
+                        {
+                            selection_cancel();
+                            onsel = faux;
+                            return yield;
+                        }
+                        upsel.corner = dot_00;
+                    }
+                    else if (i_end < 0) dnsel.corner = dot_00;
+
+                    i_top = std::clamp(i_top, 0, batch.size - 1);
+                    i_end = std::clamp(i_end, 0, batch.size - 1);
+                    if (i_top >  i_end
+                    || (i_top == i_end && (upsel.corner.y >  dnsel.corner.y
+                                       || (upsel.corner.y == dnsel.corner.y && (upsel.corner.x > dnsel.corner.x)))))
+                    {
+                        std::swap(i_top, i_end);
+                        std::swap(upsel, dnsel);
+                    }
+                    auto start = batch.begin() + i_top;
+                    auto limit = batch.begin() + i_end;
+
                     if (selection_selbox())
                     {
-                        //...
+                        //todo optimize
+                        auto get_height = [&]()
+                        {
+                            auto vpos =-upsel.corner.y;
+                            auto head = batch.begin() + i_top;
+                            auto tail = batch.begin() + i_end;
+                            while (head != tail)
+                            {
+                                auto& curln = *head++;
+                                vpos += curln.height(panel.x);
+                            }
+                            vpos += dnsel.corner.y;
+                            return vpos;
+                        };
+
+                        face dest;
+                        rect r1;
+                        r1.coor.x = std::min(upsel.corner.x, dnsel.corner.x);
+                        r1.coor.y = upsel.corner.y;
+                        r1.size.x = std::abs(upsel.corner.x - dnsel.corner.x) + 1;
+                        r1.size.y = get_height() + 1;
+                        auto r2 = rect{ -r1.coor, { panel.x, r1.coor.y + r1.size.y }};
+                        dest.move(r1.coor);
+                        dest.size(r1.size);
+                        dest.full(r2);
+                        auto state = cell{};
+                        auto coor = dot_00;
+                        auto head = batch.begin() + i_top;
+                        auto tail = batch.begin() + i_end;
+                        do
+                        {
+                            auto& curln = *head;
+                            auto height = curln.height(panel.x);
+                            dest.output(curln, coor);
+                            coor.y += height;
+                        }
+                        while (head++ != tail);
+                        yield = usesgr ? dest.meta<true, faux, true>(state)
+                                       : dest.meta<faux, faux, true>(state);
                     }
                     else
                     {
-                        auto i_top = batch.index_by_id(upsel.anchor);
-                        auto i_end = batch.index_by_id(dnsel.anchor);
-                        if (i_top < 0)
-                        {
-                            if (i_end < 0)
-                            {
-                                selection_cancel();
-                                onsel = faux;
-                                return yield;
-                            }
-                            upsel.corner = dot_00;
-                        }
-                        else if (i_end < 0) dnsel.corner = dot_00;
-
-                        i_top = std::clamp(i_top, 0, batch.size - 1);
-                        i_end = std::clamp(i_end, 0, batch.size - 1);
-                        if (i_top >  i_end
-                        || (i_top == i_end && (upsel.corner.y >  dnsel.corner.y
-                                           || (upsel.corner.y == dnsel.corner.y && (upsel.corner.x > dnsel.corner.x)))))
-                        {
-                            std::swap(i_top, i_end);
-                            std::swap(upsel, dnsel);
-                        }
-                        auto start = batch.begin() + i_top;
-                        auto limit = batch.begin() + i_end;
                         auto field = rect{ dot_00, dot_01 };
                         auto state = cell{};
                         auto style = deco{};
@@ -4216,9 +4256,11 @@ namespace netxs::ui
             // scroll_buf: Signal about the end of the selection process.
             void selection_finish() override
             {
-                auto [curtop, curend] = selection_take_grips<true>();
-                upsel = selection_coor_to_grip(curtop);
-                dnsel = selection_coor_to_grip(curend);
+                //todo revise
+                //test corners only
+                //auto [curtop, curend] = selection_take_grips<true>();
+                //upsel = selection_coor_to_grip(curtop);
+                //dnsel = selection_coor_to_grip(curend);
                 onsel = faux;
             }
             // scroll_buf: Highlight selection.

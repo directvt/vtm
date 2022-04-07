@@ -347,6 +347,12 @@ namespace netxs::console
             cell state;
             return meta<USESGR, INITIAL, FINALISE>(region, state);
         }
+        template<bool USESGR = true, bool INITIAL = true, bool FINALISE = true>
+        auto meta(cell& state) // core: Ansify/textify content of specified region.
+        {
+            auto region = rect{-dot_mx / 2, dot_mx };
+            return meta<USESGR, INITIAL, FINALISE>(region, state);
+        }
         template<class P>
         void cage(ui::rect const& area, twod const& border_width, P fuse) // core: Draw the cage around specified area.
         {
