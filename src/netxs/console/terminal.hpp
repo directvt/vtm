@@ -2829,8 +2829,8 @@ namespace netxs::ui
                 auto cntr = std::max(0, batch.max<line::type::centered>() - panel.x);
                 auto bttm = std::max(0, batch.vsize - batch.basis - arena          );
                 auto both = cntr >> 1;
-                left = shore + std::max(left, both);
-                rght = shore + std::max(rght, both + (cntr & 1));
+                left = shore + std::max(left, both + (cntr & 1));
+                rght = shore + std::max(rght, both);
                 if (oversz.r != rght || oversz.l != left || oversz.b != bttm)
                 {
                     oversz.r = rght;
@@ -4135,26 +4135,29 @@ namespace netxs::ui
                         {
                             auto align = curln.style.jet();
                             auto wraps = curln.style.wrp();
-                            auto atpos = 0;
+                            auto width = curln.length();
                             if (wraps == wrap::on)
                             {
                                 coor.x = std::clamp(coor.x, -close, panel.x - close);
-                                auto length = curln.length();
-                                if (align != bias::left && coor.y == length / panel.x)
+                                if (align != bias::left && coor.y == width / panel.x)
                                 {
-                                    if (auto remain = length % panel.x)
+                                    if (auto remain = width % panel.x)
                                     {
                                         if (align == bias::right)    coor.x = std::max(0,      coor.x - panel.x     + remain);
                                         else      /* bias::center */ coor.x = std::max(-close, coor.x - panel.x / 2 + remain / 2);
                                     }
                                 }
-                                atpos = coor.x + coor.y * panel.x;
                             }
                             else
                             {
-                                //...
+                                coor.y = 0;
+                                if (align != bias::left)
+                                {
+                                    if (align == bias::right)    coor.x -= panel.x     - width;
+                                    else      /* bias::center */ coor.x -= panel.x / 2 - width / 2;
+                                }
                             }
-                            return atpos + close;
+                            return coor.x + coor.y * panel.x + close;
                         };
                         auto build = [&](auto print)
                         {
