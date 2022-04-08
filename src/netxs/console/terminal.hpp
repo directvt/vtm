@@ -116,7 +116,7 @@ namespace netxs::ui
             ui64 body{}; // term_state: Selection rough volume.
             ui64 hash{}; // term_state: Selection update indicator.
             template<class bufferbase>
-            auto update(bufferbase& scroll)
+            auto update(bufferbase const& scroll)
             {
                 if (scroll.update_status(*this))
                 {
@@ -820,7 +820,7 @@ namespace netxs::ui
             virtual bool selection_extend(twod const& coor, bool mode) = 0;
             virtual text selection_pickup(bool  usesgr)                = 0;
             virtual void selection_render(face& target)                = 0;
-            virtual void selection_status(term_state& status)          = 0;
+            virtual void selection_status(term_state& status) const    = 0;
             template<bool FORCED = true>
             void selection_update()
             {
@@ -1564,7 +1564,7 @@ namespace netxs::ui
             // bufferbase: CSI n K  Erase line (don't move cursor).
     virtual void el(si32 n) = 0;
 
-            bool update_status(term_state& status)
+            bool update_status(term_state& status) const
             {
                 bool changed = faux;
                 if (auto v = get_size(); status.size != v) { changed = true; status.size = v; }
@@ -1916,7 +1916,7 @@ namespace netxs::ui
                     }
                 }
             }
-            void selection_status(term_state& status) override
+            void selection_status(term_state& status) const override
             {
                 status.from = seltop;
                 status.upto = selend;
@@ -4136,7 +4136,7 @@ namespace netxs::ui
                 }
                 return state;
             }
-            auto selection_get_it()
+            auto selection_get_it() const
             {
                 auto upcur = upsel;
                 auto dncur = dnsel;
@@ -4144,11 +4144,7 @@ namespace netxs::ui
                 auto i_end = batch.index_by_id(dncur.anchor);
                 if (i_top < 0)
                 {
-                    if (i_end < 0)
-                    {
-                        selection_cancel();
-                        return std::tuple{-1,-1, upcur, dncur };
-                    }
+                    if (i_end < 0) return std::tuple{-1,-1, upcur, dncur };
                     upcur.corner = dot_00;
                 }
                 else if (i_end < 0)
@@ -4205,7 +4201,11 @@ namespace netxs::ui
                 if (usesgr) yield.nil();
 
                 auto [i_top, i_end, upcur, dncur] = selection_get_it();
-                if (i_top < 0) return yield;
+                if (i_top < 0)
+                {
+                    selection_cancel();
+                    return yield;
+                }
 
                 auto data = batch.begin();
                 auto head = data + i_top;
@@ -4413,7 +4413,7 @@ namespace netxs::ui
                     }
                 }
             }
-            void selection_status(term_state& status) override
+            void selection_status(term_state& status) const override
             {
                 auto [i_top, i_end, upcur, dncur] = selection_get_it();
                 if (i_top < 0) return;
