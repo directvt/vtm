@@ -348,7 +348,7 @@ namespace netxs::console
             return meta<USESGR, INITIAL, FINALISE>(region, state);
         }
         template<bool USESGR = true, bool INITIAL = true, bool FINALISE = true>
-        auto meta(cell& state) // core: Ansify/textify content of specified region.
+        auto meta(cell& state) // core: Ansify/textify all content.
         {
             auto region = rect{-dot_mx / 2, dot_mx };
             return meta<USESGR, INITIAL, FINALISE>(region, state);
