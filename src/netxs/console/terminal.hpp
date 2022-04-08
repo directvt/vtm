@@ -790,9 +790,6 @@ namespace netxs::ui
             virtual bool selection_extend(twod const& coor, bool mode) = 0;
             virtual text selection_pickup(bool usesgr)                 = 0;
             virtual void selection_render(face& target)                = 0;
-            // bufferbase: Signal about the end of the selection process.
-            virtual void selection_finish()
-            { }
             // bufferbase: Set selection activity.
             void selection_active(bool state)
             {
@@ -2193,7 +2190,6 @@ namespace netxs::ui
             twod dnmin; // scroll_buf: Bottom margin minimal size.
             grip upsel; // scroll_buf: Selection first grip.
             grip dnsel; // scroll_buf: Selection second grip.
-            bool onsel; // scroll_buf: Selection process is not complete.
 
             static constexpr si32 approx_threshold = 10000; //todo make it configurable
 
@@ -2201,8 +2197,7 @@ namespace netxs::ui
                 : bufferbase{ boss                   },
                        batch{ buffer_size, grow_step },
                        index{ 0                      },
-                       arena{ 1                      },
-                       onsel{ faux                   }
+                       arena{ 1                      }
             {
                 batch.invite(0); // At least one line must exist.
                 batch.set_width(1);
@@ -3989,7 +3984,6 @@ namespace netxs::ui
                 if (i_top < 0 && i_end < 0)
                 {
                     selection_cancel();
-                    onsel = faux;
                     return std::pair{ dot_mx, dot_mx };
                 }
                 auto coor1 = upsel.corner;
@@ -4070,14 +4064,13 @@ namespace netxs::ui
                     else if (coor != selend) return true;
                     return faux;
                 };
-                if (!selection_active() || onsel || nohits())
+                if (!selection_active() || nohits())
                 {
                     upsel = selection_coor_to_grip(coor);
                     dnsel = upsel;
                     selection_active(true);
                 }
                 selection_selbox(mode);
-                onsel = true;
             }
             // scroll_buf: Extend text selection.
             bool selection_extend(twod const& coor, bool mode) override
@@ -4104,7 +4097,6 @@ namespace netxs::ui
                     if (i_end < 0)
                     {
                         selection_cancel();
-                        onsel = faux;
                         return yield;
                     }
                     upsel.corner = dot_00;
@@ -4244,11 +4236,6 @@ namespace netxs::ui
 
                 //log(yield);
                 return yield;
-            }
-            // scroll_buf: Signal about the end of the selection process.
-            void selection_finish() override
-            {
-                onsel = faux;
             }
             // scroll_buf: Highlight selection.
             void selection_render(face& target) override
@@ -4782,9 +4769,9 @@ namespace netxs::ui
         }
         void selection_finish(hids& gear)
         {
+            //todo option: copy on select
             log(" drag::finish coord=", gear.coord);
             if (mtrack) return;
-            target->selection_finish();
             worker.pacify();
             base::deface();
         }
