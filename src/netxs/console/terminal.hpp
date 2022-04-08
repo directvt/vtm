@@ -99,13 +99,24 @@ namespace netxs::ui
         struct term_state
         {
             using buff = ansi::esc;
-            si32 size = 0;
-            si32 peak = 0;
-            si32 step = 0;
-            twod area;
-            buff data;
+            enum type
+            {
+                empty,
+                lines,
+                block,
+            };
+            si32 size{}; // term_state: Terminal scrollback current size.
+            si32 peak{}; // term_state: Terminal scrollback limit.
+            si32 step{}; // term_state: Terminal scrollback increase step.
+            twod area{}; // term_state: Terminal viewport size.
+            buff data{}; // term_state: Status string.
+            type mode{}; // term_state: Selection mode.
+            twod from{}; // term_state: Selection start.
+            twod upto{}; // term_state: Selection end.
+            ui64 body{}; // term_state: Selection rough volume.
+            ui64 hash{}; // term_state: Selection update indicator.
             template<class bufferbase>
-            auto update(bufferbase const& scroll)
+            auto update(bufferbase& scroll)
             {
                 if (scroll.update_status(*this))
                 {
@@ -114,6 +125,25 @@ namespace netxs::ui
                                          "/", peak,
                                          "+", step,
                                          " ", area.x, ":", area.y);
+                    if (hash)
+                    {
+                        //todo use .nop()
+                        data.eol().cuu(1).jet(bias::left);
+                        if (mode == type::block) // Block: 0,0 80x25 ~2000 bytes
+                        {
+                            data.add("Block: ",
+                                      from.x, ",", from.y,
+                                 " ", upto.x, "x", upto.y,
+                                " ~", body, " bytes ");
+                        }
+                        else // Lines: 128:10-130:22 ~48 bytes
+                        {
+                            data.add("Lines: ",
+                                      from.x, ":", from.y,
+                                 "-", upto.x, ":", upto.y,
+                                " ~", body, " bytes ");
+                        }
+                    }
                     return true;
                 }
                 else return faux;
@@ -762,8 +792,8 @@ namespace netxs::ui
             bool  notab; // bufferbase: Tabstop index is cleared.
             bool  decom; // bufferbase: Origin mode.
 
-            bool  alive; // bufferbase: Selection is active.
             bool  boxed; // bufferbase: Box selection mode.
+            ui64  alive; // bufferbase: Selection is active (digest).
             si32  shore; // bufferbase: Left and right scrollbuffer indents.
 
             bufferbase(term& master)
@@ -779,8 +809,8 @@ namespace netxs::ui
                   stops{ {0, 0} },
                   notab{ faux   },
                   decom{ faux   },
-                  alive{ faux   },
                   boxed{ faux   },
+                  alive{ 0      },
                   shore{ 3      } //todo make it configurable
             {
                 parser::style = ansi::def_style;
@@ -788,15 +818,16 @@ namespace netxs::ui
 
             virtual void selection_create(twod const& coor, bool mode) = 0;
             virtual bool selection_extend(twod const& coor, bool mode) = 0;
-            virtual text selection_pickup(bool usesgr)                 = 0;
+            virtual text selection_pickup(bool  usesgr)                = 0;
             virtual void selection_render(face& target)                = 0;
-            // bufferbase: Set selection activity.
-            void selection_active(bool state)
+            virtual void selection_status(term_state& status)          = 0;
+            template<bool FORCED = true>
+            void selection_update()
             {
-                alive = state;
+                if (FORCED || alive) ++alive;
             }
             // bufferbase: Return true if selection is active.
-            bool selection_active()
+            auto selection_active() const
             {
                 return alive;
             }
@@ -806,7 +837,7 @@ namespace netxs::ui
                 boxed = state;
             }
             // bufferbase: Return selection mode.
-            bool selection_selbox()
+            bool selection_selbox() const
             {
                 return boxed;
             }
@@ -816,7 +847,7 @@ namespace netxs::ui
                 auto active = alive;
                 if (alive)
                 {
-                    alive = faux;
+                    alive = {};
                 }
                 return active;
             }
@@ -831,7 +862,9 @@ namespace netxs::ui
             virtual si32 get_peak() const                                               = 0;
             virtual si32 get_step() const                                               = 0;
                     auto get_view() const { return panel; }
-
+                    auto get_mode() const { return !selection_active() ? term_state::type::empty:
+                                                    selection_selbox() ? term_state::type::block:
+                                                                         term_state::type::lines; }
             // bufferbase: Get viewport basis.
     virtual si32 get_basis()
             {
@@ -864,6 +897,7 @@ namespace netxs::ui
                 panel = std::max(new_sz, dot_11);
                 resize_tabstops(panel.x);
                 update_region();
+                selection_update<faux>();
             }
             // bufferbase: Reset coord and set the scrolling region using 1-based top and bottom. Use 0 to reset.
     virtual void set_scroll_region(si32 top, si32 bottom)
@@ -1530,13 +1564,23 @@ namespace netxs::ui
             // bufferbase: CSI n K  Erase line (don't move cursor).
     virtual void el(si32 n) = 0;
 
-            bool update_status(term_state& status) const
+            bool update_status(term_state& status)
             {
                 bool changed = faux;
-                if (status.size != get_size()) { changed = true; status.size = get_size(); }
-                if (status.peak != get_peak()) { changed = true; status.peak = get_peak(); }
-                if (status.step != get_step()) { changed = true; status.step = get_step(); }
-                if (status.area != get_view()) { changed = true; status.area = get_view(); }
+                if (auto v = get_size(); status.size != v) { changed = true; status.size = v; }
+                if (auto v = get_peak(); status.peak != v) { changed = true; status.peak = v; }
+                if (auto v = get_step(); status.step != v) { changed = true; status.step = v; }
+                if (auto v = get_view(); status.area != v) { changed = true; status.area = v; }
+                if (auto v = selection_active(); status.hash != v)
+                {
+                    changed = true;
+                    status.hash = v;
+                    if (status.hash)
+                    {
+                        status.mode = get_mode();
+                        selection_status(status);
+                    }
+                }
                 return changed;
             }
         };
@@ -1765,9 +1809,9 @@ namespace netxs::ui
                 {
                     seltop = std::clamp(coor, dot_00, limits);
                     selend = curtop;
-                    selection_active(true);
                 }
                 selection_selbox(mode);
+                selection_update();
             }
             // alt_screen: Extend text selection.
             bool selection_extend(twod const& coor, bool mode) override
@@ -1778,6 +1822,7 @@ namespace netxs::ui
                     auto limits = panel - dot_11;
                     selend = std::clamp(coor, dot_00, limits);
                     selection_selbox(mode);
+                    selection_update();
                 }
                 return state;
             }
@@ -1870,6 +1915,13 @@ namespace netxs::ui
                         target.fill(grip_2, cell::shaders::invbit);
                     }
                 }
+            }
+            void selection_status(term_state& status) override
+            {
+                status.from = seltop;
+                status.upto = selend;
+                status.body = (std::abs(seltop.x - selend.x) + 1)
+                            * (std::abs(seltop.y - selend.y) + 1);
             }
         };
 
@@ -2117,7 +2169,7 @@ namespace netxs::ui
                 // buff: Remove information about the specified line from accounting.
                 void undock_base_back (line& l) override { undock(l._kind, l._size); }
                 // buff: Return the item position in the scrollback using its id.
-                auto index_by_id(ui32 id)
+                auto index_by_id(ui32 id) const
                 {
                     //No need to disturb distant objects, it may already be in the swap.
                     auto count = length();
@@ -4068,9 +4120,9 @@ namespace netxs::ui
                 {
                     upsel = selection_coor_to_grip(coor);
                     dnsel = upsel;
-                    selection_active(true);
                 }
                 selection_selbox(mode);
+                selection_update();
             }
             // scroll_buf: Extend text selection.
             bool selection_extend(twod const& coor, bool mode) override
@@ -4080,8 +4132,70 @@ namespace netxs::ui
                 {
                     dnsel = selection_coor_to_grip(coor);
                     selection_selbox(mode);
+                    selection_update();
                 }
                 return state;
+            }
+            auto selection_get_it()
+            {
+                auto upcur = upsel;
+                auto dncur = dnsel;
+                auto i_top = batch.index_by_id(upcur.anchor);
+                auto i_end = batch.index_by_id(dncur.anchor);
+                if (i_top < 0)
+                {
+                    if (i_end < 0)
+                    {
+                        selection_cancel();
+                        return std::tuple{-1,-1, upcur, dncur };
+                    }
+                    upcur.corner = dot_00;
+                }
+                else if (i_end < 0)
+                {
+                    dncur.corner = dot_00;
+                }
+
+                i_top = std::clamp(i_top, 0, batch.size - 1);
+                i_end = std::clamp(i_end, 0, batch.size - 1);
+                if (i_top >  i_end
+                || (i_top == i_end && (upcur.corner.y >  dncur.corner.y
+                                   || (upcur.corner.y == dncur.corner.y && (upcur.corner.x > dncur.corner.x)))))
+                {
+                    std::swap(i_top, i_end);
+                    std::swap(upcur, dncur);
+                }
+                return std::tuple{ i_top, i_end, upcur, dncur };
+            }
+            template<class T>
+            auto selection_height(T head, T tail, grip const& upcur, grip const& dncur) const
+            {
+                auto vpos = -upcur.corner.y;
+                while (head != tail)
+                {
+                    vpos += head->height(panel.x);
+                    ++head;
+                }
+                vpos += 1 + dncur.corner.y;
+                return vpos;
+            }
+            template<class T>
+            auto selection_volume(T head, T tail, grip const& upcur, grip const& dncur) const
+            {
+                auto c1 = upcur.corner;
+                auto c2 = dncur.corner;
+                auto summ =-(upcur.corner.y * panel.x + std::max(0, upcur.corner.x));
+                auto vpos = -upcur.corner.y;
+                while (head != tail)
+                {
+                    auto& line = *head;
+                    vpos += line.height(panel.x);
+                    summ += line.length();
+                    ++head;
+                }
+                summ += 1 + dncur.corner.y * panel.x + std::max(0, dncur.corner.x);
+                vpos += 1 + dncur.corner.y;
+                return std::pair{ vpos, summ };
             }
             // scroll_buf: Take selected data.
             text selection_pickup(bool usesgr) override
@@ -4090,52 +4204,20 @@ namespace netxs::ui
                 if (!selection_active()) return yield;
                 if (usesgr) yield.nil();
 
-                auto i_top = batch.index_by_id(upsel.anchor);
-                auto i_end = batch.index_by_id(dnsel.anchor);
-                if (i_top < 0)
-                {
-                    if (i_end < 0)
-                    {
-                        selection_cancel();
-                        return yield;
-                    }
-                    upsel.corner = dot_00;
-                }
-                else if (i_end < 0) dnsel.corner = dot_00;
+                auto [i_top, i_end, upcur, dncur] = selection_get_it();
+                if (i_top < 0) return yield;
 
-                i_top = std::clamp(i_top, 0, batch.size - 1);
-                i_end = std::clamp(i_end, 0, batch.size - 1);
-                if (i_top >  i_end
-                || (i_top == i_end && (upsel.corner.y >  dnsel.corner.y
-                                   || (upsel.corner.y == dnsel.corner.y && (upsel.corner.x > dnsel.corner.x)))))
-                {
-                    std::swap(i_top, i_end);
-                    std::swap(upsel, dnsel);
-                }
-                auto start = batch.begin() + i_top;
-                auto limit = batch.begin() + i_end;
+                auto data = batch.begin();
+                auto head = data + i_top;
+                auto tail = data + i_end;
 
                 if (selection_selbox())
                 {
                     face dest;
-                    auto data = batch.begin();
-                    auto head = data + i_top;
-                    auto tail = data + i_end;
                     auto mark = cell{};
                     auto coor = dot_00;
-                    auto size = [&, head]() mutable
-                    {
-                        auto vpos = -upsel.corner.y;
-                        while (head != tail)
-                        {
-                            vpos += head->height(panel.x);
-                            ++head;
-                        }
-                        vpos += dnsel.corner.y;
-                        return vpos;
-                    };
-                    auto view = rect{{ std::min(upsel.corner.x,  dnsel.corner.x), upsel.corner.y },
-                                     { std::abs(upsel.corner.x - dnsel.corner.x) + 1, size() + 1 }};
+                    auto view = rect{{ std::min(upcur.corner.x,  dncur.corner.x), upcur.corner.y },
+                                     { std::abs(upcur.corner.x - dncur.corner.x) + 1, selection_height(head, tail, upcur, dncur) }};
                     auto full = rect{ -view.coor, { panel.x, view.coor.y + view.size.y }};
                     dest.flow::full(full);
                     dest.core::move(view.coor);
@@ -4187,22 +4269,22 @@ namespace netxs::ui
                     {
                         if (i_top == i_end)
                         {
-                            auto& headln = *start++;
-                            field.coor.x = coord(headln, upsel.corner, 0);
-                            field.size.x = coord(headln, dnsel.corner, 1);
+                            auto& headln = *head++;
+                            field.coor.x = coord(headln, upcur.corner, 0);
+                            field.size.x = coord(headln, dncur.corner, 1);
                             field.size.x = field.size.x - field.coor.x;
                             print(headln);
                         }
                         else
                         {
-                            auto& headln = *start++;
-                            field.coor.x = coord(headln, upsel.corner, 0);
+                            auto& headln = *head++;
+                            field.coor.x = coord(headln, upcur.corner, 0);
                             field.size.x = dot_mx.x;
                             print(headln);
                             field.coor.x = 0;
-                            while (start != limit) print(*start++);
-                            auto& lastln = *start++;
-                            field.size.x = coord(lastln, dnsel.corner, 1);
+                            while (head != tail) print(*head++);
+                            auto& lastln = *head++;
+                            field.size.x = coord(lastln, dncur.corner, 1);
                             print(lastln);
                         }
                         if (yield.length()) yield.pop_back(); // Pop last eol.
@@ -4329,6 +4411,30 @@ namespace netxs::ui
                             }
                         }
                     }
+                }
+            }
+            void selection_status(term_state& status) override
+            {
+                auto [i_top, i_end, upcur, dncur] = selection_get_it();
+                if (i_top < 0) return;
+
+                auto data = batch.begin();
+                auto head = data + i_top;
+                auto tail = data + i_end;
+                if (selection_selbox())
+                {
+                    auto height = selection_height(head, tail, upcur, dncur);
+                    status.from = upcur.corner;
+                    status.upto = dncur.corner;
+                    status.body = height * (std::abs(upcur.corner.x - dncur.corner.x) + 1);
+                }
+                else
+                {
+                    auto [height, volume] = selection_volume(head, tail, upcur, dncur);
+                    status.from = upcur.corner;
+                    status.upto = dncur.corner;
+                    status.body = volume;
+                    status.upto.y = status.from.y + height;
                 }
             }
         };

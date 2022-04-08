@@ -71,7 +71,9 @@ namespace netxs::generics
         auto    end() const       { return iter<const ring>{ *this, mod(tail + 1) }; }
         auto& length() const      { return size;                }
         auto&  back()             { return buff[tail];          }
+        auto&  back() const       { return buff[tail];          }
         auto& front()             { return buff[head];          }
+        auto& front() const       { return buff[head];          }
         auto& current     ()      { return buff[cart];          }
         auto& operator  * ()      { return buff[cart];          }
         auto  operator -> ()      { return buff.begin() + cart; }
