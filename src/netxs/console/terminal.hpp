@@ -12,7 +12,7 @@ namespace netxs::events::userland
     {
         EVENTPACK( uiterm, netxs::events::userland::root::custom )
         {
-            EVENT_XS( usesgr, bool ),
+            EVENT_XS( selmod, si32 ),
             GROUP_XS( layout, si32 ),
 
             SUBSET_XS( layout )
@@ -39,6 +39,14 @@ namespace netxs::ui
 
     public:
         using events = netxs::events::userland::uiterm;
+
+        enum xsgr
+        {
+            disabled,
+            textonly,
+            ansitext,
+            count,
+        };
 
         struct commands
         {
@@ -93,8 +101,8 @@ namespace netxs::ui
                 };
             };
         };
-    private:
 
+    private:
         // term: VT-buffer status.
         struct term_state
         {
@@ -183,6 +191,11 @@ namespace netxs::ui
                     };
                     owner.SUBMIT_T(tier::release, hids::events::mouse::any, token, gear)
                     {
+                        if (owner.selmod != xsgr::disabled)
+                        {
+                            owner.bell::router<tier::release>().skip();
+                            return;
+                        }
                         auto& console = *owner.target;
                         auto c = gear.coord;
                         c.y -= console.get_basis();
@@ -201,9 +214,16 @@ namespace netxs::ui
                         else              serialize<x11>(gear, cause);
                         owner.answer(queue);
                     };
+                    smode = owner.selmod;
                 }
+                owner.selection_selmod(xsgr::disabled);
             }
-            void disable(mode m) { state &= ~(m); if (!state) token.clear(); }
+            void disable(mode m)
+            {
+                state &= ~(m);
+                if (!state) token.clear();
+                owner.selection_selmod(smode);
+            }
             void setmode(prot p) { proto = p; }
 
         private:
@@ -214,6 +234,7 @@ namespace netxs::ui
             bool        moved = faux;
             si32        proto = prot::x11;
             si32        state = mode::none;
+            si32        smode = xsgr::disabled; // m_tracking: Selection mode state backup.
 
             void capture(hids& gear)
             {
@@ -814,7 +835,7 @@ namespace netxs::ui
 
             virtual void selection_create(twod const& coor, bool mode) = 0;
             virtual bool selection_extend(twod const& coor, bool mode) = 0;
-            virtual text selection_pickup(bool  usesgr)                = 0;
+            virtual text selection_pickup(si32  selmod)                = 0;
             virtual void selection_render(face& target)                = 0;
             virtual void selection_status(term_state& status) const    = 0;
             template<bool FORCED = true>
@@ -1823,7 +1844,7 @@ namespace netxs::ui
                 return state;
             }
             // alt_screen: Take selected data.
-            text selection_pickup(bool usesgr) override
+            text selection_pickup(si32 selmod) override
             {
                 text data;
                 if (selection_active())
@@ -1839,8 +1860,8 @@ namespace netxs::ui
                     square.normalize_itself();
                     if (selection_selbox() || grip_1.coor.y == grip_2.coor.y)
                     {
-                        data = usesgr ? canvas.meta<true>(square)
-                                      : canvas.meta<faux>(square);
+                        data = selmod == xsgr::ansitext ? canvas.meta<true>(square)
+                                                        : canvas.meta<faux>(square);
                     }
                     else
                     {
@@ -1848,7 +1869,7 @@ namespace netxs::ui
                         auto part_1 = rect{ grip_1.coor,             { panel.x - grip_1.coor.x, 1 }              };
                         auto part_2 = rect{ {0, grip_1.coor.y + 1 }, { panel.x, std::max(0, square.size.y - 2) } };
                         auto part_3 = rect{ {0, grip_2.coor.y     }, { grip_2.coor.x + 1, 1 }                    };
-                        if (usesgr)
+                        if (selmod == xsgr::ansitext)
                         {
                             data += canvas.meta<true, true, faux>(part_1);
                             data += canvas.meta<true, faux, faux>(part_2);
@@ -4188,12 +4209,12 @@ namespace netxs::ui
                 vpos += 1 + dncur.corner.y;
                 return std::pair{ vpos, summ };
             }
-            // scroll_buf: Take selected data.
-            text selection_pickup(bool usesgr) override
+            // scroll_buf: Materialize selection.
+            text selection_pickup(si32 selmod) override
             {
                 ansi::esc yield;
                 if (!selection_active()) return yield;
-                if (usesgr) yield.nil();
+                if (selmod == xsgr::ansitext) yield.nil();
 
                 auto [i_top, i_end, upcur, dncur] = selection_get_it();
                 if (i_top < 0)
@@ -4224,8 +4245,8 @@ namespace netxs::ui
                         coor.y += curln.height(panel.x);
                     }
                     while (head++ != tail);
-                    yield = usesgr ? dest.meta<true, faux, true>(mark)
-                                   : dest.meta<faux, faux, true>(mark);
+                    yield = selmod == xsgr::ansitext ? dest.meta<true, faux, true>(mark)
+                                                     : dest.meta<faux, faux, true>(mark);
                 }
                 else
                 {
@@ -4284,7 +4305,7 @@ namespace netxs::ui
                         }
                         if (yield.length()) yield.pop_back(); // Pop last eol.
                     };
-                    if (usesgr)
+                    if (selmod == xsgr::ansitext)
                     {
                         build([&](auto& curln)
                         {
@@ -4298,6 +4319,7 @@ namespace netxs::ui
                             if (block.size() > 0) yield.add(block);
                             else                  yield.eol();
                         });
+                        yield.nil();
                     }
                     else
                     {
@@ -4309,9 +4331,7 @@ namespace netxs::ui
                         });
                     }
                 }
-                if (usesgr) yield.nil();
 
-                //log(yield);
                 return yield;
             }
             // scroll_buf: Highlight selection.
@@ -4452,7 +4472,7 @@ namespace netxs::ui
         bool       onlogs; // term: Avoid logs if no subscriptions.
         bool       unsync; // term: Viewport is out of sync.
         bool       invert; // term: Inverted rendering (DECSCNM).
-        bool       usesgr; // term: Preserve SGR attributes when copy text to the clipboard.
+        si32       selmod; // term: Preserve SGR attributes when copy text to the clipboard.
 
         // term: Forward clipboard data (OSC 52).
         void forward_clipboard(view data)
@@ -4742,15 +4762,25 @@ namespace netxs::ui
         }
 
         // term: .
-        void selection_toggle_sgr()
+        auto selection_passed()
         {
-            usesgr = !usesgr;
-            SIGNAL(tier::release, ui::term::events::usesgr, usesgr);
-            log("selection_toggle_sgr usesgr=", usesgr?"true":"faux");
+            //return !(selmod == xsgr::disabled || mtrack);
+            return selmod != xsgr::disabled;// || (!mtrack);
+        }
+        void selection_selmod(si32 newmod)
+        {
+            selmod = newmod;
+            SIGNAL(tier::release, e2::form::draggable::left, selection_passed());
+            SIGNAL(tier::release, ui::term::events::selmod, selmod);
+            log(" selection_selmod selmod=", selmod);
+        }
+        void selection_selmod()
+        {
+            auto newmod = (selmod + 1) % xsgr::count;
+            selection_selmod(newmod);
         }
         auto selection_cancel(hids& gear)
         {
-            if (mtrack) return faux;
             auto active = target->selection_cancel();
             if (active)
             {
@@ -4777,9 +4807,8 @@ namespace netxs::ui
         }
         void selection_pickup(hids& gear)
         {
-            if (mtrack) return;
-            log(" selection_pickup coord=", gear.coord, " usesgr=", usesgr?"true":"faux");
-            auto data = target->selection_pickup(usesgr);
+            log(" selection_pickup coord=", gear.coord, " selmod=", selmod);
+            auto data = target->selection_pickup(selmod);
             if (data.size())
             {
                 if (auto gate_ptr = bell::getref(gear.id))
@@ -4790,6 +4819,7 @@ namespace netxs::ui
                     gate_ptr->SIGNAL(tier::release, e2::command::cout, ansi::setbuf(data));
                     gear.state(state);
                     log("term: selection is copied to clipboard, data.size=", data.size());
+                    log(data);
                 }
             }
             if (gear.meta(hids::ANYCTRL) || selection_cancel(gear)) // Keep selection if Ctrl is pressed.
@@ -4800,7 +4830,6 @@ namespace netxs::ui
         }
         void selection_lclick(hids& gear)
         {
-            if (mtrack) return;
             if (gear.meta(hids::ANYCTRL)
              && target->selection_active())
             {
@@ -4812,7 +4841,6 @@ namespace netxs::ui
         }
         void selection_create(hids& gear)
         {
-            if (mtrack) return;
             auto boxed = gear.meta(hids::ALT);
             if (gear.meta(hids::ANYCTRL)
              && target->selection_extend(gear.coord, boxed))
@@ -4828,7 +4856,6 @@ namespace netxs::ui
         }
         void selection_extend(hids& gear)
         {
-            if (mtrack) return;
             // Check bounds and scroll if needed.
             auto boxed = gear.meta(hids::ALT);
             auto coord = gear.coord;
@@ -4867,13 +4894,12 @@ namespace netxs::ui
         {
             //todo option: copy on select
             log(" drag::finish coord=", gear.coord);
-            if (mtrack) return;
             worker.pacify();
             base::deface();
         }
         void selection_submit()
         {
-            SIGNAL(tier::release, e2::form::draggable::left, true);
+            SIGNAL(tier::release, e2::form::draggable::left, selection_passed());
             SUBMIT(tier::release, hids::events::mouse::scroll::any, gear)
             {
                 if (gear.locks) // Forward mouse wheel events to all parents.
@@ -4883,12 +4909,12 @@ namespace netxs::ui
                 }
             };
             //todo make it configurable
-            SUBMIT(tier::release, hids::events::mouse::button::click::right, gear) { selection_pickup(gear); };
-            SUBMIT(tier::release, hids::events::mouse::button::click::left,  gear) { selection_lclick(gear); };
-            SUBMIT(tier::release, e2::form::drag::start             ::left,  gear) { selection_create(gear); };
-            SUBMIT(tier::release, e2::form::drag::pull              ::left,  gear) { selection_extend(gear); };
-            SUBMIT(tier::release, e2::form::drag::stop              ::left,  gear) { selection_finish(gear); };
-            SUBMIT(tier::release, e2::form::drag::cancel            ::left,  gear) { selection_cancel(gear); };
+            SUBMIT(tier::release, e2::form::drag::start             ::left,  gear) { if (selection_passed()) selection_create(gear); };
+            SUBMIT(tier::release, e2::form::drag::pull              ::left,  gear) { if (selection_passed()) selection_extend(gear); };
+            SUBMIT(tier::release, e2::form::drag::stop              ::left,  gear) {                         selection_finish(gear); };
+            SUBMIT(tier::release, e2::form::drag::cancel            ::left,  gear) {                         selection_cancel(gear); };
+            SUBMIT(tier::release, hids::events::mouse::button::click::right, gear) {                         selection_pickup(gear); };
+            SUBMIT(tier::release, hids::events::mouse::button::click::left,  gear) {                         selection_lclick(gear); };
         }
 
     public:
@@ -4911,7 +4937,7 @@ namespace netxs::ui
                     target->style.wrp(target->style.wrp() == wrap::on ? wrap::off : wrap::on);
                     break;
                 case commands::ui::togglesgr:
-                    selection_toggle_sgr();
+                    selection_selmod();
                     return; // Without resetting the viewport.
                 case commands::ui::reset:
                     decstr();
@@ -4977,7 +5003,7 @@ namespace netxs::ui
               onlogs{  faux },
               unsync{  faux },
               invert{  faux },
-              usesgr{  faux }
+              selmod{ xsgr::disabled }
         {
             cmdarg = command_line;
             target = &normal;

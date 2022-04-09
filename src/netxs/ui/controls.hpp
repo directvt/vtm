@@ -2404,9 +2404,9 @@ namespace netxs::ui
     {
         dent padding; // pads: Space around an element's content, outside of any defined borders. It does not affect the size, only affects the fill. Used in base::renderproc only.
         dent margins; // pads: Space around an element's content, inside of any defined borders. Containers take this parameter into account when calculating sizes. Used in all conainers.
-        sptr client;
 
     public:
+        sptr client;
 
         ~pads()
         {
@@ -2507,6 +2507,7 @@ namespace netxs::ui
             limit.set(lims, lims);
             base::resize(size);
         }
+
     public:
         item(para const& label_para, bool flexible = faux, bool check_size = faux)
             : name{ label_para },
@@ -2514,6 +2515,10 @@ namespace netxs::ui
               test{ check_size }
         {
             recalc();
+            SUBMIT(tier::release, e2::data::text, label_text)
+            {
+                set(label_text);
+            };
             SUBMIT(tier::release, e2::render::any, parent_canvas)
             {
                 parent_canvas.cup(dot_00);

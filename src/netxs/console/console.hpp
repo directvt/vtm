@@ -3106,6 +3106,8 @@ namespace netxs::console
             si32       full; // mouse: All gears count. Counting to keep the entire chain of links in the visual tree.
             bool       omni; // mouse: Ability to accept all hover events (true) or only directly over the object (faux).
             si32       drag; // mouse: Bitfield of buttons subscribed to mouse drag.
+            std::map<si32, subs> dragmemo; // mouse: Draggable subs.
+
         public:
             mouse(base&&) = delete;
             mouse(base& boss, bool take_all_events = true) : skill{ boss },
@@ -3167,12 +3169,12 @@ namespace netxs::console
                     switch (auto deed = boss.bell::protos<tier::release>())
                     {
                         default:
-                        case e2::form::draggable::left     .id: draggable<sysmouse::left     >(); break;
-                        case e2::form::draggable::right    .id: draggable<sysmouse::right    >(); break;
-                        case e2::form::draggable::leftright.id: draggable<sysmouse::leftright>(); break;
-                        case e2::form::draggable::middle   .id: draggable<sysmouse::middle   >(); break;
-                        case e2::form::draggable::wheel    .id: draggable<sysmouse::wheel    >(); break;
-                        case e2::form::draggable::win      .id: draggable<sysmouse::win      >(); break;
+                        case e2::form::draggable::left     .id: draggable<sysmouse::left     >(enabled); break;
+                        case e2::form::draggable::right    .id: draggable<sysmouse::right    >(enabled); break;
+                        case e2::form::draggable::leftright.id: draggable<sysmouse::leftright>(enabled); break;
+                        case e2::form::draggable::middle   .id: draggable<sysmouse::middle   >(enabled); break;
+                        case e2::form::draggable::wheel    .id: draggable<sysmouse::wheel    >(enabled); break;
+                        case e2::form::draggable::win      .id: draggable<sysmouse::win      >(enabled); break;
                     }
                 };
             }
@@ -3190,13 +3192,18 @@ namespace netxs::console
                 omni = b;
             }
             template<sysmouse::bttns BUTTON>
-            void draggable()
+            void draggable(bool enabled)
             {
-                if (!(drag & 1 << BUTTON))
+                if (!enabled)
+                {
+                    dragmemo[BUTTON].clear();
+                    drag &= ~(1 << BUTTON);
+                }
+                else if (!(drag & 1 << BUTTON))
                 {
                     drag |= 1 << BUTTON;
                     //using bttn = hids::events::mouse::button; //MSVC 16.9.4 don't get it
-                    boss.SUBMIT(tier::release, hids::events::mouse::button::drag::start::_<BUTTON>, gear)
+                    boss.SUBMIT_T(tier::release, hids::events::mouse::button::drag::start::_<BUTTON>, dragmemo[BUTTON], gear)
                     {
                         if (gear.capture(boss.bell::id))
                         {
@@ -3204,7 +3211,7 @@ namespace netxs::console
                             gear.dismiss();
                         }
                     };
-                    boss.SUBMIT(tier::release, hids::events::mouse::button::drag::pull::_<BUTTON>, gear)
+                    boss.SUBMIT_T(tier::release, hids::events::mouse::button::drag::pull::_<BUTTON>, dragmemo[BUTTON], gear)
                     {
                         if (gear.captured(boss.bell::id))
                         {
@@ -3212,7 +3219,7 @@ namespace netxs::console
                             gear.dismiss();
                         }
                     };
-                    boss.SUBMIT(tier::release, hids::events::mouse::button::drag::cancel::_<BUTTON>, gear)
+                    boss.SUBMIT_T(tier::release, hids::events::mouse::button::drag::cancel::_<BUTTON>, dragmemo[BUTTON], gear)
                     {
                         if (gear.captured(boss.bell::id))
                         {
@@ -3221,7 +3228,7 @@ namespace netxs::console
                             gear.dismiss();
                         }
                     };
-                    boss.SUBMIT(tier::general, hids::events::die, gear)
+                    boss.SUBMIT_T(tier::general, hids::events::die, dragmemo[BUTTON], gear)
                     {
                         if (gear.captured(boss.bell::id))
                         {
@@ -3230,7 +3237,7 @@ namespace netxs::console
                             gear.dismiss();
                         }
                     };
-                    boss.SUBMIT(tier::release, hids::events::mouse::button::drag::stop::_<BUTTON>, gear)
+                    boss.SUBMIT_T(tier::release, hids::events::mouse::button::drag::stop::_<BUTTON>, dragmemo[BUTTON], gear)
                     {
                         if (gear.captured(boss.bell::id))
                         {
@@ -5637,8 +5644,8 @@ again:
             uname = uname_txt = user_name;
             title.live = faux;
             legacy = legacy_mode;
-            mouse.draggable<sysmouse::leftright>();
-            mouse.draggable<sysmouse::left>();
+            mouse.draggable<sysmouse::leftright>(true);
+            mouse.draggable<sysmouse::left>(true);
             SUBMIT(tier::release, e2::form::drag::start::any, gear)
             {
                 robot.pacify();

@@ -321,7 +321,7 @@ namespace netxs::app::desk
                                         ->plugin<pro::cache>()
                                         ->invoke([&](auto& boss)
                                         {
-                                            boss.mouse.template draggable<sysmouse::left>();
+                                            boss.mouse.template draggable<sysmouse::left>(true);
                                             auto boss_shadow = ptr::shadow(boss.This());
                                             auto size_config = std::make_shared<std::pair<si32, si32>>(uibar_full_size, uibar_min_size);
                                             boss.SUBMIT_BYVAL(tier::release, e2::form::drag::pull::_<sysmouse::left>, gear)

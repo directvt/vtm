@@ -13,7 +13,7 @@ namespace netxs::events::userland
         EVENTPACK( term, netxs::events::userland::root::custom )
         {
             EVENT_XS( cmd   , si32 ),
-            EVENT_XS( usesgr, bool ),
+            EVENT_XS( selmod, si32 ),
             GROUP_XS( layout, si32 ),
             GROUP_XS( data  , si32 ),
 
@@ -151,7 +151,8 @@ namespace netxs::app::term
                     boss.color(wrapln == wrap::on ? 0xFF00ff00 : x3.fgc(), x3.bgc());
                 };
             }},
-            std::pair<text, std::function<void(ui::pads&)>>{ "+SGR",
+            //todo unify
+            std::pair<text, std::function<void(ui::pads&)>>{ "Selection",
             [](ui::pads& boss)
             {
                 boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
@@ -159,10 +160,29 @@ namespace netxs::app::term
                     boss.SIGNAL(tier::anycast, app::term::events::cmd, ui::term::commands::ui::togglesgr);
                     gear.dismiss(true);
                 };
-                boss.SUBMIT(tier::anycast, app::term::events::usesgr, usesgr)
+                boss.SUBMIT(tier::anycast, app::term::events::selmod, selmod)
                 {
-                    //todo unify, get boss base colors, don't use x3
-                    boss.color(usesgr ? 0xFF00ff00 : x3.fgc(), x3.bgc());
+                    //todo unify, get boss base colors, don't use x3, make it configurable
+                    switch (selmod)
+                    {
+                        default:
+                        case ui::term::xsgr::disabled:
+                            //boss.attach(ui::item::ctor("Selection", faux, true));
+                            if (boss.client) boss.client->SIGNAL(tier::release, e2::data::text, "Selection");
+                            boss.color(x3.fgc(), x3.bgc());
+                            break;
+                        case ui::term::xsgr::textonly:
+                            //boss.attach(ui::item::ctor("Text only", faux, true));
+                            if (boss.client) boss.client->SIGNAL(tier::release, e2::data::text, "Plaintext");
+                            boss.color(0xFF00ff00, x3.bgc());
+                            break;
+                        case ui::term::xsgr::ansitext:
+                            //boss.attach(ui::item::ctor("Rich-Text", faux, true));
+                            //boss.attach(ui::item::ctor("+ANSI/SGR", faux, true));
+                            if (boss.client) boss.client->SIGNAL(tier::release, e2::data::text, "ANSI-text");
+                            boss.color(0xFF00ffff, x3.bgc());
+                            break;
+                    }
                 };
             }},
         };
@@ -234,9 +254,9 @@ namespace netxs::app::term
                                     {
                                         boss.SIGNAL(tier::anycast, app::term::events::layout::align, status);
                                     };
-                                    boss.SUBMIT(tier::release, ui::term::events::usesgr, usesgr)
+                                    boss.SUBMIT(tier::release, ui::term::events::selmod, selmod)
                                     {
-                                        boss.SIGNAL(tier::anycast, app::term::events::usesgr, usesgr);
+                                        boss.SIGNAL(tier::anycast, app::term::events::selmod, selmod);
                                     };
 
                                     boss.SUBMIT(tier::anycast, app::term::events::cmd, cmd)
