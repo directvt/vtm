@@ -111,8 +111,7 @@ namespace netxs::ui
             twod area{}; // term_state: Terminal viewport size.
             buff data{}; // term_state: Status string.
             type mode{}; // term_state: Selection mode.
-            twod from{}; // term_state: Selection start.
-            twod upto{}; // term_state: Selection end.
+            twod coor{}; // term_state: Selection coor.
             ui64 body{}; // term_state: Selection rough volume.
             ui64 hash{}; // term_state: Selection update indicator.
             template<class bufferbase>
@@ -121,27 +120,24 @@ namespace netxs::ui
                 if (scroll.update_status(*this))
                 {
                     data.clear();
+                    if (hash) data.scp();
                     data.jet(bias::right).add(size,
                                          "/", peak,
                                          "+", step,
                                          " ", area.x, ":", area.y);
                     if (hash)
                     {
-                        //todo use .nop()
-                        data.eol().cuu(1).jet(bias::left);
-                        if (mode == type::block) // Block: 0,0 80x25 ~2000 bytes
+                        data.rcp().jet(bias::left);
+                        if (mode == type::block)
                         {
-                            data.add("Block: ",
-                                      from.x, ",", from.y,
-                                 " ", upto.x, "x", upto.y,
-                                " ~", body, " bytes ");
+                            data.add(coor.x, ":", coor.y, " ");
                         }
-                        else // Lines: 128:10-130:22 ~48 bytes
+                        else
                         {
-                            data.add("Lines: ",
-                                      from.x, ":", from.y,
-                                 "-", upto.x, ":", upto.y,
-                                " ~", body, " bytes ");
+                            data.add(coor.y, coor.y == 1 ? " row " : " rows ");
+                                 if (body == 1) data.add("1 cell ");
+                            else if (body <100) data.add     (body, " cells ");
+                            else                data.add("~", body, " cells ");
                         }
                     }
                     return true;
@@ -1918,10 +1914,9 @@ namespace netxs::ui
             }
             void selection_status(term_state& status) const override
             {
-                status.from = seltop;
-                status.upto = selend;
-                status.body = (std::abs(seltop.x - selend.x) + 1)
-                            * (std::abs(seltop.y - selend.y) + 1);
+                status.coor = std::abs(selend - seltop);
+                status.body = status.coor.y * panel.x + status.coor.x + 1;
+                status.coor+= dot_11;
             }
         };
 
@@ -4178,9 +4173,9 @@ namespace netxs::ui
             template<class T>
             auto selection_volume(T head, T tail, grip const& upcur, grip const& dncur) const
             {
-                auto c1 = upcur.corner;
-                auto c2 = dncur.corner;
-                auto summ =-(upcur.corner.y * panel.x + std::max(0, upcur.corner.x));
+                auto& top = *head;
+                auto& end = *tail;
+                auto summ = -std::min(top.length(), upcur.corner.y * panel.x + std::max(0, upcur.corner.x));
                 auto vpos = -upcur.corner.y;
                 while (head != tail)
                 {
@@ -4189,7 +4184,7 @@ namespace netxs::ui
                     summ += line.length();
                     ++head;
                 }
-                summ += 1 + dncur.corner.y * panel.x + std::max(0, dncur.corner.x);
+                summ += std::min(end.length(), 1 + dncur.corner.y * panel.x + std::max(0, dncur.corner.x));
                 vpos += 1 + dncur.corner.y;
                 return std::pair{ vpos, summ };
             }
@@ -4415,26 +4410,21 @@ namespace netxs::ui
             }
             void selection_status(term_state& status) const override
             {
-                auto [i_top, i_end, upcur, dncur] = selection_get_it();
-                if (i_top < 0) return;
-
-                auto data = batch.begin();
-                auto head = data + i_top;
-                auto tail = data + i_end;
-                if (selection_selbox())
+                status.coor.y = 1 + std::abs(static_cast<si32>(dnsel.anchor - upsel.anchor));
+                status.coor.x = 1 + std::abs(dnsel.corner.x - upsel.corner.x);
+                if (status.coor.y < approx_threshold)
                 {
-                    auto height = selection_height(head, tail, upcur, dncur);
-                    status.from = upcur.corner;
-                    status.upto = dncur.corner;
-                    status.body = height * (std::abs(upcur.corner.x - dncur.corner.x) + 1);
+                    auto [i_top, i_end, upcur, dncur] = selection_get_it();
+                    auto data = batch.begin();
+                    auto head = data + i_top;
+                    auto tail = data + i_end;
+                    auto [height, volume] = selection_volume(head, tail, upcur, dncur);
+                    if (selection_selbox()) status.coor.y = height;
+                    else                    status.body   = volume;
                 }
                 else
                 {
-                    auto [height, volume] = selection_volume(head, tail, upcur, dncur);
-                    status.from = upcur.corner;
-                    status.upto = dncur.corner;
-                    status.body = volume;
-                    status.upto.y = status.from.y + height;
+                    if (!selection_selbox()) status.body = status.coor.y * panel.x;
                 }
             }
         };
