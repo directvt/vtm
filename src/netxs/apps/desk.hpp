@@ -256,12 +256,12 @@ namespace netxs::app::desk
 
                 window->invoke([uibar_full_size, uibar_min_size](auto& boss) mutable
                     {
-                        #ifdef _WIN32
-                            auto current_default_sptr = std::make_shared<text>(app::shared::objs_lookup["CommandPrompt"]);
-                            //auto current_default = app::shared::objs_lookup["PowerShell"];
-                        #else
+                        //#ifdef _WIN32
+                        //    auto current_default_sptr = std::make_shared<text>(app::shared::objs_lookup["CommandPrompt"]);
+                        //    //auto current_default = app::shared::objs_lookup["PowerShell"];
+                        //#else
                             auto current_default_sptr = std::make_shared<text>(app::shared::objs_lookup["Term"]);
-                        #endif
+                        //#endif
                         auto previous_default_sptr = std::make_shared<text>(*current_default_sptr);
                         auto subs_sptr = std::make_shared<subs>();
                         auto shadow = ptr::shadow(boss.This());

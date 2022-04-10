@@ -14,6 +14,7 @@ namespace netxs::events::userland
         {
             EVENT_XS( cmd   , si32 ),
             EVENT_XS( selmod, si32 ),
+            EVENT_XS( colors, cell ),
             GROUP_XS( layout, si32 ),
             GROUP_XS( data  , si32 ),
 
@@ -271,6 +272,11 @@ namespace netxs::app::term
                                     {
                                         boss.data_out(data);
                                     };
+                                    boss.SUBMIT(tier::anycast, app::term::events::colors, brush)
+                                    {
+                                        boss.SIGNAL(tier::release, e2::form::prop::brush, brush);
+                                    };
+
                                     boss.SUBMIT(tier::anycast, e2::form::upon::started, root)
                                     {
                                         boss.start();

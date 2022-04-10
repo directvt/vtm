@@ -31,9 +31,7 @@ namespace netxs::app::shared
     X(Tile         , "Tile"                  , ("Tiling Window Manager")                                       , "VTM_PROFILE_1=\"Tile\", \"Tiling Window Manager\", h(a(\"Term\" ,\"Term\" ,\"\"), a(\"Term\" ,\"Term\" ,\"\"))" ) \
     X(Settings     , "Settings"              , ("Settings: Frame Rate Limit")                                  , "" ) \
     X(PowerShell   , "PowerShell"            , ("Term \nPowerShell")                                           , "" ) \
-    X(CommandPrompt, "Command Prompt"        , ("Term \nCommand Prompt")                                       , "" ) \
     X(Bash         , "Bash/Zsh/CMD"          , ("Term \nBash/Zsh/CMD")                                         , "" ) \
-    X(Far          , "Far Manager"           , ("Term \nFar Manager")                                          , "" ) \
     X(VTM          , "vtm (recursively)"     , ("Term \nvtm (recursively)")                                    , "" ) \
     X(MC           , "mc  Midnight Commander", ("Term \nMidnight Commander")                                   , "" ) \
     X(Truecolor    , "Truecolor image"       , (ansi::jet(bias::right).add("True color ANSI/ASCII image test")), "" ) \
@@ -626,31 +624,6 @@ namespace netxs::app::shared
                 layers->attach(app::shared::scroll_bars(scroll));
             return window;
         };
-        auto build_Far           = [](view v)
-        {
-            auto window = ui::cake::ctor();
-            window->plugin<pro::focus>()
-                  ->plugin<pro::track>()
-                  ->plugin<pro::acryl>()
-                  ->plugin<pro::cache>();
-            auto object = window->attach(ui::fork::ctor(axis::Y))
-                                ->colors(whitelt, app::shared::term_menu_bg);
-                auto menu = object->attach(slot::_1, app::shared::custom_menu(true, {}));
-                auto layers = object->attach(slot::_2, ui::cake::ctor())
-                                    ->plugin<pro::limit>(dot_11, twod{ 400,200 });
-                    auto scroll = layers->attach(ui::rail::ctor());
-                    scroll->attach(ui::term::ctor("far"))
-                          ->colors(whitelt, blackdk)
-                          ->invoke([&](auto& boss)
-                          {
-                            boss.SUBMIT(tier::anycast, e2::form::upon::started, root)
-                            {
-                                boss.start();
-                            };
-                          });
-                layers->attach(app::shared::scroll_bars_term(scroll));
-            return window;
-        };
         auto build_MC            = [](view v)
         {
             auto window = ui::cake::ctor();
@@ -694,111 +667,10 @@ namespace netxs::app::shared
         };
         auto build_PowerShell    = [](view v)
         {
-            auto window = ui::cake::ctor();
-            window->plugin<pro::focus>()
-                  ->plugin<pro::track>()
-                  ->plugin<pro::acryl>()
-                  ->plugin<pro::cache>();
-            auto object = window->attach(ui::fork::ctor(axis::Y))
-                                ->colors(whitelt, app::shared::term_menu_bg);
-                auto menu = object->attach(slot::_1, app::shared::custom_menu(true,
-                    std::list{
-                            std::pair<text, std::function<void(ui::pads&)>>{ ansi::esc("C").und(true).add("l").nil().add("ear"),
-                            [](ui::pads& boss)
-                            {
-                                boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
-                                {
-                                    boss.SIGNAL(tier::anycast, app::term::events::cmd, ui::term::commands::ui::clear);
-                                    gear.dismiss(true);
-                                };
-                            }},
-                            std::pair<text, std::function<void(ui::pads&)>>{ ansi::esc("R").und(true).add("e").nil().add("set"),
-                            [](ui::pads& boss)
-                            {
-                                boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
-                                {
-                                    boss.SIGNAL(tier::anycast, app::term::events::cmd, ui::term::commands::ui::reset);
-                                    gear.dismiss(true);
-                                };
-                            }},
-                        }));
-                auto term_stat_area = object->attach(slot::_2, ui::fork::ctor(axis::Y));
-                    auto layers = term_stat_area->attach(slot::_1, ui::cake::ctor())
-                                                ->plugin<pro::limit>(dot_11, twod{ 400,200 });
-                        auto scroll = layers->attach(ui::rail::ctor())
-                                            ->colors(whitelt, 0xFF560000);
-                            scroll->attach(ui::term::ctor("powershell"))
-                                  ->colors(whitelt, 0xFF562401)
-                                  ->invoke([&](auto& boss)
-                                  {
-                                    boss.SUBMIT(tier::anycast, e2::form::upon::started, root)
-                                    {
-                                        boss.start();
-                                    };
-                                  });
-
-                    auto scroll_bars = layers->attach(ui::fork::ctor());
-                        auto vt = scroll_bars->attach(slot::_2, ui::grip<axis::Y>::ctor(scroll));
-                        auto hz = term_stat_area->attach(slot::_2, ui::grip<axis::X>::ctor(scroll));
-            return window;
-        };
-        auto build_CommandPrompt = [](view v)
-        {
-            auto window = ui::cake::ctor();
-            window->plugin<pro::focus>()
-                  ->plugin<pro::track>()
-                  ->plugin<pro::acryl>()
-                  ->plugin<pro::cache>();
-            auto object = window->attach(ui::fork::ctor(axis::Y))
-                                ->colors(whitelt, app::shared::term_menu_bg);
-                auto menu = object->attach(slot::_1, app::shared::custom_menu(true,
-                    std::list{
-                            std::pair<text, std::function<void(ui::pads&)>>{ ansi::esc("C").und(true).add("l").nil().add("ear"),
-                            [](ui::pads& boss)
-                            {
-                                boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
-                                {
-                                    boss.SIGNAL(tier::anycast, app::term::events::cmd, ui::term::commands::ui::clear);
-                                    gear.dismiss(true);
-                                };
-                            }},
-                            std::pair<text, std::function<void(ui::pads&)>>{ ansi::esc("R").und(true).add("e").nil().add("set"),
-                            [](ui::pads& boss)
-                            {
-                                boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
-                                {
-                                    boss.SIGNAL(tier::anycast, app::term::events::cmd, ui::term::commands::ui::reset);
-                                    gear.dismiss(true);
-                                };
-                            }},
-                        }));
-                auto term_stat_area = object->attach(slot::_2, ui::fork::ctor(axis::Y));
-                    auto layers = term_stat_area->attach(slot::_1, ui::cake::ctor())
-                                                ->plugin<pro::limit>(dot_11, twod{ 400,200 });
-                        auto scroll = layers->attach(ui::rail::ctor());
-                #ifdef DEMO
-                    scroll->plugin<pro::limit>(twod{ 20,1 }); // mc crashes when window is too small
-                #endif
-
-                    #if defined(_WIN32)
-                        auto inst = scroll->attach(ui::term::ctor("cmd"));
-                    #else
-                        auto shell = os::get_shell();
-                        auto inst = scroll->attach(ui::term::ctor(shell + " -i"));
-                    #endif
-
-                        inst->colors(whitelt, blackdk)
-                            ->invoke([&](auto& boss)
-                            {
-                                boss.SUBMIT(tier::anycast, e2::form::upon::started, root)
-                                {
-                                    boss.start();
-                                };
-                            });
-
-                auto scroll_bars = layers->attach(ui::fork::ctor());
-                    auto vt = scroll_bars->attach(slot::_2, ui::grip<axis::Y>::ctor(scroll));
-                    auto hz = term_stat_area->attach(slot::_2, ui::grip<axis::X>::ctor(scroll));
+            auto window = app::term::build("powershell");
+            //todo unify
+            auto colors = cell{}.fgc(whitelt).bgc(0xFF562401);
+            window->SIGNAL(tier::anycast, app::term::events::colors, colors);
             return window;
         };
         auto build_HeadlessTerm  = [](view v)
@@ -897,10 +769,8 @@ namespace netxs::app::shared
         app::shared::initialize builder_View         { "View"         , build_View          };
         app::shared::initialize builder_Truecolor    { "Truecolor"    , build_Truecolor     };
         app::shared::initialize builder_VTM          { "VTM"          , build_VTM           };
-        app::shared::initialize builder_Far          { "Far"          , build_Far           };
         app::shared::initialize builder_MC           { "MC"           , build_MC            };
         app::shared::initialize builder_PowerShell   { "PowerShell"   , build_PowerShell    };
-        app::shared::initialize builder_CommandPrompt{ "CommandPrompt", build_CommandPrompt };
         app::shared::initialize builder_Bash         { "Bash"         , app::term::build    };
         app::shared::initialize builder_HeadlessTerm { "HeadlessTerm" , build_HeadlessTerm  };
         app::shared::initialize builder_Fone         { "Fone"         , build_Fone          };
@@ -925,7 +795,6 @@ namespace netxs::app::shared
         #else
             #ifdef _WIN32
                 menu_list[objs_lookup["Term"]];
-                menu_list[objs_lookup["CommandPrompt"]];
                 menu_list[objs_lookup["PowerShell"]];
                 menu_list[objs_lookup["Tile"]];
                 menu_list[objs_lookup["Logs"]];

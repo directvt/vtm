@@ -1,7 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#define MONOTTY_VER "Monotty Desktopio v0.6.1"
+#define MONOTTY_VER "Monotty Desktopio v0.6.2"
 
 // Enable demo apps and assign Esc key to log off.
 //#define DEMO
