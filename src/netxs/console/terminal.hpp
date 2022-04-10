@@ -82,7 +82,7 @@ namespace netxs::ui
                     wrapon,
                     wrapoff,
                     togglewrp,
-                    togglesgr,
+                    togglesel,
                     reset,
                     clear,
                 };
@@ -838,6 +838,8 @@ namespace netxs::ui
             virtual text selection_pickup(si32  selmod)                = 0;
             virtual void selection_render(face& target)                = 0;
             virtual void selection_status(term_state& status) const    = 0;
+            virtual void selection_setjet(bias align) { }
+            virtual void selection_setwrp() { }
             template<bool FORCED = true>
             void selection_update()
             {
@@ -4014,6 +4016,7 @@ namespace netxs::ui
                 assert(test_coord());
             }
 
+            // scroll_buf: .
             auto selection_coor_to_grip(twod coord)
             {
                 auto index = batch.front().index;
@@ -4043,6 +4046,7 @@ namespace netxs::ui
                 return grip{ .anchor = index,
                              .corner = coord };
             }
+            // scroll_buf: .
             template<bool SORT = faux>
             auto selection_take_grips()
             {
@@ -4152,6 +4156,7 @@ namespace netxs::ui
                 }
                 return state;
             }
+            // scroll_buf: .
             auto selection_get_it() const
             {
                 auto upcur = upsel;
@@ -4179,6 +4184,7 @@ namespace netxs::ui
                 }
                 return std::tuple{ i_top, i_end, upcur, dncur };
             }
+            // scroll_buf: .
             template<class T>
             auto selection_height(T head, T tail, grip const& upcur, grip const& dncur) const
             {
@@ -4191,6 +4197,7 @@ namespace netxs::ui
                 vpos += 1 + dncur.corner.y;
                 return vpos;
             }
+            // scroll_buf: .
             template<class T>
             auto selection_volume(T head, T tail, grip const& upcur, grip const& dncur) const
             {
@@ -4217,7 +4224,7 @@ namespace netxs::ui
                 if (selmod == xsgr::ansitext) yield.nil();
 
                 auto [i_top, i_end, upcur, dncur] = selection_get_it();
-                if (i_top < 0)
+                if (i_top == -1)
                 {
                     selection_cancel();
                     return yield;
@@ -4428,6 +4435,7 @@ namespace netxs::ui
                     }
                 }
             }
+            // scroll_buf: .
             void selection_status(term_state& status) const override
             {
                 status.coor.y = 1 + std::abs(static_cast<si32>(dnsel.anchor - upsel.anchor));
@@ -4446,6 +4454,42 @@ namespace netxs::ui
                 {
                     if (!selection_selbox()) status.body = status.coor.y * panel.x;
                 }
+            }
+            // scroll_buf: .
+            template<class P>
+            void selection_foreach(P proc)
+            {
+                auto [i_top, i_end, upcur, dncur] = selection_get_it();
+                if (i_top == -1) selection_cancel();
+                else
+                {
+                    auto data = batch.begin();
+                    auto head = data + i_top;
+                    auto tail = data + i_end;
+                    do proc(*head);
+                    while (head++ != tail);
+                }
+            }
+            // scroll_buf: .
+            void selection_setjet(bias align) override
+            {
+                selection_foreach([&](auto& curln)
+                {
+                    curln.style.jet(align);
+                    batch.recalc(curln);
+                });
+            }
+            // scroll_buf: .
+            void selection_setwrp() override
+            {
+                auto i_top = std::clamp(batch.index_by_id(upsel.anchor), 0, batch.size);
+                auto wraps = batch[i_top].style.wrp() == wrap::on ? wrap::off : wrap::on;
+                //todo recalc upsel/dnsel.corners
+                selection_foreach([&](auto& curln)
+                {
+                    curln.style.wrp(wraps);
+                    batch.recalc(curln);
+                });
             }
         };
 
@@ -4921,32 +4965,36 @@ namespace netxs::ui
         void exec_cmd(commands::ui::commands cmd)
         {
             log("term: tier::preview, ui::commands, ", cmd);
-            follow[axis::Y] = true;
-            switch (cmd)
+            auto& console = *target;
+            //todo reorganize - group commands
+            if (console.selection_active())
             {
-                case commands::ui::left:
-                    target->style.jet(bias::left);
-                    break;
-                case commands::ui::center:
-                    target->style.jet(bias::center);
-                    break;
-                case commands::ui::right:
-                    target->style.jet(bias::right);
-                    break;
-                case commands::ui::togglewrp:
-                    target->style.wrp(target->style.wrp() == wrap::on ? wrap::off : wrap::on);
-                    break;
-                case commands::ui::togglesgr:
-                    selection_selmod();
-                    return; // Without resetting the viewport.
-                case commands::ui::reset:
-                    decstr();
-                    break;
-                case commands::ui::clear:
-                    target->ed(commands::erase::display::viewport);
-                    break;
-                default:
-                    break;
+                switch (cmd)
+                {
+                    case commands::ui::left:      console.selection_setjet(bias::left  ); break;
+                    case commands::ui::center:    console.selection_setjet(bias::center); break;
+                    case commands::ui::right:     console.selection_setjet(bias::right ); break;
+                    case commands::ui::togglewrp: console.selection_setwrp(); break;
+                    case commands::ui::togglesel: selection_selmod(); break;
+                    case commands::ui::reset:     decstr(); break;
+                    case commands::ui::clear:     console.ed(commands::erase::display::viewport); break;
+                    default: break;
+                }
+            }
+            else
+            {
+                switch (cmd)
+                {
+                    case commands::ui::left:      console.style.jet(bias::left  ); break;
+                    case commands::ui::center:    console.style.jet(bias::center); break;
+                    case commands::ui::right:     console.style.jet(bias::right ); break;
+                    case commands::ui::togglewrp: console.style.wrp(console.style.wrp() == wrap::on ? wrap::off : wrap::on); break;
+                    case commands::ui::togglesel: selection_selmod(); return; // Without resetting the viewport.
+                    case commands::ui::reset:     decstr(); break;
+                    case commands::ui::clear:     console.ed(commands::erase::display::viewport); break;
+                    default: break;
+                }
+                follow[axis::Y] = true;
             }
             ondata(""); // Reset viewport.
         }

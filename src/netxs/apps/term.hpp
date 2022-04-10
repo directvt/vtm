@@ -158,7 +158,7 @@ namespace netxs::app::term
             {
                 boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                 {
-                    boss.SIGNAL(tier::anycast, app::term::events::cmd, ui::term::commands::ui::togglesgr);
+                    boss.SIGNAL(tier::anycast, app::term::events::cmd, ui::term::commands::ui::togglesel);
                     gear.dismiss(true);
                 };
                 boss.SUBMIT(tier::anycast, app::term::events::selmod, selmod)
