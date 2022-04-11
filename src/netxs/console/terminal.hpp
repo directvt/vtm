@@ -4484,7 +4484,7 @@ namespace netxs::ui
             {
                 auto i_top = std::clamp(batch.index_by_id(upsel.anchor), 0, batch.size);
                 auto wraps = batch[i_top].style.wrp() == wrap::on ? wrap::off : wrap::on;
-                //todo recalc upsel/dnsel.corners
+                upsel.corner.y = dnsel.corner.y = 0;
                 selection_foreach([&](auto& curln)
                 {
                     curln.style.wrp(wraps);
