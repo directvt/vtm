@@ -4348,18 +4348,20 @@ namespace netxs::ui
                 {
                     auto view = target.view();
                     auto full = target.full();
+                    auto scrolling_region = rect{ { -dot_mx.x / 2, batch.slide + y_top }, { dot_mx.x, arena }};
+                    scrolling_region.coor += full.coor;
                     if (selection_selbox())
                     {
                         auto [curtop, curend] = selection_take_grips();
                         auto grip_1 = rect{ curtop + full.coor, dot_11 };
                         auto grip_2 = rect{ curend + full.coor, dot_11 };
-                        auto square = grip_1 | grip_2;
-                        target.fill(square.clip(view), cell::shaders::xlight);
                         target.fill(grip_1.clip(view), cell::shaders::invbit);
                         if (grip_1.coor != grip_2.coor)
                         {
                             target.fill(grip_2.clip(view), cell::shaders::invbit);
                         }
+                        auto square = (grip_1 | grip_2).clip(scrolling_region);
+                        target.fill(square.clip(view), cell::shaders::xlight);
                     }
                     else
                     {
@@ -4367,8 +4369,18 @@ namespace netxs::ui
                         curtop += full.coor;
                         curend += full.coor;
                         target.vsize(batch.vsize + sctop + scend); // Include margins and bottom oversize.
+                        {
+                            auto grip_1 = rect{ curtop, dot_11 };
+                            auto grip_2 = rect{ curend, dot_11 };
+                            target.fill(grip_1.clip(view), cell::shaders::invbit);
+                            if (grip_1.coor != grip_2.coor)
+                            {
+                                target.fill(grip_2.clip(view), cell::shaders::invbit);
+                            }
+                        }
+                        view = view.clip(scrolling_region);
                         auto coor = twod{ 0, batch.slide - batch.ancdy + y_top };
-                        auto stop = batch.slide + panel.y;
+                        auto stop = batch.slide + arena + y_top;
                         auto head = batch.iter_by_id(batch.ancid);
                         auto tail = batch.end();
                         auto draw = [&](auto const& coord, auto const& subblock, auto isr_to_l)
@@ -4418,19 +4430,6 @@ namespace netxs::ui
                             }
                             coor.y += height;
                             ++head;
-                        }
-                        //todo scrolling regions
-                        //...
-
-                        // if selection is not null
-                        {
-                            auto grip_1 = rect{ curtop, dot_11 };
-                            auto grip_2 = rect{ curend, dot_11 };
-                            target.fill(grip_1.clip(view), cell::shaders::invbit);
-                            if (grip_1.coor != grip_2.coor)
-                            {
-                                target.fill(grip_2.clip(view), cell::shaders::invbit);
-                            }
                         }
                     }
                 }
