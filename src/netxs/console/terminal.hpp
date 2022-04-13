@@ -833,11 +833,11 @@ namespace netxs::ui
                 parser::style = ansi::def_style;
             }
 
-            virtual void selection_create(twod const& coor, bool mode) = 0;
-            virtual bool selection_extend(twod const& coor, bool mode) = 0;
-            virtual text selection_pickup(si32  selmod)                = 0;
-            virtual void selection_render(face& target)                = 0;
-            virtual void selection_status(term_state& status) const    = 0;
+            virtual void selection_create(twod coor, bool mode)     = 0;
+            virtual bool selection_extend(twod coor, bool mode)     = 0;
+            virtual text selection_pickup(si32  selmod)             = 0;
+            virtual void selection_render(face& target)             = 0;
+            virtual void selection_status(term_state& status) const = 0;
             virtual void selection_setjet(bias align) { }
             virtual void selection_setwrp() { }
             template<bool FORCED = true>
@@ -1806,7 +1806,7 @@ namespace netxs::ui
             }
 
             // alt_screen: Start text selection.
-            void selection_create(twod const& coor, bool mode) override
+            void selection_create(twod coor, bool mode) override
             {
                 auto limits = panel - dot_11;
                 auto curtop = std::clamp(seltop, dot_00, limits);
@@ -1833,7 +1833,7 @@ namespace netxs::ui
                 selection_update();
             }
             // alt_screen: Extend text selection.
-            bool selection_extend(twod const& coor, bool mode) override
+            bool selection_extend(twod coor, bool mode) override
             {
                 auto state = selection_active();
                 if (state)
@@ -2041,8 +2041,15 @@ namespace netxs::ui
             };
             struct grip
             {
-                id_t anchor{}; // scroll_buf::grip: Anchor id.
-                twod corner{}; // scroll_buf::grip: 2D offset relative to anchor.
+                enum type
+                {
+                    idle,
+                    base,
+                    join,
+                };
+                id_t link{}; // scroll_buf::grip: Anchor id.
+                twod coor{}; // scroll_buf::grip: 2D offset relative to link.
+                type role{}; // scroll_buf::grip: Grip category.
             };
 
             using ring = generics::ring<std::vector<line>, true>;
@@ -2258,8 +2265,12 @@ namespace netxs::ui
             face dnbox; // scroll_buf: Bottom margin canvas.
             twod upmin; // scroll_buf:    Top margin minimal size.
             twod dnmin; // scroll_buf: Bottom margin minimal size.
-            grip upsel; // scroll_buf: Selection first grip.
-            grip dnsel; // scroll_buf: Selection second grip.
+            grip upsel; // scroll_buf: Selection first grip inside the scrolling region.
+            grip dnsel; // scroll_buf: Selection second grip inside the scrolling region.
+            grip uptop; // scroll_buf: Selection first grip inside the top margin.
+            grip dntop; // scroll_buf: Selection second grip inside the top margin.
+            grip upend; // scroll_buf: Selection first grip inside the bottom margin.
+            grip dnend; // scroll_buf: Selection second grip inside the bottom margin.
 
             static constexpr si32 approx_threshold = 10000; //todo make it configurable
 
@@ -4022,8 +4033,9 @@ namespace netxs::ui
                 auto index = batch.front().index;
                 if (coord.y < 0)
                 {
-                    return grip{ .anchor = index,
-                                 .corner = coord };
+                    return grip{ .link = index,
+                                 .coor = coord,
+                                 .role = grip::base };
                 }
                 auto i_cur = batch.index_by_id(batch.ancid);
                 assert(i_cur < batch.size);
@@ -4043,23 +4055,25 @@ namespace netxs::ui
                     vtpos = newpos;
                 }
                 coord.y -= vtpos;
-                return grip{ .anchor = index,
-                             .corner = coord };
+                return grip{ .link = index,
+                             .coor = coord,
+                             .role = grip::base };
             }
             // scroll_buf: .
             template<bool SORT = faux>
             auto selection_take_grips()
             {
+                if (upsel.role == grip::idle) return std::pair{ dot_mx, dot_mx };
                 auto i_cur = batch.index_by_id(batch.ancid);
-                auto i_top = batch.index_by_id(upsel.anchor);
-                auto i_end = batch.index_by_id(dnsel.anchor);
+                auto i_top = batch.index_by_id(upsel.link);
+                auto i_end = batch.index_by_id(dnsel.link);
                 if (i_top < 0 && i_end < 0)
                 {
                     selection_cancel();
                     return std::pair{ dot_mx, dot_mx };
                 }
-                auto coor1 = upsel.corner;
-                auto coor2 = dnsel.corner;
+                auto coor1 = upsel.coor;
+                auto coor2 = dnsel.coor;
                 auto start = batch.begin() + i_cur;
                 auto limit = batch.end();
                 auto topid = batch.front().index;
@@ -4070,13 +4084,13 @@ namespace netxs::ui
                 auto done2 = true;
                 auto check = [&](auto height, auto& curln, auto& undone, auto& grip, auto& coor)
                 {
-                    if (undone && grip.anchor == curln.index)
+                    if (undone && grip.link == curln.index)
                     {
                         undone = faux;
-                        if (grip.corner.y >= height && grip.anchor != endid) // Try to re anchor it.
+                        if (grip.coor.y >= height && grip.link != endid) // Try to re anchor it.
                         {
                             auto head = start + 1;
-                            auto ypos = grip.corner.y - height;
+                            auto ypos = grip.coor.y - height;
                             assert(head != limit);
                             while (true)
                             {
@@ -4084,21 +4098,21 @@ namespace netxs::ui
                                 auto height = curln.height(panel.x);
                                 if (ypos < height || ++head == limit)
                                 {
-                                    grip.anchor = curln.index;
-                                    grip.corner.y = ypos;
+                                    grip.link = curln.index;
+                                    grip.coor.y = ypos;
                                     break;
                                 }
                                 ypos -= height;
                             }
                         }
-                        coor.y = vtpos + grip.corner.y;
+                        coor.y = vtpos + grip.coor.y;
                     }
                 };
                 // Check the buffer ring.
-                     if (i_top < 0)           upsel.anchor = topid;
-                else if (i_top >= batch.size) upsel.anchor = endid;
-                     if (i_end < 0)           dnsel.anchor = topid;
-                else if (i_end >= batch.size) dnsel.anchor = endid;
+                     if (i_top < 0)           upsel.link = topid;
+                else if (i_top >= batch.size) upsel.link = endid;
+                     if (i_end < 0)           dnsel.link = topid;
+                else if (i_end >= batch.size) dnsel.link = endid;
 
                 coor1.y = i_top < i_cur ? -dot_mx.y : dot_mx.y;
                 coor2.y = i_end < i_cur ? -dot_mx.y : dot_mx.y;
@@ -4127,30 +4141,115 @@ namespace netxs::ui
                 return std::pair{ coor1, coor2 };
             }
             // scroll_buf: Start text selection.
-            void selection_create(twod const& coor, bool mode) override
+            void selection_create(twod coor, bool mode) override
             {
-                auto nohits = [&]()
+                auto nohits = [&](auto upcoor, auto dncoor, auto& top, auto& end)
                 {
-                    auto [seltop, selend] = selection_take_grips();
-                         if (coor == seltop) std::swap(upsel, dnsel);
-                    else if (coor != selend) return true;
+                         if (coor == upcoor && top.role == grip::base) std::swap(top, end);
+                    else if (coor != dncoor || end.role != grip::base) return true;
                     return faux;
                 };
-                if (!selection_active() || nohits())
+                auto scrolling_margin = batch.slide + y_top;
+                if (coor.y < scrolling_margin) // Inside the top margin.
                 {
-                    upsel = selection_coor_to_grip(coor);
-                    dnsel = upsel;
+                    coor.y -= batch.slide;
+                    if (!selection_active() || nohits(uptop.coor, dntop.coor, uptop, dntop))
+                    {
+                        upsel.role = dnsel.role = grip::idle;
+                        upend.role = dnend.role = grip::idle;
+                        uptop.role = grip::base;
+                        uptop.coor = coor;
+                        dntop = uptop;
+                    }
+                    log("Top margin hit coor=", coor, " batch.slide=", batch.slide, " uptop.coor=", uptop.coor);
                 }
+                else if (coor.y < scrolling_margin + arena) // Inside the scrolling region.
+                {
+                    auto [seltop, selend] = selection_take_grips();
+                    if (!selection_active() || nohits(seltop, selend, upsel, dnsel))
+                    {
+                        upsel = selection_coor_to_grip(coor);
+                        dnsel = upsel;
+                        uptop.role = dntop.role = grip::idle;
+                        upend.role = dnend.role = grip::idle;
+                    }
+                    log("Scrolling region hit coor=", coor, " batch.slide=", batch.slide);
+                }
+                else // Inside the bottom margin.
+                {
+                    coor.y -= scrolling_margin + arena;
+                    if (!selection_active() || nohits(upend.coor, dnend.coor, upend, dnend))
+                    {
+                        upsel.role = dnsel.role = grip::idle;
+                        uptop.role = dntop.role = grip::idle;
+                        upend.role = grip::base;
+                        upend.coor = coor;
+                        dnend = upend;
+                    }
+                    log("Bottom margin hit coor=", coor, " batch.slide=", batch.slide);
+
+                }
+
                 selection_selbox(mode);
                 selection_update();
             }
             // scroll_buf: Extend text selection.
-            bool selection_extend(twod const& coor, bool mode) override
+            bool selection_extend(twod coor, bool mode) override
             {
                 auto state = selection_active();
                 if (state)
                 {
-                    dnsel = selection_coor_to_grip(coor);
+                    auto scrolling_margin = batch.slide + y_top;
+                    if (coor.y < scrolling_margin) // Inside the top margin.
+                    {
+                        coor.y -= batch.slide;
+                        if (uptop.role == grip::base)
+                        {
+                            upsel.role = dnsel.role = grip::idle;
+                            upend.role = dnend.role = grip::idle;
+                            dntop.role = grip::base;
+                            dntop.coor = coor;
+                        }
+                        else
+                        {
+                            //...
+
+                        }
+                        log("Extend: Top margin hit coor=", coor, " batch.slide=", batch.slide);
+                    }
+                    else if (coor.y < scrolling_margin + arena) // Inside the scrolling region.
+                    {
+                        if (upsel.role == grip::base)
+                        {
+                            uptop.role = dntop.role = grip::idle;
+                            upend.role = dnend.role = grip::idle;
+                            dnsel = selection_coor_to_grip(coor);
+                        }
+                        else
+                        {
+                            //...
+
+                        }
+                        log("Extend: Scrolling region hit coor=", coor, " batch.slide=", batch.slide);
+                    }
+                    else // Inside the bottom margin.
+                    {
+                        coor.y -= scrolling_margin + arena;
+                        if (upend.role == grip::base)
+                        {
+                            upsel.role = dnsel.role = grip::idle;
+                            uptop.role = dntop.role = grip::idle;
+                            dnend.role = grip::base;
+                            dnend.coor = coor;
+                        }
+                        else
+                        {
+                            //...
+
+                        }
+                        log("Extend: Bottom margin hit coor=", coor, " batch.slide=", batch.slide);
+                    }
+
                     selection_selbox(mode);
                     selection_update();
                 }
@@ -4161,23 +4260,23 @@ namespace netxs::ui
             {
                 auto upcur = upsel;
                 auto dncur = dnsel;
-                auto i_top = batch.index_by_id(upcur.anchor);
-                auto i_end = batch.index_by_id(dncur.anchor);
+                auto i_top = batch.index_by_id(upcur.link);
+                auto i_end = batch.index_by_id(dncur.link);
                 if (i_top < 0)
                 {
                     if (i_end < 0) return std::tuple{-1,-1, upcur, dncur };
-                    upcur.corner = dot_00;
+                    upcur.coor = dot_00;
                 }
                 else if (i_end < 0)
                 {
-                    dncur.corner = dot_00;
+                    dncur.coor = dot_00;
                 }
 
                 i_top = std::clamp(i_top, 0, batch.size - 1);
                 i_end = std::clamp(i_end, 0, batch.size - 1);
                 if (i_top >  i_end
-                || (i_top == i_end && (upcur.corner.y >  dncur.corner.y
-                                   || (upcur.corner.y == dncur.corner.y && (upcur.corner.x > dncur.corner.x)))))
+                || (i_top == i_end && (upcur.coor.y >  dncur.coor.y
+                                   || (upcur.coor.y == dncur.coor.y && (upcur.coor.x > dncur.coor.x)))))
                 {
                     std::swap(i_top, i_end);
                     std::swap(upcur, dncur);
@@ -4188,13 +4287,13 @@ namespace netxs::ui
             template<class T>
             auto selection_height(T head, T tail, grip const& upcur, grip const& dncur) const
             {
-                auto vpos = -upcur.corner.y;
+                auto vpos = -upcur.coor.y;
                 while (head != tail)
                 {
                     vpos += head->height(panel.x);
                     ++head;
                 }
-                vpos += 1 + dncur.corner.y;
+                vpos += 1 + dncur.coor.y;
                 return vpos;
             }
             // scroll_buf: .
@@ -4203,8 +4302,8 @@ namespace netxs::ui
             {
                 auto& top = *head;
                 auto& end = *tail;
-                auto summ = -std::min(top.length(), upcur.corner.y * panel.x + std::max(0, upcur.corner.x));
-                auto vpos = -upcur.corner.y;
+                auto summ = -std::min(top.length(), upcur.coor.y * panel.x + std::max(0, upcur.coor.x));
+                auto vpos = -upcur.coor.y;
                 while (head != tail)
                 {
                     auto& line = *head;
@@ -4212,8 +4311,8 @@ namespace netxs::ui
                     summ += line.length();
                     ++head;
                 }
-                summ += std::min(end.length(), 1 + dncur.corner.y * panel.x + std::max(0, dncur.corner.x));
-                vpos += 1 + dncur.corner.y;
+                summ += std::min(end.length(), 1 + dncur.coor.y * panel.x + std::max(0, dncur.coor.x));
+                vpos += 1 + dncur.coor.y;
                 return std::pair{ vpos, summ };
             }
             // scroll_buf: Materialize selection.
@@ -4239,8 +4338,8 @@ namespace netxs::ui
                     face dest;
                     auto mark = cell{};
                     auto coor = dot_00;
-                    auto view = rect{{ std::min(upcur.corner.x,  dncur.corner.x), upcur.corner.y },
-                                     { std::abs(upcur.corner.x - dncur.corner.x) + 1, selection_height(head, tail, upcur, dncur) }};
+                    auto view = rect{{ std::min(upcur.coor.x,  dncur.coor.x), upcur.coor.y },
+                                     { std::abs(upcur.coor.x - dncur.coor.x) + 1, selection_height(head, tail, upcur, dncur) }};
                     auto full = rect{ -view.coor, { panel.x, view.coor.y + view.size.y }};
                     dest.flow::full(full);
                     dest.core::move(view.coor);
@@ -4293,21 +4392,21 @@ namespace netxs::ui
                         if (i_top == i_end)
                         {
                             auto& headln = *head++;
-                            field.coor.x = coord(headln, upcur.corner, 0);
-                            field.size.x = coord(headln, dncur.corner, 1);
+                            field.coor.x = coord(headln, upcur.coor, 0);
+                            field.size.x = coord(headln, dncur.coor, 1);
                             field.size.x = field.size.x - field.coor.x;
                             print(headln);
                         }
                         else
                         {
                             auto& headln = *head++;
-                            field.coor.x = coord(headln, upcur.corner, 0);
+                            field.coor.x = coord(headln, upcur.coor, 0);
                             field.size.x = dot_mx.x;
                             print(headln);
                             field.coor.x = 0;
                             while (head != tail) print(*head++);
                             auto& lastln = *head++;
-                            field.size.x = coord(lastln, dncur.corner, 1);
+                            field.size.x = coord(lastln, dncur.coor, 1);
                             print(lastln);
                         }
                         if (yield.length()) yield.pop_back(); // Pop last eol.
@@ -4350,35 +4449,55 @@ namespace netxs::ui
                     auto full = target.full();
                     auto scrolling_region = rect{ { -dot_mx.x / 2, batch.slide + y_top }, { dot_mx.x, arena }};
                     scrolling_region.coor += full.coor;
+
+                    {
+                        auto draw = [&](auto& grip_item, auto offset)
+                        {
+                            if (grip_item.role == grip::base)
+                            {
+                                auto curgrip = full.coor;
+                                curgrip += grip_item.coor;
+                                curgrip.y += offset;
+                                auto grip_1 = rect{ curgrip, dot_11 };
+                                //target.fill(grip_2.clip(view), cell::shaders::invbit);
+                                target.fill(grip_1.clip(view), [](auto& c){ c.bgc(redlt); });
+                            }
+                        };
+                        if (selection_selbox())
+                        {
+                            //,,,
+                        }
+                        else
+                        {
+                            //,,,
+                        }
+                        draw(uptop, batch.slide);
+                        draw(dntop, batch.slide);
+                        draw(upend, batch.slide + y_top + arena);
+                        draw(dnend, batch.slide + y_top + arena);
+                    }
+                    if (upsel.role == grip::idle) return;
+
+                    view = view.clip(scrolling_region);
+                    auto [curtop, curend] = selection_take_grips<true>();
+                    curtop += full.coor;
+                    curend += full.coor;
+                    auto grip_1 = rect{ curtop, dot_11 };
+                    auto grip_2 = rect{ curend, dot_11 };
+                    target.fill(grip_1.clip(view), cell::shaders::invbit);
+                    if (grip_1.coor != grip_2.coor)
+                    {
+                        target.fill(grip_2.clip(view), cell::shaders::invbit);
+                    }
+
                     if (selection_selbox())
                     {
-                        auto [curtop, curend] = selection_take_grips();
-                        auto grip_1 = rect{ curtop + full.coor, dot_11 };
-                        auto grip_2 = rect{ curend + full.coor, dot_11 };
-                        target.fill(grip_1.clip(view), cell::shaders::invbit);
-                        if (grip_1.coor != grip_2.coor)
-                        {
-                            target.fill(grip_2.clip(view), cell::shaders::invbit);
-                        }
-                        auto square = (grip_1 | grip_2).clip(scrolling_region);
+                        auto square = grip_1 | grip_2;
                         target.fill(square.clip(view), cell::shaders::xlight);
                     }
                     else
                     {
-                        auto [curtop, curend] = selection_take_grips<true>();
-                        curtop += full.coor;
-                        curend += full.coor;
                         target.vsize(batch.vsize + sctop + scend); // Include margins and bottom oversize.
-                        {
-                            auto grip_1 = rect{ curtop, dot_11 };
-                            auto grip_2 = rect{ curend, dot_11 };
-                            target.fill(grip_1.clip(view), cell::shaders::invbit);
-                            if (grip_1.coor != grip_2.coor)
-                            {
-                                target.fill(grip_2.clip(view), cell::shaders::invbit);
-                            }
-                        }
-                        view = view.clip(scrolling_region);
                         auto coor = twod{ 0, batch.slide - batch.ancdy + y_top };
                         auto stop = batch.slide + arena + y_top;
                         auto head = batch.iter_by_id(batch.ancid);
@@ -4437,8 +4556,10 @@ namespace netxs::ui
             // scroll_buf: .
             void selection_status(term_state& status) const override
             {
-                status.coor.y = 1 + std::abs(static_cast<si32>(dnsel.anchor - upsel.anchor));
-                status.coor.x = 1 + std::abs(dnsel.corner.x - upsel.corner.x);
+                //todo calc scrolling regions
+                //...
+                status.coor.y = 1 + std::abs(static_cast<si32>(dnsel.link - upsel.link));
+                status.coor.x = 1 + std::abs(dnsel.coor.x - upsel.coor.x);
                 if (status.coor.y < approx_threshold)
                 {
                     auto [i_top, i_end, upcur, dncur] = selection_get_it();
@@ -4472,6 +4593,7 @@ namespace netxs::ui
             // scroll_buf: .
             void selection_setjet(bias align) override
             {
+                if (upsel.role == grip::idle) return;
                 selection_foreach([&](auto& curln)
                 {
                     curln.style.jet(align);
@@ -4481,9 +4603,10 @@ namespace netxs::ui
             // scroll_buf: .
             void selection_setwrp() override
             {
-                auto i_top = std::clamp(batch.index_by_id(upsel.anchor), 0, batch.size);
+                if (upsel.role == grip::idle) return;
+                auto i_top = std::clamp(batch.index_by_id(upsel.link), 0, batch.size);
                 auto wraps = batch[i_top].style.wrp() == wrap::on ? wrap::off : wrap::on;
-                upsel.corner.y = dnsel.corner.y = 0;
+                upsel.coor.y = dnsel.coor.y = 0;
                 selection_foreach([&](auto& curln)
                 {
                     curln.style.wrp(wraps);
