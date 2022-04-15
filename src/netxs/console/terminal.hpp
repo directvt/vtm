@@ -4338,7 +4338,32 @@ namespace netxs::ui
                     }
                     else
                     {
-                        //...
+                        if (dnsel.role == grip::join)
+                        {
+                            if(upend.role == grip::join)
+                            {
+                                dnsel.coor.x = dot_mx.x;
+                                upend.coor.x = -dot_mx.x;
+                            }
+                            if(uptop.role == grip::join)
+                            {
+                                dnsel.coor.x = -dot_mx.x;
+                                uptop.coor.x = dot_mx.x;
+                            }
+                        }
+                        if (upsel.role == grip::join)
+                        {
+                            if(dnend.role == grip::join)
+                            {
+                                upsel.coor.x = dot_mx.x;
+                                dnend.coor.x = -dot_mx.x;
+                            }
+                            if(dntop.role == grip::join)
+                            {
+                                upsel.coor.x = -dot_mx.x;
+                                dntop.coor.x = dot_mx.x;
+                            }
+                        }
                     }
 
                     selection_selbox(mode);
