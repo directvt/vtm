@@ -4338,30 +4338,33 @@ namespace netxs::ui
                     }
                     else
                     {
-                        if (dnsel.role == grip::join)
+                        if (uptop.role != grip::idle || upend.role != grip::idle)
                         {
-                            if(upend.role == grip::join)
+                            if (dnsel.role == grip::join)
                             {
-                                dnsel.coor.x = dot_mx.x;
-                                upend.coor.x = -dot_mx.x;
+                                if(upend.role == grip::join)
+                                {
+                                    dnsel.coor.x = dot_mx.x;
+                                    upend.coor.x = -dot_mx.x;
+                                }
+                                if(uptop.role == grip::join)
+                                {
+                                    dnsel.coor.x = -dot_mx.x;
+                                    uptop.coor.x = dot_mx.x;
+                                }
                             }
-                            if(uptop.role == grip::join)
+                            if (upsel.role == grip::join)
                             {
-                                dnsel.coor.x = -dot_mx.x;
-                                uptop.coor.x = dot_mx.x;
-                            }
-                        }
-                        if (upsel.role == grip::join)
-                        {
-                            if(dnend.role == grip::join)
-                            {
-                                upsel.coor.x = dot_mx.x;
-                                dnend.coor.x = -dot_mx.x;
-                            }
-                            if(dntop.role == grip::join)
-                            {
-                                upsel.coor.x = -dot_mx.x;
-                                dntop.coor.x = dot_mx.x;
+                                if(dnend.role == grip::join)
+                                {
+                                    upsel.coor.x = dot_mx.x;
+                                    dnend.coor.x = -dot_mx.x;
+                                }
+                                if(dntop.role == grip::join)
+                                {
+                                    upsel.coor.x = -dot_mx.x;
+                                    dntop.coor.x = dot_mx.x;
+                                }
                             }
                         }
                     }
