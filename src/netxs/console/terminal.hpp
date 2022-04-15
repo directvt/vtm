@@ -4074,7 +4074,6 @@ namespace netxs::ui
                              .role = grip::base };
             }
             // scroll_buf: .
-            template<bool SORT = faux>
             auto selection_take_grips()
             {
                 if (upsel.role == grip::idle) return std::pair{ dot_mx, dot_mx };
@@ -4146,26 +4145,32 @@ namespace netxs::ui
                 auto maxlim = square.coor + square.size - dot_11;
                 coor1 = std::clamp(coor1, minlim, maxlim);
                 coor2 = std::clamp(coor2, minlim, maxlim);
-
-                if (SORT
-                && (coor1.y > coor2.y || (coor1.y == coor2.y && coor1.x > coor2.x)))
-                {
-                    std::swap(coor1, coor2);
-                }
                 return std::pair{ coor1, coor2 };
             }
+
+            enum class place
+            {
+                top, mid, end,
+            } cur_place = {};
             // scroll_buf: Start text selection.
             void selection_create(twod coor, bool mode) override
             {
+                auto new_x1 = coor.x + owner.origin.x;;
                 auto nohits = [&](auto upcoor, auto dncoor, auto& top, auto& end)
                 {
-                         if (coor == upcoor && top.role == grip::base) std::swap(top, end);
+                    if (coor == upcoor && top.role == grip::base)// std::swap(top, end);
+                    {
+                        std::swap(uptop, dntop);
+                        std::swap(upsel, dnsel);
+                        std::swap(upend, dnend);
+                    }
                     else if (coor != dncoor || end.role != grip::base) return true;
                     return faux;
                 };
                 auto scrolling_margin = batch.slide + y_top;
                 if (coor.y < scrolling_margin) // Inside the top margin.
                 {
+                    cur_place = place::top;
                     coor -= {-owner.origin.x, batch.slide };
                     if (!selection_active() || nohits(uptop.coor, dntop.coor, uptop, dntop))
                     {
@@ -4175,10 +4180,10 @@ namespace netxs::ui
                         uptop.coor = coor;
                         dntop = uptop;
                     }
-                    log("Top margin hit coor=", coor, " batch.slide=", batch.slide, " uptop.coor=", uptop.coor);
                 }
                 else if (coor.y < scrolling_margin + arena) // Inside the scrolling region.
                 {
+                    cur_place = place::mid;
                     auto [seltop, selend] = selection_take_grips();
                     if (!selection_active() || nohits(seltop, selend, upsel, dnsel))
                     {
@@ -4187,10 +4192,10 @@ namespace netxs::ui
                         uptop.role = dntop.role = grip::idle;
                         upend.role = dnend.role = grip::idle;
                     }
-                    log("Scrolling region hit coor=", coor, " batch.slide=", batch.slide);
                 }
                 else // Inside the bottom margin.
                 {
+                    cur_place = place::end;
                     coor -= {-owner.origin.x, scrolling_margin + arena };
                     if (!selection_active() || nohits(upend.coor, dnend.coor, upend, dnend))
                     {
@@ -4200,113 +4205,140 @@ namespace netxs::ui
                         upend.coor = coor;
                         dnend = upend;
                     }
-                    log("Bottom margin hit coor=", coor, " batch.slide=", batch.slide);
-
                 }
-
                 selection_selbox(mode);
                 selection_update();
             }
             // scroll_buf: Extend text selection.
             bool selection_extend(twod coor, bool mode) override
             {
+                auto x2 = coor.x;
                 auto state = selection_active();
                 if (state)
                 {
                     auto scrolling_margin = batch.slide + y_top;
-                    if (coor.y < scrolling_margin) // Inside the top margin.
+                    if (coor.y < scrolling_margin) // Hit the top margin.
                     {
                         coor -= {-owner.origin.x, batch.slide };
-                        if (uptop.role == grip::base)
+                        if (cur_place == place::mid)
                         {
-                            upsel.role = dnsel.role = grip::idle;
-                            upend.role = dnend.role = grip::idle;
-                            dntop.role = grip::base;
-                            dntop.coor = coor;
+                            if (upsel.role == grip::join && uptop.role != grip::idle)
+                            {
+                                upsel.role = dnsel.role = grip::idle;
+                                upend.role = dnend.role = grip::idle;
+                            }
+                            else if (upsel.role == grip::base || upend.role != grip::idle)
+                            {
+                                uptop.role = grip::join;
+                                uptop.coor.x = dot_mx.x;
+                                uptop.coor.y = y_top - 1;
+                                auto base_coor = twod{ -dot_mx.x, batch.slide + y_top };
+                                dnsel = selection_coor_to_grip(base_coor);
+                                dnsel.role = grip::join;
+                            }
                         }
-                        else
+                        else if (cur_place == place::top && upsel.role != grip::idle)
                         {
-                            //...
-
+                            auto base_coor = twod{ -dot_mx.x, batch.slide + y_top };
+                            dnsel = selection_coor_to_grip(base_coor);
+                            dnsel.role = grip::join;
                         }
-                        log("Extend: Top margin hit coor=", coor, " batch.slide=", batch.slide);
+                        dntop.role = grip::base;
+                        dntop.coor = coor;
+                        cur_place = place::top;
                     }
-                    else if (coor.y < scrolling_margin + arena) // Inside the scrolling region.
+                    else if (coor.y < scrolling_margin + arena) // Hit the scrolling region.
                     {
-                        if (upsel.role == grip::base)
+                        if (cur_place == place::mid)
                         {
-                            uptop.role = dntop.role = grip::idle;
-                            upend.role = dnend.role = grip::idle;
                             dnsel = selection_coor_to_grip(coor);
                         }
-                        else if (upsel.role == grip::idle)
+                        if (cur_place == place::top)
                         {
-                            if (uptop.role != grip::idle) // Come from the top.
+                            if (uptop.role == grip::base)
                             {
-                                grip::sort(uptop, dntop);
-                                dntop.role = grip::join;
-                                upend.role = dnend.role = grip::idle;
-                                dnsel = selection_coor_to_grip(coor);
-                                upsel = dnsel;
-                                upsel.role = grip::join;
-                                upsel.coor.x = -dot_mx.x;
-                                //...
-                            }
-                            else if (upend.role != grip::idle) // Come from the bottom.
-                            {
-                                grip::sort(upend, dnend);
-                                uptop.role = grip::join;
-                                uptop.role = dntop.role = grip::idle;
-                                dnsel = selection_coor_to_grip(coor);
-                                upsel = dnsel;
-                                dnsel.role = grip::join;
-                                dnsel.coor.x = dot_mx.x;
-                                //...
-                            }
-                        }
-                        else // upsel.role == grip::join
-                        {
-                            if (uptop.role != grip::idle) // Come from the top.
-                            {
-                                grip::sort(uptop, dntop);
                                 dntop.role = grip::join;
                                 dntop.coor.x = dot_mx.x;
+                                dntop.coor.y = y_top - 1;
                                 upend.role = dnend.role = grip::idle;
                                 dnsel = selection_coor_to_grip(coor);
-                                //upsel = dnsel;
-                                //upsel.role = grip::join;
-                                //...
+                                auto base_coor = twod{ -dot_mx.x, batch.slide + y_top };
+                                upsel = selection_coor_to_grip(base_coor);
+                                upsel.role = grip::join;
                             }
-                            else if (upend.role != grip::idle) // Come from the bottom.
+                            else if (uptop.role == grip::join)
                             {
-                                grip::sort(upend, dnend);
-                                upend.coor.x = -dot_mx.x;
-                                upend.role = grip::join;
                                 uptop.role = dntop.role = grip::idle;
                                 dnsel = selection_coor_to_grip(coor);
-                                //upsel = dnsel;
-                                //dnsel.role = grip::join;
-                                //...
                             }
                         }
-                        log("Extend: Scrolling region hit coor=", coor, " batch.slide=", batch.slide);
+                        else if (cur_place == place::end)
+                        {
+                            if (upend.role == grip::base)
+                            {
+                                dnend.role = grip::join;
+                                dnend.coor.x = -dot_mx.x;
+                                dnend.coor.y = 0;
+                                uptop.role = dntop.role = grip::idle;
+                                dnsel = selection_coor_to_grip(coor);
+                                auto base_coor = twod{ dot_mx.x, scrolling_margin + arena - 1 };
+                                upsel = selection_coor_to_grip(base_coor);
+                                upsel.role = grip::join;
+                            }
+                            else if (upend.role == grip::join)
+                            {
+                                upend.role = dnend.role = grip::idle;
+                                dnsel = selection_coor_to_grip(coor);
+                            }
+                        }
+                        cur_place = place::mid;
                     }
-                    else // Inside the bottom margin.
+                    else // Hit the bottom margin.
                     {
                         coor -= {-owner.origin.x, scrolling_margin + arena };
-                        if (upend.role == grip::base)
+                        if (cur_place == place::mid)
                         {
-                            upsel.role = dnsel.role = grip::idle;
-                            uptop.role = dntop.role = grip::idle;
-                            dnend.role = grip::base;
-                            dnend.coor = coor;
+                            if (upsel.role == grip::join && upend.role != grip::idle)
+                            {
+                                upsel.role = dnsel.role = grip::idle;
+                                uptop.role = dntop.role = grip::idle;
+                            }
+                            else if (upsel.role == grip::base || uptop.role != grip::idle)
+                            {
+                                upend.role = grip::join;
+                                upend.coor.x = -dot_mx.x;
+                                upend.coor.y = 0;
+                                auto base_coor = twod{ dot_mx.x, scrolling_margin + arena - 1 };
+                                dnsel = selection_coor_to_grip(base_coor);
+                                dnsel.role = grip::join;
+                            }
                         }
-                        else
+                        else if (cur_place == place::end && upsel.role != grip::idle)
                         {
-                            //...
+                            auto base_coor = twod{ dot_mx.x, scrolling_margin + arena - 1 };
+                            dnsel = selection_coor_to_grip(base_coor);
+                            dnsel.role = grip::join;
+                        }
+                        dnend.role = grip::base;
+                        dnend.coor = coor;
+                        cur_place = place::end;
+                    }
 
-                        }
-                        log("Extend: Bottom margin hit coor=", coor, " batch.slide=", batch.slide);
+                    if (mode)
+                    {
+                        auto x1 = upsel.role == grip::base ? upsel.coor.x :
+                                  uptop.role == grip::base ? uptop.coor.x - owner.origin.x:
+                                                             upend.coor.x - owner.origin.x;
+                        if (upsel.role != grip::base) upsel.coor.x = x1;
+                        if (dnsel.role != grip::base) dnsel.coor.x = x2;
+                        if (uptop.role != grip::base) uptop.coor.x = x1 + owner.origin.x;
+                        if (dntop.role != grip::base) dntop.coor.x = x2 + owner.origin.x;
+                        if (upend.role != grip::base) upend.coor.x = x1 + owner.origin.x;
+                        if (dnend.role != grip::base) dnend.coor.x = x2 + owner.origin.x;
+                    }
+                    else
+                    {
+                        //...
                     }
 
                     selection_selbox(mode);
@@ -4512,15 +4544,14 @@ namespace netxs::ui
                         auto temp = full;
                         temp.coor.x = 0;
                         target.full(temp);
-                        auto draw_area = [&](auto& grip_1, auto& grip_2, auto offset)
+                        auto draw_area = [&](auto grip_1, auto grip_2, auto offset)
                         {
                             if (grip_1.role != grip::idle)
                             {
-                                auto seltop = grip_1.coor;
-                                auto selend = grip_2.coor;
-                                seltop.y += offset;
-                                selend.y += offset;
-                                bufferbase::selection_raster(target, seltop, selend, grip_1.role == grip::base, grip_2.role == grip::base);
+                                grip_1.coor.y += offset;
+                                grip_2.coor.y += offset;
+                                grip::sort(grip_1, grip_2);
+                                bufferbase::selection_raster(target, grip_1.coor, grip_2.coor, grip_1.role == grip::base, grip_2.role == grip::base);
                             }
                         };
                         draw_area(uptop, dntop, batch.slide);
@@ -4531,7 +4562,7 @@ namespace netxs::ui
                     auto scrolling_region = rect{ { -dot_mx.x / 2, batch.slide + y_top }, { dot_mx.x, arena }};
                     scrolling_region.coor += full.coor;
                     view = view.clip(scrolling_region);
-                    auto [curtop, curend] = selection_take_grips<true>();
+                    auto [curtop, curend] = selection_take_grips();
                     curtop += full.coor;
                     curend += full.coor;
                     auto grip_1 = rect{ curtop, dot_11 };
@@ -4549,6 +4580,11 @@ namespace netxs::ui
                     }
                     else
                     {
+                        if (curtop.y >  curend.y
+                        || (curtop.y == curend.y && curtop.x > curend.x))
+                        {
+                            std::swap(curtop, curend);
+                        }
                         target.vsize(batch.vsize + sctop + scend); // Include margins and bottom oversize.
                         auto coor = twod{ 0, batch.slide - batch.ancdy + y_top };
                         auto stop = batch.slide + arena + y_top;
