@@ -1627,7 +1627,43 @@ namespace netxs::ui
                     }
                 }
             }
-
+            // bufferbase: Pickup selected data from canvas.
+            void selection_pickup(text& buffer, rich& canvas, twod const& seltop, twod const& selend, si32 selmod, bool selbox)
+            {
+                auto limits = panel - dot_11;
+                auto curtop = std::clamp(seltop, dot_00, limits);
+                auto curend = std::clamp(selend, dot_00, limits);
+                auto grip_1 = rect{ curtop, dot_11 };
+                auto grip_2 = rect{ curend, dot_11 };
+                grip_1.coor += canvas.coor();
+                grip_2.coor += canvas.coor();
+                auto square = grip_1 | grip_2;
+                square.normalize_itself();
+                if (selbox || grip_1.coor.y == grip_2.coor.y)
+                {
+                    buffer += selmod == xsgr::ansitext ? canvas.meta<true>(square)
+                                                       : canvas.meta<faux>(square);
+                }
+                else
+                {
+                    if (grip_1.coor.y > grip_2.coor.y) std::swap(grip_1, grip_2);
+                    auto part_1 = rect{ grip_1.coor,             { panel.x - grip_1.coor.x, 1 }              };
+                    auto part_2 = rect{ {0, grip_1.coor.y + 1 }, { panel.x, std::max(0, square.size.y - 2) } };
+                    auto part_3 = rect{ {0, grip_2.coor.y     }, { grip_2.coor.x + 1, 1 }                    };
+                    if (selmod == xsgr::ansitext)
+                    {
+                        buffer += canvas.meta<true, true, faux>(part_1);
+                        buffer += canvas.meta<true, faux, faux>(part_2);
+                        buffer += canvas.meta<true, faux, true>(part_3);
+                    }
+                    else
+                    {
+                        buffer += canvas.meta<faux, true, faux>(part_1);
+                        buffer += canvas.meta<faux, faux, faux>(part_2);
+                        buffer += canvas.meta<faux, faux, true>(part_3);
+                    }
+                }
+            }
             bool update_status(term_state& status) const
             {
                 bool changed = faux;
@@ -1896,39 +1932,8 @@ namespace netxs::ui
                 text data;
                 if (selection_active())
                 {
-                    auto limits = panel - dot_11;
-                    auto curtop = std::clamp(seltop, dot_00, limits);
-                    auto curend = std::clamp(selend, dot_00, limits);
-                    auto grip_1 = rect{ curtop, dot_11 };
-                    auto grip_2 = rect{ curend, dot_11 };
-                    grip_1.coor += canvas.coor();
-                    grip_2.coor += canvas.coor();
-                    auto square = grip_1 | grip_2;
-                    square.normalize_itself();
-                    if (selection_selbox() || grip_1.coor.y == grip_2.coor.y)
-                    {
-                        data = selmod == xsgr::ansitext ? canvas.meta<true>(square)
-                                                        : canvas.meta<faux>(square);
-                    }
-                    else
-                    {
-                        if (grip_1.coor.y > grip_2.coor.y) std::swap(grip_1, grip_2);
-                        auto part_1 = rect{ grip_1.coor,             { panel.x - grip_1.coor.x, 1 }              };
-                        auto part_2 = rect{ {0, grip_1.coor.y + 1 }, { panel.x, std::max(0, square.size.y - 2) } };
-                        auto part_3 = rect{ {0, grip_2.coor.y     }, { grip_2.coor.x + 1, 1 }                    };
-                        if (selmod == xsgr::ansitext)
-                        {
-                            data += canvas.meta<true, true, faux>(part_1);
-                            data += canvas.meta<true, faux, faux>(part_2);
-                            data += canvas.meta<true, faux, true>(part_3);
-                        }
-                        else
-                        {
-                            data += canvas.meta<faux, true, faux>(part_1);
-                            data += canvas.meta<faux, faux, faux>(part_2);
-                            data += canvas.meta<faux, faux, true>(part_3);
-                        }
-                    }
+                    auto selbox = selection_selbox();
+                    bufferbase::selection_pickup(data, canvas, seltop, selend, selmod, selbox);
                 }
                 return data;
             }
@@ -2065,7 +2070,10 @@ namespace netxs::ui
                     }
                 }
             };
-
+            enum class part
+            {
+                top, mid, end,
+            };
             using ring = generics::ring<std::vector<line>, true>;
             using indx = generics::ring<std::vector<index_item>>;
 
@@ -2279,12 +2287,13 @@ namespace netxs::ui
             face dnbox; // scroll_buf: Bottom margin canvas.
             twod upmin; // scroll_buf:    Top margin minimal size.
             twod dnmin; // scroll_buf: Bottom margin minimal size.
-            grip upsel; // scroll_buf: Selection first grip inside the scrolling region.
-            grip dnsel; // scroll_buf: Selection second grip inside the scrolling region.
+            grip upmid; // scroll_buf: Selection first grip inside the scrolling region.
+            grip dnmid; // scroll_buf: Selection second grip inside the scrolling region.
             grip uptop; // scroll_buf: Selection first grip inside the top margin.
             grip dntop; // scroll_buf: Selection second grip inside the top margin.
             grip upend; // scroll_buf: Selection first grip inside the bottom margin.
             grip dnend; // scroll_buf: Selection second grip inside the bottom margin.
+            part place; // scroll_buf: Selection last active region.
 
             static constexpr si32 approx_threshold = 10000; //todo make it configurable
 
@@ -2292,7 +2301,8 @@ namespace netxs::ui
                 : bufferbase{ boss                   },
                        batch{ buffer_size, grow_step },
                        index{ 0                      },
-                       arena{ 1                      }
+                       arena{ 1                      },
+                       place{                        }
             {
                 batch.invite(0); // At least one line must exist.
                 batch.set_width(1);
@@ -4041,15 +4051,15 @@ namespace netxs::ui
                 assert(test_coord());
             }
 
-            // scroll_buf: .
-            auto selection_coor_to_grip(twod coord)
+            // scroll_buf: Calc grip position by coor.
+            auto selection_coor_to_grip(twod coord, grip::type state = grip::base)
             {
                 auto index = batch.front().index;
                 if (coord.y < 0)
                 {
                     return grip{ .link = index,
                                  .coor = coord,
-                                 .role = grip::base };
+                                 .role = state };
                 }
                 auto i_cur = batch.index_by_id(batch.ancid);
                 assert(i_cur < batch.size);
@@ -4071,22 +4081,22 @@ namespace netxs::ui
                 coord.y -= vtpos;
                 return grip{ .link = index,
                              .coor = coord,
-                             .role = grip::base };
+                             .role = state };
             }
-            // scroll_buf: .
+            // scroll_buf: Return scrollbuffer grips.
             auto selection_take_grips()
             {
-                if (upsel.role == grip::idle) return std::pair{ dot_mx, dot_mx };
+                if (upmid.role == grip::idle) return std::pair{ dot_mx, dot_mx };
                 auto i_cur = batch.index_by_id(batch.ancid);
-                auto i_top = batch.index_by_id(upsel.link);
-                auto i_end = batch.index_by_id(dnsel.link);
+                auto i_top = batch.index_by_id(upmid.link);
+                auto i_end = batch.index_by_id(dnmid.link);
                 if (i_top < 0 && i_end < 0)
                 {
                     selection_cancel();
                     return std::pair{ dot_mx, dot_mx };
                 }
-                auto coor1 = upsel.coor;
-                auto coor2 = dnsel.coor;
+                auto coor1 = upmid.coor;
+                auto coor2 = dnmid.coor;
                 auto start = batch.begin() + i_cur;
                 auto limit = batch.end();
                 auto topid = batch.front().index;
@@ -4122,10 +4132,10 @@ namespace netxs::ui
                     }
                 };
                 // Check the buffer ring.
-                     if (i_top < 0)           upsel.link = topid;
-                else if (i_top >= batch.size) upsel.link = endid;
-                     if (i_end < 0)           dnsel.link = topid;
-                else if (i_end >= batch.size) dnsel.link = endid;
+                     if (i_top < 0)           upmid.link = topid;
+                else if (i_top >= batch.size) upmid.link = endid;
+                     if (i_end < 0)           dnmid.link = topid;
+                else if (i_end >= batch.size) dnmid.link = endid;
 
                 coor1.y = i_top < i_cur ? -dot_mx.y : dot_mx.y;
                 coor2.y = i_end < i_cur ? -dot_mx.y : dot_mx.y;
@@ -4134,8 +4144,8 @@ namespace netxs::ui
                 {
                     auto& curln = *start;
                     auto height = curln.height(panel.x);
-                    check(height, curln, done1, upsel, coor1);
-                    check(height, curln, done2, dnsel, coor2);
+                    check(height, curln, done1, upmid, coor1);
+                    check(height, curln, done2, dnmid, coor2);
                     vtpos += height;
                     ++start;
                 }
@@ -4147,21 +4157,15 @@ namespace netxs::ui
                 coor2 = std::clamp(coor2, minlim, maxlim);
                 return std::pair{ coor1, coor2 };
             }
-
-            enum class place
-            {
-                top, mid, end,
-            } cur_place = {};
             // scroll_buf: Start text selection.
             void selection_create(twod coor, bool mode) override
             {
-                auto new_x1 = coor.x + owner.origin.x;;
                 auto nohits = [&](auto upcoor, auto dncoor, auto& top, auto& end)
                 {
                     if (coor == upcoor && top.role == grip::base)// std::swap(top, end);
                     {
                         std::swap(uptop, dntop);
-                        std::swap(upsel, dnsel);
+                        std::swap(upmid, dnmid);
                         std::swap(upend, dnend);
                     }
                     else if (coor != dncoor || end.role != grip::base) return true;
@@ -4170,11 +4174,11 @@ namespace netxs::ui
                 auto scrolling_margin = batch.slide + y_top;
                 if (coor.y < scrolling_margin) // Inside the top margin.
                 {
-                    cur_place = place::top;
+                    place = part::top;
                     coor -= {-owner.origin.x, batch.slide };
                     if (!selection_active() || nohits(uptop.coor, dntop.coor, uptop, dntop))
                     {
-                        upsel.role = dnsel.role = grip::idle;
+                        upmid.role = dnmid.role = grip::idle;
                         upend.role = dnend.role = grip::idle;
                         uptop.role = grip::base;
                         uptop.coor = coor;
@@ -4183,23 +4187,23 @@ namespace netxs::ui
                 }
                 else if (coor.y < scrolling_margin + arena) // Inside the scrolling region.
                 {
-                    cur_place = place::mid;
+                    place = part::mid;
                     auto [seltop, selend] = selection_take_grips();
-                    if (!selection_active() || nohits(seltop, selend, upsel, dnsel))
+                    if (!selection_active() || nohits(seltop, selend, upmid, dnmid))
                     {
-                        upsel = selection_coor_to_grip(coor);
-                        dnsel = upsel;
                         uptop.role = dntop.role = grip::idle;
                         upend.role = dnend.role = grip::idle;
+                        upmid = selection_coor_to_grip(coor, grip::base);
+                        dnmid = upmid;
                     }
                 }
                 else // Inside the bottom margin.
                 {
-                    cur_place = place::end;
+                    place = part::end;
                     coor -= {-owner.origin.x, scrolling_margin + arena };
                     if (!selection_active() || nohits(upend.coor, dnend.coor, upend, dnend))
                     {
-                        upsel.role = dnsel.role = grip::idle;
+                        upmid.role = dnmid.role = grip::idle;
                         uptop.role = dntop.role = grip::idle;
                         upend.role = grip::base;
                         upend.coor = coor;
@@ -4220,149 +4224,140 @@ namespace netxs::ui
                     if (coor.y < scrolling_margin) // Hit the top margin.
                     {
                         coor -= {-owner.origin.x, batch.slide };
-                        if (cur_place == place::mid)
+                        if (place == part::mid)
                         {
-                            if (upsel.role == grip::join && uptop.role != grip::idle)
+                            if (upmid.role == grip::join && uptop.role != grip::idle)
                             {
-                                upsel.role = dnsel.role = grip::idle;
+                                upmid.role = dnmid.role = grip::idle;
                                 upend.role = dnend.role = grip::idle;
                             }
-                            else if (upsel.role == grip::base || upend.role != grip::idle)
+                            else if (upmid.role == grip::base || upend.role != grip::idle)
                             {
                                 uptop.role = grip::join;
                                 uptop.coor.x = dot_mx.x;
                                 uptop.coor.y = y_top - 1;
-                                auto base_coor = twod{ -dot_mx.x, batch.slide + y_top };
-                                dnsel = selection_coor_to_grip(base_coor);
-                                dnsel.role = grip::join;
+                                auto edge = twod{ -dot_mx.x, batch.slide + y_top };
+                                dnmid = selection_coor_to_grip(edge, grip::join);
                             }
                         }
-                        else if (cur_place == place::top && upsel.role != grip::idle)
+                        else if (place == part::top && upmid.role != grip::idle)
                         {
-                            auto base_coor = twod{ -dot_mx.x, batch.slide + y_top };
-                            dnsel = selection_coor_to_grip(base_coor);
-                            dnsel.role = grip::join;
+                            auto edge = twod{ -dot_mx.x, batch.slide + y_top };
+                            dnmid = selection_coor_to_grip(edge, grip::join);
                         }
-                        dntop.role = grip::base;
                         dntop.coor = coor;
-                        cur_place = place::top;
+                        dntop.role = grip::base;
+                        place = part::top;
                     }
                     else if (coor.y < scrolling_margin + arena) // Hit the scrolling region.
                     {
-                        if (cur_place == place::mid)
+                        if (place == part::mid)
                         {
-                            dnsel = selection_coor_to_grip(coor);
+                            dnmid = selection_coor_to_grip(coor, grip::base);
                         }
-                        if (cur_place == place::top)
+                        else if (place == part::top)
                         {
                             if (uptop.role == grip::base)
                             {
+                                dntop.coor = { dot_mx.x, y_top - 1 };
                                 dntop.role = grip::join;
-                                dntop.coor.x = dot_mx.x;
-                                dntop.coor.y = y_top - 1;
                                 upend.role = dnend.role = grip::idle;
-                                dnsel = selection_coor_to_grip(coor);
-                                auto base_coor = twod{ -dot_mx.x, batch.slide + y_top };
-                                upsel = selection_coor_to_grip(base_coor);
-                                upsel.role = grip::join;
+                                auto edge = twod{ -dot_mx.x, batch.slide + y_top };
+                                upmid = selection_coor_to_grip(edge, grip::join);
+                                dnmid = selection_coor_to_grip(coor, grip::base);
                             }
                             else if (uptop.role == grip::join)
                             {
                                 uptop.role = dntop.role = grip::idle;
-                                dnsel = selection_coor_to_grip(coor);
+                                dnmid = selection_coor_to_grip(coor, grip::base);
                             }
                         }
-                        else if (cur_place == place::end)
+                        else if (place == part::end)
                         {
                             if (upend.role == grip::base)
                             {
+                                dnend.coor = {-dot_mx.x, 0 };
                                 dnend.role = grip::join;
-                                dnend.coor.x = -dot_mx.x;
-                                dnend.coor.y = 0;
                                 uptop.role = dntop.role = grip::idle;
-                                dnsel = selection_coor_to_grip(coor);
-                                auto base_coor = twod{ dot_mx.x, scrolling_margin + arena - 1 };
-                                upsel = selection_coor_to_grip(base_coor);
-                                upsel.role = grip::join;
+                                auto edge = twod{ dot_mx.x, scrolling_margin + arena - 1 };
+                                upmid = selection_coor_to_grip(edge, grip::join);
+                                dnmid = selection_coor_to_grip(coor, grip::base);
                             }
                             else if (upend.role == grip::join)
                             {
                                 upend.role = dnend.role = grip::idle;
-                                dnsel = selection_coor_to_grip(coor);
+                                dnmid = selection_coor_to_grip(coor, grip::base);
                             }
                         }
-                        cur_place = place::mid;
+                        place = part::mid;
                     }
                     else // Hit the bottom margin.
                     {
                         coor -= {-owner.origin.x, scrolling_margin + arena };
-                        if (cur_place == place::mid)
+                        if (place == part::mid)
                         {
-                            if (upsel.role == grip::join && upend.role != grip::idle)
+                            if (upmid.role == grip::join && upend.role != grip::idle)
                             {
-                                upsel.role = dnsel.role = grip::idle;
+                                upmid.role = dnmid.role = grip::idle;
                                 uptop.role = dntop.role = grip::idle;
                             }
-                            else if (upsel.role == grip::base || uptop.role != grip::idle)
+                            else if (upmid.role == grip::base || uptop.role != grip::idle)
                             {
+                                upend.coor = {-dot_mx.x, 0 };
                                 upend.role = grip::join;
-                                upend.coor.x = -dot_mx.x;
-                                upend.coor.y = 0;
-                                auto base_coor = twod{ dot_mx.x, scrolling_margin + arena - 1 };
-                                dnsel = selection_coor_to_grip(base_coor);
-                                dnsel.role = grip::join;
+                                auto edge = twod{ dot_mx.x, scrolling_margin + arena - 1 };
+                                dnmid = selection_coor_to_grip(edge, grip::join);
                             }
                         }
-                        else if (cur_place == place::end && upsel.role != grip::idle)
+                        else if (place == part::end && upmid.role != grip::idle)
                         {
-                            auto base_coor = twod{ dot_mx.x, scrolling_margin + arena - 1 };
-                            dnsel = selection_coor_to_grip(base_coor);
-                            dnsel.role = grip::join;
+                            auto edge = twod{ dot_mx.x, scrolling_margin + arena - 1 };
+                            dnmid = selection_coor_to_grip(edge, grip::join);
                         }
-                        dnend.role = grip::base;
                         dnend.coor = coor;
-                        cur_place = place::end;
+                        dnend.role = grip::base;
+                        place = part::end;
                     }
 
-                    if (mode)
+                    if (panel.y != arena)
                     {
-                        auto x1 = upsel.role == grip::base ? upsel.coor.x :
-                                  uptop.role == grip::base ? uptop.coor.x - owner.origin.x:
-                                                             upend.coor.x - owner.origin.x;
-                        if (upsel.role != grip::base) upsel.coor.x = x1;
-                        if (dnsel.role != grip::base) dnsel.coor.x = x2;
-                        if (uptop.role != grip::base) uptop.coor.x = x1 + owner.origin.x;
-                        if (dntop.role != grip::base) dntop.coor.x = x2 + owner.origin.x;
-                        if (upend.role != grip::base) upend.coor.x = x1 + owner.origin.x;
-                        if (dnend.role != grip::base) dnend.coor.x = x2 + owner.origin.x;
-                    }
-                    else
-                    {
-                        if (uptop.role != grip::idle || upend.role != grip::idle)
+                        if (mode)
                         {
-                            if (dnsel.role == grip::join)
+                            auto x1 = upmid.role == grip::base ? upmid.coor.x :
+                                      uptop.role == grip::base ? uptop.coor.x - owner.origin.x:
+                                                                 upend.coor.x - owner.origin.x;
+                            if (upmid.role != grip::base) upmid.coor.x = x1;
+                            if (dnmid.role != grip::base) dnmid.coor.x = x2;
+                            if (uptop.role != grip::base) uptop.coor.x = x1 + owner.origin.x;
+                            if (dntop.role != grip::base) dntop.coor.x = x2 + owner.origin.x;
+                            if (upend.role != grip::base) upend.coor.x = x1 + owner.origin.x;
+                            if (dnend.role != grip::base) dnend.coor.x = x2 + owner.origin.x;
+                        }
+                        else
+                        {
+                            if (dnmid.role == grip::join)
                             {
                                 if(upend.role == grip::join)
                                 {
-                                    dnsel.coor.x = dot_mx.x;
-                                    upend.coor.x = -dot_mx.x;
+                                    dnmid.coor.x = dot_mx.x;
+                                    upend.coor.x =-dot_mx.x;
                                 }
                                 if(uptop.role == grip::join)
                                 {
-                                    dnsel.coor.x = -dot_mx.x;
+                                    dnmid.coor.x =-dot_mx.x;
                                     uptop.coor.x = dot_mx.x;
                                 }
                             }
-                            if (upsel.role == grip::join)
+                            if (upmid.role == grip::join)
                             {
                                 if(dnend.role == grip::join)
                                 {
-                                    upsel.coor.x = dot_mx.x;
-                                    dnend.coor.x = -dot_mx.x;
+                                    upmid.coor.x = dot_mx.x;
+                                    dnend.coor.x =-dot_mx.x;
                                 }
                                 if(dntop.role == grip::join)
                                 {
-                                    upsel.coor.x = -dot_mx.x;
+                                    upmid.coor.x =-dot_mx.x;
                                     dntop.coor.x = dot_mx.x;
                                 }
                             }
@@ -4374,11 +4369,11 @@ namespace netxs::ui
                 }
                 return state;
             }
-            // scroll_buf: .
+            // scroll_buf: Return the indexes and a grips copy.
             auto selection_get_it() const
             {
-                auto upcur = upsel;
-                auto dncur = dnsel;
+                auto upcur = upmid;
+                auto dncur = dnmid;
                 auto i_top = batch.index_by_id(upcur.link);
                 auto i_end = batch.index_by_id(dncur.link);
                 if (i_top < 0)
@@ -4402,7 +4397,7 @@ namespace netxs::ui
                 }
                 return std::tuple{ i_top, i_end, upcur, dncur };
             }
-            // scroll_buf: .
+            // scroll_buf: Calc selection height in dislay lines.
             template<class T>
             auto selection_height(T head, T tail, grip const& upcur, grip const& dncur) const
             {
@@ -4415,7 +4410,7 @@ namespace netxs::ui
                 vpos += 1 + dncur.coor.y;
                 return vpos;
             }
-            // scroll_buf: .
+            // scroll_buf: Calc selection volume in cells.
             template<class T>
             auto selection_volume(T head, T tail, grip const& upcur, grip const& dncur) const
             {
@@ -4434,19 +4429,11 @@ namespace netxs::ui
                 vpos += 1 + dncur.coor.y;
                 return std::pair{ vpos, summ };
             }
-            // scroll_buf: Materialize selection.
-            text selection_pickup(si32 selmod) override
+            // scroll_buf: Materialize selection of the scrollbuffer part.
+            void selection_pickup(ansi::esc& yield, si32 selmod)
             {
-                ansi::esc yield;
-                if (!selection_active()) return yield;
-                if (selmod == xsgr::ansitext) yield.nil();
-
                 auto [i_top, i_end, upcur, dncur] = selection_get_it();
-                if (i_top == -1)
-                {
-                    selection_cancel();
-                    return yield;
-                }
+                if (i_top == -1) return;
 
                 auto data = batch.begin();
                 auto head = data + i_top;
@@ -4470,8 +4457,8 @@ namespace netxs::ui
                         coor.y += curln.height(panel.x);
                     }
                     while (head++ != tail);
-                    yield = selmod == xsgr::ansitext ? dest.meta<true, faux, true>(mark)
-                                                     : dest.meta<faux, faux, true>(mark);
+                    yield += selmod == xsgr::ansitext ? dest.meta<true, faux, true>(mark)
+                                                      : dest.meta<faux, faux, true>(mark);
                 }
                 else
                 {
@@ -4556,7 +4543,30 @@ namespace netxs::ui
                         });
                     }
                 }
-
+            }
+            // scroll_buf: Materialize selection.
+            text selection_pickup(si32 selmod) override
+            {
+                ansi::esc yield;
+                testy<si64> len;
+                auto selbox = selection_selbox();
+                if (!selection_active()) return yield;
+                if (selmod == xsgr::ansitext) yield.nil();
+                len = yield.size();
+                if (uptop.role != grip::idle)
+                {
+                    bufferbase::selection_pickup(yield, upbox, uptop.coor, dntop.coor, selmod, selbox);
+                }
+                if (upmid.role != grip::idle)
+                {
+                    if (len(yield.size())) yield.eol();
+                    scroll_buf::selection_pickup(yield, selmod);
+                }
+                if (upend.role != grip::idle)
+                {
+                    if (len(yield.size())) yield.eol();
+                    bufferbase::selection_pickup(yield, dnbox, upend.coor, dnend.coor, selmod, selbox);
+                }
                 return yield;
             }
             // scroll_buf: Highlight selection.
@@ -4586,7 +4596,7 @@ namespace netxs::ui
                         draw_area(upend, dnend, batch.slide + y_top + arena);
                         target.full(full);
                     }
-                    if (upsel.role == grip::idle) return;
+                    if (upmid.role == grip::idle) return;
                     auto scrolling_region = rect{ { -dot_mx.x / 2, batch.slide + y_top }, { dot_mx.x, arena }};
                     scrolling_region.coor += full.coor;
                     view = view.clip(scrolling_region);
@@ -4595,8 +4605,8 @@ namespace netxs::ui
                     curend += full.coor;
                     auto grip_1 = rect{ curtop, dot_11 };
                     auto grip_2 = rect{ curend, dot_11 };
-                    if (upsel.role == grip::base) target.fill(grip_1.clip(view), cell::shaders::invbit);
-                    if (dnsel.role == grip::base && grip_1.coor != grip_2.coor)
+                    if (upmid.role == grip::base) target.fill(grip_1.clip(view), cell::shaders::invbit);
+                    if (dnmid.role == grip::base && grip_1.coor != grip_2.coor)
                     {
                         target.fill(grip_2.clip(view), cell::shaders::invbit);
                     }
@@ -4669,29 +4679,56 @@ namespace netxs::ui
                     }
                 }
             }
-            // scroll_buf: .
+            // scroll_buf: Ypdate selection status.
             void selection_status(term_state& status) const override
             {
-                //todo calc scrolling regions
-                //...
-                status.coor.y = 1 + std::abs(static_cast<si32>(dnsel.link - upsel.link));
-                status.coor.x = 1 + std::abs(dnsel.coor.x - upsel.coor.x);
-                if (status.coor.y < approx_threshold)
+                status.coor.x = 1 + std::abs(dnmid.coor.x - upmid.coor.x);
+                if (upmid.role != grip::idle)
                 {
-                    auto [i_top, i_end, upcur, dncur] = selection_get_it();
-                    auto data = batch.begin();
-                    auto head = data + i_top;
-                    auto tail = data + i_end;
-                    auto [height, volume] = selection_volume(head, tail, upcur, dncur);
-                    if (selection_selbox()) status.coor.y = height;
-                    else                    status.body   = volume;
+                    status.coor.y = 1 + std::abs(static_cast<si32>(dnmid.link - upmid.link));
+                    if (status.coor.y < approx_threshold)
+                    {
+                        auto [i_top, i_end, upcur, dncur] = selection_get_it();
+                        auto data = batch.begin();
+                        auto head = data + i_top;
+                        auto tail = data + i_end;
+                        auto [height, volume] = selection_volume(head, tail, upcur, dncur);
+                        if (selection_selbox()) status.coor.y = height;
+                        else                    status.body   = volume;
+                    }
+                    else
+                    {
+                        if (!selection_selbox()) status.body = status.coor.y * panel.x;
+                    }
                 }
                 else
                 {
-                    if (!selection_selbox()) status.body = status.coor.y * panel.x;
+                    status.coor.y = 0;
+                    status.body   = 0;
+                }
+                if (panel.y != arena)
+                {
+                    auto calc = [&](auto top, auto end)
+                    {
+                        twod dt;
+                        top.x = std::clamp(top.x, 0, panel.x - 1);
+                        end.x = std::clamp(end.x, 0, panel.x - 1);
+                        if (top.y == end.y) dt = { std::abs(end.x - top.x) + 1, 1 };
+                        else
+                        {
+                            if (top.y > end.y) std::swap(top, end);
+                            dt.y = end.y - top.y + 1;
+                            dt.x += panel.x * (dt.y - 2);
+                            dt.x += panel.x + end.x - top.x + 1;
+                        }
+                        status.coor.y += dt.y;
+                        status.body   += dt.x;
+                    };
+                    if (uptop.role != grip::idle) calc(uptop.coor, dntop.coor);
+                    if (upend.role != grip::idle) calc(upend.coor, dnend.coor);
                 }
             }
-            // scroll_buf: .
+            // scroll_buf: Loop through selected lines.
             template<class P>
             void selection_foreach(P proc)
             {
@@ -4706,23 +4743,23 @@ namespace netxs::ui
                     while (head++ != tail);
                 }
             }
-            // scroll_buf: .
+            // scroll_buf: Sel alignment for selected lines.
             void selection_setjet(bias align) override
             {
-                if (upsel.role == grip::idle) return;
+                if (upmid.role == grip::idle) return;
                 selection_foreach([&](auto& curln)
                 {
                     curln.style.jet(align);
                     batch.recalc(curln);
                 });
             }
-            // scroll_buf: .
+            // scroll_buf: Sel wrapping mode for selected lines.
             void selection_setwrp() override
             {
-                if (upsel.role == grip::idle) return;
-                auto i_top = std::clamp(batch.index_by_id(upsel.link), 0, batch.size);
+                if (upmid.role == grip::idle) return;
+                auto i_top = std::clamp(batch.index_by_id(upmid.link), 0, batch.size);
                 auto wraps = batch[i_top].style.wrp() == wrap::on ? wrap::off : wrap::on;
-                upsel.coor.y = dnsel.coor.y = 0;
+                upmid.coor.y = dnmid.coor.y = 0;
                 selection_foreach([&](auto& curln)
                 {
                     curln.style.wrp(wraps);
@@ -5043,11 +5080,10 @@ namespace netxs::ui
             }
         }
 
-        // term: .
+        // term: Is the selection allowed.
         auto selection_passed()
         {
-            //return !(selmod == xsgr::disabled || mtrack);
-            return selmod != xsgr::disabled;// || (!mtrack);
+            return selmod != xsgr::disabled;
         }
         void selection_selmod(si32 newmod)
         {
@@ -5089,6 +5125,8 @@ namespace netxs::ui
         }
         void selection_pickup(hids& gear)
         {
+            //todo paste from clipboard on right-click if no selection
+            //...
             log(" selection_pickup coord=", gear.coord, " selmod=", selmod);
             auto data = target->selection_pickup(selmod);
             if (data.size())
