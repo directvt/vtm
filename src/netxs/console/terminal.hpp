@@ -911,7 +911,7 @@ namespace netxs::ui
                 y_top = std::clamp(sctop        , 0, y_end);
             }
             // bufferbase: Resize viewport.
-    virtual void resize_viewport(twod const& new_sz)
+    virtual void resize_viewport(twod const& new_sz, bool forced = faux)
             {
                 panel = std::max(new_sz, dot_11);
                 resize_tabstops(panel.x);
@@ -1582,6 +1582,7 @@ namespace netxs::ui
             }
             // bufferbase: CSI n K  Erase line (don't move cursor).
     virtual void el(si32 n) = 0;
+
             // bufferbase: Rasterize selection with grips.
             void selection_raster(face& target, auto curtop, auto curend, bool ontop = true, bool onend = true)
             {
@@ -1664,6 +1665,8 @@ namespace netxs::ui
                     }
                 }
             }
+
+            // bufferbase: Update terminal status.
             bool update_status(term_state& status) const
             {
                 bool changed = faux;
@@ -1702,7 +1705,7 @@ namespace netxs::ui
             si32 get_step() const override { return 0;       }
 
             // alt_screen: Resize viewport.
-            void resize_viewport(twod const& new_sz) override
+            void resize_viewport(twod const& new_sz, bool forced = faux) override
             {
                 bufferbase::resize_viewport(new_sz);
                 coord = std::clamp(coord, dot_00, panel - dot_11);
@@ -1945,6 +1948,7 @@ namespace netxs::ui
                 auto curend = std::clamp(selend, dot_00, limits);
                 selection_raster(target, curtop, curend);
             }
+            // alt_screen: Update selection status.
             void selection_status(term_state& status) const override
             {
                 status.coor = std::abs(selend - seltop);
@@ -2718,9 +2722,9 @@ namespace netxs::ui
                 }
             }
             // scroll_buf: Resize viewport.
-            void resize_viewport(twod const& new_sz) override
+            void resize_viewport(twod const& new_sz, bool forced = faux) override
             {
-                if (new_sz == panel) return;
+                if (new_sz == panel && !forced) return;
 
                 auto in_top = y_top - coord.y;
                 auto in_end = coord.y - y_end;
@@ -4679,7 +4683,7 @@ namespace netxs::ui
                     }
                 }
             }
-            // scroll_buf: Ypdate selection status.
+            // scroll_buf: Update selection status.
             void selection_status(term_state& status) const override
             {
                 status.coor.x = 1 + std::abs(dnmid.coor.x - upmid.coor.x);
@@ -4752,6 +4756,7 @@ namespace netxs::ui
                     curln.style.jet(align);
                     batch.recalc(curln);
                 });
+                resize_viewport(panel, true); // Recalc batch.basis.
             }
             // scroll_buf: Sel wrapping mode for selected lines.
             void selection_setwrp() override
@@ -4765,6 +4770,7 @@ namespace netxs::ui
                     curln.style.wrp(wraps);
                     batch.recalc(curln);
                 });
+                resize_viewport(panel, true); // Recalc batch.basis.
             }
         };
 
@@ -5090,7 +5096,7 @@ namespace netxs::ui
             selmod = newmod;
             SIGNAL(tier::release, e2::form::draggable::left, selection_passed());
             SIGNAL(tier::release, ui::term::events::selmod, selmod);
-            log(" selection_selmod selmod=", selmod);
+            log("term: selection mode ", selmod);
         }
         void selection_selmod()
         {
@@ -5102,7 +5108,6 @@ namespace netxs::ui
             auto active = target->selection_cancel();
             if (active)
             {
-                log(" selection_cancel coord=", gear.coord);
                 auto& console = *target;
                 worker.pacify();
                 auto delta = dot_00;
@@ -5127,7 +5132,6 @@ namespace netxs::ui
         {
             //todo paste from clipboard on right-click if no selection
             //...
-            log(" selection_pickup coord=", gear.coord, " selmod=", selmod);
             auto data = target->selection_pickup(selmod);
             if (data.size())
             {
@@ -5138,8 +5142,6 @@ namespace netxs::ui
                     gate_ptr->SIGNAL(tier::preview, e2::form::proceed::focus, this->This()); // Set the focus to further forward the clipboard data.
                     gate_ptr->SIGNAL(tier::release, e2::command::cout, ansi::setbuf(data));
                     gear.state(state);
-                    log("term: selection is copied to clipboard, data.size=", data.size());
-                    log(data);
                 }
             }
             if (gear.meta(hids::ANYCTRL) || selection_cancel(gear)) // Keep selection if Ctrl is pressed.
@@ -5150,8 +5152,8 @@ namespace netxs::ui
         }
         void selection_lclick(hids& gear)
         {
-            if (gear.meta(hids::ANYCTRL)
-             && target->selection_active())
+            auto go_on = gear.meta(hids::ANYCTRL);
+            if (go_on && target->selection_active())
             {
                 selection_extend(gear);
                 gear.dismiss();
@@ -5162,14 +5164,9 @@ namespace netxs::ui
         void selection_create(hids& gear)
         {
             auto boxed = gear.meta(hids::ALT);
-            if (gear.meta(hids::ANYCTRL)
-             && target->selection_extend(gear.coord, boxed))
+            auto go_on = gear.meta(hids::ANYCTRL);
+            if (!(go_on && target->selection_extend(gear.coord, boxed)))
             {
-                log(" drag::start extend +CTRL coord=", gear.coord);
-            }
-            else
-            {
-                log(" drag::start coord=", gear.coord);
                 target->selection_create(gear.coord, boxed);
             }
             base::deface();
@@ -5213,7 +5210,7 @@ namespace netxs::ui
         void selection_finish(hids& gear)
         {
             //todo option: copy on select
-            log(" drag::finish coord=", gear.coord);
+            //...
             worker.pacify();
             base::deface();
         }
@@ -5270,9 +5267,9 @@ namespace netxs::ui
                     case commands::ui::clear:     console.ed(commands::erase::display::viewport); break;
                     default: break;
                 }
-                follow[axis::Y] = true;
+                follow[axis::Y] = true; // Reset viewport.
             }
-            ondata(""); // Reset viewport.
+            ondata(""); // Recalc trigger.
         }
         void data_in(view data)
         {
