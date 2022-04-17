@@ -258,7 +258,6 @@ namespace netxs::input
         bool ismoved = faux;           // sysmouse: Movement through the cells.
         bool shuffle = faux;           // sysmouse: Movement inside the cell.
         bool doubled = faux;           // sysmouse: Double click.
-        //bool tripled = faux;           // sysmouse: Triple click.
         bool wheeled = faux;           // sysmouse: Vertical scroll wheel.
         bool hzwheel = faux;           // sysmouse: Horizontal scroll wheel.
         si32 wheeldt = 0;              // sysmouse: Scroll delta.
@@ -276,7 +275,6 @@ namespace netxs::input
                 }
                 result &= ismoved == m.ismoved
                        && doubled == m.doubled
-                       //&& tripled == m.tripled
                        && wheeled == m.wheeled
                        && hzwheel == m.hzwheel
                        && wheeldt == m.wheeldt;

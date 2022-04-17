@@ -839,6 +839,8 @@ namespace netxs::ui
 
             virtual void selection_create(twod coor, bool mode)     = 0;
             virtual bool selection_extend(twod coor, bool mode)     = 0;
+            virtual void selection_byword(twod coor)                = 0;
+            virtual void selection_byline(twod coor)                = 0;
             virtual text selection_pickup(si32  selmod)             = 0;
             virtual void selection_render(face& target)             = 0;
             virtual void selection_status(term_state& status) const = 0;
@@ -1938,6 +1940,20 @@ namespace netxs::ui
                     selection_update();
                 }
                 return state;
+            }
+            // alt_screen: Select one word.
+            void selection_byword(twod coor) override
+            {
+
+            }
+            // alt_screen: Select one line.
+            void selection_byline(twod coor) override
+            {
+                seltop.y = selend.y = coor.y;
+                seltop.x = 0;
+                selend.x = panel.x - 1;
+                selection_selbox(faux);
+                selection_update();
             }
             // alt_screen: Take selected data.
             text selection_pickup(si32 selmod) override
@@ -4383,6 +4399,82 @@ namespace netxs::ui
                 }
                 return state;
             }
+            // scroll_buf: Select one word.
+            void selection_byword(twod coor) override
+            {
+
+            }
+            // scroll_buf: Select one line.
+            void selection_byline(twod coor) override
+            {
+                auto scrolling_margin = batch.slide + y_top;
+                if (coor.y < scrolling_margin) // Inside the top margin.
+                {
+                    place = part::top;
+                    coor -= {-owner.origin.x, batch.slide };
+                    upmid.role = dnmid.role = grip::idle;
+                    upend.role = dnend.role = grip::idle;
+                    uptop.role = grip::base;
+                    uptop.coor = coor;
+                    dntop = uptop;
+                    uptop.coor.x = 0;
+                    dntop.coor.x = panel.x - 1;
+                }
+                else if (coor.y < scrolling_margin + arena) // Inside the scrolling region.
+                {
+                    place = part::mid;
+                    uptop.role = dntop.role = grip::idle;
+                    upend.role = dnend.role = grip::idle;
+                    upmid = selection_coor_to_grip(coor, grip::base);
+                    dnmid = upmid;
+                    upmid.coor = dot_00;
+                    auto& curln = batch.item_by_id(upmid.link);
+                    auto length = curln.length();
+                    auto remain = length;
+                    if (length > 0)
+                    {
+                        auto wraps = curln.wrapped();
+                        auto align = curln.style.jet();
+                        auto xconv = [&](auto& coor, auto rest)
+                        {
+                            switch (align)
+                            {
+                                case bias::none:
+                                case bias::left:                                     break;
+                                case bias::right:  coor.x += panel.x     - rest    ; break;
+                                case bias::center: coor.x += panel.x / 2 - rest / 2; break;                                
+                            }
+                        };
+                        auto endpos = length - 1;
+                        if (wraps)
+                        {
+                            dnmid.coor = { endpos % panel.x,
+                                           endpos / panel.x };
+                            remain = dnmid.coor.x + 1;
+                        }
+                        else
+                        {
+                            dnmid.coor = { endpos, 0 };
+                        }
+                        xconv(upmid.coor, length);
+                        xconv(dnmid.coor, remain);
+                    }
+                }
+                else // Inside the bottom margin.
+                {
+                    place = part::end;
+                    coor -= {-owner.origin.x, scrolling_margin + arena };
+                    upmid.role = dnmid.role = grip::idle;
+                    uptop.role = dntop.role = grip::idle;
+                    upend.role = grip::base;
+                    upend.coor = coor;
+                    dnend = upend;
+                    upend.coor.x = 0;
+                    dnend.coor.x = panel.x - 1;
+                }
+                selection_selbox(faux);
+                selection_update();
+            }
             // scroll_buf: Return the indexes and a grips copy.
             auto selection_get_it() const
             {
@@ -5207,15 +5299,17 @@ namespace netxs::ui
         }
         void selection_dblclk(hids& gear)
         {
-            log("dbl click");
+            target->selection_byword(gear.coord);
             gear.dismiss();
             base::expire<tier::release>();
+            base::deface();
         }
         void selection_tplclk(hids& gear)
         {
-            log("tpl click");
+            target->selection_byline(gear.coord);
             gear.dismiss();
             base::expire<tier::release>();
+            base::deface();
         }
         void selection_create(hids& gear)
         {
