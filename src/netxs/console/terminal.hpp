@@ -35,7 +35,8 @@ namespace netxs::ui
         static constexpr si32 def_length = 20000; // term: Default scrollback history length.
         static constexpr si32 def_growup = 0;     // term: Default scrollback history grow step.
         static constexpr si32 def_tablen = 8;     // term: Default tab length.
-        static constexpr auto def_lucent = 0xC0; // term:: Default transparency level.
+        static constexpr auto def_lucent = 0xC0;  // term: Default transparency level.
+        static constexpr auto def_margin = 3;     // term: Default side margin.
 
     public:
         using events = netxs::events::userland::uiterm;
@@ -725,7 +726,10 @@ namespace netxs::ui
 
                 vt.csier.table[CSI_CCC][CCC_SBS] = VT_PROC{ p->owner.sbsize(q);    }; // CCC_SBS: Set scrollback size.
                 vt.csier.table[CSI_CCC][CCC_EXT] = VT_PROC{ p->owner.native(q(1)); }; // CCC_EXT: Setup extended functionality.
-                vt.csier.table[CSI_CCC][CCC_RST] = VT_PROC{ p->style.glb(); p->style.wrp(deco::defwrp); };  // fx_ccc_rst
+                vt.csier.table[CSI_CCC][CCC_RST] = VT_PROC{ p->owner.setdef();     }; // CCC_RST: Reset tot defaults.
+                vt.csier.table[CSI_CCC][CCC_SGR] = VT_PROC{ p->owner.setsgr(q);    };           // CCC_SGR: Set default SGR.
+                vt.csier.table[CSI_CCC][CCC_SEL] = VT_PROC{ p->owner.selection_selmod(q(0)); }; // CCC_SEL: Set selection mode.
+                vt.csier.table[CSI_CCC][CCC_PAD] = VT_PROC{ p->setpad(q(-1)); };                // CCC_PAD: Set left/right padding for scrollback.
 
                 vt.intro[ctrl::ESC][ESC_IND   ] = VT_PROC{ p->lf(1); };          // ESC D  Index. Caret down and scroll if needed (IND).
                 vt.intro[ctrl::ESC][ESC_IR    ] = VT_PROC{ p->ri (); };          // ESC M  Reverse index (RI).
@@ -828,7 +832,7 @@ namespace netxs::ui
                   decom{ faux   },
                   boxed{ faux   },
                   alive{ 0      },
-                  shore{ 3      } //todo make it configurable
+                  shore{ def_margin }
             {
                 parser::style = ansi::def_style;
             }
@@ -898,6 +902,12 @@ namespace netxs::ui
     virtual bool set_slide(si32&)
             {
                 return true;
+            }
+            // bufferbase: Set left/right scrollback padding.
+            void setpad(si32 new_value)
+            {
+                if (new_value < 0) new_value = def_margin;
+                bufferbase::shore = std::min(new_value, 255);
             }
             // bufferbase: Update scrolling region.
             void update_region()
@@ -5085,7 +5095,41 @@ namespace netxs::ui
                 };
             }
         }
+        // term: Reset to defaults.
+        void setdef()
+        {
+            auto& console = *target;
+            console.style.glb();
+            console.style.wrp(deco::defwrp);
+            console.setpad(def_margin);
+            selection_selmod(0); //todo unify (config with defaults)
+            auto brush = base::color();
+            brush = cell{ whitespace }.fgc(whitelt).bgc(blackdk).link(brush.link()); //todo unify (config with defaults)
+            base::color(brush);
+        }
+        // term: Set terminal background.
+        void setsgr(fifo& queue)
+        {
+            struct marker
+            {
+                ansi::deco style;
+                ansi::mark brush;
+                void task(ansi::rule const& cmd) { }
+            };
+            static ansi::csi_t<marker, true> parser;
 
+            marker mark;
+            mark.brush = base::color();
+            auto param = queue.front(ansi::SGR_RST);
+            if (queue.issub(param))
+            {
+                auto ptr = &mark;
+                queue.settop(queue.desub(param));
+                parser.table[ansi::CSI_SGR].execute(queue, ptr);
+            }
+            else mark.brush = cell{ whitespace }.fgc(whitelt).bgc(blackdk).link(mark.brush.link()); //todo unify (config with defaults)
+            base::color(mark.brush);
+        }
         // term: Is the selection allowed.
         auto selection_passed()
         {

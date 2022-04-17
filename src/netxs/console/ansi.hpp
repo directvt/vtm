@@ -264,6 +264,10 @@ namespace netxs::ansi
     static const si32 CCC_EXT    = 25 ; // CSI 25: b       p  - extended functionality support.
     static const si32 CCC_SMS    = 26 ; // CSI 26: b       p  - Should the mouse poiner to be drawn.
     static const si32 CCC_KBD    = 27 ; // CSI 27: n       p  - Set keyboard modifiers.
+    
+    static const si32 CCC_SGR    = 28 ; // CSI 28: ...     p  - Set the default SGR attribute for the built-in terminal background (one attribute per command).
+    static const si32 CCC_SEL    = 29 ; // CSI 29: n       p  - Set selection mode for the built-in terminal, n: 0 - off, 1 - plaintext, 2 - ansi-text.
+    static const si32 CCC_PAD    = 30 ; // CSI 30: n       p  - Set left/right padding for the built-in terminal.
 
     // ansi: Escaped sequences accumulator.
     class esc
@@ -963,7 +967,7 @@ namespace netxs::ansi
     template<class Q, class C>
     using func = netxs::generics::tree <Q, C*, std::function<void(Q&, C*&)>>;
 
-    template<class T>
+    template<class T, bool NOMULTIARG = faux>
     struct csi_t
     {
         using tree = func<fifo, T>;
@@ -1054,7 +1058,7 @@ namespace netxs::ansi
                 table[CSI_DSR] = nullptr;
 
                 auto& csi_ccc = table[CSI_CCC].resize(0x100);
-                csi_ccc.enable_multi_arg();
+                csi_ccc.template enable_multi_arg<NOMULTIARG>();
                     csi_ccc[CCC_CUP] = VT_PROC{ F(ay, q(0)); F(ax, q(0)); }; // fx_ccc_cup
                     csi_ccc[CCC_CPP] = VT_PROC{ F(py, q(0)); F(px, q(0)); }; // fx_ccc_cpp
                     csi_ccc[CCC_CHX] = VT_PROC{ F(ax, q(0)); }; // fx_ccc_chx
@@ -1086,8 +1090,12 @@ namespace netxs::ansi
                     csi_ccc[CCC_SMS] = nullptr;
                     csi_ccc[CCC_KBD] = nullptr;
 
+                    csi_ccc[CCC_SGR] = nullptr;
+                    csi_ccc[CCC_SEL] = nullptr;
+                    csi_ccc[CCC_PAD] = nullptr;
+
                 auto& csi_sgr = table[CSI_SGR].resize(0x100);
-                csi_sgr.enable_multi_arg();
+                csi_sgr.template enable_multi_arg<NOMULTIARG>();
                     csi_sgr[SGR_RST      ] = VT_PROC{ p->brush.nil( );    }; // fx_sgr_rst      ;
                     csi_sgr[SGR_SAV      ] = VT_PROC{ p->brush.sav( );    }; // fx_sgr_sav      ;
                     csi_sgr[SGR_FG       ] = VT_PROC{ p->brush.rfg( );    }; // fx_sgr_fg_def   ;
@@ -1146,7 +1154,7 @@ namespace netxs::ansi
             #undef F
         }
 
-        void proceed(si32 cmd, T*& client)  { table.execute(cmd, client); }
+        void proceed(si32 cmd, T*& client) { table.execute(cmd, client); }
         void proceed           (fifo& q, T*& p) { table         .execute(q, p); }
         void proceed_quest     (fifo& q, T*& p) { table_quest   .execute(q, p); }
         void proceed_gt        (fifo& q, T*& p) { table_gt      .execute(q, p); }

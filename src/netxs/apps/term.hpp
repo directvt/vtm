@@ -244,6 +244,7 @@ namespace netxs::app::term
                             auto shell = os::get_shell();
                             auto inst = scroll->attach(ui::term::ctor(v.empty() ? shell + " -i"
                                                                                 : text{ v }));
+                            //todo unify (config with defaults)
                             inst->colors(whitelt, blackdk)
                                 ->invoke([](auto& boss)
                                 {
