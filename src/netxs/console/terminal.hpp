@@ -5205,6 +5205,18 @@ namespace netxs::ui
             }
             else selection_cancel(gear);
         }
+        void selection_dblclk(hids& gear)
+        {
+            log("dbl click");
+            gear.dismiss();
+            base::expire<tier::release>();
+        }
+        void selection_tplclk(hids& gear)
+        {
+            log("tpl click");
+            gear.dismiss();
+            base::expire<tier::release>();
+        }
         void selection_create(hids& gear)
         {
             auto boxed = gear.meta(hids::ALT);
@@ -5270,12 +5282,14 @@ namespace netxs::ui
                 }
             };
             //todo make it configurable
-            SUBMIT(tier::release, e2::form::drag::start             ::left,  gear) { if (selection_passed()) selection_create(gear); };
-            SUBMIT(tier::release, e2::form::drag::pull              ::left,  gear) { if (selection_passed()) selection_extend(gear); };
-            SUBMIT(tier::release, e2::form::drag::stop              ::left,  gear) {                         selection_finish(gear); };
-            SUBMIT(tier::release, e2::form::drag::cancel            ::left,  gear) {                         selection_cancel(gear); };
-            SUBMIT(tier::release, hids::events::mouse::button::click::right, gear) {                         selection_pickup(gear); };
-            SUBMIT(tier::release, hids::events::mouse::button::click::left,  gear) {                         selection_lclick(gear); };
+            SUBMIT(tier::release, e2::form::drag::start                ::left,  gear) { if (selection_passed()) selection_create(gear); };
+            SUBMIT(tier::release, e2::form::drag::pull                 ::left,  gear) { if (selection_passed()) selection_extend(gear); };
+            SUBMIT(tier::release, e2::form::drag::stop                 ::left,  gear) {                         selection_finish(gear); };
+            SUBMIT(tier::release, e2::form::drag::cancel               ::left,  gear) {                         selection_cancel(gear); };
+            SUBMIT(tier::release, hids::events::mouse::button::click   ::right, gear) {                         selection_pickup(gear); };
+            SUBMIT(tier::release, hids::events::mouse::button::click   ::left,  gear) {                         selection_lclick(gear); };
+            SUBMIT(tier::release, hids::events::mouse::button::dblclick::left,  gear) { if (selection_passed()) selection_dblclk(gear); };
+            SUBMIT(tier::release, hids::events::mouse::button::tplclick::left,  gear) { if (selection_passed()) selection_tplclk(gear); };
         }
 
     public:

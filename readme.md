@@ -214,6 +214,7 @@ No arguments | Run client (auto start server)
    - Save/restore terminal window title `XTWINOPS 22/23`
    - Mouse tracking `DECSET 1000/1002/1003/1006 SGR` mode
    - Mouse tracking `DECSET 10060 Extended SGR` mode, mouse reporting outside of the terminal viewport (outside + negative arguments) #62
+   - Text selection by mouse #149
    - Configurable using VT-sequences
 
       Name         | Sequence                         | Description

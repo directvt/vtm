@@ -115,6 +115,7 @@ namespace netxs::events::userland
                     GROUP_XS( down    , input::hids ),
                     GROUP_XS( click   , input::hids ),
                     GROUP_XS( dblclick, input::hids ),
+                    GROUP_XS( tplclick, input::hids ),
                     GROUP_XS( drag    , input::hids ),
 
                     SUBSET_XS( up )
@@ -147,6 +148,15 @@ namespace netxs::events::userland
                         INDEX_XS( left, right, leftright, middle, wheel, win ),
                     };
                     SUBSET_XS( dblclick )
+                    {
+                        EVENT_XS( left     , input::hids ),
+                        EVENT_XS( right    , input::hids ),
+                        EVENT_XS( leftright, input::hids ),
+                        EVENT_XS( middle   , input::hids ),
+                        EVENT_XS( wheel    , input::hids ),
+                        EVENT_XS( win      , input::hids ),
+                    };
+                    SUBSET_XS( tplclick )
                     {
                         EVENT_XS( left     , input::hids ),
                         EVENT_XS( right    , input::hids ),
@@ -248,6 +258,7 @@ namespace netxs::input
         bool ismoved = faux;           // sysmouse: Movement through the cells.
         bool shuffle = faux;           // sysmouse: Movement inside the cell.
         bool doubled = faux;           // sysmouse: Double click.
+        //bool tripled = faux;           // sysmouse: Triple click.
         bool wheeled = faux;           // sysmouse: Vertical scroll wheel.
         bool hzwheel = faux;           // sysmouse: Horizontal scroll wheel.
         si32 wheeldt = 0;              // sysmouse: Scroll delta.
@@ -265,6 +276,7 @@ namespace netxs::input
                 }
                 result &= ismoved == m.ismoved
                        && doubled == m.doubled
+                       //&& tripled == m.tripled
                        && wheeled == m.wheeled
                        && hzwheel == m.hzwheel
                        && wheeldt == m.wheeldt;
@@ -345,6 +357,7 @@ namespace netxs::input
         constexpr static auto pushdown = mouse_event::button::down::        any.group<total>();
         constexpr static auto sglclick = mouse_event::button::click::       any.group<total>();
         constexpr static auto dblclick = mouse_event::button::dblclick::    any.group<total>();
+        constexpr static auto tplclick = mouse_event::button::tplclick::    any.group<total>();
         constexpr static auto movement = mouse_event::move.id;
         constexpr static auto idleness = mouse_event::shuffle.id;
         constexpr static auto scrollup = mouse_event::scroll::up.id;
@@ -389,6 +402,7 @@ namespace netxs::input
         {
             moment fired;
             twod   coord;
+            si32   count; // To control successive double-clicks, e.g. triple-clicks.
         }
         stamp[sysmouse::total] = {}; // mouse: Recorded intervals between successive button presses to track double-clicks.
         static constexpr period delay = 500ms;   // mouse: Double-click threshold.
@@ -540,20 +554,33 @@ namespace netxs::input
                                 if (b.succeed) action(sglclick, i);
                                 if (!nodbl)
                                 {
-                                    // Fire double-click if delay is not expired
-                                    // and the same mouseposition.
+                                    // Fire double/triple-click if delay is not expired
+                                    // and the mouse at the same position.
                                     auto& s = stamp[i];
                                     auto fired = tempus::now();
-                                    if (fired - s.fired < delay
-                                        && s.coord == coord)
+                                    if (fired - s.fired < delay && s.coord == coord)
                                     {
-                                        s.fired = {}; // To avoid successive double-clicks if triple-click.
-                                        if (b.succeed) action(dblclick, i);
+                                        if (b.succeed)
+                                        {
+                                            if (s.count == 1)
+                                            {
+                                                action(dblclick, i);
+                                                s.fired = fired;
+                                                s.count = 2;
+                                            }
+                                            else if (s.count == 2)
+                                            {
+                                                action(tplclick, i);
+                                                s.fired = {};
+                                                s.count = {};
+                                            }
+                                        }
                                     }
                                     else
                                     {
                                         s.fired = fired;
                                         s.coord = coord;
+                                        s.count = 1;
                                     }
                                 }
                             }
