@@ -971,8 +971,10 @@ namespace netxs::utf
     template<class TEXT_OR_VIEW, class T>
     auto remain(TEXT_OR_VIEW&& utf8, T const& delimiter)
     {
+        using type = std::remove_cvref_t<TEXT_OR_VIEW>;
+
         view what{ delimiter };
-        TEXT_OR_VIEW crop;
+        type crop;
         auto coor = utf8.find(what);
         if (coor != text::npos)
         {

@@ -5359,6 +5359,10 @@ namespace netxs::ui
             }
             else // Paste from clipboard.
             {
+                #ifndef PROD
+                    return;
+                #endif
+
                 if (auto gate_ptr = bell::getref(gear.id))
                 {
                     auto data = decltype(e2::command::clipboard::get)::type{};
