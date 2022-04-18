@@ -4982,6 +4982,7 @@ namespace netxs::ui
             {
                 if (auto gate_ptr = bell::getref(gate_id))
                 {
+                    gate_ptr->SIGNAL(tier::release, e2::command::clipboard::set, utf::debase(utf::remain(data, ';')));
                     gate_ptr->SIGNAL(tier::release, e2::command::cout, clip);
                 }
             }
@@ -5335,24 +5336,39 @@ namespace netxs::ui
         }
         void selection_pickup(hids& gear)
         {
-            //todo paste from clipboard on right-click if no selection
-            //...
-            auto data = target->selection_pickup(selmod);
-            if (data.size())
+            if (target->selection_active())
+            {
+                auto data = target->selection_pickup(selmod);
+                if (data.size())
+                {
+                    if (auto gate_ptr = bell::getref(gear.id))
+                    {
+                        auto state = gear.state();
+                        gear.combine_focus = true;
+                        gate_ptr->SIGNAL(tier::preview, e2::form::proceed::focus, this->This()); // Set the focus to further forward the clipboard data.
+                        gate_ptr->SIGNAL(tier::release, e2::command::cout, ansi::setbuf(data));
+                        gate_ptr->SIGNAL(tier::release, e2::command::clipboard::set, data);
+                        gear.state(state);
+                    }
+                }
+                if (gear.meta(hids::ANYCTRL) || selection_cancel(gear)) // Keep selection if Ctrl is pressed.
+                {
+                    base::expire<tier::release>();
+                    gear.dismiss();
+                }
+            }
+            else // Paste from clipboard.
             {
                 if (auto gate_ptr = bell::getref(gear.id))
                 {
-                    auto state = gear.state();
-                    gear.combine_focus = true;
-                    gate_ptr->SIGNAL(tier::preview, e2::form::proceed::focus, this->This()); // Set the focus to further forward the clipboard data.
-                    gate_ptr->SIGNAL(tier::release, e2::command::cout, ansi::setbuf(data));
-                    gear.state(state);
+                    auto data = decltype(e2::command::clipboard::get)::type{};
+                    gate_ptr->SIGNAL(tier::release, e2::command::clipboard::get, data);
+                    if (data.size())
+                    {
+                        data_out(data);
+                        gear.dismiss();
+                    }
                 }
-            }
-            if (gear.meta(hids::ANYCTRL) || selection_cancel(gear)) // Keep selection if Ctrl is pressed.
-            {
-                base::expire<tier::release>();
-                gear.dismiss();
             }
         }
         void selection_lclick(hids& gear)
@@ -5494,13 +5510,13 @@ namespace netxs::ui
         }
         void data_in(view data)
         {
-            log("term: app::term::data::in, ", utf::debase(data));
+            //log("term: app::term::data::in, ", utf::debase(data));
             follow[axis::Y] = true;
             ondata(data);
         }
         void data_out(view data)
         {
-            log("term: app::term::data::out, ", utf::debase(data));
+            //log("term: app::term::data::out, ", utf::debase(data));
             follow[axis::Y] = true;
             ptycon.write(data);
         }

@@ -972,7 +972,7 @@ namespace netxs::utf
     auto remain(TEXT_OR_VIEW&& utf8, T const& delimiter)
     {
         view what{ delimiter };
-        text crop;
+        TEXT_OR_VIEW crop;
         auto coor = utf8.find(what);
         if (coor != text::npos)
         {

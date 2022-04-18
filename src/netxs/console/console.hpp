@@ -173,9 +173,16 @@ namespace netxs::events::userland
             };
             SUBSET_XS( command )
             {
-                EVENT_XS( quit  , const view ), // return bye msg, arg: errcode.
-                EVENT_XS( cout  , const text ), // Append extra data to output.
-                EVENT_XS( custom, si32       ), // Custom command, arg: cmd_id.
+                EVENT_XS( quit     , const view ), // return bye msg, arg: errcode.
+                EVENT_XS( cout     , const text ), // Append extra data to output.
+                EVENT_XS( custom   , si32       ), // Custom command, arg: cmd_id.
+                GROUP_XS( clipboard, const view ),
+
+                SUBSET_XS( clipboard )
+                {
+                    EVENT_XS( set, const view ), // Set data to clipboard.
+                    EVENT_XS( get,       view ), // Get data from clipboard.
+                };
             };
             SUBSET_XS( form )
             {
@@ -4430,6 +4437,7 @@ namespace netxs::console
                             if (data.length())
                             {
                                 gate.SIGNAL(tier::release, e2::command::cout, ansi::setbuf(data));
+                                gate.SIGNAL(tier::release, e2::command::clipboard::set, data);
                             }
                         }
                     }
@@ -5526,6 +5534,7 @@ again:
         bool native = faux; //gate: Extended functionality support.
         bool fullscreen = faux; //gate: Fullscreen mode.
         si32 legacy = os::legacy::clean;
+        text clipdata; // gate: Clipboard data.
 
     public:
         sptr<base> uibar; // gate: Local UI overlay, UI bar/taskbar/sidebar.
@@ -5597,6 +5606,14 @@ again:
                 SUBMIT_T(tier::release, e2::command::cout, token, extra_data)
                 {
                     paint.append(extra_data);
+                };
+                SUBMIT_T(tier::release, e2::command::clipboard::set, token, clipbrd_data)
+                {
+                    clipdata = clipbrd_data;
+                };
+                SUBMIT_T(tier::release, e2::command::clipboard::get, token, clipbrd_data)
+                {
+                    clipbrd_data = clipdata;
                 };
 
                 world->SUBMIT_T(tier::release, e2::form::proceed::render, token, render_scene)
