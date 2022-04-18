@@ -282,8 +282,15 @@ namespace netxs::console
             ansi::esc yield;
             auto badfx = [&](auto& state, auto& frame)
             {
-                state.set_gc();
                 frame.add(utf::REPLACEMENT_CHARACTER_UTF8_VIEW);
+                state.set_gc();
+                state.wdt(1);
+            };
+            auto side_badfx = [&](auto& state, auto& frame) // Restoring the halves on the side
+            {
+                frame.add(state.txt());
+                state.set_gc();
+                state.wdt(1);
             };
             auto allfx = [&](cell& c)
             {
@@ -303,7 +310,7 @@ namespace netxs::console
                         c.scan_attr<svga::truecolor, USESGR>(state, yield);
                         state.set_gc(c); // Save char from c for the next iteration
                     }
-                    else // width == 3 // Right part
+                    else if (width == 3) // Right part
                     {
                         if (state.wdt() == 2)
                         {
@@ -318,14 +325,22 @@ namespace netxs::console
                         else
                         {
                             c.scan_attr<svga::truecolor, USESGR>(state, yield);
-                            badfx(state, yield); // Right part alone
+                            if (state.wdt() == 0)
+                            {
+                                side_badfx(state, yield); // Right part alone at the left side
+                            }
+                            else
+                            {
+                                badfx(state, yield); // Right part alone
+                            }
                         }
                     }
                 }
             };
             auto eolfx = [&]()
             {
-                if (state.wdt() == 2) badfx(state, yield);  // Left part alone
+                if (state.wdt() == 2) side_badfx(state, yield);  // Left part alone at the right side
+                state.set_gc();
                 yield.eol();
             };
 
