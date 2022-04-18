@@ -379,24 +379,35 @@ namespace netxs
     // intmath: Draw the rectangle region inside the canvas by
     //          invoking handle(canvas_element)
     //          (without boundary checking).
-    template<class T, class RECT, class P, class NEWLINEFX = noop>
+    template<bool RtoL = faux, class T, class RECT, class P, class NEWLINEFX = noop>
     void onrect(T& canvas, RECT const& region, P handle, NEWLINEFX online = NEWLINEFX())
     {
-        auto& place = canvas.area();
+        //using ret_t = std::template result_of_t<P(decltype(*(canvas.data())))>;
+        using ret_t = std::invoke_result_t<P, decltype(*(canvas.data()))>;
+        static constexpr auto plain = std::is_same_v<void, ret_t>;
 
+        auto& place = canvas.area();
         if (auto joint = region.clip(place))
         {
             auto basis = joint.coor - place.coor;
             auto frame = place.size.x * basis.y + basis.x + canvas.data();
             auto notch = place.size.x - joint.size.x;
-
             auto limit = place.size.x * joint.size.y + frame;
             while (limit != frame)
             {
                 auto limit = frame + joint.size.x;
                 while (limit != frame)
                 {
-                    handle(*frame++);
+                    if constexpr (RtoL)
+                    {
+                        if constexpr (plain) handle(*--limit);
+                        else             if (handle(*--limit)) return;
+                    }
+                    else
+                    {
+                        if constexpr (plain) handle(*frame++);
+                        else             if (handle(*frame++)) return;
+                    }
                 }
                 frame += notch;
                 online();

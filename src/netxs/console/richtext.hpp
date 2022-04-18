@@ -354,18 +354,42 @@ namespace netxs::console
             return meta<USESGR, INITIAL, FINALISE>(region, state);
         }
         template<feed DIRECTION>
-        auto word(twod const& coor) // core: Detect word bound.
+        auto word(twod coord) // core: Detect a word bound.
         {
-            if (region.size.x == 0) return 0;
+            if (!region) return 0;
+            static constexpr auto rev = DIRECTION == feed::fwd ? faux : true;
 
-            auto x = std::clamp(coor.x, 0, region.size.x - 1);
-            auto field = rect{-dot_mx / 2, dot_mx };
-            auto allfx = [x](auto& c)
+            auto empty = [&](auto txt)
             {
-
+                return txt.empty() || txt.front() == whitespace;
             };
-            netxs::onrect(*this, field, allfx);
-            return x;
+            auto valid = [&](auto txt)
+            {
+                return !empty(txt);
+            };
+            auto func = [&](auto check)
+            {
+                coord.x += rev ? 1 : 0;
+                auto count = decltype(coord.x){};
+                auto width = (rev ? 0 : region.size.x) - coord.x;
+                auto field = rect{ coord + region.coor, { width, 1 }}.normalize();
+                auto allfx = [&](auto& c)
+                {
+                    auto txt = c.txt();
+                    if (check(txt)) return true;
+                    count++;
+                    return faux;
+                };
+                netxs::onrect<rev>(*this, field, allfx);
+                if (count) count--;
+                coord.x -= rev ? count + 1 : -count;
+            };
+
+            coord = std::clamp(coord, dot_00, region.size - dot_11);
+            auto space = valid(data(coord)->txt());
+            space ? func(empty)
+                  : func(valid);
+            return coord.x;
         }
         template<class P>
         void cage(ui::rect const& area, twod const& border_width, P fuse) // core: Draw the cage around specified area.
