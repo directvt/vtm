@@ -359,13 +359,31 @@ namespace netxs::console
             if (!region) return 0;
             static constexpr auto rev = DIRECTION == feed::fwd ? faux : true;
 
+            //todo unify
             auto empty = [&](auto txt)
             {
                 return txt.empty() || txt.front() == whitespace;
             };
-            auto valid = [&](auto txt)
+            auto alpha = [&](auto txt)
             {
-                return !empty(txt);
+                //todo revise (https://unicode.org/reports/tr29/#Word_Boundaries)
+                auto c = utf::letter(txt).attr.cdpoint;
+                return c >= '0' && c <= '9' //30-39: '0'-'9'
+                    || c >= '@' && c <= 'Z' //40-5A: '@','A'-'Z'
+                    || c >= '_' && c <= 'z' //5F-7A: '_','`','a'-'z'
+                    || c >= 0xC0;           //C0-10FFFF: "À" - ...
+            };
+            auto email = [&](auto txt)
+            {
+                return !txt.empty() && txt.front() == '@';
+            };
+            auto mails = [&](auto txt)
+            {
+                return !txt.empty() && (alpha(txt) || txt.front() == '.');
+            };
+            auto digit = [&](auto txt)
+            {
+                return !txt.empty() && txt.front() >= '.' && txt.front() <= '9';
             };
             auto func = [&](auto check)
             {
@@ -376,7 +394,7 @@ namespace netxs::console
                 auto allfx = [&](auto& c)
                 {
                     auto txt = c.txt();
-                    if (check(txt)) return true;
+                    if (!check(txt)) return true;
                     count++;
                     return faux;
                 };
@@ -386,9 +404,11 @@ namespace netxs::console
             };
 
             coord = std::clamp(coord, dot_00, region.size - dot_11);
-            auto space = valid(data(coord)->txt());
-            space ? func(empty)
-                  : func(valid);
+            auto test = data(coord)->txt();
+            digit(test) ? func(digit) :
+            email(test) ? func(mails) :
+            empty(test) ? func(empty) :
+                          func(alpha);
             return coord.x;
         }
         template<class P>
