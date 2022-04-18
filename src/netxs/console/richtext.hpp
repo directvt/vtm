@@ -353,6 +353,20 @@ namespace netxs::console
             auto region = rect{-dot_mx / 2, dot_mx };
             return meta<USESGR, INITIAL, FINALISE>(region, state);
         }
+        template<feed DIRECTION>
+        auto word(twod const& coor) // core: Detect word bound.
+        {
+            if (region.size.x == 0) return 0;
+
+            auto x = std::clamp(coor.x, 0, region.size.x - 1);
+            auto field = rect{-dot_mx / 2, dot_mx };
+            auto allfx = [x](auto& c)
+            {
+
+            };
+            netxs::onrect(*this, field, allfx);
+            return x;
+        }
         template<class P>
         void cage(ui::rect const& area, twod const& border_width, P fuse) // core: Draw the cage around specified area.
         {

@@ -4399,10 +4399,106 @@ namespace netxs::ui
                 }
                 return state;
             }
+            // scroll_buf: 
+            template<feed DIR>
+            auto xconv(si32 x, bias align, si32 remain)
+            {
+                // forward: screen -> offset
+                // reverse: offset -> screen
+                auto map = [](auto& a, auto b)
+                {
+                    DIR == feed::fwd ? a -= b
+                                     : a += b;
+                };
+                switch (align)
+                {
+                    case bias::none:
+                    case bias::left:   break;
+                    case bias::right:  map(x, panel.x     - remain    ); break;
+                    case bias::center: map(x, panel.x / 2 - remain / 2); break;                                
+                };
+                return x;
+            }
+            // scroll_buf: 
+            auto screen_to_offset(line& curln, twod coor)
+            {
+                auto length = curln.length();
+                auto adjust = curln.style.jet();
+                if (curln.wrapped() && length > panel.x)
+                {
+                    auto endpos = length - 1;
+                    auto height = endpos / panel.x;
+                    auto remain = endpos % panel.x + 1;
+                    coor.x = coor.y < height ? std::clamp(coor.x, 0, panel.x - 1)
+                                             : std::clamp(xconv<feed::fwd>(coor.x, adjust, remain), 0, remain - 1);
+                    coor.x+= coor.y * panel.x;
+                }
+                else
+                {
+                    coor.x = std::clamp(xconv<feed::fwd>(coor.x, adjust, length), 0, length - 1);
+                }
+                return coor.x;
+            }
+            // scroll_buf: 
+            auto offset_to_screen(line& curln, si32 offset)
+            {
+                auto size = curln.length();
+                auto last = size ? size - 1 : 0;
+                auto coor = twod{ std::clamp(offset, 0, last), 0 };
+                if (size > 1 && curln.wrapped())
+                {
+                    coor.y = coor.x / panel.x;
+                    coor.x = coor.x % panel.x;
+                    if (coor.y < last / panel.x) return coor;
+                    size = last % panel.x + 1;
+                }
+                coor.x = xconv<feed::rev>(coor.x, curln.style.jet(), size);
+                return coor;
+            }
             // scroll_buf: Select one word.
             void selection_byword(twod coor) override
             {
-
+                auto scrolling_margin = batch.slide + y_top;
+                if (coor.y < scrolling_margin) // Inside the top margin.
+                {
+                    place = part::top;
+                    coor -= {-owner.origin.x, batch.slide };
+                    upmid.role = dnmid.role = grip::idle;
+                    upend.role = dnend.role = grip::idle;
+                    uptop.role = grip::base;
+                    uptop.coor = coor;
+                    dntop = uptop;
+                    uptop.coor.x = upbox.word<feed::rev>(coor);
+                    dntop.coor.x = upbox.word<feed::fwd>(coor);
+                }
+                else if (coor.y < scrolling_margin + arena) // Inside the scrolling region.
+                {
+                    place = part::mid;
+                    uptop.role = dntop.role = grip::idle;
+                    upend.role = dnend.role = grip::idle;
+                    upmid = selection_coor_to_grip(coor, grip::base);
+                    dnmid = upmid;
+                    auto& line = batch.item_by_id(upmid.link);
+                    auto start = screen_to_offset(line, upmid.coor);
+                    auto offup = line.word<feed::rev>({ start, 0 });
+                    auto offdn = line.word<feed::fwd>({ start, 0 });
+                    upmid.coor = offset_to_screen(line, offup);
+                    dnmid.coor = offset_to_screen(line, offdn);
+                }
+                else // Inside the bottom margin.
+                {
+                    place = part::end;
+                    coor -= {-owner.origin.x, scrolling_margin + arena };
+                    upmid.role = dnmid.role = grip::idle;
+                    uptop.role = dntop.role = grip::idle;
+                    upend.role = grip::base;
+                    upend.coor = coor;
+                    dnend = upend;
+                    upend.coor.x = dnbox.word<feed::rev>(coor);
+                    dnend.coor.x = dnbox.word<feed::fwd>(coor);
+                }
+                selection_selbox(faux);
+                selection_update();
             }
             // scroll_buf: Select one line.
             void selection_byline(twod coor) override
@@ -4429,36 +4525,9 @@ namespace netxs::ui
                     dnmid = upmid;
                     upmid.coor = dot_00;
                     auto& curln = batch.item_by_id(upmid.link);
-                    auto length = curln.length();
-                    auto remain = length;
-                    if (length > 0)
-                    {
-                        auto wraps = curln.wrapped();
-                        auto align = curln.style.jet();
-                        auto xconv = [&](auto& coor, auto rest)
-                        {
-                            switch (align)
-                            {
-                                case bias::none:
-                                case bias::left:                                     break;
-                                case bias::right:  coor.x += panel.x     - rest    ; break;
-                                case bias::center: coor.x += panel.x / 2 - rest / 2; break;                                
-                            }
-                        };
-                        auto endpos = length - 1;
-                        if (wraps)
-                        {
-                            dnmid.coor = { endpos % panel.x,
-                                           endpos / panel.x };
-                            remain = dnmid.coor.x + 1;
-                        }
-                        else
-                        {
-                            dnmid.coor = { endpos, 0 };
-                        }
-                        xconv(upmid.coor, length);
-                        xconv(dnmid.coor, remain);
-                    }
+                    auto limit = std::max(0, curln.length() - 1);
+                    upmid.coor = offset_to_screen(curln, 0);
+                    dnmid.coor = offset_to_screen(curln, limit);
                 }
                 else // Inside the bottom margin.
                 {

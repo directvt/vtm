@@ -20,12 +20,6 @@ namespace netxs::ui
         forward,
         reverse,
     };
-    enum class tend
-    {
-        unknown,
-        forward,
-        reverse,
-    };
     enum slot { _1, _2, _I };
     enum axis { X, Y };
     enum axes
