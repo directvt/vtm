@@ -1950,7 +1950,11 @@ namespace netxs::ui
             // alt_screen: Select one word.
             void selection_byword(twod coor) override
             {
-
+                seltop = selend = coor;
+                seltop.x = canvas.word<feed::rev>(coor);
+                selend.x = canvas.word<feed::fwd>(coor);
+                selection_selbox(faux);
+                selection_update();
             }
             // alt_screen: Select one line.
             void selection_byline(twod coor) override
