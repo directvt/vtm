@@ -459,7 +459,8 @@ namespace netxs::app::desk
                                                           ->plugin<pro::fader>(x1, c1, 150ms)
                                                           ->invoke([&](auto& boss)
                                                           {
-                                                              boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
+                                                              //Use BYVAL to capture "path" value (crashes on FreeBSD/gcc).
+                                                              boss.SUBMIT_BYVAL(tier::release, hids::events::mouse::button::click::left, gear)
                                                               {
                                                                   //todo unify, see system.h:1614
                                                                   #if defined(__APPLE__) || defined(__FreeBSD__)
