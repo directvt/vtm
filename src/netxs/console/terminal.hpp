@@ -821,7 +821,6 @@ namespace netxs::ui
 
             bool  boxed; // bufferbase: Box selection mode.
             ui64  alive; // bufferbase: Selection is active (digest).
-            si32  shore; // bufferbase: Left and right scrollbuffer indents.
 
             bufferbase(term& master)
                 : owner{ master },
@@ -837,8 +836,7 @@ namespace netxs::ui
                   notab{ faux   },
                   decom{ faux   },
                   boxed{ faux   },
-                  alive{ 0      },
-                  shore{ def_margin }
+                  alive{ 0      }
             {
                 parser::style = ansi::def_style;
             }
@@ -911,11 +909,13 @@ namespace netxs::ui
             {
                 return true;
             }
-            // bufferbase: Set left/right scrollback padding.
-            void setpad(si32 new_value)
+            // bufferbase: Set left/right scrollback additional padding.
+    virtual void setpad(si32 new_value)
+            { }
+            // bufferbase: Get left/right scrollback additional padding.
+    virtual si32 getpad()
             {
-                if (new_value < 0) new_value = def_margin;
-                bufferbase::shore = std::min(new_value, 255);
+                return 0;
             }
             // bufferbase: Update scrolling region.
             void update_region()
@@ -2330,6 +2330,7 @@ namespace netxs::ui
             grip upend; // scroll_buf: Selection first grip inside the bottom margin.
             grip dnend; // scroll_buf: Selection second grip inside the bottom margin.
             part place; // scroll_buf: Selection last active region.
+            si32 shore; // scroll_buf: Left and right scrollbuffer additional indents.
 
             static constexpr si32 approx_threshold = 10000; //todo make it configurable
 
@@ -2338,7 +2339,8 @@ namespace netxs::ui
                        batch{ buffer_size, grow_step },
                        index{ 0                      },
                        arena{ 1                      },
-                       place{                        }
+                       place{                        },
+                       shore{ def_margin             }
             {
                 batch.invite(0); // At least one line must exist.
                 batch.set_width(1);
@@ -2478,6 +2480,17 @@ namespace netxs::ui
             si32 get_slide() override
             {
                 return batch.slide;
+            }
+            // scroll_buf: Set left/right scrollback additional padding.
+            void setpad(si32 new_value) override
+            {
+                if (new_value < 0) new_value = def_margin;
+                shore = std::min(new_value, 255);
+            }
+            // scroll_buf: Get left/right scrollback additional padding.
+            si32 getpad() override
+            {
+                return shore;
             }
             // scroll_buf: Set viewport position and return whether the viewport is reset.
             bool set_slide(si32& fresh_slide) override
@@ -5325,18 +5338,18 @@ namespace netxs::ui
             {
                 auto& console = *target;
                 worker.pacify();
+                auto shore = console.getpad();
                 auto delta = dot_00;
-                     if (origin.x <= oversz.l && origin.x > oversz.l - console.shore) delta = {-1, oversz.l - console.shore };
-                else if (origin.x >=-oversz.r && origin.x < console.shore - oversz.r) delta = { 1, console.shore - oversz.r };
+                     if (origin.x <= oversz.l && origin.x > oversz.l - shore) delta = {-1, oversz.l - shore };
+                else if (origin.x >=-oversz.r && origin.x < shore - oversz.r) delta = { 1, shore - oversz.r };
                 if (delta.x)
                 {
-                    auto count = console.shore;
                     auto limit = delta.y;
                     delta.y = 0;
-                    worker.actify(commands::ui::center, 0ms, [&, delta, count, limit](auto id) mutable // 0ms = current FPS ticks/sec. //todo make it configurable
+                    worker.actify(commands::ui::center, 0ms, [&, delta, shore, limit](auto id) mutable // 0ms = current FPS ticks/sec. //todo make it configurable
                     {
                         auto shift = base::moveby(delta);
-                        return count-- && (origin.x != limit && !!shift);
+                        return shore-- && (origin.x != limit && !!shift);
                     });
                 }
                 base::deface();
@@ -5739,8 +5752,9 @@ namespace netxs::ui
                     west.size = dot_mx; //todo set only visible
                     west.coor.y -= dot_mx.y / 2;
                     auto east = west;
-                    west.coor.x -= oversz.l - console.shore + dot_mx.x;
-                    east.coor.x += oversz.r - console.shore + console.panel.x;
+                    auto pads = console.getpad();
+                    west.coor.x -= oversz.l - pads + dot_mx.x;
+                    east.coor.x += oversz.r - pads + console.panel.x;
                     west = west.clip(view);
                     east = east.clip(view);
                     parent_canvas.fill(west, cell::shaders::xlucent(def_lucent));
