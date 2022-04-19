@@ -5588,6 +5588,7 @@ namespace netxs::ui
             cursor.style(def_cursor); //todo make it via props like selmod
             cursor.show(); //todo revise (possible bug)
             form::keybd.accept(true); // Subscribe on keybd offers.
+            set_color(cell{ whitespace }.fgc(def_fcolor).bgc(def_bcolor).link(this->id)); //todo unify (config with defaults)
             selection_submit();
             publish_property(ui::term::events::selmod,         [&](auto& v){ v = selmod; });
             publish_property(ui::term::events::colors,         [&](auto& v){ v = target->brush; });

@@ -244,8 +244,8 @@ namespace netxs::app::term
                             auto shell = os::get_shell();
                             auto inst = scroll->attach(ui::term::ctor(v.empty() ? shell + " -i"
                                                                                 : text{ v }));
-                            inst->colors(whitelt, blackdk)
-                                ->attach_property(ui::term::events::colors,         app::term::events::colors)
+
+                            inst->attach_property(ui::term::events::colors,         app::term::events::colors)
                                 ->attach_property(ui::term::events::selmod,         app::term::events::selmod)
                                 ->attach_property(ui::term::events::layout::wrapln, app::term::events::layout::wrapln)
                                 ->attach_property(ui::term::events::layout::align,  app::term::events::layout::align)
