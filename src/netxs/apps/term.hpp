@@ -244,23 +244,13 @@ namespace netxs::app::term
                             auto shell = os::get_shell();
                             auto inst = scroll->attach(ui::term::ctor(v.empty() ? shell + " -i"
                                                                                 : text{ v }));
-                            //todo unify (config with defaults)
                             inst->colors(whitelt, blackdk)
+                                ->attach_property(ui::term::events::colors,         app::term::events::colors)
+                                ->attach_property(ui::term::events::selmod,         app::term::events::selmod)
+                                ->attach_property(ui::term::events::layout::wrapln, app::term::events::layout::wrapln)
+                                ->attach_property(ui::term::events::layout::align,  app::term::events::layout::align)
                                 ->invoke([](auto& boss)
                                 {
-                                    boss.SUBMIT(tier::release, ui::term::events::layout::wrapln, status)
-                                    {
-                                        boss.SIGNAL(tier::anycast, app::term::events::layout::wrapln, status);
-                                    };
-                                    boss.SUBMIT(tier::release, ui::term::events::layout::align, status)
-                                    {
-                                        boss.SIGNAL(tier::anycast, app::term::events::layout::align, status);
-                                    };
-                                    boss.SUBMIT(tier::release, ui::term::events::selmod, selmod)
-                                    {
-                                        boss.SIGNAL(tier::anycast, app::term::events::selmod, selmod);
-                                    };
-
                                     boss.SUBMIT(tier::anycast, app::term::events::cmd, cmd)
                                     {
                                         boss.exec_cmd(static_cast<ui::term::commands::ui::commands>(cmd));
@@ -273,9 +263,10 @@ namespace netxs::app::term
                                     {
                                         boss.data_out(data);
                                     };
+                                    //todo add color picker to the menu
                                     boss.SUBMIT(tier::anycast, app::term::events::colors, brush)
                                     {
-                                        boss.SIGNAL(tier::release, e2::form::prop::brush, brush);
+                                        boss.set_color(brush);
                                     };
 
                                     boss.SUBMIT(tier::anycast, e2::form::upon::started, root)

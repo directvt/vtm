@@ -669,7 +669,7 @@ namespace netxs::app::shared
         {
             auto window = app::term::build("powershell");
             //todo unify
-            auto colors = cell{}.fgc(whitelt).bgc(0xFF562401);
+            auto colors = cell{ whitespace }.fgc(whitelt).bgc(0xFF562401);
             window->SIGNAL(tier::anycast, app::term::events::colors, colors);
             return window;
         };

@@ -12,6 +12,7 @@ namespace netxs::events::userland
     {
         EVENTPACK( uiterm, netxs::events::userland::root::custom )
         {
+            EVENT_XS( colors, cell ),
             EVENT_XS( selmod, si32 ),
             GROUP_XS( layout, si32 ),
 
@@ -31,13 +32,6 @@ namespace netxs::ui
     class term
         : public ui::form<term>
     {
-        static constexpr si32 max_length = 65535; // term: Max line length.
-        static constexpr si32 def_length = 20000; // term: Default scrollback history length.
-        static constexpr si32 def_growup = 0;     // term: Default scrollback history grow step.
-        static constexpr si32 def_tablen = 8;     // term: Default tab length.
-        static constexpr auto def_lucent = 0xC0;  // term: Default transparency level.
-        static constexpr auto def_margin = 3;     // term: Default side margin.
-
     public:
         using events = netxs::events::userland::uiterm;
 
@@ -104,6 +98,18 @@ namespace netxs::ui
         };
 
     private:
+        static constexpr si32 max_length = 65535; // term: Max line length.
+        static constexpr si32 def_length = 20000; // term: Default scrollback history length.
+        static constexpr si32 def_growup = 0;     // term: Default scrollback history grow step.
+        static constexpr si32 def_tablen = 8;     // term: Default tab length.
+        static constexpr auto def_lucent = 0xC0;  // term: Default transparency level.
+        static constexpr auto def_margin = 3;     // term: Default side margin.
+        static constexpr auto def_selmod = xsgr::textonly; // term: Default selection mode.
+        static constexpr auto def_wrpmod = deco::defwrp;   // term: Default wrapping mode.
+        static constexpr auto def_fcolor = whitelt; // term: Default foreground color.
+        static constexpr auto def_bcolor = blackdk; // term: Default background color.
+        static constexpr auto def_cursor = commands::cursor::blinking_underline; // term: Default cursor style.
+
         // term: VT-buffer status.
         struct term_state
         {
@@ -4968,7 +4974,7 @@ namespace netxs::ui
         bool       onlogs; // term: Avoid logs if no subscriptions.
         bool       unsync; // term: Viewport is out of sync.
         bool       invert; // term: Inverted rendering (DECSCNM).
-        si32       selmod; // term: Preserve SGR attributes when copy text to the clipboard.
+        si32       selmod; // term: Selection mode (ui::term::xsgr).
 
         // term: Forward clipboard data (OSC 52).
         void forward_clipboard(view data)
@@ -5262,12 +5268,13 @@ namespace netxs::ui
         {
             auto& console = *target;
             console.style.glb();
-            console.style.wrp(deco::defwrp);
+            console.style.wrp(def_wrpmod);
             console.setpad(def_margin);
-            selection_selmod(0); //todo unify (config with defaults)
+            selection_selmod(def_selmod);
             auto brush = base::color();
-            brush = cell{ whitespace }.fgc(whitelt).bgc(blackdk).link(brush.link()); //todo unify (config with defaults)
+            brush = cell{ whitespace }.fgc(def_fcolor).bgc(def_bcolor).link(brush.link());
             base::color(brush);
+            cursor.style(def_cursor);
         }
         // term: Set terminal background.
         void setsgr(fifo& queue)
@@ -5289,14 +5296,15 @@ namespace netxs::ui
                 queue.settop(queue.desub(param));
                 parser.table[ansi::CSI_SGR].execute(queue, ptr);
             }
-            else mark.brush = cell{ whitespace }.fgc(whitelt).bgc(blackdk).link(mark.brush.link()); //todo unify (config with defaults)
-            base::color(mark.brush);
+            else mark.brush = cell{ whitespace }.fgc(def_fcolor).bgc(def_bcolor).link(mark.brush.link()); //todo unify (config with defaults)
+            set_color(mark.brush);
         }
         // term: Is the selection allowed.
         auto selection_passed()
         {
             return selmod != xsgr::disabled;
         }
+        // term: Set selection mode.
         void selection_selmod(si32 newmod)
         {
             selmod = newmod;
@@ -5304,6 +5312,7 @@ namespace netxs::ui
             SIGNAL(tier::release, ui::term::events::selmod, selmod);
             log("term: selection mode ", selmod);
         }
+        // term: Set the next selection mode.
         void selection_selmod()
         {
             auto newmod = (selmod + 1) % xsgr::count;
@@ -5476,6 +5485,12 @@ namespace netxs::ui
         }
 
     public:
+        void set_color(cell const& brush)
+        {
+            //todo remove base::color dependency (background is colorized twice! use transparent target->brush)
+            base::color(brush);
+            target->brush.reset(brush);
+        }
         void exec_cmd(commands::ui::commands cmd)
         {
             log("term: tier::preview, ui::commands, ", cmd);
@@ -5565,15 +5580,19 @@ namespace netxs::ui
               onlogs{  faux },
               unsync{  faux },
               invert{  faux },
-              selmod{ xsgr::disabled }
+              selmod{ def_selmod }
         {
             cmdarg = command_line;
             target = &normal;
             //cursor.style(commands::cursor::def_style); // default=blinking_box
-            cursor.style(commands::cursor::blinking_underline);
+            cursor.style(def_cursor); //todo make it via props like selmod
             cursor.show(); //todo revise (possible bug)
             form::keybd.accept(true); // Subscribe on keybd offers.
             selection_submit();
+            publish_property(ui::term::events::selmod,         [&](auto& v){ v = selmod; });
+            publish_property(ui::term::events::colors,         [&](auto& v){ v = target->brush; });
+            publish_property(ui::term::events::layout::wrapln, [&](auto& v){ v = target->style.wrp(); });
+            publish_property(ui::term::events::layout::align,  [&](auto& v){ v = target->style.jet(); });
 
             SUBMIT(tier::general, e2::debug::count::any, count)
             {
@@ -5660,10 +5679,6 @@ namespace netxs::ui
                     }
                     log("key strokes bin: ", d.str());
                 #endif
-            };
-            SUBMIT(tier::release, e2::form::prop::brush, brush)
-            {
-                target->brush.reset(brush);
             };
             SUBMIT(tier::general, e2::timer::tick, timestamp)
             {

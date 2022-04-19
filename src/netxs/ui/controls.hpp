@@ -171,9 +171,10 @@ namespace netxs::ui
         template<class PROPERTY, class SPTR, class P>
         auto attach_element(PROPERTY, SPTR data_src_sptr, P item_template)
         {
-            using prop_t = typename PROPERTY::type;
+            using type = typename PROPERTY::type;
+            type arg_value = {};
+
             auto backup = This();
-            prop_t arg_value;
             data_src_sptr->SIGNAL(tier::request, PROPERTY{}, arg_value);
             auto new_item = item_template(data_src_sptr, arg_value)
                                  ->depend(data_src_sptr);
@@ -204,6 +205,30 @@ namespace netxs::ui
             {
                 attach_element(PROPERTY{}, data_src_sptr, item_template);
             }
+            return backup;
+        }
+        template<class BACKEND_PROP, class P>
+        void publish_property(BACKEND_PROP, P setter)
+        {
+            SUBMIT_BYVAL(tier::request, BACKEND_PROP{}, property_value)
+            {
+                setter(property_value);
+            };
+        }
+        template<class BACKEND_PROP, class FRONTEND_PROP>
+        auto attach_property(BACKEND_PROP, FRONTEND_PROP)
+        {
+            using type = typename BACKEND_PROP::type;
+            type property_value = {};
+
+            auto backup = This();
+            SIGNAL(tier::request, BACKEND_PROP{},  property_value);
+            SIGNAL(tier::anycast, FRONTEND_PROP{}, property_value);
+
+            SUBMIT(tier::release, BACKEND_PROP{}, property_value)
+            {
+                this->SIGNAL(tier::anycast, FRONTEND_PROP{}, property_value);
+            };
             return backup;
         }
     };
