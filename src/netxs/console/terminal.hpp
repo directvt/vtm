@@ -1968,11 +1968,12 @@ namespace netxs::ui
             // alt_screen: Take selected data.
             text selection_pickup(si32 selmod) override
             {
-                text data;
+                ansi::esc data;
                 if (selection_active())
                 {
                     auto selbox = selection_selbox();
                     bufferbase::selection_pickup(data, canvas, seltop, selend, selmod, selbox);
+                    if (selbox && !data.empty()) data.eol();
                 }
                 return data;
             }
@@ -5005,7 +5006,7 @@ namespace netxs::ui
             {
                 if (auto gate_ptr = bell::getref(gate_id))
                 {
-                    gate_ptr->SIGNAL(tier::release, e2::command::clipboard::set, utf::debase(utf::remain(data, ';')));
+                    gate_ptr->SIGNAL(tier::release, e2::command::clipboard::set, utf::unbase64(utf::remain(data, ';')));
                     gate_ptr->SIGNAL(tier::release, e2::command::cout, clip);
                 }
             }
