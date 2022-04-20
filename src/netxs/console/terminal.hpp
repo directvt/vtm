@@ -5547,13 +5547,11 @@ namespace netxs::ui
         }
         void data_in(view data)
         {
-            //log("term: app::term::data::in, ", utf::debase(data));
             follow[axis::Y] = true;
             ondata(data);
         }
         void data_out(view data)
         {
-            //log("term: app::term::data::out, ", utf::debase(data));
             follow[axis::Y] = true;
             ptycon.write(data);
         }
