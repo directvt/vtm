@@ -2406,9 +2406,12 @@ namespace netxs::os
         os::ipc                   termlink{};
         testy<twod>               termsize{};
         std::thread               stdinput{};
+        std::thread               stdwrite{};
         std::function<void(view)> receiver{};
         std::function<void(si32)> shutdown{};
-        text                      tempbuff{};
+        text                      writebuf{};
+        std::mutex                writemtx{};
+        std::condition_variable   writesyn{};
 
     public:
         ~ptydev()
@@ -2418,8 +2421,13 @@ namespace netxs::os
             if (stdinput.joinable())
             {
                 log("ptydev: input thread joining");
-                //todo deadlock on wsl with tiling ~50 terms
                 stdinput.join();
+            }
+            if (stdwrite.joinable())
+            {
+                writesyn.notify_one();
+                log("ptydev: write thread joining");
+                stdwrite.join();
             }
             #if defined(_WIN32)
                 if (client_exit_waiter.joinable())
@@ -2590,8 +2598,9 @@ namespace netxs::os
             #endif
 
             stdinput = std::thread([&] { read_socket_thread(); });
+            stdwrite = std::thread([&] { send_socket_thread(); });
 
-            if (tempbuff.size()) write(decltype(tempbuff){ std::move(tempbuff) });
+            writesyn.notify_one();
         }
 
         si32 wait_child()
@@ -2657,6 +2666,22 @@ namespace netxs::os
                 shutdown(exit_code);
             }
         }
+        void send_socket_thread()
+        {
+            std::unique_lock guard{ writemtx };
+            text             cache;
+            while ((void)writesyn.wait(guard, [&]{ return writebuf.size() || !termlink; }), termlink)
+            {
+                std::swap(cache, writebuf);
+                guard.unlock();
+
+                termlink.send<true>(cache);
+                cache.clear();
+
+                guard.lock();
+            }
+            log("ptydev: send_socket_thread ended");
+        }
         void resize(twod const& newsize)
         {
             if (termlink && termsize(newsize))
@@ -2681,8 +2706,9 @@ namespace netxs::os
         }
         void write(view data)
         {
-            if (termlink) termlink.send<true>(data);
-            else          tempbuff += data;
+            std::unique_lock guard(writemtx);
+            writebuf += data;
+            if (termlink) writesyn.notify_one();
         }
     };
 }

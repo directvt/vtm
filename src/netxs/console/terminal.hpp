@@ -5384,7 +5384,7 @@ namespace netxs::ui
                     gear.dismiss();
                 }
             }
-            else // Paste from clipboard.
+            else if (selection_passed()) // Paste from clipboard.
             {
                 #ifndef PROD
                     return;
