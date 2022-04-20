@@ -1279,6 +1279,7 @@ namespace netxs::ansi
                             if (ascii.empty()) break;
                             a = ascii.front(); // Delimiter or cmd after number.
                             trap(a);
+                            if (ascii.empty()) break;
                         }
                         else
                         {
