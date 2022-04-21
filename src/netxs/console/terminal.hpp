@@ -4656,8 +4656,11 @@ namespace netxs::ui
                         coor.y += curln.height(panel.x);
                     }
                     while (head++ != tail);
+
+                    auto size = yield.size();
                     yield += selmod == xsgr::ansitext ? dest.meta<true, faux, true>(mark)
                                                       : dest.meta<faux, faux, true>(mark);
+                    if (size != yield.size()) yield.eol();
                 }
                 else
                 {

@@ -233,16 +233,16 @@ namespace netxs::app::tile
                 boss.base::template riseup<tier::release>(e2::form::maximize, gear);
                 gear.dismiss();
             };
-            boss.SUBMIT(tier::release, hids::events::mouse::button::click::leftright, gear)
-            {
-                boss.base::template riseup<tier::release>(e2::form::quit, boss.This());
-                gear.dismiss();
-            };
-            boss.SUBMIT(tier::release, hids::events::mouse::button::click::middle, gear)
-            {
-                boss.base::template riseup<tier::release>(e2::form::quit, boss.This());
-                gear.dismiss();
-            };
+            //boss.SUBMIT(tier::release, hids::events::mouse::button::click::leftright, gear)
+            //{
+            //    boss.base::template riseup<tier::release>(e2::form::quit, boss.This());
+            //    gear.dismiss();
+            //};
+            //boss.SUBMIT(tier::release, hids::events::mouse::button::click::middle, gear)
+            //{
+            //    boss.base::template riseup<tier::release>(e2::form::quit, boss.This());
+            //    gear.dismiss();
+            //};
         };
         auto app_window = [](view header, view footer, auto branch, auto menu_item_id)
         {
