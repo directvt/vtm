@@ -151,9 +151,9 @@ No arguments | Run client (auto start server)
     <td></td>
   </tr>
   <tr>
-    <th>Left+Right or MiddleClick</th>
+    <th>Left+Right</th>
     <td colspan="3"></td>
-    <td colspan="5">Close app</td>
+    <td colspan="5">Clear clipboard</td>
     <td></td>
   </tr>
   <tr>

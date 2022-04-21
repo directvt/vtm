@@ -5802,7 +5802,7 @@ again:
             };
             SUBMIT(tier::preview, hids::events::mouse::button::click::leftright, gear)
             {
-                SIGNAL(tier::release, e2::command::clipboard::set, "");
+                this->SIGNAL(tier::release, e2::command::clipboard::set, "");
                 gear.dismiss();
             };
             SUBMIT(tier::release, e2::render::prerender, parent_canvas)

@@ -390,6 +390,8 @@ namespace netxs::console
                      || c == 0xA0    //A0  NO-BREAK SPACE (NBSP)
                      || c >= 0xC0)   //C0-10FFFF: "À" - ...
                      && (c < 0x2000 || c > 0x206F) // General Punctuation
+                     && (c < 0x2200 || c > 0x23FF) // Mathematical Operators
+                     && (c < 0x2500 || c > 0x25FF) // Box Drawing
                      && (c < 0x2E00 || c > 0x2E7F) // Supplemental Punctuation
                      && (c < 0x3000 || c > 0x303F) // CJK Symbols and Punctuation
                      && c != 0x30FB                // U+30FB ( ・ ) KATAKANA MIDDLE DOT

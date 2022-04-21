@@ -2418,7 +2418,12 @@ namespace netxs::os
         {
             log("ptydev: dtor started");
             if (termlink) wait_child();
-            // The reading thread finished after the writing thread. See wait_child(),
+            if (stdwrite.joinable())
+            {
+                writesyn.notify_one();
+                log("ptydev: write thread joining");
+                stdwrite.join();
+            }
             if (stdinput.joinable())
             {
                 log("ptydev: input thread joining");
@@ -2621,14 +2626,6 @@ namespace netxs::os
 
             if (pid != 0)
             {
-                //todo revise
-                if (stdwrite.joinable())
-                {
-                    writesyn.notify_one();
-                    log("ptydev: write thread joining");
-                    stdwrite.join();
-                }
-
                 int status;
                 ok(::kill(pid, SIGKILL));
                 ok(::waitpid(pid, &status, 0)); // Wait for the child to avoid zombies.

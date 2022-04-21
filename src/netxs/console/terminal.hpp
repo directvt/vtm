@@ -1975,7 +1975,7 @@ namespace netxs::ui
                     bufferbase::selection_pickup(data, canvas, seltop, selend, selmod, selbox);
                     if (selbox && !data.empty()) data.eol();
                 }
-                return data;
+                return std::move(data);
             }
             // alt_screen: Highlight selection.
             void selection_render(face& target) override
@@ -4631,7 +4631,14 @@ namespace netxs::ui
             // scroll_buf: Materialize selection of the scrollbuffer part.
             void selection_pickup(ansi::esc& yield, si32 selmod)
             {
-                auto [i_top, i_end, upcur, dncur] = selection_get_it();
+                //todo Clang don't get it
+                //auto [i_top, i_end, upcur, dncur] = selection_get_it();
+                auto tempvr = selection_get_it();
+                auto i_top = std::get<0>(tempvr);
+                auto i_end = std::get<1>(tempvr);
+                auto upcur = std::get<2>(tempvr);
+                auto dncur = std::get<3>(tempvr);
+
                 if (i_top == -1) return;
 
                 auto data = batch.begin();
@@ -4769,7 +4776,7 @@ namespace netxs::ui
                     if (len(yield.size())) yield.eol();
                     bufferbase::selection_pickup(yield, dnbox, upend.coor, dnend.coor, selmod, selbox);
                 }
-                return yield;
+                return std::move(yield);
             }
             // scroll_buf: Highlight selection.
             void selection_render(face& target) override
@@ -4802,7 +4809,11 @@ namespace netxs::ui
                     auto scrolling_region = rect{ { -dot_mx.x / 2, batch.slide + y_top }, { dot_mx.x, arena }};
                     scrolling_region.coor += full.coor;
                     view = view.clip(scrolling_region);
-                    auto [curtop, curend] = selection_take_grips();
+                    //todo Clang don't get it
+                    //auto [curtop, curend] = selection_take_grips();
+                    auto tempvr = selection_take_grips();
+                    auto curtop = tempvr.first;
+                    auto curend = tempvr.second;
                     curtop += full.coor;
                     curend += full.coor;
                     auto grip_1 = rect{ curtop, dot_11 };
@@ -5317,7 +5328,7 @@ namespace netxs::ui
                 queue.settop(queue.desub(param));
                 parser.table[ansi::CSI_SGR].execute(queue, ptr);
             }
-            else mark.brush = cell{ whitespace }.fgc(def_fcolor).bgc(def_bcolor).link(mark.brush.link()); //todo unify (config with defaults)
+            else mark.brush = cell{ whitespace }.fgc(def_fcolor).bgc(def_bcolor); //todo unify (config with defaults)
             set_color(mark.brush);
         }
         // term: Is the selection allowed.
@@ -5506,9 +5517,10 @@ namespace netxs::ui
         }
 
     public:
-        void set_color(cell const& brush)
+        void set_color(cell brush)
         {
             //todo remove base::color dependency (background is colorized twice! use transparent target->brush)
+            brush.link(base::id);
             base::color(brush);
             target->brush.reset(brush);
         }
