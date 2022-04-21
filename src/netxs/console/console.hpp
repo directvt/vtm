@@ -5534,7 +5534,8 @@ again:
         bool native = faux; //gate: Extended functionality support.
         bool fullscreen = faux; //gate: Fullscreen mode.
         si32 legacy = os::legacy::clean;
-        text clipdata; // gate: Clipboard data.
+        text clip_rawtext; // gate: Clipboard data.
+        face clip_preview; // gate: Clipboard render.
 
     public:
         sptr<base> uibar; // gate: Local UI overlay, UI bar/taskbar/sidebar.
@@ -5551,6 +5552,7 @@ again:
                 link conio{ *this, media }; // gate: Terminal IO.
                 diff paint{ conio, input, vga_mode }; // gate: Rendering loop.
                 subs token;                 // gate: Subscription tokens array.
+                clip_preview.size({80,25}); //todo unify/make it configurable
 
                 // conio events.
                 SUBMIT_T(tier::release, e2::conio::size, token, newsize)
@@ -5609,11 +5611,14 @@ again:
                 };
                 SUBMIT_T(tier::release, e2::command::clipboard::set, token, clipbrd_data)
                 {
-                    clipdata = clipbrd_data;
+                    clip_rawtext = clipbrd_data;
+                    page block{ clipbrd_data };
+                    clip_preview.wipe();
+                    clip_preview.output(block, cell::shaders::xlucent(0x1f)); //todo make transparency configurable
                 };
                 SUBMIT_T(tier::release, e2::command::clipboard::get, token, clipbrd_data)
                 {
-                    clipbrd_data = clipdata;
+                    clipbrd_data = clip_rawtext;
                 };
 
                 world->SUBMIT_T(tier::release, e2::form::proceed::render, token, render_scene)
@@ -5795,6 +5800,11 @@ again:
                 if (uibar) uibar->base::resize(newsz);
                 if (background) background->base::resize(newsz);
             };
+            SUBMIT(tier::preview, hids::events::mouse::button::click::leftright, gear)
+            {
+                SIGNAL(tier::release, e2::command::clipboard::set, "");
+                gear.dismiss();
+            };
             SUBMIT(tier::release, e2::render::prerender, parent_canvas)
             {
                 // Draw a shadow of user's terminal window for other users (spectators).
@@ -5856,6 +5866,14 @@ again:
                     }
                     parent_canvas.fill(area, cell::shaders::fuse(brush));
                 }
+
+                if (&parent_canvas == &cache.canvas && clip_rawtext.size())
+                {
+                    auto coor = input.coord + dot_21 * 2;
+                    clip_preview.move(coor);
+                    parent_canvas.plot(clip_preview, cell::shaders::fuse);
+                }
+
                 #ifdef REGIONS
                 parent_canvas.each([](cell& c){
                     auto mark = rgba{ rgba::color256[c.link() % 256] };
