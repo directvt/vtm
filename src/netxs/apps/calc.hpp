@@ -247,37 +247,37 @@ namespace netxs::app::calc
             if (cellatix_text.empty())
             {
                 auto step = 0x030303;
-                auto topclr = 0xffffff;
+                auto topclr = 0xFFffffff;
 
                 auto corner = topclr - 0x1f1f1f;
-                //text cellatix_text_head = ansi::bgc(0xffffff - 0x1f1f1f).fgc(0) + "    ";
-                auto cellatix_text_head = ansi::bgc(corner).fgc(0);
+                //text cellatix_text_head = ansi::bgc(0xFFffffff - 0x1f1f1f).fgc(0) + "    ";
+                auto cellatix_text_head = ansi::bgc(corner).fgc(0xFF000000);
                 for (auto c = 'A'; c <= 'Z'; c++)
                 {
                     auto clr = topclr - 0x0f0f0f;
-                    cellatix_text_head.bgc(clr - step * 0 /* 0xf0f0f0 */).add(" ")
-                                      .bgc(clr - step * 1 /* 0xededed */).add(" ")
-                                      .bgc(clr - step * 2 /* 0xeaeaea */).add(c)
-                                      .bgc(clr - step * 3 /* 0xe7e7e7 */).add(" ")
-                                      .bgc(clr - step * 4 /* 0xe4e4e4 */).add(" ");
+                    cellatix_text_head.bgc(clr - step * 0 /* 0xFFf0f0f0 */).add(" ")
+                                      .bgc(clr - step * 1 /* 0xFFededed */).add(" ")
+                                      .bgc(clr - step * 2 /* 0xFFeaeaea */).add(c)
+                                      .bgc(clr - step * 3 /* 0xFFe7e7e7 */).add(" ")
+                                      .bgc(clr - step * 4 /* 0xFFe4e4e4 */).add(" ");
                 }
                 auto clr = topclr;
-                auto cellatix_text_01 = ansi::bgc(clr - step * 0 /* 0xffffff */).add(" ")
-                                             .bgc(clr - step * 1 /* 0xfcfcfc */).add(" ")
-                                             .bgc(clr - step * 2 /* 0xf9f9f9 */).add(" ")
-                                             .bgc(clr - step * 3 /* 0xf6f6f6 */).add(" ")
-                                             .bgc(clr - step * 4 /* 0xf3f3f3 */).add(" ");
-                auto cellatix_text_00 = ansi::bgc(clr - step * 4 /* 0xf3f3f3 */).add(" ")
-                                             .bgc(clr - step * 3 /* 0xf6f6f6 */).add(" ")
-                                             .bgc(clr - step * 2 /* 0xf9f9f9 */).add(" ")
-                                             .bgc(clr - step * 1 /* 0xfcfcfc */).add(" ")
-                                             .bgc(clr - step * 0 /* 0xffffff */).add(" ");
+                auto cellatix_text_01 = ansi::bgc(clr - step * 0 /* 0xFFffffff */).add(" ")
+                                             .bgc(clr - step * 1 /* 0xFFfcfcfc */).add(" ")
+                                             .bgc(clr - step * 2 /* 0xFFf9f9f9 */).add(" ")
+                                             .bgc(clr - step * 3 /* 0xFFf6f6f6 */).add(" ")
+                                             .bgc(clr - step * 4 /* 0xFFf3f3f3 */).add(" ");
+                auto cellatix_text_00 = ansi::bgc(clr - step * 4 /* 0xFFf3f3f3 */).add(" ")
+                                             .bgc(clr - step * 3 /* 0xFFf6f6f6 */).add(" ")
+                                             .bgc(clr - step * 2 /* 0xFFf9f9f9 */).add(" ")
+                                             .bgc(clr - step * 1 /* 0xFFfcfcfc */).add(" ")
+                                             .bgc(clr - step * 0 /* 0xFFffffff */).add(" ");
                 cellatix_cols = ansi::nil().wrp(wrap::off)
                     + cellatix_text_head;
                 cellatix_text = ansi::nil().wrp(wrap::off);
                 cellatix_rows = ansi::nil().wrp(wrap::off).fgc(blackdk);
                 auto base = topclr - 0x1f1f1f;// 0xe0e0e0;// 0xe4e4e4;
-                auto c1 = ansi::bgc(base); //ansi::bgc(0xf0f0f0);
+                auto c1 = ansi::bgc(base); //ansi::bgc(0xFFf0f0f0);
                 auto c2 = ansi::bgc(base);
                 for (int i = 1; i < 100; i++)
                 {
@@ -292,11 +292,11 @@ namespace netxs::app::calc
                         }
                         cellatix_rows += (i == 99 ? ""s : "\n"s);
                         cellatix_text += utf::repeat(cellatix_text_01, 26)
-                                    + (i == 99 ? ""s : "\n"s);
+                                      + (i == 99 ? ""s : "\n"s);
                     }
                     else
                     {
-                        auto c0 = base + step * (iota)label.length();
+                        auto c0 = base + step * (si32)label.length();
                         for (auto i = 0; i < label.length(); i++)
                         {
                             cellatix_rows += ansi::bgc(c0) + label[i];
@@ -304,7 +304,7 @@ namespace netxs::app::calc
                         }
                         cellatix_rows += (i == 99 ? ""s : "\n"s);
                         cellatix_text += utf::repeat(cellatix_text_00, 26)
-                                    + (i == 99 ? ""s : "\n"s);
+                                      + (i == 99 ? ""s : "\n"s);
                     }
                 }
             }
@@ -329,7 +329,7 @@ namespace netxs::app::calc
                       boss.keybd.accept(true);
                       boss.SUBMIT(tier::release, e2::form::upon::vtree::attached, parent)
                       {
-                          static iota i = 0; i++;
+                          static auto i = 0; i++;
                           auto title = ansi::jet(bias::right).add("Spreadsheet\n ~/Untitled ", i, ".ods");
                           boss.base::template riseup<tier::preview>(e2::form::prop::header, title);
                       };
@@ -356,7 +356,7 @@ namespace netxs::app::calc
                                 auto corner_cols = body_area->attach(slot::_1, ui::fork::ctor());
                                     auto corner = corner_cols->attach(slot::_1, ui::post::ctor())
                                                              ->plugin<pro::limit>(twod{ 4,1 }, twod{ 4,1 })
-                                                             ->upload(ansi::bgc(0xffffff - 0x1f1f1f).fgc(0).add("    "));
+                                                             ->upload(ansi::bgc(0xFFffffff - 0x1f1f1f).fgc(0xFF000000).add("    "));
                                 auto rows_body = body_area->attach(slot::_2, ui::fork::ctor());
                                     auto layers = rows_body->attach(slot::_2, ui::cake::ctor());
                                     auto scroll = layers->attach(ui::rail::ctor())

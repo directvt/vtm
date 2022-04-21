@@ -19,19 +19,21 @@ namespace netxs
 {
     using byte = uint8_t;
     using ui16 = uint16_t;
-    using iota = int32_t;
     using ui32 = uint32_t;
     using ui64 = uint64_t;
+    using si16 = int16_t;
+    using si32 = int32_t;
+    using si64 = int64_t;
 
-    static constexpr iota maxiota = std::numeric_limits<iota>::max();
+    static constexpr auto maxsi32 = std::numeric_limits<si32>::max();
 
     constexpr size_t operator "" _sz (unsigned long long i)	{ return i; }
 
     struct noop { template<class ...T> constexpr void operator()(T...) {}; };
 
     template <class T>
-    using to_signed_t = std::conditional_t<(int64_t)std::numeric_limits<std::remove_reference_t<T>>::max() <= std::numeric_limits<int16_t>::max(), int16_t,
-                        std::conditional_t<(int64_t)std::numeric_limits<std::remove_reference_t<T>>::max() <= std::numeric_limits<int32_t>::max(), int32_t, int64_t>>;
+    using to_signed_t = std::conditional_t<(si64)std::numeric_limits<std::remove_reference_t<T>>::max() <= std::numeric_limits<si16>::max(), si16,
+                        std::conditional_t<(si64)std::numeric_limits<std::remove_reference_t<T>>::max() <= std::numeric_limits<si32>::max(), si32, si64>>;
 
     // intmath: Summ and return TRUE in case of
     //          unsigned integer overflow and store result in accum.
@@ -113,22 +115,21 @@ namespace netxs
     template<class T>
     using disintegrate = typename _disintegrate< std::is_integral<T>::value, T >::type;
 
-    // intmath: Delta sequence generator.
+    // intmath: Quadratic fader delta sequence generator.
     //          The QUADRATIC-LAW fader from the initial velocity
     //          to stop for a given period of time.
     template<class T>
     class quadratic
     {
         using twod = T;
-        using iota = disintegrate<twod>;
+        using type = disintegrate<twod>;
 
-        twod speed;
-        iota limit;
-        iota phase;
-        iota scale;
-        iota start; // quadratic: Deffered start time.
-
-        mutable twod total;
+                twod speed; // quadratic: Distance ΔR over time period ΔT.
+                type limit; // quadratic: Activity period.
+                type phase; // quadratic: Register.
+                type scale; // quadratic: Factor.
+                type start; // quadratic: Deffered start time.
+        mutable twod total; // quadratic: Current point on the path.
 
     public:
         /*
@@ -138,7 +139,7 @@ namespace netxs
             limit - activity period
             start - deffered start time
         */
-        quadratic(twod const& speed, iota cycle, iota limit, iota start)
+        quadratic(twod const& speed, type cycle, type limit, type start)
             :	speed{ speed         },
                 limit{ limit         },
                 phase{ limit * 2     },
@@ -147,7 +148,7 @@ namespace netxs
                 total{ twod{}        }
         { }
 
-        auto operator ()(iota timer) const
+        auto operator ()(type timer) const
         {
             std::optional<twod> delta;
 
@@ -170,22 +171,21 @@ namespace netxs
         }
     };
 
-    // intmath: Delta sequence generator.
+    // intmath: Constant speed delta sequence generator.
     //          The LINEAR-LAW fader from the initial velocity
     //          to stop for a given period of time with constant speed.
     template<class T>
     class constlinear
     {
         using twod = T;
-        using iota = disintegrate<twod>;
+        using type = disintegrate<twod>;
 
-        iota limit;
-        iota phase;
-        twod speed;
-        iota scale;
-        iota start; // constlinear: Deffered start time.
-
-        mutable twod total;
+                type limit; // constlinear: Activity period.
+                type phase; // constlinear: Register.
+                twod speed; // constlinear: Distance ΔR over time period ΔT.
+                type scale; // constlinear: Factor.
+                type start; // constlinear: Deffered start time.
+        mutable twod total; // constlinear: Current point on the path.
 
     public:
         /*
@@ -195,7 +195,7 @@ namespace netxs
             limit - activity period
             start - deffered start time
         */
-        constlinear(twod const& speed, iota cycle, iota limit, iota start)
+        constlinear(twod const& speed, type cycle, type limit, type start)
             :	limit{ limit         },
                 phase{ limit * 2     },
                 speed{ speed * phase },
@@ -204,7 +204,7 @@ namespace netxs
                 total{ twod{}        }
         { }
 
-        auto operator ()(iota timer) const
+        auto operator ()(type timer) const
         {
             std::optional<twod> delta;
 
@@ -227,36 +227,29 @@ namespace netxs
         }
     };
 
-    // intmath: Delta sequence generator.
-    //          The LINEAR-LAW fader from the initial coord to the destination
-    //          coord for a given period of time with constant speed.
+    // intmath: Constant speed delta sequence generator.
+    //          The LINEAR-LAW fader from the initial point to the destination
+    //          point for a given period of time with constant speed.
     template<class T>
     class constlinearAtoB
     {
         using twod = T;
-        using iota = disintegrate<twod>;
+        using type = disintegrate<twod>;
 
-        iota limit;
-        twod range;
-        iota start; // constlinear: Deffered start time.
-
-        mutable twod total;
+                type limit; // constlinearAtoB: Activity period.
+                twod range; // constlinearAtoB: Path's end point (from 0 to range).
+                type start; // constlinearAtoB: Deffered start time point.
+        mutable twod total; // constlinearAtoB: Current point on the path.
 
     public:
-        /*
-        Linear constant speed delta generator ctor:
-        range - all path (from 0 to range)
-        limit - activity period
-        start - deffered start time
-        */
-        constlinearAtoB(twod const& range, iota limit, iota start)
+        constlinearAtoB(twod const& range, type limit, type start)
             :	limit{ limit },
                 range{ range },
                 start{ start },
                 total{ twod{}}
         { }
 
-        auto operator ()(iota timer) const
+        auto operator ()(type timer) const
         {
             std::optional<twod> delta;
 
@@ -386,24 +379,35 @@ namespace netxs
     // intmath: Draw the rectangle region inside the canvas by
     //          invoking handle(canvas_element)
     //          (without boundary checking).
-    template<class T, class RECT, class P, class NEWLINEFX = noop>
+    template<bool RtoL = faux, class T, class RECT, class P, class NEWLINEFX = noop>
     void onrect(T& canvas, RECT const& region, P handle, NEWLINEFX online = NEWLINEFX())
     {
-        auto& place = canvas.area();
+        //using ret_t = std::template result_of_t<P(decltype(*(canvas.data())))>;
+        using ret_t = std::invoke_result_t<P, decltype(*(canvas.data()))>;
+        static constexpr auto plain = std::is_same_v<void, ret_t>;
 
+        auto& place = canvas.area();
         if (auto joint = region.clip(place))
         {
             auto basis = joint.coor - place.coor;
             auto frame = place.size.x * basis.y + basis.x + canvas.data();
             auto notch = place.size.x - joint.size.x;
-
             auto limit = place.size.x * joint.size.y + frame;
             while (limit != frame)
             {
                 auto limit = frame + joint.size.x;
                 while (limit != frame)
                 {
-                    handle(*frame++);
+                    if constexpr (RtoL)
+                    {
+                        if constexpr (plain) handle(*--limit);
+                        else             if (handle(*--limit)) return;
+                    }
+                    else
+                    {
+                        if constexpr (plain) handle(*frame++);
+                        else             if (handle(*frame++)) return;
+                    }
                 }
                 frame += notch;
                 online();
@@ -477,13 +481,13 @@ namespace netxs
     bool online(R rect, T p0, T p1, P pset)
     {
         using twod = T;
-        using iota = disintegrate<twod>;
+        using type = disintegrate<twod>;
 
-        uint16_t gain = 0;
-        int32_t  dx = p1.x - p0.x;
-        int32_t  dy = p1.y - p0.y;
-        uint32_t lx = std::abs(dx);
-        uint32_t ly = std::abs(dy);
+        ui16 gain = 0;
+        si32   dx = p1.x - p0.x;
+        si32   dy = p1.y - p0.y;
+        ui32   lx = std::abs(dx);
+        ui32   ly = std::abs(dy);
 
         rect = rect.normalize();
         twod& coor = rect.coor;
@@ -573,10 +577,10 @@ namespace netxs
                     return delta;
                 };
 
-                p1.x = static_cast<iota>(x2);
-                p1.y = static_cast<iota>(y2);
-                auto new_x = static_cast<iota>(x1);
-                auto new_y = static_cast<iota>(y1);
+                p1.x = static_cast<type>(x2);
+                p1.y = static_cast<type>(y2);
+                auto new_x = static_cast<type>(x1);
+                auto new_y = static_cast<type>(y1);
 
                 if (p0.x != new_x || p0.y != new_y)
                 {

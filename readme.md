@@ -151,9 +151,9 @@ No arguments | Run client (auto start server)
     <td></td>
   </tr>
   <tr>
-    <th>Left+Right or MiddleClick</th>
+    <th>Left+Right</th>
     <td colspan="3"></td>
-    <td colspan="5">Close app</td>
+    <td colspan="5">Clear clipboard</td>
     <td></td>
   </tr>
   <tr>
@@ -214,16 +214,22 @@ No arguments | Run client (auto start server)
    - Save/restore terminal window title `XTWINOPS 22/23`
    - Mouse tracking `DECSET 1000/1002/1003/1006 SGR` mode
    - Mouse tracking `DECSET 10060 Extended SGR` mode, mouse reporting outside of the terminal viewport (outside + negative arguments) #62
+   - Text selection by mouse #149
    - Configurable using VT-sequences
 
       Name         | Sequence                         | Description
       -------------|----------------------------------|-------------
       `CCC_SBS`    | `CSI` 24 : n : m `p`             | Set scrollback buffer size, `int32_t`<br>`n` Initial buffer size in lines; 0 — grow step is used for initial size; _default (if omitted) is 20.000_<br>`m` Grow step for unlimited buffer; _default (if omitted) is 0_ — for fixed size buffer
+      `CCC_SGR`    | `CSI` 28 : Pm `p`                | Set terminal background using SGR parameters (one attribute at once)<br>`Pm` Colon-separated list of attribute parameters, 0 — reset all attributes, _default is 0_
+      `CCC_SEL`    | `CSI` 29 : n `p`                 | Set selection mode, _default is 0_<br>`n = 0` Selection is off<br>`n = 1`Select and copy as plaintext<br>`n = 2` Select and copy as ANSI-text
+      `CCC_PAD`    | `CSI` 30 : n `p`                 | Set scrollbuffer side padding<br>`n` Width in cells, _max = 255, default is 3_
       `CCC_RST`    | `CSI` 1 `p`                      | Reset all parameters to default
-      `CCC_TBS`    | `CSI` 5 : n `p`                  | Set tabulation length<br>`n` Length in chars, _max = 256, default is 8_
+      `CCC_TBS`    | `CSI` 5 : n `p`                  | Set tabulation length<br>`n` Length in cells, _max = 256, default is 8_
       `CCC_JET`    | `CSI` 11 : n `p`                 | Set text alignment, _default is Left_<br>`n = 0` default<br>`n = 1` Left<br>`n = 2` Right<br>`n = 3` Center
       `CCC_WRP`    | `CSI` 12 : n `p`                 | Set text autowrap mode, _default is On_<br>`n = 0` default<br>`n = 1` On<br>`n = 2` Off (_enable horizontal scrolling_)
       `CCC_RTL`    | `CSI` 13 : n `p`                 | Set text right-to-left mode, _default is Off_<br>`n = 0` default<br>`n = 1` On<br>`n = 2` Off
+
+      Note: It is possible to combine multiple command into a single sequence using a semicolon. For example, the following sequence disables wrapping, enables text selection, and sets the background to blue: `CSI 12 : 2 ; 29 : 1 ; 28 : 44 p` or `CSI 12 : 2 ; 29 : 1 ; 28 : 48 : 2 : 0 : 0 : 255 p`.
 
  - `▀▄ Logs`
    - Debug output console. Use double `RightClick` to clear scrollback.

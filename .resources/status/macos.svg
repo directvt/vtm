@@ -19,8 +19,8 @@
     >macOS any</text>
     
     <text x="1230" y="150" fill="#010101" fill-opacity=".3" transform="scale(.1)" text-anchor="start"
-    >v0.6.0</text>
+    >v0.7.0</text>
     <text x="1230" y="140" transform="scale(.1)" text-anchor="start"
-    >v0.6.0</text>
+    >v0.7.0</text>
   </g>
 </svg>

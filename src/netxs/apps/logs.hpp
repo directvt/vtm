@@ -12,13 +12,13 @@ namespace netxs::events::userland
     {
         EVENTPACK( logs, netxs::events::userland::root::custom )
         {
-            GROUP_XS( codepoints, iota ),
+            GROUP_XS( codepoints, si32 ),
 
             SUBSET_XS( codepoints )
             {
-                EVENT_XS( release, iota ),
-                EVENT_XS( preview, iota ),
-                EVENT_XS( request, iota ),
+                EVENT_XS( release, si32 ),
+                EVENT_XS( preview, si32 ),
+                EVENT_XS( request, si32 ),
             };
         };
     };
@@ -112,7 +112,7 @@ namespace netxs::app::logs
                 if (show_codepoints)
                 {
                     yield.wrp(wrap::off).add("STDOUT: codepoints").eol();
-                    auto f = [&](auto cp, view utf8, iota wide)
+                    auto f = [&](auto cp, view utf8, si32 wide)
                     {
                         yield.fgc(ansi::blackdk);
                         if (wide)
@@ -151,7 +151,7 @@ namespace netxs::app::logs
             //todo unify, it's too hacky -- use smth like a signal scroll::end
             //                              riseup<tier::preview>(e2::form::upon::scroll::to_end::y, scinfo);
             auto new_size = post::get_size();
-            auto new_coor = twod{ 0, std::numeric_limits<iota>::min() };
+            auto new_coor = twod{ 0, std::numeric_limits<si32>::min() };
             base::resize(new_size);
             base::moveto(new_coor);
 
@@ -268,7 +268,7 @@ namespace netxs::app::logs
                             {
                                 boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                                 {
-                                    iota status = 1;
+                                    si32 status = 1;
                                     boss.SIGNAL(tier::anycast, app::logs::events::codepoints::request, status);
                                     boss.SIGNAL(tier::anycast, app::logs::events::codepoints::preview, status == 2 ? 1/*show*/ : 2/*hide*/);
                                     gear.dismiss(true);

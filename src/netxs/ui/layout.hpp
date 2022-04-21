@@ -28,7 +28,7 @@ namespace netxs::ui::atoms
         vga256   ,
     };
 
-    enum Z_order : iota
+    enum Z_order : si32
     {
         backmost = -1,
         plain    =  0,
@@ -42,7 +42,7 @@ namespace netxs::ui::atoms
     };
     struct tint16
     {
-        enum : iota
+        enum : si32
         {
             blackdk,
             blacklt,
@@ -251,7 +251,7 @@ namespace netxs::ui::atoms
             }
         }
         // rgba: RGBA transitional blending. Level = 0: equals c1, level = 256: equals c2.
-        static auto transit(rgba const& c1, rgba const& c2, iota level)
+        static auto transit(rgba const& c1, rgba const& c2, si32 level)
         {
             auto inverse = 256 - level;
             return rgba{ (c2.chan.r * level + c1.chan.r * inverse) >> 8,
@@ -309,23 +309,22 @@ namespace netxs::ui::atoms
         //bool like(rgba const& c) const
         //{
         //
-        //	static constexpr uint32_t k = 0b11110000;
-        //	static constexpr uint32_t threshold = 0x00 + k << 16 + k << 8 + k;
+        //	static constexpr ui32 k = 0b11110000;
+        //	static constexpr ui32 threshold = 0x00 + k << 16 + k << 8 + k;
         //	return	(token & threshold) == (c.token & threshold);
         //}
         // rgba: Shift color.
         void xlight()
         {
-            if (chan.r + chan.g + chan.b > 140*3) // Make it darker
+            if (luma() > 140)
             {
                 auto k = 64;
                 chan.r = chan.r < k ? 0x00 : chan.r - k;
                 chan.g = chan.g < k ? 0x00 : chan.g - k;
                 chan.b = chan.b < k ? 0x00 : chan.b - k;
             }
-            else // Make it lighter
+            else
             {
-                //auto k = 180;
                 auto k = 48;
                 chan.r = chan.r > 0xFF - k ? 0xFF : chan.r + k;
                 chan.g = chan.g > 0xFF - k ? 0xFF : chan.g + k;
@@ -333,36 +332,18 @@ namespace netxs::ui::atoms
             }
         }
         // rgba: Darken the color.
-        void shadow(byte k = 39)//24)
+        void shadow(byte k = 39)
         {
-            if (chan.r + chan.g + chan.b > 39)//24)
-            {
-                chan.r = chan.r < k ? 0x00 : chan.r - k;
-                chan.g = chan.g < k ? 0x00 : chan.g - k;
-                chan.b = chan.b < k ? 0x00 : chan.b - k;
-            }
-            else
-            {
-                chan.r = chan.r > 0xFF - k ? 0xFF : chan.r + k;
-                chan.g = chan.g > 0xFF - k ? 0xFF : chan.g + k;
-                chan.b = chan.b > 0xFF - k ? 0xFF : chan.b + k;
-            }
+            chan.r = chan.r < k ? 0x00 : chan.r - k;
+            chan.g = chan.g < k ? 0x00 : chan.g - k;
+            chan.b = chan.b < k ? 0x00 : chan.b - k;
         }
         // rgba: Lighten the color.
-        void bright(byte k = 39)//24) reduced in order to correct highlight the cellatix
+        void bright(byte k = 39)
         {
-            if (chan.r + chan.g + chan.b > 255*3 - 39)//24)
-            {
-                chan.r = chan.r < k ? 0x00 : chan.r - k;
-                chan.g = chan.g < k ? 0x00 : chan.g - k;
-                chan.b = chan.b < k ? 0x00 : chan.b - k;
-            }
-            else
-            {
-                chan.r = chan.r > 0xFF - k ? 0xFF : chan.r + k;
-                chan.g = chan.g > 0xFF - k ? 0xFF : chan.g + k;
-                chan.b = chan.b > 0xFF - k ? 0xFF : chan.b + k;
-            }
+            chan.r = chan.r > 0xFF - k ? 0xFF : chan.r + k;
+            chan.g = chan.g > 0xFF - k ? 0xFF : chan.g + k;
+            chan.b = chan.b > 0xFF - k ? 0xFF : chan.b + k;
         }
         // rgba: Invert the color.
         void invert()
@@ -748,47 +729,49 @@ namespace netxs::ui::atoms
             {
                 return param.shared.token == b.param.shared.token;
             }
-            template<svga VGAMODE = svga::truecolor, class T>
+            template<svga VGAMODE = svga::truecolor, bool USESGR = true, class T>
             void get(body& base, T& dest) const
             {
                 if (!like(base))
                 {
                     auto& cvar =      param.shared.var;
                     auto& bvar = base.param.shared.var;
-                    if (cvar.bolded != bvar.bolded)
+                    if constexpr (USESGR)
                     {
-                        dest.bld(cvar.bolded);
+                        if (cvar.bolded != bvar.bolded)
+                        {
+                            dest.bld(cvar.bolded);
+                        }
+                        if (cvar.italic != bvar.italic)
+                        {
+                            dest.itc(cvar.italic);
+                        }
+                        if (cvar.unline != bvar.unline)
+                        {
+                            if constexpr (VGAMODE == svga::vga16) dest.inv(cvar.unline);
+                            else                                  dest.und(cvar.unline);
+                        }
+                        if (cvar.invert != bvar.invert)
+                        {
+                            dest.inv(cvar.invert);
+                        }
+                        if (cvar.strike != bvar.strike)
+                        {
+                            dest.stk(cvar.strike);
+                        }
+                        if (cvar.overln != bvar.overln)
+                        {
+                            dest.ovr(cvar.overln);
+                        }
+                        if (cvar.r_to_l != bvar.r_to_l)
+                        {
+                            //todo implement RTL
+                        }
+                        if (cvar.blinks != bvar.blinks)
+                        {
+                            dest.blk(cvar.blinks);
+                        }
                     }
-                    if (cvar.italic != bvar.italic)
-                    {
-                        dest.itc(cvar.italic);
-                    }
-                    if (cvar.unline != bvar.unline)
-                    {
-                        if constexpr (VGAMODE == svga::vga16) dest.inv(cvar.unline);
-                        else                                  dest.und(cvar.unline);
-                    }
-                    if (cvar.invert != bvar.invert)
-                    {
-                        dest.inv(cvar.invert);
-                    }
-                    if (cvar.strike != bvar.strike)
-                    {
-                        dest.stk(cvar.strike);
-                    }
-                    if (cvar.overln != bvar.overln)
-                    {
-                        dest.ovr(cvar.overln);
-                    }
-                    if (cvar.r_to_l != bvar.r_to_l)
-                    {
-                        //todo implement RTL
-                    }
-                    if (cvar.blinks != bvar.blinks)
-                    {
-                        dest.blk(cvar.blinks);
-                    }
-
                     bvar = cvar;
                 }
             }
@@ -803,23 +786,23 @@ namespace netxs::ui::atoms
 
             void bld (bool b) { param.shared.var.bolded = b; }
             void itc (bool b) { param.shared.var.italic = b; }
-            void und (iota n) { param.shared.var.unline = n; }
+            void und (si32 n) { param.shared.var.unline = n; }
             void inv (bool b) { param.shared.var.invert = b; }
             void ovr (bool b) { param.shared.var.overln = b; }
             void stk (bool b) { param.shared.var.strike = b; }
             void rtl (bool b) { param.shared.var.r_to_l = b; }
             void blk (bool b) { param.shared.var.blinks = b; }
-            void vis (iota l) { param.unique.var.render = l; }
+            void vis (si32 l) { param.unique.var.render = l; }
 
             bool bld () const { return param.shared.var.bolded; }
             bool itc () const { return param.shared.var.italic; }
-            iota und () const { return param.shared.var.unline; }
+            si32 und () const { return param.shared.var.unline; }
             bool inv () const { return param.shared.var.invert; }
             bool ovr () const { return param.shared.var.overln; }
             bool stk () const { return param.shared.var.strike; }
             bool rtl () const { return param.shared.var.r_to_l; }
             bool blk () const { return param.shared.var.blinks; }
-            iota vis () const { return param.unique.var.render; }
+            si32 vis () const { return param.unique.var.render; }
         };
         struct clrs
         {
@@ -847,18 +830,18 @@ namespace netxs::ui::atoms
                 return !operator == (c);
             }
 
-            template<svga VGAMODE = svga::truecolor, class T>
+            template<svga VGAMODE = svga::truecolor, bool USESGR = true, class T>
             void get(clrs& base, T& dest)	const
             {
                 if (bg != base.bg)
                 {
                     base.bg = bg;
-                    dest.template bgc<VGAMODE>(bg);
+                    if constexpr (USESGR) dest.template bgc<VGAMODE>(bg);
                 }
                 if (fg != base.fg)
                 {
                     base.fg = fg;
-                    dest.template fgc<VGAMODE>(fg);
+                    if constexpr (USESGR) dest.template fgc<VGAMODE>(fg);
                 }
             }
             void wipe()
@@ -994,32 +977,32 @@ namespace netxs::ui::atoms
             st = c.st;
         }
         // cell: Get differences of the visual attributes only (ANSI CSI/SGR format).
-        template<svga VGAMODE = svga::truecolor, class T>
+        template<svga VGAMODE = svga::truecolor, bool USESGR = true, class T>
         void scan_attr(cell& base, T& dest) const
         {
             if (!like(base))
             {
                 //todo additionally consider UNIQUE ATTRIBUTES
-                uv.get<VGAMODE>(base.uv, dest);
-                st.get<VGAMODE>(base.st, dest);
+                uv.get<VGAMODE, USESGR>(base.uv, dest);
+                st.get<VGAMODE, USESGR>(base.st, dest);
             }
         }
         // cell: Get differences (ANSI CSI/SGR format) of "base" and add it to "dest" and update the "base".
-        template<svga VGAMODE = svga::truecolor, class T>
+        template<svga VGAMODE = svga::truecolor, bool USESGR = true, class T>
         void scan(cell& base, T& dest) const
         {
             if (!like(base))
             {
                 //todo additionally consider UNIQUE ATTRIBUTES
-                uv.get<VGAMODE>(base.uv, dest);
-                st.get<VGAMODE>(base.st, dest);
+                uv.get<VGAMODE, USESGR>(base.uv, dest);
+                st.get<VGAMODE, USESGR>(base.st, dest);
             }
 
             if (wdt()) dest += gc.get();
             else       dest += whitespace;
         }
         // cell: !!! Ensure that this.wdt == 2 and the next wdt == 3 and they are the same.
-        template<svga VGAMODE = svga::truecolor, class T>
+        template<svga VGAMODE = svga::truecolor, bool USESGR = true, class T>
         bool scan(cell& next, cell& base, T& dest) const
         {
             if (gc.same(next.gc) && like(next))
@@ -1027,8 +1010,8 @@ namespace netxs::ui::atoms
                 if (!like(base))
                 {
                     //todo additionally consider UNIQUE ATTRIBUTES
-                    uv.get<VGAMODE>(base.uv, dest);
-                    st.get<VGAMODE>(base.st, dest);
+                    uv.get<VGAMODE, USESGR>(base.uv, dest);
+                    st.get<VGAMODE, USESGR>(base.st, dest);
                 }
                 dest += gc.get();
                 return true;
@@ -1046,7 +1029,7 @@ namespace netxs::ui::atoms
         // cell: Delight both foreground and background.
         void xlight()
         {
-            uv.fg.xlight();
+            uv.fg.bright();
             uv.bg.xlight();
         }
         // cell: Invert both foreground and background.
@@ -1065,26 +1048,13 @@ namespace netxs::ui::atoms
         {
             st.rev();
         }
-        // cell: Darken both foreground and background.
-        void shadow(byte fk, byte bk) //void shadow(byte k = 24)
-        {
-            uv.fg.shadow(fk);
-            uv.bg.shadow(bk);
-        }
-        //todo xlight conflict
-        // cell: Lighten both foreground and background.
-        void bright(byte fk, byte bk) //void bright(byte k = 24)
-        {
-            uv.fg.bright(fk);
-            uv.bg.bright(bk);
-        }
         // cell: Is the cell not transparent?
         bool is_alpha_blendable() const
         {
             return uv.bg.is_alpha_blendable();//&& uv.param.fg.is_alpha_blendable();
         }
         // cell: Cell transitional color blending (fg/bg only).
-        void avg(cell const& c1, cell const& c2, iota level)
+        void avg(cell const& c1, cell const& c2, si32 level)
         {
             uv.fg = rgba::transit(c1.uv.fg, c2.uv.fg, level);
             uv.bg = rgba::transit(c1.uv.bg, c2.uv.bg, level);
@@ -1122,7 +1092,7 @@ namespace netxs::ui::atoms
         cell& txt (view c)        { c.size() ? gc.set(c) : gc.wipe(); return *this; } // cell: Set Grapheme cluster.
         cell& txt (char c)        { gc.set(c);          return *this; } // cell: Set Grapheme cluster from char.
         cell& clr (cell const& c) { uv = c.uv;          return *this; } // cell: Set the foreground and background colors only.
-        cell& wdt (iota w)        { gc.state.width = w; return *this; } // cell: Return Grapheme cluster screen width.
+        cell& wdt (si32 w)        { gc.state.width = w; return *this; } // cell: Return Grapheme cluster screen width.
         cell& rst () // cell: Reset view attributes of the cell to zero.
         {
             static cell empty{ whitespace };
@@ -1254,8 +1224,18 @@ namespace netxs::ui::atoms
                 template<class C> constexpr inline auto operator() (C brush) const { return func<C>(brush); }
                 template<class D, class S>  inline void operator() (D& dst, S& src) const { dst.mix(src, alpha); }
             };
+            struct xlucent_t
+            {
+                byte alpha;
+                constexpr xlucent_t(byte alpha) : alpha{ alpha }
+                { }
+                template<class D, class S>  inline void operator() (D& dst, S& src) const { dst.fuse(src); dst.bga(alpha); }
+                template<class D>           inline void operator() (D& dst)         const { dst.bga(alpha); }
+            };
 
         public:
+            static constexpr auto transparent(byte alpha) { return transparent_t{ alpha }; }
+            static constexpr auto     xlucent(byte alpha) { return     xlucent_t{ alpha }; }
             static constexpr auto contrast = contrast_t{};
             static constexpr auto fusefull = fusefull_t{};
             static constexpr auto     fuse =     fuse_t{};
@@ -1265,11 +1245,6 @@ namespace netxs::ui::atoms
             static constexpr auto   invert =   invert_t{};
             static constexpr auto  reverse =  reverse_t{};
             static constexpr auto   invbit =   invbit_t{};
-            
-            static constexpr auto transparent(byte alpha)
-            {
-                return transparent_t{ alpha };
-            }
         };
     };
 
@@ -1479,13 +1454,13 @@ namespace netxs::ui::atoms
     // layout: A rectangle represented by the four values: Left x-coor, Right x-coor, Top y-coor, Bottom y-coor.
     struct side
     {
-        iota l, r, t, b;
+        si32 l, r, t, b;
 
         constexpr side()
             : l(0), r(0), t(0), b(0)
         { }
 
-        constexpr side(iota left, iota right = 0, iota top = 0, iota bottom = 0)
+        constexpr side(si32 left, si32 right = 0, si32 top = 0, si32 bottom = 0)
             : l(left), r(right), t(top), b(bottom)
         { }
 
@@ -1549,7 +1524,7 @@ namespace netxs::ui::atoms
             t -= p.y;
             b -= p.y;
         }
-        void set(iota new_l, iota new_r = 0, iota new_t = 0, iota new_b = 0)
+        void set(si32 new_l, si32 new_r = 0, si32 new_t = 0, si32 new_b = 0)
         {
             l = new_l;
             r = new_r;
@@ -1557,7 +1532,7 @@ namespace netxs::ui::atoms
             b = new_b;
         }
         // side: Set left and right pads.
-        void set(std::pair<iota, iota> left_right)
+        void set(std::pair<si32, si32> left_right)
         {
             set(left_right.first, left_right.second);
         }
@@ -1587,7 +1562,7 @@ namespace netxs::ui::atoms
         struct edge
         {
             type step = 0;
-            constexpr inline auto get(iota size) const
+            constexpr inline auto get(si32 size) const
             {
                 if constexpr (just) return step;
                 else                return size - step;
@@ -1599,7 +1574,7 @@ namespace netxs::ui::atoms
         edge<faux> foot = {};
 
         constexpr dent_t() = default;
-        constexpr dent_t(iota w, iota e = 0, iota h = 0, iota f = 0)
+        constexpr dent_t(si32 w, si32 e = 0, si32 h = 0, si32 f = 0)
             : west{ static_cast<type>(w) },
               east{ static_cast<type>(e) },
               head{ static_cast<type>(h) },
@@ -1640,7 +1615,7 @@ namespace netxs::ui::atoms
             return !operator==(pad);
         }
         // dent: Return inner area rectangle.
-        constexpr auto area(iota size_x, iota size_y) const
+        constexpr auto area(si32 size_x, si32 size_y) const
         {
             //todo RTL
             auto w = west.get(size_x);
@@ -1668,14 +1643,14 @@ namespace netxs::ui::atoms
                          head.step };
         }
         // dent: Return inner width.
-        constexpr auto width(iota size_x) const
+        constexpr auto width(si32 size_x) const
         {
             auto w = west.get(size_x);
             auto e = east.get(size_x);
             return std::max(e - w, 0);
         }
         // dent: Return inner height.
-        constexpr auto height(iota size_y) const
+        constexpr auto height(si32 size_y) const
         {
             auto h = head.get(size_y);
             auto f = foot.get(size_y);
@@ -1687,14 +1662,14 @@ namespace netxs::ui::atoms
             return twod{ width(size.x), height(size.y) };
         }
         // dent: Return the horizontal coordinate using percentages.
-        constexpr auto h_ratio(iota px, iota size_x) const
+        constexpr auto h_ratio(si32 px, si32 size_x) const
         {
             auto w = west.get(size_x);
             auto e = east.get(size_x);
             return divround(px * (std::max(e - w, 1) - 1), 100);
         }
         // dent: Return the vertical coordinate using percentages.
-        constexpr auto v_ratio(iota py, iota size_y) const
+        constexpr auto v_ratio(si32 py, si32 size_y) const
         {
             auto h = head.get(size_y);
             auto f = foot.get(size_y);
@@ -1766,7 +1741,7 @@ namespace netxs::ui::atoms
         twod region{}; // rack: Available scroll area.
         rect window{}; // rack: Scrolling viewport.
         side beyond{}; // rack: Scroll margins outside of the scroll region.
-        iota vector{}; // rack: Scroll direction.
+        si32 vector{}; // rack: Scroll direction.
 
         auto str() const
         {
@@ -1781,17 +1756,17 @@ namespace netxs::ui::atoms
 
     // layout: Extract 1D length.
     template<class T>
-    static inline iota getlen(T p)
+    static inline si32 getlen(T p)
     {
         if constexpr (std::is_same_v<T, twod>) return p.x;
-        else                                   return static_cast<iota>(p);
+        else                                   return static_cast<si32>(p);
     }
     // layout: Extract 2D size.
     template<class T>
     static inline rect getvol(T p)
     {
         if constexpr (std::is_same_v<T, twod>) return { dot_00, p };
-        else                                   return { dot_00, { static_cast<iota>(p),  1 } };
+        else                                   return { dot_00, { static_cast<si32>(p),  1 } };
     }
 
     using grid = std::vector<cell>;

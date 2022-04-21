@@ -154,12 +154,12 @@ namespace netxs::ansi
     static const char C0_RS  = '\x1E'; // Record Separator.
     static const char C0_US  = '\x1F'; // Unit Separator.
 
-    static const iota W32_START_EVENT = 10000; // for quick recognition.
-    static const iota W32_KEYBD_EVENT = 10001;
-    static const iota W32_MOUSE_EVENT = 10002;
-    static const iota W32_WINSZ_EVENT = 10003;
-    static const iota W32_FOCUS_EVENT = 10004;
-    static const iota W32_FINAL_EVENT = 10005; // for quick recognition.
+    static const si32 W32_START_EVENT = 10000; // for quick recognition.
+    static const si32 W32_KEYBD_EVENT = 10001;
+    static const si32 W32_MOUSE_EVENT = 10002;
+    static const si32 W32_WINSZ_EVENT = 10003;
+    static const si32 W32_FOCUS_EVENT = 10004;
+    static const si32 W32_FINAL_EVENT = 10005; // for quick recognition.
 
     static const auto OSC_LABEL_TITLE  = "0"   ; // Set icon label and title.
     static const auto OSC_LABEL        = "1"   ; // Set icon label.
@@ -168,6 +168,7 @@ namespace netxs::ansi
     static const auto OSC_LINUX_COLOR  = "P"   ; // Set 16 colors palette. (Linux console)
     static const auto OSC_LINUX_RESET  = "R"   ; // Reset 16/256 colors palette. (Linux console)
     static const auto OSC_SET_PALETTE  = "4"   ; // Set 256 colors palette.
+    static const auto OSC_CLIPBOARD    = "52"  ; // Copy printed text into clipboard.
     static const auto OSC_SET_FGCOLOR  = "10"  ; // Set fg color.
     static const auto OSC_SET_BGCOLOR  = "11"  ; // Set bg color.
     static const auto OSC_RESET_COLOR  = "104" ; // Reset color N to default palette. Without params all palette reset.
@@ -177,92 +178,96 @@ namespace netxs::ansi
     static const auto OSC_TITLE_REPORT = "l"   ; // Get terminal window title.
     static const auto OSC_LABEL_REPORT = "L"   ; // Get terminal window icon label.
 
-    static const iota SGR_RST       = 0;
-    static const iota SGR_SAV       = 10;
-    static const iota SGR_BOLD      = 1;
-    static const iota SGR_FAINT     = 22;
-    static const iota SGR_ITALIC    = 3;
-    static const iota SGR_NONITALIC = 23;
-    static const iota SGR_UND       = 4;
-    static const iota SGR_DOUBLEUND = 21;
-    static const iota SGR_NOUND     = 24;
-    static const iota SGR_SLOWBLINK = 5;
-    static const iota SGR_FASTBLINK = 6;
-    static const iota SGR_NO_BLINK  = 25;
-    static const iota SGR_INV       = 7;
-    static const iota SGR_NOINV     = 27;
-    static const iota SGR_STRIKE    = 9;
-    static const iota SGR_NOSTRIKE  = 29;
-    static const iota SGR_OVERLN    = 53;
-    static const iota SGR_NOOVERLN  = 55;
-    static const iota SGR_FG_BLK    = 30;
-    static const iota SGR_FG_RED    = 31;
-    static const iota SGR_FG_GRN    = 32;
-    static const iota SGR_FG_YLW    = 33;
-    static const iota SGR_FG_BLU    = 34;
-    static const iota SGR_FG_MGT    = 35;
-    static const iota SGR_FG_CYN    = 36;
-    static const iota SGR_FG_WHT    = 37;
-    static const iota SGR_FG_RGB    = 38;
-    static const iota SGR_FG        = 39;
-    static const iota SGR_BG_BLK    = 40;
-    static const iota SGR_BG_RED    = 41;
-    static const iota SGR_BG_GRN    = 42;
-    static const iota SGR_BG_YLW    = 43;
-    static const iota SGR_BG_BLU    = 44;
-    static const iota SGR_BG_MGT    = 45;
-    static const iota SGR_BG_CYN    = 46;
-    static const iota SGR_BG_WHT    = 47;
-    static const iota SGR_BG_RGB    = 48;
-    static const iota SGR_BG        = 49;
-    static const iota SGR_FG_BLK_LT = 90;
-    static const iota SGR_FG_RED_LT = 91;
-    static const iota SGR_FG_GRN_LT = 92;
-    static const iota SGR_FG_YLW_LT = 93;
-    static const iota SGR_FG_BLU_LT = 94;
-    static const iota SGR_FG_MGT_LT = 95;
-    static const iota SGR_FG_CYN_LT = 96;
-    static const iota SGR_FG_WHT_LT = 97;
-    static const iota SGR_BG_BLK_LT = 100;
-    static const iota SGR_BG_RED_LT = 101;
-    static const iota SGR_BG_GRN_LT = 102;
-    static const iota SGR_BG_YLW_LT = 103;
-    static const iota SGR_BG_BLU_LT = 104;
-    static const iota SGR_BG_MGT_LT = 105;
-    static const iota SGR_BG_CYN_LT = 106;
-    static const iota SGR_BG_WHT_LT = 107;
+    static const si32 SGR_RST       = 0;
+    static const si32 SGR_SAV       = 10;
+    static const si32 SGR_BOLD      = 1;
+    static const si32 SGR_FAINT     = 22;
+    static const si32 SGR_ITALIC    = 3;
+    static const si32 SGR_NONITALIC = 23;
+    static const si32 SGR_UND       = 4;
+    static const si32 SGR_DOUBLEUND = 21;
+    static const si32 SGR_NOUND     = 24;
+    static const si32 SGR_SLOWBLINK = 5;
+    static const si32 SGR_FASTBLINK = 6;
+    static const si32 SGR_NO_BLINK  = 25;
+    static const si32 SGR_INV       = 7;
+    static const si32 SGR_NOINV     = 27;
+    static const si32 SGR_STRIKE    = 9;
+    static const si32 SGR_NOSTRIKE  = 29;
+    static const si32 SGR_OVERLN    = 53;
+    static const si32 SGR_NOOVERLN  = 55;
+    static const si32 SGR_FG_BLK    = 30;
+    static const si32 SGR_FG_RED    = 31;
+    static const si32 SGR_FG_GRN    = 32;
+    static const si32 SGR_FG_YLW    = 33;
+    static const si32 SGR_FG_BLU    = 34;
+    static const si32 SGR_FG_MGT    = 35;
+    static const si32 SGR_FG_CYN    = 36;
+    static const si32 SGR_FG_WHT    = 37;
+    static const si32 SGR_FG_RGB    = 38;
+    static const si32 SGR_FG        = 39;
+    static const si32 SGR_BG_BLK    = 40;
+    static const si32 SGR_BG_RED    = 41;
+    static const si32 SGR_BG_GRN    = 42;
+    static const si32 SGR_BG_YLW    = 43;
+    static const si32 SGR_BG_BLU    = 44;
+    static const si32 SGR_BG_MGT    = 45;
+    static const si32 SGR_BG_CYN    = 46;
+    static const si32 SGR_BG_WHT    = 47;
+    static const si32 SGR_BG_RGB    = 48;
+    static const si32 SGR_BG        = 49;
+    static const si32 SGR_FG_BLK_LT = 90;
+    static const si32 SGR_FG_RED_LT = 91;
+    static const si32 SGR_FG_GRN_LT = 92;
+    static const si32 SGR_FG_YLW_LT = 93;
+    static const si32 SGR_FG_BLU_LT = 94;
+    static const si32 SGR_FG_MGT_LT = 95;
+    static const si32 SGR_FG_CYN_LT = 96;
+    static const si32 SGR_FG_WHT_LT = 97;
+    static const si32 SGR_BG_BLK_LT = 100;
+    static const si32 SGR_BG_RED_LT = 101;
+    static const si32 SGR_BG_GRN_LT = 102;
+    static const si32 SGR_BG_YLW_LT = 103;
+    static const si32 SGR_BG_BLU_LT = 104;
+    static const si32 SGR_BG_MGT_LT = 105;
+    static const si32 SGR_BG_CYN_LT = 106;
+    static const si32 SGR_BG_WHT_LT = 107;
 
-    static const iota CCC_NOP    = 0  ; // CSI             p  - no operation.
-    static const iota CCC_RST    = 1  ; // CSI 1           p  - reset to zero all params (zz).
-    static const iota CCC_CPP    = 2  ; // CSI 2 : x [: y] p  - caret percent position.
-    static const iota CCC_CPX    = 3  ; // CSI 3 : x       p  - caret H percent position.
-    static const iota CCC_CPY    = 4  ; // CSI 4 : y       p  - caret V percent position.
-    static const iota CCC_TBS    = 5  ; // CSI 5 : n       p  - tab step length.
-    static const iota CCC_MGN    = 6  ; // CSI 6 : l:r:t:b p  - margin left, right, top, bottom.
-    static const iota CCC_MGL    = 7  ; // CSI 7 : n       p  - margin left   ╮
-    static const iota CCC_MGR    = 8  ; // CSI 8 : n       p  - margin right  │ positive - native binding.
-    static const iota CCC_MGT    = 9  ; // CSI 9 : n       p  - margin top    │ negative - oppisite binding.
-    static const iota CCC_MGB    = 10 ; // CSI 10: n       p  - margin bottom ╯
+    static const si32 CCC_NOP    = 0  ; // CSI             p  - no operation.
+    static const si32 CCC_RST    = 1  ; // CSI 1           p  - reset to zero all params (zz).
+    static const si32 CCC_CPP    = 2  ; // CSI 2 : x [: y] p  - caret percent position.
+    static const si32 CCC_CPX    = 3  ; // CSI 3 : x       p  - caret H percent position.
+    static const si32 CCC_CPY    = 4  ; // CSI 4 : y       p  - caret V percent position.
+    static const si32 CCC_TBS    = 5  ; // CSI 5 : n       p  - tab step length.
+    static const si32 CCC_MGN    = 6  ; // CSI 6 : l:r:t:b p  - margin left, right, top, bottom.
+    static const si32 CCC_MGL    = 7  ; // CSI 7 : n       p  - margin left   ╮
+    static const si32 CCC_MGR    = 8  ; // CSI 8 : n       p  - margin right  │ positive - native binding.
+    static const si32 CCC_MGT    = 9  ; // CSI 9 : n       p  - margin top    │ negative - oppisite binding.
+    static const si32 CCC_MGB    = 10 ; // CSI 10: n       p  - margin bottom ╯
 
-    static const iota CCC_JET    = 11 ; // CSI 11: n       p  - text alignment (bias).
-    static const iota CCC_WRP    = 12 ; // CSI 12: n       p  - text wrapping none/on/off.
-    static const iota CCC_RTL    = 13 ; // CSI 13: n       p  - text right-to-left none/on/off.
-    static const iota CCC_RLF    = 14 ; // CSI 14: n       p  - reverse line feed none/on/off.
+    static const si32 CCC_JET    = 11 ; // CSI 11: n       p  - text alignment (bias).
+    static const si32 CCC_WRP    = 12 ; // CSI 12: n       p  - text wrapping none/on/off.
+    static const si32 CCC_RTL    = 13 ; // CSI 13: n       p  - text right-to-left none/on/off.
+    static const si32 CCC_RLF    = 14 ; // CSI 14: n       p  - reverse line feed none/on/off.
 
-    static const iota CCC_JET_or = 15 ; // CSI 15: n       p  - set text alignment (bias) if it is not set.
-    static const iota CCC_WRP_or = 16 ; // CSI 16: n       p  - set text wrapping none/on/off if it is not set.
-    static const iota CCC_RTL_or = 17 ; // CSI 17: n       p  - set text right-to-left none/on/off if it is not set.
-    static const iota CCC_RLF_or = 18 ; // CSI 18: n       p  - set reverse line feed none/on/off if it is not set.
+    static const si32 CCC_JET_or = 15 ; // CSI 15: n       p  - set text alignment (bias) if it is not set.
+    static const si32 CCC_WRP_or = 16 ; // CSI 16: n       p  - set text wrapping none/on/off if it is not set.
+    static const si32 CCC_RTL_or = 17 ; // CSI 17: n       p  - set text right-to-left none/on/off if it is not set.
+    static const si32 CCC_RLF_or = 18 ; // CSI 18: n       p  - set reverse line feed none/on/off if it is not set.
 
-    static const iota CCC_IDX    = 19 ; // CSI 19: id      p  - Split the text run and associate the fragment with an id.
-    static const iota CCC_CUP    = 20 ; // CSI 20: x [: y] p  - caret absolute position 0-based.
-    static const iota CCC_CHX    = 21 ; // CSI 21: x       p  - caret H absolute position 0-based.
-    static const iota CCC_CHY    = 22 ; // CSI 22: y       p  - caret V absolute position 0-based.
-    static const iota CCC_REF    = 23 ; // CSI 23: id      p  - create the reference to the existing paragraph.
-    static const iota CCC_SBS    = 24 ; // CSI 24: n: m    p  - define scrollback size: n: max size, m: grow_by step.
-    static const iota CCC_EXT    = 25 ; // CSI 25: b       p  - extended functionality support.
-    static const iota CCC_SMS    = 26 ; // CSI 26: b       p  - Should the mouse poiner to be drawn.
-    static const iota CCC_KBD    = 27 ; // CSI 27: n       p  - Set keyboard modifiers.
+    static const si32 CCC_IDX    = 19 ; // CSI 19: id      p  - Split the text run and associate the fragment with an id.
+    static const si32 CCC_CUP    = 20 ; // CSI 20: x [: y] p  - caret absolute position 0-based.
+    static const si32 CCC_CHX    = 21 ; // CSI 21: x       p  - caret H absolute position 0-based.
+    static const si32 CCC_CHY    = 22 ; // CSI 22: y       p  - caret V absolute position 0-based.
+    static const si32 CCC_REF    = 23 ; // CSI 23: id      p  - create the reference to the existing paragraph.
+    static const si32 CCC_SBS    = 24 ; // CSI 24: n: m    p  - define scrollback size: n: max size, m: grow_by step.
+    static const si32 CCC_EXT    = 25 ; // CSI 25: b       p  - extended functionality support.
+    static const si32 CCC_SMS    = 26 ; // CSI 26: b       p  - Should the mouse poiner to be drawn.
+    static const si32 CCC_KBD    = 27 ; // CSI 27: n       p  - Set keyboard modifiers.
+    
+    static const si32 CCC_SGR    = 28 ; // CSI 28: ...     p  - Set the default SGR attribute for the built-in terminal background (one attribute per command).
+    static const si32 CCC_SEL    = 29 ; // CSI 29: n       p  - Set selection mode for the built-in terminal, n: 0 - off, 1 - plaintext, 2 - ansi-text.
+    static const si32 CCC_PAD    = 30 ; // CSI 30: n       p  - Set left/right padding for the built-in terminal.
 
     // ansi: Escaped sequences accumulator.
     class esc
@@ -313,7 +318,7 @@ namespace netxs::ansi
                             || std::is_same_v<D, rtol>
                             || std::is_same_v<D, feed>)
             {
-                itos(static_cast<iota>(data));
+                itos(static_cast<si32>(data));
             }
             else if constexpr (std::is_same_v<D, twod>)
             {
@@ -349,14 +354,13 @@ namespace netxs::ansi
 
         esc& vmouse      (bool b)   { return add(b ? "\033[?1002;1003;1004;1006;10060h"
                                                    : "\033[?1002;1003;1004;1006;10060l"); } // esc: Focus and Mouse position reporting/tracking.
-        esc& locate(iota x, iota y) { return add("\033[", y,     ';', x,     'H'       ); } // esc: 1-Based caret position.
+        esc& locate(si32 x, si32 y) { return add("\033[", y,     ';', x,     'H'       ); } // esc: 1-Based caret position.
         esc& locate(twod const& p)  { return add("\033[", p.y+1, ';', p.x+1, 'H'       ); } // esc: 0-Based caret position.
         esc& report(twod const& p)  { return add("\033[", p.y+1, ";", p.x+1, "R"       ); } // esc: Report 1-Based caret position (CPR).
         esc& locate_wipe ()         { return add("\033[r"                              ); } // esc: Enable scrolling for entire display (clear screen).
         esc& locate_call ()         { return add("\033[6n"                             ); } // esc: Report caret position.
         esc& scroll_wipe ()         { return add("\033[2J"                             ); } // esc: Erase scrollback.
         esc& tag         (view t)   { return add("\033]2;", t, '\07'                   ); } // esc: Window title.
-        esc& setbuf      (view t)   { return add("\033]52;;", utf::base64(t), C0_BEL   ); } // esc: Set clipboard.
         esc& setutf      (bool b)   { return add(b ? "\033%G"      : "\033%@"          ); } // esc: Select UTF-8 character set (true) or default (faux).
         esc& altbuf      (bool b)   { return add(b ? "\033[?1049h" : "\033[?1049l"     ); } // esc: Alternative buffer.
         esc& cursor      (bool b)   { return add(b ? "\033[?25h"   : "\033[?25l"       ); } // esc: Caret visibility.
@@ -368,7 +372,13 @@ namespace netxs::ansi
         esc& load_title  ()         { return add("\033[23;0t"                          ); } // esc: Restore terminal window title.
         esc& save_palette()         { return add("\033[#P"                             ); } // esc: Push palette onto stack XTPUSHCOLORS.
         esc& load_palette()         { return add("\033[#Q"                             ); } // esc: Pop  palette from stack XTPOPCOLORS.
-        esc& osc_palette (iota i, rgba const& c) // esc: Set color palette. ESC ] 4 ; <i> ; rgb : <r> / <g> / <b> BEL.
+        template<bool ENCODE = true>
+        esc& setbuf(view t) // esc: Set clipboard.
+        {
+            if constexpr (ENCODE) return add("\033]52;;", utf::base64(t), C0_BEL);
+            else                  return add("\033]52;" , t             , C0_BEL); // Forward as is. See ui::term.
+        }
+        esc& osc_palette (si32 i, rgba const& c) // esc: Set color palette. ESC ] 4 ; <i> ; rgb : <r> / <g> / <b> BEL.
         {
             return add("\033]4;", i, ";rgb:", utf::to_hex(c.chan.r), '/',
                                               utf::to_hex(c.chan.g), '/',
@@ -395,7 +405,7 @@ namespace netxs::ansi
             return *this;
         }
         esc& old_palette_reset() { return add("\033]R"); } // esc: Reset color palette (Linux console).
-        esc& old_palette(iota i, rgba const& c) // esc: Set color palette (Linux console).
+        esc& old_palette(si32 i, rgba const& c) // esc: Set color palette (Linux console).
         {
             return add("\033]P", utf::to_hex(i, 1), utf::to_hex(c.chan.r, 2),
                                                     utf::to_hex(c.chan.g, 2),
@@ -410,7 +420,7 @@ namespace netxs::ansi
             return add(W32_INP);
         }
         // ansi: win32-input-mode sequence (keyboard).
-        esc& w32keybd(iota id, iota kc, iota sc, iota kd, iota ks, iota rc, iota uc)
+        esc& w32keybd(si32 id, si32 kc, si32 sc, si32 kd, si32 ks, si32 rc, si32 uc)
         {
             add(ansi::W32_KEYBD_EVENT, ':');
             if (id) fuse(id);
@@ -422,7 +432,7 @@ namespace netxs::ansi
                             uc, ';');
         }
         // ansi: win32-input-mode sequence (mouse).
-        esc& w32mouse(iota id, iota bttns, iota ctrls, iota flags, iota wheel, iota xcoor, iota ycoor)
+        esc& w32mouse(si32 id, si32 bttns, si32 ctrls, si32 flags, si32 wheel, si32 xcoor, si32 ycoor)
         {
             add(ansi::W32_MOUSE_EVENT, ':');
             if (id) fuse(id);
@@ -434,7 +444,7 @@ namespace netxs::ansi
                             ycoor, ';');
         }
         // ansi: win32-input-mode sequence (focus).
-        esc& w32focus(iota id, iota focus)
+        esc& w32focus(si32 id, si32 focus)
         {
             add(ansi::W32_FOCUS_EVENT, ':');
             if (id) fuse(id);
@@ -449,16 +459,16 @@ namespace netxs::ansi
 
         esc& cup(twod const& p) { return add("\033[20:", p.y, ':',
                                                          p.x, CSI_CCC  ); } // esc: 0-Based caret position.
-        esc& cuu(iota n)        { return add("\033[", n, 'A'           ); } // esc: Caret up.
-        esc& cud(iota n)        { return add("\033[", n, 'B'           ); } // esc: Caret down.
-        esc& cuf(iota n)        { return add("\033[", n, 'C'           ); } // esc: Caret forward.
-        esc& cub(iota n)        { return add("\033[", n, 'D'           ); } // esc: Caret backward.
-        esc& cnl(iota n)        { return add("\033[", n, 'E'           ); } // esc: caret next line.
-        esc& cpl(iota n)        { return add("\033[", n, 'F'           ); } // esc: Caret previous line.
-        esc& ocx(iota n)        { return add("\033[", n, 'G'           ); } // esc: Caret 1-based horizontal absolute.
-        esc& ocy(iota n)        { return add("\033[", n, 'd'           ); } // esc: Caret 1-based vertical absolute.
-        esc& chx(iota n)        { return add("\033[21:", n, CSI_CCC    ); } // esc: Caret 0-based horizontal absolute.
-        esc& chy(iota n)        { return add("\033[22:", n, CSI_CCC    ); } // esc: Caret 0-based vertical absolute.
+        esc& cuu(si32 n)        { return add("\033[", n, 'A'           ); } // esc: Caret up.
+        esc& cud(si32 n)        { return add("\033[", n, 'B'           ); } // esc: Caret down.
+        esc& cuf(si32 n)        { return add("\033[", n, 'C'           ); } // esc: Caret forward.
+        esc& cub(si32 n)        { return add("\033[", n, 'D'           ); } // esc: Caret backward.
+        esc& cnl(si32 n)        { return add("\033[", n, 'E'           ); } // esc: caret next line.
+        esc& cpl(si32 n)        { return add("\033[", n, 'F'           ); } // esc: Caret previous line.
+        esc& ocx(si32 n)        { return add("\033[", n, 'G'           ); } // esc: Caret 1-based horizontal absolute.
+        esc& ocy(si32 n)        { return add("\033[", n, 'd'           ); } // esc: Caret 1-based vertical absolute.
+        esc& chx(si32 n)        { return add("\033[21:", n, CSI_CCC    ); } // esc: Caret 0-based horizontal absolute.
+        esc& chy(si32 n)        { return add("\033[22:", n, CSI_CCC    ); } // esc: Caret 0-based vertical absolute.
         esc& scp()              { return add("\033[s"                  ); } // esc: Save caret position in memory.
         esc& rcp()              { return add("\033[u"                  ); } // esc: Restore caret position from memory.
         esc& bld(bool b = true) { return add(b ? "\033[1m" : "\033[22m"); } // esc: SGR 𝗕𝗼𝗹𝗱 attribute.
@@ -494,7 +504,7 @@ namespace netxs::ansi
         // esc: SGR Foreground color (16-color mode).
         esc& fgc16(rgba const& c)
         {
-            iota clr = 30;
+            si32 clr = 30;
             switch (c.token)
             {
                 case 0xFF000000: clr += 0;
@@ -538,7 +548,7 @@ namespace netxs::ansi
         // esc: SGR Background color (16-color mode).
         esc& bgc16(rgba const& c)
         {
-            iota clr = 40;
+            si32 clr = 40;
             switch (c.token)
             {
                 case 0xFF000000: clr += 0; break;
@@ -574,9 +584,13 @@ namespace netxs::ansi
             switch (VGAMODE)
             {
                 case svga::truecolor:
-                    return add("\033[38;2;", c.chan.r, ';',
-                                             c.chan.g, ';',
-                                             c.chan.b, 'm');
+                    if (c.chan.a)
+                    {
+                        return add("\033[38;2;", c.chan.r, ';',
+                                                 c.chan.g, ';',
+                                                 c.chan.b, 'm');
+                    }
+                    else return add("\033[39m");
                 case svga::vga16:  return fgc16 (c);
                 case svga::vga256: return fgc256(c);
                 default:           return *this;
@@ -589,9 +603,13 @@ namespace netxs::ansi
             switch (VGAMODE)
             {
                 case svga::truecolor:
-                    return add("\033[48;2;", c.chan.r, ';',
-                                             c.chan.g, ';',
-                                             c.chan.b, 'm');
+                    if (c.chan.a)
+                    {
+                        return add("\033[48;2;", c.chan.r, ';',
+                                                 c.chan.g, ';',
+                                                 c.chan.b, 'm');
+                    }
+                    else return add("\033[49m");
                 case svga::vga16:  return bgc16 (c);
                 case svga::vga256: return bgc256(c);
                 default:           return *this;
@@ -603,17 +621,17 @@ namespace netxs::ansi
         esc& rst ()              { return add("\033[1"  ,      CSI_CCC); } // esc: Reset formatting parameters.
         esc& cpp (twod const& p) { return add("\033[2:" , p.x, ':',        // esc: Caret percent position.
                                                           p.y, CSI_CCC); }
-        esc& cpx (iota n)        { return add("\033[3:" , n  , CSI_CCC); } // esc: Caret horizontal percent position.
-        esc& cpy (iota n)        { return add("\033[4:" , n  , CSI_CCC); } // esc: Caret vertical percent position.
-        esc& tbs (iota n)        { return add("\033[5:" , n  , CSI_CCC); } // esc: Tabulation step length.
+        esc& cpx (si32 n)        { return add("\033[3:" , n  , CSI_CCC); } // esc: Caret horizontal percent position.
+        esc& cpy (si32 n)        { return add("\033[4:" , n  , CSI_CCC); } // esc: Caret vertical percent position.
+        esc& tbs (si32 n)        { return add("\033[5:" , n  , CSI_CCC); } // esc: Tabulation step length.
         esc& mgn (side const& n) { return add("\033[6:" , n.l, ':',        // esc: Margin (left, right, top, bottom).
                                                           n.r, ':',
                                                           n.t, ':',
                                                           n.b, CSI_CCC); }
-        esc& mgl (iota n)        { return add("\033[7:" , n  , CSI_CCC); } // esc: Left margin. Positive - native binding. Negative - opposite binding.
-        esc& mgr (iota n)        { return add("\033[8:" , n  , CSI_CCC); } // esc: Right margin. Positive - native binding. Negative - opposite binding.
-        esc& mgt (iota n)        { return add("\033[9:" , n  , CSI_CCC); } // esc: Top margin. Positive - native binding. Negative - opposite binding.
-        esc& mgb (iota n)        { return add("\033[10:", n  , CSI_CCC); } // esc: Bottom margin. Positive - native binding. Negative - opposite binding.
+        esc& mgl (si32 n)        { return add("\033[7:" , n  , CSI_CCC); } // esc: Left margin. Positive - native binding. Negative - opposite binding.
+        esc& mgr (si32 n)        { return add("\033[8:" , n  , CSI_CCC); } // esc: Right margin. Positive - native binding. Negative - opposite binding.
+        esc& mgt (si32 n)        { return add("\033[9:" , n  , CSI_CCC); } // esc: Top margin. Positive - native binding. Negative - opposite binding.
+        esc& mgb (si32 n)        { return add("\033[10:", n  , CSI_CCC); } // esc: Bottom margin. Positive - native binding. Negative - opposite binding.
         esc& jet (bias n)        { return add("\033[11:", n  , CSI_CCC); } // esc: Text alignment.
         esc& wrp (wrap n)        { return add("\033[12:", n  , CSI_CCC); } // esc: Text wrapping.
         esc& rtl (rtol n)        { return add("\033[13:", n  , CSI_CCC); } // esc: Text right-to-left.
@@ -622,11 +640,11 @@ namespace netxs::ansi
         esc& wrp_or (wrap n)     { return add("\033[16:", n  , CSI_CCC); } // esc: Text wrapping.
         esc& rtl_or (rtol n)     { return add("\033[17:", n  , CSI_CCC); } // esc: Text right-to-left.
         esc& rlf_or (feed n)     { return add("\033[18:", n  , CSI_CCC); } // esc: Reverse line feed.
-        esc& idx (iota i)        { return add("\033[19:", i  , CSI_CCC); } // esc: Split the text run and associate the fragment with an id.
-        esc& ref (iota i)        { return add("\033[23:", i  , CSI_CCC); } // esc: Create the reference to the existing paragraph.
-        esc& ext (iota b)        { return add("\033[25:", b  , CSI_CCC); } // esc: Extended functionality support, 0 - faux, 1 - true.
-        esc& show_mouse (iota b) { return add("\033[26:", b  , CSI_CCC); } // esc: Should the mouse poiner to be drawn.
-        esc& meta_state (iota m) { return add("\033[27:", m  , CSI_CCC); } // esc: Set keyboard meta modifiers (Ctrl, Shift, Alt, etc).
+        esc& idx (si32 i)        { return add("\033[19:", i  , CSI_CCC); } // esc: Split the text run and associate the fragment with an id.
+        esc& ref (si32 i)        { return add("\033[23:", i  , CSI_CCC); } // esc: Create the reference to the existing paragraph.
+        esc& ext (si32 b)        { return add("\033[25:", b  , CSI_CCC); } // esc: Extended functionality support, 0 - faux, 1 - true.
+        esc& show_mouse (si32 b) { return add("\033[26:", b  , CSI_CCC); } // esc: Should the mouse poiner to be drawn.
+        esc& meta_state (si32 m) { return add("\033[27:", m  , CSI_CCC); } // esc: Set keyboard meta modifiers (Ctrl, Shift, Alt, etc).
         //todo unify
         //esc& win (twod const& p){ return add("\033[20:", p.x, ':',              // esc: Terminal window resize report.
         //                                                 p.y, CSI_CCC); }
@@ -636,13 +654,13 @@ namespace netxs::ansi
         esc& eol ()              { return add("\n"                    ); } // esc: EOL.
         esc& edl ()              { return add("\033[K"                ); } // esc: EDL.
 
-        esc& mouse_sgr(iota ctrl, twod const& coor, bool ispressed) // esc: Mouse tracking report (SGR).
+        esc& mouse_sgr(si32 ctrl, twod const& coor, bool ispressed) // esc: Mouse tracking report (SGR).
         {
             return add("\033[<", ctrl, ';',
                            coor.x + 1, ';',
                            coor.y + 1, ispressed ? 'M' : 'm');
         }
-        esc& mouse_x11(iota ctrl, twod const& coor) // esc: Mouse tracking report (X11).
+        esc& mouse_x11(si32 ctrl, twod const& coor) // esc: Mouse tracking report (X11).
         {
             return add("\033[M", static_cast<char>(std::clamp(ctrl,       0, 255-32) + 32),
                                  static_cast<char>(std::clamp(coor.x + 1, 1, 255-32) + 32),
@@ -663,7 +681,8 @@ namespace netxs::ansi
     static esc altbuf (bool b)       { return esc{}.altbuf(b);     } // ansi: Alternative buffer.
     static esc cursor (bool b)       { return esc{}.cursor(b);     } // ansi: Caret visibility.
     static esc appkey (bool b)       { return esc{}.appkey(b);     } // ansi: Application Caret Keys (DECCKM).
-    static esc setbuf (view t)       { return esc{}.setbuf(t);     } // ansi: Set clipboard.
+    template<bool ENCODE = true>
+    static esc setbuf (view t)       { return esc{}.setbuf<ENCODE>(t); } // ansi: Set clipboard.
 
     static esc w32input (bool b)     { return esc{}.w32input(b); } // ansi: Turn on w32-input-mode (Microsoft specific, not released yet).
     template<class ...Args> static esc w32keybd (Args&&... p){ return esc{}.w32keybd(std::forward<Args>(p)...); } // ansi: win32-input-mode sequence (keyboard).
@@ -672,18 +691,18 @@ namespace netxs::ansi
     template<class ...Args> static esc w32winsz (Args&&... p){ return esc{}.w32winsz(std::forward<Args>(p)...); } // ansi: win32-input-mode sequence (window resize).
 
     static esc cup (twod const& n)   { return esc{}.cup (n); } // ansi: 0-Based caret position.
-    static esc cuu (iota n)          { return esc{}.cuu (n); } // ansi: Caret up.
-    static esc cud (iota n)          { return esc{}.cud (n); } // ansi: Caret down.
-    static esc cuf (iota n)          { return esc{}.cuf (n); } // ansi: Caret forward.
-    static esc cub (iota n)          { return esc{}.cub (n); } // ansi: Caret backward.
-    static esc cnl (iota n)          { return esc{}.cnl (n); } // ansi: Caret next line.
-    static esc cpl (iota n)          { return esc{}.cpl (n); } // ansi: Caret previous line.
+    static esc cuu (si32 n)          { return esc{}.cuu (n); } // ansi: Caret up.
+    static esc cud (si32 n)          { return esc{}.cud (n); } // ansi: Caret down.
+    static esc cuf (si32 n)          { return esc{}.cuf (n); } // ansi: Caret forward.
+    static esc cub (si32 n)          { return esc{}.cub (n); } // ansi: Caret backward.
+    static esc cnl (si32 n)          { return esc{}.cnl (n); } // ansi: Caret next line.
+    static esc cpl (si32 n)          { return esc{}.cpl (n); } // ansi: Caret previous line.
 
-    static esc ocx (iota n)          { return esc{}.ocx (n); } // ansi: Caret 1-based horizontal absolute.
-    static esc ocy (iota n)          { return esc{}.ocy (n); } // ansi: Caret 1-based vertical absolute.
+    static esc ocx (si32 n)          { return esc{}.ocx (n); } // ansi: Caret 1-based horizontal absolute.
+    static esc ocy (si32 n)          { return esc{}.ocy (n); } // ansi: Caret 1-based vertical absolute.
 
-    static esc chx (iota n)          { return esc{}.chx (n); } // ansi: Caret 0-based horizontal absolute.
-    static esc chy (iota n)          { return esc{}.chy (n); } // ansi: Caret 0-based vertical absolute.
+    static esc chx (si32 n)          { return esc{}.chx (n); } // ansi: Caret 0-based horizontal absolute.
+    static esc chy (si32 n)          { return esc{}.chy (n); } // ansi: Caret 0-based vertical absolute.
 
     static esc bld (bool b = true)   { return esc{}.bld (b); } // ansi: SGR 𝗕𝗼𝗹𝗱 attribute.
     static esc und (bool b = true)   { return esc{}.und (b); } // ansi: SGR 𝗨𝗻𝗱𝗲𝗿𝗹𝗶𝗻𝗲 attribute.
@@ -707,14 +726,14 @@ namespace netxs::ansi
     static esc scp ()                { return esc{}.scp ( ); } // ansi: Save caret position in memory.
     static esc rcp ()                { return esc{}.rcp ( ); } // ansi: Restore caret position from memory.
     static esc cpp (twod const& n)   { return esc{}.cpp (n); } // ansi: Caret percent position.
-    static esc cpx (iota n)          { return esc{}.cpx (n); } // ansi: Caret horizontal percent position.
-    static esc cpy (iota n)          { return esc{}.cpy (n); } // ansi: Caret vertical percent position.
-    static esc tbs (iota n)          { return esc{}.tbs (n); } // ansi: Tabulation step length.
+    static esc cpx (si32 n)          { return esc{}.cpx (n); } // ansi: Caret horizontal percent position.
+    static esc cpy (si32 n)          { return esc{}.cpy (n); } // ansi: Caret vertical percent position.
+    static esc tbs (si32 n)          { return esc{}.tbs (n); } // ansi: Tabulation step length.
     static esc mgn (side const& n)   { return esc{}.mgn (n); } // ansi: Margin (left, right, top, bottom).
-    static esc mgl (iota n)          { return esc{}.mgl (n); } // ansi: Left margin.
-    static esc mgr (iota n)          { return esc{}.mgr (n); } // ansi: Right margin.
-    static esc mgt (iota n)          { return esc{}.mgt (n); } // ansi: Top margin.
-    static esc mgb (iota n)          { return esc{}.mgb (n); } // ansi: Bottom margin.
+    static esc mgl (si32 n)          { return esc{}.mgl (n); } // ansi: Left margin.
+    static esc mgr (si32 n)          { return esc{}.mgr (n); } // ansi: Right margin.
+    static esc mgt (si32 n)          { return esc{}.mgt (n); } // ansi: Top margin.
+    static esc mgb (si32 n)          { return esc{}.mgb (n); } // ansi: Bottom margin.
     static esc ext (bool b)          { return esc{}.ext (b); } // ansi: Extended functionality.
     static esc show_mouse(bool b)    { return esc{}.show_mouse(b); } // esc: Should the mouse poiner to be drawn.
 
@@ -734,8 +753,8 @@ namespace netxs::ansi
     //      Redefine if the id already exists.
     static esc win (twod const& p)   { return esc{}.win (p); } // ansi: Terminal window resize.
     static esc fcs (bool b)          { return esc{}.fcs (b); } // ansi: Terminal window focus.
-    static esc idx (iota i)          { return esc{}.idx (i); }
-    static esc ref (iota i)          { return esc{}.ref (i); } // ansi: Create the reference to the existing paragraph. Create new id if it is not existing.
+    static esc idx (si32 i)          { return esc{}.idx (i); }
+    static esc ref (si32 i)          { return esc{}.ref (i); } // ansi: Create the reference to the existing paragraph. Create new id if it is not existing.
     static esc eol ()                { return esc{}.eol ( ); } // ansi: EOL.
     static esc edl ()                { return esc{}.edl ( ); } // ansi: EDL.
 
@@ -743,7 +762,7 @@ namespace netxs::ansi
     // The order is important (see the richtext::flow::exec constexpr).
 
     // todo tie with richtext::flow::exec
-    enum fn : iota
+    enum fn : si32
     {
         dx, // horizontal delta.
         dy, // vertical delta.
@@ -788,8 +807,8 @@ namespace netxs::ansi
     // ansi: Caret control sequence: one command with one argument.
     struct rule
     {
-        iota cmd;
-        iota arg;
+        si32 cmd;
+        si32 arg;
     };
     struct mark
         : public cell
@@ -815,7 +834,7 @@ namespace netxs::ansi
     #pragma pack(push,1)
     union deco
     {
-        enum type : iota
+        enum type : si32
         {
             leftside, // default
             rghtside,
@@ -825,7 +844,7 @@ namespace netxs::ansi
         };
 
         static constexpr auto defwrp = wrap::on; // deco: Default autowrap behavior.
-        static constexpr iota maxtab = 255; // deco: Tab length limit.
+        static constexpr si32 maxtab = 255; // deco: Tab length limit.
         struct
         {
             wrap wrapln : 2; // deco: Autowrap.
@@ -842,7 +861,7 @@ namespace netxs::ansi
         constexpr deco()                          : token { 0 }              { }
         constexpr deco            (deco const& d) : token { d.token }        { }
         constexpr void operator = (deco const& d) { token = d.token;           }
-        constexpr deco(iota)
+        constexpr deco(si32)
             : v{ .wrapln = deco::defwrp,
                  .adjust = bias::left,
                  .r_to_l = rtol::ltr,
@@ -868,11 +887,11 @@ namespace netxs::ansi
         auto& jet_or(bias  n) { if (v.adjust == bias::none) v.adjust = n; return *this; } // deco: Paragraph adjustment.
         auto& rtl_or(rtol  n) { if (v.r_to_l == rtol::none) v.r_to_l = n; return *this; } // deco: RTL.
         auto& rlf_or(feed  n) { if (v.rlfeed == feed::none) v.rlfeed = n; return *this; } // deco: Reverse line feed.
-        auto& tbs   (iota  n) { v.tablen = std::min(n, maxtab);           return *this; } // deco: fx_ccc_tbs.
-        auto& mgl   (iota  n) { v.margin.west.step = n;                   return *this; } // deco: fx_ccc_mgl.
-        auto& mgr   (iota  n) { v.margin.east.step = n;                   return *this; } // deco: fx_ccc_mgr.
-        auto& mgt   (iota  n) { v.margin.head.step = n;                   return *this; } // deco: fx_ccc_mgt.
-        auto& mgb   (iota  n) { v.margin.foot.step = n;                   return *this; } // deco: fx_ccc_mgb.
+        auto& tbs   (si32  n) { v.tablen = std::min(n, maxtab);           return *this; } // deco: fx_ccc_tbs.
+        auto& mgl   (si32  n) { v.margin.west.step = n;                   return *this; } // deco: fx_ccc_mgl.
+        auto& mgr   (si32  n) { v.margin.east.step = n;                   return *this; } // deco: fx_ccc_mgr.
+        auto& mgt   (si32  n) { v.margin.head.step = n;                   return *this; } // deco: fx_ccc_mgt.
+        auto& mgb   (si32  n) { v.margin.foot.step = n;                   return *this; } // deco: fx_ccc_mgb.
         auto& mgn   (fifo& q) { v.margin.set(q);                          return *this; } // deco: fx_ccc_mgn.
         auto& rst   ()        { token = 0;                                return *this; } // deco: Reset.
         constexpr auto& glb() { operator=(deco(0));                       return *this; }  // deco: Reset to default.
@@ -896,7 +915,7 @@ namespace netxs::ansi
         bool straight; // runtime: Text substring retrieving direction.
         bool centered;
         bool arighted;
-        iota tabwidth;
+        si32 tabwidth;
         dent textpads;
 
         void combine(deco const& global, deco const& custom)
@@ -948,7 +967,7 @@ namespace netxs::ansi
     template<class Q, class C>
     using func = netxs::generics::tree <Q, C*, std::function<void(Q&, C*&)>>;
 
-    template<class T>
+    template<class T, bool NOMULTIARG = faux>
     struct csi_t
     {
         using tree = func<fifo, T>;
@@ -972,7 +991,7 @@ namespace netxs::ansi
             * Unicode
             * - void task(ansi::rule const& cmd);          // Proceed curses command.
             * - void meta(deco& old, deco& new);           // Proceed new style.
-            * - void data(iota count, grid const& proto);  // Proceed new cells.
+            * - void data(si32 count, grid const& proto);  // Proceed new cells.
             * SGR:
             * - void nil();                          // Reset all SGR to default.
             * - void sav();                          // Set current SGR as default.
@@ -989,7 +1008,7 @@ namespace netxs::ansi
             * - void dnl(bool b);                    // Set double underline attribute.
             * - void ovr(bool b);                    // Set overline attribute.
             * - void wrp(bool b);                    // Set auto wrap.
-            * - void jet(iota b);                    // Set adjustment.
+            * - void jet(si32 b);                    // Set adjustment.
             * - void rtl(bool b);                    // Set reverse line feed.
             */
             #define F(t, q) p->task(rule{ fn::t, q })
@@ -1039,7 +1058,7 @@ namespace netxs::ansi
                 table[CSI_DSR] = nullptr;
 
                 auto& csi_ccc = table[CSI_CCC].resize(0x100);
-                csi_ccc.enable_multi_arg();
+                csi_ccc.template enable_multi_arg<NOMULTIARG>();
                     csi_ccc[CCC_CUP] = VT_PROC{ F(ay, q(0)); F(ax, q(0)); }; // fx_ccc_cup
                     csi_ccc[CCC_CPP] = VT_PROC{ F(py, q(0)); F(px, q(0)); }; // fx_ccc_cpp
                     csi_ccc[CCC_CHX] = VT_PROC{ F(ax, q(0)); }; // fx_ccc_chx
@@ -1071,8 +1090,12 @@ namespace netxs::ansi
                     csi_ccc[CCC_SMS] = nullptr;
                     csi_ccc[CCC_KBD] = nullptr;
 
+                    csi_ccc[CCC_SGR] = nullptr;
+                    csi_ccc[CCC_SEL] = nullptr;
+                    csi_ccc[CCC_PAD] = nullptr;
+
                 auto& csi_sgr = table[CSI_SGR].resize(0x100);
-                csi_sgr.enable_multi_arg();
+                csi_sgr.template enable_multi_arg<NOMULTIARG>();
                     csi_sgr[SGR_RST      ] = VT_PROC{ p->brush.nil( );    }; // fx_sgr_rst      ;
                     csi_sgr[SGR_SAV      ] = VT_PROC{ p->brush.sav( );    }; // fx_sgr_sav      ;
                     csi_sgr[SGR_FG       ] = VT_PROC{ p->brush.rfg( );    }; // fx_sgr_fg_def   ;
@@ -1131,7 +1154,7 @@ namespace netxs::ansi
             #undef F
         }
 
-        void proceed(iota cmd, T*& client)  { table.execute(cmd, client); }
+        void proceed(si32 cmd, T*& client) { table.execute(cmd, client); }
         void proceed           (fifo& q, T*& p) { table         .execute(q, p); }
         void proceed_quest     (fifo& q, T*& p) { table_quest   .execute(q, p); }
         void proceed_gt        (fifo& q, T*& p) { table_gt      .execute(q, p); }
@@ -1212,7 +1235,7 @@ namespace netxs::ansi
             //      [-----------------------]
 
             static constexpr auto maxarg = 32_sz; // ansi: Maximal number of the parameters in one escaped sequence.
-            using fifo = netxs::generics::bank <iota, maxarg>;
+            using fifo = netxs::generics::bank<si32, maxarg>;
 
             if (ascii.length())
             {
@@ -1256,6 +1279,7 @@ namespace netxs::ansi
                             if (ascii.empty()) break;
                             a = ascii.front(); // Delimiter or cmd after number.
                             trap(a);
+                            if (ascii.empty()) break;
                         }
                         else
                         {
@@ -1313,7 +1337,7 @@ namespace netxs::ansi
         static void xosc(qiew& ascii, T*& client)
         {
             // Take the string until ST (='\e\\'='ESC\' aka String Terminator) or BEL (='\x07')
-            // n: iota
+            // n: si32
             // ST: ESC \  (0x9C, ST = String Terminator)
             // BEL: 0x07
             //
@@ -1466,7 +1490,7 @@ namespace netxs::ansi
         deco style{}; // parser: Parser style.
         deco state{}; // parser: Parser style last state.
         grid proto{}; // parser: Proto lyric.
-        iota count{}; // parser: Proto lyric length.
+        si32 count{}; // parser: Proto lyric length.
         mark brush{}; // parser: Parser brush.
         //text debug{};
 
@@ -1547,7 +1571,7 @@ namespace netxs::ansi
             flush_data();
         }
         virtual void meta(deco const& old_style)         { };
-        virtual void data(iota count, grid const& proto) { };
+        virtual void data(si32 count, grid const& proto) { };
     };
 
     // ansi: Caret manipulation command list.
@@ -1564,18 +1588,18 @@ namespace netxs::ansi
         writ& rst ()           { push({ fn::zz, 0   }); return *this; } // Reset formatting parameters. Do not clear the command list.
         writ& cpp (twod p)     { push({ fn::px, p.x });                 // Caret percent position.
                                  push({ fn::py, p.y }); return *this; }
-        writ& cpx (iota x)     { push({ fn::px, x   }); return *this; } // Caret horizontal percent position.
-        writ& cpy (iota y)     { push({ fn::py, y   }); return *this; } // Caret vertical percent position.
+        writ& cpx (si32 x)     { push({ fn::px, x   }); return *this; } // Caret horizontal percent position.
+        writ& cpy (si32 y)     { push({ fn::py, y   }); return *this; } // Caret vertical percent position.
         writ& cup (twod p)     { push({ fn::ay, p.y });                 // 0-Based caret position.
                                  push({ fn::ax, p.x }); return *this; }
-        writ& cuu (iota n = 1) { push({ fn::dy,-n   }); return *this; } // Caret up.
-        writ& cud (iota n = 1) { push({ fn::dy, n   }); return *this; } // Caret down.
-        writ& cuf (iota n = 1) { push({ fn::dx, n   }); return *this; } // Caret forward.
-        writ& cub (iota n = 1) { push({ fn::dx,-n   }); return *this; } // Caret backward.
-        writ& cnl (iota n = 1) { push({ fn::nl, n   }); return *this; } // Caret next line.
-        writ& cpl (iota n = 1) { push({ fn::nl,-n   }); return *this; } // Caret previous line.
-        writ& chx (iota x)     { push({ fn::ax, x   }); return *this; } // Caret o-based horizontal absolute.
-        writ& chy (iota y)     { push({ fn::ay, y   }); return *this; } // Caret o-based vertical absolute.
+        writ& cuu (si32 n = 1) { push({ fn::dy,-n   }); return *this; } // Caret up.
+        writ& cud (si32 n = 1) { push({ fn::dy, n   }); return *this; } // Caret down.
+        writ& cuf (si32 n = 1) { push({ fn::dx, n   }); return *this; } // Caret forward.
+        writ& cub (si32 n = 1) { push({ fn::dx,-n   }); return *this; } // Caret backward.
+        writ& cnl (si32 n = 1) { push({ fn::nl, n   }); return *this; } // Caret next line.
+        writ& cpl (si32 n = 1) { push({ fn::nl,-n   }); return *this; } // Caret previous line.
+        writ& chx (si32 x)     { push({ fn::ax, x   }); return *this; } // Caret o-based horizontal absolute.
+        writ& chy (si32 y)     { push({ fn::ay, y   }); return *this; } // Caret o-based vertical absolute.
         writ& scp ()           { push({ fn::sc, 0   }); return *this; } // Save caret position in memory.
         writ& rcp ()           { push({ fn::rc, 0   }); return *this; } // Restore caret position from memory.
     };

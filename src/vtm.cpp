@@ -1,7 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#define MONOTTY_VER "Monotty Desktopio v0.6.0"
+#define MONOTTY_VER "Monotty Desktopio v0.7.0"
 
 // Enable demo apps and assign Esc key to log off.
 //#define DEMO
@@ -241,18 +241,6 @@ int main(int argc, char* argv[])
                     }
                     boss.base::deface();
                 };
-                boss.SUBMIT(tier::release, hids::events::mouse::button::click::leftright, gear)
-                {
-                    auto backup = boss.This();
-                    boss.base::detach();
-                    gear.dismiss();
-                };
-                boss.SUBMIT(tier::release, hids::events::mouse::button::click::middle, gear)
-                {
-                    auto backup = boss.This();
-                    boss.base::detach();
-                    gear.dismiss();
-                };
                 boss.SUBMIT(tier::release, e2::form::proceed::detach, backup)
                 {
                     boss.base::detach(); // The object kills itself.
@@ -321,7 +309,7 @@ int main(int argc, char* argv[])
 
     world->SIGNAL(tier::general, e2::config::fps, 60);
 
-    iota usr_count = 0;
+    auto usr_count = 0;
     auto user = os::user();
     auto path = utf::concat("monotty_", user);
     log("user: ", user);
@@ -394,11 +382,12 @@ int main(int argc, char* argv[])
                     auto deskmenu = menu_builder(utf::concat(client->id, ";", user, ";", path));
                     auto& fone_builder = app::shared::creator("Fone");
                     auto bkground = fone_builder(
-                    #ifndef PROD
+                    //todo
+                    //#ifndef PROD
                         "Shop;Demo;"
-                    #else
-                        "HeadlessTerm;Info;ssh info@netxs.online"
-                    #endif
+                    //#else
+                    //    "HeadlessTerm;Info;ssh info@netxs.online"
+                    //#endif
                     );
             
                     client->attach(deskmenu);

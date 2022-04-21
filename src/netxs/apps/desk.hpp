@@ -141,7 +141,7 @@ namespace netxs::app::desk
                                              SIGNAL_GLOBAL(e2::config::whereami, world_ptr);
                                              if (world_ptr)
                                              {
-                                                 static iota random = 0;
+                                                 static si32 random = 0;
                                                  random = (random + 2) % 10;
                                                  auto offset = twod{ random * 2, random };
                                                  auto viewport = gear.area();
@@ -211,8 +211,8 @@ namespace netxs::app::desk
 
         auto build = [](view v)
         {
-            iota uibar_min_size = 4;
-            iota uibar_full_size = 31;
+            si32 uibar_min_size = 4;
+            si32 uibar_full_size = 31;
 
             auto window = ui::cake::ctor();
 
@@ -256,12 +256,12 @@ namespace netxs::app::desk
 
                 window->invoke([uibar_full_size, uibar_min_size](auto& boss) mutable
                     {
-                        #ifdef _WIN32
-                            auto current_default_sptr = std::make_shared<text>(app::shared::objs_lookup["CommandPrompt"]);
-                            //auto current_default = app::shared::objs_lookup["PowerShell"];
-                        #else
+                        //#ifdef _WIN32
+                        //    auto current_default_sptr = std::make_shared<text>(app::shared::objs_lookup["CommandPrompt"]);
+                        //    //auto current_default = app::shared::objs_lookup["PowerShell"];
+                        //#else
                             auto current_default_sptr = std::make_shared<text>(app::shared::objs_lookup["Term"]);
-                        #endif
+                        //#endif
                         auto previous_default_sptr = std::make_shared<text>(*current_default_sptr);
                         auto subs_sptr = std::make_shared<subs>();
                         auto shadow = ptr::shadow(boss.This());
@@ -321,9 +321,9 @@ namespace netxs::app::desk
                                         ->plugin<pro::cache>()
                                         ->invoke([&](auto& boss)
                                         {
-                                            boss.mouse.template draggable<sysmouse::left>();
+                                            boss.mouse.template draggable<sysmouse::left>(true);
                                             auto boss_shadow = ptr::shadow(boss.This());
-                                            auto size_config = std::make_shared<std::pair<iota, iota>>(uibar_full_size, uibar_min_size);
+                                            auto size_config = std::make_shared<std::pair<si32, si32>>(uibar_full_size, uibar_min_size);
                                             boss.SUBMIT_BYVAL(tier::release, e2::form::drag::pull::_<sysmouse::left>, gear)
                                             {
                                                 if (auto boss_ptr = boss_shadow.lock())
@@ -459,7 +459,8 @@ namespace netxs::app::desk
                                                           ->plugin<pro::fader>(x1, c1, 150ms)
                                                           ->invoke([&](auto& boss)
                                                           {
-                                                              boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
+                                                              //Use BYVAL to capture "path" value (crashes on FreeBSD/gcc).
+                                                              boss.SUBMIT_BYVAL(tier::release, hids::events::mouse::button::click::left, gear)
                                                               {
                                                                   //todo unify, see system.h:1614
                                                                   #if defined(__APPLE__) || defined(__FreeBSD__)

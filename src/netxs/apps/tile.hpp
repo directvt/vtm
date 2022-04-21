@@ -233,16 +233,16 @@ namespace netxs::app::tile
                 boss.base::template riseup<tier::release>(e2::form::maximize, gear);
                 gear.dismiss();
             };
-            boss.SUBMIT(tier::release, hids::events::mouse::button::click::leftright, gear)
-            {
-                boss.base::template riseup<tier::release>(e2::form::quit, boss.This());
-                gear.dismiss();
-            };
-            boss.SUBMIT(tier::release, hids::events::mouse::button::click::middle, gear)
-            {
-                boss.base::template riseup<tier::release>(e2::form::quit, boss.This());
-                gear.dismiss();
-            };
+            //boss.SUBMIT(tier::release, hids::events::mouse::button::click::leftright, gear)
+            //{
+            //    boss.base::template riseup<tier::release>(e2::form::quit, boss.This());
+            //    gear.dismiss();
+            //};
+            //boss.SUBMIT(tier::release, hids::events::mouse::button::click::middle, gear)
+            //{
+            //    boss.base::template riseup<tier::release>(e2::form::quit, boss.This());
+            //    gear.dismiss();
+            //};
         };
         auto app_window = [](view header, view footer, auto branch, auto menu_item_id)
         {
@@ -660,7 +660,7 @@ namespace netxs::app::tile
                     };
                     boss.SUBMIT(tier::release, e2::form::proceed::createby, gear)
                     {
-                        static iota insts_count = 0;
+                        static auto insts_count = 0;
                         if (boss.count() == 1) // Create new apps at the empty slots only.
                         {
                             if (gear.meta(hids::ANYCTRL))
@@ -778,9 +778,9 @@ namespace netxs::app::tile
                 // add split
                 utf8.remove_prefix(1);
                 utf::trim_front(utf8, " ");
-                iota s1 = 1;
-                iota s2 = 1;
-                iota w = -1;
+                si32 s1 = 1;
+                si32 s2 = 1;
+                si32 w = -1;
                 if (auto param = utf::to_int(utf8))
                 {
                     s1 = std::abs(param.value());

@@ -30,9 +30,6 @@ namespace netxs::utf
     using utfx = uint32_t;
     using ctrl = unidata::cntrls::type;
 
-    //todo unify
-    using iota = int32_t;
-
     static constexpr utfx        REPLACEMENT_CHARACTER = 0x0000FFFD;
     static constexpr char const* REPLACEMENT_CHARACTER_UTF8 = "\uFFFD";	// 0xEF 0xBF 0xBD (efbfbd) "�"
     static constexpr size_t	     REPLACEMENT_CHARACTER_UTF8_LEN = 3;
@@ -372,7 +369,7 @@ namespace netxs::utf
     struct qiew : public view
     {
         void     pop_front () { view::remove_prefix(1); }
-        iota     front     () const { return static_cast<unsigned char>(view::front()); }
+        si32     front     () const { return static_cast<unsigned char>(view::front()); }
         operator bool      () const { return view::length(); }
 
         constexpr qiew() noexcept : view() { }
@@ -384,7 +381,7 @@ namespace netxs::utf
         // Pop front a sequence of the same control points and return their count + 1.
         auto pop_all(ctrl cmd)
         {
-            iota n = 1;
+            si32 n = 1;
             auto next = utf::letter(*this);
             while (next.attr.control == cmd)
             {
@@ -397,7 +394,7 @@ namespace netxs::utf
         // Pop front a sequence of the same control points and return their count + 1.
         auto pop_all(char c)
         {
-            iota n = 1;
+            si32 n = 1;
             while (length() && view::front() == c)
             {
                 view::remove_prefix(1);
@@ -429,9 +426,9 @@ namespace netxs::utf
     };
 
     template<class VIEW>
-    inline std::optional<iota> to_int(VIEW&& ascii)
+    inline std::optional<si32> to_int(VIEW&& ascii)
     {
-        iota num;
+        si32 num;
         auto top = ascii.data();
         auto end = ascii.length() + top;
 
@@ -784,7 +781,7 @@ namespace netxs::utf
     template<class TEXT_OR_VIEW>
     auto length(TEXT_OR_VIEW&& utf8)
     {
-        iota length = 0;
+        si32 length = 0;
         for (auto c : utf8)
         {
             length += (c & 0xc0) != 0x80;
@@ -815,9 +812,9 @@ namespace netxs::utf
         }
     }
     //todo deprecate cus too specific
-    static iota shrink(view& utf8)
+    static si32 shrink(view& utf8)
     {
-        iota length = 0;
+        si32 length = 0;
         auto size = utf8.size();
         auto i = 0_sz;
 
@@ -974,8 +971,10 @@ namespace netxs::utf
     template<class TEXT_OR_VIEW, class T>
     auto remain(TEXT_OR_VIEW&& utf8, T const& delimiter)
     {
+        using type = std::remove_cvref_t<TEXT_OR_VIEW>;
+
         view what{ delimiter };
-        text crop;
+        type crop;
         auto coor = utf8.find(what);
         if (coor != text::npos)
         {
