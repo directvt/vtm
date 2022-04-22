@@ -1512,7 +1512,7 @@ namespace netxs::os
 
                 ucred cred = {};
                 #ifndef __ANDROID__
-                socklen_t size = sizeof(cred);
+                    socklen_t size = sizeof(cred);
                 #else
                     unsigned size = sizeof(cred);
                 #endif
