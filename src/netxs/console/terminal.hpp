@@ -847,6 +847,7 @@ namespace netxs::ui
 
             virtual void selection_create(twod coor, bool mode)     = 0;
             virtual bool selection_extend(twod coor, bool mode)     = 0;
+            virtual void selection_follow(twod coor, bool lock)     = 0;
             virtual void selection_byword(twod coor)                = 0;
             virtual void selection_byline(twod coor)                = 0;
             virtual text selection_pickup(si32  selmod)             = 0;
@@ -1962,6 +1963,28 @@ namespace netxs::ui
                     selection_update();
                 }
                 return state;
+            }
+            // alt_screen: Set selection orientation.
+            void selection_follow(twod coor, bool lock) override
+            {
+                selection_locked(lock);
+                if (selection_active())
+                {
+                    auto limits = panel - dot_11;
+                    coor = std::clamp(coor, dot_00, limits);
+                    if (selection_selbox())
+                    {
+                        auto c = (selend + seltop) / 2;
+                        if (coor.x > c.x == seltop.x > selend.x) std::swap(seltop.x, selend.x);
+                        if (coor.y > c.y == seltop.y > selend.y) std::swap(seltop.y, selend.y);
+                    }
+                    else
+                    {
+                        auto swap = selend.y == seltop.y ? std::abs(selend.x - coor.x) > std::abs(seltop.x - coor.x)
+                                                         : std::abs(selend.y - coor.y) > std::abs(seltop.y - coor.y);
+                        if (swap) std::swap(seltop, selend);
+                    }
+                }
             }
             // alt_screen: Select one word.
             void selection_byword(twod coor) override
@@ -4459,6 +4482,22 @@ namespace netxs::ui
                 }
                 return state;
             }
+            // scroll_buf: Set selection orientation.
+            void selection_follow(twod coor, bool lock) override
+            {
+                selection_locked(lock);
+                if (selection_active())
+                {
+                    if (selection_selbox())
+                    {
+                        //...
+                    }
+                    else
+                    {
+                        //...
+                    }
+                }
+            }
             // scroll_buf: 
             template<feed DIR>
             auto xconv(si32 x, bias align, si32 remain)
@@ -5463,7 +5502,7 @@ namespace netxs::ui
             auto go_on = gear.meta(hids::ANYCTRL);
             if (go_on && target->selection_active())
             {
-                target->selection_locked(go_on);
+                target->selection_follow(gear.coord, go_on);
                 selection_extend(gear);
                 gear.dismiss();
                 base::expire<tier::release>();
@@ -5488,11 +5527,9 @@ namespace netxs::ui
         {
             auto boxed = gear.meta(hids::ALT);
             auto go_on = gear.meta(hids::ANYCTRL);
-            target->selection_locked(go_on);
-            if (!(go_on && target->selection_extend(gear.coord, boxed)))
-            {
-                target->selection_create(gear.coord, boxed);
-            }
+            target->selection_follow(gear.coord, go_on);
+            if (go_on) target->selection_extend(gear.coord, boxed);
+            else       target->selection_create(gear.coord, boxed);
             base::deface();
         }
         void selection_extend(hids& gear)
