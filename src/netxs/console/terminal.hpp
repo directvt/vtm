@@ -103,7 +103,7 @@ namespace netxs::ui
         static constexpr si32 def_growup = 0;     // term: Default scrollback history grow step.
         static constexpr si32 def_tablen = 8;     // term: Default tab length.
         static constexpr auto def_lucent = 0xC0;  // term: Default transparency level.
-        static constexpr auto def_margin = 3;     // term: Default side margin.
+        static constexpr auto def_margin = 0;     // term: Default side margin.
         static constexpr auto def_selmod = xsgr::textonly; // term: Default selection mode.
         static constexpr auto def_wrpmod = deco::defwrp;   // term: Default wrapping mode.
         static constexpr auto def_fcolor = whitelt; // term: Default foreground color.
