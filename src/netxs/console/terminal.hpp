@@ -109,7 +109,7 @@ namespace netxs::ui
         static constexpr auto def_fcolor = whitelt; // term: Default foreground color.
         static constexpr auto def_bcolor = blackdk; // term: Default background color.
         static constexpr auto def_cursor = commands::cursor::blinking_underline; // term: Default cursor style.
-        static constexpr auto def_selclr = { bluedk,  whitelt }; // term: Default selection colors.
+        static constexpr auto def_selclr = { bluelt,  whitelt }; // term: Default selection colors.
         static constexpr auto def_offclr = { blacklt, whitedk }; // term: Default inactive selection colors.
 
         // term: VT-buffer status.
@@ -822,6 +822,7 @@ namespace netxs::ui
             bool  decom; // bufferbase: Origin mode.
 
             bool  boxed; // bufferbase: Box selection mode.
+            bool  grant; // bufferbase: Is it allowed to change box selection mode.
             ui64  alive; // bufferbase: Selection is active (digest).
 
             bufferbase(term& master)
@@ -838,6 +839,7 @@ namespace netxs::ui
                   notab{ faux   },
                   decom{ faux   },
                   boxed{ faux   },
+                  grant{ faux   },
                   alive{ 0      }
             {
                 parser::style = ansi::def_style;
@@ -852,6 +854,17 @@ namespace netxs::ui
             virtual void selection_status(term_state& status) const = 0;
             virtual void selection_setjet(bias align) { }
             virtual void selection_setwrp() { }
+            // bufferbase: Set selection mode lock state.
+            void selection_locked(bool lock)
+            {
+                grant = !lock;
+            }
+            // bufferbase: Return selection mode lock state.
+            auto selection_locked()
+            {
+                return !grant;
+            }
+            // bufferbase: Ping selection state.
             template<bool FORCED = true>
             void selection_update()
             {
@@ -865,7 +878,8 @@ namespace netxs::ui
             // bufferbase: Set selection mode (boxed = true).
             void selection_selbox(bool state)
             {
-                boxed = state;
+                if (state) grant = true;
+                if (grant) boxed = state;
             }
             // bufferbase: Return selection mode.
             bool selection_selbox() const
@@ -1955,6 +1969,7 @@ namespace netxs::ui
                 seltop = selend = coor;
                 seltop.x = canvas.word<feed::rev>(coor);
                 selend.x = canvas.word<feed::fwd>(coor);
+                selection_locked(faux);
                 selection_selbox(faux);
                 selection_update();
             }
@@ -1964,6 +1979,7 @@ namespace netxs::ui
                 seltop.y = selend.y = coor.y;
                 seltop.x = 0;
                 selend.x = panel.x - 1;
+                selection_locked(faux);
                 selection_selbox(faux);
                 selection_update();
             }
@@ -4216,6 +4232,23 @@ namespace netxs::ui
             // scroll_buf: Start text selection.
             void selection_create(twod coor, bool mode) override
             {
+                if (selection_locked())
+                {
+                    // find the nearest corner
+                    // swap grips
+                    if (selection_selbox())
+                    {
+                        //...
+                    }
+                    else
+                    {
+                        //...
+                    }
+                }
+                else
+                {
+                    //...
+                }
                 auto nohits = [&](auto upcoor, auto dncoor, auto& top, auto& end)
                 {
                     if (coor == upcoor && top.role == grip::base)// std::swap(top, end);
@@ -4225,6 +4258,7 @@ namespace netxs::ui
                         std::swap(upend, dnend);
                     }
                     else if (coor != dncoor || end.role != grip::base) return true;
+                    selection_locked(true);
                     return faux;
                 };
                 auto scrolling_margin = batch.slide + y_top;
@@ -4523,6 +4557,7 @@ namespace netxs::ui
                     upend.coor.x = dnbox.word<feed::rev>(coor);
                     dnend.coor.x = dnbox.word<feed::fwd>(coor);
                 }
+                selection_locked(faux);
                 selection_selbox(faux);
                 selection_update();
             }
@@ -4567,6 +4602,7 @@ namespace netxs::ui
                     upend.coor.x = 0;
                     dnend.coor.x = panel.x - 1;
                 }
+                selection_locked(faux);
                 selection_selbox(faux);
                 selection_update();
             }
@@ -5427,6 +5463,7 @@ namespace netxs::ui
             auto go_on = gear.meta(hids::ANYCTRL);
             if (go_on && target->selection_active())
             {
+                target->selection_locked(go_on);
                 selection_extend(gear);
                 gear.dismiss();
                 base::expire<tier::release>();
@@ -5451,6 +5488,7 @@ namespace netxs::ui
         {
             auto boxed = gear.meta(hids::ALT);
             auto go_on = gear.meta(hids::ANYCTRL);
+            target->selection_locked(go_on);
             if (!(go_on && target->selection_extend(gear.coord, boxed)))
             {
                 target->selection_create(gear.coord, boxed);
