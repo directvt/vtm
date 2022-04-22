@@ -375,9 +375,13 @@ namespace netxs::console
             static constexpr auto rev = DIRECTION == feed::fwd ? faux : true;
 
             //todo unify
-            auto empty = [&](auto txt)
+            auto is_empty = [&](auto txt)
             {
                 return txt.empty() || txt.front() == whitespace;
+            };
+            auto empty = [&](auto txt)
+            {
+                return is_empty(txt);
             };
             auto alpha = [&](auto txt)
             {
@@ -401,18 +405,27 @@ namespace netxs::console
                      && (c < 0xFF3B || c > 0xFF40) // 
                      && (c < 0xFF5B || c > 0xFF65) // 
             ;};
-            auto email = [&](auto txt)
+            auto is_email = [&](auto txt)
             {
                 return !txt.empty() && txt.front() == '@';
             };
-            auto mails = [&](auto txt)
+            auto email = [&](auto txt)
             {
                 return !txt.empty() && (alpha(txt) || txt.front() == '.');
+            };
+            auto is_digit = [&](auto txt)
+            {
+                auto c = utf::letter(txt).attr.cdpoint;
+                return c >= '0' && c <= '9'
+                    || c >= 0xFF10 && c <= 0xFF19; // U+FF10 (０) FULLWIDTH DIGIT ZERO - U+FF19 (９) FULLWIDTH DIGIT NINE
             };
             auto digit = [&](auto txt)
             {
                 auto c = utf::letter(txt).attr.cdpoint;
-                return c >= '.'    && c <= '9'
+                return c == '.'
+                    || c >= 'a' && c <= 'f'
+                    || c >= 'A' && c <= 'F'
+                    || c >= '0' && c <= '9'
                     || c >= 0xFF10 && c <= 0xFF19; // U+FF10 (０) FULLWIDTH DIGIT ZERO - U+FF19 (９) FULLWIDTH DIGIT NINE
             };
             auto func = [&](auto check)
@@ -435,10 +448,10 @@ namespace netxs::console
 
             coord = std::clamp(coord, dot_00, region.size - dot_11);
             auto test = data(coord)->txt();
-            digit(test) ? func(digit) :
-            email(test) ? func(mails) :
-            empty(test) ? func(empty) :
-                          func(alpha);
+            is_digit(test) ? func(digit) :
+            is_email(test) ? func(email) :
+            is_empty(test) ? func(empty) :
+                             func(alpha);
             return coord.x;
         }
         template<class P>
