@@ -109,7 +109,8 @@ namespace netxs::ui
         static constexpr auto def_fcolor = whitelt; // term: Default foreground color.
         static constexpr auto def_bcolor = blackdk; // term: Default background color.
         static constexpr auto def_cursor = commands::cursor::blinking_underline; // term: Default cursor style.
-        static constexpr auto def_selclr = { bluedk, whitelt }; // term: Default selection colors.
+        static constexpr auto def_selclr = { bluedk,  whitelt }; // term: Default selection colors.
+        static constexpr auto def_offclr = { blacklt, whitedk }; // term: Default inactive selection colors.
 
         // term: VT-buffer status.
         struct term_state
@@ -821,7 +822,6 @@ namespace netxs::ui
             bool  decom; // bufferbase: Origin mode.
 
             bool  boxed; // bufferbase: Box selection mode.
-            //bool  grips; // bufferbase: Display grips.
             ui64  alive; // bufferbase: Selection is active (digest).
 
             bufferbase(term& master)
@@ -838,7 +838,6 @@ namespace netxs::ui
                   notab{ faux   },
                   decom{ faux   },
                   boxed{ faux   },
-                  //grips{ faux   },
                   alive{ 0      }
             {
                 parser::style = ansi::def_style;
@@ -848,7 +847,6 @@ namespace netxs::ui
             virtual bool selection_extend(twod coor, bool mode)     = 0;
             virtual void selection_byword(twod coor)                = 0;
             virtual void selection_byline(twod coor)                = 0;
-            //virtual bool selection_ongrip(twod coor)                = 0;
             virtual text selection_pickup(si32  selmod)             = 0;
             virtual void selection_render(face& target)             = 0;
             virtual void selection_status(term_state& status) const = 0;
@@ -859,11 +857,6 @@ namespace netxs::ui
             {
                 if (FORCED || alive) ++alive;
             }
-            //// bufferbase: Return grips visibility.
-            //bool selection_onhand()
-            //{
-            //    return grips;
-            //}
             // bufferbase: Return true if selection is active.
             auto selection_active() const
             {
@@ -1648,20 +1641,11 @@ namespace netxs::ui
                             target.fill(east, fill);
                         }
                         square = square.clip(view);
-                        //rip_1 = grip_1.clip(view);
-                        //rip_2 = grip_2.clip(view);
                         target.fill(square, fill);
-                        //if (selection_onhand())
-                        //{
-                        //    if (ontop) target.fill(grip_1, cell::shaders::invbit);
-                        //    if (onend && grip_1.coor != grip_2.coor)
-                        //    {
-                        //        target.fill(grip_2, cell::shaders::invbit);
-                        //    }
-                        //}
                     };
-                    mode == xsgr::ansitext ? work(cell::shaders::xlight)
-                                           : work(cell::shaders::selection(def_selclr));
+                    mode == xsgr::ansitext ? work(cell::shaders::xlight) :
+                    mode == xsgr::textonly ? work(cell::shaders::selection(def_selclr)) :
+                                             work(cell::shaders::selection(def_offclr)) ;
                 }
             }
             // bufferbase: Pickup selected data from canvas.
@@ -2010,23 +1994,6 @@ namespace netxs::ui
                 status.body = status.coor.y * panel.x + status.coor.x + 1;
                 status.coor+= dot_11;
             }
-            // alt_screen: Grips hit test.
-            //bool selection_ongrip(twod coor) override
-            //{
-            //    auto limits = panel - dot_11;
-            //    auto curtop = std::clamp(seltop, dot_00, limits);
-            //    auto curend = std::clamp(selend, dot_00, limits);
-            //    auto result = coor == curtop
-            //               || coor == curend;
-            //    if (selection_selbox())
-            //    {
-            //        std::swap(curtop.y, curend.y);
-            //        result |= coor == curtop
-            //               || coor == curend;
-            //    }
-            //    bufferbase::grips = result;
-            //    return result;
-            //}
         };
 
         // term: Scrollback buffer implementation.
@@ -4854,27 +4821,12 @@ namespace netxs::ui
                     curend += full.coor;
                     auto grip_1 = rect{ curtop, dot_11 };
                     auto grip_2 = rect{ curend, dot_11 };
-                    //auto gripfx = [&]()
-                    //{
-                    //    if (upmid.role == grip::base) target.fill(grip_1.clip(view), cell::shaders::invbit);
-                    //    if (dnmid.role == grip::base && grip_1.coor != grip_2.coor)
-                    //    {
-                    //        target.fill(grip_2.clip(view), cell::shaders::invbit);
-                    //    }
-                    //};
-                    //if (selection_onhand()) gripfx();
                     if (selection_selbox())
                     {
                         auto square = grip_1 | grip_2;
-                        mode == xsgr::ansitext ? target.fill(square.clip(view), cell::shaders::xlight)
-                                               : target.fill(square.clip(view), cell::shaders::selection(def_selclr));
-                        //if (selection_onhand()
-                        // && grip_1.coor.x != grip_2.coor.x // Draw diagonal grips.
-                        // && grip_1.coor.y != grip_2.coor.y)
-                        //{
-                        //    std::swap(grip_1.coor.x, grip_2.coor.x);
-                        //    gripfx();
-                        //}
+                        mode == xsgr::ansitext ? target.fill(square.clip(view), cell::shaders::xlight) :
+                        mode == xsgr::textonly ? target.fill(square.clip(view), cell::shaders::selection(def_selclr)) :
+                                                 target.fill(square.clip(view), cell::shaders::selection(def_offclr)) ;
                     }
                     else
                     {
@@ -4940,8 +4892,9 @@ namespace netxs::ui
                                 ++head;
                             }
                         };
-                        mode == xsgr::ansitext ? work(cell::shaders::xlight)
-                                               : work(cell::shaders::selection(def_selclr));
+                        mode == xsgr::ansitext ? work(cell::shaders::xlight) :
+                        mode == xsgr::textonly ? work(cell::shaders::selection(def_selclr)) :
+                                                 work(cell::shaders::selection(def_offclr)) ;
                     }
                 }
             }
@@ -5034,47 +4987,12 @@ namespace netxs::ui
                 });
                 resize_viewport(panel, true); // Recalc batch.basis.
             }
-            // scroll_buf: Grips hit test.
-            //bool selection_ongrip(twod coor) override
-            //{
-            //    bool result;
-            //    auto scrolling_margin = batch.slide + y_top;
-            //    auto test = [&](auto role_1, auto role_2, auto coor_1, auto coor_2)
-            //    {
-            //        auto result = role_1 == grip::base && coor == coor_1
-            //                   || role_2 == grip::base && coor == coor_2;
-            //        if (selection_selbox())
-            //        {
-            //            result |= role_1 == grip::base && coor.x == coor_2.x && coor.y == coor_1.y
-            //                   || role_2 == grip::base && coor.x == coor_1.x && coor.y == coor_2.y;
-            //        }
-            //        return result;
-            //    };
-            //    if (coor.y < scrolling_margin) // Inside the top margin.
-            //    {
-            //        coor -= {-owner.origin.x, batch.slide };
-            //        result = test(uptop.role, dntop.role, uptop.coor, dntop.coor);
-            //    }
-            //    else if (coor.y < scrolling_margin + arena) // Inside the scrolling region.
-            //    {
-            //        auto [seltop, selend] = selection_take_grips();
-            //        result = test(upmid.role, dnmid.role, seltop, selend);
-            //    }
-            //    else // Inside the bottom margin.
-            //    {
-            //        coor -= {-owner.origin.x, scrolling_margin + arena };
-            //        result = test(upend.role, dnend.role, upend.coor, dnend.coor);
-            //    }
-            //    bufferbase::grips = result;
-            //    return result;
-            //}
         };
 
         using buffer_ptr = bufferbase*;
 
         pro::timer worker; // term: Linear animation controller.
         pro::caret cursor; // term: Text cursor controller.
-        //pro::users guests; // term: Active mouse cursors controller.
         term_state status; // term: Screen buffer status info.
         w_tracking wtrack; // term: Terminal title tracking object.
         f_tracking ftrack; // term: Keyboard focus tracking object.
@@ -5438,10 +5356,6 @@ namespace netxs::ui
             auto newmod = (selmod + 1) % xsgr::count;
             selection_selmod(newmod);
         }
-        //auto selection_active()
-        //{
-        //    return target->selection_active();
-        //}
         auto selection_cancel(hids& gear)
         {
             auto active = target->selection_cancel();
@@ -5586,13 +5500,6 @@ namespace netxs::ui
             worker.pacify();
             base::deface();
         }
-        //void selection_ongrip(hids& gear)
-        //{
-        //    if (target->selection_ongrip(gear.coord))
-        //    {
-        //        base::deface();
-        //    }
-        //}
         void selection_submit()
         {
             SIGNAL(tier::release, e2::form::draggable::left, selection_passed());
@@ -5605,7 +5512,6 @@ namespace netxs::ui
                 }
             };
             //todo make it configurable
-            //SUBMIT(tier::release, hids::events::mouse::move                  ,  gear) { if (selection_active()) selection_ongrip(gear); };
             SUBMIT(tier::release, e2::form::drag::start                ::left,  gear) { if (selection_passed()) selection_create(gear); };
             SUBMIT(tier::release, e2::form::drag::pull                 ::left,  gear) { if (selection_passed()) selection_extend(gear); };
             SUBMIT(tier::release, e2::form::drag::stop                 ::left,  gear) {                         selection_finish(gear); };
@@ -5700,7 +5606,6 @@ namespace netxs::ui
               altbuf{ *this },
               cursor{ *this },
               worker{ *this },
-              //guests{ *this },
               mtrack{ *this },
               ftrack{ *this },
               wtrack{ *this },
