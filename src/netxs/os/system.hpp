@@ -1511,11 +1511,11 @@ namespace netxs::os
             #elif defined(__linux__)
 
                 ucred cred = {};
-		#ifndef __ANDROID__
-		    socklen_t size = sizeof(cred);
-		#else
+                #ifndef __ANDROID__
+		                socklen_t size = sizeof(cred);
+                #else
                     unsigned size = sizeof(cred);
-		#endif
+                #endif
 
                 if (!ok(::getsockopt(handle.h, SOL_SOCKET, SO_PEERCRED, &cred, &size), "getsockopt error"))
                     return faux;
