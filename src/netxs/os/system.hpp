@@ -81,11 +81,11 @@
 
     #if defined(__linux__)
         #include <sys/vt.h> // ::console_ioctl()
-	#ifdef __ANDROID__
-	    #include <linux/kd.h>   // ::console_ioctl()
+	    #ifdef __ANDROID__
+	        #include <linux/kd.h>   // ::console_ioctl()
         #else
             #include <sys/kd.h>     // ::console_ioctl()
-	#endif
+	    #endif
         #include <linux/keyboard.h> // ::keyb_ioctl()
     #endif
 
@@ -1512,7 +1512,7 @@ namespace netxs::os
 
                 ucred cred = {};
                 #ifndef __ANDROID__
-		                socklen_t size = sizeof(cred);
+                socklen_t size = sizeof(cred);
                 #else
                     unsigned size = sizeof(cred);
                 #endif
