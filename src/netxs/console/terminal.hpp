@@ -4255,23 +4255,6 @@ namespace netxs::ui
             // scroll_buf: Start text selection.
             void selection_create(twod coor, bool mode) override
             {
-                if (selection_locked())
-                {
-                    // find the nearest corner
-                    // swap grips
-                    if (selection_selbox())
-                    {
-                        //...
-                    }
-                    else
-                    {
-                        //...
-                    }
-                }
-                else
-                {
-                    //...
-                }
                 auto nohits = [&](auto upcoor, auto dncoor, auto& top, auto& end)
                 {
                     if (coor == upcoor && top.role == grip::base)// std::swap(top, end);
@@ -4333,6 +4316,7 @@ namespace netxs::ui
                 auto state = selection_active();
                 if (state)
                 {
+                    selection_selbox(mode);
                     auto scrolling_margin = batch.slide + y_top;
                     if (coor.y < scrolling_margin) // Hit the top margin.
                     {
@@ -4434,7 +4418,7 @@ namespace netxs::ui
 
                     if (panel.y != arena)
                     {
-                        if (mode)
+                        if (selection_selbox())
                         {
                             auto x1 = upmid.role == grip::base ? upmid.coor.x :
                                       uptop.role == grip::base ? uptop.coor.x - owner.origin.x:
@@ -4477,7 +4461,6 @@ namespace netxs::ui
                         }
                     }
 
-                    selection_selbox(mode);
                     selection_update();
                 }
                 return state;
@@ -4488,13 +4471,113 @@ namespace netxs::ui
                 selection_locked(lock);
                 if (selection_active())
                 {
-                    if (selection_selbox())
+                    auto scrolling_margin = batch.slide + y_top;
+                    if (coor.y < scrolling_margin) // Inside the top margin.
                     {
-                        //...
+                        coor -= {-owner.origin.x, batch.slide };
+                        if (uptop.role == grip::base
+                         && dntop.role == grip::base)
+                        {
+                            auto& seltop = uptop.coor;
+                            auto& selend = dntop.coor;
+                            if (selection_selbox())
+                            {
+                                auto c = (selend + seltop) / 2;
+                                if (coor.x > c.x == seltop.x > selend.x) std::swap(seltop.x, selend.x);
+                                if (coor.y > c.y == seltop.y > selend.y) std::swap(seltop.y, selend.y);
+                            }
+                            else
+                            {
+                                auto swap = selend.y == seltop.y ? std::abs(selend.x - coor.x) > std::abs(seltop.x - coor.x)
+                                                                 : std::abs(selend.y - coor.y) > std::abs(seltop.y - coor.y);
+                                if (swap) std::swap(seltop, selend);
+                            }
+                        }
                     }
-                    else
+                    else if (coor.y < scrolling_margin + arena) // Inside the scrolling region.
                     {
-                        //...
+                        if (upmid.role == grip::base
+                         && dnmid.role == grip::base)
+                        {
+                            auto check = selection_coor_to_grip(coor);
+                            auto idtop = batch.index_by_id(upmid.link);
+                            auto idend = batch.index_by_id(dnmid.link);
+                            auto idcur = batch.index_by_id(check.link);
+                            if (selection_selbox())
+                            {
+                                bool swap = faux;
+                                auto cx = (dnmid.coor.x + upmid.coor.x) / 2;
+                                if (coor.x > cx == upmid.coor.x > dnmid.coor.x) std::swap(upmid.coor.x, dnmid.coor.x);
+                                if (idend != idtop)
+                                {
+                                    auto cy = (idend + idtop) / 2;
+                                    swap = idcur > cy == idtop > idend;
+                                }
+                                else // idend == idtop
+                                {
+                                    if (idend == idcur)
+                                    {
+                                        auto cy = (dnmid.coor.y + upmid.coor.y) / 2;
+                                        swap = check.coor.y > cy == upmid.coor.y > dnmid.coor.y;
+                                    }
+                                    else swap = idcur > idend == upmid.coor.y > dnmid.coor.y;
+                                }
+                                if (swap)
+                                {
+                                    std::swap(upmid.coor.y, dnmid.coor.y);
+                                    std::swap(upmid.link,   dnmid.link);
+                                }
+                            }
+                            else
+                            {
+                                bool swap = faux;
+                                if (idtop != idend)
+                                {
+                                    auto cy = (idend + idtop) / 2;
+                                    swap = idcur > cy == idtop > idend;
+                                }
+                                else // idend == idtop
+                                {
+                                    if (idend == idcur)
+                                    {
+                                        if (dnmid.coor.y != upmid.coor.y)
+                                        {
+                                            auto cy = (dnmid.coor.y + upmid.coor.y) / 2;
+                                            swap = check.coor.y > cy == upmid.coor.y > dnmid.coor.y;
+                                        }
+                                        else
+                                        {
+                                            swap = (upmid.coor.y == check.coor.y ? std::abs(dnmid.coor.x - check.coor.x) > std::abs(upmid.coor.x - check.coor.x)
+                                                                                 : std::abs(dnmid.coor.y - check.coor.y) > std::abs(upmid.coor.y - check.coor.y));
+                                        }
+                                    }
+                                    else swap = idcur > idend == upmid.coor.y > dnmid.coor.y;
+                                }
+                                if (swap) std::swap(upmid, dnmid);
+                            }
+                        }
+                    }
+                    else // Inside the bottom margin.
+                    {
+                        coor -= {-owner.origin.x, scrolling_margin + arena };
+                        if (upend.role == grip::base
+                         && dnend.role == grip::base)
+                        {
+                            auto& seltop = upend.coor;
+                            auto& selend = dnend.coor;
+                            if (selection_selbox())
+                            {
+                                auto c = (selend + seltop) / 2;
+                                if (coor.x > c.x == seltop.x > selend.x) std::swap(seltop.x, selend.x);
+                                if (coor.y > c.y == seltop.y > selend.y) std::swap(seltop.y, selend.y);
+                            }
+                            else
+                            {
+                                auto swap = selend.y == seltop.y ? std::abs(selend.x - coor.x) > std::abs(seltop.x - coor.x)
+                                                                 : std::abs(selend.y - coor.y) > std::abs(seltop.y - coor.y);
+                                if (swap) std::swap(seltop, selend);
+                            }
+                        }
                     }
                 }
             }
