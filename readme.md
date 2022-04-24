@@ -159,7 +159,7 @@ No arguments | Run client (auto start server)
   <tr>
     <th>LeftDrag</th>
     <td colspan="3">Adjust sidebar width</td>
-    <td colspan="5">Move app window</td>
+    <td colspan="5">Move window or Select text</td>
     <td>Panoramic workspace scrolling</td>
   </tr>
   <tr>
@@ -176,6 +176,15 @@ No arguments | Run client (auto start server)
   <tr>
     <th>Left+RightDrag</th>
     <td colspan="9">Panoramic workspace scrolling</td>
+  </tr>
+  <tr>
+    <th>Ctrl+LeftDrag</th>
+    <td colspan="9">Modify selection</td>
+  </tr>
+  <tr>
+  <tr>
+    <th>Alt+LeftDrag</th>
+    <td colspan="9">Switch boxed/linear selection mode</td>
   </tr>
   <tr>
     <th>Ctrl+RightDrag or Ctrl+MiddleDrag</th>
