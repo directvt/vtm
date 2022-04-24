@@ -134,11 +134,11 @@ namespace netxs::ui::atoms
             }
         }
 
-        auto operator == (rgba const& c) const
+        constexpr auto operator == (rgba const& c) const
         {
             return token == c.token;
         }
-        auto operator != (rgba const& c) const
+        constexpr auto operator != (rgba const& c) const
         {
             return !operator == (c);
         }
@@ -553,7 +553,7 @@ namespace netxs::ui::atoms
                 : token(c.token)
             { }
 
-            glyf (char c)
+            constexpr glyf (char c)
                 : token(0)
             {
                 set(c);
@@ -605,7 +605,7 @@ namespace netxs::ui::atoms
             *   version of the previous character"
             */
 
-            void set(char c)
+            constexpr void set(char c)
             {
                 token       = 0;
                 state.width = 1;
@@ -816,16 +816,21 @@ namespace netxs::ui::atoms
                 : bg{}, fg{}
             { }
 
+            template<class T>
+            constexpr clrs (T colors)
+                : bg{ *(colors.begin() + 0) }, fg{ *(colors.begin() + 1) }
+            { }
+
             constexpr clrs (clrs const& c)
                 : bg{ c.bg }, fg{ c.fg }
             { }
 
-            bool operator == (clrs const& c) const
+            constexpr bool operator == (clrs const& c) const
             {
                 return bg == c.bg && fg == c.fg;
                 //sizeof(*this);
             }
-            bool operator != (clrs const& c) const
+            constexpr bool operator != (clrs const& c) const
             {
                 return !operator == (c);
             }
@@ -1232,8 +1237,25 @@ namespace netxs::ui::atoms
                 template<class D, class S>  inline void operator() (D& dst, S& src) const { dst.fuse(src); dst.bga(alpha); }
                 template<class D>           inline void operator() (D& dst)         const { dst.bga(alpha); }
             };
+            struct selection_t
+            {
+                clrs colors;
+                template<class T>
+                constexpr selection_t(T colors) : colors{ colors }
+                { }
+                template<class D>
+                inline void operator() (D& dst) const
+                {
+                    auto b = dst.inv() ? dst.fgc() : dst.bgc();
+                    dst.uv = colors;
+                    //if (b == colors.bg) dst.xlight();
+                    if (b == colors.bg) dst.uv.bg.shadow();
+                }
+            };
 
         public:
+            template<class T>
+            static constexpr auto   selection(T    brush) { return   selection_t{ brush }; }
             static constexpr auto transparent(byte alpha) { return transparent_t{ alpha }; }
             static constexpr auto     xlucent(byte alpha) { return     xlucent_t{ alpha }; }
             static constexpr auto contrast = contrast_t{};
