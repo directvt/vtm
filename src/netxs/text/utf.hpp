@@ -797,17 +797,20 @@ namespace netxs::utf
             auto is_first = [](auto c) { return (c & 0xc0) != 0x80; };
             bool first;
 
-            while (!(first = is_first(utf8[--size])) && size)
+            while (size && !(first = is_first(utf8[--size]))) // Find first byte.
             { }
 
-            // test cp
-            if (first)
+            if (first) // Check codepoint.
             {
                 auto l = utf::letter(utf8.substr(size));
                 if (!l.attr.correct)
                 {
                     utf8 = utf8.substr(0, size);
                 }
+            }
+            else // Bad UTF-8 encoding (size == 0).
+            {
+                //Recycle all bad bytes (log?).
             }
         }
     }
