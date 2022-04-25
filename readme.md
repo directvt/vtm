@@ -45,7 +45,10 @@ Text-based desktop environment inside your terminal*
 Build-time dependencies
  - `git`
  - `cmake`
- - [`gcc`](https://gcc.gnu.org/projects/cxx-status.html) or [`clang`](https://clang.llvm.org/cxx_status.html) with support for C++20
+ - Compiler support for C++20
+ - Minimal requirements to compile
+   - Using [`GCC`](https://gcc.gnu.org/projects/cxx-status.html) — `3GB` of RAM
+   - Using [`Clang`](https://clang.llvm.org/cxx_status.html) — `6GB` of RAM
 
 ```bash
 git clone https://github.com/netxs-group/vtm.git && cd ./vtm
