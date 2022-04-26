@@ -318,9 +318,17 @@ int main(int argc, char* argv[])
     if (auto link = os::ipc::open<os::server>(path))
     {
         log("sock: listening socket ", link);
+        hook token;
+        SUBMIT_GLOBAL(e2::shutdown, token, msg)
+        {
+            link->stop();
+        };
 
+        os::pool sessions;
         while (auto peer = link->meet())
         {
+            auto lock = sessions.lock();
+
             if (!peer->cred(user))
             {
                 log("sock: other users are not allowed to the session, abort");
@@ -352,15 +360,16 @@ int main(int argc, char* argv[])
             _name = "[" + _name + ":" + std::to_string(usr_count++) + "]";
             log("main: creating a new thread for user ", _name);
 
-            std::thread{ [=]    // _name
-                                // _mode
-                                // _region
-                                // peer
-                                // c_ip
-                                // c_port
-                                // world
-                                // user_coor
-                                // 
+            sessions.check_in([&sessions,
+                               &world,
+                                _name,
+                                _mode,
+                                _region,
+                                peer,
+                                user,
+                                c_ip,
+                                c_port,
+                                user_coor]()
             {
                 log("user: session name ", peer);
 
@@ -379,7 +388,7 @@ int main(int argc, char* argv[])
                     auto client = world->invite<ui::gate>(username, legacy_mode);
 
                     auto& menu_builder = app::shared::creator("Desk");
-                    auto deskmenu = menu_builder(utf::concat(client->id, ";", user, ";", path));
+                    auto deskmenu = menu_builder(utf::concat(client->id, ";", user));
                     auto& fone_builder = app::shared::creator("Fone");
                     auto bkground = fone_builder(
                     //todo
@@ -415,13 +424,13 @@ int main(int argc, char* argv[])
                     log("user: client.use_count() ", client.use_count());
                     client.reset();
                 lock.reset();
-            } }.detach();
 
-            log("main: new thread constructed for ", peer);
+                sessions.check_out();
+            });
         }
 
-        world->SIGNAL(tier::general, e2::config::fps, 0);
+        SIGNAL_GLOBAL(e2::conio::quit, "main: server shutdown");
     }
 
-    os::exit(0, "bye!");
+    world->shutdown();
 }

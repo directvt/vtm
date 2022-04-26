@@ -219,15 +219,14 @@ namespace netxs::app::desk
             auto my_id = id_t{};
 
             auto user_info = utf::divide(v, ";");
-            if (user_info.size() < 3) return window;
+            if (user_info.size() < 2)
+            {
+                log("desk: bad window arguments: args=", utf::debase(v));
+                return window;
+            }
             auto& user_id___view = user_info[0];
             auto& user_name_view = user_info[1];
-            auto& user_path_view = user_info[2];
-
-            log("desk: user_id=", user_id___view, " user_name=", user_name_view, " user_path=", user_path_view);
-
-            auto user = text{ user_name_view };
-            auto path = text{ user_path_view };
+            log("desk: user_id=", user_id___view, " user_name=", user_name_view);
 
             if (auto value = utf::to_int(user_id___view)) my_id = value.value();
             else return window;
@@ -459,15 +458,9 @@ namespace netxs::app::desk
                                                           ->plugin<pro::fader>(x1, c1, 150ms)
                                                           ->invoke([&](auto& boss)
                                                           {
-                                                              //Use BYVAL to capture "path" value (crashes on FreeBSD/gcc).
-                                                              boss.SUBMIT_BYVAL(tier::release, hids::events::mouse::button::click::left, gear)
+                                                              boss.SUBMIT(tier::release, hids::events::mouse::button::click::left, gear)
                                                               {
-                                                                  //todo unify, see system.h:1614
-                                                                  #if defined(__APPLE__) || defined(__FreeBSD__)
-                                                                  auto path2 = "/tmp/" + path + ".sock";
-                                                                  ::unlink(path2.c_str());
-                                                                  #endif
-                                                                  os::exit(0, "taskbar: shutdown by button");
+                                                                  SIGNAL_GLOBAL(e2::shutdown, "desk: server shutdown");
                                                               };
                                                           });
                                 auto shutdown_area = shutdown_park->attach(snap::tail, snap::center, ui::pads::ctor(dent{ 2,3,1,1 }));

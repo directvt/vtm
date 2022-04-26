@@ -113,6 +113,8 @@ namespace netxs::os
         static const fd_t STDIN_FD  = GetStdHandle(STD_INPUT_HANDLE);
         static const fd_t STDOUT_FD = GetStdHandle(STD_OUTPUT_HANDLE);
         static const si32 PIPE_BUF = 65536;
+        static const auto WR_PIPE_PATH = "\\\\.\\pipe\\w_";
+        static const auto RD_PIPE_PATH = "\\\\.\\pipe\\r_";
 
         //static constexpr char* security_descriptor_string =
         //	//"D:P(A;NP;GA;;;SY)(A;NP;GA;;;BA)(A;NP;GA;;;WD)";
@@ -1382,6 +1384,61 @@ namespace netxs::os
             log(" tty: palette restored");
         }
     }
+    
+    namespace
+    {
+        #if defined(_WIN32)
+
+            //...
+
+        #else
+            
+            template<class P, class ...Args>
+            auto _fd_set(fd_set& socks, fd_t handle, P&& proc, Args&&... args)
+            {
+                FD_SET(handle, &socks);
+                if constexpr (sizeof...(args))
+                {
+                    return std::max(handle, _fd_set(socks, std::forward<Args>(args)...));
+                }
+                else
+                {
+                    return handle;
+                }
+            }
+            template<class P, class ...Args>
+            auto _select(fd_set& socks, fd_t handle, P&& proc, Args&&... args)
+            {
+                if (FD_ISSET(handle, &socks))
+                {
+                    proc();
+                }
+                else
+                {
+                    if constexpr (sizeof...(args)) _select(socks, std::forward<Args>(args)...);
+                }
+            }
+
+        #endif
+    }
+    template<class ...Args>
+    auto select(Args&&... args)
+    {
+        #if defined(_WIN32)
+
+        #else
+
+            fd_set socks;
+            FD_ZERO(&socks);
+
+            auto nfds = 1 + _fd_set(socks, std::forward<Args>(args)...);
+            if (::select(nfds, &socks, 0, 0, 0) > 0)
+            {
+                _select(socks, std::forward<Args>(args)...);
+            }
+
+        #endif
+    }
 
     #if defined(_WIN32)
 
@@ -1396,6 +1453,11 @@ namespace netxs::os
             {
                 if (r != INVALID_FD) CloseHandle(r);
                 if (w != INVALID_FD) CloseHandle(w);
+            }
+            void reset()
+            {
+                r = INVALID_FD;
+                w = INVALID_FD;
             }
             friend auto& operator<< (std::ostream& s, file const& handle)
             {
@@ -1430,6 +1492,10 @@ namespace netxs::os
             {
                 if (h != INVALID_FD) ::close(h);
             }
+            void reset()
+            {
+                h = INVALID_FD;
+            }
             friend auto& operator<< (std::ostream& s, file const& handle)
             {
                 return s << handle.h;
@@ -1460,6 +1526,9 @@ namespace netxs::os
         vect buffer; // ipc: Receive buffer.
         bool sealed; // ipc: Provide autoclosing.
         text scpath; // ipc: Socket path (in order to unlink).
+
+        //role myrole;
+        flash_t flash; // ipc: Interruptor.
 
         void init(si32 buff_size = PIPE_BUF) { active = true; buffer.resize(buff_size); }
 
@@ -1562,13 +1631,14 @@ namespace netxs::os
 
                 auto sock_ptr = std::make_shared<ipc>(handle, true);
 
-                auto to_server = "\\\\.\\pipe\\r_" + scpath;
-                auto to_client = "\\\\.\\pipe\\w_" + scpath;
+                auto to_server = RD_PIPE_PATH + scpath;
+                auto to_client = WR_PIPE_PATH + scpath;
 
                 auto r_fConnected = ConnectNamedPipe(handle.r, NULL)
                     ? true
                     : (GetLastError() == ERROR_PIPE_CONNECTED);
 
+                if (!active) return fail("not active");
                 // recreate the waiting point for the next client
                 handle.r = CreateNamedPipe(
                     to_server.c_str(),        // pipe name
@@ -1624,15 +1694,32 @@ namespace netxs::os
 
             #else
 
-                auto s = file{ ::accept(handle.h, 0, 0) };
-                return s ? std::make_shared<ipc>(s, true)
-                         : nullptr;
+                auto result = std::shared_ptr<ipc>{};
+                auto h_proc = [&]()
+                {
+                    auto s = file{ ::accept(handle.h, 0, 0) };
+                    if (s) result = std::make_shared<ipc>(s, true);
+                };
+                auto f_proc = [&]()
+                {
+                    log("xipc: flash fired");
+                    flash.flush();
+                };
+
+                os::select(handle, h_proc,
+                           flash,  f_proc);
+
+                return result;
+
             #endif
         }
         template<class SIZE_T>
         auto recv(char* buff, SIZE_T size)
         {
-            return os::recv(handle.get_r(), buff, size);
+            auto result = qiew{};
+            os::select(handle, [&]() { result = os::recv(handle, buff, size); },
+                       flash,  [&]() { log("xipc: abort reading"); flash.flush(); });
+            return result;
         }
         auto recv() // It's not thread safe!
         {
@@ -1665,6 +1752,10 @@ namespace netxs::os
             }
             return crop;
         }
+        void stop()
+        {
+            flash.reset();
+        }
         auto shut() -> bool
         {
             active = faux;
@@ -1672,6 +1763,11 @@ namespace netxs::os
 
                 if (sealed)
                 { // Disconnection order does matter.
+                    //auto to_client = WR_PIPE_PATH + scpath;
+                    //auto to_server = RD_PIPE_PATH + scpath;
+                    //if (handle.get_w() != INVALID_FD) ok(DeleteFileA(to_client.c_str()));
+                    //if (handle.get_r() != INVALID_FD) ok(DeleteFileA(to_server.c_str()));
+
                     if (handle.get_w() != INVALID_FD) ok(DisconnectNamedPipe(handle.get_w()));
                     if (handle.get_r() != INVALID_FD) ok(DisconnectNamedPipe(handle.get_r()));
                 }
@@ -1702,7 +1798,6 @@ namespace netxs::os
                     }
                 }
                 else return true;
-                return true;
 
             #endif
         }
@@ -1711,6 +1806,7 @@ namespace netxs::os
             -> std::shared_ptr<ipc>
         {
             auto sock_ptr = std::make_shared<ipc>(file{}, true);
+            //sock_ptr->myrole = ROLE;
             auto try_start = [&](auto play) -> bool
             {
                 auto done = play();
@@ -1740,8 +1836,8 @@ namespace netxs::os
                 auto& w_sock = sock_ptr->handle.get_w();
 
                 sock_ptr->scpath = path;
-                auto to_server = "\\\\.\\pipe\\r_" + path;
-                auto to_client = "\\\\.\\pipe\\w_" + path;
+                auto to_server = RD_PIPE_PATH + path;
+                auto to_client = WR_PIPE_PATH + path;
 
                 if constexpr (ROLE == role::server)
                 {
@@ -2224,81 +2320,79 @@ namespace netxs::os
                     }
                 }
 
-                while (ipcio)
+                auto h_proc = [&]()
                 {
-                    fd_set socks;
-                    FD_ZERO(&socks);
-                    FD_SET(STDIN_FD,    &socks);
-                    FD_SET((fd_t)flash, &socks);
-                    auto nfds = std::max({ STDIN_FD, (fd_t)flash });
-                    if (micefd)
+                    if (micefd && state.shift(get_kb_state()))
                     {
-                        nfds = std::max(nfds, (fd_t)micefd);
-                        FD_SET((fd_t)micefd, &socks);
+                        yield.meta_state(state.shift.last);
+                        auto data = os::recv(STDIN_FD, buffer.data(), buffer.size());
+                        yield.add(data);
+                        ipcio.send<faux>(yield);
+                        yield.clear();
                     }
-                    nfds++;
-                    if (::select(nfds, &socks, 0, 0, 0) > 0)
+                    else
                     {
-                        if (FD_ISSET(STDIN_FD, &socks))
+                        auto data = os::recv(STDIN_FD, buffer.data(), buffer.size());
+                        ipcio.send<faux>(data);
+                    }
+                };
+                auto m_proc = [&]()
+                {
+                    auto data = os::recv(micefd, buffer.data(), buffer.size());
+                    if (data.size() == 4 /*ImPS only*/)
+                    {
+                    #if defined(__linux__)
+                        vt_stat vt_state;
+                        ok(::ioctl(STDOUT_FD, VT_GETSTATE, &vt_state));
+                        if (vt_state.v_active == ttynum) // Proceed current active tty only.
                         {
-                            if (micefd && state.shift(get_kb_state()))
+                            auto scale = twod{ 6,12 }; //todo magic numbers
+                            auto bttns = data[0] & 7;
+                            mcoor.x   += data[1];
+                            mcoor.y   -= data[2];
+                            auto wheel =-data[3];
+                            auto limit = _globals<void>::winsz.last * scale;
+                            if (bttns == 0) mcoor = std::clamp(mcoor, dot_00, limit);
+                            state.flags = wheel ? 4 : 0;
+                            if (state.coord(mcoor / scale)
+                             || state.bttns(bttns)
+                             || state.shift(get_kb_state())
+                             || state.flags)
                             {
-                                yield.meta_state(state.shift.last);
-                                auto data = os::recv(STDIN_FD, buffer.data(), buffer.size());
-                                yield.add(data);
-                                ipcio.send<faux>(yield);
+                                yield.w32begin()
+                                     .w32mouse(0,
+                                        state.bttns.last,
+                                        state.shift.last,
+                                        state.flags,
+                                        wheel,
+                                        state.coord.last.x,
+                                        state.coord.last.y)
+                                     .w32close();
+                                ipcio.send<faux>(view(yield));
                                 yield.clear();
                             }
-                            else
-                            {
-                                auto data = os::recv(STDIN_FD, buffer.data(), buffer.size());
-                                ipcio.send<faux>(data);
-                            }
                         }
-                        else if (FD_ISSET((fd_t)flash, &socks))
-                        {
-                            log("xipc: flash fired");
-                            flash.flush();
-                        }
-                        else if (micefd && FD_ISSET((fd_t)micefd, &socks))
-                        {
-                            auto data = os::recv(micefd, buffer.data(), buffer.size());
-                            if (data.size() == 4 /*ImPS only*/)
-                            {
-                                #if defined(__linux__)
-                                    vt_stat vt_state;
-                                    ok(::ioctl(STDOUT_FD, VT_GETSTATE, &vt_state));
-                                    if (vt_state.v_active == ttynum) // Proceed current active tty only.
-                                    {
-                                        auto scale = twod{6,12}; //todo magic numbers
-                                        auto bttns = data[0] & 7;
-                                        mcoor.x += data[1];
-                                        mcoor.y -= data[2];
-                                        auto wheel = -data[3];
-                                        auto limit = _globals<void>::winsz.last * scale;
-                                        if (bttns == 0) mcoor = std::clamp(mcoor, dot_00, limit);
-                                        state.flags = wheel ? 4 : 0;
-                                        if (state.coord(mcoor / scale)
-                                        || state.bttns(bttns)
-                                        || state.shift(get_kb_state())
-                                        || state.flags)
-                                        {
-                                            yield.w32begin()
-                                            .w32mouse(0,
-                                                    state.bttns.last,
-                                                    state.shift.last,
-                                                    state.flags,
-                                                    wheel,
-                                                    state.coord.last.x,
-                                                    state.coord.last.y)
-                                            .w32close();
-                                            ipcio.send<faux>(view(yield));
-                                            yield.clear();
-                                        }
-                                    }
-                                #endif
-                            }
-                        }
+                    #endif
+                    }
+                };
+                auto f_proc = [&]()
+                {
+                    log(" tty: flash fired");
+                    flash.flush();
+                };
+
+                while (ipcio)
+                {
+                    if (micefd)
+                    {
+                        os::select(STDIN_FD, h_proc,
+                                   micefd,   m_proc,
+                                   flash,    f_proc);
+                    }
+                    else
+                    {
+                        os::select(STDIN_FD, h_proc,
+                                   flash,    f_proc);
                     }
                 }
 
@@ -2658,7 +2752,8 @@ namespace netxs::os
             text flow;
             while (termlink)
             {
-                if (auto shot = termlink.recv())
+                auto shot = termlink.recv();
+                if (shot && termlink)
                 {
                     flow += shot;
                     auto crop = ansi::purify(flow);
@@ -2714,9 +2809,94 @@ namespace netxs::os
         }
         void write(view data)
         {
-            std::unique_lock guard(writemtx);
+            std::lock_guard guard(writemtx);
             writebuf += data;
             if (termlink) writesyn.notify_one();
+        }
+    };
+
+    class pool
+    {
+        struct item
+        {
+            bool        state;
+            std::thread guest;
+        };
+
+        std::recursive_mutex            mutex;
+        std::condition_variable_any     synch;
+        std::map<std::thread::id, item> index;
+        bool                            alive;
+        std::thread                     agent;
+
+        void worker()
+        {
+            std::unique_lock guard{ mutex };
+            log("pool: session control started");
+
+            while (alive)
+            {
+                synch.wait(guard);
+                for (auto it = index.begin(); it != index.end();)
+                {
+                    auto& [sid, session] = *it;
+                    auto& [state, guest] = session;
+                    if (state == faux || !alive)
+                    {
+                        if (guest.joinable())
+                        {
+                            guard.unlock();
+                            guest.join();
+                            guard.lock();
+                            log("pool: joined client session id=", sid);
+                        }
+                        it = index.erase(it);
+                    }
+                    else ++it;
+                }
+            }
+        }
+
+    public:
+        auto lock()
+        {
+            return std::unique_lock{ mutex };
+        }
+        void check_out()
+        {
+            std::lock_guard lock{ mutex };
+            auto session_id = std::this_thread::get_id();
+            index[session_id].state = faux;
+            synch.notify_one();
+            log("pool: session deleted id=", session_id);
+        }
+        template<class ...Args>
+        void check_in(Args&&... args)
+        {
+            std::lock_guard lock{ mutex };
+            auto session = std::thread(std::forward<Args>(args)...);
+            auto session_id = session.get_id();
+            index[session_id] = { true, std::move(session) };
+            log("pool: new session constructed id=", session_id);
+        }
+
+        pool()
+            : alive{ true },
+              agent{ [&]() { worker(); }}
+        { }
+        ~pool()
+        {
+            mutex.lock();
+            alive = faux;
+            synch.notify_one();
+            mutex.unlock();
+
+            if (agent.joinable())
+            {
+                log("pool: joining agent");
+                agent.join();
+            }
+            log("pool: session control ended");
         }
     };
 }

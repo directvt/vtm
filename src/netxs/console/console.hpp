@@ -73,6 +73,7 @@ namespace netxs::events::userland
         {
             EVENT_XS( postrender, console::face       ), // release: UI-tree post-rendering.
             EVENT_XS( depth     , si32                ), // request: Determine the depth of the hierarchy.
+            EVENT_XS( shutdown  , const view          ), // general: Server shutdown.
             GROUP_XS( timer     , moment              ), // timer tick, arg: current moment (now).
             GROUP_XS( render    , console::face       ), // release: UI-tree rendering.
             GROUP_XS( conio     , si32                ),
@@ -4019,13 +4020,13 @@ namespace netxs::console
 
                     header.recalc();
                 }
-                // node: Check equality.
+                // hall::node: Check equality.
                 bool equals(id_t id)
                 {
                     return obj_id == id;
                 }
-                // node: Draw the anchor line func and return true
-                //       if the mold is outside the canvas area.
+                // hall::node: Draw the anchor line func and return true
+                //             if the mold is outside the canvas area.
                 void fasten(face& canvas)
                 {
                     auto window = canvas.area();
@@ -4046,7 +4047,7 @@ namespace netxs::console
                     window.coor = dot_00;
                     netxs::online(window, origin, center, pset);
                 }
-                // node: Output the title to the canvas.
+                // hall::node: Output the title to the canvas.
                 //void enlist(face& canvas)
                 //{
                 //    if (header)
@@ -4056,7 +4057,7 @@ namespace netxs::console
                 //        canvas.eol();
                 //    }
                 //}
-                // node: Visualize the underlying object.
+                // hall::node: Visualize the underlying object.
                 void render(face& canvas)
                 {
                     canvas.render(*object);
@@ -4090,13 +4091,13 @@ namespace netxs::console
                 {
                     items.push_back(std::make_shared<node>(item));
                 }
-                // Draw backpane for spectators.
+                //hall::list: Draw backpane for spectators.
                 void prerender(face& canvas)
                 {
                     for (auto& item : items) item->fasten(canvas); // Draw strings.
                     for (auto& item : items) item->render(canvas); // Draw shadows.
                 }
-                // Draw windows.
+                //hall::list: Draw windows.
                 void render(face& canvas)
                 {
                     for (auto& item : items) item->fasten(canvas);
@@ -4105,12 +4106,16 @@ namespace netxs::console
                     for (auto& item : items) if (item->z_order == Z_order::plain   ) item->render(canvas);
                     for (auto& item : items) if (item->z_order == Z_order::topmost ) item->render(canvas);
                 }
-                // Draw spectator's mouse pointers.
+                //hall::list: Draw spectator's mouse pointers.
                 void postrender(face& canvas)
                 {
                     for (auto& item : items) item->postrender(canvas);
                 }
-
+                //hall::list: Delete all items.
+                void reset()
+                {
+                    items.clear();
+                }
                 rect remove(id_t id)
                 {
                     rect area;
@@ -4299,7 +4304,12 @@ namespace netxs::console
                     edges.push_back(updateregion);
                 }
             }
-
+            // hall: Shutdown.
+            void shutdown()
+            {
+                app_registry.reset();
+                items.reset();
+            }
             // hall: Attach a new item to the scene.
             template<class S>
             auto branch(text const& class_id, sptr<S> item, bool fixed = true)
@@ -4359,6 +4369,16 @@ namespace netxs::console
         auto invite(Args&&... args)
         {
             return scene.invite<T>(std::forward<Args>(args)...);
+        }
+        // host: World shutdown.
+        void shutdown()
+        {
+            {
+                events::sync lock;
+                scene.shutdown();
+                mouse.reset();
+            }
+            synch.cancel();
         }
 
     protected:
@@ -4512,18 +4532,16 @@ namespace netxs::console
         sysmouse  mouse; // link: Mouse state.
         syskeybd  keybd; // link: Keyboard state.
         bool      close; // link: Pre closing condition.
-        text      total; // link: Accumulated unparsed input.
+        text      accum; // link: Accumulated unparsed input.
 
         void reader()
         {
             log("link: std_input thread started");
             while (auto yield = canal->recv())
             {
-                {
-                    std::lock_guard guard{ mutex };
-                    total += yield;
-                    ready = true;
-                }
+                std::lock_guard guard{ mutex };
+                accum += yield;
+                ready = true;
                 synch.notify_one();
             }
 
@@ -4562,6 +4580,7 @@ namespace netxs::console
         }
         void session(text title)
         {
+            text total;
             auto is_digit = [](auto c) { return c >= '0' && c <= '9'; };
             std::unique_lock guard{ mutex };
 
@@ -4573,6 +4592,9 @@ namespace netxs::console
             while ((void)synch.wait(guard, [&] { return ready; }), alive)
             {
                 ready = faux;
+                total += accum;
+                accum.clear();
+                guard.unlock();
 
                 //todo why?
                 //todo separate commands and keypress
@@ -4640,7 +4662,6 @@ namespace netxs::console
                             keybd.textline = strv.substr(0, 1);
                             owner.SIGNAL(tier::release, e2::conio::key, keybd);
                             total.clear();
-                            //strv = total;
                             break;
                         }
                         else if (strv.at(pos) == '\x1b') // two consecutive escapes
@@ -4649,7 +4670,6 @@ namespace netxs::console
                             keybd.textline = strv.substr(0, 1);
                             owner.SIGNAL(tier::release, e2::conio::key, keybd);
                             total = strv.substr(1);
-                            //strv = total;
                             break;
                         }
                         #endif
@@ -5094,6 +5114,7 @@ again:
                         }
                     }
                 }
+                guard.lock();
             }
 
             log("link: std_input thread ended");
@@ -5101,13 +5122,11 @@ again:
         // link: Interrupt the run only.
         void shutdown ()
         {
-            mutex.lock();
+            std::lock_guard lock{ mutex };
             canal->shut(); // Terminate all blocking calls.
-
             alive = faux;
             ready = true;
             synch.notify_one(); // Interrupt reading session.
-            mutex.unlock();
         }
     };
 
@@ -5576,12 +5595,17 @@ again:
                 SUBMIT_T(tier::release, e2::conio::error, token, errcode)
                 {
                     text msg = "\n\rgate: Term error: " + std::to_string(errcode) + "\r\n";
-                    log("gate: stop byemsg: ", msg);
+                    log("gate: error byemsg: ", msg);
                     conio.shutdown();
                 };
                 SUBMIT_T(tier::release, e2::conio::quit, token, msg)
                 {
-                    log("gate: stop byemsg: ", msg);
+                    log("gate: quit byemsg: ", msg);
+                    conio.shutdown();
+                };
+                SUBMIT_T(tier::general, e2::conio::quit, token, msg)
+                {
+                    log("gate: global shutdown byemsg: ", msg);
                     conio.shutdown();
                 };
                 //SUBMIT_T(tier::release, e2::form::state::header, token, newheader)
