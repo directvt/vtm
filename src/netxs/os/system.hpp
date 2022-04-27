@@ -192,7 +192,7 @@ namespace netxs::os
     template<class ...Args>
     auto fail(Args&&... msg)
     {
-        log("  os: ", msg..., " (", error(), ") ");
+        log("  os: ", msg..., " (", os::error(), ") ");
         return nothing{};
     };
     template<class T>
@@ -1395,7 +1395,7 @@ namespace netxs::os
                 }
                 else
                 {
-                    fail("send: error write to socket=", fd, " count=", count, " size=", size, " IS_TTY=", IS_TTY ?"true":"faux");
+                    os::fail("send: error write to socket=", fd, " count=", count, " size=", size, " IS_TTY=", IS_TTY ?"true":"faux");
                     return faux;
                 }
             }
@@ -1674,7 +1674,7 @@ namespace netxs::os
                     ? true
                     : (::GetLastError() == ERROR_PIPE_CONNECTED);
 
-                if (!active) return fail("not active");
+                if (!active) return os::fail("not active");
                 // Recreate the waiting point for the next client.
                 handle.set_r(::CreateNamedPipe( to_server.c_str(),        // pipe name
                                                 PIPE_ACCESS_INBOUND,      // read/write access
@@ -1698,7 +1698,7 @@ namespace netxs::os
                 if (handle.get_r() == INVALID_FD)
                 {
                     handle.set_r(sock_ptr->handle.get_r());
-                    return fail("CreateNamedPipe error (read)");
+                    return os::fail("CreateNamedPipe error (read)");
                 }
 
                 auto w_fConnected = ::ConnectNamedPipe(handle.get_w(), NULL)
@@ -1721,7 +1721,7 @@ namespace netxs::os
                     ::CloseHandle(handle.get_r());
                     handle.set_r(sock_ptr->handle.get_r());
                     handle.set_w(sock_ptr->handle.get_w());
-                    return fail("CreateNamedPipe error (write)");
+                    return os::fail("CreateNamedPipe error (write)");
                 }
 
                 return sock_ptr;
@@ -1825,12 +1825,12 @@ namespace netxs::os
                 {
                     switch (errno)
                     {
-                        case EBADF:    return fail("EBADF: The socket argument is not a valid file descriptor.");
-                        case EINVAL:   return fail("EINVAL: The how argument is invalid.");
-                        case ENOTCONN: return fail("ENOTCONN: The socket is not connected.");
-                        case ENOTSOCK: return fail("ENOTSOCK: The socket argument does not refer to a socket.");
-                        case ENOBUFS:  return fail("ENOBUFS: Insufficient resources were available in the system to perform the operation.");
-                        default:       return fail("unknown reason");
+                        case EBADF:    return os::fail("EBADF: The socket argument is not a valid file descriptor.");
+                        case EINVAL:   return os::fail("EINVAL: The how argument is invalid.");
+                        case ENOTCONN: return os::fail("ENOTCONN: The socket is not connected.");
+                        case ENOTSOCK: return os::fail("ENOTSOCK: The socket argument does not refer to a socket.");
+                        case ENOBUFS:  return os::fail("ENOBUFS: Insufficient resources were available in the system to perform the operation.");
+                        default:       return os::fail("unknown reason");
                     }
                 }
                 else return true;
@@ -2749,7 +2749,7 @@ namespace netxs::os
                 ::ClosePseudoConsole(hPC);
                 termlink.shut();
                 DWORD code = 0;
-                if (::GetExitCodeProcess(hProcess, &code) == FALSE) log("xpty: child GetExitCodeProcess() error: ", GetLastError());
+                if (::GetExitCodeProcess(hProcess, &code) == FALSE) log("xpty: child GetExitCodeProcess() error: ", ::GetLastError());
                 else if (code == STILL_ACTIVE)                      log("xpty: child process still running");
                 else                                                log("xpty: child process exit code ", code);
                 exit_code = code;
