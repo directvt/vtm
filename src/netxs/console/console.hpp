@@ -2966,7 +2966,7 @@ namespace netxs::console
             using skill::boss,
                   skill::memo;
             constexpr static auto EXCUSE_MSG = hids::events::mouse::any;
-            constexpr static auto QUIT_MSG   = e2::command::quit;
+            constexpr static auto QUIT_MSG   = e2::shutdown;
             //todo unify
             constexpr static int LIMIT = 60 * 10; // watch: Idle timeout in seconds.
 
@@ -2985,17 +2985,13 @@ namespace netxs::console
                 boss.SUBMIT_T(tier::preview, EXCUSE_MSG, pong, something)
                 {
                     stop = tempus::now() + std::chrono::seconds(LIMIT);
-
-                    //doubt.reset();
-                    //alibi.reset();
                 };
-
                 boss.SUBMIT_T(tier::general, e2::timer::any, ping, something)
                 {
                     if (tempus::now() > stop)
                     {
                         auto shadow = boss.This();
-                        boss.SIGNAL(tier::release, QUIT_MSG, desc);
+                        boss.SIGNAL(tier::general, QUIT_MSG, desc);
                         ping.reset();
                         memo.clear();
                     }
@@ -4343,11 +4339,9 @@ namespace netxs::console
         };
 
         using tick = quartz<events::reactor<>, e2::type>;
-        using hndl = std::function<void(view)>;
 
         tick synch; // host: Frame rate synchronizator.
         si32 frate; // host: Frame rate value.
-        hndl close; // host: Quit procedure.
         hall scene; // host: Scene controller.
 
         void deface(rect const& region) override
@@ -4370,23 +4364,12 @@ namespace netxs::console
         {
             return scene.invite<T>(std::forward<Args>(args)...);
         }
-        // host: World shutdown.
-        void shutdown()
-        {
-            {
-                events::sync lock;
-                scene.shutdown();
-                mouse.reset();
-            }
-            synch.cancel();
-        }
 
     protected:
-        host(hndl exit_proc)
+        host(os::xipc& server)
             : synch(router<tier::general>(), e2::timer::tick.id),
               scene{ *this },
-              frate{ 0 },
-              close{ exit_proc }
+              frate{ 0 }
         {
             using bttn = hids::events::mouse::button;
 
@@ -4430,85 +4413,39 @@ namespace netxs::console
                     synch.cancel();
                 }
             };
-            SUBMIT(tier::release, e2::command::quit, reason)
+            SUBMIT(tier::general, e2::cleanup, counter)
             {
-                if (close)
+                router<tier::general>().cleanup(counter.ref_count, counter.del_count);
+            };
+            SUBMIT(tier::general, e2::form::global::lucidity, alpha)
+            {
+                if (alpha == -1)
                 {
-                    close(reason);
+                    alpha = skin::shady();
+                }
+                else
+                {
+                    alpha = std::clamp(alpha, 0, 255);
+                    skin::setup(tone::lucidity, alpha);
+                    SIGNAL(tier::preview, e2::form::global::lucidity, alpha);
                 }
             };
-            //todo move it to the gate
-            SUBMIT(tier::release, e2::form::proceed::createby, gear)
+            SUBMIT(tier::general, e2::shutdown, msg)
             {
-                static si32 insts_count = 0;
-                if (auto gate_ptr = bell::getref(gear.id))
-                {
-                    auto& gate = *gate_ptr;
-                    auto location = gear.slot;
-                    if (gear.meta(hids::ANYCTRL))
-                    {
-                        log("gate: area copied to clipboard ", location);
-                        sptr<core> canvas_ptr;
-                        gate.SIGNAL(tier::request, e2::form::canvas, canvas_ptr);
-                        if (canvas_ptr)
-                        {
-                            auto& canvas = *canvas_ptr;
-                            auto data = canvas.meta(location);
-                            if (data.length())
-                            {
-                                gate.SIGNAL(tier::release, e2::command::cout, ansi::setbuf(data));
-                                gate.SIGNAL(tier::release, e2::command::clipboard::set, data);
-                            }
-                        }
-                    }
-                    else
-                    {
-                        auto what = decltype(e2::form::proceed::createat)::type{};
-                        what.square = gear.slot;
-                        auto data = decltype(e2::data::changed)::type{};
-                        gate.SIGNAL(tier::request, e2::data::changed, data);
-                        what.menuid = data;
-                        this->SIGNAL(tier::release, e2::form::proceed::createat, what);
-                        if (auto& frame = what.object)
-                        {
-                            insts_count++;
-                            #ifndef PROD
-                                if (insts_count > APPS_MAX_COUNT)
-                                {
-                                    log("inst: max count reached");
-                                    auto timeout = tempus::now() + APPS_DEL_TIMEOUT;
-                                    auto w_frame = ptr::shadow(frame);
-                                    frame->SUBMIT_BYVAL(tier::general, e2::timer::any, timestamp)
-                                    {
-                                        if (timestamp > timeout)
-                                        {
-                                            log("inst: timebomb");
-                                            if (auto frame = w_frame.lock())
-                                            {
-                                                frame->base::detach();
-                                                log("inst: frame detached: ", insts_count);
-                                            }
-                                        }
-                                    };
-                                }
-                            #endif
-
-                            frame->SUBMIT(tier::release, e2::form::upon::vtree::detached, master)
-                            {
-                                insts_count--;
-                                log("inst: detached: ", insts_count);
-                            };
-
-                            gear.kb_focus_taken = faux;
-                            frame->SIGNAL(tier::release, hids::events::upevent::kboffer, gear);
-                            frame->SIGNAL(tier::anycast, e2::form::upon::created, gear); // The Tile should change the menu item.
-                        }
-                    }
-                }
+                log("host: shutdown: ", msg);
+                server->stop();
             };
+            log("host: started");
         }
+
+    public:
         ~host()
         {
+            {
+                events::sync lock;
+                scene.shutdown();
+                mouse.reset();
+            }
             synch.cancel();
         }
     };

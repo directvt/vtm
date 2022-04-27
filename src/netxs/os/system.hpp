@@ -572,7 +572,7 @@ namespace netxs::os
 
         #endif
     }
-    static void syslog(text const& data)
+    static void syslog(view data)
     {
         #if defined(_WIN32)
 
@@ -580,8 +580,12 @@ namespace netxs::os
 
         #else
 
-            if (os::is_daemon) ::syslog(LOG_NOTICE, "%s", data.c_str());
-            else               std::cout << data << std::flush;
+            if (os::is_daemon)
+            {
+                auto copy = text{ data };
+                ::syslog(LOG_NOTICE, "%s", copy.c_str());
+            }
+            else std::cout << data << std::flush;
 
         #endif
     }
@@ -1784,7 +1788,7 @@ namespace netxs::os
                 //            — it just changes its usability.
                 //To free a socket descriptor, you need to use close()."
 
-                log(" ipc: shutdown descriptor ", handle.h);
+                log("xipc: shutdown descriptor ", handle.h);
                 if (!ok(::shutdown(handle.h, SHUT_RDWR), "descriptor shutdown error"))  // Further sends and receives are disallowed.
                 {
                     switch (errno)
@@ -2518,26 +2522,26 @@ namespace netxs::os
     public:
         ~ptydev()
         {
-            log("ptydev: dtor started");
+            log("xpty: dtor started");
             if (termlink) wait_child();
             if (stdwrite.joinable())
             {
                 writesyn.notify_one();
-                log("ptydev: write thread joining");
+                log("xpty: write thread joining");
                 stdwrite.join();
             }
             if (stdinput.joinable())
             {
-                log("ptydev: input thread joining");
+                log("xpty: input thread joining");
                 stdinput.join();
             }
             #if defined(_WIN32)
                 if (client_exit_waiter.joinable())
                 {
-                    log("ptydev: client_exit_waiter thread joining");
+                    log("xpty: client_exit_waiter thread joining");
                     client_exit_waiter.join();
                 }
-                log("ptydev: client_exit_waiter thread joined");
+                log("xpty: client_exit_waiter thread joined");
             #endif
         }
         
@@ -2548,7 +2552,7 @@ namespace netxs::os
         {
             receiver = input_hndl;
             shutdown = shutdown_hndl;
-            log("ptydev: new process: ", cmdline);
+            log("xpty: new process: ", cmdline);
 
             #if defined(_WIN32)
 
@@ -2627,21 +2631,21 @@ namespace netxs::os
                         HANDLE signals[] = { hProcess, gameover };
                         if (WAIT_OBJECT_0 != WaitForMultipleObjects(2, signals, FALSE, INFINITE))
                         {
-                            log("ptydev: client_exit_waiter error");
+                            log("xpty: client_exit_waiter error");
                         }
-                        log("ptydev: client_exit_waiter finished");
+                        log("xpty: client_exit_waiter finished");
                         CloseHandle(gameover);
                         if (termlink)
                         {
                             auto exit_code = wait_child();
                             shutdown(exit_code);
                         }
-                        log("ptydev: client_exit_waiter exit");
+                        log("xpty: client_exit_waiter exit");
                     });
                     termlink.set({ m_pipe_r, m_pipe_w }, true);
-                    log("ptydev: conpty created: ", winsz);
+                    log("xpty: conpty created: ", winsz);
                 }
-                else log("ptydev: process creation error ", GetLastError());
+                else log("xpty: process creation error ", GetLastError());
 
                 //todo workaround for GH#10400 (resolved) https://github.com/microsoft/terminal/issues/10400
                 std::this_thread::sleep_for(250ms);
@@ -2667,7 +2671,7 @@ namespace netxs::os
                     // Current process must be a session leader (::setsid()) and not have
                     // a controlling terminal already.
                     // arg = 0: 1 - to stole fds from another process, it doesn't matter here.
-                    ok(::ioctl(fds, TIOCSCTTY, 0), "ptydev: assign controlling terminal error");
+                    ok(::ioctl(fds, TIOCSCTTY, 0), "xpty: assign controlling terminal error");
 
                     ::signal(SIGINT,  SIG_DFL); // Reset control signals to default values.
                     ::signal(SIGQUIT, SIG_DFL); //
@@ -2691,7 +2695,7 @@ namespace netxs::os
 
                     ::setenv("TERM", "xterm-256color", 1); //todo too hacky
                     ok(::execvp(argv.front(), argv.data()), "execvp error");
-                    os::exit(1, "ptydev: exec error ", errno);
+                    os::exit(1, "xpty: exec error ", errno);
                 }
 
                 // Parent branch.
@@ -2708,7 +2712,7 @@ namespace netxs::os
         si32 wait_child()
         {
             si32 exit_code = {};
-            log("ptydev: wait child process, tty=", termlink);
+            log("xpty: wait child process, tty=", termlink);
             termlink.reset();
 
             #if defined(_WIN32)
@@ -2716,9 +2720,9 @@ namespace netxs::os
                 ClosePseudoConsole(hPC);
                 termlink.shut();
                 DWORD code = 0;
-                if (GetExitCodeProcess(hProcess, &code) == FALSE) log("ptydev: child GetExitCodeProcess() error: ", GetLastError());
-                else if (code == STILL_ACTIVE)                    log("ptydev: child process still running");
-                else                                              log("ptydev: child process exit code ", code);
+                if (GetExitCodeProcess(hProcess, &code) == FALSE) log("xpty: child GetExitCodeProcess() error: ", GetLastError());
+                else if (code == STILL_ACTIVE)                    log("xpty: child process still running");
+                else                                              log("xpty: child process exit code ", code);
                 exit_code = code;
                 SetEvent(gameover);
                 CloseHandle(hProcess);
@@ -2734,17 +2738,17 @@ namespace netxs::os
                 if (WIFEXITED(status))
                 {
                     exit_code = WEXITSTATUS(status);
-                    log("ptydev: child process exit code ", exit_code);
+                    log("xpty: child process exit code ", exit_code);
                 }
                 else
                 {
                     exit_code = 0;
-                    log("ptydev: error: child process exit code not detected");
+                    log("xpty: error: child process exit code not detected");
                 }
             }
 
             #endif
-            log("ptydev: wait_child() exit");
+            log("xpty: wait_child() exit");
             return exit_code;
         }
         void read_socket_thread()
@@ -2764,7 +2768,7 @@ namespace netxs::os
             }
             if (termlink)
             {
-                log("ptydev: read_socket_thread ended");
+                log("xpty: read_socket_thread ended");
                 auto exit_code = wait_child();
                 shutdown(exit_code);
             }
@@ -2783,7 +2787,7 @@ namespace netxs::os
 
                 guard.lock();
             }
-            log("ptydev: send_socket_thread ended");
+            log("xpty: send_socket_thread ended");
         }
         void resize(twod const& newsize)
         {
@@ -2795,7 +2799,7 @@ namespace netxs::os
                     winsz.X = newsize.x;
                     winsz.Y = newsize.y;
                     auto hr = ResizePseudoConsole(hPC, winsz);
-                    if (hr != S_OK) log("ptydev: ResizePseudoConsole error, ", hr);
+                    if (hr != S_OK) log("xpty: ResizePseudoConsole error, ", hr);
 
                 #else
 
@@ -2826,6 +2830,7 @@ namespace netxs::os
         std::recursive_mutex            mutex;
         std::condition_variable_any     synch;
         std::map<std::thread::id, item> index;
+        si32                            count;
         bool                            alive;
         std::thread                     agent;
 
@@ -2868,7 +2873,7 @@ namespace netxs::os
             auto session_id = std::this_thread::get_id();
             index[session_id].state = faux;
             synch.notify_one();
-            log("pool: session deleted id=", session_id);
+            log("pool: session deleted, id=", session_id);
         }
         template<class ...Args>
         void check_in(Args&&... args)
@@ -2877,11 +2882,20 @@ namespace netxs::os
             auto session = std::thread(std::forward<Args>(args)...);
             auto session_id = session.get_id();
             index[session_id] = { true, std::move(session) };
-            log("pool: new session constructed id=", session_id);
+            log("pool: new session, id=", session_id);
+        }
+        auto size()
+        {
+            return index.size();
+        }
+        auto next()
+        {
+            return count++;
         }
 
         pool()
-            : alive{ true },
+            : count{ 0    },
+              alive{ true },
               agent{ [&]() { worker(); }}
         { }
         ~pool()

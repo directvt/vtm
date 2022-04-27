@@ -45,15 +45,17 @@ namespace netxs
     class logger
     {
         using text = std::string;
+        using view = std::string_view;
         using flux = std::stringstream;
         using vect = std::vector<text>;
         using lock = std::recursive_mutex;
-        using depo = std::unordered_map<size_t, std::vector<std::function<void(text const&)>>>;
-        using func = std::function<text(vect const&, text const&)>;
-        using delegates = std::vector<std::function<void(text const&)>>;
+        using type = std::function<void(view)>;
+        using list = std::vector<type>;
+        using depo = std::unordered_map<size_t, list>;
+        using func = std::function<text(vect const&, view)>;
 
-        delegates writers;
-        size_t    token;
+        list   writers;
+        size_t token;
 
         template<class VOID>
         struct globals
@@ -105,7 +107,7 @@ namespace netxs
                 builder.str(text{});
                 builder.clear();
             }
-            static auto checkin(delegates& writers)
+            static auto checkin(list& writers)
             {
                 auto hash = reinterpret_cast<size_t>(writers.data());
                 all_writers[hash] = writers;
@@ -130,25 +132,25 @@ namespace netxs
         template <class T>
         void add(T&& writer)
         {
-            writers.push_back(std::forward<T>(writer));
+            writers.emplace_back(std::forward<T>(writer));
             token = g::checkin(writers);
         }
         template<class T, class ...Args>
         void add(T&& writer, Args&&... args)
         {
-            writers.push_back(std::forward<T>(writer));
+            writers.emplace_back(std::forward<T>(writer));
             add(std::forward<Args>(args)...);
         }
 
     public:
         struct prompt
         {
-            prompt(text const& new_prompt)
+            prompt(view new_prompt)
             {
                 auto sync = guard();
                 if (new_prompt.size())
                 {
-                    g::prompt.push_back(new_prompt);
+                    g::prompt.emplace_back(new_prompt);
                 }
             }
             ~prompt()
@@ -162,10 +164,10 @@ namespace netxs
         };
 
         template<class ...Args>
-        logger(Args&&... args)
+        logger(Args&&... writers)
         {
             auto sync = guard();
-            add(std::forward<Args>(args)...);
+            add(std::forward<Args>(writers)...);
         }
         ~logger()
         {
@@ -202,6 +204,23 @@ namespace netxs
             auto sync = guard();
             g::builder << std::forward<T>(entity);
             feed(std::forward<Args>(args)...);
+        }
+        template<class SYNC, class P>
+        static auto&& tee(P writer)
+        {
+            return logger([writer, buff = text{}](auto utf8) mutable
+            {
+                if (auto sync = SYNC{})
+                {
+                    if (buff.size())
+                    {
+                        writer(view{ buff });
+                        buff.clear();
+                    }
+                    writer(utf8);
+                }
+                else buff += utf8;
+            });
         }
     };
 
