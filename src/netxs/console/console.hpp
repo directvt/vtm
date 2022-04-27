@@ -3274,7 +3274,7 @@ namespace netxs::console
                 xmap.size(boss.base::size());
                 boss.SUBMIT_T(tier::release, e2::size::set, memo, newsize)
                 {
-                    std::unique_lock guard(sync); // Syncing with diff::render thread.
+                    auto guard = std::lock_guard{ sync }; // Syncing with diff::render thread.
                     xmap.size(newsize);
                 };
                 boss.SUBMIT_T(tier::release, e2::coor::set, memo, newcoor)
@@ -4427,7 +4427,7 @@ namespace netxs::console
                 {
                     alpha = std::clamp(alpha, 0, 255);
                     skin::setup(tone::lucidity, alpha);
-                    SIGNAL(tier::preview, e2::form::global::lucidity, alpha);
+                    this->SIGNAL(tier::preview, e2::form::global::lucidity, alpha);
                 }
             };
             SUBMIT(tier::general, e2::shutdown, msg)
@@ -4476,7 +4476,7 @@ namespace netxs::console
             log("link: std_input thread started");
             while (auto yield = canal->recv())
             {
-                std::lock_guard guard{ mutex };
+                auto guard = std::lock_guard{ mutex };
                 accum += yield;
                 ready = true;
                 synch.notify_one();
@@ -4518,8 +4518,8 @@ namespace netxs::console
         void session(text title)
         {
             text total;
-            auto is_digit = [](auto c) { return c >= '0' && c <= '9'; };
-            std::unique_lock guard{ mutex };
+            auto digit = [](auto c) { return c >= '0' && c <= '9'; };
+            auto guard = std::unique_lock{ mutex };
 
             input = std::thread([&] { reader(); });
 
@@ -4761,7 +4761,7 @@ namespace netxs::console
                                     }
                                 }
                             }
-                            else if (is_digit(strv.at(pos)))
+                            else if (digit(strv.at(pos)))
                             {
 again:
                                 view tmp = strv.substr(pos);
@@ -5059,7 +5059,7 @@ again:
         // link: Interrupt the run only.
         void shutdown ()
         {
-            std::lock_guard lock{ mutex };
+            auto guard = std::lock_guard{ mutex };
             canal->shut(); // Terminate all blocking calls.
             alive = faux;
             ready = true;
@@ -5114,8 +5114,7 @@ again:
                 dumb.template scan<VGAMODE>(state, frame);
             };
 
-            std::unique_lock guard{ mutex };
-
+            auto guard = std::unique_lock{ mutex };
             cell state;
             time start;
 
@@ -5399,8 +5398,8 @@ again:
         // diff: Obtain new content to render.
         pair commit(core& canvas) // Run inside the e2::sync.
         {
-            std::unique_lock guard(mutex, std::try_to_lock);
-            if (guard.owns_lock())
+            auto lock = std::unique_lock{ mutex, std::try_to_lock };
+            if (lock.owns_lock())
             {
                 dhash = canvas.hash();
                 field = canvas.swap(cache); // Use one surface for reading (cache), one for writing (canvas).

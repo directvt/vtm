@@ -22,7 +22,7 @@ namespace utils
 
         void acquire()
         {
-            std::unique_lock<std::mutex> lock(m);
+            auto lock = std::unique_lock{ m };
             while (count == max_count)
             {
                 cv.wait(lock);
@@ -32,8 +32,7 @@ namespace utils
 
         void release()
         {
-            std::lock_guard<std::mutex> lock(m);
-
+            auto guard = std::lock_guard{ m };
             --count;
             cv.notify_one();
         }

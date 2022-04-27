@@ -129,7 +129,7 @@ namespace netxs
 
         static auto guard()
         {
-            return std::unique_lock<lock>(g::mutex);
+            return std::lock_guard{ g::mutex };
         }
         template <class T>
         void add(T&& writer)
