@@ -50,12 +50,13 @@ namespace netxs
         using vect = std::vector<text>;
         using lock = std::recursive_mutex;
         using type = std::function<void(view)>;
+        using hash = type*;
         using list = std::vector<type>;
-        using depo = std::unordered_map<size_t, list>;
+        using depo = std::unordered_map<hash, list>;
         using func = std::function<text(vect const&, view)>;
 
-        list   writers;
-        size_t token;
+        list writers;
+        hash token;
 
         template<class VOID>
         struct globals
@@ -109,15 +110,16 @@ namespace netxs
             }
             static auto checkin(list& writers)
             {
-                auto hash = reinterpret_cast<size_t>(writers.data());
-                all_writers[hash] = writers;
+                //todo revise
+                auto digest = writers.data();
+                all_writers[digest] = writers;
                 if (builder.tellg() > 0)
                 {
                     flush(false);
                 }
-                return hash;
+                return digest;
             }
-            static void checkout(size_t token)
+            static void checkout(hash token)
             {
                 all_writers.erase(token);
             }
@@ -163,6 +165,8 @@ namespace netxs
             }
         };
 
+        logger(logger const&) = default;
+        logger(logger&&)      = default;
         template<class ...Args>
         logger(Args&&... writers)
         {
@@ -206,9 +210,9 @@ namespace netxs
             feed(std::forward<Args>(args)...);
         }
         template<class SYNC, class P>
-        static auto&& tee(P writer)
+        static auto tee(P writer)
         {
-            return logger([writer, buff = text{}](auto utf8) mutable
+            auto inst = logger([writer, buff = text{}](auto utf8) mutable
             {
                 if (auto sync = SYNC{})
                 {
@@ -221,6 +225,7 @@ namespace netxs
                 }
                 else buff += utf8;
             });
+            return inst;
         }
     };
 

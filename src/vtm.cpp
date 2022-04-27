@@ -189,7 +189,7 @@ int main(int argc, char* argv[])
 
         world->SIGNAL(tier::general, e2::config::fps, 60);
 
-        os::pool sessions;
+        auto sessions = os::pool{};
         while (auto peer = link->meet())
         {
             auto lock = sessions.lock();
