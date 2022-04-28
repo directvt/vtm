@@ -1790,12 +1790,12 @@ namespace netxs::os
         template<class SIZE_T>
         auto recv(char* buff, SIZE_T size)
         {
-            auto result = qiew{};
-
-            os::select(handle.get_r(), [&]() { result = os::recv(handle, buff, size); },
-                       signal,         [&]() { log("xipc: abort reading"); signal.flush(); });
-
-            return result;
+            //todo calling ::select() causes performance hit
+            //auto result = qiew{};
+            //os::select(handle.get_r(), [&]() { result = os::recv(handle, buff, size); },
+            //           signal,         [&]() { log("xipc: abort reading"); signal.flush(); });
+            //return result;
+            return os::recv(handle, buff, size);
         }
         auto recv() // It's not thread safe!
         {
