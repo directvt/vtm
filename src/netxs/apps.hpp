@@ -1005,7 +1005,7 @@ namespace netxs::app::shared
             window->extend(what.square);
             auto& creator = app::shared::creator(config.group);
             window->attach(creator(config.param));
-            log("host: create type=", config.group, " menu_item_id=", what.menuid);
+            log("host: app type: ", config.group, ", menu item id: ", what.menuid);
             world->branch(what.menuid, window, config.fixed);
             window->SIGNAL(tier::anycast, e2::form::upon::started, world->This());
 

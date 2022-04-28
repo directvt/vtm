@@ -147,6 +147,27 @@ namespace netxs::os
 
     #endif
 
+    struct legacy
+    {
+        static constexpr auto clean  = 0;
+        static constexpr auto mouse  = 1 << 0;
+        static constexpr auto vga16  = 1 << 1;
+        static constexpr auto vga256 = 1 << 2;
+        template<class T>
+        static auto str(T mode)
+        {
+            auto result = text{};
+            if (mode)
+            {
+                if (mode & mouse ) result += "mouse ";
+                if (mode & vga16 ) result += "vga16 ";
+                if (mode & vga256) result += "vga256 ";
+                if (result.size()) result.pop_back();
+            }
+            else result = "fresh";
+            return result;
+        }
+    };
     struct args
     {
         int    argc;
@@ -175,6 +196,72 @@ namespace netxs::os
     {
         template<class T>
         operator T () { return T{}; }
+    };
+    class file
+    {
+        #if defined(_WIN32)
+
+            fd_t r; // file: Read descriptor.
+            fd_t w; // file: Send descriptor.
+
+        public:
+            auto& get_r()       { return r; }
+            auto& get_w()       { return w; }
+            auto& get_r() const { return r; }
+            auto& get_w() const { return w; }
+            void  set_r(fd_t f) { r = f;    }
+            void  set_w(fd_t f) { w = f;    }
+            operator bool ()    { return r != INVALID_FD
+                                      && w != INVALID_FD; }
+            void close()
+            {
+                if (r != INVALID_FD) ::CloseHandle(r);
+                if (w != INVALID_FD) ::CloseHandle(w);
+            }
+            void reset()
+            {
+                r = INVALID_FD;
+                w = INVALID_FD;
+            }
+            friend auto& operator<< (std::ostream& s, file const& handle)
+            {
+                return s << handle.r << "," << handle.w;
+            }
+            file(fd_t fd_r = INVALID_FD, fd_t fd_w = INVALID_FD)
+                : r{ fd_r },
+                  w{ fd_w }
+            { }
+
+        #else
+
+            fd_t h; // file: RW descriptor.
+
+        public:    
+            auto& get_r()       { return h;               }
+            auto& get_w()       { return h;               }
+            auto& get_r() const { return h;               }
+            auto& get_w() const { return h;               }
+            void  set_r(fd_t f) { h = f;                  }
+            void  set_w(fd_t f) { h = f;                  }
+            operator fd_t ()    { return h;               }
+            operator bool ()    { return h != INVALID_FD; }
+            void close()
+            {
+                if (h != INVALID_FD) ::close(h);
+            }
+            void reset()
+            {
+                h = INVALID_FD;
+            }
+            friend auto& operator<< (std::ostream& s, file const& handle)
+            {
+                return s << handle.h;
+            }
+            file(fd_t fd = INVALID_FD)
+                : h{ fd }
+            { }
+
+        #endif
     };
 
     inline auto error()
@@ -275,14 +362,6 @@ namespace netxs::os
         std::sort(yield.begin(), yield.end());
         return yield;
     }
-
-    struct legacy
-    {
-        static constexpr auto clean  = 0;
-        static constexpr auto mouse  = 1 << 0;
-        static constexpr auto vga16  = 1 << 1;
-        static constexpr auto vga256 = 1 << 2;
-    };
     static auto local_mode()
     {
         auto conmode = -1;
@@ -1261,87 +1340,17 @@ namespace netxs::os
 
     #endif  // Windows specific
 
-    #if defined(_WIN32)
-
-        class file
-        {
-            fd_t r; // file: Read descriptor.
-            fd_t w; // file: Send descriptor.
-
-        public:
-            auto& get_r()       { return r; }
-            auto& get_w()       { return w; }
-            auto& get_r() const { return r; }
-            auto& get_w() const { return w; }
-            void  set_r(fd_t f) { r = f;    }
-            void  set_w(fd_t f) { w = f;    }
-            operator bool ()    { return r != INVALID_FD
-                                      && w != INVALID_FD; }
-            void close()
-            {
-                if (r != INVALID_FD) ::CloseHandle(r);
-                if (w != INVALID_FD) ::CloseHandle(w);
-            }
-            void reset()
-            {
-                r = INVALID_FD;
-                w = INVALID_FD;
-            }
-            friend auto& operator<< (std::ostream& s, file const& handle)
-            {
-                return s << handle.r << "," << handle.w;
-            }
-            file(fd_t fd_r = INVALID_FD, fd_t fd_w = INVALID_FD)
-                : r{ fd_r },
-                  w{ fd_w }
-            { }
-        };
-
-    #else
-
-        class file
-        {
-            fd_t h; // file: RW descriptor.
-
-        public:    
-            auto& get_r()       { return h;               }
-            auto& get_w()       { return h;               }
-            auto& get_r() const { return h;               }
-            auto& get_w() const { return h;               }
-            void  set_r(fd_t f) { h = f;                  }
-            void  set_w(fd_t f) { h = f;                  }
-            operator fd_t ()    { return h;               }
-            operator bool ()    { return h != INVALID_FD; }
-            void close()
-            {
-                if (h != INVALID_FD) ::close(h);
-            }
-            void reset()
-            {
-                h = INVALID_FD;
-            }
-            friend auto& operator<< (std::ostream& s, file const& handle)
-            {
-                return s << handle.h;
-            }
-            file(fd_t fd = INVALID_FD)
-                : h{ fd }
-            { }
-        };
-
-    #endif
-
     template<class SIZE_T>
     auto recv(fd_t fd, char* buff, SIZE_T size)
     {
         #if defined(_WIN32)
 
             DWORD count;
-            auto fSuccess = ::ReadFile( fd,          // pipe handle
-                                        buff,        // buffer to receive reply
-                                        (DWORD)size, // size of buffer
-                                        &count,      // number of bytes read
-                                        nullptr);    // not overlapped
+            auto fSuccess = ::ReadFile( fd,       // pipe handle
+                                        buff,     // buffer to receive reply
+                                 (DWORD)size,     // size of buffer
+                                       &count,    // number of bytes read
+                                        nullptr); // not overlapped
             if (!fSuccess) count = 0;
 
         #else
@@ -1361,11 +1370,11 @@ namespace netxs::os
             #if defined(_WIN32)
 
                 DWORD count;
-                auto fSuccess = ::WriteFile( fd,          // pipe handle
-                                             buff,        // message
-                                             (DWORD)size, // message length
-                                             &count,      // bytes written
-                                             nullptr);    // not overlapped
+                auto fSuccess = ::WriteFile( fd,       // pipe handle
+                                             buff,     // message
+                                      (DWORD)size,     // message length
+                                            &count,    // bytes written
+                                             nullptr); // not overlapped
 
             #else
                 // Mac OS X does not support the flag MSG_NOSIGNAL
@@ -1414,10 +1423,10 @@ namespace netxs::os
         return send(handle.get_w(), std::forward<Args>(args)...);
     }
 
-    #if defined(_WIN32)
+    class fire
+    {
+        #if defined(_WIN32)
         
-        class fire
-        {
             fd_t h; // fire: Descriptor for IO interrupt.
 
         public:
@@ -1425,13 +1434,10 @@ namespace netxs::os
             fire()           { ok(h = ::CreateEvent(NULL, TRUE, FALSE, NULL), "CreateEvent error"); }
            ~fire()           { if (h != INVALID_FD) ::CloseHandle(h); }
             void reset()     { ok(::SetEvent(h), "SetEvent error"); }
-            void flush()     { }
-        };
+            void flush()     { ok(::ResetEvent(h), "ResetEvent error"); }
 
-    #else
+        #else
 
-        class fire
-        {
             fd_t h[2] = { INVALID_FD, INVALID_FD }; // fire: Descriptors for IO interrupt.
             char x = 1;
 
@@ -1441,9 +1447,9 @@ namespace netxs::os
            ~fire()           { for (auto f : h) if (f != INVALID_FD) ::close(f); }
             void reset()     { os::send(h[1], &x, sizeof(x)); }
             void flush()     { os::recv(h[0], &x, sizeof(x)); }
-        };
 
-    #endif
+        #endif
+    };
 
     static auto set_palette(si32 legacy)
     {
@@ -1503,7 +1509,37 @@ namespace netxs::os
     {
         #if defined(_WIN32)
 
-            //...
+            template<class A, std::size_t... I>
+            constexpr auto _repack(fd_t h, A const& a, std::index_sequence<I...>)
+            {
+                return std::array{ h, a[I]... };
+            }
+            template<std::size_t N, class P, class IDX = std::make_index_sequence<N>, class ...Args>
+            constexpr auto _combine(std::array<fd_t, N> const& a, fd_t h, P&& proc, Args&&... args)
+            {
+                if constexpr (sizeof...(args)) return _combine(_repack(h, a, IDX{}), std::forward<Args>(args)...);
+                else                           return _repack(h, a, IDX{});
+            }
+            template<class P, class ...Args>
+            constexpr auto _fd_set(fd_t handle, P&& proc, Args&&... args)
+            {
+                if constexpr (sizeof...(args)) return _combine(std::array{ handle }, std::forward<Args>(args)...);
+                else                           return std::array{ handle };
+            }
+            template<class R, class P, class ...Args>
+            constexpr auto _handle(R& i, fd_t handle, P&& proc, Args&&... args)
+            {
+                if (i-- == 0)
+                {
+                    proc();
+                    return true;
+                }
+                else
+                {
+                    if constexpr (sizeof...(args)) return _handle(i, std::forward<Args>(args)...);
+                    else                           return faux;
+                }
+            }
 
         #else
             
@@ -1535,16 +1571,20 @@ namespace netxs::os
 
         #endif
     }
+
     template<class ...Args>
     void select(Args&&... args)
     {
         #if defined(_WIN32)
 
-        //...
+            auto socks = _fd_set(std::forward<Args>(args)...);
+            auto yield = ::WaitForMultipleObjects(sizeof(socks), socks.data(), FALSE, INFINITE);
+                 yield -= WAIT_OBJECT_0;
+            _handle(yield, std::forward<Args>(args)...);
 
         #else
 
-            fd_set socks;
+            auto socks = fd_set{};
             FD_ZERO(&socks);
 
             auto nfds = 1 + _fd_set(socks, std::forward<Args>(args)...);
@@ -1631,10 +1671,10 @@ namespace netxs::os
                     return faux;
                 }
 
-                log("sock: creds from SO_PEERCRED",
-                    ":  pid=", cred.pid,
-                    ", euid=", cred.uid,
-                    ", egid=", cred.gid);
+                log("sock: creds from SO_PEERCRED:",
+                        "\n\t  pid: ", cred.pid,
+                        "\n\t euid: ", cred.uid,
+                        "\n\t egid: ", cred.gid);
 
             #elif defined(__BSD__)
 
@@ -1650,10 +1690,10 @@ namespace netxs::os
                     return faux;
                 }
 
-                log("sock: creds from getpeereid",
-                    ":  pid=", id,
-                    ", euid=", euid,
-                    ", egid=", egid);
+                log("sock: creds from getpeereid:",
+                        "\n\t  pid: ", id,
+                        "\n\t euid: ", euid,
+                        "\n\t egid: ", egid);
 
             #endif
 
@@ -1752,8 +1792,8 @@ namespace netxs::os
         {
             auto result = qiew{};
 
-            os::select(handle, [&]() { result = os::recv(handle, buff, size); },
-                       signal, [&]() { log("xipc: abort reading"); signal.flush(); });
+            os::select(handle.get_r(), [&]() { result = os::recv(handle, buff, size); },
+                       signal,         [&]() { log("xipc: abort reading"); signal.flush(); });
 
             return result;
         }
@@ -1820,7 +1860,7 @@ namespace netxs::os
                 //            — it just changes its usability.
                 //To free a socket descriptor, you need to use close()."
 
-                log("xipc: shutdown descriptor ", handle.get_r());
+                log("xipc: shutdown: handle descriptor: ", handle.get_r());
                 if (!ok(::shutdown(handle, SHUT_RDWR), "descriptor shutdown error"))  // Further sends and receives are disallowed.
                 {
                     switch (errno)
@@ -2120,7 +2160,7 @@ namespace netxs::os
 
         void reader(si32 mode)
         {
-            log(" tty: reader thread started");
+            log(" tty: id: ", std::this_thread::get_id(), " reading thread started");
             auto& ipcio =*_globals<void>::ipcio;
 
             #if defined(_WIN32)
@@ -2433,7 +2473,7 @@ namespace netxs::os
 
             #endif
 
-            log(" tty: reader thread completed");
+            log(" tty: id: ", std::this_thread::get_id(), " reading thread ended");
         }
 
         tty()
@@ -2558,22 +2598,24 @@ namespace netxs::os
             if (stdwrite.joinable())
             {
                 writesyn.notify_one();
-                log("xpty: write thread joining");
+                log("xpty: id: ", stdwrite.get_id(), " writing thread joining");
                 stdwrite.join();
             }
             if (stdinput.joinable())
             {
-                log("xpty: input thread joining");
+                log("xpty: id: ", stdinput.get_id(), " reading thread joining");
                 stdinput.join();
             }
             #if defined(_WIN32)
+                auto id = client_exit_waiter.get_id();
                 if (client_exit_waiter.joinable())
                 {
-                    log("xpty: client_exit_waiter thread joining");
+                    log("xpty: id: ", id, " client_exit_waiter thread joining");
                     client_exit_waiter.join();
                 }
-                log("xpty: client_exit_waiter thread joined");
+                log("xpty: id: ", id, " client_exit_waiter thread joined");
             #endif
+            log("xpty: dtor complete");
         }
         
         operator bool () { return termlink; }
@@ -2777,11 +2819,12 @@ namespace netxs::os
             }
 
             #endif
-            log("xpty: wait_child() exit");
+            log("xpty: child waiting complete");
             return exit_code;
         }
         void read_socket_thread()
         {
+            log("xpty: id: ", stdinput.get_id(), " reading thread started");
             text flow;
             while (termlink)
             {
@@ -2797,13 +2840,14 @@ namespace netxs::os
             }
             if (termlink)
             {
-                log("xpty: read_socket_thread ended");
                 auto exit_code = wait_child();
                 shutdown(exit_code);
             }
+            log("xpty: id: ", stdinput.get_id(), " reading thread ended");
         }
         void send_socket_thread()
         {
+            log("xpty: id: ", stdwrite.get_id(), " writing thread started");
             auto guard = std::unique_lock{ writemtx };
             text cache;
             while ((void)writesyn.wait(guard, [&]{ return writebuf.size() || !termlink; }), termlink)
@@ -2816,7 +2860,7 @@ namespace netxs::os
 
                 guard.lock();
             }
-            log("xpty: send_socket_thread ended");
+            log("xpty: id: ", stdwrite.get_id(), " writing thread ended");
         }
         void resize(twod const& newsize)
         {
@@ -2882,7 +2926,7 @@ namespace netxs::os
                             guard.unlock();
                             guest.join();
                             guard.lock();
-                            log("pool: joined client session id=", sid);
+                            log("pool: id: ", sid, " session joined");
                         }
                         it = index.erase(it);
                     }
@@ -2890,28 +2934,28 @@ namespace netxs::os
                 }
             }
         }
+        void checkout()
+        {
+            auto guard = std::lock_guard{ mutex };
+            auto session_id = std::this_thread::get_id();
+            index[session_id].state = faux;
+            synch.notify_one();
+            log("pool: id: ", session_id, " session deleted");
+        }
 
     public:
         auto lock()
         {
             return std::lock_guard{ mutex };
         }
-        void check_out()
+        template<class PROC>
+        void run(PROC process)
         {
             auto guard = std::lock_guard{ mutex };
-            auto session_id = std::this_thread::get_id();
-            index[session_id].state = faux;
-            synch.notify_one();
-            log("pool: session deleted, id=", session_id);
-        }
-        template<class ...Args>
-        void check_in(Args&&... args)
-        {
-            auto guard = std::lock_guard{ mutex };
-            auto session = std::thread(std::forward<Args>(args)...);
+            auto session = std::thread([&, process]() { process(); checkout(); });
             auto session_id = session.get_id();
             index[session_id] = { true, std::move(session) };
-            log("pool: new session, id=", session_id);
+            log("pool: id: ", session_id, " session created");
         }
         auto size()
         {

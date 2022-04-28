@@ -1298,11 +1298,15 @@ namespace netxs::console
                 auto& take(hids& gear)
                 {
                     for (auto& item : items) // Linear search, because a few items.
-                        if (item.id == gear.id)
-                            return item;
+                    {
+                        if (item.id == gear.id) return item;
+                    }
 
                     if constexpr (CONST_WARN)
-                        log("sock: error: access to unregistered input device, id:", gear.id);
+                    {
+                        log("sock: error: access to unregistered input device, id: ", gear.id);
+                    }
+
                     return items.emplace_back(gear.id);
                 }
                 template<class P>
@@ -4362,7 +4366,16 @@ namespace netxs::console
         template<class T, class ...Args>
         auto invite(Args&&... args)
         {
+            auto lock = events::sync{};
             return scene.invite<T>(std::forward<Args>(args)...);
+        }
+        // host: Detach user.
+        template<class T>
+        auto resign(sptr<T>& client)
+        {
+            auto lock = events::sync{};
+            client->detach();
+            client.reset();
         }
 
     protected:
@@ -4473,7 +4486,7 @@ namespace netxs::console
 
         void reader()
         {
-            log("link: std_input thread started");
+            log("link: id: ", std::this_thread::get_id(), " reading thread started");
             while (auto yield = canal->recv())
             {
                 auto guard = std::lock_guard{ mutex };
@@ -4486,9 +4499,9 @@ namespace netxs::console
             {
                 log("link: signaling to close read channel ", canal);
                 owner.SIGNAL(tier::release, e2::conio::quit, "link: read channel is closed");
-                log("link: sig to close read channel complete", canal);
+                log("link: signaling to close read channel complete ", canal);
             }
-            log("link: std_input thread is going to close");
+            log("link: id: ", std::this_thread::get_id(), " reading thread ended");
         }
 
     public:
@@ -4504,11 +4517,12 @@ namespace netxs::console
         ~link()
         {
             canal->shut(); // Terminate all blocking calls.
+            auto id = input.get_id();
             if (input.joinable())
             {
                 input.join();
             }
-            log("link: std_input thread joined");
+            log("link: id: ", id, " reading thread joined");
         }
 
         void output (view buffer)
@@ -4517,6 +4531,7 @@ namespace netxs::console
         }
         void session(text title)
         {
+            log("link: id: ", std::this_thread::get_id(), " conio session started");
             text total;
             auto digit = [](auto c) { return c >= '0' && c <= '9'; };
             auto guard = std::unique_lock{ mutex };
@@ -5054,7 +5069,7 @@ again:
                 guard.lock();
             }
 
-            log("link: std_input thread ended");
+            log("link: id: ", std::this_thread::get_id(), " conio session ended");
         }
         // link: Interrupt the run only.
         void shutdown ()
@@ -5104,8 +5119,6 @@ again:
         void render()
         {
             using time = moment;
-
-            log("rend: thread started");
 
             auto fallback = [&](auto& c, auto& state, auto& frame)
             {
@@ -5432,9 +5445,9 @@ again:
               mutex{ input.sync },
               cache{ input.xmap.pick() }
         {
-            log("diff: ctor start");
             paint = work([&]
                 { 
+                    log("diff: id: ", std::this_thread::get_id(), " rendering thread started");
                     switch (video)
                     {
                         case svga::truecolor: render<svga::truecolor>(); break;
@@ -5442,21 +5455,21 @@ again:
                         case svga::vga256:    render<svga::vga256   >(); break;
                         default: break;
                     }
+                    log("diff: id: ", std::this_thread::get_id(), " rendering thread ended");
                 });
-            log("diff: ctor complete");
         }
         ~diff()
         {
-            log("diff: dtor");
             if (paint.joinable())
             {
+                auto id = paint.get_id();
                 mutex.lock();
                 alive = faux;
                 ready = true;
                 synch.notify_all();
                 mutex.unlock();
                 paint.join();
-                log("diff: render thread joined");
+                log("diff: id: ", id, " rendering thread joined");
             }
         }
 
@@ -5483,6 +5496,7 @@ again:
         #endif
 
         using pair = std::optional<std::pair<period, si32>>;
+        using sptr = netxs::sptr<base>;
         pair yield; // gate: Indicator that the current frame has been successfully STDOUT'd.
         para uname; // gate: Client name.
         text uname_txt; // gate: Client name (original).
@@ -5493,21 +5507,55 @@ again:
         face clip_preview; // gate: Clipboard render.
 
     public:
-        sptr<base> uibar; // gate: Local UI overlay, UI bar/taskbar/sidebar.
-        sptr<base> background; // gate: Local UI background.
+        sptr uibar; // gate: Local UI overlay, UI bar/taskbar/sidebar.
+        sptr background; // gate: Local UI background.
 
-        // Main loop.
-        void proceed(os::xipc media /*session socket*/, text title)
+        // gate: Attach a new item.
+        template<class T>
+        auto attach(netxs::sptr<T> item)
         {
-            if (auto world = base::parent())
-            {
+            uibar = item;
+            item->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
+            return item;
+        }
+        // gate: Create a new item of the specified subtype and attach it.
+        template<class T, class ...Args>
+        auto attach(Args&&... args)
+        {
+            return attach(base::create<T>(std::forward<Args>(args)...));
+        }
+        // gate: Attach background object.
+        template<class T>
+        auto ground(netxs::sptr<T> item)
+        {
+            background = item;
+            item->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
+            return item;
+        }
+        // Main loop.
+        template<class PROPS>
+        void run(sptr deskmenu, sptr bkground, os::xipc media /*session socket*/, PROPS const& conf)
+        {
+            auto lock = events::unique_lock();
+
+                attach(deskmenu);
+                ground(bkground);
+                color(conf.background_color.fgc(), conf.background_color.bgc());
+                auto conf_usr_name = conf.name;
+                SIGNAL(tier::release, e2::form::prop::name, conf_usr_name);
+                SIGNAL(tier::preview, e2::form::prop::header, conf_usr_name);
+                base::moveby(conf.coor);
+
+                clip_preview.size(conf.clip_preview_size); //todo unify/make it configurable
+                legacy |= conf.legacy_mode;
+
+                auto world = base::parent();
                 auto vga_mode = legacy & os::legacy::vga16  ? svga::vga16
                               : legacy & os::legacy::vga256 ? svga::vga256
                                                             : svga::truecolor;
                 link conio{ *this, media }; // gate: Terminal IO.
                 diff paint{ conio, input, vga_mode }; // gate: Rendering loop.
                 subs token;                 // gate: Subscription tokens array.
-                clip_preview.size({80,25}); //todo unify/make it configurable
 
                 // conio events.
                 SUBMIT_T(tier::release, e2::conio::size, token, newsize)
@@ -5552,18 +5600,18 @@ again:
                 //};
                 SUBMIT_T(tier::release, e2::form::prop::header, token, newheader)
                 {
-                    text title;
-                    title.reserve(newheader.length());
+                    text temp;
+                    temp.reserve(newheader.length());
                     if (native)
                     {
-                        title = newheader;
+                        temp = newheader;
                     }
                     else
                     {
-                        para{ newheader }.lyric->each([&](auto c) { title += c.txt(); });
+                        para{ newheader }.lyric->each([&](auto c) { temp += c.txt(); });
                     }
-                    log("gate: title changed to '", title, ansi::nil().add("'"));
-                    conio.output(ansi::tag(title));
+                    log("gate: title changed to '", temp, ansi::nil().add("'"));
+                    conio.output(ansi::tag(temp));
                 };
                 SUBMIT_T(tier::release, e2::command::cout, token, extra_data)
                 {
@@ -5613,19 +5661,17 @@ again:
                         yield = paint.commit(cache.canvas); // Try output my canvas to the my console.
                     #endif
                 };
+            lock.unlock();
 
-                conio.session(title);
-                mouse.reset(); // Reset active mouse clients to avoid hanging pointers.
-            }
+            conio.session(conf.title);
+            mouse.reset(); // Reset active mouse clients to avoid hanging pointers.
         }
 
     protected:
-        gate(view user_name, si32 legacy_mode)
+        gate()
         {
             //todo unify
-            uname = uname_txt = user_name;
             title.live = faux;
-            legacy = legacy_mode;
             mouse.draggable<sysmouse::leftright>(true);
             mouse.draggable<sysmouse::left>(true);
             SUBMIT(tier::release, e2::form::drag::start::any, gear)
@@ -5649,6 +5695,10 @@ again:
             SUBMIT(tier::release, e2::form::prop::fullscreen, state)
             {
                 fullscreen = state;
+            };
+            SUBMIT(tier::release, e2::form::prop::name, user_name)
+            {
+                uname = uname_txt = user_name;
             };
             SUBMIT(tier::request, e2::form::prop::name, user_name)
             {
@@ -5717,7 +5767,7 @@ again:
                     {
                         if (auto world = base::parent())
                         {
-                            sptr<base> item_ptr;
+                            sptr item_ptr;
                             if (pgdn) world->SIGNAL(tier::request, e2::form::proceed::detach, item_ptr); // Take prev item
                             else      world->SIGNAL(tier::request, e2::form::proceed::attach, item_ptr); // Take next item
 
@@ -5845,29 +5895,60 @@ again:
                 #endif
             };
         }
+    };
 
+    class conf
+    {
     public:
-        // gate: Attach a new item.
-        template<class T>
-        auto attach(sptr<T> item)
+        text ip;
+        text port;
+        text fullname;
+        text region;
+        text name;
+        text os_user_id;
+        text title;
+        twod coor;
+        twod clip_preview_size;
+        si32 legacy_mode;
+        cell background_color;
+        si32 session_id;
+
+        conf(os::xipc peer, si32 session_id)
+            : session_id{ session_id }
         {
-            uibar = item;
-            item->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
-            return item;
+            auto _region = peer->line(';');
+            auto _ip     = peer->line(';');
+            auto _name   = peer->line(';');
+            auto _user   = peer->line(';');
+            auto _mode   = peer->line(';');
+
+            _user = "[" + _user + ":" + std::to_string(session_id) + "]";
+            auto c_info = utf::divide(_ip, " ");
+            ip   = c_info.size() > 0 ? c_info[0] : text{};
+            port = c_info.size() > 1 ? c_info[1] : text{};
+            legacy_mode       = utf::to_int(_mode, os::legacy::clean);
+            os_user_id        = _user;
+            clip_preview_size = twod{ 80,25 };
+            //background_color  = app::shared::background_color;
+            coor              = twod{ 0,0 }; //todo Move user's viewport to the last saved position
+            region            = _region;
+            fullname          = _name;
+            #ifndef PROD
+            name              = "[User." + utf::remain(ip) + ":" + port + "]";
+            title             = _region;
+            #else
+            name              = _user;
+            title             = _user;
+            #endif
         }
-        // gate: Create a new item of the specified subtype and attach it.
-        template<class T, class ...Args>
-        auto attach(Args&&... args)
+
+        friend auto& operator<< (std::ostream& s, conf const& c)
         {
-            return attach(base::create<T>(std::forward<Args>(args)...));
-        }
-        // gate: Attach background object.
-        template<class T>
-        auto ground(sptr<T> item)
-        {
-            background = item;
-            item->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
-            return item;
+            return s << "\n\t    ip: " <<(c.ip.empty() ? text{} : (c.ip + ":" + c.port))
+                     << "\n\tregion: " << c.region
+                     << "\n\t  name: " << c.fullname
+                     << "\n\t  user: " << c.os_user_id
+                     << "\n\t  mode: " << os::legacy::str(c.legacy_mode);
         }
     };
 }

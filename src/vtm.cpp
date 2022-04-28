@@ -99,8 +99,6 @@ int main(int argc, char* argv[])
 
     banner();
 
-    auto user = os::user();
-    auto path = prefix(user);
     auto spot = utf::text{};
     auto conf = utf::text{};
     {
@@ -130,6 +128,11 @@ int main(int argc, char* argv[])
     {
         os::start_log("vtm");
 
+        auto user = os::user();
+        auto host = os::get_env("SSH_CLIENT");
+        auto name = os::get_env("USER");
+        auto mode = os::legacy_mode();
+        auto path = prefix(user);
         auto link = os::ipc::open<os::client>(path, 10s, [&]()
                     {
                         log("main: new desktop environment for user ", user);
@@ -143,9 +146,6 @@ int main(int argc, char* argv[])
             return 1;
         }
 
-        auto host = os::get_env("SSH_CLIENT");
-        auto name = os::get_env("USER");
-        auto mode = os::legacy_mode();
         link->send(utf::concat(spot, ";",
                                host, ";",
                                name, ";",
@@ -171,6 +171,8 @@ int main(int argc, char* argv[])
     }
     else
     {
+        auto user = os::user();
+        auto path = prefix(user);
         auto link = os::ipc::open<os::server>(path);
         if (!link)
         {
@@ -189,111 +191,33 @@ int main(int argc, char* argv[])
 
         world->SIGNAL(tier::general, e2::config::fps, 60);
 
-        auto sessions = os::pool{};
+        auto session = os::pool{};
         while (auto peer = link->meet())
         {
-            auto lock = sessions.lock();
-
             if (!peer->cred(user))
             {
                 log("main: abort: foreign users are not allowed to the session");
                 continue;
             }
 
-            //todo unify
-            auto _region = peer->line(';');
-            auto _ip     = peer->line(';');
-            auto _user   = peer->line(';');
-            auto _name   = peer->line(';');
-            auto _mode   = peer->line(';');
-            log("main: new user:",
-                   "\n\t    ip: ", _ip,
-                   "\n\tregion: ", _region,
-                   "\n\t  user: ", _user,
-                   "\n\t  name: ", _name,
-                   "\n\t  mode: ", _mode);
+            auto lock = session.lock();
+            auto conf = console::conf(peer, session.next());
+            log("main: incoming connection:", conf);
 
-            //todo unify
-            text c_ip;
-            text c_port;
-            auto c_info = utf::divide(_ip, " ");
-            if (c_info.size() > 0) c_ip   = c_info[0];
-            if (c_info.size() > 1) c_port = c_info[1];
-            utf::change(_ip, " ", ":");
+            conf.background_color = app::shared::background_color; //todo unify
 
-            //todo Move user's viewport to the last saved position
-            auto user_coor = twod{};
-
-            //todo distinguish users by config, enumerate if no config
-            _name = "[" + _name + ":" + std::to_string(sessions.next()) + "]";
-            log("main: creating a new session for user ", _name);
-
-            sessions.check_in([&sessions,
-                               &world,
-                                _name,
-                                _mode,
-                                _region,
-                                peer,
-                                user,
-                                c_ip,
-                                c_port,
-                                user_coor]()
+            session.run([&, peer, conf]()
             {
-                log("user: session name ", peer);
+                if (auto client = world->invite<ui::gate>())
+                {
+                    log("user: new gate for ", peer);
+                    auto deskmenu = app::shared::creator("Desk")(utf::concat(client->id, ";", conf.os_user_id));
+                    auto bkground = app::shared::creator("Fone")("Shop;Demo;");
+                    client->run(deskmenu, bkground, peer, conf);
 
-                #ifndef PROD
-                    auto username = "[User." + utf::remain(c_ip) + ":" + c_port + "]";
-                #else
-                    auto username = _name;
-                #endif
-
-                auto lock = std::make_unique<events::sync>();
-                    auto legacy_mode = os::legacy::clean;
-                    if (auto mode = utf::to_int(view(_mode)))
-                    {
-                        legacy_mode = mode.value();
-                    }
-                    auto client = world->invite<ui::gate>(username, legacy_mode);
-
-                    auto& menu_builder = app::shared::creator("Desk");
-                    auto deskmenu = menu_builder(utf::concat(client->id, ";", user));
-
-                    auto& fone_builder = app::shared::creator("Fone");
-                    auto bkground = fone_builder(
-                    //todo
-                    //#ifndef PROD
-                        "Shop;Demo;"
-                    //#else
-                    //    "HeadlessTerm;Info;ssh info@netxs.online"
-                    //#endif
-                    );
-            
-                    client->attach(deskmenu);
-                    client->ground(bkground);
-                    client->color(app::shared::background_color.fgc(), app::shared::background_color.bgc());
-                    text header = username;
-                    client->SIGNAL(tier::release, e2::form::prop::name, header);
-                    client->SIGNAL(tier::preview, e2::form::prop::header, header);
-                    client->base::moveby(user_coor);
-                lock.reset();
-                log("user: new gate for ", peer);
-
-                client->proceed(peer,
-                    #ifndef PROD
-                        _region
-                    #else
-                        username
-                    #endif
-                    );
-
-                lock = std::make_unique<events::sync>();
-                    log("user: ", peer, " has logged out");
-                    client->detach();
-                    log("user: ", peer, " is diconnected");
-                    client.reset();
-                lock.reset();
-
-                sessions.check_out();
+                    world->resign(client);
+                    log("user: ", peer, " logged out");
+                }
             });
         }
 

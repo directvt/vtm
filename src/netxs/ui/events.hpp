@@ -48,6 +48,10 @@ namespace netxs::events
         sync() : lock(_globals<void>::mutex) { }
        ~sync() { }
     };
+    static auto unique_lock()
+    {
+        return std::unique_lock{ _globals<void>::mutex };
+    }
     struct try_sync
     {
         std::unique_lock<std::recursive_mutex> lock;

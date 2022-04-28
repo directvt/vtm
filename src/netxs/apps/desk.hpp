@@ -211,6 +211,8 @@ namespace netxs::app::desk
 
         auto build = [](view v)
         {
+            auto lock = netxs::events::sync{}; // Protect access to the world.
+
             si32 uibar_min_size = 4;
             si32 uibar_full_size = 31;
 
@@ -226,7 +228,7 @@ namespace netxs::app::desk
             }
             auto& user_id___view = user_info[0];
             auto& user_name_view = user_info[1];
-            log("desk: user_id=", user_id___view, " user_name=", user_name_view);
+            log("desk: id: ", user_id___view, ", user name: ", user_name_view);
 
             if (auto value = utf::to_int(user_id___view)) my_id = value.value();
             else return window;
