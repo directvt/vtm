@@ -902,33 +902,6 @@ namespace netxs::app::shared
 
         #endif
 
-        #ifdef DEMO
-            auto creator = [&](text const& menu_item_id, rect area)
-            {
-                auto what = decltype(e2::form::proceed::createat)::type{};
-                what.menuid = menu_item_id;
-                what.square = area;
-                world->SIGNAL(tier::release, e2::form::proceed::createat, what);
-            };
-            auto sub_pos = twod{ 12+17, 0 };
-            creator(objs_lookup["Tile"], { twod{ 40 + 85,-10 } + sub_pos, {160, 42 } });
-            creator(objs_lookup["Test"], { twod{ 22     , 1  } + sub_pos, { 70, 21 } });
-            creator(objs_lookup["Shop"], { twod{ 4      , 6  } + sub_pos, { 82, 38 } });
-            creator(objs_lookup["Calc"], { twod{ 15     , 15 } + sub_pos, { 65, 23 } });
-            creator(objs_lookup["Text"], { twod{ 30     , 22 } + sub_pos, { 59, 26 } });
-            creator(objs_lookup["MC"  ], { twod{ 49     , 28 } + sub_pos, { 68, 22 } });
-            creator(objs_lookup["Term"], { twod{ 34     , 38 } + sub_pos, { 64, 16 } });
-            creator(objs_lookup["Term"], { twod{ 44 + 85, 35 } + sub_pos, { 64, 15 } });
-            creator(objs_lookup["Term"], { twod{ 40 + 85, 42 } + sub_pos, { 64, 15 } });
-            creator(objs_lookup["View"], { twod{ 0, 7 } + twod{ -120, 60 }, { 120, 52 } });
-            creator(objs_lookup["View"], { twod{ 0,-1 } + sub_pos, { 120, 52 } });
-
-            sub_pos = twod{-120, 60};
-            creator(objs_lookup["Truecolor"  ], { twod{ 20, 15 } + sub_pos, { 70, 30 } });
-            creator(objs_lookup["Logs"       ], { twod{ 52, 33 } + sub_pos, { 45, 12 } });
-            creator(objs_lookup["Settings"   ], { twod{ 60, 41 } + sub_pos, { 35, 10 } });
-        #endif
-
         world->SUBMIT(tier::release, e2::form::proceed::createby, gear)
         {
             static si32 insts_count = 0;
@@ -1024,6 +997,33 @@ namespace netxs::app::shared
 
             what.object = window;
         };
+
+        #ifdef DEMO
+            auto creator = [&](text const& menu_item_id, rect area)
+            {
+                auto what = decltype(e2::form::proceed::createat)::type{};
+                what.menuid = menu_item_id;
+                what.square = area;
+                world->SIGNAL(tier::release, e2::form::proceed::createat, what);
+            };
+            auto sub_pos = twod{ 12+17, 0 };
+            creator(objs_lookup["Tile"], { twod{ 40 + 85,-10 } + sub_pos, {160, 42 } });
+            creator(objs_lookup["Test"], { twod{ 22     , 1  } + sub_pos, { 70, 21 } });
+            creator(objs_lookup["Shop"], { twod{ 4      , 6  } + sub_pos, { 82, 38 } });
+            creator(objs_lookup["Calc"], { twod{ 15     , 15 } + sub_pos, { 65, 23 } });
+            creator(objs_lookup["Text"], { twod{ 30     , 22 } + sub_pos, { 59, 26 } });
+            creator(objs_lookup["MC"  ], { twod{ 49     , 28 } + sub_pos, { 68, 22 } });
+            creator(objs_lookup["Term"], { twod{ 34     , 38 } + sub_pos, { 64, 16 } });
+            creator(objs_lookup["Term"], { twod{ 44 + 85, 35 } + sub_pos, { 64, 15 } });
+            creator(objs_lookup["Term"], { twod{ 40 + 85, 42 } + sub_pos, { 64, 15 } });
+            creator(objs_lookup["View"], { twod{ 0, 7 } + twod{ -120, 60 }, { 120, 52 } });
+            creator(objs_lookup["View"], { twod{ 0,-1 } + sub_pos, { 120, 52 } });
+
+            sub_pos = twod{-120, 60};
+            creator(objs_lookup["Truecolor"  ], { twod{ 20, 15 } + sub_pos, { 70, 30 } });
+            creator(objs_lookup["Logs"       ], { twod{ 52, 33 } + sub_pos, { 45, 12 } });
+            creator(objs_lookup["Settings"   ], { twod{ 60, 41 } + sub_pos, { 35, 10 } });
+        #endif
     };
 }
 
